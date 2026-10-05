@@ -1,0 +1,28 @@
+/* Cessna NAV III panel widgets (split rockers, 3-position STBY BATT switch, breaker board). */
+.n3-split{display:inline-grid;grid-template-columns:auto auto;gap:2px;padding:6px 6px 4px;border:1px solid var(--rule);border-radius:7px;background:var(--panel2)}
+.n3-split > b{grid-column:span 2;text-align:center;font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--muted);font-weight:500}
+.n3-split .rock{width:46px}
+.n3-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.n3-stby{display:grid;gap:4px;padding:6px 8px;border:1px solid var(--rule);border-radius:7px;background:var(--panel2)}
+.n3-stby > b{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:6px}
+.n3-stby .seg button{min-width:44px}
+.n3-lamp{display:inline-block;width:10px;height:10px;border-radius:50%;background:#24402C;border:1px solid #0E1A12}
+.n3-lamp.on{background:#33FF66;box-shadow:0 0 8px #33FF66}
+.n3-seg{display:flex;border:1px solid var(--rule);border-radius:5px;overflow:hidden}
+.n3-seg button{appearance:none;border:0;border-right:1px solid var(--rule);background:var(--panel);color:var(--ink);font-family:var(--f-mono);font-size:11px;padding:6px 9px;cursor:pointer;touch-action:manipulation}
+.n3-seg button:last-child{border-right:0}
+.n3-seg button[aria-pressed="true"]{background:var(--c,#1B5E88);color:#fff}
+.chip.fixed{cursor:default}
+button.chip.fixed:hover{border-color:var(--rule)}
+.chip.tripped,.bus.on .chip.tripped{background:repeating-linear-gradient(90deg,#fff3d6 0 3px,#f2d18a 3px 6px);color:#6b4a00;text-decoration:line-through;opacity:1;border-color:#d39b16;cursor:pointer}
+.chip.tripped::after{content:" ⏏ reset";}
+.chip i{font-style:normal;opacity:.65}
+.n3-meter{display:block}
+.n3-meter .ro b.amber{color:#B98A00}
+.n3-dia{width:100%;height:auto;display:block;margin:4px 0 2px}
+.n3-dia text{font-family:var(--f-mono);font-size:10px;fill:var(--ink)}
+.n3-dia .w{stroke:var(--rule);stroke-width:2;fill:none}
+.n3-dia .w.on{stroke:var(--elec)}
+.n3-dia rect.b{fill:var(--panel2);stroke:var(--rule)}
+.n3-dia rect.b.on{stroke:var(--elec);fill:color-mix(in srgb,var(--elec) 14%,var(--panel2))}
+.n3-dia .d{fill:var(--muted)}
