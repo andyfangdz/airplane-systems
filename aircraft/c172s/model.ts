@@ -85,8 +85,9 @@ export const C172_FLIGHT: FlightCfg = { ...FLIGHT_DEFAULT, v0: 50, vp: 80, fpmPe
  * GFC 700 configuration. The 172S documents give only the 70–150 KIAS engagement limits (POH 2-21), not an autopilot
  * maximum operating speed, so the generic overspeed protection (MAXSPD, DA40: 165 KIAS) is not modelled here.
  * Bank limit, GA pitch and the NOSE UP/DN reference ranges are DA40 values (NOT IN DOCS for the 172S).
+ * FLC solves for speed with the 172S flight model.
  */
-export const AFCS_CFG: Gfc700Cfg = { ...GFC700_C172S, vmo: Number.POSITIVE_INFINITY };
+export const AFCS_CFG: Gfc700Cfg = { ...GFC700_C172S, vmo: Number.POSITIVE_INFINITY, flight: C172_FLIGHT };
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
 export const live = {
