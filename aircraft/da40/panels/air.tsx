@@ -55,14 +55,14 @@ export function Pitot() {
   const heatState = !s.pitot.heat ? ["PITOT OFF", "warnc"] as [string, "warnc"] : !E.pitotPwr || s.pitot.heaterFail ? ["PITOT FAIL", "warnc"] as [string, "warnc"] : "Heating";
   return (
     <>
-      <p className="lead">One heated pitot-static probe under the left wing measures total pressure at its tip and static pressure at two orifices on its lower and rear edges; filters at the wing root keep out dirt and water. An optional alternate static valve under the panel uses cabin pressure. The stall warning is purely pneumatic: suction at a red-ringed orifice in the left wing leading edge blows a horn in the panel.</p>
+      <p className="lead">One heated pitot-static mast under the left wing measures total pressure at the opening on its leading edge and static pressure at two orifices on its lower and rear edges; filters at the wing root keep out dirt and water. An optional alternate static valve under the panel uses cabin pressure. The stall warning is purely pneumatic: suction at a red-ringed orifice in the left wing leading edge blows a horn in the panel.</p>
       <H3>Pitot heat</H3>
       <Ctl>
         <div className="switches"><Rocker label="PITOT" on={s.pitot.heat} onToggle={() => up((d) => { d.pitot.heat = !d.pitot.heat; })} /></div>
         <Slider id="oat" label="Outside air temperature" min={-25} max={35} step={1} value={s.pitot.oat} onChange={(v) => up((d) => { d.pitot.oat = v; })} fmt={(v) => `${v} °C / ${Math.round((v * 9) / 5 + 32)} °F`} />
         <Check id="hfail" label="Heater failed (thermal fuse blown)" checked={s.pitot.heaterFail} onChange={(v) => up((d) => { d.pitot.heaterFail = v; })} />
         <Check id="alts" label="Alternate static valve OPEN" checked={s.pitot.altStatic} onChange={(v) => up((d) => { d.pitot.altStatic = v; })} />
-        <Readouts items={[["Pitot heat", heatState], ["PITOT 10 A", E.pitotPwr ? "ESSENTIAL · OK" : ["NO POWER", "bad"]], ["Static source", s.pitot.altStatic ? ["CABIN", "warnc"] : "Probe"]]} />
+        <Readouts items={[["Pitot heat", heatState], ["PITOT 10 A", E.pitotPwr ? "ESSENTIAL · OK" : ["NO POWER", "bad"]], ["Static source", s.pitot.altStatic ? ["CABIN", "warnc"] : "Mast"]]} />
       </Ctl>
       <H3>Stall warning</H3>
       <Ctl>
@@ -81,8 +81,8 @@ export function Pitot() {
       <Facts rows={[["PITOT OFF (yellow)", "Pitot heat not switched on"], ["PITOT FAIL (yellow)", "Fault in the pitot heating system — also after long ground use (thermal switch)"], ["AIRSPEED / ALTITUDE / VERT SPEED FAIL", "Red X on the PFD tapes when air data is lost — use the standby instruments"]]} />
       <H3>Details</H3>
       <Facts rows={[
-        ["Probe", "DAI-9034-57-00 heated pitot/static, left wing"],
-        ["Heat control", "PITOT switch; thermal switch + thermal fuse in the probe"],
+        ["Pitot-static mast", "DAI-9034-57-00, heated, under the left wing"],
+        ["Heat control", "PITOT switch; thermal switch + thermal fuse in the mast"],
         ["Heat check", "Before taxi: ON — no PITOT FAIL; OFF if not needed (AFMS p. 45)"],
         ["Air data", "GDC 74A behind the panel; OAT probe under the right fuselage"],
         ["Standby", "Pneumatic airspeed and altimeter"],

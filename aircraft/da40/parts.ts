@@ -6,6 +6,7 @@
  */
 import * as THREE from "three";
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec, type ShellSpec } from "@/lib/catalogue";
+import { afRing, mergeGeos } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
 import { D2R, V, clamp, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
@@ -147,7 +148,7 @@ onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.0
   part(() => { const g = box(TAB.chord, 0.008, Math.abs(TAB.z1 - TAB.z0)); g.translate(-TAB.chord / 2, 0, 0); return g; }, ["controls"], {
     parent: "surf:elev", chan: ["elevator"], pos: [xh - pv[0], SY - pv[1], zc - pv[2]], color: "#9F85E6", ext: true, pin: true,
     anim: (m) => { const t = live.afcs.trim; m.rotation.z = t > 0 ? -t * 12 * D2R : -t * 39 * D2R; },
-    name: "Elevator trim tab", note: "Moved by the Bowden cable from the trim wheel and by the GFC 700 trim servo. Tab travel nose up +12°, nose down −39° with the elevator neutral (TCDS). Side and span assumed.",
+    name: "Elevator trim tab", note: "One GFRP tab in the middle of the elevator trailing edge, behind the top of the fin. Two cranked levers from the actuator bracket at the fin top drive it: the left one by the Bowden cable from the trim wheel (also moved by the GFC 700 trim servo), the right one through a friction damper that stops the tab fluttering if the cable fails (AMM 27-38-00). Tab travel nose up +12°, nose down −39° with the elevator neutral (TCDS). Span approximate.",
   });
 }
 
@@ -433,9 +434,22 @@ part(() => cyl(0.004, 0.3), ["avionics", "cabin"], { pos: [fs(4.9), topY(fs(4.9)
 /* ---------- pitot-static & stall warning ---------- */
 export const PITOT_Z = -3.9;
 export const pitotBase = wingP(PITOT_Z, 0.28, -1);
-part(() => tubeGeo([pitotBase, [pitotBase.x + 0.04, pitotBase.y - 0.13, PITOT_Z]], 0.012), ["pitot"], { name: "Pitot mast", note: "Under the left wing (AFM 7-54). Span station approximate.", ext: true });
-part(() => cyl(0.014, 0.26, "x"), ["pitot"], { pos: [pitotBase.x + 0.16, pitotBase.y - 0.13, PITOT_Z], anim: (m) => { const { s, E } = sim(); const hot = s.pitot.heat && E.pitotPwr && !s.pitot.heaterFail; m.material = (sysNow() === "pitot" || sysNow() === "overview") ? (hot ? mats("#FF8A4A").hi : mats("#3A9448").on) : mats("#3A9448").dim; },
-  name: "Pitot-static probe (heated)", note: "Total pressure at the front; static pressure at two orifices on the lower and rear edges of the same probe. Electrically heated, kept at temperature by a thermal switch, with a thermal fuse (AFM 7-45, 7-54).", ext: true, pin: true });
+/** Streamlined mast hanging below the wing, leaning forward, with a short pitot head at its lower leading edge. */
+const MAST = { h: 0.16, c0: 0.085, c1: 0.055, lean: 0.07, head: 0.05, r: 0.011 };
+const mastAt = (u: number) => ({ y: pitotBase.y + 0.01 - u * MAST.h, c: MAST.c0 + (MAST.c1 - MAST.c0) * u, le: pitotBase.x + 0.035 + MAST.lean * u });
+const MAST_TIP = (() => { const b = mastAt(1); return V(b.le + MAST.head, b.y + 0.012, PITOT_Z); })();
+part(() => {
+  const blade = loft([0, 0.25, 0.5, 0.75, 1].map((u) => { const m = mastAt(u); return afRing(0, 1, 0.16, 0, 12).map(([x, t]) => V(m.le - x * m.c, m.y, PITOT_Z + t * m.c)); }));
+  const head = new THREE.CylinderGeometry(MAST.r * 0.8, MAST.r, MAST.head + 0.02, 16);
+  head.rotateZ(Math.PI / 2); head.translate(MAST_TIP.x - (MAST.head + 0.02) / 2, MAST_TIP.y, PITOT_Z);
+  return mergeGeos([blade, head]);
+}, ["pitot"], {
+  anim: (m) => { const { s, E } = sim(); const hot = s.pitot.heat && E.pitotPwr && !s.pitot.heaterFail; m.material = (sysNow() === "pitot" || sysNow() === "overview") ? (hot ? mats("#FF8A4A").hi : mats("#3A9448").on) : mats("#3A9448").dim; },
+  name: "Pitot-static mast (heated)", ext: true, pin: true,
+  note: "One streamlined mast under the left wing gives both pressures: total pressure at the opening on its leading edge, static pressure at two orifices on its lower and rear edges (AFM 7.12, p. 7-54, which calls it the Pitot probe; P/N DAI-9034-57-00). Electrically heated; a thermal switch holds the temperature and a thermal fuse protects it (AFM 7-45). Span station approximate.",
+});
+part(() => { const g = new THREE.CircleGeometry(MAST.r * 0.45, 12); g.rotateY(Math.PI / 2); return g; }, ["pitot"], { pos: [MAST_TIP.x + 0.0005, MAST_TIP.y, PITOT_Z], color: "#0B1014", name: "Pitot opening", note: "Total (ram) pressure enters at the leading edge of the mast (AFM 7.12). Check it is clean and open on the walk-around (AFM 4A).", ext: true });
+([[0.5, -1], [1, 0]] as const).forEach(([xc, up], i) => { const m = mastAt(1); part(() => sph(0.0045), ["pitot"], { pos: [m.le - xc * m.c + (up ? 0 : -0.002), m.y + (up < 0 ? -0.001 : 0.02), PITOT_Z], color: "#0B1014", name: "Static orifice", note: i === 0 ? "Static pressure is taken at two orifices, on the lower and rear edges of the pitot-static mast (AFM 7.12)." : "Rear-edge static orifice on the pitot-static mast (AFM 7.12).", ext: true }); });
 part(() => box(0.05, 0.03, 0.04), ["pitot"], { pos: [fs(2.3), -0.5, -0.5], color: "#3A9448", name: "Pitot-static filters", note: "Filters against dirt and condensation, reachable from the left wing root (AFM 7-54)." });
 part(() => box(0.05, 0.05, 0.04), ["pitot"], { pos: [fs(1.86), -0.3, -0.42], color: "#3A9448", anim: (m) => { m.rotation.z = sim().s.pitot.altStatic ? 0.8 : 0; }, name: "Alternate static valve", note: "Optional (OAM 40-072), under the panel: OPEN uses cabin pressure. 'If Alternate Static is open Emergency Window and Cockpit Vent must be closed' (AFM 7-54, 2-29).", pin: true });
 export const STALL_Z = -3.0;

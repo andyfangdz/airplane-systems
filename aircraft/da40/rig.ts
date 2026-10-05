@@ -43,8 +43,11 @@ const rudPivot = (): Vec3 => [hingeX(RUD_HORN.h), RUD_HORN.h, 0];
 
 /* ---------- trim ---------- */
 export const TRIM_WHEEL = { c: [fs(2.18), -0.36, 0.07] as Vec3, r: 0.07 };
-/** Elevator trim tab: left inboard elevator trailing edge (side assumed), nose up +12° / nose down −39° (TCDS). */
-export const TAB = { z0: -0.15, z1: -0.55, chord: 0.07 };
+/**
+ * Elevator trim tab: one GFRP tab in the middle of the elevator trailing edge, behind the fin top, where the trim
+ * actuator bracket sits (AMM 27-38-00 Fig. 2); span approximate. Nose up +12° / nose down −39° (TCDS).
+ */
+export const TAB = { z0: -0.22, z1: 0.22, chord: 0.07 };
 
 /* ---------- flaps ---------- */
 /** Flap torsion tube across the fuselage, its ends and arms inside the stub-wing trailing edge. */
