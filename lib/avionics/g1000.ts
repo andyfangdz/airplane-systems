@@ -124,6 +124,10 @@ export interface Gauge {
   alert?: "warning" | "caution" | null;
   /** Text-row content (overrides value/fmt), e.g. "1234.5". */
   text?: string;
+  /** Shorter dial (60 px) or bar (30 px) so a long strip (e.g. two dials, MAN IN + RPM) fits the display. */
+  compact?: boolean;
+  /** Character drawn inside a bar's pointer, e.g. the hottest cylinder number on CHT / EGT. */
+  ptrLabel?: string;
 }
 
 export interface MfdData extends PfdData {
@@ -559,6 +563,7 @@ function eisStrip(ctx: Ctx, x: number, y: number, w: number, h: number, d: MfdDa
 }
 
 const H_OF = { dial: 78, bar: 36, pair: 50, text: 17, text2: 30, head: 18 } as const;
+const H_COMPACT = { dial: 60, bar: 30 } as const;
 
 function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): number {
   const on = blinkOn(t), warn = g.alert === "warning", caut = g.alert === "caution";
@@ -588,20 +593,21 @@ function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): 
       return H_OF.text;
     }
     case "dial": {
-      const cx = x + w / 2, cy = y + 42, r = 33, a0 = 150 * D2R, sw = 240 * D2R, ang = (v: number) => a0 + frac(v) * sw;
+      const k = g.compact, hh = k ? H_COMPACT.dial : H_OF.dial;
+      const cx = x + w / 2, cy = y + (k ? 32 : 42), r = k ? 26 : 33, a0 = 150 * D2R, sw = 240 * D2R, ang = (v: number) => a0 + frac(v) * sw;
       ctx.lineWidth = 6;
       for (const [b0, b1, c] of g.bands ?? []) { ctx.strokeStyle = BAND[c]; ctx.beginPath(); ctx.arc(cx, cy, r - 3, ang(b0), ang(b1)); ctx.stroke(); }
       ctx.strokeStyle = WHITE; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy, r + 1, a0, a0 + sw); ctx.stroke();
       for (let i = 0; i <= 6; i++) { const a = a0 + (i / 6) * sw; line(ctx, cx + Math.cos(a) * (r + 1), cy + Math.sin(a) * (r + 1), cx + Math.cos(a) * (r - 6), cy + Math.sin(a) * (r - 6), WHITE, 1.2); }
-      txt(ctx, g.label, cx, cy + 12, WHITE, 11, "center");
-      if (g.value == null) { redX(ctx, cx - r, cy - r, 2 * r, 2 * r); return H_OF.dial; }
+      txt(ctx, g.label, cx, cy + (k ? 9 : 12), WHITE, k ? 10 : 11, "center");
+      if (g.value == null) { redX(ctx, cx - r, cy - r, 2 * r, 2 * r); return hh; }
       const a = ang(g.value), pc = warn ? RED : caut ? YEL : WHITE;
       poly(ctx, [cx + Math.cos(a) * (r - 1), cy + Math.sin(a) * (r - 1), cx + Math.cos(a + 1.5) * 4, cy + Math.sin(a + 1.5) * 4, cx + Math.cos(a - 1.5) * 4, cy + Math.sin(a - 1.5) * 4], pc, "#000", 1);
-      readout(fmt(g.value), cx, cy + 27, 15, "center");
-      return H_OF.dial;
+      readout(fmt(g.value), cx, cy + (k ? 20 : 27), k ? 14 : 15, "center");
+      return hh;
     }
     case "bar": case "pair": {
-      const pair = g.style === "pair", bx = x + (pair ? 15 : 9), bw = w - (pair ? 30 : 18), by = y + (pair ? 26 : 25);
+      const pair = g.style === "pair", bx = x + (pair ? 15 : 9), bw = w - (pair ? 30 : 18), by = y + (pair ? 26 : g.compact ? 21 : 25);
       if (pair) txt(ctx, g.label, x + w / 2, y + 8, WHITE, 11, "center");
       else { txt(ctx, g.label + (g.unit ? " " + g.unit : ""), x + 6, y + 8, WHITE, 11); if (g.value != null && g.fmt) readout(fmt(g.value), x + w - 6, y + 8, 12, "right"); }
       rect(ctx, bx, by, bw, 6, "#3B4147");
@@ -612,13 +618,13 @@ function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): 
         else poly(ctx, [px, by + 7, px - 6, by + 17, px + 6, by + 17], pc, "#000", 1);
         if (lab) txt(ctx, lab, px, up ? by - 7 : by + 13, "#000", 8, "center");
       };
-      if (g.value == null) redX(ctx, bx, by - 10, bw, 22); else ptr(g.value, true, pair ? "L" : undefined);
+      if (g.value == null) redX(ctx, bx, by - 10, bw, 22); else ptr(g.value, true, pair ? "L" : g.ptrLabel);
       if (pair) {
         if (g.value2 === null) redX(ctx, bx, by - 4, bw, 22); else if (g.value2 != null) ptr(g.value2, false, "R");
         txt(ctx, fmt(g.min), x + 4, by + 3, GRAY, 9); txt(ctx, "F", x + w - 4, by + 3, GRAY, 9, "right");
         return H_OF.pair;
       }
-      return H_OF.bar;
+      return g.compact ? H_COMPACT.bar : H_OF.bar;
     }
   }
 }

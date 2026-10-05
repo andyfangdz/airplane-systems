@@ -30,15 +30,21 @@ export interface Nav3AnnIn {
   /** Vacuum (in.Hg); undefined = no vacuum system installed. */
   vac?: number;
   lowVolts: boolean; highVolts: boolean; stbyBatt: boolean; co: boolean;
+  /** KAP 140 installations only: red PITCH TRIM (needs a "PITCH TRIM" entry in the airplane's own definition list). */
+  pitchTrim?: boolean;
 }
 
-/** Active annunciations, warnings first, in the POH 7-51 order within each level. */
-export function nav3Annunciations(i: Nav3AnnIn): [CasLevel, string][] {
+/**
+ * Active annunciations, warnings first, in the POH 7-51 order within each level. `defs` lets an airplane pass its own
+ * list (its POH page cites, thresholds and extra items such as the KAP 140 PITCH TRIM); it defaults to the 172S set.
+ */
+export function nav3Annunciations(i: Nav3AnnIn, defs: Nav3AnnDef[] = NAV3_ANN): [CasLevel, string][] {
   const on: Record<string, boolean> = {
     "OIL PRESSURE": i.oilPress, "LOW VOLTS": i.lowVolts, "HIGH VOLTS": i.highVolts, "CO LVL HIGH": i.co,
     "LOW FUEL L": i.lowFuelL, "LOW FUEL R": i.lowFuelR, "LOW VACUUM": i.vac != null && i.vac < 3.5, "STBY BATT": i.stbyBatt,
+    "PITCH TRIM": !!i.pitchTrim,
   };
-  return NAV3_ANN.filter((a) => on[a.text]).map((a) => [a.level, a.text]);
+  return defs.filter((a) => on[a.text]).map((a) => [a.level, a.text]);
 }
 
 /** EIS "ELECTRICAL" block: M BUS / E BUS volts and M BATT / S BATT amps with the POH 7-53/7-54 colours. */
