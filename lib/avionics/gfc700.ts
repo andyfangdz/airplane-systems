@@ -16,7 +16,7 @@
 import type { AfcsAnnunc } from "./g1000";
 import {
   bankToHdg, gsDots, isLoc, navDots, pathVs, pitchFor, stdRateBank, trackHdg, vsForIas, vsForPitch, wrap180,
-  type FlightCmd, type FlightState, type NavSrc,
+  type FlightCfg, type FlightCmd, type FlightState, type NavSrc,
 } from "./flight";
 
 export type Gfc700Lat = "ROL" | "HDG" | "GPS" | "VOR" | "LOC" | "BC" | "VAPP" | "GA" | "TO";
@@ -47,6 +47,8 @@ export interface Gfc700Cfg {
   pftSec: number;
   /** Labels for the panel UI: the disconnect switch and the MET switch. */
   discLabel: string; trimLabel: string;
+  /** The airplane's flight-state model (as passed to stepFlight), so FLC and MAXSPD solve for its speeds. Default FLIGHT_DEFAULT. */
+  flight?: FlightCfg;
 }
 
 const BASE: Gfc700Cfg = {
@@ -373,7 +375,7 @@ export function gfc700Command(st: Gfc700State, fs: FlightState, cfg = GFC700_C17
     case "VS": vs = st.ref.vs; break;
     case "FLC": {
       const up = fs.selAlt > fs.alt;
-      vs = vsForIas(fs, st.ref.ias) + (fs.ias - st.ref.ias) * 40;
+      vs = vsForIas(fs, st.ref.ias, cfg.flight) + (fs.ias - st.ref.ias) * 40;
       vs = up ? Math.max(0, vs) : Math.min(0, vs); // never away from the Selected Altitude
       break;
     }
@@ -383,7 +385,7 @@ export function gfc700Command(st: Gfc700State, fs: FlightState, cfg = GFC700_C17
     default: pitch = cfg.gaPitch; // GA / TO
   }
   if (overspeed(st, fs, cfg)) {
-    const lim = vsForIas(fs, cfg.vmo) + (fs.ias - cfg.vmo) * 60;
+    const lim = vsForIas(fs, cfg.vmo, cfg.flight) + (fs.ias - cfg.vmo) * 60;
     vs = Math.max(vs ?? vsForPitch(fs, pitch ?? 0), lim); pitch = undefined;
   }
   if (pitch != null) pitch = clamp(pitch, cfg.pitMin, cfg.pitMax);

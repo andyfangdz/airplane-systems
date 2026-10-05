@@ -12,20 +12,28 @@ import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, V, lerp, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
-import { drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
+import { PinDeclutter } from "./PinDeclutter";
+import { drawBreakers, drawGma, drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { PANEL_X, canopyOutlines, doorOutlines, loft, windowOutlines, wingSec } from "./geometry";
+import { PANEL_X, canopyOutlines, doorOutlines, inFus, loft, windowOutlines, wingSec } from "./geometry";
 import { bladeAngle, extLit, live } from "./model";
-import { CANOPY_HINGE, CANOPY_SHELL, CAT, CYLS, DOOR_HINGE, DOOR_SHELL, LIGHTS, NOSE_CASTER, NOSE_GEAR, PROP } from "./parts";
+import { CANOPY_HINGE, CANOPY_SHELL, CAT, CBP_Z, CYLS, DISPLAY_X, DOOR_HINGE, DOOR_SHELL, GMA_Z, LIGHTS, NOSE_CASTER, NOSE_GEAR, PROP, STBY_X } from "./parts";
 import { deflections } from "./rig";
 import { useDA40 } from "./store";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
 
 /** Control-surface deflections (radians about each hinge axis) from the effective controls and the flap motor. */
+const ang: Record<string, number> = {};
+let angFor: { eff: typeof live.eff | null; flap: number } = { eff: null, flap: NaN };
 function surfaceAngle(key: string) {
-  const c = live.eff, d = deflections(c.pitch, c.roll, c.yaw), fl = live.flapAng * D2R;
-  return ({ flapR: fl, flapL: -fl, ailR: -d.ailR * D2R, ailL: d.ailL * D2R, elev: -d.elev * D2R, rudder: d.rud * D2R } as Record<string, number>)[key] ?? 0;
+  // recomputed only when the tick has produced new control positions (live.eff is replaced every tick)
+  if (angFor.eff !== live.eff || angFor.flap !== live.flapAng) {
+    const c = live.eff, d = deflections(c.pitch, c.roll, c.yaw), fl = live.flapAng * D2R;
+    ang.flapR = fl; ang.flapL = -fl; ang.ailR = -d.ailR * D2R; ang.ailL = d.ailL * D2R; ang.elev = -d.elev * D2R; ang.rudder = d.rud * D2R;
+    angFor = { eff: live.eff, flap: live.flapAng };
+  }
+  return ang[key] ?? 0;
 }
 
 function NoseGear() {
@@ -60,7 +68,7 @@ function Propeller() {
   );
 }
 
-const Cylinders = () => <>{CYLS.map((c) => <group key={c.n} position={[c.x, -0.02, c.s * 0.26]}><P parent={"cyl:" + c.n} /></group>)}</>;
+const Cylinders = () => <>{CYLS.map((c) => <group key={c.n} position={[c.x, -0.05, c.s * 0.26]}><P parent={"cyl:" + c.n} /></group>)}</>;
 
 /** Hinged front canopy and left rear door (closed / cooling gap / open; in flight only partly open). */
 function Openings() {
@@ -101,24 +109,31 @@ const TANKS: TankSpec[] = ([["L", -1], ["R", 1]] as const).map(([k, s]) => ({
   note: "Aluminium tank in the wing, three chambers joined by flexible hose: 25.5 US gal total, 25 usable (AFM 2-23, 7-34). Two probes (inboard + outboard chambers) feed one G1000 gauge.",
 }));
 
-/* ---------- live cockpit displays (GDU 1040 PFD / GDU 1044 MFD, 10.4 in.) ---------- */
-const sx = PANEL_X - 0.022;
+/* ---------- live cockpit displays (GDU 1040 PFD / GDU 1042 MFD — or the optional GDU 1044 — 10.4 in.) ---------- */
+const sx = DISPLAY_X, st = STBY_X - 0.0095;
 const SCREENS: ScreenSpec[] = [
-  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: [sx, -0.03, -0.26], sys: ["avionics", "autopilot", "electrical"], name: "PFD — GDU 1040",
+  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: [sx, -0.03, -0.26], sys: ["avionics", "autopilot"], name: "PFD — GDU 1040",
     note: "Attitude, airspeed, altitude, HSI, AFCS status bar and annunciation window. PFD 5 A on ESSENTIAL. If the MFD fails it shows the composite (reversionary) format with engine data.",
     draw: (ctx, W, H) => { const { s, E } = useDA40.getState(); drawPfdScreen(ctx, W, H, s, E); } },
-  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: [sx, -0.03, 0.13], sys: ["avionics", "autopilot", "engine", "fuel", "electrical"], name: "MFD — GDU 1044",
-    note: "Engine indication strip on the left, map on the right; AFCS keys on its bezel. MFD 5 A on MAIN — lost on ESS BUS. Takes over the PFD in reversionary mode.",
+  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: [sx, -0.03, 0.13], sys: ["avionics", "autopilot"], name: "MFD — GDU 1042 / 1044",
+    note: "Engine indication strip on the left, map on the right; AFCS keys on its bezel. GDU 1042, or the optional GDU 1044 that adds the VNV key (AFMS p. 57) — N949KC's fit is unconfirmed. MFD 5 A on MAIN — lost on ESS BUS. Takes over the PFD in reversionary mode.",
     draw: (ctx, W, H) => { const { s, E } = useDA40.getState(); drawMfdScreen(ctx, W, H, s, E); } },
-  { key: "sasi", px: [200, 200], size: [0.07, 0.07], pos: [sx, 0.15, -0.107], sys: ["avionics", "pitot"], name: "Standby airspeed",
+  { key: "sasi", px: [200, 200], size: [0.08, 0.08], pos: [st, 0.15, -0.107], sys: ["avionics", "pitot"], name: "Standby airspeed",
     note: "Pneumatic (pitot-static), works with no electrical power. Markings: white 49–91, green 52–129, yellow 129–178, red 178 KIAS (AFM 2-4).",
     draw: (ctx, W, H) => drawStbyAsi(ctx, W, H, useDA40.getState().s) },
-  { key: "satt", px: [200, 200], size: [0.07, 0.07], pos: [sx, 0.15, -0.008], sys: ["avionics", "electrical"], name: "Standby attitude",
+  { key: "satt", px: [200, 200], size: [0.08, 0.08], pos: [st, 0.15, -0.008], sys: ["avionics"], name: "Standby attitude",
     note: "Electric (BF Goodrich AIM 1100): HORIZON 3 A on ESSENTIAL, or the emergency battery with HORIZON EMERGENCY ON. OFF flag when unpowered.",
     draw: (ctx, W, H) => drawStbyAtt(ctx, W, H, useDA40.getState().E) },
-  { key: "salt", px: [200, 200], size: [0.07, 0.07], pos: [sx, 0.15, 0.089], sys: ["avionics", "pitot"], name: "Standby altimeter",
+  { key: "salt", px: [200, 200], size: [0.08, 0.08], pos: [st, 0.15, 0.089], sys: ["avionics", "pitot"], name: "Standby altimeter",
     note: "Pneumatic; set both altimeters before taxi (AFMS p. 45).",
     draw: (ctx, W, H) => drawStbyAlt(ctx, W, H, useDA40.getState().s) },
+  // face-plate textures: the breaker panel shows pulled breakers live; the audio panel shows its key layout
+  { key: "cbp", px: [240, 304], size: [0.148, 0.188], pos: [PANEL_X - 0.041, -0.03, CBP_Z], sys: ["electrical"], name: "Circuit-breaker panel",
+    note: "ESSENTIAL, MAIN and MAIN AVIONICS rows, right of the MFD; a pulled breaker shows its white collar. Tap the breakers in the Electrical panel.",
+    draw: (ctx, W, H) => drawBreakers(ctx, W, H, useDA40.getState().s) },
+  { key: "gma", px: [96, 320], size: [0.056, 0.19], pos: [PANEL_X - 0.051, -0.03, GMA_Z], sys: ["avionics"], name: "GMA 1347 audio panel",
+    note: "COM/NAV audio selection, intercom, marker beacon and the red DISPLAY BACKUP button at the bottom. AUDIO 5 A on ESSENTIAL in the GFC 700 airplane.",
+    draw: (ctx, W, H) => drawGma(ctx, W, H, useDA40.getState().E.audio) },
 ];
 
 /* ---------- exterior + interior light glows ---------- */
@@ -153,6 +168,12 @@ const BEAMS: BeamSpec[] = [
 ];
 
 const rates = () => { const { s, E } = useDA40.getState(); return flowRates(s, E); };
+/** Label priority: parts whose first (home) system is the one shown win overlaps. */
+const homeSys = new Map(CAT.parts.filter((p) => p.name).map((p) => [p.name!, p.sys[0]]));
+const pinRank = (label: string, sys: string) => (homeSys.get(label) === sys ? 0 : 1);
+/** With X-ray off and the camera outside the fuselage, only parts outside the skin keep their labels. */
+const extNames = new Set(CAT.parts.filter((p) => p.ext && p.name).map((p) => p.name!));
+const pinHide = (label: string, camera: THREE.Camera) => !useView.getState().xray && !extNames.has(label) && !inFus(camera.position);
 const flowColor = (k: string, out: THREE.Color) => { if (!isCabinAir(k)) return false; cabinAirColor(useDA40.getState().s, out); return true; };
 
 /** The DA40 XLS scene: airframe shells, control surfaces, moving assemblies, tanks, displays and lights. */
@@ -172,6 +193,7 @@ export function Model() {
       <Screens screens={SCREENS} />
       <LightFX glows={GLOWS} beams={BEAMS} />
       <WindowOutlines loops={windowOutlines} />
+      <PinDeclutter rank={pinRank} hide={pinHide} />
     </>
   );
 }

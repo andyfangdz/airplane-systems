@@ -1,4 +1,5 @@
 "use client";
+import { useReducer } from "react";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -49,6 +50,8 @@ export function Controls() {
     const [p, t] = v === "all" ? SYS.find((d) => d.id === "controls")!.cam : CHAN_CAM[v];
     flyTo(p, t);
   };
+  // the trim lives in `live` (outside React): re-render on input so the slider doesn't snap back until the next tick
+  const [, bump] = useReducer((n: number) => n + 1, 0);
   const e = live.eff, d = deflections(e.pitch, e.roll, e.yaw), trim = live.afcs.trim;
   const apOn = gfc700Engaged(live.afcs);
   return (
@@ -60,7 +63,7 @@ export function Controls() {
         <Slider id="ctlPitch" label="Stick pitch (push ↔ pull)" min={-1} max={1} step={0.01} value={s.ctrl.pitch} onChange={(v) => up((x) => { x.ctrl.pitch = v; })} fmt={(v) => dir(v, "Nose up", "Nose down", "Neutral")} />
         <Slider id="ctlRoll" label="Stick roll" min={-1} max={1} step={0.01} value={s.ctrl.roll} onChange={(v) => up((x) => { x.ctrl.roll = v; })} fmt={(v) => dir(v, "Right", "Left", "Neutral")} />
         <Slider id="ctlYaw" label="Rudder pedals" min={-1} max={1} step={0.01} value={s.ctrl.yaw} onChange={(v) => up((x) => { x.ctrl.yaw = v; })} fmt={(v) => dir(v, "Right", "Left", "Neutral")} />
-        <Slider id="trimW" label="Trim wheel (forward = nose down)" min={-1} max={1} step={0.01} value={trim} onChange={(v) => { live.afcs = { ...live.afcs, trim: v }; }} fmt={(v) => dir(v, `Nose up ${Math.round(v * 100)}%`, `Nose down ${Math.round(-v * 100)}%`, "Neutral")} />
+        <Slider id="trimW" label="Trim wheel (forward = nose down)" min={-1} max={1} step={0.01} value={trim} onChange={(v) => { live.afcs = { ...live.afcs, trim: v }; bump(); }} fmt={(v) => dir(v, `Nose up ${Math.round(v * 100)}%`, `Nose down ${Math.round(-v * 100)}%`, "Neutral")} />
         <BtnRow><button type="button" className="btn" onClick={() => up((x) => { x.ctrl = { pitch: 0, roll: 0, yaw: 0 }; })}>Centre controls</button></BtnRow>
         <Readouts items={[
           ["Elevator", d.elev > 0.3 ? `${d.elev.toFixed(0)}° up` : d.elev < -0.3 ? `${(-d.elev).toFixed(0)}° down` : "0°"],

@@ -17,7 +17,10 @@ export function scenarioCruise() {
   useDA40.getState().update((d) => { const f = fresh(); Object.assign(d, { ...f, fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR } }); });
 }
 
-/** Cold and dark on the ramp, set up for "Before starting engine" (AFMS p. 37–38): throttle IDLE, mixture LEAN, RPM HIGH. */
+/**
+ * Cold and dark on the ramp, set up for "Before starting engine" (AFMS p. 37–38): parking brake set, rear door closed and
+ * locked, front canopy in position 2 (cooling gap), throttle IDLE, mixture LEAN, RPM HIGH, avionics master and ESS BUS OFF.
+ */
 export function scenarioRamp() {
   live.fs = groundFlight();
   live.afcs = { ...gfc700Init(), trim: 0.1 };
@@ -34,5 +37,7 @@ export function scenarioRamp() {
     d.fuel = { ...d.fuel, sel: d.fuel.qL >= d.fuel.qR ? "L" : "R", pump: false };
     d.env = { heat: 0, dist: 0.5, window: false };
     d.stall.ias = 0;
+    d.gear.park = true;
+    d.doors = { canopy: "GAP", rear: true };
   });
 }

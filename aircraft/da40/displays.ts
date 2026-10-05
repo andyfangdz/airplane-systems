@@ -6,13 +6,16 @@ import { flightData } from "@/lib/avionics/flight";
 import { drawMFD, drawPFD, drawStandbyAirspeed, drawStandbyAltimeter, drawStandbyAttitude, type Gauge, type MfdData, type PfdData, type SpeedBands } from "@/lib/avionics/g1000";
 import { gfc700Annunc } from "@/lib/avionics/gfc700";
 import { drawOff } from "@/lib/canvas";
-import { annunciations, displays, live, type Elec, type Sim } from "./model";
+import { BUSES, SPARE_CB, annunciations, displays, live, type Elec, type Sim } from "./model";
 import { AFCS_CFG } from "./tick";
 
 export { drawOff };
 
-/** G1000 airspeed tape (AFMS p. 17) with cyan references Vr 59, Vy 67 (T/O flaps), best glide 76 KIAS at 1,200 kg (AFM 4A-2, 3-4). */
-export const SPEEDS: SpeedBands = { white: [58, 91], green: [58, 129], yellow: [129, 178], red: 178, vr: 59, vy: 67, vg: 76 };
+/**
+ * G1000 airspeed tape (AFMS p. 17): low-speed awareness red 20–53 and yellow 53–58, white 58–91, green 58–129, yellow
+ * 129–178, red 178; cyan references Vr 59, Vy 67 (T/O flaps), best glide 76 KIAS at 1,200 kg (AFM 4A-2, 3-4).
+ */
+export const SPEEDS: SpeedBands = { white: [58, 91], green: [58, 129], yellow: [129, 178], red: 178, lowRed: 53, vr: 59, vy: 67, vg: 76 };
 /** Standby airspeed indicator markings (basic AFM 2-4): white 49–91, green 52–129, yellow 129–178, red 178. */
 export const STBY_SPEEDS: SpeedBands = { white: [49, 91], green: [52, 129], yellow: [129, 178], red: 178 };
 
@@ -91,4 +94,45 @@ let lastAtt = { p: 0, r: 0 };
 export function drawStbyAtt(ctx: CanvasRenderingContext2D, W: number, H: number, E: Elec) {
   if (E.stbyAtt) lastAtt = { p: live.fs.pitch, r: live.fs.roll };
   drawStandbyAttitude(ctx, W, H, lastAtt.p, lastAtt.r, E.stbyAtt ? null : "OFF");
+}
+
+/* ---------- panel face plates (canvas textures) ---------- */
+
+/** Circuit-breaker panel face: ESSENTIAL / MAIN / AVIONICS rows; pulled breakers show their white collar. */
+export function drawBreakers(ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) {
+  ctx.fillStyle = "#2F3439"; ctx.fillRect(0, 0, W, H);
+  const cols = 6, dx = W / cols;
+  let y = 4;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const [, name, , loads] of BUSES) {
+    ctx.fillStyle = "#D8DCDF"; ctx.font = "bold 10px sans-serif";
+    ctx.fillText(name.replace("MAIN AVIONICS", "AVIONICS"), W / 2, y + 6);
+    y += 14;
+    loads.forEach(([n], i) => {
+      const cx = dx * (i % cols) + dx / 2, cy = y + Math.floor(i / cols) * 30 + 9;
+      const pulled = !!s.cb[n], spare = SPARE_CB.includes(n);
+      if (pulled) { ctx.fillStyle = "#F4F6F8"; ctx.beginPath(); ctx.arc(cx, cy, 10, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = spare ? "#3A3F44" : "#121518"; ctx.beginPath(); ctx.arc(cx, cy, pulled ? 7 : 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = spare ? "#7C858C" : "#C9CED2"; ctx.font = "7px sans-serif";
+      ctx.fillText(n.length > 9 ? n.slice(0, 9) : n, cx, cy + 15);
+    });
+    y += Math.ceil(loads.length / cols) * 30 + 2;
+  }
+}
+
+const GMA_KEYS = ["COM1 MIC", "COM1", "COM2 MIC", "COM2", "COM3 MIC", "COM3", "COM 1/2", "PA", "SPKR", "MKR/MUTE", "DME", "NAV1", "ADF", "NAV2", "AUX", "MAN SQ", "PILOT", "COPLT", "PLAY"];
+/** GMA 1347 audio panel face: two columns of keys with annunciator bars (lit when powered), volume knob and DISPLAY BACKUP. */
+export function drawGma(ctx: CanvasRenderingContext2D, W: number, H: number, powered: boolean) {
+  ctx.fillStyle = "#1B1F23"; ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const on = new Set(["COM1 MIC", "COM1", "COM2", "SPKR", "PILOT"]);
+  GMA_KEYS.forEach((k, i) => {
+    const col = i % 2, row = Math.floor(i / 2), x = 6 + col * 45, y = 10 + row * 25;
+    ctx.fillStyle = "#3A4148"; ctx.fillRect(x, y, 39, 19);
+    ctx.fillStyle = powered && on.has(k) ? "#3BE05A" : "#20262B"; ctx.fillRect(x + 12, y + 2, 15, 3);
+    ctx.fillStyle = "#E3E7EA"; ctx.font = "7px sans-serif"; ctx.fillText(k, x + 19.5, y + 12);
+  });
+  ctx.fillStyle = "#3A4148"; ctx.beginPath(); ctx.arc(W / 2, H - 46, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#B53A3A"; ctx.beginPath(); ctx.arc(W / 2, H - 16, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#E3E7EA"; ctx.font = "6px sans-serif"; ctx.fillText("DISPLAY BACKUP", W / 2, H - 4);
 }

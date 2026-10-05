@@ -57,6 +57,8 @@ export interface SpeedBands {
   white?: [number, number]; green?: [number, number]; yellow?: [number, number];
   /** Vne: red/white barber pole above it, red pointer at or beyond it. */
   red?: number;
+  /** Low-speed awareness: red from 20 kt up to this speed, then yellow up to the bottom of the white/green band. Default: red all the way. */
+  lowRed?: number;
   /** Cyan V-speed references on the tape: Vr, Vx, Vy, best glide. */
   vr?: number; vx?: number; vy?: number; vg?: number;
 }
@@ -300,7 +302,11 @@ function airspeed(ctx: Ctx, d: PfdData, L: Lay, t: number) {
   // colour bands along the right edge
   const bx = x + w - 7, band = (a0: number, a1: number, c: string, bw = 7, dx = 0) => { const y0 = y(a1), y1 = y(a0); rect(ctx, bx + dx, y0, bw, y1 - y0, c); };
   const low = s.white?.[0] ?? s.green?.[0];
-  if (low) band(20, low, RED);
+  if (low) {
+    const lr = s.lowRed != null && s.lowRed < low ? s.lowRed : low;
+    band(20, lr, RED);
+    if (lr < low) band(lr, low, BAND.yellow);
+  }
   if (s.green) band(s.green[0], s.green[1], BAND.green);
   if (s.yellow) band(s.yellow[0], s.yellow[1], BAND.yellow);
   if (s.white) band(s.white[0], s.white[1], WHITE, 3, -4);

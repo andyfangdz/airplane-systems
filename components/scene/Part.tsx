@@ -1,7 +1,7 @@
 "use client";
 import { Html } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Catalogue, PartSpec, ShellSpec } from "@/lib/catalogue";
 import { mats, plateMat, shellMat, skinMat, solidMat } from "@/lib/materials";
@@ -21,8 +21,12 @@ export function specGeo(spec: { geo: () => THREE.BufferGeometry }) {
 }
 
 export function Pin({ at, label, color }: { at: THREE.Vector3; label: string; color: string }) {
+  // A fixed portal target: drei re-runs its mount effect (re-creating its React root on the same element) when its
+  // default target changes after the first render, and the old root's deferred unmount then empties the label.
+  const gl = useThree((s) => s.gl);
+  const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   return (
-    <Html position={at} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
+    <Html position={at} portal={portal} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
       <div className="pin" style={{ "--c": color } as React.CSSProperties}>{label}</div>
     </Html>
   );

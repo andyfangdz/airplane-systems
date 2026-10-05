@@ -1,12 +1,13 @@
 "use client";
 import { Gfc700Controls } from "@/components/avionics/Gfc700Controls";
+import { useReducer } from "react";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Small, useTicker } from "@/components/ui/controls";
-import { initFlight, type FlySet } from "@/lib/avionics/flight";
+import { initFlight, type FlightState, type FlySet } from "@/lib/avionics/flight";
 import { gfc700Key, type Gfc700Fail, type Gfc700Key } from "@/lib/avionics/gfc700";
 import { cruiseFlight, displays, live } from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
-import { AFCS_CFG } from "../tick";
+import { AFCS_CFG, PFD_LOST_KEYS } from "../tick";
 
 export function Avionics() {
   useTicker(250);
@@ -15,7 +16,7 @@ export function Avionics() {
   const on = (b: boolean, txt = "ON"): [string, "" | "bad"] | string => (b ? txt : ["OFF", "bad"]);
   return (
     <>
-      <p className="lead">Garmin G1000: a GDU 1040 PFD and a GDU 1044 MFD (10.4 in.) with the GMA 1347 audio panel between them, two GIA 63W integrated avionics units and the GTX 33 transponder in a remote enclosure under the baggage floor, a GRS 77 AHRS with GMU 44 magnetometer, a GDC 74A air-data computer and a GEA 71 engine/airframe unit. The displays in the model are live: they lose power with their buses and revert automatically.</p>
+      <p className="lead">Garmin G1000: a GDU 1040 PFD and a GDU 1042 MFD (10.4 in.; the GDU 1044 with the VNV key is optional and N949KC&apos;s fit is unconfirmed) with the GMA 1347 audio panel between them, two GIA 63W integrated avionics units and the GTX 33 transponder in a remote enclosure under the baggage floor, a GRS 77 AHRS with GMU 44 magnetometer, a GDC 74A air-data computer and a GEA 71 engine/airframe unit. The displays in the model are live: they lose power with their buses and revert automatically.</p>
       <H3>Try it</H3>
       <Ctl>
         <Check id="dbk" label="DISPLAY BACKUP button OUT (reversionary)" checked={s.avx.backup} onChange={(v) => up((x) => { x.avx.backup = v; })} />
@@ -28,7 +29,7 @@ export function Avionics() {
         <Readouts items={[
           ["PFD", d.pfd ? (d.pfdRev ? "Composite (reversion)" : "Normal") : ["OFF", "bad"]],
           ["MFD", d.mfd ? (d.mfdRev ? "Composite (reversion)" : "Normal") : ["OFF", "bad"]],
-          ["AHRS (attitude/heading)", on(E.ahrs, "Valid")], ["ADC (air data)", on(E.adc, "Valid")],
+          ["AHRS", on(E.ahrs, "Valid")], ["ADC (air data)", on(E.adc, "Valid")],
           ["GIA 1 · COM 1", `${E.gia1 ? "ON" : "OFF"} · ${E.com1 ? "ON" : "OFF"}`], ["GIA 2 · COM 2", `${E.gia2 ? "ON" : "OFF"} · ${E.com2 ? "ON" : "OFF"}`],
           ["Audio panel", on(E.audio)], ["Transponder", on(E.xpdr)],
           ["Engine data (GEA)", E.gea && (E.gia1 || E.gia2) ? "Valid" : ["RED X", "bad"]], ["Standby attitude", E.stbyAtt ? (s.elec.emerg ? "EMERG BATT" : "ON") : ["OFF flag", "bad"]],
@@ -58,7 +59,7 @@ export function Avionics() {
       <Facts rows={[
         ["AHRS lost", "AP disconnects, AP and FD inoperative; MET available"],
         ["ADC lost", "AP disconnects; FD available except ALT, VS, FLC"],
-        ["PFD lost", "AP disconnects; MET available"],
+        ["PFD lost", "AP disconnects; AP and FD inoperative; MET available"],
         ["MFD lost", "AP stays engaged (limited) but can't be re-engaged — its keys are on the MFD bezel"],
         ["GIA 1 lost", "AP, FD and MET inoperative"],
         ["GIA 2 lost", "AP and MET inoperative; FD available"],
@@ -79,35 +80,43 @@ export function Avionics() {
 
 const BEZEL: Gfc700Key[] = ["AP", "FD", "YD", "HDG", "NAV", "APR", "BC", "ALT", "VS", "FLC", "VNV", "NOSE_UP", "NOSE_DN"];
 
+/** Swap in a new flight state but keep the sim clock: the AFCS timers (tone, flashes, preflight test) run on it. */
+const fly = (f: FlightState) => { live.fs = { ...f, t: live.fs.t }; };
+
 /** Autopilot practice set-ups for the flight-state integrator. */
 const SETUPS: [string, () => void][] = [
-  ["Cruise 4,500 ft, on course", () => { live.fs = cruiseFlight(); }],
-  ["2 nm off the GPS course", () => { live.fs = { ...cruiseFlight(), crs: 70, xtk: -2.0, hdg: 40, hdgBug: 40 }; }],
-  ["ILS: 30° intercept, below the GS", () => { live.fs = initFlight({ hdg: 280, hdgBug: 280, crs: 310, navSrc: "LOC1", xtk: 0.9, gsErr: -300, alt: 2500, selAlt: 2500, ias: 95, power: 0.5, baro: 30.02, oat: 6 }); useDA40.getState().update((d) => { d.eng.throttle = 0.5; }); }],
-  ["Climb to 7,500 (use FLC or VS)", () => { live.fs = { ...live.fs, selAlt: 7500 }; }],
-  ["VNAV path ahead (VNV)", () => { live.fs = { ...cruiseFlight(), alt: 6500, selAlt: 3000, vpath: { err: -120, vs: -500 } }; }],
+  ["Cruise 4,500 ft, on course", () => fly(cruiseFlight())],
+  ["2 nm off the GPS course", () => fly({ ...cruiseFlight(), crs: 70, xtk: -2.0, hdg: 40, hdgBug: 40 })],
+  ["ILS: 30° intercept, below the GS", () => { fly(initFlight({ hdg: 280, hdgBug: 280, crs: 310, navSrc: "LOC1", xtk: 0.9, gsErr: -300, alt: 2500, selAlt: 2500, ias: 95, power: 0.5, baro: 30.02, oat: 6 })); useDA40.getState().update((d) => { d.eng.throttle = 0.5; }); }],
+  ["Climb to 7,500 (use FLC or VS)", () => fly({ ...live.fs, selAlt: 7500 })],
+  ["VNAV path ahead (VNV)", () => fly({ ...cruiseFlight(), alt: 6500, selAlt: 3000, vpath: { err: -120, vs: -500 } })],
 ];
 
 export function Autopilot() {
   useTicker(100);
   const s = useDA40((x) => x.s), E = useDA40((x) => x.E), up = useDA40((x) => x.update);
+  // `live` is mutated outside React: re-render straight away so controlled inputs don't snap back until the next tick
+  const [, bump] = useReducer((n: number) => n + 1, 0);
   const st = live.afcs, fs = live.fs, U = live.afcsUser;
   const onKey = (k: Gfc700Key) => {
-    if (BEZEL.includes(k) && !useDA40.getState().E.mfd) return; // the AFCS keys are on the MFD bezel
+    const E2 = useDA40.getState().E;
+    if (BEZEL.includes(k) && !E2.mfd) return; // the AFCS keys are on the MFD bezel
+    if (!E2.pfd && !PFD_LOST_KEYS.includes(k)) return; // PFD lost: AP and FD inoperative, MET still works (AFMS p. 10)
     live.afcs = gfc700Key(live.afcs, k, live.fs, AFCS_CFG);
+    bump();
   };
   const onSet = (p: FlySet) => {
     const { power, ...rest } = p;
     if (power !== undefined) up((d) => { d.eng.throttle = power; });
-    if (Object.keys(rest).length) live.fs = { ...live.fs, ...rest };
+    if (Object.keys(rest).length) { live.fs = { ...live.fs, ...rest }; bump(); }
   };
-  const inject = (f: Gfc700Fail) => { live.afcsUser = { ...live.afcsUser, ...f }; };
+  const inject = (f: Gfc700Fail) => { live.afcsUser = { ...live.afcsUser, ...f }; bump(); };
   const outside = st.ap && !fs.onGround && (fs.ias < 70 || fs.ias > 165);
   return (
     <>
-      <p className="lead">The Garmin GFC 700 is a two-axis autopilot and flight director with electric pitch trim: pitch, roll and pitch-trim servos with their own processing, flight-director logic in the GIAs, mode keys on the MFD bezel, and AP DISC, CWS and the split AP TRIM switch on the pilot&apos;s stick. The GA button is on the left of the throttle knob. There is no yaw damper. Power comes through the AVIONIC MASTER switch and the AFCS breaker, and a preflight test (white PFT) must pass first.</p>
+      <p className="lead">The Garmin GFC 700 is a two-axis autopilot and flight director with electric pitch trim: pitch, roll and pitch-trim servos with their own processing, flight-director logic in the GIAs, mode keys on the MFD bezel (the VNV key only on the optional GDU 1044), and AP DISC, CWS and the split AP TRIM switch on the pilot&apos;s stick. The GA button is on the left of the throttle knob. There is no yaw damper. Power comes through the AVIONIC MASTER switch and the AFCS breaker, and a preflight test (white PFT) must pass first.</p>
       <H3>GFC 700</H3>
-      <Gfc700Controls st={st} fs={fs} powered={st.powered} cfg={AFCS_CFG} layout="da40" where="MFD bezel (GDU 1044)" yoke="Pilot stick · throttle (GA)" loc={[true, false]} onKey={onKey} onSet={onSet} />
+      <Gfc700Controls st={st} fs={{ ...fs, power: s.eng.throttle }} powered={st.powered} cfg={AFCS_CFG} layout="da40" where="MFD bezel (GDU 1044 keys shown)" yoke="Pilot stick · throttle (GA)" loc={[true, false]} onKey={onKey} onSet={onSet} />
       <Ctl>
         <div className="row">
           <div className="lbl"><span>Set up</span></div>
@@ -128,6 +137,7 @@ export function Autopilot() {
           ["AFCS power", st.powered ? "ON" : E.av > 0 ? ["AFCS BREAKER / GIA", "bad"] : ["AVIONIC MASTER OFF", "bad"]],
           ["Preflight test", st.pft === "run" ? ["RUNNING", "warnc"] : st.pft === "pass" ? "Passed" : st.pft === "fail" ? ["FAILED — pull AFCS CB", "bad"] : "—"],
           ["MFD keys", E.mfd ? "Available" : ["MFD OFF — keys dead", "bad"]],
+          ["PFD", E.pfd ? "OK" : ["LOST: AP/FD out", "bad"]],
           ["Airplane", fs.onGround ? "On the ground" : `${Math.round(fs.ias)} KIAS`],
         ]} />
       </Ctl>
@@ -136,16 +146,16 @@ export function Autopilot() {
       {s.air === false && <Caution title="On the ground">The flight director and preflight test work on the ground, but the airplane isn&apos;t flying: choose Normal cruise in the Overview to fly the autopilot.</Caution>}
       <H3>Modes (CRG 190-00324-07 §6)</H3>
       <Facts rows={[
-        ["PIT (default)", "Holds pitch; NOSE UP/DN 0.5° steps, −20°…+15° (ALTS armed)"],
+        ["PIT (default)", "Holds pitch; NOSE UP/DN 0.5° steps, +20° nose up / −15° nose down (CRG 6-2; Table 6-1 prints −20…+15) (ALTS armed)"],
         ["ROL (default)", "< 6° bank → wings level; 6–22° held; > 22° limited to 22°"],
         ["HDG", "Turns to and holds the heading bug (HDG knob, push = sync)"],
-        ["ALT", "Holds altitude to the nearest 10 ft — independent of later baro changes"],
+        ["ALT", "Holds the altitude reference (nearest 10 ft); changing the baro setting makes the AP climb or descend to it (AFMS p. 50)"],
         ["ALTS", "Selected-altitude capture (ALT knob) → ALT at 50 ft"],
         ["VS", "Holds vertical speed, 100 fpm steps, +1,500 / −3,000 fpm"],
         ["FLC", "Holds airspeed 70–165 KIAS; NOSE UP = slower; never away from the selected altitude"],
         ["NAV: GPS / VOR / LOC / BC", "Captures with the CDI within one dot, otherwise arms (white). BC when the course is > 105° from heading"],
         ["APR: GPS / VAPP / LOC + GS / GP", "Approach; GS only after LOC capture; GP needs WAAS (GIA 63W)"],
-        ["VPTH", "VNAV path (VNV key, GDU 1044); ALTV target capture"],
+        ["VPTH", "VNAV path (VNV key — optional GDU 1044, N949KC fit unconfirmed); ALTV target capture"],
         ["GA", "Throttle button: AP off, wings level, 7° nose up, ALTS armed"],
         ["CWS", "Hold: servos released, FD syncs; release: new reference"],
       ]} />

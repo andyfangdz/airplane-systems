@@ -18,6 +18,8 @@ export interface PartSpec {
   note?: string;
   /** Gets a label pin in its systems' views (first part of each name only). */
   pin?: boolean;
+  /** Show the label pin only in these system views (it still appears in every pinned system's "tap to locate" list). */
+  pinIn?: SysId[];
   /** Intentionally outside the skin (gear, antennas, probes…). */
   ext?: boolean;
   color?: string;
@@ -127,7 +129,7 @@ export class Catalogue {
   /** Does this part carry the label pin in the given system view? */
   isPinned = (spec: PartSpec, sys: SysId) => {
     let s = this.pinIds.get(sys);
-    if (!s) { s = new Set(this.pinned(sys).map((p) => p.id)); this.pinIds.set(sys, s); }
+    if (!s) { s = new Set(this.pinned(sys).filter((p) => !p.pinIn || p.pinIn.includes(sys)).map((p) => p.id)); this.pinIds.set(sys, s); }
     return s.has(spec.id);
   };
 }

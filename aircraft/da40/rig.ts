@@ -16,20 +16,23 @@ import { D2R, V, type Vec3 } from "@/lib/math";
 import { ELEV_HINGE_X, FLAP, SY, fs, hingeX, wingP } from "./geometry";
 
 /* ---------- control sticks (one in front of each seat) ---------- */
-export const STICK = { x: fs(2.02), y: -0.6, z: 0.28, len: 0.5, pitchMax: 16 * D2R, rollMax: 14 * D2R, arm: 0.085 };
-/** Rudder pedals (pilot −0.38/−0.18, co-pilot +0.18/+0.38). Left pedals move aft when the right pedals go forward. */
-export const PEDALS = { x: fs(1.52), y: -0.5, z: [-0.38, -0.18, 0.18, 0.38], travel: 0.06 };
+/** Pivot just under the cabin floor; the grip sits between the pilot's knees, below the panel's lower edge. */
+export const STICK = { x: fs(2.02), y: -0.51, z: 0.28, len: 0.28, pitchMax: 16 * D2R, rollMax: 14 * D2R };
+/** Rudder pedals (pilot −0.36/−0.21, co-pilot +0.21/+0.36) in the narrowing foot well. Left pedals move aft when the right pedals go forward. */
+export const PEDALS = { x: fs(1.52), y: -0.41, z: [-0.36, -0.21, 0.21, 0.36], travel: 0.06 };
+/** Pedal cross tubes (left pedals, right pedals): height. */
+const PED_BAR = { L: -0.48, R: -0.495 };
 
 /* ---------- elevator chain ---------- */
-const E_IDLE: Vec3 = [fs(3.55), -0.58, 0];  // idler bellcrank under the rear seats (inference)
-const E_FIN: Vec3 = [fs(7.2), -0.4, 0];     // bellcrank at the fin base, next to the lower rudder hinge (AFM 7.3)
+const E_IDLE: Vec3 = [fs(3.55), -0.52, 0];  // idler bellcrank under the baggage floor (inference)
+const E_FIN: Vec3 = [fs(7.2), -0.34, 0];    // bellcrank at the fin base, next to the lower rudder hinge (AFM 7.3)
 const E_ARM = 0.09;
 /** Elevator horn on the hinge line at the top of the rudder; arm points forward-down into the fin. */
 export const ELEV_HORN = { c: [ELEV_HINGE_X, SY, 0] as Vec3, dir: [0.6, -0.8], len: 0.12 };
 
 /* ---------- aileron chain ---------- */
-const A_FWD: Vec3 = [fs(2.1), -0.68, 0];    // central bellcrank under the stick bases (vertical pivot)
-const A_AFT: Vec3 = [fs(3.05), -0.64, 0];   // aft bellcrank, splits to the two wing push rods
+const A_FWD: Vec3 = [fs(2.1), -0.58, 0];    // central bellcrank under the stick bases (vertical pivot)
+const A_AFT: Vec3 = [fs(3.05), -0.55, 0];   // aft bellcrank, splits to the two wing push rods (which then run inside the wing)
 const A_ARM = 0.08;
 const A_WB = 3.98, A_HORN = 4.04;           // wing bellcrank and aileron horn span stations
 const wb = (s: number) => wingP(s * A_WB, 0.56, 0);
@@ -44,13 +47,16 @@ export const TRIM_WHEEL = { c: [fs(2.18), -0.36, 0.07] as Vec3, r: 0.07 };
 export const TAB = { z0: -0.15, z1: -0.55, chord: 0.07 };
 
 /* ---------- flaps ---------- */
-export const FLAP_TUBE = { x: fs(3.17), y: -0.57, half: 0.52, arm: 0.06 };
+/** Flap torsion tube across the fuselage, its ends and arms inside the stub-wing trailing edge. */
+export const FLAP_TUBE = { x: fs(3.17), y: -0.5, half: 0.45, arm: 0.04 };
 export const FLAP_ACT: Vec3 = [fs(3.08), -0.5, 0.14];
 const flapHornZ = 1.28;
+/** Flap horn: hangs from the hinge line (mid-thickness) inside the wing. */
+export const FLAP_HORN = 0.03;
 
 /* ---------- servos (GFC 700 GSA; positions approximate) ---------- */
 export const SERVO = {
-  pitch: [fs(3.93), -0.6, 0.1] as Vec3,
+  pitch: [fs(3.93), -0.56, 0.1] as Vec3,
   roll: [fs(3.06), -0.6, 0.18] as Vec3,
   trim: [fs(2.21), -0.6, 0.15] as Vec3,
 };
@@ -122,14 +128,15 @@ export function linkPoints(p: RigPose) {
     out["ailH" + k] = [outTip, V(hz.x - 0.05 * Math.sin(up), hz.y - 0.05 * Math.cos(up), hz.z)];
   });
   // rudder pedal bars (left pedals move aft when the right pedals move forward)
-  out.pedBarL = [V(PEDALS.x - p.pedal, -0.62, -0.38), V(PEDALS.x - p.pedal, -0.62, 0.18)];
-  out.pedBarR = [V(PEDALS.x + p.pedal, -0.66, -0.18), V(PEDALS.x + p.pedal, -0.66, 0.38)];
+  const [zLo, zLi, zRi, zRo] = PEDALS.z;
+  out.pedBarL = [V(PEDALS.x - p.pedal, PED_BAR.L, zLo), V(PEDALS.x - p.pedal, PED_BAR.L, zRi)];
+  out.pedBarR = [V(PEDALS.x + p.pedal, PED_BAR.R, zLi), V(PEDALS.x + p.pedal, PED_BAR.R, zRo)];
   // flaps: torsion-tube arms → push rods → flap horns
   const tt = p.flapTube, ft = FLAP_TUBE;
   [-1, 1].forEach((s) => {
     const arm = V(ft.x + ft.arm * Math.sin(tt), ft.y - ft.arm * Math.cos(tt), s * ft.half);
-    const hz = wingP(s * flapHornZ, FLAP.hinge, -1), fa = flapAngOf(p);
-    out["flapRod" + (s > 0 ? "R" : "L")] = [arm, V(hz.x + 0.05 * Math.sin(fa), hz.y - 0.05 * Math.cos(fa), hz.z)];
+    const hz = wingP(s * flapHornZ, FLAP.hinge, 0), fa = flapAngOf(p);
+    out["flapRod" + (s > 0 ? "R" : "L")] = [arm, V(hz.x + FLAP_HORN * Math.sin(fa), hz.y - FLAP_HORN * Math.cos(fa), hz.z)];
   });
   out.flapAct = [V(FLAP_ACT[0] + 0.12, FLAP_ACT[1], FLAP_ACT[2]), V(ft.x + ft.arm * Math.sin(tt), ft.y - ft.arm * Math.cos(tt), FLAP_ACT[2])];
   return out;
@@ -147,9 +154,9 @@ export interface CableDef { key: string; name: string; note: string; pts: Vec3[]
 const hp = rudPivot();
 export const CABLES: CableDef[] = [
   { key: "rudL", name: "Rudder cable (left)", note: "Steel cable from the left pedals aft under the floor and through the tail boom to the bolt on the rudder's lower bracket (AFM 7.3). Push the left pedal and this cable pulls the rudder left.",
-    pts: [[PEDALS.x - 0.04, -0.62, -0.1], [fs(1.7), -0.66, -0.1], [fs(3.0), -0.65, -0.1], [fs(4.4), -0.56, -0.1], [fs(5.6), -0.47, -0.09], [fs(6.9), -0.45, -0.085], [hp[0] + 0.02, hp[1], -RUD_HORN.half]] },
+    pts: [[PEDALS.x - 0.04, PED_BAR.L, -0.1], [fs(1.7), -0.57, -0.1], [fs(3.0), -0.62, -0.1], [fs(4.4), -0.55, -0.1], [fs(5.6), -0.47, -0.09], [fs(6.9), -0.45, -0.085], [hp[0] + 0.02, hp[1], -RUD_HORN.half]] },
   { key: "rudR", name: "Rudder cable (right)", note: "Steel cable from the right pedals to the other bolt on the rudder's lower bracket. The two cables form a loop through the rudder bracket; the rudder stops are in the lower bearing bracket.",
-    pts: [[PEDALS.x - 0.04, -0.66, 0.1], [fs(1.7), -0.66, 0.1], [fs(3.0), -0.65, 0.1], [fs(4.4), -0.56, 0.1], [fs(5.6), -0.47, 0.09], [fs(6.9), -0.45, 0.085], [hp[0] + 0.02, hp[1], RUD_HORN.half]] },
+    pts: [[PEDALS.x - 0.04, PED_BAR.R, 0.1], [fs(1.7), -0.57, 0.1], [fs(3.0), -0.62, 0.1], [fs(4.4), -0.55, 0.1], [fs(5.6), -0.47, 0.09], [fs(6.9), -0.45, 0.085], [hp[0] + 0.02, hp[1], RUD_HORN.half]] },
   { key: "trim", name: "Elevator trim Bowden cable", note: "Bowden cable from the trim wheel in the centre console to the trim tab on the elevator (AFM 7.3). The GFC 700 trim servo also drives it, so the wheel turns during autotrim and manual electric trim.",
     pts: [[TRIM_WHEEL.c[0], TRIM_WHEEL.c[1] - 0.07, TRIM_WHEEL.c[2]], [fs(2.24), -0.62, 0.05], [fs(3.4), -0.64, 0.04], [fs(4.6), -0.52, 0.03], [fs(5.9), -0.34, 0.03], [fs(6.9), -0.3, 0.03], [fs(7.1), 0.2, 0.02], [fs(7.45), 0.66, -0.04], [ELEV_HINGE_X + 0.06, SY - 0.01, (TAB.z0 + TAB.z1) / 2]] },
 ];

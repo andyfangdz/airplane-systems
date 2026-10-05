@@ -4,12 +4,15 @@
  * flight-state stepping. Continuous values go to `live`; only discrete changes go through the store.
  */
 import { pitchFor, stepFlight, yokeCmd, type FlightCmd } from "@/lib/avionics/flight";
-import { GFC700_DA40, gfc700Command, gfc700Engaged, gfc700Fail, gfc700Power, gfc700Tick, type Gfc700Mistrim } from "@/lib/avionics/gfc700";
+import { GFC700_DA40, gfc700Command, gfc700Engaged, gfc700Fail, gfc700Power, gfc700Tick, type Gfc700Key, type Gfc700Mistrim, type Gfc700State } from "@/lib/avionics/gfc700";
 import { clamp, lerp } from "@/lib/math";
 import { DA40_FLIGHT, fuelAvail, gaugeTarget, govRpm, live } from "./model";
 import { useDA40 } from "./store";
 
-export const AFCS_CFG = GFC700_DA40;
+/** GFC 700 configuration with the DA40 flight model, so FLC and MAXSPD solve for this airplane's speeds. */
+export const AFCS_CFG = { ...GFC700_DA40, flight: DA40_FLIGHT };
+/** Ignition key START hold (s): released when the engine fires, or after this (AFM: crank at most 10 s). */
+export const START_HOLD = 6;
 /** Trim that holds ~119 KIAS level with the stick centred (pilot command pitch = 1.5° + 4° × trim). */
 export const TRIM_PITCH = (trim: number) => 1.5 + trim * 4;
 live.afcs = { ...live.afcs, trim: 0.27 };
@@ -19,12 +22,21 @@ export const powerFrac = (map: number, rpm: number) => clamp(((map - 10) / 18.5)
 
 let trimPrev = live.afcs.trim;
 
+/** PFD lost (AFMS p. 10): the AP disconnects (red, continuous tone) and the AP and FD are inoperative; MET stays available. */
+function pfdLost(st: Gfc700State): Gfc700State {
+  if (!st.ap && !st.fd && !st.cws) return st;
+  const off: Gfc700State = { ...st, fd: false, cws: false, lat: "ROL", latArm: null, apr: false, src: null, vert: "PIT", vertArm: [], latFlash: null, vertFlash: null };
+  return st.ap ? { ...off, ap: false, apFlash: { kind: "abnormal", until: Infinity }, tone: Infinity } : off;
+}
+/** AFCS keys that still work with the PFD lost: manual electric trim and AP DISC (acknowledge). */
+export const PFD_LOST_KEYS: Gfc700Key[] = ["TRIM_UP", "TRIM_DN", "AP_DISC"];
+
 export function simTick(dt: number) {
   const store = useDA40.getState(), up = store.update;
   let { s, E } = store;
   const g = s.eng, fs = live.fs;
 
-  // ---------- ignition key: START springs back to BOTH (spring return assumed; AFM 7-20 is silent) ----------
+  // ---------- ignition key: START springs back to BOTH when released (spring return assumed; AFM 7-20 is silent) ----------
   if (g.key === "START") {
     live.startTimer -= dt;
     if (live.startTimer <= 0) up((d) => { d.eng.key = "BOTH"; });
@@ -37,19 +49,27 @@ export function simTick(dt: number) {
 
   // ---------- priming and starting ----------
   if (!s.eng.running) {
-    if (pumping && s.eng.mix > 0.5) live.prime = Math.min(12, live.prime + dt); // electric pump ON + mixture RICH = priming
+    const windmilling = live.rpm > 100 && !cranking; // the turning engine draws the fuel through instead of pooling it
+    if (pumping && s.eng.mix > 0.5 && !windmilling) live.prime = Math.min(12, live.prime + dt); // electric pump ON + mixture RICH = priming
     else if (cranking && s.eng.mix <= 0.05 && s.eng.throttle > 0.35) live.prime = Math.max(0, live.prime - dt * 1.5); // flooded start: mixture LEAN, throttle half
-    else live.prime = Math.max(0, live.prime - dt * 0.03);
-    if (cranking && avail && s.eng.key !== "OFF") {
-      const flooded = live.prime > 7, primed = live.prime >= 1 && !flooded;
+    else live.prime = Math.max(0, live.prime - dt * (windmilling ? 1 : 0.03));
+    const flooded = live.prime > 7, ign = s.eng.key !== "OFF";
+    // windmilling relight in flight (AFM 3.2.4): fuel back at the engine with the ignition on and the mixture rich enough
+    const relight = s.air && !cranking && live.rpm > 500 && avail && ign && s.eng.mix > 0.3 && live.fuelP >= 8 && !flooded;
+    if (relight) { live.prime = 0; live.fireT = -1; up((d) => { d.eng.running = true; }); }
+    else if (cranking && avail && ign) {
+      const primed = live.prime >= 1 && !flooded;
       const fires = (primed && live.crankT > 1.0) || (!flooded && live.prime < 1 && s.eng.mix > 0.3 && live.crankT > 3.5);
-      if (fires) { live.prime = 0; live.fireT = 0; up((d) => { d.eng.running = true; }); }
+      // it fires: the pilot lets the key spring back to BOTH
+      if (fires) { live.prime = 0; live.fireT = 0; live.startTimer = 0; up((d) => { d.eng.running = true; if (d.eng.key === "START") d.eng.key = "BOTH"; }); }
     }
   }
   ({ s, E } = useDA40.getState());
 
   // ---------- fuel pressure: engine-driven pump + electric pump ----------
-  const mech = s.eng.fail.mechPump ? 0 : live.rpm > 500 ? 16 + 12 * clamp((live.rpm - 600) / 2100, 0, 1) : live.rpm > 100 ? 4 : 0;
+  const mechNom = live.rpm > 500 ? 16 + 12 * clamp((live.rpm - 600) / 2100, 0, 1) : live.rpm > 100 ? 4 : 0;
+  // pressure-regulation failure: the engine-driven pump delivers well above the 35 psi red line
+  const mech = s.eng.fail.mechPump ? 0 : s.eng.fail.fuelHi && mechNom > 0 ? mechNom + 14 : mechNom;
   const elecP = pumping ? 26 : 0;
   const fuelPT = !avail ? 0 : Math.max(mech, elecP) + (mech > 0 && elecP > 0 ? 2 : 0);
   live.fuelP = lerp(live.fuelP, fuelPT, clamp(dt * 3, 0, 1));
@@ -69,12 +89,13 @@ export function simTick(dt: number) {
   const gov = govRpm(s), govOk = !s.eng.fail.governor && live.oilP >= 15;
   const fine = 650 + s.eng.throttle * 2350 + (s.air ? fs.ias * 4 : 0);
   let target = 0;
+  const windmill = s.air && fs.ias > 65 ? 600 + (fs.ias - 65) * 12 : 0; // windmilling (AFM 3-17: keeps turning above ~65 KIAS)
   if (run) {
     target = govOk ? Math.min(fine, gov) : Math.min(fine, 2950);
     if ((s.eng.key === "L" || s.eng.key === "R") && fine <= gov + 30) target -= 90; // single-magneto drop below the governing range
     if (s.eng.mix < 0.25) target -= (0.25 - s.eng.mix) * 1600; // too lean: rough running
-  } else if (cranking) target = 260;
-  else if (s.air && fs.ias > 65) target = 600 + (fs.ias - 65) * 12; // windmilling (AFM 3-17: keeps turning above ~65 KIAS)
+  } else if (cranking) target = Math.max(260, windmill);
+  else target = windmill;
   live.rpm = lerp(live.rpm, target, clamp(dt * (target > live.rpm ? 2.0 : 1.2), 0, 1));
   if (live.rpm < 3) live.rpm = 0;
 
@@ -110,14 +131,16 @@ export function simTick(dt: number) {
   if (fs.onGround === s.air) live.fs = { ...fs, onGround: !s.air };
   const fail = { att: !E.ahrs, hdg: !E.ahrs, air: !E.adc };
   if (!!live.fs.fail.att !== fail.att || !!live.fs.fail.air !== fail.air) live.fs = { ...live.fs, fail };
-  // GIA 1 lost → AP, FD and MET inoperative; GIA 2 or PFD lost → AP & MET lost (red AFCS) (AFMS p. 10)
+  // AFMS p. 10: GIA 1 lost → AP, FD and MET inoperative; GIA 2 lost → AP & MET lost, FD available (red AFCS);
+  // PFD lost → AP disconnects, AP and FD inoperative, MET available
   live.afcs = gfc700Power(live.afcs, E.afcsPwr && E.gia1, live.fs.t, AFCS_CFG);
   const imb = s.fuel.qL - s.fuel.qR, U = live.afcsUser;
   const mistrim: Gfc700Mistrim | null = U.mistrim ?? (live.afcs.ap && Math.abs(imb) > 8 ? (imb > 0 ? "AIL→" : "←AIL") : null);
-  const want = { pitch: !!U.pitch, roll: !!U.roll, trim: !!U.trim, pft: !!U.pft, sys: !!U.sys || !E.gia2 || !E.pfd, mistrim };
+  const want = { pitch: !!U.pitch, roll: !!U.roll, trim: !!U.trim, pft: !!U.pft, sys: !!U.sys || !E.gia2, mistrim };
   const key = JSON.stringify(want);
   if (live.afcs.powered && key !== live.afcsDerived) { live.afcs = gfc700Fail(live.afcs, want, live.fs.t); live.afcsDerived = key; }
   if (!live.afcs.powered) live.afcsDerived = "";
+  if (live.afcs.powered && !E.pfd) live.afcs = pfdLost(live.afcs);
   const engaged = gfc700Engaged(live.afcs);
   const ap = engaged ? gfc700Command(live.afcs, live.fs, AFCS_CFG) : null;
   const cmd: FlightCmd = ap ?? yokeCmd(s.ctrl.roll, s.ctrl.pitch, TRIM_PITCH(live.afcs.trim));
@@ -130,8 +153,11 @@ export function simTick(dt: number) {
   if (ap) {
     const pitchT = ap.pitch ?? pitchFor(f, ap.vs ?? f.vs);
     tgt = { pitch: clamp((pitchT - f.pitch) / 3, -1, 1) * 0.5 + clamp((pitchT - TRIM_PITCH(live.afcs.trim)) / 8, -0.3, 0.3), roll: clamp((ap.bank - f.roll) / 10, -1, 1) * 0.55 + f.roll / 120, yaw: 0 };
-    const trimT = clamp((pitchT - 1.5) / 4, -1, 1);
-    live.afcs = { ...live.afcs, trim: live.afcs.trim + clamp(trimT - live.afcs.trim, -0.06 * dt, 0.06 * dt) };
+    // autotrim — not on the ground, and not with the pitch-trim servo failed (red PTRM)
+    if (!f.onGround && !live.afcs.fail.trim) {
+      const trimT = clamp((pitchT - 1.5) / 4, -1, 1);
+      live.afcs = { ...live.afcs, trim: live.afcs.trim + clamp(trimT - live.afcs.trim, -0.06 * dt, 0.06 * dt) };
+    }
   }
   const k = clamp(dt * 5, 0, 1);
   live.eff = { pitch: lerp(live.eff.pitch, tgt.pitch, k), roll: lerp(live.eff.roll, tgt.roll, k), yaw: lerp(live.eff.yaw, tgt.yaw, k) };

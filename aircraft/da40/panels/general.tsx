@@ -30,7 +30,7 @@ export function Overview() {
         ["Electrical", "28 V · 70 A alternator · 11 Ah battery · emergency battery"],
         ["Buses", "ESSENTIAL · MAIN · MAIN AVIONICS"],
         ["Flaps", "Electric: UP 0° · T/O 20° · LDG 42°"],
-        ["Avionics", "Garmin G1000 (GDU 1040 PFD, GDU 1044 MFD, GIA 63W ×2)"],
+        ["Avionics", "Garmin G1000 (GDU 1040 PFD, GDU 1042 MFD — GDU 1044 with VNV optional, N949KC fit unconfirmed — GIA 63W ×2)"],
         ["Autopilot", "Garmin GFC 700, two-axis with pitch trim"],
         ["Dimensions", "Span 11.94 m · length 8.01 m · height 1.97 m"],
         ["Speeds", "VNE 178 · VNO 129 · VFE 108 / 91 · VA 111 KIAS (1,200 kg)"],
@@ -106,7 +106,7 @@ export function Lighting() {
           ["Flood light", E.floodPwr && (L.flood > 0 || s.elec.emerg) ? (s.elec.emerg ? "ON · EMERG BATT" : "ON") : L.flood > 0 ? ["NO PWR", "bad"] : "off"],
         ]} />
       </Ctl>
-      <Small>Exterior glows show in the Overview and Lighting views. Try the Electrical panel&apos;s ESS BUS switch: the landing light and flood light stay (ESSENTIAL), the taxi, position and strobe lights go dark (MAIN).</Small>
+      <Small>Exterior glows show in the Overview and Lighting views. With the alternator failed (Electrical panel), switch ESS BUS ON: the landing light and flood light stay (ESSENTIAL), the taxi, position and strobe lights go dark (MAIN).</Small>
       <H3>Lights — tap to locate</H3>
       <PartsList parts={CAT.pinned("lighting")} />
       <H3>Power</H3>

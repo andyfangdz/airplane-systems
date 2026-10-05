@@ -1,5 +1,5 @@
 "use client";
-import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Slider, Small, useTicker } from "@/components/ui/controls";
+import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Slider, Small, useTicker, type Reading } from "@/components/ui/controls";
 import { BUSES, SPARE_CB, fuelAvail, initialSim, type BusId, type Sim } from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
@@ -30,13 +30,21 @@ export function Electrical() {
   useTicker(250);
   const s = useDA40((x) => x.s), E = useDA40((x) => x.E), up = useDA40((x) => x.update);
   const e = s.elec;
+  // every scenario starts from normal operation (alternator online), then applies its switch / breaker changes
   const scen = (label: string, fn: (d: Sim) => void) => (
-    <button key={label} type="button" className="btn" onClick={() => up((d) => { resetElec(d); d.eng.running = true; d.eng.key = "BOTH"; if (d.eng.mix < 0.1) d.eng.mix = 0.8; if (!fuelAvail(d)) d.fuel.sel = d.fuel.qL > 0 ? "L" : "R"; fn(d); })}>{label}</button>
+    <button key={label} type="button" className="btn" onClick={() => {
+      up((d) => { resetElec(d); d.eng.running = true; d.eng.key = "BOTH"; if (d.eng.mix < 0.1) d.eng.mix = 0.8; if (!fuelAvail(d)) d.fuel.sel = d.fuel.qL > 0 ? "L" : "R"; });
+      up(fn);
+    }}>{label}</button>
   );
-  const tie = !E.mstr ? "No control power" : E.tieClosed ? "Closed (buses tied)" : E.altFeed ? "Open — alternator feeds ESS through the diode" : "Open — ESSENTIAL isolated";
+  const tie: Reading = !E.tieCb ? ["Open — ESS TIE / MAIN TIE pulled", "warnc"]
+    : !E.mstr ? "Closed — no control power" : E.tieClosed ? "Closed (buses tied)" : E.essAlt ? "Open — alternator feeds ESS through the diode" : "Open — ESSENTIAL isolated";
+  const batt: Reading = E.batDead ? ["DEPLETED", "bad"] : !E.batOk ? ["OFF / FAILED", "bad"]
+    : s.cb["BATT"] ? ["Isolated (BATT out)", "warnc"] : E.batCharging ? "Charging"
+    : E.batLoad > 0 ? [`Discharging · ${Math.round((1 - E.batFrac) * 100)}%`, "warnc"] : "Idle";
   return (
     <>
-      <p className="lead">A 28 V system with one 70 A alternator and an 11 Ah battery, distributed to three buses: ESSENTIAL (fed straight from the battery), MAIN (fed by the alternator) and MAIN AVIONICS. A tie relay joins ESSENTIAL and MAIN; the ESS. BUS switch opens it so that, after an alternator failure, the battery carries only the essential equipment — a bypass diode still lets a working alternator charge the battery. A separate emergency battery keeps the standby attitude indicator and the flood light alive for 1 h 30 min.</p>
+      <p className="lead">A 28 V system with one 70 A alternator and an 11 Ah battery, distributed to three buses: ESSENTIAL (fed straight from the battery), MAIN (fed by the alternator) and MAIN AVIONICS. A tie relay joins ESSENTIAL and MAIN; the ESS. BUS switch opens it so that, after an alternator failure, the battery carries only the essential equipment — a bypass diode still lets a working alternator charge the battery (if the essential tie relay bypass, OAM 40-126, is fitted — assumed here). A separate emergency battery keeps the standby attitude indicator and the flood light alive for 1 h 30 min.</p>
       <H3>Switches</H3>
       <Ctl>
         <div className="switches">
@@ -62,7 +70,7 @@ export function Electrical() {
             {scen("…then ESS BUS ON (AFMS 3.7.2b)", (d) => { d.elec.fail.alt = true; d.elec.essBus = true; d.elec.tBat = 10; })}
             {scen("…battery exhausted → HORIZON EMERGENCY", (d) => { d.elec.fail.alt = true; d.elec.essBus = true; d.elec.emerg = true; d.elec.tBat = 45; })}
             {scen("Smoke: master OFF, emergency ON", (d) => { d.elec.bat = false; d.elec.alt = false; d.elec.emerg = true; })}
-            {scen("Smoke: BATT + ESS TIE pulled", (d) => { d.cb["BATT"] = true; d.cb["ESS TIE"] = true; })}
+            {scen("Smoke: ALT ON, then BATT + ESS TIE pulled", (d) => { d.cb["BATT"] = true; d.cb["ESS TIE"] = true; })}
           </BtnRow>
         </div>
         <Slider id="tBat" label="Time on battery power" min={0} max={100} step={1} value={e.tBat} onChange={(v) => up((d) => { d.elec.tBat = v; })} fmt={(v) => v + " min"} />
@@ -73,8 +81,8 @@ export function Electrical() {
           ["MAIN AVIONICS", [E.av.toFixed(1) + " V", E.av ? "" : "warnc"]],
           ["AMPS (alternator)", [String(E.amps), E.altFeed ? "" : "bad"]],
           ["Load", E.load.toFixed(1) + " A"],
-          ["Battery", E.batDead ? ["DEPLETED", "bad"] : !E.batOk ? ["OFF / FAILED", "bad"] : E.batCharging ? "Charging" : [`Discharging · ${Math.round((1 - E.batFrac) * 100)}%`, "warnc"]],
-          ["Endurance at this load", E.altFeed || e.ext ? "—" : `≈ ${E.endurance} min`],
+          ["Battery", batt],
+          ["Battery endurance", E.batLoad > 0 ? `≈ ${E.endurance} min at ${E.batLoad.toFixed(1)} A` : "—"],
           ["Tie relay", tie],
           ["Standby attitude", E.stbyAtt ? (e.emerg ? "EMERG BATTERY" : "HORIZON (ESS)") : ["OFF flag", "bad"]],
         ]} />
@@ -83,12 +91,14 @@ export function Electrical() {
       {E.altFeed === false && s.eng.running && (
         <Caution title="ALTERNATOR (AFMS 3.7.2b)">1. Circuit breakers — check in. 2. ALT switch OFF, then ON. If it does not come back: 3. ESS BUS switch ON. 4. Switch off non-essential loads. 5. Land within 30 minutes. 6. If PFD attitude is lost: HORIZON EMERGENCY switch ON.</Caution>
       )}
-      <H3>Power distribution (GFC 700 airplane, SMM Fig. 2-3)</H3>
+      <H3>Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)</H3>
       <Notes items={[
         "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
         "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
         "ESSENTIAL → ESS TIE 25 A → tie relay ‖ diode (MAIN → ESS only) → MAIN TIE 25 A → MAIN. ESS. BUS ON opens the relay.",
         "MAIN → AV BUSS 25 A → avionics-master relay → MAIN AVIONICS. Both relay coils get power through MSTR CNTRL 2 A on ESSENTIAL.",
+        "Sources disagree: the AFMS (p. 30) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
+        "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 29). Once online it keeps itself excited.",
         "HORIZON 3 A (ESSENTIAL) or the emergency battery → standby attitude indicator + flood light, chosen by the sealed HORIZON EMERGENCY switch.",
       ]} />
       <H3>Circuit-breaker panel (right of the MFD)</H3>
