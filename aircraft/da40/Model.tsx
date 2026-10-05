@@ -12,10 +12,9 @@ import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, V, lerp, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
-import { PinDeclutter } from "./PinDeclutter";
 import { drawBreakers, drawGma, drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { PANEL_X, canopyOutlines, doorOutlines, inFus, loft, windowOutlines, wingSec } from "./geometry";
+import { PANEL_X, canopyOutlines, doorOutlines, loft, windowOutlines, wingSec } from "./geometry";
 import { bladeAngle, extLit, live } from "./model";
 import { CANOPY_HINGE, CANOPY_SHELL, CAT, CBP_Z, CYLS, DISPLAY_X, DOOR_HINGE, DOOR_SHELL, GMA_Z, LIGHTS, NOSE_CASTER, NOSE_GEAR, PROP, STBY_X } from "./parts";
 import { deflections } from "./rig";
@@ -168,12 +167,6 @@ const BEAMS: BeamSpec[] = [
 ];
 
 const rates = () => { const { s, E } = useDA40.getState(); return flowRates(s, E); };
-/** Label priority: parts whose first (home) system is the one shown win overlaps. */
-const homeSys = new Map(CAT.parts.filter((p) => p.name).map((p) => [p.name!, p.sys[0]]));
-const pinRank = (label: string, sys: string) => (homeSys.get(label) === sys ? 0 : 1);
-/** With X-ray off and the camera outside the fuselage, only parts outside the skin keep their labels. */
-const extNames = new Set(CAT.parts.filter((p) => p.ext && p.name).map((p) => p.name!));
-const pinHide = (label: string, camera: THREE.Camera) => !useView.getState().xray && !extNames.has(label) && !inFus(camera.position);
 const flowColor = (k: string, out: THREE.Color) => { if (!isCabinAir(k)) return false; cabinAirColor(useDA40.getState().s, out); return true; };
 
 /** The DA40 XLS scene: airframe shells, control surfaces, moving assemblies, tanks, displays and lights. */
@@ -193,7 +186,6 @@ export function Model() {
       <Screens screens={SCREENS} />
       <LightFX glows={GLOWS} beams={BEAMS} />
       <WindowOutlines loops={windowOutlines} />
-      <PinDeclutter rank={pinRank} hide={pinHide} />
     </>
   );
 }

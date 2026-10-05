@@ -1,10 +1,11 @@
 "use client";
 import { useTicker } from "@/components/ui/controls";
 import type { AircraftDef } from "../types";
-import { GROUND_Y } from "./geometry";
+import { GROUND_Y, inFus } from "./geometry";
 import { casMessages, live } from "./model";
 import { Model } from "./Model";
 import { Parachute, capsPhase } from "./Parachute";
+import { CAT } from "./parts";
 import { Caps } from "./panels/caps";
 import { Electrical } from "./panels/electrical";
 import { Controls, Flaps, Gear } from "./panels/flight";
@@ -51,5 +52,6 @@ export const SR20: AircraftDef = {
   alertTitle: "CAS",
   Hud: CapsHud,
   onSelect: (to) => { if (to !== "caps" && useSR20.getState().s.capsOn) resetCaps(); },
+  labels: { cat: CAT, inside: inFus },
   resetCam: () => (useSR20.getState().s.capsOn ? CAPS_CAM : null),
 };

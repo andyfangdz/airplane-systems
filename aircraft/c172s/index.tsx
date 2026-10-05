@@ -1,7 +1,7 @@
 "use client";
 import { useTicker } from "@/components/ui/controls";
 import type { AircraftDef } from "../types";
-import { GROUND_Y } from "./geometry";
+import { GROUND_Y, inFus } from "./geometry";
 import { annunciations } from "./model";
 import { Model } from "./Model";
 import { Environment, Pitot, Vacuum } from "./panels/air";
@@ -10,6 +10,7 @@ import { Electrical, Lighting } from "./panels/electrical";
 import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
+import { CAT } from "./parts";
 import "./parts-systems";
 import { useC172 } from "./store";
 import { SYS } from "./systems";
@@ -40,4 +41,5 @@ export const C172S: AircraftDef = {
   tick: simTick,
   useAlerts,
   alertTitle: "ANNUNCIATIONS",
+  labels: { cat: CAT, inside: inFus },
 };

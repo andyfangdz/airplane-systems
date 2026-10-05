@@ -1,7 +1,7 @@
 "use client";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { sysOf, useAircraft } from "@/aircraft";
@@ -12,17 +12,31 @@ import { view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
 import { useView } from "@/lib/view";
 import type { PickInfo } from "./Part";
+import { PinDeclutter, pinPolicy } from "./PinDeclutter";
+
+/**
+ * Camera views are framed for the desktop viewport (about 0.9 wide per unit height). On narrower or portrait
+ * viewports, back the camera off along its line of sight so the same system stays in frame.
+ */
+const fitDist = (aspect: number) => Math.max(1, 0.9 / aspect);
 
 /** Animates the camera to the latest requested view; any user drag cancels the flight. */
 function CameraRig() {
   const cam = useView((x) => x.cam);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
   const flight = useRef<{ fp: THREE.Vector3; ft: THREE.Vector3; tp: THREE.Vector3; tt: THREE.Vector3; t0: number } | null>(null);
+
+  // the starting view, fitted once to the viewport
+  useEffect(() => {
+    if (!controls) return;
+    camera.position.sub(controls.target).multiplyScalar(fitDist(size.width / size.height)).add(controls.target);
+  }, [controls, camera]);
 
   useEffect(() => {
     if (!cam || !controls) return;
-    const tp = V(...cam.p), tt = V(...cam.t);
+    const tt = V(...cam.t), tp = V(...cam.p).sub(tt).multiplyScalar(fitDist(size.width / size.height)).add(tt);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { camera.position.copy(tp); controls.target.copy(tt); return; }
     flight.current = { fp: camera.position.clone(), ft: controls.target.clone(), tp, tt, t0: performance.now() };
   }, [cam, controls, camera]);
@@ -90,6 +104,7 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
   const onMove = usePicker();
   const setHover = useView((x) => x.setHover);
   const { Model, Overlay } = def;
+  const pins = useMemo(() => (def.labels ? pinPolicy(def.labels.cat, def.labels.inside) : {}), [def]);
   return (
     <>
       <group ref={rootRef} position={[def.pivotX, 0, 0]}>
@@ -99,6 +114,7 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
         </group>
       </group>
       {Overlay && <Overlay rootRef={rootRef} modelRef={modelRef} gridRef={gridRef} />}
+      <PinDeclutter {...pins} />
     </>
   );
 }

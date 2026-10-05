@@ -1,5 +1,6 @@
 import type { ComponentType, RefObject } from "react";
 import type * as THREE from "three";
+import type { Catalogue } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import type { AircraftId, SysDef, SysId } from "@/lib/systems";
 
@@ -48,6 +49,8 @@ export interface AircraftDef {
   Hud?: ComponentType;
   /** Called when the selected system changes (e.g. stop the CAPS animation when leaving CAPS). */
   onSelect?: (to: SysId) => void;
+  /** Label decluttering: rank pins by each part's own system and, in solid mode, hide interior labels when the camera is outside `inside`. */
+  labels?: { cat: Catalogue; inside?: (p: THREE.Vector3) => boolean };
   /** Camera for "Reset view" when something special is going on (e.g. CAPS deployed); null = the system's camera. */
   resetCam?: () => [Vec3, Vec3] | null;
 }

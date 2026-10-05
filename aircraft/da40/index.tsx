@@ -1,9 +1,10 @@
 "use client";
 import { useTicker } from "@/components/ui/controls";
 import type { AircraftDef } from "../types";
-import { GROUND_Y } from "./geometry";
+import { GROUND_Y, inFus } from "./geometry";
 import { annunciations, displays } from "./model";
 import { Model } from "./Model";
+import { CAT } from "./parts";
 import { Environment, Pitot } from "./panels/air";
 import { Autopilot, Avionics } from "./panels/avionics";
 import { Cabin } from "./panels/cabin";
@@ -41,4 +42,5 @@ export const DA40: AircraftDef = {
   tick: simTick,
   useAlerts,
   alertTitle: "ANNUNCIATIONS",
+  labels: { cat: CAT, inside: inFus },
 };

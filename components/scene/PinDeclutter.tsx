@@ -2,8 +2,22 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import type * as THREE from "three";
+import type { Catalogue } from "@/lib/catalogue";
 import type { SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
+
+/**
+ * Default label policy for an airplane: a part's own (first) system wins overlaps, and with X-ray off and the camera
+ * outside the fuselage only parts outside the skin keep their labels.
+ */
+export function pinPolicy(cat: Catalogue, inside?: (p: THREE.Vector3) => boolean) {
+  const home = new Map(cat.parts.filter((p) => p.name).map((p) => [p.name!, p.sys[0]]));
+  const ext = new Set(cat.parts.filter((p) => p.ext && p.name).map((p) => p.name!));
+  return {
+    rank: (label: string, sys: SysId) => (home.get(label) === sys ? 0 : 1),
+    hide: (label: string, camera: THREE.Camera) => !!inside && !useView.getState().xray && !ext.has(label) && !inside(camera.position),
+  };
+}
 
 /**
  * Keeps dense label views readable: a few times a second, hides any label pin that overlaps a higher-priority one
