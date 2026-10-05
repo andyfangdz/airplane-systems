@@ -2,22 +2,14 @@
  * Simulation model: discrete state, the electrical solver and derived logic.
  * Everything here is pure so it can run in the store, in useFrame, or in tests.
  */
-import type { SysId } from "../systems";
+import type { CasLevel } from "../types";
 
 export type Key = "OFF" | "R" | "L" | "BOTH" | "START";
 export type FuelSel = "L" | "R" | "OFF";
 export type Vent = "P" | "PF" | "PFW" | "W";
 export type CabinSwitch = "OFF" | "ON" | "AUTO";
-export type Chan = "elevator" | "aileron" | "rudder";
 
 export interface Sim {
-  sys: SysId;
-  xray: boolean;
-  labels: boolean;
-  spin: boolean;
-  focus: string | null;
-  /** Flight-controls view: highlight one control channel. */
-  ctrlFocus: Chan | "all";
   eng: { running: boolean; key: Key; lever: number; mix: number; altAir: boolean };
   elec: { bat1: boolean; bat2: boolean; alt1: boolean; alt2: boolean; avionics: boolean; fail: { alt1: boolean; alt2: boolean; bat1: boolean }; tBat: number };
   /** Pulled circuit breakers keyed by breaker label. */
@@ -38,7 +30,6 @@ export interface Sim {
 }
 
 export const initialSim: Sim = {
-  sys: "overview", xray: true, labels: true, spin: false, focus: null, ctrlFocus: "all",
   eng: { running: true, key: "BOTH", lever: 0.72, mix: 0.85, altAir: false },
   elec: { bat1: true, bat2: true, alt1: true, alt2: true, avionics: true, fail: { alt1: false, alt2: false, bat1: false }, tBat: 0 },
   cb: {},
@@ -145,7 +136,7 @@ export function extLit(s: Sim, E: Elec) {
   return { nav: L.nav && E.navPwr, strobe: L.strobe && E.strobePwr, land: L.land && E.landPwr, ice: L.ice && E.icePwr };
 }
 
-export type CasLevel = "w" | "c" | "a";
+export type { CasLevel };
 /** Crew Alerting System messages. G6 electrical names per the Costanzo training deck. */
 export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
   const m: [CasLevel, string][] = [], f = s.fuel;

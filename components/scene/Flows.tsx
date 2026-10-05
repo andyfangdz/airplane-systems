@@ -2,24 +2,28 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { cabinAirColor, FLOWS, flowRates, isCabinAir } from "@/lib/flows";
+import type { FlowSpec } from "@/lib/catalogue";
 import { curveOf } from "@/lib/geometry";
 import { dotTex, mats } from "@/lib/materials";
-import { useSim } from "@/lib/sim/store";
 import { sysColor } from "@/lib/systems";
+import { useView } from "@/lib/view";
 import type { PickInfo } from "./Part";
 
 const noRaycast = () => {};
+const chanDim = (f: FlowSpec, sysNow: string, focus: string) => sysNow === "controls" && focus !== "all" && !f.chan?.includes(focus as never);
 
-/** All pipes/wires/ducts/cables; one frame loop moves every particle. */
-export function Flows() {
-  const sys = useSim((x) => x.s.sys);
-  const xray = useSim((x) => x.s.xray);
-  const theme = useSim((x) => x.theme);
-  const cf = useSim((x) => x.s.ctrlFocus);
-  const chanDim = (f: (typeof FLOWS)[number], sysNow: string, focus: string) => sysNow === "controls" && focus !== "all" && !f.chan?.includes(focus as never);
+/**
+ * All pipes/wires/ducts/cables of one airplane; one frame loop moves every particle.
+ * `rates()` gives a speed multiplier per flow key (0 = stopped, negative = reversed);
+ * `color(key, out)` may set a live particle colour and return true (e.g. cabin air following the temperature knob).
+ */
+export function Flows({ flows, rates, color }: { flows: FlowSpec[]; rates: () => Record<string, number>; color?: (key: string, out: THREE.Color) => boolean }) {
+  const sys = useView((x) => x.sys);
+  const xray = useView((x) => x.xray);
+  const theme = useView((x) => x.theme);
+  const cf = useView((x) => x.ctrlFocus);
 
-  const items = useMemo(() => FLOWS.map((f) => {
+  const items = useMemo(() => flows.map((f) => {
     const curve = curveOf(f.pts, f.tension ?? 0.3);
     const len = curve.getLength();
     const n = f.count ?? Math.max(6, Math.round(len * 9));
@@ -31,21 +35,21 @@ export function Flows() {
     pts.raycast = noRaycast;
     pts.visible = false;
     return { f, curve, len, n, off, tube, pts, t: 0 };
-  }), []);
+  }), [flows]);
 
   const tmp = useRef(new THREE.Vector3());
-  const air = useRef(new THREE.Color());
+  const live = useRef(new THREE.Color());
   useFrame((_, dt) => {
-    const { s, E } = useSim.getState();
-    const R = flowRates(s, E);
-    cabinAirColor(s, air.current);
+    const v = useView.getState();
+    const R = rates();
     for (const it of items) {
       const rate = R[it.f.key] ?? 0;
-      const vis = rate !== 0 && (s.sys === "overview" || it.f.sys.includes(s.sys)) && !chanDim(it.f, s.sys, s.ctrlFocus);
+      const vis = rate !== 0 && (v.sys === "overview" || it.f.sys.includes(v.sys)) && !chanDim(it.f, v.sys, v.ctrlFocus);
       it.pts.visible = vis;
       if (!vis) continue;
       const mat = it.pts.material as THREE.PointsMaterial;
-      mat.color.set(isCabinAir(it.f.key) ? air.current : it.f.pcolor ?? it.f.color ?? sysColor(it.f.sys[0], theme));
+      if (color?.(it.f.key, live.current)) mat.color.copy(live.current);
+      else mat.color.set(it.f.pcolor ?? it.f.color ?? sysColor(it.f.sys[0], v.theme));
       it.t += (dt * 0.9 * rate) / Math.max(it.len, 0.5);
       const a = it.pts.geometry.attributes.position as THREE.BufferAttribute;
       for (let i = 0; i < it.n; i++) {
@@ -60,12 +64,12 @@ export function Flows() {
   return (
     <>
       {items.map((it) => {
-        const color = it.f.color ?? sysColor(it.f.sys[0], theme);
+        const c = it.f.color ?? sysColor(it.f.sys[0], theme);
         const act = (sys === "overview" || it.f.sys.includes(sys)) && !chanDim(it.f, sys, cf);
-        const pick: PickInfo | undefined = it.f.name ? { name: it.f.name, note: it.f.note ?? "", color, sys: it.f.sys } : undefined;
+        const pick: PickInfo | undefined = it.f.name ? { name: it.f.name, note: it.f.note ?? "", color: c, sys: it.f.sys } : undefined;
         return (
           <group key={it.f.key}>
-            {it.tube && <mesh geometry={it.tube} material={act || !xray ? mats(color).on : mats(color).dim} userData={{ pick }} />}
+            {it.tube && <mesh geometry={it.tube} material={act || !xray ? mats(c).on : mats(c).dim} userData={{ pick }} />}
             <primitive object={it.pts} />
           </group>
         );

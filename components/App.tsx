@@ -1,39 +1,39 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, type ComponentType } from "react";
-import { casMessages, live } from "@/lib/sim/model";
-import { isSysId, useSim } from "@/lib/sim/store";
-import { SYS, sysColor, sysDef, type SysId, type Theme } from "@/lib/systems";
-import { Caps } from "./panels/caps";
-import { Electrical } from "./panels/electrical";
-import { Controls, Flaps, Gear } from "./panels/flight";
-import { Airframe, Avionics, Cabin, Lighting, Overview } from "./panels/general";
-import { Engine, Fuel, Propeller } from "./panels/powerplant";
-import { Environment, Pitot } from "./panels/air";
-import { capsPhase } from "./scene/Parachute";
-import { useTicker } from "./ui/controls";
+import { useEffect } from "react";
+import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, sysOf, useAircraft } from "@/aircraft";
+import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
+import { useView } from "@/lib/view";
 
 // WebGL scene is client-only
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div className="loading">Loading 3D model…</div> });
 
-const PANELS: Record<SysId, ComponentType> = {
-  overview: Overview, airframe: Airframe, controls: Controls, flaps: Flaps, gear: Gear, engine: Engine, propeller: Propeller,
-  fuel: Fuel, electrical: Electrical, lighting: Lighting, environment: Environment, pitot: Pitot, avionics: Avionics, cabin: Cabin, caps: Caps,
-};
+function Fleet() {
+  const ac = useView((x) => x.ac);
+  return (
+    <div className="fleet" role="group" aria-label="Airplane">
+      {FLEET.map((a) => (
+        <button key={a.id} type="button" aria-pressed={a.id === ac} title={a.name} onClick={() => selectAircraft(a.id)}>{a.short}</button>
+      ))}
+    </div>
+  );
+}
 
 function Rail() {
-  const sys = useSim((x) => x.s.sys), theme = useSim((x) => x.theme), select = useSim((x) => x.select);
+  const def = useAircraft();
+  const sys = useView((x) => x.sys), theme = useView((x) => x.theme);
   return (
     <nav className="rail" aria-label="Systems">
       <div className="brand">
-        <div className="eyebrow">POH §7 · Airplane &amp; Systems</div>
-        <h1>SR20 G6</h1>
-        <p>Perspective+ · IO-390 · 3D study model</p>
+        <div className="eyebrow">{def.doc} · Airplane &amp; Systems</div>
+        <Fleet />
+        <h1>{def.name}</h1>
+        <p>{def.sub}</p>
       </div>
       <ul className="syslist">
-        {SYS.map((s) => (
+        {def.systems.map((s) => (
           <li key={s.id}>
-            <button type="button" aria-current={s.id === sys} style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties} onClick={() => select(s.id)}>
+            <button type="button" aria-current={s.id === sys} style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties} onClick={() => selectSys(s.id)}>
               <span className="sw" /><span className="nm">{s.name}</span><span className="pg">{s.pg}</span>
             </button>
           </li>
@@ -45,15 +45,16 @@ function Rail() {
 }
 
 function Panel() {
-  const sys = useSim((x) => x.s.sys), theme = useSim((x) => x.theme);
-  const s = sysDef(sys), Body = PANELS[sys];
-  useEffect(() => { if (matchMedia("(max-width:860px)").matches) document.querySelector(".panel")?.scrollTo(0, 0); }, [sys]);
+  const def = useAircraft();
+  const sys = useView((x) => x.sys), theme = useView((x) => x.theme);
+  const s = sysOf(def, sys), Body = def.panels[s.id];
+  useEffect(() => { if (matchMedia("(max-width:860px)").matches) document.querySelector(".panel")?.scrollTo(0, 0); }, [sys, def]);
   return (
     <aside className="panel">
-      <div className="panel-inner" style={{ "--c": sysColor(sys, theme) } as React.CSSProperties}>
-        <div className="ref"><i />POH §7 · p. {s.pg}</div>
-        <h2>{sys === "overview" ? "Airplane & Systems" : s.name}</h2>
-        <Body />
+      <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
+        <div className="ref"><i />{def.doc} · p. {s.pg}</div>
+        <h2>{s.id === "overview" ? "Airplane & Systems" : s.name}</h2>
+        {Body ? <Body /> : <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
       </div>
     </aside>
   );
@@ -63,44 +64,41 @@ const SUN = <><circle cx="8" cy="8" r="3" /><path d="M8 1v2M8 13v2M1 8h2M13 8h2M
 const MOON = <path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z" />;
 
 function Toolbar() {
-  const s = useSim((x) => x.s), theme = useSim((x) => x.theme);
-  const { update, setTheme, flyTo } = useSim.getState();
+  const xray = useView((x) => x.xray), labels = useView((x) => x.labels), spin = useView((x) => x.spin), theme = useView((x) => x.theme);
+  const { set, setTheme, flyTo } = useView.getState();
   const dark = theme === "dark";
   return (
     <div className="toolbar">
-      <button className="tb" aria-pressed={s.xray} onClick={() => update((d) => { d.xray = !d.xray; })}>X-ray</button>
-      <button className="tb" aria-pressed={s.labels} onClick={() => update((d) => { d.labels = !d.labels; })}>Labels</button>
-      <button className="tb" aria-pressed={s.spin} onClick={() => update((d) => { d.spin = !d.spin; })}>Auto-rotate</button>
+      <button className="tb" aria-pressed={xray} onClick={() => set({ xray: !xray })}>X-ray</button>
+      <button className="tb" aria-pressed={labels} onClick={() => set({ labels: !labels })}>Labels</button>
+      <button className="tb" aria-pressed={spin} onClick={() => set({ spin: !spin })}>Auto-rotate</button>
       <button className="tb tb-theme" title={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setTheme(dark ? "light" : "dark")}>
         <svg className="ico" viewBox="0 0 16 16" aria-hidden="true">{dark ? SUN : MOON}</svg><span>{dark ? "Light" : "Dark"}</span>
       </button>
-      <button className="tb" onClick={() => { const [p, t] = s.capsOn ? [[20, 9, 26], [0, 6, 0]] as const : sysDef(s.sys).cam; flyTo([...p], [...t]); }}>Reset view</button>
+      <button className="tb" onClick={() => { const [p, t] = resetCam(); flyTo([...p], [...t]); }}>Reset view</button>
     </div>
   );
 }
 
-function CasWindow() {
-  const s = useSim((x) => x.s), E = useSim((x) => x.E);
-  const powered = E.pfd || E.mfd;
-  const m = powered ? casMessages(s, E) : [];
+/** Crew-alert window; keyed by airplane so each airplane's alert hook is called consistently. */
+function Alerts() {
+  const def = useAircraft();
+  const { powered, msgs } = def.useAlerts();
   return (
     <div className="cas" aria-live="polite">
-      <div className="hd"><span>CAS</span><span>{powered ? `${m.length} ${m.length === 1 ? "msg" : "msgs"}` : "NO DISPLAY PWR"}</span></div>
-      <ul>{m.length ? m.map(([c, t]) => <li key={t} className={c}>{t}</li>) : <li className="none">{powered ? "No alerts" : "—"}</li>}</ul>
+      <div className="hd"><span>{def.alertTitle}</span><span>{powered ? `${msgs.length} ${msgs.length === 1 ? "msg" : "msgs"}` : "NO DISPLAY PWR"}</span></div>
+      <ul>{msgs.length ? msgs.map(([c, t]) => <li key={t} className={c}>{t}</li>) : <li className="none">{powered ? "No alerts" : "—"}</li>}</ul>
     </div>
   );
 }
 
-function CapsHud() {
-  useTicker(100);
-  const sys = useSim((x) => x.s.sys);
-  if (sys !== "caps") return null;
-  const t = Math.max(0, live.capsT), [, title, sub] = live.capsT < 0 ? [0, "Ready", ""] : capsPhase(t);
-  return <div className="caps-hud"><span>T + {t.toFixed(1)} s</span><b>{title}</b><span>{sub}</span></div>;
+function Hud() {
+  const { Hud: H } = useAircraft();
+  return H ? <H /> : null;
 }
 
 function Tooltip() {
-  const hover = useSim((x) => x.hover);
+  const hover = useView((x) => x.hover);
   if (!hover) return null;
   const stage = document.querySelector(".stage") as HTMLElement | null;
   const w = stage?.clientWidth ?? 800, h = stage?.clientHeight ?? 600;
@@ -112,22 +110,39 @@ function Tooltip() {
   );
 }
 
-/** Restore theme and last-viewed system (URL hash wins). */
+const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+
+/** Restore theme, airplane and last-viewed system. URL hash wins: #c172s/electrical, #c172s, or (SR20) #electrical. */
 function useBoot() {
   useEffect(() => {
-    const st = useSim.getState();
+    const st = useView.getState();
     let theme: Theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    try { const t = localStorage.getItem("sr20theme"); if (t === "light" || t === "dark") theme = t; } catch {}
+    const t = read("sr20theme");
+    if (t === "light" || t === "dark") theme = t;
     st.setTheme(theme);
-    const hash = location.hash.slice(1);
-    let start: SysId | null = isSysId(hash) ? hash : null;
-    if (!start) try { const v = localStorage.getItem("sr20sys"); if (isSysId(v)) start = v; } catch {}
-    if (start && start !== "overview") st.select(start);
+    const [a, b] = decodeURIComponent(location.hash.slice(1)).split("/");
+    let ac: AircraftId = "sr20", sys: string | null | undefined;
+    if (isAircraftId(a)) { ac = a; sys = b; }
+    else if (a && hasSys(aircraft("sr20"), a)) sys = a;
+    else { const saved = read("fleetAc"); if (isAircraftId(saved)) ac = saved; }
+    const def = aircraft(ac);
+    if (!hasSys(def, sys)) sys = read("sys:" + ac) ?? (ac === "sr20" ? read("sr20sys") : null);
+    const start: SysId = hasSys(def, sys) ? sys : "overview";
+    if (ac !== st.ac) selectAircraft(ac, start);
+    else if (start !== "overview") selectSys(start);
   }, []);
+}
+
+/** Tab title follows the airplane. */
+function useTitle() {
+  const def = useAircraft();
+  useEffect(() => { document.title = `${def.name} Systems`; }, [def]);
 }
 
 export default function App() {
   useBoot();
+  useTitle();
+  const ac = useView((x) => x.ac);
   return (
     <div className="app">
       <Rail />
@@ -135,8 +150,8 @@ export default function App() {
         <Scene />
         <div className="hint">Hover parts · drag to orbit</div>
         <Toolbar />
-        <CasWindow />
-        <CapsHud />
+        <Alerts key={ac} />
+        <Hud />
         <Tooltip />
       </main>
       <Panel />

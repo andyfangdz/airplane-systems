@@ -1,28 +1,12 @@
 /** Pipes, wires, ducts and cables with moving particles, plus the rules that drive them. */
 import * as THREE from "three";
-import { V, type Vec3 } from "./math";
-import { CYLS, FT, PITOT_Z, SPX, STALL_Z, chanOfKey, pitotBase, statR } from "./parts";
-import { CABLES } from "./rig";
+import { chanOfKey, type FlowSpec } from "@/lib/catalogue";
+import { V, type Vec3 } from "@/lib/math";
+import type { SysId } from "@/lib/systems";
 import { wingP } from "./geometry";
-import { fuelAvail, live, type Elec, type Sim } from "./sim/model";
-import type { SysId } from "./systems";
-
-export interface FlowSpec {
-  key: string;
-  pts: (Vec3 | THREE.Vector3)[];
-  sys: SysId[];
-  name?: string;
-  note?: string;
-  color?: string;
-  pcolor?: string;
-  r?: number;
-  tube?: boolean;
-  count?: number;
-  size?: number;
-  tension?: number;
-  ext?: boolean;
-  chan?: ReturnType<typeof chanOfKey>;
-}
+import { fuelAvail, live, type Elec, type Sim } from "./model";
+import { CYLS, FT, PITOT_Z, SPX, STALL_Z, pitotBase, statR } from "./parts";
+import { CABLES } from "./rig";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) => F.push({ key, pts, sys, ...o });

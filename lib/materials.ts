@@ -1,6 +1,5 @@
 /** Shared materials. Everything is cached so hundreds of parts share a handful of materials. */
 import * as THREE from "three";
-import { paintSkin } from "./geometry";
 
 export interface MatSet { on: THREE.MeshStandardMaterial; hi: THREE.MeshStandardMaterial; dim: THREE.MeshStandardMaterial }
 const cache = new Map<string, MatSet>();
@@ -48,11 +47,12 @@ export const plateMat = {
 
 export const outlineMat = new THREE.LineBasicMaterial({ color: "#10171C", transparent: true, opacity: 0.9 });
 
-let _skin: THREE.MeshStandardMaterial | null = null;
-/** Painted fuselage skin (windows, door seam, pinstripes) for solid mode. */
-export function skinMat() {
-  if (!_skin) _skin = new THREE.MeshStandardMaterial({ map: paintSkin(), roughness: 0.36, metalness: 0.05, side: THREE.DoubleSide });
-  return _skin;
+const skins = new Map<() => THREE.Texture, THREE.MeshStandardMaterial>();
+/** Painted skin (windows, door seams, stripes) for solid mode, one material per painter. */
+export function skinMat(paint: () => THREE.Texture) {
+  let m = skins.get(paint);
+  if (!m) { m = new THREE.MeshStandardMaterial({ map: paint(), roughness: 0.36, metalness: 0.05, side: THREE.DoubleSide }); skins.set(paint, m); }
+  return m;
 }
 
 let _dot: THREE.CanvasTexture | null = null;

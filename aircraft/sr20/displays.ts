@@ -1,6 +1,8 @@
 /** Canvas drawing for the live PFD, MFD and MD302 standby textures. */
-import { D2R } from "./math";
-import { casMessages, live, mapInHg, type Elec, type Sim } from "./sim/model";
+import { D2R } from "@/lib/math";
+import { casMessages, live, mapInHg, type Elec, type Sim } from "./model";
+
+export { drawOff } from "@/lib/canvas";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -82,8 +84,4 @@ export function drawStandby(ctx: Ctx, W: number, H: number, s: Sim) {
   ctx.fillStyle = "#FFD200"; ctx.fillRect(W / 2 - 40, H / 2 - 3, 80, 6);
   ctx.font = "bold 20px monospace"; ctx.fillStyle = "#fff"; ctx.textAlign = "left";
   ctx.fillText("124", 10, 30); ctx.fillText("4500", W - 58, 30);
-}
-
-export function drawOff(ctx: Ctx, W: number, H: number) {
-  ctx.fillStyle = "#05070A"; ctx.fillRect(0, 0, W, H);
 }

@@ -2,12 +2,12 @@
  * Per-frame simulation: engine start/stop and RPM, flap motor, CAPS clock.
  * Writes continuous values to `live`; only discrete changes go through the store.
  */
-import { clamp, lerp } from "../math";
+import { clamp, lerp } from "@/lib/math";
 import { fuelAvail, live } from "./model";
-import { useSim } from "./store";
+import { useSR20 } from "./store";
 
 export function simTick(dt: number) {
-  const { s, E, update } = useSim.getState();
+  const { s, E, update } = useSR20.getState();
   const g = s.eng;
 
   // ignition key START is spring-loaded: cranks while held, then returns to BOTH
@@ -19,7 +19,7 @@ export function simTick(dt: number) {
     }
     if (live.startTimer <= 0) { live.crankT = 0; update((d) => { d.eng.key = "BOTH"; }); }
   }
-  const cur = useSim.getState().s;
+  const cur = useSR20.getState().s;
   if (cur.eng.running && (cur.eng.key === "OFF" || cur.eng.mix <= 0.05)) update((d) => { d.eng.running = false; });
   if (cur.eng.running && !fuelAvail(cur)) {
     live.starve += dt;
@@ -27,7 +27,7 @@ export function simTick(dt: number) {
   } else live.starve = 0;
 
   // RPM: POH governor schedule — 2,500 from idle through cruise, 2,700 at full power
-  const now = useSim.getState();
+  const now = useSR20.getState();
   let target = 0;
   if (now.s.eng.running) {
     const L = now.s.eng.lever;

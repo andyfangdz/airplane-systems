@@ -11,11 +11,12 @@
  *   double pulley → aft sector beside the elevator sector → push-pull tube → rudder bellcrank.
  */
 import * as THREE from "three";
+import type { Axis } from "@/lib/geometry";
+import { D2R, V, type Vec3 } from "@/lib/math";
 import { hingeX, sC, sLE, EF, SY, wingP } from "./geometry";
-import { D2R, V, type Vec3 } from "./math";
-import type { Sim } from "./sim/model";
+import type { Sim } from "./model";
 
-export type Axis = "x" | "y" | "z";
+export { pulleyGeo, sectorGeo } from "@/lib/geometry";
 export interface PulleyDef { c: Vec3; r: number; axis: Axis; double?: boolean; gap?: number }
 
 /* ---------- geometry constants (airplane coordinates, metres) ---------- */
@@ -57,45 +58,6 @@ export const PULLEYS: Record<string, PulleyDef & { name: string; note: string; s
   rm: { c: [0.45, -0.58, 0.13], r: 0.035, axis: "z", double: true, gap: 0.06, sys: "controls", name: "Intermediate rudder pulleys", note: "Double pulley under the rear cabin floor." },
   ra: { c: [-2.58, -0.24, 0], r: 0.07, axis: "y", sys: "controls", name: "Aft rudder sector", note: "Sector beside the elevator sector pulley in the aft fuselage; push-pull tube to the rudder bellcrank." },
 };
-
-/** Grooved pulley (or double pulley) oriented on the given axis, centred at the origin. */
-export function pulleyGeo(r: number, axis: Axis, double = false, gap = 0.03) {
-  const w = 0.018;
-  const prof = [[0.003, -w / 2], [r, -w / 2], [r, -w / 4], [r * 0.78, 0], [r, w / 4], [r, w / 2], [0.003, w / 2]].map(([a, b]) => new THREE.Vector2(a, b));
-  const wheel = () => new THREE.LatheGeometry(prof, 28);
-  const g = double ? mergeY([wheel().translate(0, -gap / 2, 0), wheel().translate(0, gap / 2, 0), new THREE.CylinderGeometry(0.006, 0.006, gap + w, 8)]) : wheel();
-  if (axis === "z") g.rotateX(Math.PI / 2);
-  if (axis === "x") g.rotateZ(Math.PI / 2);
-  return g;
-}
-function mergeY(gs: THREE.BufferGeometry[]) {
-  const pos: number[] = [], idx: number[] = [];
-  let off = 0;
-  gs.forEach((g) => {
-    const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) pos.push(p.getX(i), p.getY(i), p.getZ(i));
-    const ix = g.index;
-    if (ix) for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + off);
-    else for (let i = 0; i < p.count; i++) idx.push(i + off);
-    off += p.count;
-  });
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  out.setIndex(idx);
-  out.computeVertexNormals();
-  return out;
-}
-
-/** Pie-shaped cable sector in the x–y plane (axis z), pointing down. */
-export function sectorGeo(r: number, spread = 0.6, t = 0.012) {
-  const sh = new THREE.Shape();
-  sh.moveTo(0, 0);
-  sh.absarc(0, 0, r, -Math.PI / 2 - spread, -Math.PI / 2 + spread, false);
-  sh.lineTo(0, 0);
-  const g = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false });
-  g.translate(0, 0, -t / 2);
-  return g;
-}
 
 /* ---------- cable strands (each pair forms a closed loop through its sectors) ---------- */
 const E = ETT, ef = PULLEYS.ef, em = PULLEYS.em, ea = PULLEYS.ea, af = PULLEYS.af, rf = PULLEYS.rf, rm = PULLEYS.rm, ra = PULLEYS.ra;

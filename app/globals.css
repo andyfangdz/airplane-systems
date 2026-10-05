@@ -37,6 +37,12 @@ button{font:inherit;color:inherit}
 .brand{padding:18px 18px 14px;border-bottom:1px solid var(--rule)}
 .brand .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
 .brand h1{font-family:var(--f-disp);font-weight:700;font-size:30px;line-height:1;margin:6px 0 4px;letter-spacing:.01em}
+/* fleet picker: one button per airplane */
+.fleet{display:grid;grid-template-columns:repeat(4,1fr);margin:10px 0 10px;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.fleet button{background:var(--panel2);border:0;border-right:1px solid var(--rule);padding:6px 2px;cursor:pointer;font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--muted)}
+.fleet button:last-child{border-right:0}
+.fleet button:hover{color:var(--ink)}
+.fleet button[aria-pressed="true"]{background:var(--accent);color:#fff}
 .brand p{margin:0;font-size:13px;color:var(--muted)}
 .syslist{list-style:none;margin:0;padding:8px 8px 16px;overflow:auto;flex:1}
 .syslist button{width:100%;display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;text-align:left;
@@ -167,6 +173,7 @@ button.chip:hover{border-color:var(--elec)}
   .rail{border-right:0;border-bottom:1px solid var(--rule)}
   .brand{padding:14px 16px 10px}
   .brand h1{font-size:26px}
+  .fleet{max-width:420px}
   .syslist{display:flex;overflow-x:auto;padding:6px 10px 10px;gap:4px}
   .syslist li{flex:none}
   .syslist button{grid-template-columns:10px auto;padding:6px 10px;border:1px solid var(--rule)}

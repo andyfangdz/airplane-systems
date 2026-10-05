@@ -1,59 +1,65 @@
 /**
- * Declarative catalogue of every modelled component.
+ * Declarative catalogue of every modelled SR20 component.
  * Geometry is built lazily (browser only). Positions are in airplane coordinates unless the
  * part has a `parent`, in which case they are relative to that moving group.
  */
 import * as THREE from "three";
+import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { mats } from "@/lib/materials";
+import { V, clamp, type Vec3 } from "@/lib/math";
+import type { SysId } from "@/lib/systems";
+import { useView } from "@/lib/view";
 import {
   AB, EF, FIN, FW, HF, HH, HR, HZ, SSPAN, SY, WR, af, box, botY, cyl, fC, fLE, finCut, finHs, finSec, fus, fuselageGeo, hingeX,
-  loft, onSkin, pantGeo, planeRing, sC, sLE, sectionSlab, sph, stabSec, topY, tubeGeo, wC, wLE, wT, wY, wingP, wingSec, fRing,
+  loft, onSkin, paintSkin, pantGeo, planeRing, sC, sLE, sectionSlab, sph, stabSec, topY, tubeGeo, wC, wLE, wT, wY, wingP, wingSec, fRing,
 } from "./geometry";
-import { V, type Vec3 } from "./math";
+import { live } from "./model";
 import { AIL_DRIVE, AIL_SECTOR, CARR, ELEV_HORN, ETT, LEVER_ANG, PEDAL_TT, PULLEYS, RUD_HORN, RUD_HORN_AFT, alongCable, pulleyGeo, sectorGeo } from "./rig";
-import type { SysId } from "./systems";
-import type { Chan } from "./sim/model";
+import { useSR20 } from "./store";
 
-export type Anim = "plug" | "magR" | "magL" | "alt1" | "alt2" | "brakeR" | "brakeL" | "selPtr" | "altDoor" | "suction";
-
-export interface PartSpec {
-  id: string;
-  geo: () => THREE.BufferGeometry;
-  sys: SysId[];
-  name?: string;
-  note?: string;
-  pin?: boolean;
-  /** Intentionally outside the skin (gear, antennas, probes…). */
-  ext?: boolean;
-  color?: string;
-  pos?: Vec3;
-  rot?: Vec3;
-  scale?: Vec3;
-  parent?: string;
-  anim?: Anim;
-  mag?: "R" | "L";
-  plate?: boolean;
-  /** Flight-control channel(s) this part belongs to (for the channel focus view). */
-  chan?: Chan[];
-}
-
-export interface ShellSpec { id: string; geo: () => THREE.BufferGeometry; name: string; note: string; skin?: boolean }
-export interface SurfaceSpec { key: string; geo: () => THREE.BufferGeometry; pivot: Vec3; axis: Vec3; sys: SysId[]; name: string; note: string; chan?: Chan[] }
-export const chanOfKey = (k: string): Chan[] | undefined => (k.startsWith("elev") || k.startsWith("el") ? ["elevator"] : k.startsWith("ail") ? ["aileron"] : k.startsWith("rud") ? ["rudder"] : undefined);
-
+export { chanOfKey };
 const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
-let n = 0;
-const uid = (s: string) => `${s}-${n++}`;
 
-export const PARTS: PartSpec[] = [];
-export const SHELLS: ShellSpec[] = [];
-export const SURFACES: SurfaceSpec[] = [];
+export const CAT = new Catalogue("sr20");
+const { part, surfacePivot } = CAT;
+const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) => CAT.shell(geo, name, note, skin ? paintSkin : undefined);
+export { surfacePivot };
 
-function part(geo: () => THREE.BufferGeometry, sys: SysId[], o: Omit<PartSpec, "id" | "geo" | "sys"> = {}) {
-  const spec: PartSpec = { id: uid(o.name || "part"), geo, sys, ...o };
-  PARTS.push(spec);
-  return spec;
-}
-const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) => SHELLS.push({ id: uid(name), geo, name, note, skin });
+/* ---------- per-frame part animations ---------- */
+const sysNow = () => useView.getState().sys;
+const firing = () => live.rpm > 100 && useSR20.getState().s.eng.key !== "OFF";
+const keyFires = (mag: "R" | "L") => { const k = useSR20.getState().s.eng.key; return k === "BOTH" || k === "START" || k === mag; };
+const sparkPhase = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return (h % 100) / 10; };
+/** Spark plug: flashes while its magneto fires (engine view). */
+const plugAnim = (mag: "R" | "L", phase: number): PartAnim => (m, t) => {
+  const sys = sysNow(), engSys = sys === "engine" || sys === "overview";
+  const flash = firing() && keyFires(mag) && Math.sin(t * 18 + phase) > 0.3;
+  m.material = engSys && flash ? mats("#6FD8FF").hi : engSys || sys === "propeller" ? mats("#DADFE2").on : mats("#DADFE2").dim;
+};
+const magAnim = (mag: "R" | "L"): PartAnim => (m) => {
+  const sys = sysNow(), engSys = sys === "engine" || sys === "overview";
+  m.material = engSys ? (firing() && keyFires(mag) ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
+};
+const altAnim = (which: "alt1" | "alt2"): PartAnim => (m) => {
+  const up = useSR20.getState().E[which], sys = sysNow();
+  const show = sys === "overview" || sys === "electrical" || sys === "engine";
+  m.material = !show ? mats("#D9960F").dim : up ? mats("#D9960F").hi : mats("#5A5040").on;
+};
+const brakeAnim = (side: "R" | "L"): PartAnim => (m) => {
+  const g = useSR20.getState().s.gear;
+  const amt = g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff);
+  m.material = amt > 0.05 ? mats("#FF6A2A").hi : mats("#9AA3AA").on;
+};
+const selPtrAnim: PartAnim = (m) => {
+  const sel = useSR20.getState().s.fuel.sel;
+  m.rotation.y = sel === "L" ? Math.PI / 2 : sel === "R" ? -Math.PI / 2 : Math.PI;
+};
+const altDoorAnim = (x0: number): PartAnim => (m) => { m.position.x = x0 - (useSR20.getState().s.eng.altAir ? 0.05 : 0); };
+const suctionAnim: PartAnim = (m) => {
+  const aoa = useSR20.getState().s.stall.aoa, xc = clamp(0.32 - (aoa / 14) * 0.32, 0, 0.32);
+  m.position.copy(wingP(STALL_Z, xc, aoa >= 14 ? 0 : 1));
+  m.visible = sysNow() === "pitot";
+};
 
 /* ---------- airframe shells ---------- */
 shell(fuselageGeo, "Fuselage", "Composite monocoque with integral roll cage. Cabin runs from the firewall (FS 100) to the aft baggage bulkhead (FS 222).", true);
@@ -76,8 +82,8 @@ shell(() => loft(finHs.map((h) => finSec(h, 0, finCut(h)))), "Vertical stabilize
 
 /* ---------- control surfaces (pivot on their hinge lines) ---------- */
 function surface(key: string, secs: () => THREE.Vector3[][], a: THREE.Vector3, b: THREE.Vector3, sys: SysId[], name: string, note: string) {
-  SURFACES.push({
-    key, pivot: P(a), axis: P(b.clone().sub(a).normalize()), sys, name, note, chan: chanOfKey(key),
+  CAT.surface({
+    key, pivot: P(a), axis: P(b.clone().sub(a).normalize()), sys, name, note,
     geo: () => { const g = loft(secs()); g.translate(-a.x, -a.y, -a.z); return g; },
   });
 }
@@ -97,7 +103,6 @@ const hp = (s: number, z: number, xc: number) => { const c = wC(z), [u, l] = af(
 surface("rudder", () => [-0.2, 0.05, 0.31, 0.52, 0.8, 1.1, HH - 0.002, HH, 1.42, 1.47].map((h) => finSec(h, finCut(h), 1)),
   V(hingeX(-0.2), -0.2, 0), V(hingeX(1.44), 1.44, 0), ["controls"],
   "Rudder", "Aluminum, three hinge points on the fin rear shear web. Extends below the stabilizer to the tailcone tip.");
-export const surfacePivot = (key: string) => SURFACES.find((s) => s.key === key)!.pivot;
 /** Part attached to a moving control surface; `world` is converted to hinge-relative coords. */
 function onSurf(key: string, world: THREE.Vector3, geo: () => THREE.BufferGeometry, o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] }) {
   const pv = surfacePivot(key);
@@ -147,7 +152,7 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
   part(() => cyl(0.19, 0.15, "z", 28), ["gear"], { pos: [MG.x, MG.y, s * MG.z], color: "#2A2F33", name: "Main wheel", note: "15 × 6.00 × 6 tubeless tire.", ext: true });
   part(() => pantGeo(0.92, 0.19), ["gear"], { pos: [MG.x, -1.17, s * MG.z], scale: [1, 1, 0.62], name: "Wheel pant", note: "Removable; access plugs allow tire inflation checks.", ext: true });
   part(() => cyl(0.12, 0.03, "z", 20), ["gear"], {
-    pos: [MG.x, MG.y, s * (MG.z - 0.1)], color: "#9AA3AA", ext: true, anim: s > 0 ? "brakeR" : "brakeL", name: "Disc brake",
+    pos: [MG.x, MG.y, s * (MG.z - 0.1)], color: "#9AA3AA", ext: true, anim: brakeAnim(s > 0 ? "R" : "L"), name: "Disc brake",
     note: "Single-disc caliper with pads. An orange temperature tab on the caliper turns brown if the brake overheated — inspect. Brake temp sensor also feeds the CAS alerts.",
   });
   part(() => tubeGeo([[2.4, -0.6, s * 0.3], [1.8, -0.58, s * 0.34], [1.28, -0.6, s * 0.8], wingP(s * 1.0, 0.33, -1).add(V(0, 0.012, 0))], 0.011), ["gear"], { name: "Brake line (" + (s > 0 ? "R" : "L") + ")", note: "Master cylinder at each pedal → parking-brake valve → caliper." });
@@ -188,23 +193,23 @@ CYLS.forEach((c) => {
   ([["U", 0.065], ["L", -0.065]] as const).forEach(([pos, dy]) => {
     const mag = (c.s > 0) === (pos === "L") ? "R" : "L";
     part(() => cyl(0.017, 0.06, "x", 10), ["engine"], {
-      parent, pos: [-0.12, dy, c.s * 0.13], color: "#DADFE2", anim: "plug", mag,
+      parent, pos: [-0.12, dy, c.s * 0.13], color: "#DADFE2", anim: plugAnim(mag, sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`, note: `Fired by the ${mag === "R" ? "right" : "left"} magneto.`,
     });
   });
 });
-part(() => cyl(0.05, 0.13, "x"), ["engine"], { pos: [2.72, -0.04, 0.11], color: "#3E4A52", anim: "magR", name: "Right magneto", note: "Fires lower-right and upper-left plugs. Also the tachometer's RPM pickup.", pin: true });
-part(() => cyl(0.05, 0.13, "x"), ["engine"], { pos: [2.72, -0.04, -0.11], color: "#3E4A52", anim: "magL", name: "Left magneto", note: "Fires lower-left and upper-right plugs.", pin: true });
+part(() => cyl(0.05, 0.13, "x"), ["engine"], { pos: [2.72, -0.04, 0.11], color: "#3E4A52", anim: magAnim("R"), name: "Right magneto", note: "Fires lower-right and upper-left plugs. Also the tachometer's RPM pickup.", pin: true });
+part(() => cyl(0.05, 0.13, "x"), ["engine"], { pos: [2.72, -0.04, -0.11], color: "#3E4A52", anim: magAnim("L"), name: "Left magneto", note: "Fires lower-left and upper-right plugs.", pin: true });
 part(() => box(0.1, 0.09, 0.12), ["engine", "propeller"], { pos: [3.55, -0.06, 0], color: "#C0602F", name: "Propeller governor", note: "Flyweights sense RPM; a cable from the power lever sets the target. Boosts engine oil pressure to move blade pitch.", pin: true });
 part(() => box(0.08, 0.16, 0.12), ["engine"], { pos: [3.36, -0.1, -0.35], color: "#9A6A48", name: "Oil cooler", note: "Remote-mounted. Valve bypasses it below 170 °F or above an 18 psi pressure drop." });
 part(() => box(0.1, 0.12, 0.14), ["engine"], { pos: [3.58, -0.15, 0.2], color: "#C9B98F", name: "Induction air filter", note: "Paper filter screen just inside the right cowl inlet. (Costanzo deck)", pin: true });
 part(() => cyl(0.045, 0.11, "x"), ["engine"], { pos: [2.8, -0.02, 0.18], color: "#1F3A5A", name: "Oil filter (full-flow)", note: "Spin-on filter at the accessory case, next to the magnetos. (Costanzo deck)", pin: true });
 part(() => cyl(0.055, 0.14, "x"), ["engine", "fuel"], { pos: [3.32, -0.4, 0], color: "#7E8A93", name: "Throttle body / fuel servo", note: "Butterfly meters air; servo meters fuel in proportion to airflow and mixture. MAP sensor sits nearby.", pin: true });
-part(() => box(0.03, 0.08, 0.1), ["engine"], { pos: [3.5, -0.26, 0.2], color: "#E0B040", anim: "altDoor", name: "Alternate air door", note: "ALT AIR – PULL knob opens it: bypasses the filter with warm, unfiltered air." });
+part(() => box(0.03, 0.08, 0.1), ["engine"], { pos: [3.5, -0.26, 0.2], color: "#E0B040", anim: altDoorAnim(3.5), name: "Alternate air door", note: "ALT AIR – PULL knob opens it: bypasses the filter with warm, unfiltered air." });
 part(() => cyl(0.06, 0.28, "z"), ["engine", "environment"], { pos: [3.04, -0.44, 0.22], color: "#8A5A3C", name: "Muffler", note: "Single muffler; exhaust exits through the lower cowl. Placed on the right with the heat muff and mixing chamber per the POH environmental section and the Costanzo deck photo (the POH engine paragraph says left)." });
 part(() => cyl(0.08, 0.2, "z"), ["environment", "engine"], { pos: [3.04, -0.44, 0.22], color: "#E0522B", name: "Heat exchanger (muff)", note: "Shroud around the muffler; heats ram air for the cabin." });
-part(() => cyl(0.07, 0.12, "x"), ["electrical", "engine"], { pos: [3.5, -0.3, 0.22], color: "#D9960F", anim: "alt1", name: "ALT 1 — 100 A", note: "Belt-driven, right front. Regulated to 27.7 V. Feeds Main Distribution Bus 1.", pin: true });
-part(() => cyl(0.06, 0.11, "x"), ["electrical", "engine"], { pos: [3.5, -0.3, -0.22], color: "#D9960F", anim: "alt2", name: "ALT 2 — 70 A", note: "Belt-driven, left front. Regulated to 28.7 V, so it carries the loads it shares with ALT 1.", pin: true });
+part(() => cyl(0.07, 0.12, "x"), ["electrical", "engine"], { pos: [3.5, -0.3, 0.22], color: "#D9960F", anim: altAnim("alt1"), name: "ALT 1 — 100 A", note: "Belt-driven, right front. Regulated to 27.7 V. Feeds Main Distribution Bus 1.", pin: true });
+part(() => cyl(0.06, 0.11, "x"), ["electrical", "engine"], { pos: [3.5, -0.3, -0.22], color: "#D9960F", anim: altAnim("alt2"), name: "ALT 2 — 70 A", note: "Belt-driven, left front. Regulated to 28.7 V, so it carries the loads it shares with ALT 1.", pin: true });
 part(() => box(0.1, 0.12, 0.14), ["engine"], { pos: [2.74, -0.24, 0], color: "#4B5860", name: "Starter / SlickSTART", note: "START energizes the starter and SlickSTART booster (retards timing, hotter spark). Spring-returns to BOTH." });
 
 /* ---------- structure ---------- */
@@ -244,7 +249,7 @@ part(() => cyl(0.02, 1.9, "z"), ["flaps"], { pos: [FT.x, FT.y, 0], color: "#9F85
 part(() => box(0.24, 0.07, 0.09), ["flaps"], { pos: [FT.x + 0.02, FT.y + 0.02, 0], color: "#7C57CF", name: "Flap actuator", note: "Motorized linear actuator; proximity switches stop travel and drive the position lights. 10 A FLAPS, NON ESS BUS.", pin: true });
 part(() => box(0.06, 0.08, 0.07), ["flaps"], { pos: [2.12, -0.36, 0.02], color: "#7C57CF", name: "FLAPS switch", note: "Airfoil-shaped knob with UP / 50% / 100% detents at the bottom of the console. UP light green, 50/100 lights amber.", pin: true });
 part(() => cyl(0.045, 0.03, "y"), ["fuel"], { pos: [1.24, -0.25, 0], name: "Fuel selector valve", note: "LEFT / RIGHT / OFF at the rear of the console. Lift the release to select OFF.", pin: true });
-part(() => box(0.09, 0.02, 0.02), ["fuel"], { pos: [1.24, -0.23, 0], color: "#F2F5F7", anim: "selPtr" });
+part(() => box(0.09, 0.02, 0.02), ["fuel"], { pos: [1.24, -0.23, 0], color: "#F2F5F7", anim: selPtrAnim });
 part(() => box(0.04, 0.03, 0.04), ["fuel"], { pos: [1.34, -0.26, 0.08], name: "BOOST PUMP switch", note: "Next to the selector. On for takeoff, climb, maneuvering, landing and tank switching." });
 part(() => new THREE.CylinderGeometry(0.012, 0.012, 0.1, 8), ["caps", "cabin"], { pos: [1.3, 0.63, -0.02], color: "#D32640", name: "CAPS activation T-handle", note: "Ceiling, centerline, above the pilot's right shoulder. Pull ~2 in. of slack, then pull straight down (up to 45 lb).", pin: true });
 part(() => box(0.03, 0.02, 0.15), ["caps", "cabin"], { pos: [1.3, 0.58, -0.02], color: "#D32640" });
@@ -291,7 +296,7 @@ part(() => box(0.05, 0.05, 0.03), ["pitot"], { pos: [1.84, -0.3, -0.14], color: 
 part(() => box(0.05, 0.04, 0.05), ["pitot"], { pos: [0.9, -0.62, 0], color: "#3A9448", name: "Water traps", note: "Drains at pitot/static low points under the cabin floor. Drain at annual or when water suspected." });
 export const STALL_Z = 3.0;
 part(() => sph(0.025), ["pitot"], { pos: P(wingP(STALL_Z, 0, 0)), color: "#3A9448", name: "Stall warning inlet", note: "Right wing leading edge. Sucks as the low-pressure peak moves forward near stall → pressure switch → horn, red STALL, autopilot disconnect.", pin: true, ext: true });
-part(() => sph(0.04), ["pitot"], { pos: P(wingP(STALL_Z, 0.3, 1)), color: "#E0263B", anim: "suction", name: "Low-pressure peak", note: "Moves forward around the leading edge as angle of attack increases.", ext: true });
+part(() => sph(0.04), ["pitot"], { pos: P(wingP(STALL_Z, 0.3, 1)), color: "#E0263B", anim: suctionAnim, name: "Low-pressure peak", note: "Moves forward around the leading edge as angle of attack increases.", ext: true });
 [-2.15, -2.3].forEach((z, i) => {
   const b = wingP(z, 0.45, -1);
   part(() => tubeGeo([b.clone().add(V(0, 0.01, 0)), b.clone().add(V(0.01, -0.07, 0))], 0.006), ["pitot", "avionics"], { color: "#8C959C", name: "OAT probes", note: "Two outside-air-temperature probes under the left wing feed the air data computers (location per Costanzo deck photo).", ext: true, pin: i === 0 });
@@ -402,11 +407,5 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], { chan: ["rudder"], parent: "rig
   part(() => box(0.03, 0.03, 0.02), ["controls"], { chan: ["aileron"], pos: alongCable(k as string, i as number, 0.5), color: "#C9D0D5", name: "Cable guide", note: "Fairlead that keeps the aileron cable centred as it runs spanwise (the clips drawn in POH Fig. 7-2).", pin: sd > 0 && k === "ailBal" }))
 );
 
-/* ---------- lookups ---------- */
-export const partsFor = (parent?: string) => PARTS.filter((p) => p.parent === parent);
-/** Unique pinned, named parts for a system (labels and "tap to locate" lists). */
-export function pinnedParts(sys: SysId) {
-  const seen = new Set<string>();
-  return PARTS.filter((p) => p.pin && p.name && p.sys.includes(sys) && !seen.has(p.name) && (seen.add(p.name), true));
-}
 export { FIN };
+export type { PartSpec };

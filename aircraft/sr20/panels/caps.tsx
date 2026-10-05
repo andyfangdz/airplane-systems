@@ -1,13 +1,14 @@
 "use client";
-import { live } from "@/lib/sim/model";
-import { useSim } from "@/lib/sim/store";
-import { CAPS_CAM, sysDef } from "@/lib/systems";
-import { BtnRow, Caution, Ctl, Facts, H3, Notes, Slider, useTicker } from "../ui/controls";
+import { useView } from "@/lib/view";
+import { live } from "../model";
+import { resetCaps, startCaps, useSR20 } from "../store";
+import { CAPS_CAM, SYS } from "../systems";
+import { BtnRow, Caution, Ctl, Facts, H3, Notes, Slider, useTicker } from "@/components/ui/controls";
 
 export function Caps() {
   useTicker(100);
-  const { startCaps, resetCaps, update, flyTo } = useSim.getState();
-  const capsOn = useSim((x) => x.s.capsOn);
+  const { update } = useSR20.getState(), { flyTo } = useView.getState();
+  const capsOn = useSR20((x) => x.s.capsOn);
   return (
     <>
       <p className="lead">A solid-propellant rocket pulls a 2,400 ft² round canopy out of a canister behind the baggage bulkhead. A slider slows inflation, and a snubbed rear riser keeps the nose from pitching up too far until it&apos;s cut at 8 seconds.</p>
@@ -19,7 +20,7 @@ export function Caps() {
             if (!capsOn) { startCaps(); return; }
             live.capsPlaying = !live.capsPlaying;
           }}>Pause / play</button>
-          <button type="button" className="btn" onClick={() => { resetCaps(); const [p, t] = sysDef("caps").cam; flyTo(p, t); }}>Reset</button>
+          <button type="button" className="btn" onClick={() => { resetCaps(); const [p, t] = SYS.find((d) => d.id === "caps")!.cam; flyTo(p, t); }}>Reset</button>
         </BtnRow>
         <Slider id="capsT" label="Timeline" min={0} max={16} step={0.05} value={Math.max(0, live.capsT)}
           onChange={(v) => {

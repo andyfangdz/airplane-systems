@@ -1,12 +1,15 @@
 "use client";
-import { cabinLit, extLit } from "@/lib/sim/model";
-import { useSim } from "@/lib/sim/store";
-import { SYS, sysColor } from "@/lib/systems";
-import { Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Seg, Small } from "../ui/controls";
+import { selectSys } from "@/lib/fleet";
+import { sysColor } from "@/lib/systems";
+import { useView } from "@/lib/view";
+import { cabinLit, extLit } from "../model";
+import { CAT } from "../parts";
+import { useSR20 } from "../store";
+import { SYS } from "../systems";
+import { Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Seg, Small } from "@/components/ui/controls";
 
 export function Overview() {
-  const select = useSim((x) => x.select);
-  const theme = useSim((x) => x.theme);
+  const theme = useView((x) => x.theme);
   return (
     <>
       <p className="lead">A study model of POH Section 7 for the SR20 with Perspective+ avionics (G6). Pick a system to fly the camera to it, hover parts for their notes, and operate switches, levers and failures in the panel. Systems are linked: pull an alternator and watch buses, displays and the CAS window respond.</p>
@@ -15,7 +18,7 @@ export function Overview() {
       <H3>Systems</H3>
       <div className="overview-grid">
         {SYS.slice(1).map((s) => (
-          <button key={s.id} type="button" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties} onClick={() => select(s.id)}>
+          <button key={s.id} type="button" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties} onClick={() => selectSys(s.id)}>
             <b>{s.name}</b><span>{s.blurb}</span>
           </button>
         ))}
@@ -31,7 +34,7 @@ export function Airframe() {
       <p className="lead">A composite monocoque fuselage with a built-in roll cage carries all flight loads through four wing attach points. One carbon spar runs uninterrupted from tip to tip beneath the front seats.</p>
       <Facts rows={[["Cabin", "FS 100 firewall → FS 222 bulkhead"], ["Seats", "Pilot + up to 4 passengers"], ["Wing attach", "4 points: 2 under front seats, 2 at sidewall aft of rear seats"], ["Main spar", "Carbon/epoxy C-section, tip to tip"], ["Each wing", "29.3 gal integral tank + main gear"], ["Firewall", "20° lower bevel for crashworthiness"], ["Elevator / rudder", "Aluminum"], ["Stabilizer / fin", "Composite; fin integral with shell"]]} />
       <H3>Structure — tap to locate</H3>
-      <PartsList sys="airframe" />
+      <PartsList parts={CAT.pinned("airframe")} />
       <H3>Notes</H3>
       <Notes items={["Wing skins bond to the spar, ribs and aft shear web to form a torsion box carrying all bending and torsion.", "The rear shear webs attach to the fuselage but, unlike the spar, don't carry through it.", "The avionics bay sits aft of FS 222, reached through an access panel on the right side of the tailcone."]} />
     </>
@@ -42,7 +45,7 @@ export function Cabin() {
   return (
     <>
       <p className="lead">Seats, restraints and the emergency equipment you should be able to find with your eyes closed. Tap any item to locate it on the model.</p>
-      <PartsList sys="cabin" />
+      <PartsList parts={CAT.pinned("cabin")} />
       <H3>Restraints</H3>
       <Notes items={["Front: 4-point harness with an inflatable shoulder belt. A crash sensor under the floor fires the inflator; the bag deflates for egress. No slack between shoulder and strap.", "Rear: 3-point harness on inertia reels at the rear bulkhead. LATCH anchors in the outboard rear seats (2+1 bench).", "Seat bottoms have a honeycomb core that crushes to absorb vertical loads — don't kneel or stand on them."]} />
       <H3>ELT</H3>
@@ -55,7 +58,7 @@ export function Cabin() {
 }
 
 export function Lighting() {
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
   const lit = cabinLit(s, E), x = extLit(s, E), L = s.lights;
   const on = (b: boolean) => (b ? "ON" : "off");
   // switch on but nothing lit means a pulled breaker or a dead bus
@@ -76,7 +79,7 @@ export function Lighting() {
       </Ctl>
       <Small>Exterior glows show in the Overview and Lighting views. Pull a breaker on the NON ESS BUS, or lose Main Dist Bus 2, to see a light drop out.</Small>
       <H3>Lights — tap to locate</H3>
-      <PartsList sys="lighting" />
+      <PartsList parts={CAT.pinned("lighting")} />
       <H3>Cabin light switch</H3>
       <Ctl>
         <Seg id="cabsw" label="Ceiling switch" options={[["OFF", "OFF"], ["ON", "ON"], ["AUTO", "AUTO"]]} value={L.cabin} onChange={(v) => up((d) => { d.lights.cabin = v; })} />
@@ -97,7 +100,7 @@ export function Lighting() {
 }
 
 export function Avionics() {
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
   return (
     <>
       <p className="lead">Garmin Perspective+: two 10 in. displays (12 in. optional), dual integrated avionics units, ADAHRS and an engine/airframe unit. The displays in the model are live — they go dark if their buses die and revert automatically.</p>
@@ -113,7 +116,7 @@ export function Avionics() {
       <Facts rows={[["Red warning", "Immediate awareness and action"], ["Amber caution", "Immediate awareness, later action"], ["White advisory", "Awareness; action may follow"]]} />
       <H3>Notes</H3>
       <Notes items={["Typical alignment is 60 seconds after battery on.", "On a detected display failure the remaining screen shows PFD data plus engine indication with no pilot action. The red DISPLAY BACKUP button forces it.", "Baro-VNAV provides LNAV/VNAV guidance without SBAS (magenta pentagon). No SBAS→baro downgrade inside 60 s of the FAF.", "Three fans cool the stack: AVIONICS FAN 1 (NON ESS) and FAN 2 (MAIN 2)."]} />
-      <PartsList sys="avionics" />
+      <PartsList parts={CAT.pinned("avionics")} />
     </>
   );
 }

@@ -1,9 +1,12 @@
 "use client";
-import { live, type Chan } from "@/lib/sim/model";
 import type { Vec3 } from "@/lib/math";
-import { sysDef } from "@/lib/systems";
-import { useSim } from "@/lib/sim/store";
-import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider, useTicker } from "../ui/controls";
+import type { Chan } from "@/lib/systems";
+import { useView } from "@/lib/view";
+import { live } from "../model";
+import { CAT } from "../parts";
+import { useSR20 } from "../store";
+import { SYS } from "../systems";
+import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider, useTicker } from "@/components/ui/controls";
 
 const dir = (v: number, pos: string, neg: string, mid: string, dz = 0.02) => (v > dz ? pos : v < -dz ? neg : mid);
 
@@ -39,10 +42,11 @@ const RUNS: Record<Chan, { fig: string; steps: string[] }> = {
 };
 
 export function Controls() {
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update), flyTo = useSim((x) => x.flyTo);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
+  const ctrlFocus = useView((x) => x.ctrlFocus), flyTo = useView((x) => x.flyTo);
   const focus = (v: Chan | "all") => {
-    up((d) => { d.ctrlFocus = v; });
-    const [p, t] = v === "all" ? sysDef("controls").cam : CHAN_CAM[v];
+    useView.getState().set({ ctrlFocus: v });
+    const [p, t] = v === "all" ? SYS.find((d) => d.id === "controls")!.cam : CHAN_CAM[v];
     flyTo(p, t);
   };
   return (
@@ -50,21 +54,21 @@ export function Controls() {
       <p className="lead">Two single-handed side yokes drive conventional ailerons, elevator and rudder through push rods, cables and bellcranks. Pitch and roll trim move the neutral point of spring cartridges electrically; yaw trim is set on the ground.</p>
       <H3>Try it</H3>
       <Ctl>
-        <Seg id="chan" label="Show cable run" options={[["all", "All"], ["elevator", "Elevator"], ["aileron", "Aileron"], ["rudder", "Rudder"]]} value={s.ctrlFocus} onChange={focus} />
+        <Seg id="chan" label="Show cable run" options={[["all", "All"], ["elevator", "Elevator"], ["aileron", "Aileron"], ["rudder", "Rudder"]]} value={ctrlFocus} onChange={focus} />
         <Slider id="ctlPitch" label="Yoke pitch (push ↔ pull)" min={-1} max={1} step={0.01} value={s.ctrl.pitch} onChange={(v) => up((d) => { d.ctrl.pitch = v; })} fmt={(v) => dir(v, "Nose up", "Nose down", "Neutral")} />
         <Slider id="ctlRoll" label="Yoke roll" min={-1} max={1} step={0.01} value={s.ctrl.roll} onChange={(v) => up((d) => { d.ctrl.roll = v; })} fmt={(v) => dir(v, "Right", "Left", "Neutral")} />
         <Slider id="ctlYaw" label="Rudder pedals" min={-1} max={1} step={0.01} value={s.ctrl.yaw} onChange={(v) => up((d) => { d.ctrl.yaw = v; })} fmt={(v) => dir(v, "Right", "Left", "Neutral")} />
         <BtnRow><button type="button" className="btn" onClick={() => up((d) => { d.ctrl = { pitch: 0, roll: 0, yaw: 0 }; })}>Center controls</button></BtnRow>
         <Readouts items={[["Pitch trim", E.pitchTrim ? "ESS 2 · ON" : ["NO PWR", "bad"]], ["Roll trim", E.rollTrim ? "ESS 2 · ON" : ["NO PWR", "bad"]], ["Yaw trim", "Ground adj."]]} />
       </Ctl>
-      {s.ctrlFocus !== "all" && (
+      {ctrlFocus !== "all" && (
         <>
-          <H3>{s.ctrlFocus[0].toUpperCase() + s.ctrlFocus.slice(1)} run · {RUNS[s.ctrlFocus].fig}</H3>
-          <ol className="notes">{RUNS[s.ctrlFocus].steps.map((t) => <li key={t}>{t}</li>)}</ol>
+          <H3>{ctrlFocus[0].toUpperCase() + ctrlFocus.slice(1)} run · {RUNS[ctrlFocus].fig}</H3>
+          <ol className="notes">{RUNS[ctrlFocus].steps.map((t) => <li key={t}>{t}</li>)}</ol>
         </>
       )}
       <H3>Mechanisms &amp; surface details — tap to locate</H3>
-      <PartsList sys="controls" />
+      <PartsList parts={CAT.pinned("controls")} />
       <H3>Details</H3>
       <Facts rows={[["Pitch", "Yoke tube → drop link → torque tube & forward sector → cable loop → aft sector pulley → push-pull tube → bellcrank"], ["Roll", "Yoke carriages → push rod → central sector → floor & turning pulleys → wing sectors → conical drive arms; balance cable"], ["Yaw", "Pedals → cable horn → forward & intermediate pulleys → aft sector → push-pull tube → bellcrank"], ["Trim switch", "Conical button on each yoke"], ["Pitch / roll trim", "2 A each, ESS BUS 2"], ["Takeoff trim", "Mark on yoke tube aligns with bolster tab"], ["Trim tabs", "Ground-adjustable on elevator, right aileron, rudder"]]} />
       <H3>Pilot notes</H3>
@@ -75,7 +79,7 @@ export function Controls() {
 
 export function Flaps() {
   useTicker(200);
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
   const at = Math.abs(live.flapAng - s.flaps.cmd * 0.32) < 0.3 && E.flapsPwr;
   return (
     <>
@@ -98,7 +102,7 @@ export function Flaps() {
 }
 
 export function Gear() {
-  const s = useSim((x) => x.s), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), up = useSR20((x) => x.update);
   return (
     <>
       <p className="lead">Fixed tricycle gear: composite main struts bolted to the wing, a steel nose strut with an oleo on the engine mount. The nose wheel free-casters — you steer on the ground with differential toe brakes.</p>

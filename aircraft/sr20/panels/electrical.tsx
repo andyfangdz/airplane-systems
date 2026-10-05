@@ -1,10 +1,10 @@
 "use client";
-import { BUSES, fuelAvail, type BusId, type Sim } from "@/lib/sim/model";
-import { useSim } from "@/lib/sim/store";
-import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, Readouts, Rocker, Slider, Small } from "../ui/controls";
+import { BUSES, fuelAvail, type BusId, type Sim } from "../model";
+import { useSR20 } from "../store";
+import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, Readouts, Rocker, Slider, Small } from "@/components/ui/controls";
 
 function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; loads?: [string, number?][] }) {
-  const E = useSim((x) => x.E), cb = useSim((x) => x.s.cb), up = useSim((x) => x.update);
+  const E = useSR20((x) => x.E), cb = useSR20((x) => x.s.cb), up = useSR20((x) => x.update);
   const v = E[id], on = v > 0;
   return (
     <div className={"bus" + (on ? " on" : "")}>
@@ -27,7 +27,7 @@ function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; l
 const resetElec = (d: Sim) => { d.elec = { bat1: true, bat2: true, alt1: true, alt2: true, avionics: true, fail: { alt1: false, alt2: false, bat1: false }, tBat: 0 }; };
 
 export function Electrical() {
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
   const e = s.elec;
   const scen = (label: string, fn: (d: Sim) => void) => (
     <button key={label} type="button" className="btn" onClick={() => up((d) => { resetElec(d); fn(d); })}>{label}</button>

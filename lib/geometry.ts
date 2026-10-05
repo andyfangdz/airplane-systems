@@ -1,14 +1,13 @@
 /**
- * Airframe geometry for the SR20 G6 model.
+ * Generic geometry builders shared by every airplane: lofts, airfoils, primitives, tubes, and
+ * factories for superellipse fuselages, lifting surfaces and fins driven by station tables.
  *
  * Axes: x forward, y up, z toward the right wing. Units: metres.
- * Fuselage profile traced from POH Figure 1-1 (three view); tailcone, fin and window
- * outlines traced from a G6 side photo (OO-CBB, s/n 2347, Wikimedia Commons).
  */
 import * as THREE from "three";
 import { V, clamp, lerp, toV, type Vec3 } from "./math";
 
-type Ring = THREE.Vector3[];
+export type Ring = THREE.Vector3[];
 
 /* ---------- generic builders ---------- */
 
@@ -63,8 +62,8 @@ export function afRing(c0: number, c1: number, t: number, m: number, n = 16): [n
   return pts;
 }
 
-/** Catmull-Rom interpolation over a table sorted by descending first column. */
-function interp(tab: number[][], col: number, x: number) {
+/** Catmull-Rom interpolation over a table sorted by descending first column (clamped at the ends). */
+export function interp(tab: number[][], col: number, x: number) {
   const xs = tab.map((r) => r[0]);
   let i = 0;
   if (x >= xs[0]) return tab[0][col];
@@ -75,110 +74,13 @@ function interp(tab: number[][], col: number, x: number) {
   return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
 }
 
-/* ---------- fuselage ---------- */
-
-/** Firewall (FS 100) and aft baggage bulkhead (FS 222) stations. */
-export const FW = 2.61, AB = -0.49;
-export const GROUND_Y = -1.39;
-
-// x, halfWidth, halfHeight, centerY — cowl & cabin from POH Fig. 1-1, tailcone from the G6 side photo
-const FUS = [
-  [3.74, 0.32, 0.155, -0.125], [3.66, 0.42, 0.24, -0.16], [3.52, 0.5, 0.3, -0.19], [3.3, 0.55, 0.35, -0.2], [2.96, 0.6, 0.4, -0.22], [2.61, 0.62, 0.45, -0.23],
-  [2.31, 0.625, 0.575, -0.13], [2.01, 0.635, 0.654, -0.06], [1.71, 0.64, 0.7, -0.02], [1.26, 0.65, 0.718, 0.0], [0.65, 0.645, 0.69, -0.006],
-  [0.05, 0.61, 0.623, -0.015], [-0.25, 0.54, 0.56, -0.03], [-0.55, 0.47, 0.485, -0.045], [-0.85, 0.39, 0.443, -0.047], [-1.15, 0.31, 0.398, -0.063],
-  [-1.6, 0.2, 0.368, -0.062], [-2.05, 0.145, 0.355, -0.045], [-2.4, 0.12, 0.33, -0.05], [-2.8, 0.1, 0.27, -0.07], [-3.1, 0.08, 0.2, -0.1],
-  [-3.3, 0.04, 0.09, -0.11], [-3.36, 0.015, 0.03, -0.11],
-];
-export const fus = (x: number) => ({ hw: interp(FUS, 1, x), hh: interp(FUS, 2, x), cy: interp(FUS, 3, x) });
-export const topY = (x: number) => fus(x).cy + fus(x).hh;
-export const botY = (x: number) => fus(x).cy - fus(x).hh;
-
-// Cross-section: rounder top (n 2.4) with tumblehome, flatter belly (n 3)
-export const NT = 2.4, NB = 3.0, TUMBLE = 0.2;
-
-export function fRing(x: number, s = 1, N = 40, th0 = 0, th1 = Math.PI * 2, closed = true): Ring {
-  const { hw, hh, cy } = fus(x), pts: Ring = [], cnt = closed ? N : N + 1;
-  for (let j = 0; j < cnt; j++) {
-    const th = closed ? (j / N) * Math.PI * 2 : th0 + ((th1 - th0) * j) / N;
-    const c = Math.cos(th), sn = Math.sin(th), n = sn >= 0 ? NT : NB;
-    const py = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n), pz = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
-    pts.push(V(x, cy + s * hh * py, s * hw * (1 - TUMBLE * Math.max(0, py)) * pz));
-  }
-  return pts;
-}
-
-/** Is a point inside the fuselage skin (with margin m, metres)? */
-export function inFus(p: THREE.Vector3, m = 0) {
-  if (p.x > 3.74 || p.x < -3.36) return false;
-  const { hw, hh, cy } = fus(p.x);
-  const py = (p.y - cy) / (hh - m);
-  if (Math.abs(py) > 1) return false;
-  const n = py >= 0 ? NT : NB, w = (hw - m) * (1 - TUMBLE * Math.max(0, py));
-  return Math.pow(Math.abs(p.z) / w, n) + Math.pow(Math.abs(py), n) <= 1;
-}
-
-/** Point on the outer skin at (x, y) on the given side (+1 right, -1 left). */
-export function onSkin(x: number, y: number, side: number, push = 1.006) {
-  const { hw, hh, cy } = fus(x);
-  const py = clamp((y - cy) / hh, -1, 1), n = py >= 0 ? NT : NB;
-  const w = hw * (1 - TUMBLE * Math.max(0, py));
-  return V(x, y, side * w * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(py), n)), 1 / n) * push);
-}
-
-/* ---------- wing: root buried at z 0.35, rounded tip from z 5.2, ~5° dihedral ---------- */
-export const WR = 0.35, WTIP = 5.84, WSPAN = WTIP - WR;
-const tipCut = (z: number) => { const a = Math.abs(z); return a > 5.2 ? 0.28 * Math.pow((a - 5.2) / 0.64, 2) : 0; };
-export const wLE = (z: number) => 1.75 - (Math.abs(z) - WR) * 0.04 - tipCut(z);
-export const wC = (z: number) => 1.5 - ((Math.abs(z) - WR) / WSPAN) * 0.7 - tipCut(z);
-export const wY = (z: number) => -0.6 + (Math.abs(z) - WR) * 0.09;
-export const wT = (z: number) => 0.15 - ((Math.abs(z) - WR) / WSPAN) * 0.04;
-
-/** Point on the wing at span z and chord fraction xc; up = +1 upper, -1 lower, 0 mean line. */
-export const wingP = (z: number, xc: number, up = 0) => {
-  const c = wC(z), [u, l] = af(xc, wT(z), 0.02);
-  return V(wLE(z) - xc * c, wY(z) + (up > 0 ? u : up < 0 ? l : (u + l) / 2) * c, z);
-};
-export const wingSec = (z: number, c0: number, c1: number, scale = 1): Ring => {
-  const c = wC(z);
-  return afRing(c0, c1, wT(z) * scale, 0.02).map(([x, y]) => V(wLE(z) - x * c, wY(z) + y * c, z));
-};
-
-/* ---------- horizontal tail: root from the G6 photo, tip from POH plan view (~3.9 m span) ---------- */
-export const sLE = (z: number) => -2.23 - Math.abs(z) * 0.215;
-export const sC = (z: number) => 0.9 - (Math.abs(z) / 1.95) * 0.35;
-export const SY = -0.02, SSPAN = 1.95, EF = 0.68;
-/** Elevator horn balance: outboard of HZ the elevator reaches forward to HF chord. */
-export const HZ = 1.72, HF = 0.5;
-/** Rudder horn balance: above HH the rudder reaches forward to HR chord. */
-export const HH = 1.36, HR = 0.45;
-export const stabSec = (z: number, c0: number, c1: number): Ring => {
-  const c = sC(z);
-  return afRing(c0, c1, 0.1, 0).map(([x, y]) => V(sLE(z) - x * c, SY + y * c, z));
-};
-
-/* ---------- fin: dorsal fillet from x -1.95, swept LE, flat top ---------- */
-// [height, leading edge x, trailing edge x] traced from the G6 side photo
-export const FIN = [
-  [-0.25, -2.95, -3.25], [-0.1, -2.7, -3.36], [0.05, -2.45, -3.41], [0.2, -2.15, -3.43], [0.31, -1.95, -3.44], [0.35, -2.14, -3.445],
-  [0.4, -2.29, -3.45], [0.45, -2.42, -3.455], [0.52, -2.56, -3.465], [0.8, -2.7, -3.52], [1.1, -2.88, -3.585], [1.32, -3.0, -3.63], [1.42, -3.1, -3.65], [1.47, -3.24, -3.66],
-];
-const finAt = (h: number) => {
+/** Piecewise-linear lookup in a table sorted by ascending first column (clamped). Returns [col1, col2, …]. */
+export function lin(tab: number[][], x: number) {
   let i = 0;
-  while (i < FIN.length - 2 && h > FIN[i + 1][0]) i++;
-  const [h0, a0, b0] = FIN[i], [h1, a1, b1] = FIN[i + 1], t = clamp((h - h0) / (h1 - h0), 0, 1);
-  return [lerp(a0, a1, t), lerp(b0, b1, t)];
-};
-export const fLE = (h: number) => finAt(h)[0];
-export const fC = (h: number) => finAt(h)[0] - finAt(h)[1];
-const RH = [[-0.2, -2.98], [1.44, -3.44]]; // rudder hinge line (height, x)
-export const hingeX = (h: number) => lerp(RH[0][1], RH[1][1], (h - RH[0][0]) / (RH[1][0] - RH[0][0]));
-const rFrac = (h: number) => (h < RH[0][0] || h > RH[1][0] ? 1 : clamp((fLE(h) - hingeX(h)) / fC(h), 0.05, 1));
-export const finCut = (h: number) => (h >= HH ? HR : rFrac(h));
-export const finSec = (h: number, c0: number, c1: number): Ring => {
-  const c = fC(h), t = Math.min(0.11, 0.1 / c);
-  return afRing(c0, c1, t, 0).map(([x, y]) => V(fLE(h) - x * c, h, y * c));
-};
-export const finHs = [...FIN.map((r) => r[0]).filter((h) => h < HH), HH - 0.002, HH, ...FIN.map((r) => r[0]).filter((h) => h > HH)];
+  while (i < tab.length - 2 && x > tab[i + 1][0]) i++;
+  const a = tab[i], b = tab[i + 1], t = clamp((x - a[0]) / (b[0] - a[0]), 0, 1);
+  return a.slice(1).map((v, k) => lerp(v, b[k + 1], t));
+}
 
 /* ---------- small primitives ---------- */
 export const box = (sx: number, sy: number, sz: number) => new THREE.BoxGeometry(sx, sy, sz);
@@ -198,34 +100,6 @@ export function tubeGeo(points: (Vec3 | THREE.Vector3)[], r: number, tension = 0
   return new THREE.TubeGeometry(curve, Math.max(24, Math.round(curve.getLength() * 24)), r, 8, false);
 }
 
-/** Flat plate filling the fuselage cross-section at x. */
-export function planeRing(x: number, s = 0.98) {
-  const r = fRing(x, s, 40);
-  const g = new THREE.ShapeGeometry(new THREE.Shape(r.map((p) => new THREE.Vector2(p.z, p.y))));
-  g.rotateY(Math.PI / 2);
-  g.translate(x, 0, 0);
-  return g;
-}
-
-/** Slab filling the section at xr, clipped to the band y0..y1, extruded by depth around x. */
-export function sectionSlab(x: number, y0: number, y1: number, s: number, depth: number, xr = x) {
-  const clipY = (poly: THREE.Vector2[], yc: number, keepAbove: boolean) => {
-    const out: THREE.Vector2[] = [];
-    for (let i = 0; i < poly.length; i++) {
-      const A = poly[i], B = poly[(i + 1) % poly.length];
-      const ina = keepAbove ? A.y >= yc : A.y <= yc, inb = keepAbove ? B.y >= yc : B.y <= yc;
-      if (ina) out.push(A);
-      if (ina !== inb) { const t = (yc - A.y) / (B.y - A.y); out.push(new THREE.Vector2(A.x + (B.x - A.x) * t, yc)); }
-    }
-    return out;
-  };
-  const pts = clipY(clipY(fRing(xr, s, 72).map((p) => new THREE.Vector2(p.z, p.y)), y0, true), y1, false);
-  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth, bevelEnabled: false });
-  g.rotateY(Math.PI / 2);
-  g.translate(x - depth / 2, 0, 0);
-  return g;
-}
-
 /** Teardrop wheel fairing: blunt nose, pointed tail, widest at the axle. */
 export function pantGeo(len: number, r: number) {
   const pts: THREE.Vector2[] = [];
@@ -239,9 +113,52 @@ export function pantGeo(len: number, r: number) {
   return g;
 }
 
-/* ---------- windows & painted skin ---------- */
-export const SK = { x0: -3.45, x1: 4.2, y0: -0.95, y1: 1.0, W: 2048, H: 512 };
+/** Merge geometries (positions + index only; normals recomputed). */
+export function mergeGeos(gs: THREE.BufferGeometry[]) {
+  const pos: number[] = [], idx: number[] = [];
+  let off = 0;
+  gs.forEach((g) => {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) pos.push(p.getX(i), p.getY(i), p.getZ(i));
+    const ix = g.index;
+    if (ix) for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + off);
+    else for (let i = 0; i < p.count; i++) idx.push(i + off);
+    off += p.count;
+  });
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  out.setIndex(idx);
+  out.computeVertexNormals();
+  return out;
+}
 
+export type Axis = "x" | "y" | "z";
+
+/** Grooved pulley (or double pulley) oriented on the given axis, centred at the origin. */
+export function pulleyGeo(r: number, axis: Axis, double = false, gap = 0.03) {
+  const w = 0.018;
+  const prof = [[0.003, -w / 2], [r, -w / 2], [r, -w / 4], [r * 0.78, 0], [r, w / 4], [r, w / 2], [0.003, w / 2]].map(([a, b]) => new THREE.Vector2(a, b));
+  const wheel = () => new THREE.LatheGeometry(prof, 28);
+  const g = double ? mergeGeos([wheel().translate(0, -gap / 2, 0), wheel().translate(0, gap / 2, 0), new THREE.CylinderGeometry(0.006, 0.006, gap + w, 8)]) : wheel();
+  if (axis === "z") g.rotateX(Math.PI / 2);
+  if (axis === "x") g.rotateZ(Math.PI / 2);
+  return g;
+}
+
+/** Pie-shaped cable sector in the x–y plane (axis z), pointing down. */
+export function sectorGeo(r: number, spread = 0.6, t = 0.012) {
+  const sh = new THREE.Shape();
+  sh.moveTo(0, 0);
+  sh.absarc(0, 0, r, -Math.PI / 2 - spread, -Math.PI / 2 + spread, false);
+  sh.lineTo(0, 0);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false });
+  g.translate(0, 0, -t / 2);
+  return g;
+}
+
+/* ---------- outlines ---------- */
+
+/** Corner-cut then Chaikin-smooth a polygon of [x, y] points. */
 export function roundPoly(pts: number[][], cut = 0.14, it = 2) {
   let p: number[][] = [];
   pts.forEach((a, i) => {
@@ -259,15 +176,7 @@ export function roundPoly(pts: number[][], cut = 0.14, it = 2) {
   return p;
 }
 
-export const WIN = {
-  /** Gull-wing door window: slanted front edge parallel to the A-pillar, near-vertical rear edge. */
-  front: roundPoly([[1.64, 0.12], [1.43, 0.575], [0.93, 0.59], [0.99, 0.11]], 0.16),
-  /** Fixed rear window: straight front edge, top follows the roof, large rounded aft edge. */
-  rear: roundPoly([[0.79, 0.11], [0.78, 0.4], [0.72, 0.5], [0.62, 0.535], [0.4, 0.505], [0.18, 0.44], [0.06, 0.38], [0.015, 0.3], [0.04, 0.22], [0.12, 0.16], [0.3, 0.125], [0.6, 0.1]], 0.3, 2),
-  /** Wrap-around windshield: lower side edge then A-pillar up to the roof. */
-  windLower: [[2.45, 0.24], [1.93, 0.12], [1.73, 0.6]],
-};
-
+/** Resample a polyline / polygon so no segment is longer than `step`. */
 export const densify = (pts: number[][], step = 0.03, close = true) => {
   const o: number[][] = [];
   const N = close ? pts.length : pts.length - 1;
@@ -279,52 +188,143 @@ export const densify = (pts: number[][], step = 0.03, close = true) => {
   return o;
 };
 
-/** Window outline loops projected onto the skin (both sides + windshield). */
-export function windowOutlines(): THREE.Vector3[][] {
-  const loops: THREE.Vector3[][] = [];
-  [1, -1].forEach((s) => [WIN.front, WIN.rear].forEach((w) => loops.push(densify(w).map(([x, y]) => onSkin(x, y, s)))));
-  const thAt = (x: number, y: number) => { const { hh, cy } = fus(x); return Math.asin(Math.pow(clamp((y - cy) / hh, 0, 1), NT / 2)); };
-  const side = (s: number) => densify(WIN.windLower, 0.03, false).map(([x, y]) => onSkin(x, y, s));
-  const ta = thAt(1.73, 0.6), tb = thAt(2.45, 0.24);
-  loops.push([...side(1), ...fRing(1.73, 1.006, 40, ta, Math.PI - ta, false), ...side(-1).reverse(), ...fRing(2.45, 1.006, 40, Math.PI - tb, tb, false)]);
-  return loops;
+/* ---------- fuselage factory ---------- */
+
+export interface FuselageOpts {
+  /** Rows [x, halfWidth, halfHeight, centerY] sorted by DESCENDING x (nose first). */
+  table: number[][];
+  /** Superellipse exponents for the upper and lower halves (2 = ellipse, higher = boxier). */
+  nTop: number;
+  nBot: number;
+  /** Narrowing of the upper half toward the roof (0 = none). */
+  tumble: number;
 }
 
-/** Fuselage loft with side-projected UVs for the painted skin texture. */
-export function fuselageGeo() {
-  const secs: Ring[] = [];
-  for (let x = 3.74; x > -3.36; x -= 0.06) secs.push(fRing(x, 1, 48));
-  secs.push(fRing(-3.36, 1, 48));
-  const g = loft(secs);
-  const pos = g.attributes.position, uv = new Float32Array(pos.count * 2);
-  for (let i = 0; i < pos.count; i++) {
-    uv[2 * i] = (pos.getX(i) - SK.x0) / (SK.x1 - SK.x0);
-    uv[2 * i + 1] = (pos.getY(i) - SK.y0) / (SK.y1 - SK.y0);
+/** Superellipse-section fuselage driven by a station table. */
+export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
+  const xNose = table[0][0], xTail = table[table.length - 1][0];
+  const fus = (x: number) => ({ hw: interp(table, 1, x), hh: interp(table, 2, x), cy: interp(table, 3, x) });
+  const topY = (x: number) => fus(x).cy + fus(x).hh;
+  const botY = (x: number) => fus(x).cy - fus(x).hh;
+
+  /** Ring of N points around the section at x, scaled by s; optionally an open arc th0..th1 (0 = right side, π/2 = top). */
+  function ring(x: number, s = 1, N = 40, th0 = 0, th1 = Math.PI * 2, closed = true): Ring {
+    const { hw, hh, cy } = fus(x), pts: Ring = [], cnt = closed ? N : N + 1;
+    for (let j = 0; j < cnt; j++) {
+      const th = closed ? (j / N) * Math.PI * 2 : th0 + ((th1 - th0) * j) / N;
+      const c = Math.cos(th), sn = Math.sin(th), n = sn >= 0 ? nTop : nBot;
+      const py = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n), pz = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+      pts.push(V(x, cy + s * hh * py, s * hw * (1 - tumble * Math.max(0, py)) * pz));
+    }
+    return pts;
   }
-  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-  return g;
+
+  /** Is a point inside the skin (with margin m, metres)? */
+  function inside(p: THREE.Vector3, m = 0) {
+    if (p.x > xNose || p.x < xTail) return false;
+    const { hw, hh, cy } = fus(p.x);
+    const py = (p.y - cy) / (hh - m);
+    if (Math.abs(py) > 1) return false;
+    const n = py >= 0 ? nTop : nBot, w = (hw - m) * (1 - tumble * Math.max(0, py));
+    return Math.pow(Math.abs(p.z) / w, n) + Math.pow(Math.abs(py), n) <= 1;
+  }
+
+  /** Point on the outer skin at (x, y) on the given side (+1 right, -1 left). */
+  function onSkin(x: number, y: number, side: number, push = 1.006) {
+    const { hw, hh, cy } = fus(x);
+    const py = clamp((y - cy) / hh, -1, 1), n = py >= 0 ? nTop : nBot;
+    const w = hw * (1 - tumble * Math.max(0, py));
+    return V(x, y, side * w * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(py), n)), 1 / n) * push);
+  }
+
+  /** Ring angle (0 = side, π/2 = top) where the upper skin passes height y at station x. */
+  const thetaAt = (x: number, y: number) => { const { hh, cy } = fus(x); return Math.asin(Math.pow(clamp((y - cy) / hh, 0, 1), nTop / 2)); };
+
+  /** Skin loft from nose to tail with side-projected UVs over the box `uv` (for a painted texture). */
+  function geo({ step = 0.06, N = 48, uv }: { step?: number; N?: number; uv?: { x0: number; x1: number; y0: number; y1: number } } = {}) {
+    const secs: Ring[] = [];
+    for (let x = xNose; x > xTail; x -= step) secs.push(ring(x, 1, N));
+    secs.push(ring(xTail, 1, N));
+    const g = loft(secs);
+    if (uv) {
+      const pos = g.attributes.position, a = new Float32Array(pos.count * 2);
+      for (let i = 0; i < pos.count; i++) {
+        a[2 * i] = (pos.getX(i) - uv.x0) / (uv.x1 - uv.x0);
+        a[2 * i + 1] = (pos.getY(i) - uv.y0) / (uv.y1 - uv.y0);
+      }
+      g.setAttribute("uv", new THREE.BufferAttribute(a, 2));
+    }
+    return g;
+  }
+
+  /** Flat plate filling the section at x (bulkheads, firewall). */
+  function plate(x: number, s = 0.98) {
+    const r = ring(x, s, 40);
+    const g = new THREE.ShapeGeometry(new THREE.Shape(r.map((p) => new THREE.Vector2(p.z, p.y))));
+    g.rotateY(Math.PI / 2);
+    g.translate(x, 0, 0);
+    return g;
+  }
+
+  /** Slab filling the section at xr, clipped to the band y0..y1, extruded by depth around x (panels, glareshields). */
+  function slab(x: number, y0: number, y1: number, s: number, depth: number, xr = x) {
+    const clipY = (poly: THREE.Vector2[], yc: number, keepAbove: boolean) => {
+      const out: THREE.Vector2[] = [];
+      for (let i = 0; i < poly.length; i++) {
+        const A = poly[i], B = poly[(i + 1) % poly.length];
+        const ina = keepAbove ? A.y >= yc : A.y <= yc, inb = keepAbove ? B.y >= yc : B.y <= yc;
+        if (ina) out.push(A);
+        if (ina !== inb) { const t = (yc - A.y) / (B.y - A.y); out.push(new THREE.Vector2(A.x + (B.x - A.x) * t, yc)); }
+      }
+      return out;
+    };
+    const pts = clipY(clipY(ring(xr, s, 72).map((p) => new THREE.Vector2(p.z, p.y)), y0, true), y1, false);
+    const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth, bevelEnabled: false });
+    g.rotateY(Math.PI / 2);
+    g.translate(x - depth / 2, 0, 0);
+    return g;
+  }
+
+  return { xNose, xTail, nTop, nBot, tumble, fus, topY, botY, ring, inside, onSkin, thetaAt, geo, plate, slab };
+}
+export type Fuselage = ReturnType<typeof fuselage>;
+
+/* ---------- lifting-surface factory (wings, stabilizers) ---------- */
+
+export interface SurfaceOpts {
+  /** Leading-edge x, chord, mean-line y and thickness/chord at span station z (use |z|). */
+  le: (z: number) => number;
+  chord: (z: number) => number;
+  y: (z: number) => number;
+  t: (z: number) => number;
+  /** Camber (NACA m). */
+  m: number;
 }
 
-/** Paints window shapes, door seam and G6 pinstripes (browser only). */
-export function paintSkin(): THREE.CanvasTexture {
-  const c = document.createElement("canvas");
-  c.width = SK.W; c.height = SK.H;
-  const g = c.getContext("2d")!;
-  const P = ([x, y]: number[]) => [((x - SK.x0) / (SK.x1 - SK.x0)) * SK.W, (1 - (y - SK.y0) / (SK.y1 - SK.y0)) * SK.H];
-  const path = (pts: number[][], close = true) => {
-    g.beginPath();
-    pts.forEach((q, i) => { const [a, b] = P(q); if (i) g.lineTo(a, b); else g.moveTo(a, b); });
-    if (close) g.closePath();
+/** Horizontal lifting surface: points and airfoil sections at span station z. */
+export function liftingSurface({ le, chord, y, t, m }: SurfaceOpts) {
+  /** Point at span z and chord fraction xc; up = +1 upper skin, -1 lower, 0 mean line. */
+  const p = (z: number, xc: number, up = 0) => {
+    const c = chord(z), [u, l] = af(xc, t(z), m);
+    return V(le(z) - xc * c, y(z) + (up > 0 ? u : up < 0 ? l : (u + l) / 2) * c, z);
   };
-  g.fillStyle = "#F3F5F6"; g.fillRect(0, 0, SK.W, SK.H);
-  path(roundPoly([[1.96, -0.3], [1.94, 0.12], [1.74, 0.64], [0.84, 0.67], [0.8, -0.3]], 0.12)); g.strokeStyle = "#A9B2B9"; g.lineWidth = 2; g.stroke();
-  path([[3.25, -0.37], [2.42, -0.25], [1.66, -0.15], [0.9, -0.03], [0.14, 0.12], [-0.75, 0.1], [-1.77, 0.15], [-2.79, 0.2], [-3.45, 0.23]], false); g.strokeStyle = "#C8313B"; g.lineWidth = 4; g.stroke();
-  path([[3.2, -0.4], [2.16, -0.28], [1.4, -0.2], [0.64, -0.05], [-0.5, 0.04], [-1.77, 0.1], [-3.45, 0.18]], false); g.strokeStyle = "#20262B"; g.lineWidth = 6; g.stroke();
-  const glass = () => { const gr = g.createLinearGradient(0, P([0, 0.7])[1], 0, P([0, 0.1])[1]); gr.addColorStop(0, "#3A4C5A"); gr.addColorStop(1, "#131C24"); return gr; };
-  path([[2.45, 0.24], [1.93, 0.12], [1.73, 0.6], [1.72, 1.0], [2.47, 1.0]]); g.fillStyle = glass(); g.fill();
-  [WIN.front, WIN.rear].forEach((w) => { path(w); g.fillStyle = glass(); g.fill(); g.strokeStyle = "#0B1014"; g.lineWidth = 3; g.stroke(); });
-  const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 8;
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  /** Airfoil ring between chord fractions c0..c1 (thickness scaled by `scale`). */
+  const sec = (z: number, c0: number, c1: number, scale = 1): Ring => {
+    const c = chord(z);
+    return afRing(c0, c1, t(z) * scale, m).map(([x, yy]) => V(le(z) - x * c, y(z) + yy * c, z));
+  };
+  return { le, chord, y, t, p, sec };
 }
+
+/** Vertical fin: symmetric sections at height h (z is thickness). */
+export function finSurface({ le, chord, t }: { le: (h: number) => number; chord: (h: number) => number; t: (h: number) => number }) {
+  const sec = (h: number, c0: number, c1: number): Ring => {
+    const c = chord(h);
+    return afRing(c0, c1, t(h), 0).map(([x, y]) => V(le(h) - x * c, h, y * c));
+  };
+  const p = (h: number, xc: number, side = 0) => { const c = chord(h), [u] = af(xc, t(h), 0); return V(le(h) - xc * c, h, side * u * c); };
+  return { le, chord, t, sec, p };
+}
+
+/** Mirror ring order for the left side so loft normals stay outward. */
+export const sided = (secs: Ring[], s: number) => (s < 0 ? secs.map((r) => r.reverse()) : secs);

@@ -1,14 +1,15 @@
 "use client";
-import { bladeAngle, fuelAvail, live, mapInHg } from "@/lib/sim/model";
-import { useSim } from "@/lib/sim/store";
-import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider, Small, useTicker } from "../ui/controls";
+import { bladeAngle, fuelAvail, live, mapInHg } from "../model";
+import { CAT } from "../parts";
+import { useSR20 } from "../store";
+import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider, Small, useTicker } from "@/components/ui/controls";
 
 const lever = (v: number) => (v < 0.03 ? "IDLE" : v > 0.97 ? "MAX" : Math.round(v * 100) + "%");
 const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
 
 export function Engine() {
   useTicker(200);
-  const s = useSim((x) => x.s), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), up = useSR20((x) => x.update);
   const g = s.eng;
   return (
     <>
@@ -39,7 +40,7 @@ export function Engine() {
 
 export function Propeller() {
   useTicker(200);
-  const s = useSim((x) => x.s), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), up = useSR20((x) => x.update);
   return (
     <>
       <p className="lead">The governor senses RPM with flyweights and senses the power-lever position through its own cable, then meters boosted engine oil into the hub to hold RPM. There&apos;s no separate prop lever.</p>
@@ -58,7 +59,7 @@ export function Propeller() {
 
 export function Fuel() {
   useTicker(500);
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
   const f = s.fuel;
   return (
     <>
@@ -88,7 +89,7 @@ export function Fuel() {
       <H3>Details</H3>
       <Facts rows={[["Capacity", "29.3 gal per tank · 28 usable"], ["Total usable", "56 gal"], ["Filled to tabs", "13 gal/side · 26 total"], ["Boost pump", "23 psi · 5 A, MAIN BUS 2"], ["Training deck", "Lists 26.5 gal usable/side — this G6 POH says 28"], ["Drains", "5: 2 tank, 2 collector, gascolator"], ["Vents", "NACA vent under each wing near tip"], ["Gauge", "0–28 gal · yellow 0–8.2"], ["Totalizer", "Independent of float sensors"]]} />
       <H3>Components</H3>
-      <PartsList sys="fuel" />
+      <PartsList parts={CAT.pinned("fuel")} />
     </>
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { dotTex } from "@/lib/materials";
 import { D2R, V, clamp, ease, lerp } from "@/lib/math";
-import { CAPS_BOX, HARNESS } from "@/lib/parts";
-import { live } from "@/lib/sim/model";
-import { useSim } from "@/lib/sim/store";
+import type { ModelRefs } from "../types";
+import { live } from "./model";
+import { CAPS_BOX, HARNESS } from "./parts";
+import { useSR20 } from "./store";
 
 /** CAPS phases shown in the HUD: [start time s, title, detail]. */
 export const CAPS_PHASES: [number, string, string][] = [
@@ -30,9 +31,7 @@ function pitchAt(t: number) {
   return -3 + Math.sin((t - 9.8) * 1.1) * 2;
 }
 
-export function Parachute({ rootRef, modelRef, gridRef }: {
-  rootRef: RefObject<THREE.Group | null>; modelRef: RefObject<THREE.Group | null>; gridRef: RefObject<THREE.GridHelper | null>;
-}) {
+export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
   const canopy = useRef<THREE.Mesh>(null!);
   const pack = useRef<THREE.Mesh>(null!);
   const flame = useRef<THREE.Sprite>(null!);
@@ -45,9 +44,11 @@ export function Parachute({ rootRef, modelRef, gridRef }: {
   }, []);
   const goreGeo = useMemo(() => new THREE.EdgesGeometry(new THREE.SphereGeometry(5.52, 16, 4, 0, Math.PI * 2, 0, Math.PI * 0.42)), []);
   const wasOn = useRef(false);
+  // leaving the airplane mid-deployment: show the ground grid again
+  useEffect(() => () => { if (gridRef.current) gridRef.current.visible = true; }, [gridRef]);
 
   useFrame(() => {
-    const on = useSim.getState().s.capsOn && live.capsT >= 0;
+    const on = useSR20.getState().s.capsOn && live.capsT >= 0;
     const root = rootRef.current, model = modelRef.current;
     if (!root || !model) return;
     if (!on) {

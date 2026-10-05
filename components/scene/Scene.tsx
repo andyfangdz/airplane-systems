@@ -1,21 +1,21 @@
 "use client";
 import { OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { GROUND_Y } from "@/lib/geometry";
+import { sysOf, useAircraft } from "@/aircraft";
+import type { AircraftDef } from "@/aircraft/types";
+import { outlineMat, shellUniforms } from "@/lib/materials";
 import { V, clamp, ease } from "@/lib/math";
-import { simTick } from "@/lib/sim/tick";
-import { useSim } from "@/lib/sim/store";
-import { palette, sysDef } from "@/lib/systems";
 import { view } from "@/lib/registry";
-import { Airplane } from "./Airplane";
-import { Parachute } from "./Parachute";
+import { palette } from "@/lib/systems";
+import { useView } from "@/lib/view";
+import type { PickInfo } from "./Part";
 
 /** Animates the camera to the latest requested view; any user drag cancels the flight. */
 function CameraRig() {
-  const cam = useSim((x) => x.cam);
+  const cam = useView((x) => x.cam);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
   const flight = useRef<{ fp: THREE.Vector3; ft: THREE.Vector3; tp: THREE.Vector3; tt: THREE.Vector3; t0: number } | null>(null);
@@ -47,19 +47,70 @@ function CameraRig() {
   return null;
 }
 
-function SimClock() {
-  useFrame((_, dt) => simTick(Math.min(dt, 0.05)));
+function SimClock({ tick }: { tick: (dt: number) => void }) {
+  useFrame((_, dt) => tick(Math.min(dt, 0.05)));
   return null;
 }
 
-export default function Scene() {
-  const theme = useSim((x) => x.theme);
-  const spin = useSim((x) => x.s.spin);
-  const pal = palette(theme);
+/** Keeps shared shader/line materials in step with theme and x-ray mode. */
+function MaterialSync() {
+  const theme = useView((x) => x.theme);
+  const xray = useView((x) => x.xray);
+  useEffect(() => {
+    shellUniforms.uColor.value.set(palette(theme).shell);
+    shellUniforms.uOpacity.value = theme === "dark" ? 0.55 : 0.6;
+    outlineMat.color.set(xray ? palette(theme).shell : "#10171C");
+    outlineMat.opacity = xray ? 0.75 : 0.9;
+  }, [theme, xray]);
+  return null;
+}
+
+/* ---------- hover: prefer a real part over the ghost shell in front of it ---------- */
+function usePicker() {
+  const setHover = useView((x) => x.setHover);
+  return (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    if (e.buttons) { setHover(null); return; }
+    const sys = useView.getState().sys;
+    const cands = e.intersections.filter((h) => {
+      const p = h.object.userData?.pick as PickInfo | undefined;
+      return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
+    });
+    const hit = cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0];
+    if (!hit) { setHover(null); return; }
+    const p = hit.object.userData.pick as PickInfo;
+    setHover({ name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
+  };
+}
+
+/** One airplane: the root group (rotation pivot) around the picking group with the model inside. */
+function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefObject<THREE.GridHelper | null> }) {
   const rootRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group>(null);
+  const onMove = usePicker();
+  const setHover = useView((x) => x.setHover);
+  const { Model, Overlay } = def;
+  return (
+    <>
+      <group ref={rootRef} position={[def.pivotX, 0, 0]}>
+        {/* dispose={null}: geometries and materials are cached across airplane switches */}
+        <group ref={modelRef} position={[-def.pivotX, 0, 0]} onPointerMove={onMove} onPointerOut={() => setHover(null)} dispose={null}>
+          <Model />
+        </group>
+      </group>
+      {Overlay && <Overlay rootRef={rootRef} modelRef={modelRef} gridRef={gridRef} />}
+    </>
+  );
+}
+
+export default function Scene() {
+  const def = useAircraft();
+  const theme = useView((x) => x.theme);
+  const spin = useView((x) => x.spin);
+  const pal = palette(theme);
   const gridRef = useRef<THREE.GridHelper>(null);
-  const [startPos, startTarget] = sysDef(useSim.getState().s.sys).cam;
+  // initial camera only: later moves are camera flights, so the controls' target prop must stay stable
+  const [[startPos, startTarget]] = useState(() => sysOf(def, useView.getState().sys).cam);
 
   useEffect(() => {
     const g = gridRef.current;
@@ -73,21 +124,21 @@ export default function Scene() {
       dpr={[1, 2]}
       camera={{ fov: 38, near: 0.05, far: 400, position: startPos }}
       onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
-      onPointerMissed={() => useSim.getState().setHover(null)}
-      aria-label="3D model of the SR20 and its systems"
+      onPointerMissed={() => useView.getState().setHover(null)}
+      aria-label={`3D model of the ${def.name} and its systems`}
     >
       <color attach="background" args={[pal.scene]} />
       {/* pre-r155 light intensities × π for physically-based lighting */}
       <hemisphereLight args={["#ffffff", "#445566", 0.85 * Math.PI]} />
       <directionalLight position={[6, 10, 5]} intensity={0.9 * Math.PI} />
       <directionalLight position={[-6, 3, -6]} intensity={0.35 * Math.PI} />
-      <gridHelper ref={gridRef} args={[40, 40, "#ffffff", "#ffffff"]} position-y={GROUND_Y}
+      <gridHelper ref={gridRef} args={[40, 40, "#ffffff", "#ffffff"]} position-y={def.groundY}
         onUpdate={(g) => { const m = g.material as THREE.LineBasicMaterial; m.transparent = true; m.opacity = 0.5; m.color.set(pal.grid); }} />
-      <Airplane rootRef={rootRef} modelRef={modelRef} />
-      <Parachute rootRef={rootRef} modelRef={modelRef} gridRef={gridRef} />
+      <MaterialSync />
+      <AircraftScene key={def.id} def={def} gridRef={gridRef} />
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={0.4} maxDistance={70} autoRotate={spin} autoRotateSpeed={0.6} target={startTarget} />
       <CameraRig />
-      <SimClock />
+      <SimClock tick={def.tick} />
     </Canvas>
   );
 }

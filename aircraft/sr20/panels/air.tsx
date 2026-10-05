@@ -1,9 +1,9 @@
 "use client";
-import { useSim } from "@/lib/sim/store";
-import { Caution, Check, Ctl, Facts, H3, Notes, Readouts, Seg, Slider, Small } from "../ui/controls";
+import { useSR20 } from "../store";
+import { Caution, Check, Ctl, Facts, H3, Notes, Readouts, Seg, Slider, Small } from "@/components/ui/controls";
 
 export function Environment() {
-  const s = useSim((x) => x.s), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), up = useSR20((x) => x.update);
   const env = s.env;
   return (
     <>
@@ -32,7 +32,7 @@ export function Environment() {
 }
 
 export function Pitot() {
-  const s = useSim((x) => x.s), E = useSim((x) => x.E), up = useSim((x) => x.update);
+  const s = useSR20((x) => x.s), E = useSR20((x) => x.E), up = useSR20((x) => x.update);
   const stalled = s.stall.aoa >= 14;
   return (
     <>

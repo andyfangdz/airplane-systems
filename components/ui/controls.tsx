@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useReducer, type ReactNode } from "react";
-import { pinnedParts } from "@/lib/parts";
+import type { PartSpec } from "@/lib/catalogue";
 import { focusPart } from "@/lib/registry";
-import type { SysId } from "@/lib/systems";
 
 /** Re-render on an interval — for readouts of values that live outside React state. */
 export function useTicker(ms = 200) {
@@ -74,9 +73,9 @@ export const H3 = ({ children }: { children: ReactNode }) => <h3>{children}</h3>
 export const Ctl = ({ children }: { children: ReactNode }) => <div className="ctl">{children}</div>;
 export const BtnRow = ({ children }: { children: ReactNode }) => <div className="btnrow">{children}</div>;
 
-/** "Tap to locate": flies the camera to a part and highlights it briefly. */
-export function PartsList({ sys }: { sys: SysId }) {
-  const list = pinnedParts(sys);
+/** "Tap to locate": flies the camera to a part and highlights it briefly. Pass `cat.pinned(sys)`. */
+export function PartsList({ parts }: { parts: PartSpec[] }) {
+  const list = parts;
   return (
     <ul className="parts">
       {list.map((p) => (
