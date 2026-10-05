@@ -112,18 +112,24 @@ const TANKS: TankSpec[] = ([["L", -1], ["R", 1]] as const).map(([k, s]) => ({
 
 /* ---------- live displays (GDU 1040 4:3, 10.4 in) and the standby cluster ---------- */
 const st = () => useC172.getState();
+/** AVIONICS dimmer: fully counter-clockwise (off) the displays use their photocells (full daylight brightness here); turned on,
+ *  it sets the PFD/MFD lighting level manually (POH 7-61). */
+const dimDisplay = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
+  const v = st().s.lights.avionics;
+  if (v > 0.03) { ctx.fillStyle = `rgba(0,0,0,${(0.78 * (1 - v)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
+};
 const SCREENS: ScreenSpec[] = [
-  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, -11.5, 61.4), sys: ["avionics", "autopilot", "electrical"], name: "PFD — GDU 1040",
+  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, -11.5, 61.4), sys: ["avionics"], name: "PFD — GDU 1040",
     note: "Primary flight display with the AFCS status bar and the annunciation window. Dual-fed (PFD breakers on ESS and AVN BUS 1). Shows PFD + EIS when the MFD is lost or DISPLAY BACKUP is pressed.",
-    draw: (ctx, W, H) => { const { s, E } = st(); if (E.pfd) drawPfdScreen(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, 10.5, 61.4), sys: ["avionics", "engine", "fuel", "electrical"], name: "MFD — GDU 1040",
+    draw: (ctx, W, H) => { const { s, E } = st(); if (E.pfd) { drawPfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
+  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, 10.5, 61.4), sys: ["avionics", "engine"], name: "MFD — GDU 1040",
     note: "Engine Indication System strip (ENGINE page) and moving map. MFD breaker, AVIONICS BUS 2.",
-    draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) drawMfdScreen(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, -3.6, 52.6), sys: ["avionics", "pitot"], name: "Standby airspeed indicator",
+    draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) { drawMfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
+  { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, -3.6, 52.6), sys: ["avionics", "pitot"], name: "Standby airspeed",
     note: "Mechanical, on the shared pitot and static lines (POH 7-12). Use it when the PFD airspeed shows a red X (POH 3-21).", draw: (ctx, W, H) => drawSbyAsi(ctx, W, H, st().s) },
-  { key: "ai", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, 0.6, 52.6), sys: ["avionics", "vacuum"], name: "Standby attitude indicator (vacuum)",
+  { key: "ai", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, 0.6, 52.6), sys: ["vacuum"], name: "Standby attitude",
     note: "Vacuum-driven gyro with a GYRO flag for low vacuum. Don't use it if VAC is out of the green or the flag shows (POH 7-65, 3-23).", draw: (ctx, W, H) => drawSbyAi(ctx, W, H) },
-  { key: "alt", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, 4.8, 52.6), sys: ["avionics", "pitot"], name: "Standby altimeter",
+  { key: "alt", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, 4.8, 52.6), sys: ["avionics"], name: "Standby altimeter",
     note: "Sensitive aneroid altimeter, 20 ft markings (POH 6-22). Set it before takeoff and in the descent (POH 4-15).", draw: (ctx, W, H) => drawSbyAlt(ctx, W, H, st().s) },
 ];
 
@@ -175,6 +181,8 @@ export function Model() {
       <Screens screens={SCREENS} />
       <LightFX glows={GLOWS} beams={BEAMS} />
       <WindowOutlines loops={windowOutlines} />
+      {/* weak fill from below so the high wing's white underside and the belly don't read as dark paint */}
+      <directionalLight position={[1, -8, 2]} intensity={0.4 * Math.PI} />
     </>
   );
 }

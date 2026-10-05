@@ -10,7 +10,7 @@ import type { CasLevel } from "../types";
 import { cbKey, nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
 import { nav3Annunciations } from "../cessna/annunciations";
 import { FLIGHT_DEFAULT, initFlight, type FlightCfg } from "@/lib/avionics/flight";
-import { GFC700_C172S, gfc700Init } from "@/lib/avionics/gfc700";
+import { GFC700_C172S, gfc700Init, type Gfc700Cfg } from "@/lib/avionics/gfc700";
 
 export type Mags = "OFF" | "R" | "L" | "BOTH" | "START";
 export type FuelSel = "BOTH" | "LEFT" | "RIGHT";
@@ -21,6 +21,8 @@ export interface Sim {
   ground: boolean;
   eng: {
     running: boolean; mags: Mags;
+    /** Engine RPM rounded to 50 (set by tick.ts from the tach value): sizes the alternator's low-RPM capacity in the solver. */
+    rpm: number;
     /** Throttle 0 (IDLE, full out) … 1 (FULL, full in); mixture 0 (IDLE CUTOFF) … 1 (FULL RICH). */
     throttle: number; mix: number;
     /** Too much prime: won't start until cleared (POH 4-12 flooded start). */
@@ -45,7 +47,8 @@ export interface Sim {
     /** Overhead FLOOD LIGHT knobs and the DIMMING knobs (0 = off). */
     flood: number; swcb: number; pedestal: number; avionics: number; stbyInd: number;
   };
-  /** CABIN HT and CABIN AIR knobs (0 = pushed in/off … 1 = pulled full out), defroster slides, cabin vents. */
+  /** CABIN HT and CABIN AIR knobs (0 = pushed in/off … 1 = pulled full out), defroster slides, cabin vents.
+   *  coAck: CO LVL HIGH acknowledged with the WARNING softkey (it flashes until then, POH 7-80); cleared by tick.ts below 50 PPM. */
   env: { heat: number; air: number; defrost: number; vents: boolean; coLeak: boolean; coAck: boolean };
   pitot: { heat: boolean; heaterFail: boolean; altStatic: boolean; staticBlocked: boolean; pitotBlocked: boolean; oat: number };
   stall: { inletBlocked: boolean };
@@ -58,7 +61,7 @@ export interface Sim {
 
 export const initialSim: Sim = {
   ground: false,
-  eng: { running: true, mags: "BOTH", throttle: 0.86, mix: 0.82, flooded: false, filter: false, fail: { edp: false, magL: false, magR: false, oil: false } },
+  eng: { running: true, mags: "BOTH", rpm: 2400, throttle: 0.86, mix: 0.82, flooded: false, filter: false, fail: { edp: false, magL: false, magR: false, oil: false } },
   elec: nav3Init(),
   warp: 1,
   fuel: { sel: "BOTH", shutoff: true, pump: false, qL: 20, qR: 19 },
@@ -78,7 +81,12 @@ export const initialSim: Sim = {
 /* ---------- flight model and autopilot configuration ---------- */
 /** Teaching flight model for the 172S: 110 KIAS at 75% power, ~730 fpm at Vy 74 KIAS with full power. */
 export const C172_FLIGHT: FlightCfg = { ...FLIGHT_DEFAULT, v0: 50, vp: 80, fpmPerKt: 13, vMin: 40, maxBank: 30 };
-export const AFCS_CFG = GFC700_C172S;
+/**
+ * GFC 700 configuration. The 172S documents give only the 70–150 KIAS engagement limits (POH 2-21), not an autopilot
+ * maximum operating speed, so the generic overspeed protection (MAXSPD, DA40: 165 KIAS) is not modelled here.
+ * Bank limit, GA pitch and the NOSE UP/DN reference ranges are DA40 values (NOT IN DOCS for the 172S).
+ */
+export const AFCS_CFG: Gfc700Cfg = { ...GFC700_C172S, vmo: Number.POSITIVE_INFINITY };
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
 export const live = {
@@ -94,8 +102,13 @@ export const live = {
   /** Effective control positions (pilot or servos) used by the surfaces, yokes and cables. */
   ctl: { pitch: 0, roll: 0, yaw: 0 },
   timers: { lowL: 0, lowR: 0, stby: 0 },
-  burnL: 0, burnR: 0, socAcc: 0,
-  hobbs: 3304.6, coPpm: 0, horn: false, stallDemo: false,
+  burnL: 0, burnR: 0,
+  /** Battery state of charge integrated every frame (fractional), and the store values last seen / pushed. */
+  soc: { m: 0.92, s: 1, pm: 0.92, ps: 1 },
+  /** Hobbs meter (oil pressure > 20 PSI and WARN breaker power) and the separate EIS ENG HRS counter (GEA 71 powered, engine running). */
+  hobbs: 3304.6, engHrs: 3304.6, coPpm: 0, horn: false, stallDemo: false,
+  /** The AUTO PILOT breaker / servo power was lost and the GFC 700 shows AFCS; `sysUser` keeps the pilot-selected AFCS failure. */
+  servoLost: false, sysUser: false,
   /** Altitude frozen in the static system when the static port blocks. */
   staticAlt: null as number | null,
   /** STBY BATT TEST held (s). */
@@ -103,24 +116,25 @@ export const live = {
 };
 
 /* ---------- breakers: POH Figure 7-7 Sheet 2 (rev -04), N6189Q configuration (no STBY ADI: s/n 12701+) ---------- */
-const PHOTO = "Photo of a 172S NAV III breaker panel (Wikimedia Commons, “C172S G1000 in flight”)";
+/** Ratings read off a photo of another 172S NAV III breaker panel (Wikimedia Commons, “C172S G1000 in flight”): not in the POH and not verified for N6189Q. */
+const PHOTO = "read from a photo of another 172S NAV III breaker panel (Wikimedia Commons) — not in the POH, unverified for N6189Q";
 export const BREAKERS: Breaker[] = [
-  { bus: "E1", label: "FUEL PUMP", amps: 5, src: PHOTO, feeds: "To aux fuel pump" },
-  { bus: "E1", label: "BCN LT", amps: 5, src: PHOTO, feeds: "To flashing beacon" },
-  { bus: "E1", label: "LAND LT", amps: 10, src: PHOTO, feeds: "To landing light" },
-  { bus: "E1", label: "CABIN LTS/PWR", amps: 5, src: PHOTO, feeds: "To overhead lights, to 12V cabin power" },
-  { bus: "E1", label: "FLAPS", amps: 10, src: "POH 7-23 (“10-ampere circuit breaker, labeled FLAP”)", feeds: "To flaps" },
+  { bus: "E1", label: "FUEL PUMP", amps: 5, src: PHOTO, unverified: true, feeds: "To aux fuel pump" },
+  { bus: "E1", label: "BCN LT", amps: 5, src: PHOTO, unverified: true, feeds: "To flashing beacon" },
+  { bus: "E1", label: "LAND LT", amps: 10, src: PHOTO, unverified: true, feeds: "To landing light" },
+  { bus: "E1", label: "CABIN LTS/PWR", amps: 5, src: PHOTO, unverified: true, feeds: "To overhead lights, to 12V cabin power" },
+  { bus: "E1", label: "FLAPS", amps: 10, src: "from POH 7-23 (“10-ampere circuit breaker, labeled FLAP”)", feeds: "To flaps" },
   { bus: "E1", label: "AVN 1", feeds: "AVIONICS BUS 1 via the AVIONICS switch (BUS 1)" },
-  { bus: "XF", label: "ALT FIELD", amps: 5, src: PHOTO, feeds: "To alt master switch (opened automatically by the ACU)" },
-  { bus: "XF", label: "WARN", amps: 5, src: PHOTO, feeds: "To stall warning, autopilot warning, ELT warning, main bus voltmeter, hourmeter, starter relay, stdby battery, and main bus sense" },
+  { bus: "XF", label: "ALT FIELD", amps: 5, src: PHOTO, unverified: true, feeds: "To alt master switch (opened automatically by the ACU)" },
+  { bus: "XF", label: "WARN", amps: 5, src: PHOTO, unverified: true, feeds: "To stall warning, autopilot warning, ELT warning, main bus voltmeter, hourmeter, starter relay, stdby battery, and main bus sense" },
   { bus: "ESS", label: "PFD", feeds: "To primary flight display" },
   { bus: "ESS", label: "ADC AHRS", feeds: "To air data computer, to attitude heading reference system" },
   { bus: "ESS", label: "NAV 1 ENG", feeds: "To navigation #1, engine/airframe unit, and essential bus voltmeter" },
-  { bus: "ESS", label: "COMM 1", amps: 5, src: PHOTO, feeds: "To VHF communication #1" },
-  { bus: "ESS", label: "STDBY IND LTS", amps: 5, src: PHOTO, feeds: "To standby indicator lights" },
-  { bus: "ESS", label: "STDBY BATT", amps: 20, src: PHOTO, feeds: "To and from standby battery system" },
+  { bus: "ESS", label: "COMM 1", amps: 5, src: PHOTO, unverified: true, feeds: "To VHF communication #1" },
+  { bus: "ESS", label: "STDBY IND LTS", amps: 5, src: PHOTO, unverified: true, feeds: "To standby indicator lights" },
+  { bus: "ESS", label: "STDBY BATT", amps: 20, src: PHOTO, unverified: true, feeds: "To and from standby battery system" },
   { bus: "E2", label: "AVN 2", feeds: "AVIONICS BUS 2 via the AVIONICS switch (BUS 2)" },
-  { bus: "E2", label: "PITOT HEAT", amps: 10, src: "KAP 140 edition POH 172SPHAUS 7-59 (rev -04 gives no rating)", feeds: "To pitot heat" },
+  { bus: "E2", label: "PITOT HEAT", amps: 10, src: "from the KAP 140 edition POH 172SPHAUS 7-59 (rev -04 gives no rating)", feeds: "To pitot heat" },
   { bus: "E2", label: "NAV LTS", feeds: "To NAV and control wheel map lights" },
   { bus: "E2", label: "TAXI LT", feeds: "To taxi light" },
   { bus: "E2", label: "STROBE LTS", feeds: "To wing strobe lights" },
@@ -129,7 +143,7 @@ export const BREAKERS: Breaker[] = [
   { bus: "AV1", label: "ADC AHRS", feeds: "To air data computer and attitude heading reference system" },
   { bus: "AV1", label: "NAV 1 ENG", feeds: "To navigation #1 and engine/airframe unit" },
   { bus: "AV1", label: "FIS", feeds: "To flight information system (if installed)" },
-  { bus: "AV1", label: "ADF DME", amps: 5, src: PHOTO, feeds: "To automatic direction finder, distance measure equipment (if installed)" },
+  { bus: "AV1", label: "ADF DME", amps: 5, src: PHOTO, unverified: true, feeds: "To automatic direction finder, distance measure equipment (if installed)" },
   { bus: "AV2", label: "MFD", feeds: "To multi-function display and MFD fan" },
   { bus: "AV2", label: "XPNDR", feeds: "To transponder" },
   { bus: "AV2", label: "NAV 2", feeds: "To navigation #2 and aft avionics cooling fan" },
@@ -152,8 +166,8 @@ export const BUSES: [Nav3Bus2, string, string][] = [
 type Nav3Bus2 = Breaker["bus"];
 
 /* ---------- engine helpers (pure) ---------- */
-/** Fixed-pitch ground RPM estimate from the throttle (for the alternator's low-RPM capacity). */
-export const rpmEstimate = (s: Sim) => (!s.eng.running ? (s.eng.mags === "START" ? 250 : 0) : 690 + 1660 * Math.pow(s.eng.throttle, 1.15));
+/** Engine RPM for the alternator's low-RPM capacity: the tach value (rounded to 50 RPM by tick.ts), so cranking, idle and a windmilling engine all count. */
+export const rpmEstimate = (s: Sim) => s.eng.rpm;
 /** Relative fuel/air (λ ≈ 1 at peak EGT): full rich gets richer with altitude. */
 export const lambda = (mix: number, alt: number) => mix * 1.22 * (1 + Math.max(0, alt) / 25000);
 /** Power multiplier from mixture: best power ~λ 1.12 (≈ 100 °F rich of peak). */
@@ -184,6 +198,10 @@ export const fuelFlowGph = (s: Sim, alt: number) => {
 export interface Elec extends Nav3Solution {
   pfd: boolean; mfd: boolean; ahrs: boolean; adc: boolean; gia1: boolean; gia2: boolean; audio: boolean; xpdr: boolean; afcsPwr: boolean;
   starterPwr: boolean; fuelPumpOn: boolean; flapsPwr: boolean; pitotHeating: boolean; fwdFan: boolean; aftFan: boolean;
+  /** GFC 700 flight director (runs in GIA 1, shown on the PFD) and the servo / trim power (AUTO PILOT breaker, AVIONICS BUS 2). */
+  fdPwr: boolean;
+  /** 12 V cabin power outlet live (CABIN PWR 12V switch, CABIN LTS/PWR breaker). */
+  outlet12: boolean;
   lit: { beacon: boolean; land: boolean; taxi: boolean; nav: boolean; strobe: boolean; dome: boolean; flood: boolean; panel: boolean; stbyInd: boolean; map: boolean };
   /** Fuel can reach the engine from the selected tank(s) with the shutoff ON. */
   fuelOk: boolean;
@@ -246,9 +264,13 @@ export function solve(s: Sim): Elec {
     pfd, mfd,
     ahrs: either("ADC AHRS") && !s.avx.ahrsFail, adc: either("ADC AHRS") && !s.avx.adcFail,
     gia1, gia2, audio: on("AV2", "AUDIO"), xpdr: on("AV2", "XPNDR"),
-    afcsPwr: on("AV2", "AUTO PILOT") && (gia1 || gia2),
-    // starter relay coil: MAGNETOS START, fed through the WARN breaker; contacts on the battery side of the master contactor
-    starterPwr: s.elec.bat && on("XF", "WARN") && !s.elec.fail.bat && s.elec.socMain > 0.08,
+    // Figure 7-10: all three servos take power from the AUTO PILOT breaker; the flight director is computed in the GIAs
+    afcsPwr: on("AV2", "AUTO PILOT") && gia1 && gia2,
+    fdPwr: gia1 && pfd,
+    // starter relay: coil from MAGNETOS START through the WARN breaker; its contacts are fed from the bus side of the battery
+    // relay (between the master contactor and the M BATT shunt, Fig 7-7 Sheet 1), so ground power cranks with MASTER BAT on
+    starterPwr: s.elec.bat && on("XF", "WARN") && (s.elec.ext || (!s.elec.fail.bat && s.elec.socMain > 0.08)),
+    outlet12: L.cabinPwr && on("E1", "CABIN LTS/PWR"),
     fuelPumpOn,
     flapsPwr: on("E1", "FLAPS"),
     pitotHeating: s.pitot.heat && on("E2", "PITOT HEAT") && !s.pitot.heaterFail,
@@ -277,9 +299,6 @@ export function annunciations(s: Sim, E: Elec): [CasLevel, string][] {
     lowVolts: E.lowVolts, highVolts: E.highVolts, stbyBatt: s.ann.stbyBatt, co: live.coPpm >= 50,
   });
 }
-
-/** Exterior lights lit (switch + breaker + bus). */
-export const extLit = (E: Elec) => E.lit;
 
 /** Stall speed (KIAS, power idle, wings level, 2550 lb, most rearward CG — POH Figure 5-3) by flap angle. */
 export const stallKias = (flapDeg: number) => (flapDeg < 5 ? 48 : flapDeg < 15 ? 42 : flapDeg < 25 ? 41 : 40);

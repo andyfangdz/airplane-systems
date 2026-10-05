@@ -11,8 +11,8 @@ import { AF } from "./geometry";
 export const RIG_SPEC: RigSpec = {
   yoke: { fs: 26, bl: 13.5, h: 56.5, travel: 3.5, colFs: 11, crossH: 50.5 },
   elev: { crank: [17, 0, 27.6], arm: 2.2, pulleys: [[24, 1.5, 25.6], [92, 1.5, 26.8], [160, 1.5, 35.8]], hornArm: 2.3 },
-  ail: { lower: [13, 17.5, 31], postFs: 30.6, postBl: 19.4, postLow: 29, postHigh: 75, root: [33, 22.5, 80.2], crankBl: 108, crankC: 0.66, balanceC: 0.6 },
-  rud: { barFs: 3, barH: 28, half: 18, armBl: 6, pulleys: [[30, 6, 25.4], [92, 5, 26.8], [205, 2.5, 40]], hornArm: 3.2, hornH: 46, pedalTravel: 2.6 },
+  ail: { lower: [13, 16.5, 31.5], postFs: 30.6, postBl: 18.2, postLow: 31.5, postHigh: 76.5, root: [33, 17.5, 80.0], crankBl: 108, crankC: 0.66, balanceC: 0.6 },
+  rud: { barFs: 3, barH: 30, half: 16.5, armBl: 6, pulleys: [[30, 6, 25.4], [92, 5, 26.8], [205, 2.5, 40]], hornArm: 3.2, hornH: 46, pedalTravel: 2.6 },
   trim: { wheel: [23, -2.4, 37.5], r: 4.5, pulleys: [[23, -2.4, 25.6], [92, -2.5, 26.8], [160, -2.5, 35.8], [222, -3, 42.2]], actuator: [229, 9, 43.2], tabBl: 14 },
   steer: { fs: -10, h: 30.2, half: 3 },
   servo: { roll: [59.5, 4, 76], pitch: [180.7, 2.5, 37.8], trim: [180.7, -2.5, 37.8] },

@@ -19,28 +19,35 @@
  */
 import * as THREE from "three";
 import { cessnaAirframe, skinPainter, type CessnaSpec } from "../cessna/airframe";
-import { densify } from "@/lib/geometry";
+import { densify, loft } from "@/lib/geometry";
 
-export { box, cyl, sph, tubeGeo, pantGeo, loft, af, sided } from "@/lib/geometry";
+export { box, cyl, sph, tubeGeo, loft, af, sided } from "@/lib/geometry";
+export { taperTubeGeo, wheelFairingGeo } from "../cessna/airframe";
 
 export const SPEC: CessnaSpec = {
   fsRef: 100, hRef: 49.25,
   // [FS, halfWidth, top h, bottom h] (in)
+  // Blunt nose bowl round the spinner (face ≈ FS −33, h 28–61, N793SP photo); slab-sided cabin whose crown hides inside the
+  // wing centre section (wing lower surface ≈ h 77.5–80 at the root), so the sides run nearly straight up to the wing root.
   fuselage: [
-    [-38.6, 8.5, 56.5, 41.5], [-37, 12.5, 58.6, 35.5], [-34, 15.4, 60.4, 32.0], [-29, 17.4, 62.0, 29.4], [-21, 18.9, 63.4, 27.2],
-    [-11, 19.8, 64.3, 25.6], [0, 20.4, 65.0, 24.6], [8, 20.8, 65.9, 24.1], [14, 21.0, 67.6, 23.8], [20, 21.2, 70.6, 23.6],
-    [26, 21.3, 74.4, 23.5], [32, 21.4, 77.3, 23.4], [44, 21.5, 77.8, 23.3], [60, 21.3, 77.8, 23.4], [75, 20.6, 77.6, 23.8],
-    [88, 19.6, 76.6, 24.5], [100, 17.9, 72.2, 25.6], [112, 15.7, 67.4, 27.0], [124, 13.5, 64.0, 28.6], [145, 11.0, 63.0, 31.0],
-    [170, 8.6, 62.0, 34.0], [195, 6.6, 61.0, 37.0], [220, 4.9, 60.0, 40.0], [240, 3.5, 59.4, 42.2], [252, 2.0, 59.0, 44.0], [257, 0.7, 58.6, 45.6],
+    [-37.6, 8.5, 56.5, 41.5], [-37.3, 12.4, 58.0, 37.5], [-36.6, 14.6, 59.6, 32.5], [-35.3, 16.0, 60.4, 29.5], [-33, 17.0, 61.0, 28.0], [-29, 18.3, 62.0, 27.6], [-21, 19.5, 63.4, 26.6],
+    [-11, 20.0, 64.3, 25.4], [0, 20.4, 65.0, 24.6], [8, 20.8, 65.9, 24.1], [14, 21.0, 67.6, 23.8], [20, 21.2, 71.6, 23.6],
+    [24, 21.3, 77.0, 23.5], [26, 21.3, 79.4, 23.5], [28, 21.4, 80.2, 23.4], [32, 21.4, 80.6, 23.4], [44, 21.5, 81.4, 23.3], [60, 21.3, 81.4, 23.4], [75, 20.6, 80.8, 23.8],
+    [84, 20.0, 80.0, 24.2], [89, 19.5, 79.9, 24.6], [95, 18.7, 76.8, 25.0], [100, 17.9, 74.2, 25.6], [112, 15.7, 68.6, 27.0], [124, 13.5, 64.4, 28.6], [145, 11.0, 63.0, 31.0],
+    // the tailcone top drops behind the fin root so the lower rudder (behind its raked hinge) stands clear of it
+    [170, 8.6, 62.0, 34.0], [195, 6.6, 61.0, 37.0], [220, 4.9, 60.0, 40.0], [236, 3.8, 59.3, 41.8], [246, 2.6, 55.0, 43.0], [252, 1.8, 51.5, 44.0], [257, 0.7, 48.5, 45.6],
   ],
-  nTop: 3.2, nBot: 3.6, tumble: 0.22,
+  nTop: 6.5, nBot: 4.2, tumble: 0.05,
   wing: { le: 25, rootChord: 64, tipChord: 44.5, rootBL: 0, kinkBL: 100, tipBL: 213.5, leAft: 4, rootH: 80.2, dihedral: 1.73, t: [0.125, 0.115], m: 0.02 },
-  stab: { le: 210, leSweep: 0.06, te: 252, halfSpan: 68, tipStart: 58, h: 43, t: 0.1 },
+  // Tapered planform from the POH Figure 1-1 top view: root ≈ FS 201–251 (50 in), tip ≈ 215–241, span 136 in
+  stab: { le: 201, leSweep: 0.22, te: 251, teSweep: -0.15, halfSpan: 68, tipStart: 58, h: 43, t: 0.1 },
+  // Raked fin and rudder (POH Figure 1-1 side view, D-EDDH photo): the hinge leans ≈ 27 in aft over the rudder's height and the
+  // trailing edge ≈ 21 in, so the rudder is ≈ 20 in chord at the bottom and ≈ 14 in at the top
   fin: [
-    [44, 251, 268], [59, 249, 271], [60, 200, 271.3], [61.5, 211, 271.8], [64, 215.5, 272.5], [70, 221.5, 274],
-    [85, 236, 276.5], [100, 249.5, 278.6], [103, 252.5, 279], [104.4, 257, 278],
+    [44, 236, 258], [59, 236, 262], [60, 200, 262.3], [61.5, 211, 262.7], [64, 215.5, 263.6], [70, 221.5, 266],
+    [85, 236, 271], [100, 249.5, 277], [103, 252.5, 279], [104.4, 257, 278],
   ],
-  rudderHinge: [[44, 254], [103, 263]],
+  rudderHinge: [[44, 238], [103, 265]],
   rudderBottom: 44.5,
 };
 
@@ -68,12 +75,15 @@ export const EF = 0.6, HZ = 60, HF = 0.14;
 
 /* ---------- windows, doors (side outlines in [FS, h] inches) ---------- */
 export const WIN = {
-  /** Windshield side edge: cowl deck → A-pillar meets the roof under the wing LE. */
-  windSide: [[15.5, 66.9], [24, 71.4], [31.5, 76.6]],
+  /** Windshield side edge: along the cowl deck line from the windshield base back to the forward door post, then up the
+   *  near-vertical post to the wing root — the glass runs post to post (N793SP and D-EDDH photos). */
+  windSide: [[13, 64.8], [22, 65.0], [30.5, 65.4], [31.5, 77.5]],
   doorWin: AF.roundPoly([[34.2, 73.4], [33.0, 56.2], [61.6, 55.8], [62.8, 73.0]], 0.12),
   rearSide: AF.roundPoly([[68.6, 73.0], [68.4, 56.2], [94.0, 58.6], [97.0, 65.5], [95.6, 71.0]], 0.16),
-  /** Omni-Vision rear window, side portion (the rest wraps over the roof). */
+  /** Omni-Vision rear window, side portion (the roof portion is a separate conformal mesh, `rearRoofGeo`). */
   rearWrap: AF.roundPoly([[100.5, 70.6], [100.6, 61.0], [117.5, 63.0]], 0.18),
+  /** Lower edge of the roof portion of the rear window on each side, [FS, h]: from under the wing trailing edge down aft. */
+  rearRoof: [[89.5, 77.6], [100.5, 70.6], [110, 66.2], [117.5, 64.6], [121, 65.4]],
   door: AF.roundPoly([[31.8, 76.3], [30.2, 28.5], [64.6, 28.2], [65.3, 75.6]], 0.06, 1),
   /** Baggage door, left side only (15.25 × 22 in, POH Fig 6-6). */
   bagDoor: AF.roundPoly([[95.2, 52.4], [95.2, 30.6], [110.4, 30.9], [110.4, 51.8]], 0.08, 1),
@@ -92,6 +102,19 @@ export function windowOutlines(): THREE.Vector3[][] {
   return loops;
 }
 
+/** Roof portion of the Omni-Vision rear window: a glass skin conforming to the tailcone top between the `rearRoof` edges
+ *  (painting it through the side-projected texture smears it across the roof). */
+export function rearRoofGeo() {
+  const pts = WIN.rearRoof, secs: THREE.Vector3[][] = [];
+  const edgeH = (fs: number) => { let i = 0; while (i < pts.length - 2 && fs > pts[i + 1][0]) i++; const [f0, h0] = pts[i], [f1, h1] = pts[i + 1]; return h0 + ((h1 - h0) * (fs - f0)) / (f1 - f0); };
+  const f0 = pts[0][0], f1 = pts[pts.length - 1][0];
+  for (let k = 0; k <= 24; k++) {
+    const fs = f0 + ((f1 - f0) * k) / 24, x = X(fs), th = FUSE.thetaAt(x, Y(edgeH(fs)));
+    secs.push(fRing(x, 1.004, 24, th, Math.PI - th, false));
+  }
+  return loft(secs.reverse(), { closed: false, caps: false }); // aft → forward: faces outward
+}
+
 /** Neutral livery: white with a slate stripe sweeping up the cowl; glass painted where the windows are. No markings. */
 export function paintSkin(): THREE.CanvasTexture {
   const p = skinPainter(AF, 2048, 512), { g, path } = p;
@@ -106,8 +129,8 @@ export function paintSkin(): THREE.CanvasTexture {
   path([[-34, 41.6], [0, 39.6], [30, 39.0], [70, 39.6], [120, 42.2], [180, 45.8], [230, 49.2], [258, 50.6]], false);
   g.strokeStyle = "#8EA2B2"; g.lineWidth = 5; g.stroke();
   // windshield (wraps over the deck) and rear window (wraps over the roof behind the wing)
-  path([[13.5, 66.6], [15.5, 66.9], [24, 71.4], [31.5, 76.6], [31.5, 84], [10, 84], [10, 67]]); g.fillStyle = p.glass(80, 66); g.fill();
-  path([[88, 82], [88, 76.0], [98, 72.6], [110, 67.8], [121.5, 64.4], [121.5, 70], [104, 80]]); g.fillStyle = p.glass(78, 64); g.fill();
+  // windshield: everything above the deck line between its base (FS 13) and the forward door posts
+  path([...WIN.windSide, [31.5, 86], [13, 86]]); g.fillStyle = p.glass(80, 65); g.fill();
   [WIN.doorWin, WIN.rearSide, WIN.rearWrap].forEach((w) => { path(w); g.fillStyle = p.glass(73, 56); g.fill(); g.strokeStyle = "#0B1014"; g.lineWidth = 3; g.stroke(); });
   // door seams (both sides share the projection) and the recessed handle near the aft edge
   path(WIN.door); g.strokeStyle = "#9DA6AD"; g.lineWidth = 2; g.stroke();

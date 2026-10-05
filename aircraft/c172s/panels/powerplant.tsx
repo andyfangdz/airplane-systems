@@ -36,7 +36,7 @@ export function Engine() {
   const s = useC172((x) => x.s), E = useC172((x) => x.E), up = useC172((x) => x.update);
   const g = s.eng, alt = live.fs.alt;
   const lam = lambda(g.mix, alt), P = g.running ? enginePower(s, alt) : 0;
-  const state = g.running ? (live.primeRun > 0 ? ["RUNNING ON PRIME", "warnc"] : "RUNNING") : g.mags === "START" ? ["CRANKING", "warnc"] : g.flooded ? ["FLOODED", "bad"] : ["STOPPED", "bad"];
+  const state = g.running ? (live.primeRun > 0 ? [g.mix < 0.06 ? "RUNNING ON PRIME — ADVANCE MIXTURE" : "TOO LEAN — DYING", "warnc"] : "RUNNING") : g.mags === "START" ? ["CRANKING", "warnc"] : g.flooded ? ["FLOODED", "bad"] : ["STOPPED", "bad"];
   const steps: [boolean, string][] = [
     [s.fuel.sel === "BOTH" && s.fuel.shutoff, "FUEL SELECTOR BOTH · FUEL SHUTOFF ON (push full in)"],
     [!s.elec.avn1 && !s.elec.avn2, "AVIONICS (BUS 1 and BUS 2) OFF"],
@@ -83,7 +83,7 @@ export function Engine() {
           <Check id="oil" label="Loss of oil" checked={g.fail.oil} onChange={(v) => up((d) => { d.eng.fail.oil = v; })} />
         </BtnRow>
       </Ctl>
-      <Small>Engine-driven pump failure: FFLOW drops toward zero, then the engine quits — FUEL PUMP ON restores enough fuel for maximum continuous power (POH 3-34). Blocked filter: the alternate air door opens; up to 10% power loss at full throttle (POH 7-36).</Small>
+      <Small>Engine-driven pump failure: FFLOW drops to about zero, then the engine quits a couple of seconds later — FUEL PUMP ON restores enough fuel for maximum continuous power (POH 3-34, 3-7). A hot engine restarts without priming, mixture at IDLE CUTOFF: advance the mixture within a few seconds of it firing. Blocked filter: the alternate air door opens; up to 10% power loss at full throttle (POH 7-36).</Small>
       <H3>Ignition</H3>
       <Facts rows={[["Left magneto", "Upper left + lower right plugs"], ["Right magneto", "Lower left + upper right plugs"], ["MAGNETOS", "OFF – R – L – BOTH – START (springs back to BOTH)"], ["Starter", "Contactor in the J-box; coil fed through WARN (CROSSFEED BUS)"], ["Mag check", "1,800 RPM: ≤ 175 RPM drop each, ≤ 50 RPM between (POH 4-16)"], ["No drop", "Faulty ground (hot mag) or timing set in advance"]]} />
       <H3>Engine data (POH 1-5, 2-6, 7-35)</H3>

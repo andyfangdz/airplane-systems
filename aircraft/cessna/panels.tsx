@@ -105,7 +105,7 @@ export function BreakerBoard({ breakers, buses, E, cb, up, extra }: {
   breakers: Breaker[]; buses: [Nav3Bus, string, string][]; E: Nav3Solution; cb: Record<string, boolean>; up: Upd; extra?: Partial<Record<Nav3Bus, ReactNode>>;
 }) {
   return (
-    <div className="buses">
+    <div className="buses n3-buses">
       {buses.map(([id, name, src]) => {
         const v = E.v[id], lit = v > 0;
         return (
@@ -116,11 +116,11 @@ export function BreakerBoard({ breakers, buses, E, cb, up, extra }: {
               {breakers.filter((b) => b.bus === id).map((b) => {
                 const k = cbKey(b), outNow = !!cb[k], pull = PULLABLE[id];
                 const cls = "chip" + (outNow ? (pull ? " pulled" : " tripped") : "") + (!pull && !outNow ? " fixed" : "");
-                const title = `${b.label}${b.amps ? ` — ${b.amps} A` : ""}: ${b.feeds}${b.src ? ` (rating: ${b.src})` : " (rating not given in the POH)"}`;
+                const title = `${b.label}${b.amps ? ` — ${b.amps} A${b.unverified ? " (unverified)" : ""}` : ""}: ${b.feeds}${b.src ? ` (rating ${b.src})` : " (rating not given in the POH)"}`;
                 return (
                   <button key={k} type="button" className={cls} aria-pressed={outNow} title={title} disabled={!pull && !outNow}
                     onClick={() => up((d) => { if (d.cb[k]) delete d.cb[k]; else if (pull) d.cb[k] = true; })}>
-                    {b.label}{b.amps ? <i> {b.amps}</i> : null}{E.amps[k] > 0.05 ? <i> · {E.amps[k].toFixed(1)}A</i> : null}
+                    {b.label}{b.amps ? <i> {b.amps}{b.unverified ? "?" : ""}</i> : null}{E.amps[k] > 0.05 ? <i> · {E.amps[k].toFixed(1)}A</i> : null}
                   </button>
                 );
               })}

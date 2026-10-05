@@ -16,7 +16,7 @@ const wp = (bl: number, c: number, up = 0, dy = 0): Vec3 => PV(wingP(Z(bl), c, u
 /* ---------- fuel (Figure 7-6): supply cross-hatched, return hatched, vent open ---------- */
 [1, -1].forEach((s) => {
   const sd = s > 0 ? "R" : "L";
-  flow("fuel" + sd, [wp(s * 23.5, 0.28, -1, 0.02), wp(s * 21, 0.2, -1, -0.02), P3(31.2, s * 20, 74), P3(30.8, s * 20.2, 30), P3(26, s * 8, 26.2), [FSEL[0] - 0.02, FSEL[1], FSEL[2] + s * 0.03]], ["fuel"],
+  flow("fuel" + sd, [wp(s * 23.5, 0.28, -1, 0.02), wp(s * 17, 0.2, -1, 0.03), P3(31.2, s * 17.8, 75.5), P3(30.8, s * 18.2, 32), P3(26, s * 8, 27.4), [FSEL[0] - 0.02, FSEL[1], FSEL[2] + s * 0.03]], ["fuel"],
     { name: (s > 0 ? "Right" : "Left") + " tank supply line", note: "Gravity feed from the tank outlet screen down the forward door post to the selector valve.", r: 0.009 });
 });
 const RES = P3(14.5, 0, 25.6);
@@ -39,7 +39,7 @@ CYLS.forEach((c) => {
   flow("exh" + c.n, [P3(c.fs, c.s * 15, 46), P3(c.fs - 1, c.s * 12, 38), P3(-22.7, c.s * 3, 34.5)], ["engine", "environment"], { r: 0.016, color: "#8A5A3C", pcolor: "#FF8A4A", count: 4, name: "Exhaust riser", note: "Each cylinder's riser runs to the common muffler below the engine (POH 7-37)." });
 });
 flow("tailpipe", [P3(-22.7, 4, 33.5), P3(-16, 6, 29), P3(-12, 7, 24)], ["engine"], { r: 0.022, color: "#8A5A3C", pcolor: "#FF8A4A", name: "Tailpipe", note: "Single tailpipe overboard below the cowl (POH 7-37).", ext: true });
-[1, -1].forEach((s) => flow("cool" + (s > 0 ? "R" : "L"), [P3(-38.5, s * 9.5, 52.5), P3(-24, s * 9, 59), P3(-18, s * 13, 52), P3(-10, s * 12, 35), P3(-2, s * 6, 24)], ["engine"], { tube: false, pcolor: "#BEE6F2", size: 0.05, count: 10 }));
+[1, -1].forEach((s) => flow("cool" + (s > 0 ? "R" : "L"), [P3(-38.4, s * 10.2, 53.3), P3(-24, s * 9, 59), P3(-18, s * 13, 52), P3(-10, s * 12, 35), P3(-2, s * 6, 24)], ["engine"], { tube: false, pcolor: "#BEE6F2", size: 0.05, count: 10 }));
 
 /* ---------- cabin heat and ventilation (Figure 7-8) ---------- */
 const AIR = "#149C94", MAN = P3(5, 0, 31);
@@ -53,18 +53,18 @@ flow("toMan2", [P3(0.6, 14, 36.5), P3(3, 8, 32), MAN], ["environment"], { r: 0.0
   flow("defrost" + sd, [MAN, P3(8, s * 4, 48), P3(12, s * 6, 62), P3(14.5, s * 7, 67)], ["environment"], { r: 0.014, color: AIR, name: "Defroster duct", note: "Manifold → defroster outlet at the base of the windshield (POH 7-62)." });
   flow("floor" + sd, [MAN, P3(8, s * 10, 27)], ["environment"], { r: 0.012, color: AIR, name: "Front floor outlets", note: "Holes across the manifold just forward of the front occupants' feet." });
   flow("rear" + sd, [MAN, P3(8, s * 14, 28), P3(14, s * 15, 27.5)], ["environment"], { r: 0.012, color: AIR, name: "Rear cabin floor duct", note: "Down each side of the cabin to an outlet just aft of the rudder pedals (POH 7-62)." });
-  flow("wroot" + sd, [P3(25.5, s * 19.5, 79.2), P3(29, s * 19, 77), P3(30, s * 18.5, 74)], ["environment"], { r: 0.012, color: AIR, pcolor: "#5FC8F0", name: "Wing-root fresh air", note: "To the forward cabin upper and lower outlets — not heated (Fig. 7-8)." });
-  flow("wrear" + sd, [P3(29, s * 19, 77), P3(50, s * 19, 77.5), P3(72, s * 18, 75)], ["environment"], { r: 0.01, color: AIR, pcolor: "#5FC8F0", name: "Rear cabin upper air duct" });
+  flow("wroot" + sd, [wp(s * 19, 0.01, 0, -0.005), wp(s * 17.5, 0.06, 0, -0.01), P3(29, s * 17.8, 77.5), P3(30, s * 18.2, 74.5)], ["environment"], { r: 0.012, color: AIR, pcolor: "#5FC8F0", name: "Wing-root fresh air", note: "To the forward cabin upper and lower outlets — not heated (Fig. 7-8)." });
+  flow("wrear" + sd, [P3(29, s * 17.8, 77.5), P3(50, s * 17.5, 78), P3(72, s * 17.6, 75.5)], ["environment"], { r: 0.01, color: AIR, pcolor: "#5FC8F0", name: "Rear cabin upper air duct" });
 });
 
 /* ---------- pitot-static, stall warning, vacuum ---------- */
 const PIT = "#3A9448", ADC = P3(118.7, -4, 55), SBY = P3(16, 0, 52);
-flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-112, 0.25, -1, 0.04), wp(-60, 0.3, 0), wp(-22, 0.25, -1, -0.02), P3(31.6, -20, 72), P3(31, -20, 30), P3(20, -6, 27), SBY], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line", note: "Pitot head → wing → door post → standby airspeed indicator and the air data computer (POH 7-12)." });
-flow("pitot2", [P3(31, -20, 30), P3(70, -14, 27.5), P3(110, -6, 34), ADC], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line to the GDC 74A" });
+flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-112, 0.25, -1, 0.04), wp(-60, 0.3, 0), wp(-17, 0.25, -1, 0.03), P3(31.6, -18.4, 75), P3(31, -18.3, 32), P3(20, -6, 28), SBY], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line", note: "Pitot head → wing → door post → standby airspeed indicator and the air data computer (POH 7-12)." });
+flow("pitot2", [P3(31, -18.3, 32), P3(70, -14, 29), P3(110, -6, 34), ADC], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line to the GDC 74A" });
 flow("static", [STATIC_PORT, P3(15, -17, 44), P3(16, -4, 49), SBY], ["pitot"], { r: 0.006, color: "#2E7A3A", name: "Static line", note: "Static port → standby airspeed and altimeter; shared with the air data computer (POH 7-12)." });
 flow("static2", [P3(15, -17, 44), P3(40, -14, 27.5), P3(110, -6, 36), ADC], ["pitot"], { r: 0.006, color: "#2E7A3A", name: "Static line to the GDC 74A" });
 flow("altStatic", [P3(30, -5, 40), P3(16.5, -3.5, 50.5), P3(16, -2, 51)], ["pitot"], { tube: false, pcolor: "#B7E5B4", size: 0.04, name: "Cabin static air" });
-flow("stall", [STALL_INLET, wp(-84, 0.15, 0), wp(-30, 0.18, 0), wp(-21, 0.15, 0, -0.04), P3(27, -18, 74)], ["pitot"], { r: 0.007, color: PIT, name: "Stall warning tube", note: "Inlet in the left wing leading edge → air-operated horn at the upper left windshield (POH 7-67)." });
+flow("stall", [STALL_INLET, wp(-84, 0.15, 0), wp(-30, 0.18, 0), wp(-17, 0.15, 0, -0.04), P3(27, -17.4, 74.5)], ["pitot"], { r: 0.007, color: PIT, name: "Stall warning tube", note: "Inlet in the left wing leading edge → air-operated horn at the upper left windshield (POH 7-67)." });
 const VACC = "#4FA8A0";
 flow("vac", [P3(2, 3, 58), P3(14, 1, 54), P3(12, 3, 54), P3(2, 8, 56), P3(-2, 0, 52), P3(-5, -5.5, 46.5)], ["vacuum"], { r: 0.008, color: VACC, name: "Vacuum line", note: "Filter → attitude indicator → regulator → engine-driven pump (Fig. 7-9).", pcolor: "#9FE3DA" });
 flow("vacOut", [P3(-5, -5.5, 44), P3(-6, -6, 32), P3(-6, -8, 24.8)], ["vacuum"], { tube: false, pcolor: "#9FE3DA", size: 0.04 });

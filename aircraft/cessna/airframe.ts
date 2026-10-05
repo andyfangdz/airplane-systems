@@ -39,8 +39,9 @@ export interface CessnaSpec {
     t: [number, number]; m: number;
   };
   stab: {
-    /** LE FS at the centreline and its sweep (in of FS per in of BL); TE FS (straight). */
-    le: number; leSweep: number; te: number;
+    /** LE FS at the centreline and its sweep (in of FS per in of BL); TE FS at the centreline and its sweep (negative = the
+     *  trailing edge comes forward toward the tips, giving the tapered planform). */
+    le: number; leSweep: number; te: number; teSweep?: number;
     /** Half span and where the rounded tip starts (in); chord-line height (in AGL); t/c. */
     halfSpan: number; tipStart: number; h: number; t: number;
   };
@@ -83,9 +84,10 @@ export function cessnaAirframe(S: CessnaSpec) {
   const stZ = Z(T.halfSpan), stR = Z(T.tipStart);
   const sRound = (z: number) => { const a = Math.abs(z); return a > stR ? Math.pow((a - stR) / (stZ - stR), 2) : 0; };
   const sLE0 = (z: number) => X(T.le + T.leSweep * Math.abs(z) / IN);
+  const sTE0 = (z: number) => X(T.te + (T.teSweep ?? 0) * Math.abs(z) / IN);
   // rounded/raked tip: the LE comes aft faster than the TE comes forward
-  const sLE = (z: number) => sLE0(z) - (sLE0(z) - X(T.te)) * 0.42 * sRound(z);
-  const sC = (z: number) => (sLE0(z) - X(T.te)) * (1 - 0.62 * sRound(z));
+  const sLE = (z: number) => sLE0(z) - (sLE0(z) - sTE0(z)) * 0.42 * sRound(z);
+  const sC = (z: number) => (sLE0(z) - sTE0(z)) * (1 - 0.62 * sRound(z));
   const SY = Y(T.h);
   const STAB = liftingSurface({ le: sLE, chord: sC, y: () => SY, t: () => T.t, m: 0 });
 
@@ -164,6 +166,44 @@ export function cessnaAirframe(S: CessnaSpec) {
   };
 }
 export type CessnaAirframe = ReturnType<typeof cessnaAirframe>;
+
+/** Tapered round tube a → b (radius r0 at a, r1 at b), e.g. the tubular spring-steel main gear strut. */
+export function taperTubeGeo(a: Vec3, b: Vec3, r0: number, r1: number, n = 14) {
+  const A = V(...a), B = V(...b), d = B.clone().sub(A).normalize();
+  const u = Math.abs(d.y) < 0.9 ? V(0, 1, 0).cross(d).normalize() : V(1, 0, 0).cross(d).normalize(), w = d.clone().cross(u).normalize();
+  const secs: Ring[] = [];
+  for (let k = 0; k <= 6; k++) {
+    const c = A.clone().lerp(B, k / 6), r = lerp(r0, r1, k / 6);
+    secs.push(Array.from({ length: n }, (_, i) => { const th = (i / n) * Math.PI * 2; return c.clone().addScaledVector(u, Math.cos(th) * r).addScaledVector(w, Math.sin(th) * r); }));
+  }
+  return loft(secs.reverse()); // b → a keeps the faces outward for single-sided part materials
+}
+
+/**
+ * Cessna speed fairing ("wheel pant"), inches in, metres out. A rounded pill, widest at the axle, with a blunt elliptical
+ * nose and a tapering tail, cut flat underneath so the bottom of the tire shows. Origin at the axle, x forward, y up.
+ * `axle` = fraction of the length from the nose to the axle; `lift` = centre height above the axle; `cut` = height of the
+ * flat bottom relative to the axle (negative).
+ */
+export function wheelFairingGeo(o: { len: number; height: number; width: number; axle: number; lift: number; cut: number }) {
+  const L = o.len * IN, a = o.axle, x0 = a * L, N = 32, M = 28, ne = 2.6;
+  const prof = (t: number) => (t <= a ? Math.sqrt(Math.max(0, 1 - Math.pow((a - t) / a, 2))) : Math.pow(Math.max(0, 1 - Math.pow((t - a) / (1 - a), 2.3)), 0.62));
+  const secs: Ring[] = [];
+  for (let k = 0; k <= N; k++) {
+    const t = k / N, f = Math.max(0.03, prof(t)), x = x0 - t * L;
+    const hh = (o.height / 2) * IN * f, hw = (o.width / 2) * IN * Math.pow(f, 0.85);
+    // the top line droops a little toward the tail
+    const cy = (o.lift - (t > a ? 1.6 * (t - a) / (1 - a) : 0)) * IN;
+    const r: Ring = [];
+    for (let j = 0; j < M; j++) {
+      const th = (j / M) * Math.PI * 2, c = Math.cos(th), s = Math.sin(th);
+      const y = cy + hh * Math.sign(s) * Math.pow(Math.abs(s), 2 / ne), z = hw * Math.sign(c) * Math.pow(Math.abs(c), 2 / ne);
+      r.push(V(x, Math.max(y, o.cut * IN), z));
+    }
+    secs.push(r);
+  }
+  return loft(secs.reverse()); // tail → nose keeps the faces outward for single-sided part materials
+}
 
 /** Paint helpers for the skin canvas: path from [FS, h] points and a glass gradient. */
 export function skinPainter(af: CessnaAirframe, W = 2048, H = 512) {

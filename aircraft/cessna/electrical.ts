@@ -6,7 +6,7 @@
  * Topology (Fig 7-7):
  *   Main battery ─ Battery Relay (MASTER BAT) ─┬─ Starter Relay ─ Starter
  *                                              └─ Current shunt (M BATT) ─ main node
- *   Alternator ─ ACU (field via ALT FIELD breaker + MASTER ALT) ─ Alt Relay ─ main node
+ *   Alternator ─ ACU (field via MASTER ALT + ALT FIELD breaker on the CROSSFEED BUS) ─ Alt Relay ─ main node
  *   External power ─ Ext Pwr Relay ─ battery side of the Battery Relay
  *   main node ─ feeder C/B "B" ─ ELECTRICAL BUS 1,  feeder C/B "A" ─ ELECTRICAL BUS 2   (in the J-box)
  *   BUS 1 ─diode─┐                  BUS 1 ─diode─┐
@@ -28,8 +28,8 @@ export const PULLABLE: Record<Nav3Bus, boolean> = { E1: false, E2: false, XF: fa
 /** One panel breaker. `key` = "BUS:LABEL" (labels repeat across buses, e.g. PFD on ESS and AVN 1). */
 export interface Breaker {
   bus: Nav3Bus; label: string;
-  /** Rating (A) where a source gives it, and that source. */
-  amps?: number; src?: string;
+  /** Rating (A) where a source gives it, and that source; `unverified` = not from the POH (shown as "5?"). */
+  amps?: number; src?: string; unverified?: boolean;
   /** Load text from Fig 7-7 Sheet 2. */
   feeds: string;
 }
@@ -95,8 +95,9 @@ export interface Nav3Solution {
 }
 
 const r1 = (v: number) => Math.round(v * 10) / 10;
-/** Main battery terminal voltage under light load vs state of charge (illustrative lead-acid curve). */
-export const vMain = (soc: number) => (soc > 0.1 ? 23.0 + 2.2 * ((soc - 0.1) / 0.9) : 18 + 50 * Math.max(0, soc));
+/** Main battery terminal voltage under light load vs state of charge (illustrative lead-acid curve): it collapses toward 0 V
+ *  as the battery goes flat, so a dead battery drops the loads instead of holding the buses up forever. */
+export const vMain = (soc: number) => (soc > 0.1 ? 23.0 + 2.2 * ((soc - 0.1) / 0.9) : 23.0 * Math.sqrt(Math.max(0, soc) / 0.1));
 /** Standby battery voltage: ~25 V full, 20 V = "little or no capacity remaining" (POH 7-51). */
 export const vStby = (soc: number) => (soc <= 0.002 ? 0 : 20.4 + 4.7 * Math.pow(soc, 0.35));
 /** Below this a G1000 unit / load drops out. */
@@ -113,18 +114,21 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
   // battery relay closes with MASTER BAT; ground power and the battery meet upstream of it
   const relay = e.bat;
   const source = Math.max(batV, e.ext ? 28.0 : 0);
-  const fieldOk = relay && e.alt && !out("XF:ALT FIELD");
-  const altCap = cfg.altAmps * Math.max(0, Math.min(1, (rpm - 550) / 1100));
-  const altCan = fieldOk && !e.fail.alt && rpm > 500 && (source > 8 || rpm > 1500);
-  // first pass: nominal voltages to find which loads are live
   const altSet = e.fail.ov ? 33.6 : 28.0;
-  const nodeNom = !relay ? 0 : Math.max(source, altCan ? altSet : 0);
   const busesAt = (node: number) => {
     const e1 = out(FEEDER.E1) ? 0 : node, e2 = out(FEEDER.E2) ? 0 : node;
     const dor = Math.max(e1, e2) > 0 ? Math.max(e1, e2) - DIODE : 0;
     const av1 = e.avn1 && !out("E1:AVN 1") ? e1 : 0, av2 = e.avn2 && !out("E2:AVN 2") ? e2 : 0;
     return { E1: e1, E2: e2, XF: dor, ESS: dor, AV1: av1, AV2: av2 } as Record<Nav3Bus, number>;
   };
+  // the field is powered through the ALT FIELD breaker on the CROSSFEED BUS: it needs that bus alive (battery or ground power
+  // through a feeder, or the alternator itself once it is turning fast enough to self-excite)
+  const selfEx = !e.fail.alt && rpm > 1500;
+  const fieldOk = relay && e.alt && !out("XF:ALT FIELD") && busesAt(Math.max(source, selfEx ? altSet : 0)).XF >= LIVE;
+  const altCap = cfg.altAmps * Math.max(0, Math.min(1, (rpm - 550) / 1100));
+  const altCan = fieldOk && !e.fail.alt && rpm > 500 && (source > 8 || rpm > 1500);
+  // first pass: nominal voltages to find which loads are live
+  const nodeNom = !relay ? 0 : Math.max(source, altCan ? altSet : 0);
   const stbyArm = e.stby === "ARM" && !out("ESS:STDBY BATT");
   const sV = vStby(e.socStby);
   const sumLoads = (v: Record<Nav3Bus, number>) => {
@@ -140,10 +144,12 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
   let v = busesAt(nodeNom);
   const L1 = sumLoads(v);
   // charging current into the batteries (tapering with state of charge)
-  const chargeMain = relay && !e.fail.bat ? Math.min(14, 0.4 + 26 * Math.pow(1 - e.socMain, 1.6)) : 0;
+  const chargeMain0 = relay && !e.fail.bat ? Math.min(14, 0.4 + 26 * Math.pow(1 - e.socMain, 1.6)) : 0;
   const chargeStby = stbyArm && sV > 0 ? Math.min(1.2, 0.08 + 3 * Math.pow(1 - e.socStby, 1.5)) : 0;
   // alternator holds regulation only if it can carry the loads (low RPM sag → battery voltage → LOW VOLTS)
   const altOn = altCan && altCap >= L1.t + 2;
+  // a runaway regulator forces a heavy charge into the battery (M BATT > 40 A — the HIGH VOLTS checklist's second trigger, POH 3-17)
+  const chargeMain = chargeMain0 + (altOn && chargeMain0 > 0 ? Math.max(0, altSet - 28.5) * 8.5 : 0);
   // battery terminal voltage sags under load (≈ 0.12 Ω battery + contactor + wiring, illustrative): MASTER ON with the
   // engine stopped shows LOW VOLTS (POH 4-6) and the bus recovers once the alternator comes on line
   const batTerm = batV > 0 ? Math.max(0, batV - 0.12 * Math.min(L1.t, 25)) : 0;
@@ -157,10 +163,11 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
   const mainLoad = L.t - essFromStby;
   let altAmps = 0, mBatt = 0;
   if (altOn) {
-    altAmps = Math.min(cfg.altAmps, mainLoad + (batV > 0 ? chargeMain : 0) + (stbyArm && !stbyOnline ? chargeStby : 0));
-    mBatt = batV > 0 ? chargeMain : 0;
+    // a flat (but not failed) battery still takes a charge
+    altAmps = Math.min(cfg.altAmps, mainLoad + chargeMain + (stbyArm && !stbyOnline ? chargeStby : 0));
+    mBatt = chargeMain;
   } else if (relay && e.ext) {
-    mBatt = batV > 0 ? chargeMain : 0;
+    mBatt = chargeMain;
   } else if (relay && batV > 0) {
     mBatt = -(mainLoad + (stbyArm && !stbyOnline ? chargeStby : 0));
   }

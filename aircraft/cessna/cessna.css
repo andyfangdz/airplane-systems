@@ -17,6 +17,7 @@ button.chip.fixed:hover{border-color:var(--rule)}
 .chip.tripped,.bus.on .chip.tripped{background:repeating-linear-gradient(90deg,#fff3d6 0 3px,#f2d18a 3px 6px);color:#6b4a00;text-decoration:line-through;opacity:1;border-color:#d39b16;cursor:pointer}
 .chip.tripped::after{content:" ⏏ reset";}
 .chip i{font-style:normal;opacity:.65}
+.n3-buses .chip{min-height:24px}
 .n3-meter{display:block}
 .n3-meter .ro b.amber{color:#B98A00}
 .n3-dia{width:100%;height:auto;display:block;margin:4px 0 2px}

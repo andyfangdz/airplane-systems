@@ -49,7 +49,7 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
     { key: "egt", label: "EGT", style: "bar", min: 1250, max: 1650, value: v(Math.max(1250, live.egt)), fmt: (x) => String(Math.round(x / 10) * 10) },
     { key: "vac", label: "VAC", style: "bar", min: 3, max: 7, bands: [[4.5, 5.5, "green"]], value: v(Math.max(3, live.vac)), fmt: (x) => (live.vac < 3 ? live.vac : x).toFixed(1) },
     { key: "fuel", label: "FUEL QTY GAL", style: "pair", min: 0, max: 26, bands: [[0, 0.5, "red"], [0.5, 5, "yellow"], [5, 24, "green"]], value: v(iL), value2: v(iR), alert: fuelAlert },
-    { key: "hrs", label: "ENG HRS", style: "text", min: 0, max: 1, value: v(live.hobbs), text: ok ? live.hobbs.toFixed(1) : undefined },
+    { key: "hrs", label: "ENG HRS", style: "text", min: 0, max: 1, value: v(live.engHrs), text: ok ? live.engHrs.toFixed(1) : undefined },
     ...nav3ElecGauges({ ...E, mBus: ok ? E.mBus : null, eBus: ok ? E.eBus : null }),
   ];
 }
