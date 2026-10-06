@@ -1,5 +1,6 @@
 /**
- * Declarative catalogue of every modelled C182T NAV III component (POH 182TPHAUS-04 Rev 4 + Supplement 3).
+ * Declarative catalogue of the C182T NAV III, part 1 (POH 182TPHAUS-04 Rev 4 + Supplement 3); the systems parts are in
+ * parts-systems.ts.
  * Positions use the POH stations through `P3(FS, BL, h)` (inches → metres, see geometry.ts). Equipment-list arms (POH Figure 6-9)
  * place most items fore/aft; butt lines and heights are not in the POH and are placed from the descriptions ("left forward side
  * of the firewall", "tailcone", …), Figure 7-2 and photos.

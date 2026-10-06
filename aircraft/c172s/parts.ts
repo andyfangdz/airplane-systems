@@ -1,5 +1,6 @@
 /**
- * Declarative catalogue of every modelled C172S NAV III component (POH 172SPHBUS-04).
+ * Declarative catalogue of the C172S NAV III, part 1: airframe, flight controls, gear, engine and propeller, cockpit and
+ * autopilot servos (POH 172SPHBUS-04); the systems parts are in parts-systems.ts.
  * Positions use the POH stations through `P3(FS, BL, h)` (inches → metres, see geometry.ts).
  * Equipment-list arms (POH Figure 6-9) place most items fore/aft; butt lines and heights are not in the
  * POH and are placed from the descriptions ("left forward side of the firewall", "tailcone", …) and photos.

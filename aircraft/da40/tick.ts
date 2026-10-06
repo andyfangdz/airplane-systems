@@ -12,7 +12,7 @@ import { useDA40 } from "./store";
 /** Ignition key START hold (s): released when the engine fires, or after this (AFM: crank at most 10 s). */
 export const START_HOLD = 6;
 /** Trim that holds ~119 KIAS level with the stick centred (pilot command pitch = 1.5° + 4° × trim). */
-export const TRIM_PITCH = (trim: number) => 1.5 + trim * 4;
+export const trimPitch = (trim: number) => 1.5 + trim * 4;
 
 /** Engine power fraction 0..1 from MAP and RPM (illustrative). */
 export const powerFrac = (map: number, rpm: number) => clamp(((map - 10) / 18.5) * (rpm / 2700), 0, 1);
@@ -26,7 +26,7 @@ function pfdLost(st: Gfc700State): Gfc700State {
   return st.ap ? { ...off, ap: false, apFlash: { kind: "abnormal", until: Infinity }, tone: Infinity } : off;
 }
 /** AFCS keys that still work with the PFD lost: manual electric trim and AP DISC (acknowledge). */
-export const PFD_LOST_KEYS: Gfc700Key[] = ["TRIM_UP", "TRIM_DN", "AP_DISC"];
+export const PFD_LOST_KEYS: Gfc700Key[] = ["TRIM_UP", "TRIM_DN", "TRIM_UP_HOLD", "TRIM_DN_HOLD", "AP_DISC"];
 
 export function simTick(dt: number) {
   const store = useDA40.getState(), up = store.update;
@@ -120,7 +120,7 @@ export function simTick(dt: number) {
   if (E.flapsPwr && Math.abs(live.flapAng - ft) > 0.01) live.flapAng += Math.sign(ft - live.flapAng) * Math.min(Math.abs(ft - live.flapAng), 7 * dt);
 
   // ---------- long-range fuel gauges: pointer migrates to 16 over 30 s (AFMS §7.10) ----------
-  const gauge = (cur: number, q: number) => { const t = gaugeTarget(q); return t === 16 && cur > 16 && cur <= 24.01 && q <= 19 ? Math.max(16, cur - (8 / 30) * dt) : t; };
+  const gauge = (cur: number, q: number) => { const t = gaugeTarget(q); return t === 16 && cur > 16 && cur <= 24.01 && q <= 19 ? Math.max(16, Math.min(cur, 19) - (3 / 30) * dt) : t; }; // 19 → 16 in 30 s
   live.gaugeL = gauge(live.gaugeL, s.fuel.qL);
   live.gaugeR = gauge(live.gaugeR, s.fuel.qR);
 
@@ -140,7 +140,7 @@ export function simTick(dt: number) {
   if (live.afcs.powered && !E.pfd) live.afcs = pfdLost(live.afcs);
   const engaged = gfc700Engaged(live.afcs);
   const ap = engaged ? gfc700Command(live.afcs, live.fs, AFCS_CFG) : null;
-  const cmd: FlightCmd = ap ?? yokeCmd(s.ctrl.roll, s.ctrl.pitch, TRIM_PITCH(live.afcs.trim));
+  const cmd: FlightCmd = ap ?? yokeCmd(s.ctrl.roll, s.ctrl.pitch, trimPitch(live.afcs.trim));
   live.fs = stepFlight({ ...live.fs, power: run ? s.eng.throttle : 0 }, cmd, dt, DA40_FLIGHT);
   live.afcs = gfc700Tick(live.afcs, live.fs, AFCS_CFG);
 
@@ -149,7 +149,7 @@ export function simTick(dt: number) {
   let tgt = s.ctrl;
   if (ap) {
     const pitchT = ap.pitch ?? pitchFor(f, ap.vs ?? f.vs);
-    tgt = { pitch: clamp((pitchT - f.pitch) / 3, -1, 1) * 0.5 + clamp((pitchT - TRIM_PITCH(live.afcs.trim)) / 8, -0.3, 0.3), roll: clamp((ap.bank - f.roll) / 10, -1, 1) * 0.55 + f.roll / 120, yaw: 0 };
+    tgt = { pitch: clamp((pitchT - f.pitch) / 3, -1, 1) * 0.5 + clamp((pitchT - trimPitch(live.afcs.trim)) / 8, -0.3, 0.3), roll: clamp((ap.bank - f.roll) / 10, -1, 1) * 0.55 + f.roll / 120, yaw: 0 };
     // autotrim — not on the ground, and not with the pitch-trim servo failed (red PTRM)
     if (!f.onGround && !live.afcs.fail.trim) {
       const trimT = clamp((pitchT - 1.5) / 4, -1, 1);

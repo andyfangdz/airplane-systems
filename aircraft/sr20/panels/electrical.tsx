@@ -24,6 +24,8 @@ function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; l
   );
 }
 
+/** Engine running in flight: key BOTH, mixture out of cutoff, a tank with fuel, breakers in. */
+const fly = (d: Sim) => { d.cb = {}; d.eng.running = true; d.eng.key = "BOTH"; if (d.eng.mix < 0.1) d.eng.mix = 0.85; if (!fuelAvail(d)) d.fuel.sel = d.fuel.qL > 0 ? "L" : "R"; };
 const resetElec = (d: Sim) => { d.elec = { bat1: true, bat2: true, alt1: true, alt2: true, avionics: true, fail: { alt1: false, alt2: false, bat1: false }, tBat: 0 }; };
 
 export function Electrical() {
@@ -56,12 +58,12 @@ export function Electrical() {
         <div className="row">
           <div className="lbl"><span>Scenarios</span></div>
           <BtnRow>
-            {scen("Normal cruise", (d) => { d.cb = {}; d.eng.running = true; d.eng.key = "BOTH"; if (d.eng.mix < 0.1) d.eng.mix = 0.85; if (!fuelAvail(d)) d.fuel.sel = d.fuel.qL > 0 ? "L" : "R"; })}
-            {scen("ALT 1 fails", (d) => { d.eng.running = true; d.elec.fail.alt1 = true; })}
-            {scen("ALT 2 fails", (d) => { d.eng.running = true; d.elec.fail.alt2 = true; })}
-            {scen("Both ALTs fail", (d) => { d.eng.running = true; d.elec.fail.alt1 = d.elec.fail.alt2 = true; })}
+            {scen("Normal cruise", (d) => { fly(d); })}
+            {scen("ALT 1 fails", (d) => { fly(d); d.elec.fail.alt1 = true; })}
+            {scen("ALT 2 fails", (d) => { fly(d); d.elec.fail.alt2 = true; })}
+            {scen("Both ALTs fail", (d) => { fly(d); d.elec.fail.alt1 = d.elec.fail.alt2 = true; })}
             {scen("BAT 2-only ground check", (d) => { d.eng.running = false; d.eng.key = "OFF"; d.elec.bat1 = d.elec.alt1 = d.elec.alt2 = d.elec.avionics = false; })}
-            {scen("Everything lost but BAT 2", (d) => { d.eng.running = true; d.elec.fail.alt1 = d.elec.fail.alt2 = d.elec.fail.bat1 = true; })}
+            {scen("Everything lost but BAT 2", (d) => { fly(d); d.elec.fail.alt1 = d.elec.fail.alt2 = d.elec.fail.bat1 = true; })}
           </BtnRow>
         </div>
         <Slider id="tBat" label="Time on batteries (after ALT failure)" min={0} max={75} step={1} value={e.tBat} onChange={(v) => up((d) => { d.elec.tBat = v; })} fmt={(v) => v + " min"} />

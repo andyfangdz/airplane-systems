@@ -4,7 +4,7 @@ import "./avionics.css";
 import type { ReactNode } from "react";
 import { BtnRow, HoldButton, Slider, type HoldButtonProps } from "@/components/ui/controls";
 import type { AfcsAnnunc } from "@/lib/avionics/g1000";
-import { nextCdi, wrap360, type FlightState, type FlySet } from "@/lib/avionics/flight";
+import { nextCdi, wrap180, wrap360, type FlightState, type FlySet } from "@/lib/avionics/flight";
 
 const pad3 = (h: number) => String(Math.round(wrap360(h)) || 360).padStart(3, "0");
 export { pad3 };
@@ -61,12 +61,16 @@ export function FlyControls({ fs, onSet, loc = [false, false], altLabel = "ALT k
       <BtnRow>{btns.map(([t, f]) => <button key={t} type="button" className="btn" onClick={f}>{t}</button>)}</BtnRow>
     </div>
   );
-  const hdg = (d: number) => () => onSet({ hdgBug: wrap360(Math.round(fs.hdgBug) + d) });
+  // the knob also keeps how far, and which way, the bug has been turned from the heading (more than 340° at a time = the short way)
+  const hdg = (d: number) => () => {
+    const t = (fs.hdgTurn ?? wrap180(fs.hdgBug - fs.hdg)) + d;
+    onSet({ hdgBug: wrap360(Math.round(fs.hdgBug) + d), hdgTurn: Math.abs(t) >= 180 && Math.abs(t) <= 340 ? t : undefined });
+  };
   const crs = (d: number) => () => onSet({ crs: wrap360(Math.round(fs.crs) + d) });
   const alt = (d: number) => () => onSet({ selAlt: Math.max(0, Math.min(25000, fs.selAlt + d)) });
   return (
     <div className="avx-fly">
-      {knob("HDG knob", pad3(fs.hdgBug) + "°", [["−10", hdg(-10)], ["−1", hdg(-1)], ["PUSH SYNC", () => onSet({ hdgBug: Math.round(fs.hdg) })], ["+1", hdg(1)], ["+10", hdg(10)]])}
+      {knob("HDG knob", pad3(fs.hdgBug) + "°", [["−10", hdg(-10)], ["−1", hdg(-1)], ["PUSH SYNC", () => onSet({ hdgBug: Math.round(fs.hdg), hdgTurn: undefined })], ["+1", hdg(1)], ["+10", hdg(10)]])}
       {knob("CRS knob", pad3(fs.crs) + "°", [["−10", crs(-10)], ["−1", crs(-1)], ["+1", crs(1)], ["+10", crs(10)]])}
       {knob(altLabel, `${fs.selAlt} FT`, [["−1000", alt(-1000)], ["−100", alt(-100)], ["+100", alt(100)], ["+1000", alt(1000)]])}
       {knob("CDI softkey", fs.navSrc, [["CDI", () => onSet({ navSrc: nextCdi(fs.navSrc, loc[0], loc[1]) })]])}

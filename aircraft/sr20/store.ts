@@ -2,10 +2,10 @@
 import { createSimStore } from "@/lib/simStore";
 import { useView } from "@/lib/view";
 import { CAPS_CAM } from "./systems";
-import { initialSim, live, solveElec } from "./model";
+import { initialSim, live, solve } from "./model";
 
 /** SR20 systems state (switches, failures, quantities) and its electrical solution. */
-export const useSR20 = createSimStore(initialSim, solveElec);
+export const useSR20 = createSimStore(initialSim, solve);
 
 export function startCaps() {
   live.capsT = 0; live.capsPlaying = true;

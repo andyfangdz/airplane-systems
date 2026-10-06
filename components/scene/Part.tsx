@@ -67,7 +67,8 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
     return () => { if (partObjects.get(name) === m) partObjects.delete(name); };
   }, [spec.name]);
 
-  useFrame(({ clock }) => { if (spec.anim) spec.anim(ref.current, clock.elapsedTime); });
+  // a part being flashed by "tap to locate" shows even if its animation hides it (e.g. a control lock not fitted)
+  useFrame(({ clock }) => { if (spec.anim) spec.anim(ref.current, clock.elapsedTime); if (focused) ref.current.visible = true; });
 
   return (
     <mesh ref={ref} geometry={geo} material={material} renderOrder={ghost ? 2 : 0} position={spec.pos} rotation={spec.rot} scale={spec.scale} userData={{ pick }}>

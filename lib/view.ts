@@ -29,7 +29,8 @@ export interface View {
 interface ViewStore extends View {
   set: (p: Partial<View>) => void;
   flyTo: (p: Vec3, t: Vec3) => void;
-  setTheme: (t: Theme) => void;
+  /** Apply a theme; `save` (the default) remembers it as the user's choice. */
+  setTheme: (t: Theme, save?: boolean) => void;
   setHover: (h: HoverInfo | null) => void;
 }
 
@@ -45,10 +46,10 @@ export const useView = create<ViewStore>((set) => ({
   theme: "light", cam: null, hover: null,
   set: (p) => set(p),
   flyTo: (p, t) => set({ cam: { p, t, id: ++camId } }),
-  setTheme: (theme) => {
+  setTheme: (theme, save = true) => {
     set({ theme });
     document.documentElement.setAttribute("data-theme", theme);
-    try { localStorage.setItem("sr20theme", theme); } catch {}
+    if (save) try { localStorage.setItem("sr20theme", theme); } catch {}
   },
   setHover: (hover) => set({ hover }),
 }));

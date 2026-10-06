@@ -8,15 +8,17 @@
  *   a lost mode flashes yellow 10 s while the axis reverts to ROL (wings level) / PIT.
  * - ALTS arms automatically in PIT, VS, FLC, GA (and VPTH); ALTS → ALT at 50 ft from the Selected Altitude.
  * - NAV/APR capture immediately with the CDI ≤ 1 dot, otherwise arm (white).
- * - AP off by AP key / AP DISC / MET / GA: yellow "AP" flashes 5 s + 2 s tone. Automatic (failure)
- *   disconnect: red flashing "AP" + continuous tone until AP DISC (or MET) acknowledges.
+ * - HDG turns the way the bug was turned, even more than 180°; changes of more than 340° at a time turn the short way.
+ * - AP off by AP key / AP DISC / MET / GA: yellow "AP" flashes 5 s + 2 s tone; a fresh MET press cancels only the
+ *   tone, AP DISC also the flashing AP (CRG p. 6-22). Automatic (failure) disconnect: red flashing "AP" + continuous
+ *   tone until AP DISC (or MET) acknowledges.
  * Keep the state with the flight state (outside React), call `gfc700Tick` every frame and
  * `gfc700Key` on key presses; both return the same object when nothing changed. Every function takes the
  * airplane's `Gfc700Cfg` (built from GFC700_BASE in the airplane's model.ts).
  */
 import type { AfcsAnnunc } from "./g1000";
 import {
-  bankToHdg, gsDots, isLoc, navDots, pathVs, pitchFor, stdRateBank, trackHdg, vsForIas, vsForPitch, wrap180,
+  bankToHdg, gsDots, isLoc, navDots, pathVs, pitchFor, stdRateBank, trackHdg, vsForIas, vsForPitch, wrap180, wrap360,
   type FlightCfg, type FlightCmd, type FlightState, type NavSrc,
 } from "./flight";
 
@@ -26,11 +28,12 @@ export type Gfc700Vert = "PIT" | "ALT" | "ALTS" | "VS" | "FLC" | "VPTH" | "GS" |
 /**
  * Keys, buttons and switches. Bezel: AP FD YD HDG NAV APR BC ALT VS FLC VNV NOSE_UP NOSE_DN.
  * Elsewhere: GA (go-around button), AP_DISC (control-wheel A/P TRIM DISC / AP DISC; also acknowledges a
- * disconnect), CWS / CWS_UP (press / release), TRIM_UP / TRIM_DN (manual electric pitch trim, both halves).
+ * disconnect), CWS / CWS_UP (press / release), TRIM_UP / TRIM_DN (manual electric pitch trim, both halves: a fresh
+ * press) and TRIM_UP_HOLD / TRIM_DN_HOLD (the same switch still held, which trims but acknowledges nothing).
  */
 export type Gfc700Key =
   | "AP" | "FD" | "YD" | "HDG" | "NAV" | "APR" | "BC" | "ALT" | "VS" | "FLC" | "VNV" | "NOSE_UP" | "NOSE_DN"
-  | "GA" | "AP_DISC" | "CWS" | "CWS_UP" | "TRIM_UP" | "TRIM_DN";
+  | "GA" | "AP_DISC" | "CWS" | "CWS_UP" | "TRIM_UP" | "TRIM_DN" | "TRIM_UP_HOLD" | "TRIM_DN_HOLD";
 
 /** Per-airplane configuration. */
 export interface Gfc700Cfg {
@@ -98,6 +101,11 @@ export interface Gfc700State {
   fail: Gfc700Fail;
   /** Pitch trim position −1 (nose down) … +1 (nose up): MET and autotrim, for animating the trim wheel. */
   trim: number;
+  /**
+   * VPTH re-armed by a pitch key while tracking the path: no re-capture before `until` (10 s) and before the deviation has
+   * exceeded 250 ft (`away`) and come back within 200 ft (CRG p. 6-13). Cleared by capture or by arming with VNV.
+   */
+  vpthRe?: { until: number; away: boolean } | null;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -109,6 +117,8 @@ const isNav = (m: Gfc700Lat | null) => !!m && NAV_MODES.includes(m);
 const holdBank = (roll: number, max: number) => (Math.abs(roll) < 6 ? 0 : clamp(roll, -max, max));
 const withoutPath = (a: Gfc700Vert[]) => a.filter((m) => m !== "GS" && m !== "GP");
 const pathArm = (a: Gfc700Vert[]) => a.filter((m) => m === "GS" || m === "GP");
+/** The approach lateral mode a glideslope / glidepath needs: GS goes with LOC, GP with GPS (CRG p. 6-15). */
+const pathLat = (m: Gfc700Vert): Gfc700Lat => (m === "GS" ? "LOC" : "GPS");
 const ALTS_MODES: Gfc700Vert[] = ["PIT", "VS", "FLC", "GA", "VPTH"];
 
 /** Unpowered AFCS. */
@@ -116,6 +126,7 @@ export function gfc700Init(): Gfc700State {
   return {
     powered: false, pft: "off", pftEnd: 0, ap: false, fd: false, yd: false, cws: false, lat: "ROL", latArm: null, apr: false, src: null,
     vert: "PIT", vertArm: [], ref: { pit: 0, rol: 0, vs: 0, ias: 0, alt: 0 }, latFlash: null, vertFlash: null, apFlash: null, tone: 0, fail: {}, trim: 0,
+    vpthRe: null,
   };
 }
 
@@ -243,6 +254,7 @@ export function gfc700Key(st: Gfc700State, key: Gfc700Key, fs: FlightState, cfg:
     case "HDG":
       if (fs.fail.hdg) return st;
       activateFd(s, fs, cfg);
+      if (isNav(s.lat) && !s.latArm) { s.apr = false; s.src = null; } // leaving the nav mode (GS / GP go with it, see gfc700Tick)
       setLat(s, st.fd && s.lat === "HDG" ? "ROL" : "HDG", fs, cfg);
       break;
     case "NAV": case "APR": case "BC":
@@ -251,14 +263,18 @@ export function gfc700Key(st: Gfc700State, key: Gfc700Key, fs: FlightState, cfg:
     case "ALT": case "VS": case "FLC": {
       if (fs.fail.air) return st;
       const m: Gfc700Vert = key;
+      // another pitch mode key while VPTH is selected: VPTH reverts to armed, with a guard against immediate re-capture (CRG p. 6-10, 6-13)
+      const vnav = st.fd && (st.vert === "VPTH" || st.vertArm.includes("VPTH"));
       activateFd(s, fs, cfg);
       setVert(s, st.fd && s.vert === m ? "PIT" : m, fs, cfg);
+      if (vnav) { s.vertArm.push("VPTH"); if (st.vert === "VPTH") s.vpthRe = { until: now + 10, away: false }; }
       break;
     }
     case "VNV":
       if (s.vert === "VPTH") setVert(s, "PIT", fs, cfg);
       else if (s.vertArm.includes("VPTH")) s.vertArm = s.vertArm.filter((m) => m !== "VPTH");
-      else if (fs.vpath) { activateFd(s, fs, cfg); s.vertArm = [...s.vertArm.filter((m) => m !== "VPTH"), "VPTH"]; }
+      // arming with VNV (e.g. pressing it twice) allows immediate profile re-capture (CRG p. 6-13)
+      else if (fs.vpath) { activateFd(s, fs, cfg); s.vertArm = [...s.vertArm.filter((m) => m !== "VPTH"), "VPTH"]; s.vpthRe = null; }
       else return st; // a VNAV flight plan must be active
       break;
     case "NOSE_UP": case "NOSE_DN": {
@@ -296,12 +312,15 @@ export function gfc700Key(st: Gfc700State, key: Gfc700Key, fs: FlightState, cfg:
       if (s.lat === "ROL") s.ref.rol = holdBank(fs.roll, cfg.maxBank);
       if (s.vert === "GA" || s.vert === "TO") { setVert(s, "PIT", fs, cfg); setLat(s, "ROL", fs, cfg); }
       break;
-    case "TRIM_UP": case "TRIM_DN":
+    case "TRIM_UP": case "TRIM_DN": case "TRIM_UP_HOLD": case "TRIM_DN_HOLD": {
+      const press = key === "TRIM_UP" || key === "TRIM_DN";
       if (s.ap) disconnect(s, now, "disc"); // MET use disconnects the AP
-      else if (s.apFlash || s.tone > now) { s.apFlash = null; s.tone = 0; }
+      else if (press && s.apFlash?.kind === "abnormal") { s.apFlash = null; s.tone = 0; } // acknowledges an automatic disconnect
+      else if (press && s.tone > now) s.tone = 0; // after a manual disconnect MET cancels the tone only (CRG p. 6-22)
       if (s.pft !== "pass" || s.fail.sys || s.fail.trim) break; // MET unavailable
-      s.trim = clamp(s.trim + (key === "TRIM_UP" ? 0.04 : -0.04), -1, 1);
+      s.trim = clamp(s.trim + (key.startsWith("TRIM_UP") ? 0.04 : -0.04), -1, 1);
       break;
+    }
   }
   return s;
 }
@@ -324,8 +343,12 @@ export function gfc700Tick(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): Gf
   if (fs.fail.hdg && c.lat === "HDG") loseLat(w(), now, "hdg");
   const navLost = !fs.navValid || fs.navSrc !== c.src;
   if ((isNav(c.lat) || isNav(c.latArm)) && navLost) loseLat(w(), now, "nav");
+  // a glideslope / glidepath needs its approach lateral mode: an active one is lost (yellow, PIT) when that mode goes,
+  // an armed one is dropped unless the mode is active or armed (CRG p. 6-15; AFMS: no glideslope capture before the localizer)
   const c2 = s ?? st;
-  if ((c2.vert === "GS" || c2.vert === "GP") && fs.gsErr == null) loseVert(w(), fs, now, cfg);
+  if ((c2.vert === "GS" || c2.vert === "GP") && (fs.gsErr == null || c2.lat !== pathLat(c2.vert))) loseVert(w(), fs, now, cfg);
+  const c2b = s ?? st;
+  if (pathArm(c2b.vertArm).some((m) => c2b.lat !== pathLat(m) && c2b.latArm !== pathLat(m))) w().vertArm = withoutPath(c2b.vertArm);
 
   // no BC key: NAV on a localizer shows LOC until the course is bcAngle from the heading, then BC (DA40 AFMS back-course note)
   const b = s ?? st;
@@ -363,8 +386,11 @@ export function gfc700Tick(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): Gf
     const x = w(); x.vert = path; x.vertArm = []; x.vertFlash = { text: path, c: "g", until: now + 10 };
   }
   const q = s ?? st;
-  if (q.vertArm.includes("VPTH") && fs.vpath && Math.abs(fs.vpath.err) < 40 && fs.selAlt < fs.alt - 75) {
-    const x = w(); x.vert = "VPTH"; x.vertArm = ["ALTS", ...pathArm(x.vertArm)]; x.vertFlash = { text: "VPTH", c: "g", until: now + 10 };
+  if (q.vertArm.includes("VPTH") && q.vpthRe && !q.vpthRe.away && fs.vpath && Math.abs(fs.vpath.err) > 250) w().vpthRe = { ...q.vpthRe, away: true };
+  const q2 = s ?? st, re = q2.vpthRe;
+  const reOk = !re || (now >= re.until && re.away && !!fs.vpath && Math.abs(fs.vpath.err) < 200);
+  if (q2.vertArm.includes("VPTH") && reOk && fs.vpath && Math.abs(fs.vpath.err) < 40 && fs.selAlt < fs.alt - 75) {
+    const x = w(); x.vert = "VPTH"; x.vertArm = ["ALTS", ...pathArm(x.vertArm)]; x.vertFlash = { text: "VPTH", c: "g", until: now + 10 }; x.vpthRe = null;
   }
   return s ?? st;
 }
@@ -380,7 +406,12 @@ export function gfc700Command(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg):
   let bank = 0;
   switch (st.lat) {
     case "ROL": bank = st.ref.rol; break;
-    case "HDG": bank = bankToHdg(fs, fs.hdgBug, maxB); break;
+    case "HDG": {
+      // turns the way the bug was turned, even past 180° (CRG p. 6-18); fs.hdgTurn must still point at the bug
+      const t = fs.hdgTurn, long = t != null && Math.abs(wrap180(wrap360(fs.hdg + t) - fs.hdgBug)) < 1;
+      bank = long ? clamp(t * 2, -maxB, maxB) : bankToHdg(fs, fs.hdgBug, maxB);
+      break;
+    }
     case "BC": bank = bankToHdg(fs, trackHdg(fs, true), maxB); break;
     case "GPS": case "VOR": case "LOC": case "VAPP": bank = bankToHdg(fs, trackHdg(fs), maxB); break;
     default: bank = 0; // GA / TO: wings level
@@ -430,7 +461,8 @@ export function gfc700Annunc(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): 
     ...base,
     lat: lf?.c === "y" ? lf.text : st.lat, latFlash: lf?.c ?? null, latArm: st.latArm ?? undefined,
     vert: vf?.c === "y" ? vf.text : st.vert, vertFlash: vf?.c ?? null, vertRef: vf?.c === "y" ? undefined : ref,
-    vertArm: st.vertArm.length ? st.vertArm.join(" ") : undefined,
+    // VPTH armed together with GS / GP shows as "/V" (CRG p. 6-10)
+    vertArm: st.vertArm.length ? st.vertArm.map((m) => (m === "VPTH" && pathArm(st.vertArm).length ? "/V" : m)).join(" ") : undefined,
     iasRef: st.vert === "FLC" ? st.ref.ias : null, vsRef: st.vert === "VS" ? st.ref.vs : null,
     maxspd: overspeed(st, fs, cfg),
     // command bars; during CWS the FD is synchronized to the airplane's attitude

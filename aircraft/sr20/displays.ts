@@ -5,7 +5,7 @@
  * The SR20 has no flight model or autopilot sim: attitude follows the yokes and the air data is a fixed cruise picture
  * (124 KIAS, 4,500 ft, heading 360°). Engine and electrical readings come from the sim (`live`, the electrical solution).
  */
-import { drawMFD as gduMFD, drawPFD as gduPFD, type FlightData, type Gauge, type MfdData, type PfdData, type SpeedBands } from "@/lib/avionics/g1000";
+import { drawMFD, drawPFD, type FlightData, type Gauge, type MfdData, type PfdData, type SpeedBands } from "@/lib/avionics/g1000";
 import { D2R, clamp } from "@/lib/math";
 import { casMessages, live, mapInHg, type BusId, type Elec, type Sim } from "./model";
 
@@ -109,13 +109,13 @@ const mfdData = (s: Sim, E: Elec, reversion: boolean): MfdData => ({ ...pfdData(
 export const pfdReversion = (s: Sim, E: Elec) => E.pfd && (s.avx.backup || !E.mfd);
 export const mfdReversion = (s: Sim, E: Elec) => E.mfd && (s.avx.backup || !E.pfd);
 
-export function drawPFD(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
-  if (pfdReversion(s, E)) gduMFD(ctx, W, H, mfdData(s, E, true));
-  else gduPFD(ctx, W, H, pfdData(s, E));
+export function drawPfdScreen(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
+  if (pfdReversion(s, E)) drawMFD(ctx, W, H, mfdData(s, E, true));
+  else drawPFD(ctx, W, H, pfdData(s, E));
 }
 
-export function drawMFD(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
-  gduMFD(ctx, W, H, mfdData(s, E, mfdReversion(s, E)));
+export function drawMfdScreen(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
+  drawMFD(ctx, W, H, mfdData(s, E, mfdReversion(s, E)));
 }
 
 /* ---------- MD302 standby attitude module: attitude on the left screen, air data on the right ---------- */

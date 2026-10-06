@@ -10,15 +10,18 @@ export interface SimStore<S, E> {
   update: (fn: (d: S) => void) => void;
 }
 
-/** One zustand store per airplane: immutable discrete state plus a pure derived solution. */
-export function createSimStore<S, E>(initial: S, solve: (s: S) => E) {
+/**
+ * One zustand store per airplane: immutable discrete state plus a pure derived solution. `solve` also gets the previous
+ * solution, for state that latches (e.g. an alternator already on line keeping its own field alive).
+ */
+export function createSimStore<S, E>(initial: S, solve: (s: S, prev?: E) => E) {
   return create<SimStore<S, E>>((set, get) => ({
     s: initial,
     E: solve(initial),
     update: (fn) => {
       const d = structuredClone(get().s);
       fn(d);
-      set({ s: d, E: solve(d) });
+      set({ s: d, E: solve(d, get().E) });
     },
   }));
 }

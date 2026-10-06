@@ -146,7 +146,8 @@ export function Autopilot() {
           </BtnRow>
         </div>
         <Readouts items={[
-          ["AFCS power", st.powered ? "ON" : E.av > 0 ? ["AFCS BREAKER / GIA", "bad"] : ["AVIONIC MASTER OFF", "bad"]],
+          ["AFCS power", st.powered ? "ON" : E.av > 0 ? ["AFCS BREAKER / GIA", "bad"] : !s.elec.avMaster ? ["AVIONIC MASTER OFF", "bad"]
+            : [s.elec.essBus ? "NO AVIONICS BUS (ESS BUS ON)" : s.cb["AV BUSS"] || s.cb["MSTR CNTRL"] ? "NO AVIONICS BUS (BREAKER)" : "NO MAIN AVIONICS POWER", "bad"]],
           ["Preflight test", st.pft === "run" ? ["RUNNING", "warnc"] : st.pft === "pass" ? "Passed" : st.pft === "fail" ? ["FAILED — pull AFCS CB", "bad"] : "—"],
           ["MFD keys", E.mfd ? "Available" : ["MFD OFF — keys dead", "bad"]],
           ["PFD", E.pfd ? "OK" : ["LOST: AP/FD out", "bad"]],
@@ -155,7 +156,7 @@ export function Autopilot() {
       </Ctl>
       <Small>The PFT starts when the avionics master (and AFCS breaker) power the servos; it ends with the autopilot disconnect tone. To see a failed PFT, tick &ldquo;Preflight test will fail&rdquo; and cycle the AFCS breaker in the Electrical panel. Fuel imbalance over 8 gal with the AP engaged gives a yellow aileron out-of-trim.</Small>
       {outside && <Caution title="Speed limits">Engage the autopilot only between 70 and 165 KIAS (AFMS p. 16). Below 70 KIAS in PIT, VS or ALT a stall is possible — disconnect if the stall horn sounds (AFMS p. 48).</Caution>}
-      {s.air === false && <Caution title="On the ground">The flight director and preflight test work on the ground, but the airplane isn&apos;t flying: choose Normal cruise in the Overview to fly the autopilot.</Caution>}
+      {s.air === false && <Caution title="On the ground">The flight director and preflight test work on the ground, but the airplane isn&apos;t flying: choose Cruise · 4,500 ft in the Overview to fly the autopilot.</Caution>}
       <H3>Modes (CRG 190-00324-07 §6)</H3>
       <Facts rows={[
         ["PIT (default)", "Holds pitch; NOSE UP/DN 0.5° steps, +20° nose up / −15° nose down (CRG 6-2; Table 6-1 prints −20…+15) (ALTS armed)"],

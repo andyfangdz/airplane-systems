@@ -113,10 +113,10 @@ export function drawMfdScreen(ctx: CanvasRenderingContext2D, W: number, H: numbe
 export const drawKapScreen = (ctx: CanvasRenderingContext2D, W: number, H: number) => drawKap140(ctx, W, H, live.kap, live.fs.t);
 
 /* ---------- standby cluster (pneumatic / vacuum: no electrical power needed) ---------- */
-export const drawSbyAsi = (ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) => drawStandbyAirspeed(ctx, W, H, indicated(s, live.fs).ias, SPEEDS, 200);
-export const drawSbyAlt = (ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) => drawStandbyAltimeter(ctx, W, H, indicated(s, live.fs).alt, live.fs.baro);
+export const drawStbyAsi = (ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) => drawStandbyAirspeed(ctx, W, H, indicated(s, live.fs).ias, SPEEDS, 200);
+export const drawStbyAlt = (ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) => drawStandbyAltimeter(ctx, W, H, indicated(s, live.fs).alt, live.fs.baro);
 /** Vacuum attitude indicator: the GYRO flag shows when vacuum is too low for reliable gyro operation; a spinning-down rotor drifts (POH 7-63). */
-export const drawSbyAi = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
+export const drawStbyAtt = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
   const flag = live.vac < 3.5 || live.gyro < 0.7;
   drawStandbyAttitude(ctx, W, H, live.fs.pitch + live.drift * 0.4, live.fs.roll * live.gyro + live.drift, flag ? "GYRO" : null);
 };

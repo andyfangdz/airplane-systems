@@ -380,9 +380,9 @@ const EXT = "#D9D9D9";
 [LIGHTS.aftL, LIGHTS.aftR].forEach((pos, i) =>
   part(() => sph(0.025), ["lighting"], { pos, color: EXT, name: "Aft position light (white)", note: "White rear-facing position light in the wingtip trailing edge, on the NAV switch. It does the tail light's job: there is no light on the rudder or tailcone.", pin: i === 0, ext: true }));
 [LIGHTS.landL, LIGHTS.landR].forEach((pos, i) =>
-  part(() => box(0.03, 0.035, 0.14), ["lighting"], { pos, color: EXT, name: "Wingtip landing light", note: "LED landing light behind the clear lens in the wingtip leading edge, one per side. The G6 has no cowl landing light: both are on the LAND switch. Breaker on NON ESS BUS in this model.", pin: i === 1, ext: true }));
+  part(() => box(0.03, 0.035, 0.14), ["lighting"], { pos, color: EXT, name: "Wingtip landing light", note: "LED landing light behind the clear lens in the wingtip leading edge, one per side. The G6 has no cowl landing light: both are on the LAND switch. LANDING LIGHTS breaker on MAIN BUS 3, fed from Main Dist Bus 1 (POH 7-48), so after an ALT 1 failure it lasts only as long as BAT 1.", pin: i === 1, ext: true }));
 [LIGHTS.iceL, LIGHTS.iceR].forEach((pos, i) =>
-  part(() => cyl(0.022, 0.02, "z"), ["lighting"], { pos, color: EXT, name: "Ice inspection light", note: "Fuselage-side light aimed at the wing leading edge so you can check for ice at night. ICE switch on the bolster. Position on the model is approximate.", pin: i === 1, ext: true }));
+  part(() => cyl(0.022, 0.02, "z"), ["lighting"], { pos, color: EXT, name: "Ice inspection light", note: "Fuselage-side light aimed at the wing leading edge so you can check for ice at night. ICE switch on the bolster; ICE LIGHTS breaker on MAIN BUS 1 (POH 7-47). Position on the model is approximate.", pin: i === 1, ext: true }));
 
 /* ---------- flight-control mechanisms (POH Figures 7-1, 7-2, 7-3) ---------- */
 const CTL = "#7C57CF", STEEL = "#8C959C";

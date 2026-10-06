@@ -78,7 +78,7 @@ export function Lighting() {
         </div>
         <Readouts items={[["Nav + aft position", ext(L.nav, x.nav)], ["Strobes", ext(L.strobe, x.strobe)], ["Wingtip landing", ext(L.land, x.land)], ["Ice inspection", ext(L.ice, x.ice)]]} />
       </Ctl>
-      <Small>Exterior glows show in the Overview and Lighting views. Pull a breaker on the NON ESS BUS, or lose Main Dist Bus 2, to see a light drop out.</Small>
+      <Small>Exterior glows show in the Overview and Lighting views. Pull a light&apos;s breaker, or lose its bus, to see it drop out: nav and strobes go with the NON ESS BUS (Main Dist Bus 2), the landing lights with Main Dist Bus 1 (BAT 1 after an ALT 1 failure), the ice lights with MAIN BUS 1.</Small>
       <H3>Lights — tap to locate</H3>
       <PartsList parts={CAT.pinned("lighting")} />
       <H3>Cabin light switch</H3>
@@ -95,7 +95,7 @@ export function Lighting() {
       <H3>Notes</H3>
       <Notes items={["There is no tail light: the rearward white position light is built into each wingtip trailing edge and comes on with NAV.", "LAND lights both wingtip landing lights together. There is no landing light in the cowl.", "Ice inspection lights are for checking the leading edges at night. Many pilots use them only for quick checks because they cost night vision."]} />
       <H3>Power</H3>
-      <Facts rows={[["Instrument/panel/reading/dome", "5 A CABIN LIGHTS, MAIN BUS 1"], ["Convenience lights", "5 A CONV LIGHTS, CONV bus"], ["Nav / strobe", "NON ESS BUS"], ["Landing / ice inspection", "NON ESS BUS (model; check your breaker panel)"], ["Exterior detail", "Spectra wing tip light supplement"]]} />
+      <Facts rows={[["Instrument/panel/reading/dome", "5 A CABIN LIGHTS, MAIN BUS 1"], ["Convenience lights", "5 A CONV LIGHTS, CONV bus"], ["Nav / strobe", "NON ESS BUS"], ["Landing", "LANDING LIGHTS, MAIN BUS 3 (Main Dist Bus 1, POH 7-47, 7-48, 7-51)"], ["Ice inspection", "ICE LIGHTS, MAIN BUS 1 (POH 7-47, 7-51)"], ["Exterior detail", "Spectra wing tip light supplement"]]} />
     </>
   );
 }

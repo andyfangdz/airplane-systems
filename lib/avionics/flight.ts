@@ -47,6 +47,11 @@ export interface FlightState {
   x: number; y: number;
   /** G1000 selections: heading bug, selected course (CRS knob / GPS DTK), selected altitude (ALT knob). */
   hdgBug: number; crs: number; selAlt: number;
+  /**
+   * Degrees still to turn to the heading bug in the direction the HDG knob moved it (+ right), kept while that is the
+   * long way (180° or more), so the GFC 700 can turn the way the bug was turned; undefined = the short way.
+   */
+  hdgTurn?: number;
   /** HSI navigation source (CDI softkey). */
   navSrc: NavSrc;
   /** The selected source has a usable signal. False = no D-bar on the HSI (the "flag"); NAV/APR modes drop. */
@@ -72,7 +77,7 @@ export interface FlightState {
 export interface FlightCmd { bank: number; vs?: number; pitch?: number }
 
 /** G1000 selections the panels may change directly. */
-export type FlySet = Partial<Pick<FlightState, "hdgBug" | "crs" | "selAlt" | "navSrc" | "power" | "baro">>;
+export type FlySet = Partial<Pick<FlightState, "hdgBug" | "hdgTurn" | "crs" | "selAlt" | "navSrc" | "power" | "baro">>;
 
 const D2R = Math.PI / 180;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -140,6 +145,7 @@ export function stepFlight(fs: FlightState, cmd: FlightCmd, dt: number, cfg = FL
   n.roll = fs.roll + clamp(clamp(cmd.bank, -cfg.maxBank, cfg.maxBank) - fs.roll, -rr, rr);
   n.slip = clamp(((fs.roll - n.roll) / dt) * 0.04, -1, 1);
   n.hdg = wrap360(fs.hdg + turnRate(n) * dt);
+  if (fs.hdgTurn != null) { const t = fs.hdgTurn - wrap180(n.hdg - fs.hdg); n.hdgTurn = Math.abs(t) < 180 ? undefined : t; }
   let vsT = cmd.vs ?? (cmd.pitch != null ? vsForPitch(fs, cmd.pitch) : fs.vs);
   if (fs.ias <= cfg.vMin) vsT = Math.min(vsT, vsForIas(fs, cfg.vMin, cfg)); // out of climb authority: mush at vMin
   n.vs = fs.vs + clamp((clamp(vsT, -4000, 3000) - fs.vs) / cfg.tauVs, -600, 600) * dt;

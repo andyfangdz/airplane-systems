@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
-import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, sysOf, useAircraft } from "@/aircraft";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, showInUrl, sysOf, useAircraft } from "@/aircraft";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
 import { narrowLayout, useView } from "@/lib/view";
 
@@ -119,11 +119,19 @@ function tipColor(c: string, theme: Theme) {
 
 function Tooltip() {
   const hover = useView((x) => x.hover), theme = useView((x) => x.theme);
+  const ref = useRef<HTMLDivElement>(null);
+  // below-right of the cursor; flipped above it when the note would run past the bottom of the 3D view
+  useLayoutEffect(() => {
+    const el = ref.current, h = el?.parentElement?.clientHeight;
+    if (!el || !hover || !h) return;
+    const ht = el.offsetHeight, below = hover.y + 14;
+    el.style.top = `${below + ht <= h ? below : Math.max(0, Math.min(hover.y - 14 - ht, h - ht))}px`;
+  }, [hover]);
   if (!hover) return null;
   const stage = document.querySelector(".stage") as HTMLElement | null;
-  const w = stage?.clientWidth ?? 800, h = stage?.clientHeight ?? 600;
+  const w = stage?.clientWidth ?? 800;
   return (
-    <div className="tip" style={{ left: Math.min(hover.x + 14, w - 270), top: Math.min(hover.y + 14, h - 120) }}>
+    <div ref={ref} className="tip" style={{ left: Math.min(hover.x + 14, w - 270) }}>
       <h4 style={{ color: tipColor(hover.color, theme) }}>{hover.name}</h4>
       {hover.note && <p>{hover.note}</p>}
     </div>
@@ -149,31 +157,39 @@ function show(ac: AircraftId, sys?: string | null) {
   const start: SysId = hasSys(def, sys) ? sys : "overview";
   if (ac !== v.ac) selectAircraft(ac, start);
   else if (start !== v.sys) selectSys(start);
+  else showInUrl(ac, start); // already shown (e.g. the SR20 overview on a fresh load): still put the view in the address bar
   try { localStorage.setItem("fleetAc", ac); } catch {}
 }
 
 /** Restore theme, airplane and last-viewed system; the URL hash wins, on load and when it changes. */
 function useBoot() {
   useEffect(() => {
-    let theme: Theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    const t = read("sr20theme");
-    if (t === "light" || t === "dark") theme = t;
-    useView.getState().setTheme(theme);
+    // the toolbar's theme toggle saves a choice; until then follow the system setting, without saving it
+    const os = matchMedia("(prefers-color-scheme: dark)");
+    const t = read("sr20theme"), chosen = () => { const x = read("sr20theme"); return x === "light" || x === "dark"; };
+    useView.getState().setTheme(t === "light" || t === "dark" ? t : os.matches ? "dark" : "light", false);
+    const onOs = () => { if (!chosen()) useView.getState().setTheme(os.matches ? "dark" : "light", false); };
+    os.addEventListener("change", onOs);
     const h = fromHash(), saved = read("fleetAc");
     if (h) show(...h);
     else show(isAircraftId(saved) ? saved : "sr20");
-    const onHash = () => { const x = fromHash(); if (x) show(...x); };
+    // a hash that names no view is replaced by the view shown
+    const onHash = () => { const x = fromHash(); if (x) show(...x); else { const v = useView.getState(); showInUrl(v.ac, v.sys); } };
     addEventListener("hashchange", onHash);
-    return () => removeEventListener("hashchange", onHash);
+    return () => { removeEventListener("hashchange", onHash); os.removeEventListener("change", onOs); };
   }, []);
 }
 
 export default function App() {
   useBoot();
   const def = useAircraft();
+  // The tab title follows the airplane shown, but only once mounted: the URL hash, which names the airplane, never reaches
+  // the server, so the static HTML gets a neutral title. (React hoists <title> into <head>; app/layout.tsx sets none.)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   return (
     <div className="app">
-      <title>{`${def.name} Systems`}</title>
+      <title>{mounted ? `${def.name} Systems` : "Airplane Systems"}</title>
       <Rail />
       <main className="stage">
         <Scene />

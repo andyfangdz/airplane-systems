@@ -1,6 +1,6 @@
 /**
  * Cessna NAV III (G1000) electrical system — shared by the 172S and 182T (POH §7 "Electrical System",
- * Figure 7-7 Sheets 1–3 in both handbooks). Pure: `solveNav3(state, cfg, loads, rpm)` → bus voltages,
+ * Figure 7-7 Sheets 1–3 in both handbooks). Pure: `solveNav3(state, cfg, loads, rpm, wasOn)` → bus voltages,
  * ammeters, powered breakers and the electrical annunciation triggers.
  *
  * Topology (Fig 7-7):
@@ -67,7 +67,10 @@ export interface Nav3Elec {
     ovSense: boolean;
     /** Main battery failed (open). */
     bat: boolean;
-    /** Standby battery weak / cold (test lamp goes out). */
+    /**
+     * Standby battery weak / cold: the TEST lamp stays out and BUS E reads below 24 V on it (the cold-weather NOTE, 2007
+     * GFC 700 POHs: C172S 4-47, C182T 4-45), and it lasts much less (see `stbyAhOf`).
+     */
     stby: boolean;
   };
 }
@@ -109,15 +112,18 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 export const vMain = (soc: number) => (soc > 0.1 ? 23.0 + 2.2 * ((soc - 0.1) / 0.9) : 23.0 * Math.sqrt(Math.max(0, soc) / 0.1));
 /** Standby battery voltage: ~25 V full, 20 V = "little or no capacity remaining" (POH 7-51). */
 export const vStby = (soc: number) => (soc <= 0.002 ? 0 : 20.4 + 4.7 * Math.pow(soc, 0.35));
+/** Usable standby-battery capacity (Ah): a weak / cold battery is modelled with a quarter of it (illustrative, not in the POH). */
+export const stbyAhOf = (e: Nav3Elec, cfg: Nav3Cfg) => cfg.stbyAh * (e.fail.stby ? 0.25 : 1);
 /** Below this a G1000 unit / load drops out. */
 const LIVE = 16;
 const DIODE = 0.25;
 
 /**
  * Solve the network. `loads` gives each breaker's demand (A) when powered (0 = switched off);
- * `rpm` sets the alternator's capacity (it can't hold 28 V at low RPM with a high load — POH 3-19).
+ * `rpm` sets the alternator's capacity (it can't hold 28 V at low RPM with a high load — POH 3-19). `wasOn`: the alternator was
+ * on line in the previous solution (it then feeds its own field, see below).
  */
-export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, number>, rpm: number): Nav3Solution {
+export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, number>, rpm: number, wasOn = false): Nav3Solution {
   const out = (k: string) => !!e.cb[k];
   const batV = e.fail.bat ? 0 : vMain(e.socMain);
   // battery relay closes with MASTER BAT; ground power and the battery meet upstream of it
@@ -131,15 +137,17 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
     return { E1: e1, E2: e2, XF: dor, ESS: dor, AV1: av1, AV2: av2 } as Record<Nav3Bus, number>;
   };
   // the field is powered through the ALT FIELD breaker on the CROSSFEED BUS: it needs that bus alive (battery or ground power
-  // through a feeder, or the alternator itself once it is turning fast enough to self-excite)
-  const selfEx = !e.fail.alt && rpm > 1500;
+  // through a feeder, or the alternator itself: once it is turning fast enough to self-excite, or already on line and holding
+  // the bus, so unplugging ground power or a flat battery at idle does not drop it)
+  const selfEx = !e.fail.alt && (rpm > 1500 || (wasOn && rpm > 500));
   const fieldOk = relay && e.alt && !out("XF:ALT FIELD") && busesAt(Math.max(source, selfEx ? altSet : 0)).XF >= LIVE;
   const altCap = cfg.altAmps * Math.max(0, Math.min(1, (rpm - 550) / 1100));
-  const altCan = fieldOk && !e.fail.alt && rpm > 500 && (source > 8 || rpm > 1500);
+  const altCan = fieldOk && !e.fail.alt && rpm > 500 && (source > 8 || selfEx);
   // first pass: nominal voltages to find which loads are live
   const nodeNom = !relay ? 0 : Math.max(source, altCan ? altSet : 0);
   const stbyArm = e.stby === "ARM" && !out("ESS:STDBY BATT");
-  const sV = vStby(e.socStby);
+  // weak / cold: 2 V lower (illustrative), so a full one gives about 23 V, below the 24 V the start checklist asks for
+  const sV = Math.max(0, vStby(e.socStby) - (e.fail.stby ? 2 : 0));
   const sumLoads = (v: Record<Nav3Bus, number>) => {
     let t = 0, ess = 0;
     for (const b of cfg.breakers) {
@@ -205,7 +213,7 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
 
 /** Advance both batteries' state of charge by `dtMin` minutes using the solved ammeter readings. */
 export function stepNav3Soc(e: Nav3Elec, cfg: Nav3Cfg, E: Pick<Nav3Solution, "mBatt" | "sBatt">, dtMin: number) {
-  const dm = (E.mBatt / 60) * dtMin / cfg.mainAh, ds = (E.sBatt / 60) * dtMin / cfg.stbyAh;
+  const dm = (E.mBatt / 60) * dtMin / cfg.mainAh, ds = (E.sBatt / 60) * dtMin / stbyAhOf(e, cfg);
   return {
     socMain: Math.max(0, Math.min(1, e.socMain + dm * (E.mBatt > 0 ? 0.85 : 1))),
     socStby: Math.max(0, Math.min(1, e.socStby + ds * (E.sBatt > 0 ? 0.85 : 1))),

@@ -5,7 +5,7 @@ The shell (`components/App.tsx`, `components/scene/Scene.tsx`) knows nothing air
 
 To add one:
 
-1. Add its id to `AIRCRAFT_IDS` in `lib/systems.ts` (and any new system ids to `SysId`).
+1. Add its id to `AIRCRAFT_IDS` in `lib/systems.ts` (and any new system ids to `SysId`, with their rail and part colour in `SYS_COLOR`).
 2. Create `aircraft/<id>/` with the files below and export its `AircraftDef` from `index.tsx`.
 3. List it in `FLEET` in `aircraft/index.ts` (picker order). The fleet picker sizes itself to the number of airplanes.
 
@@ -13,15 +13,18 @@ To add one:
 
 | File | Role |
 | --- | --- |
-| `systems.ts` | `SysDef[]` rail entries in POH/AFM Section 7 order: id, name, page, colour key, camera `[position, target]`, overview blurb, and `ref` when a system is described in another document (e.g. a supplement) |
+| `systems.ts` | `SysDef[]` rail entries in POH/AFM Section 7 order: id, name, page, camera `[position, target]`, overview blurb, and `ref` when a system is described in another document (e.g. a supplement). A system's colour comes from `SYS_COLOR` in `lib/systems.ts`, by id |
 | `geometry.ts` | Airframe shape: fuselage station table, wing/tail/fin functions, window outlines, painted skin |
-| `parts.ts` | `CAT = new Catalogue(id, labelLists?)` plus every part, shell and control surface, and the exported anchor positions |
+| `parts.ts` | `CAT = new Catalogue(id, labelLists?)`, the parts, shells and control surfaces, and the exported anchor positions |
+| `parts-systems.ts` | Optional second half of a long catalogue (C172S, C182T). It only adds to `CAT`, so `index.tsx` must side-effect-import it (`import "./parts-systems";`) |
+| `rig.ts` | Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` or `Airplane.tsx` |
 | `flows.ts` | Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)` |
-| `model.ts` | Sim state type, `initialSim`, the pure solver `solve(s) → E` (buses, powered loads), alerts and annunciation list, breaker table, autopilot configuration (`AFCS_CFG`), and `live` (per-frame values, with their initial values) |
+| `model.ts` | Sim state type, `initialSim`, the pure solver `solve(s, prev?) → E` (buses, powered loads; `prev` is the last solution, for state that latches), alerts and annunciation list, breaker table, autopilot configuration (`AFCS_CFG`), and `live` (per-frame values, with their initial values) |
 | `store.ts` | `createSimStore(initialSim, solve)` and the scenarios ("Start from" buttons) |
 | `tick.ts` | Per-frame step: engine, RPM, flap motor, timers, flight state and autopilot. Writes `live`; discrete changes go through the store. No side effects at import |
 | `Airplane.tsx` | The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>` |
-| `ControlRig.tsx` | Optional: the moving flight-control linkage, when it is big enough for its own file (SR20, DA40; the Cessnas keep theirs in `Airplane.tsx`) |
+| `ControlRig.tsx` | Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (SR20, DA40; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`) |
+| `Parachute.tsx` (SR20) | The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment) |
 | `displays.ts` | Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000.ts`; the SR20 calls it with `style: "perspective"` and draws its MD302 standby itself |
 | `panels/*.tsx` | Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH |
 

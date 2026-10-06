@@ -1,7 +1,6 @@
 /* Shared avionics panel widgets (GFC 700 controls, KAP 140 faceplate). Hardware pieces stay dark in both themes. */
 .avx{display:grid;gap:12px;min-width:0}
 .avx-cap{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9AA6AE;margin:0 0 6px}
-.avx-muted{font-family:var(--f-mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 
 /* AFCS status strip — mirrors the PFD bar */
 .avx-strip{display:grid;grid-template-columns:.8fr 1fr 1fr 1fr 1.9fr 1.1fr;align-items:center;background:#000;border:1px solid #39424A;border-radius:4px;
@@ -9,7 +8,7 @@
 .avx-strip > span{padding:6px 3px;text-align:center;white-space:nowrap;overflow:hidden;min-width:0;border-left:1px solid #1E252B}
 .avx-strip > span:first-child{border-left:0}
 .avx-strip .avx-ref{font-size:12px;margin-left:5px}
-.avx-g{color:#2BFF2B} .avx-w{color:#FFFFFF} .avx-y{color:#FFE000} .avx-r{color:#FF3B30} .avx-c{color:#00F0FF}
+.avx-g{color:#2BFF2B} .avx-w{color:#FFFFFF} .avx-y{color:#FFE000} .avx-r{color:#FF3B30}
 .avx-boxed{outline:1.5px solid currentColor;outline-offset:2px;padding:0 3px}
 .avx-blink{animation:avx-blink 1s steps(1,end) infinite}
 @keyframes avx-blink{50%{opacity:0}}
@@ -43,7 +42,7 @@
 
 /* KAP 140 faceplate */
 .avx-kap{background:linear-gradient(#2E3236,#17191B);border:1px solid #050606;border-radius:8px;padding:10px;display:grid;gap:10px;max-width:560px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 14px rgba(0,0,0,.25)}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 14px rgba(0,0,0,.25);container-type:inline-size}
 .avx-kap-top{display:flex;justify-content:space-between;align-items:baseline;font:600 11px var(--f-body);letter-spacing:.12em;color:#C9D0D5}
 .avx-kap-top em{font-style:normal;font-size:9px;letter-spacing:.08em;color:#8F999F}
 .avx-lcd{width:100%;aspect-ratio:4/1;display:block;border-radius:3px;border:2px solid #000;background:#050606}
@@ -66,9 +65,13 @@
 @media (max-width:520px){
   .avx-strip{font-size:11.5px}
   .avx-strip .avx-ref{font-size:10.5px;margin-left:3px}
+  .avx-knob{grid-template-columns:1fr}
+}
+/* KAP 140 keys: one row needs about 470 px (stacks of at least 37 px plus the 76 px dial); narrower faceplates (phones and the
+   desktop side panel) put ARM / BARO and the dial on a second row so the dial never covers them */
+@container (max-width:470px){
   .avx-kap-keys{grid-template-columns:repeat(6,minmax(0,1fr))}
   .avx-kap-keys .avx-stack{grid-column:span 2;grid-template-columns:1fr 1fr}
   .avx-kap-keys .avx-dial{grid-column:span 2;justify-self:center}
-  .avx-knob{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion: reduce){ .avx-blink{animation-duration:2s} }

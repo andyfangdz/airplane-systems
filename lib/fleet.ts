@@ -20,7 +20,7 @@ export const hasSys = (def: AircraftDef, id: unknown): id is SysId => def.system
 
 const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
 /** Keep the address bar on the view shown, so a reload or a copied link opens it (App listens for hash changes). */
-const showInUrl = (ac: AircraftId, sys: SysId) => { try { history.replaceState(null, "", `#${ac}/${sys}`); } catch {} };
+export const showInUrl = (ac: AircraftId, sys: SysId) => { try { history.replaceState(null, "", `#${ac}/${sys}`); } catch {} };
 
 /** Show a system of the current airplane, optionally flying the camera to it. */
 export function selectSys(id: SysId, fly = true) {

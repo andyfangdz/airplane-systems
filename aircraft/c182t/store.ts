@@ -17,7 +17,7 @@ export function scenarioColdDark() {
   live.flapAng = 0; live.stallDemo = false; live.blade = 14.9; live.galUsed = 0;
   useC182.getState().update((d) => {
     d.ground = true; d.eng.running = false; d.eng.mags = "OFF"; d.eng.rpm = 0; d.eng.throttle = 0; d.eng.prop = 1; d.eng.mix = 0; d.eng.cowl = 0; d.eng.flooded = false;
-    d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = false; d.elec.stby = "OFF"; d.elec.cb = {};
+    d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = false; d.elec.stby = "OFF"; d.elec.cb = {}; d.elec.ext = false;
     d.fuel.pump = false; d.fuel.sel = "LEFT"; d.fuel.slip = false; d.flaps.cmd = 0; d.gear.park = true;
     d.lights = { ...d.lights, beacon: false, land: false, taxi: false, nav: false, strobe: false, dome: false };
     d.pitot.heat = false; d.ctrl = { pitch: 0, roll: 0, yaw: 0, rudTrim: 0 };
@@ -34,7 +34,8 @@ export function scenarioRunUp() {
   live.fs = ground(); live.rpm = 1000; live.map = 13; live.oilP = 60; live.oilT = 120; live.cht = 260; live.hot = 0.7; live.gyro = 1; live.flapAng = 0; live.stallDemo = false; live.blade = 14.9;
   useC182.getState().update((d) => {
     d.ground = true; d.eng.running = true; d.eng.mags = "BOTH"; d.eng.rpm = 1000; d.eng.throttle = 0.12; d.eng.prop = 1; d.eng.mix = 0.95; d.eng.cowl = 1; d.eng.flooded = false;
-    d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = true; d.elec.stby = "ARM"; d.elec.cb = {};
+    // external power, if used for the start, is disconnected by the end of the start checklist
+    d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = true; d.elec.stby = "ARM"; d.elec.cb = {}; d.elec.ext = false;
     d.fuel.pump = false; d.fuel.sel = "BOTH"; d.flaps.cmd = 0; d.gear.park = true;
     d.lights = { ...d.lights, beacon: true, nav: true, strobe: false };
   });
@@ -48,7 +49,7 @@ export function scenarioCruise() {
   live.kap = kapOff(live.kap); live.discTone = -99;
   useC182.getState().update((d) => {
     d.ground = false; d.eng.running = true; d.eng.mags = "BOTH"; d.eng.rpm = 2300; d.eng.throttle = 0.82; d.eng.prop = 0.89; d.eng.mix = 0.69; d.eng.cowl = 0; d.eng.flooded = false;
-    d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = true; d.elec.stby = "ARM";
+    d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = true; d.elec.stby = "ARM"; d.elec.ext = false;
     d.fuel.sel = "BOTH"; d.fuel.slip = false; d.flaps.cmd = 0; d.gear.park = false; d.ctrl = { pitch: 0, roll: 0, yaw: 0, rudTrim: 0 };
     if (d.fuel.qL + d.fuel.qR < 16) { d.fuel.qL = 34; d.fuel.qR = 33; }
   });

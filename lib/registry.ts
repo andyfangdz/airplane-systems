@@ -1,6 +1,6 @@
 /** Handles to live three.js objects so UI code can locate parts in the scene. */
 import * as THREE from "three";
-import { flashFocus, useView } from "./view";
+import { flashFocus, narrowLayout, useView } from "./view";
 
 /** Meshes of the mounted airplane, by part name (first mesh of each name). */
 export const partObjects = new Map<string, THREE.Mesh>();
@@ -8,6 +8,9 @@ export const view: { camera: THREE.Camera | null; target: THREE.Vector3 | null }
 
 /** Fly the camera to a named part (keeping the current viewing direction) and flash it. */
 export function focusPart(name: string) {
+  // phones: the page scrolls and the list is far below the 3D view, so bring the view back up (as App's Panel does)
+  const stage = document.querySelector(".stage");
+  if (narrowLayout() && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
   flashFocus(name);
   const o = partObjects.get(name);
   if (!o) return;

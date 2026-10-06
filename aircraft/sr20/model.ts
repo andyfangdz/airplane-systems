@@ -65,6 +65,8 @@ export interface Elec extends Record<BusId, number> {
   pfd: boolean; mfd: boolean; stby: boolean;
   flapsPwr: boolean; pitotPwr: boolean; stallPwr: boolean; boostPwr: boolean; starterPwr: boolean;
   pitchTrim: boolean; rollTrim: boolean; navPwr: boolean; strobePwr: boolean; landPwr: boolean; icePwr: boolean; eisPwr: boolean; convPwr: boolean;
+  /** Display cooling fans: AVIONICS FAN 1 cools the MFD, AVIONICS FAN 2 the PFD (POH 3A-15). */
+  fan1: boolean; fan2: boolean;
 }
 
 /**
@@ -73,14 +75,15 @@ export interface Elec extends Record<BusId, number> {
  * remove individual loads. Battery endurance uses the Costanzo training deck's rule of thumb:
  * ALT 1 fail → BAT 1 carries MDB 1 ~30 min; dual ALT fail → BAT 1 ~15 min, then BAT 2 ~45 min.
  */
-export function solveElec(s: Sim): Elec {
+export function solve(s: Sim): Elec {
   const e = s.elec, run = s.eng.running, t = e.tBat;
   const cb = (name: string) => !s.cb[name];
   const alt1 = run && e.alt1 && !e.fail.alt1 && e.bat1 && cb("ALT 1"); // ALT 1 field needs BAT 1 on
   const alt2 = run && e.alt2 && !e.fail.alt2 && (e.bat1 || e.bat2) && cb("ALT 2"); // ALT 2 field from ESS BUS 2
   const bat1Life = alt2 ? 30 : 15;
-  const bat1Dead = e.fail.bat1 || (run && !alt1 && e.bat1 && t >= bat1Life);
-  const bat2Dead = run && !alt1 && !alt2 && t >= 60;
+  // time on batteries counts whether or not the engine turns (stopping it must not bring a flat battery back)
+  const bat1Dead = e.fail.bat1 || (!alt1 && e.bat1 && t >= bat1Life);
+  const bat2Dead = !alt1 && !alt2 && t >= 60;
   const bat1ok = e.bat1 && !bat1Dead;
   const bat2ok = e.bat2 && !bat2Dead && cb("BAT 2");
   const D = 0.7; // diode drop
@@ -113,8 +116,10 @@ export function solveElec(s: Sim): Elec {
     boostPwr: pw("main2", "FUEL PUMP"), starterPwr: pw("nonEss", "STARTER") && bat1ok,
     pitchTrim: pw("ess2", "PITCH TRIM"), rollTrim: pw("ess2", "ROLL TRIM"),
     navPwr: pw("nonEss", "NAV LIGHTS"), strobePwr: pw("nonEss", "STROBE LIGHTS"),
-    landPwr: pw("nonEss", "LANDING LIGHT"), icePwr: pw("nonEss", "ICE INSP LIGHTS"), eisPwr: pw("ess2", "ENGINE INSTR"),
+    // landing light: Main Dist Bus 1 (POH 7-48), breaker on MAIN BUS 3; ice lights on MAIN BUS 1 (Figs 7-10, 7-11)
+    landPwr: pw("main3", "LANDING LIGHTS"), icePwr: pw("main1", "ICE LIGHTS"), eisPwr: pw("ess2", "ENGINE INSTR"),
     convPwr: buses.conv > 0 && cb("CONV LIGHTS"),
+    fan1: pw("nonEss", "AVIONICS FAN 1"), fan2: pw("main2", "AVIONICS FAN 2"),
   };
 }
 
@@ -141,8 +146,9 @@ export type { CasLevel };
  * Crew Alerting System messages, named as in POH Sections 3 and 3A (and the Pilot's Guide CAS lists), for the conditions the
  * model simulates. Fuel: FUEL LOW LEFT / RIGHT below 1 gal in that tank (3-24); FUEL LOW TOTAL warning below 7 gal (3-25),
  * caution at 10 gal or less (3A-10); FUEL IMBALANCE warning / caution / advisory above 9.5 / 7.5 / 5.5 gal (3-25, 3A-10, 3A-11).
- * An alternator failure gives ALT n plus the bus caution (3A-13); BATT 1 (battery 1 discharging while ALT 1 works, an MCU
- * fault, 3A-12) has no counterpart in the model, so it isn't raised.
+ * An alternator failure gives ALT n plus the bus caution (3A-13); AVIONICS OFF when the AVIONICS switch is off (3A-14); PFD FAN
+ * FAIL / MFD FAN FAIL when a displayed screen's cooling fan (AVIONICS FAN 2 / FAN 1) has no power (3A-15). BATT 1 (battery 1
+ * discharging while ALT 1 works, an MCU fault, 3A-12) has no counterpart in the model, so it isn't raised.
  */
 export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
   const m: [CasLevel, string][] = [], f = s.fuel, tot = f.qL + f.qR, imb = Math.abs(f.qL - f.qR);
@@ -162,6 +168,9 @@ export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
   if (!s.pitot.heat && s.pitot.oat < 5) m.push(["c", "PITOT HEAT REQD"]);
   if (s.stall.fault) m.push(["c", "STALL WARN FAIL"]);
   if (s.gear.park) m.push(["c", "PARK BRAKE"]);
+  if (!s.elec.avionics) m.push(["c", "AVIONICS OFF"]); // 3A-14
+  if (E.pfd && !E.fan2) m.push(["a", "PFD FAN FAIL"]); // 3A-15
+  if (E.mfd && !E.fan1) m.push(["a", "MFD FAN FAIL"]);
   return m;
 }
 
@@ -169,11 +178,11 @@ export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
 export const BUSES: [BusId, string, string, [string, number?][]][] = [
   ["ess1", "ESS BUS 1", "Ess Dist Bus + BAT 2", [["PFD A", 5], ["ADAHRS 1", 5], ["COM 1", 7.5], ["GPS NAV GIA 1", 5], ["STDBY ATTD A", 5], ["BAT 2", 20]]],
   ["ess2", "ESS BUS 2", "Ess Dist Bus + BAT 2", [["PITCH TRIM", 2], ["ROLL TRIM", 2], ["STALL WARNING", 2], ["ENGINE INSTR", 3], ["ALT 2", 5]]],
-  ["main1", "MAIN BUS 1", "Main Dist Bus 2", [["MFD B", 5], ["STDBY ATTD B", 5], ["KEYPADS / AP CTRL", 5], ["CABIN LIGHTS", 5], ["CABIN AIR CONTROL", 2], ["FUEL QTY", 5], ["AP SERVOS"], ["AVIONICS", 10]]],
+  ["main1", "MAIN BUS 1", "Main Dist Bus 2", [["ICE LIGHTS"], ["MFD B", 5], ["STDBY ATTD B", 5], ["KEYPADS / AP CTRL", 5], ["CABIN LIGHTS", 5], ["CABIN AIR CONTROL", 2], ["FUEL QTY", 5], ["AP SERVOS"], ["AVIONICS", 10]]],
   ["main2", "MAIN BUS 2", "Main Dist Bus 2", [["PFD B", 5], ["FUEL PUMP", 5], ["COM 2", 7.5], ["GPS NAV GIA 2", 5], ["ADAHRS 2", 5], ["AVIONICS FAN 2", 5]]],
-  ["nonEss", "NON ESS BUS", "Main Dist Bus 2", [["FLAPS", 10], ["PITOT HEAT", 7.5], ["STARTER", 2], ["AVIONICS FAN 1", 5], ["NAV LIGHTS"], ["STROBE LIGHTS"], ["LANDING LIGHT"], ["ICE INSP LIGHTS"]]],
+  ["nonEss", "NON ESS BUS", "Main Dist Bus 2", [["FLAPS", 10], ["PITOT HEAT", 7.5], ["STARTER", 2], ["AVIONICS FAN 1", 5], ["NAV LIGHTS"], ["STROBE LIGHTS"]]],
   ["avx", "AVIONICS BUS", "MAIN BUS 1 via AVIONICS switch", [["AUDIO PANEL", 5], ["XPONDER", 2], ["DATA LINK/WX", 5], ["TRAFFIC", 5], ["DME/ADF", 3]]],
-  ["main3", "MAIN BUS 3", "Main Dist Bus 1", [["MFD A", 5], ["12V & USB", 5], ["EVS CAMERA", 5]]],
+  ["main3", "MAIN BUS 3", "Main Dist Bus 1", [["LANDING LIGHTS"], ["MFD A", 5], ["12V & USB", 5], ["EVS CAMERA", 5]]],
   ["ac1", "A/C BUS 1", "Main Dist Bus 1", [["ALT 1", 5], ["A/C COND", 15]]],
   ["ac2", "A/C BUS 2", "Main Dist Bus 1", [["CABIN FAN", 15], ["A/C COMPR", 5]]],
   ["conv", "CONV BUS", "BAT 1 direct, 5 A fuse", [["CONV LIGHTS", 5]]],

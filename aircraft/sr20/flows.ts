@@ -61,7 +61,7 @@ flow("static", [[SPX, statR.cy, statR.hw - 0.01], [SPX + 0.2, -0.2, 0], [SPX, st
 flow("static2", [[SPX + 0.2, -0.2, 0], [0.9, -0.62, 0], [2.0, -0.55, -0.1], ADAHRS], ["pitot"], { r: 0.009, name: "Static line", note: "To ADAHRS and standby, with water traps at the low points." });
 flow("stall", [wingP(STALL_Z, 0.02, 0), wingP(STALL_Z, 0.3, 0), wingP(0.9, 0.4, 0)], ["pitot"], { r: 0.009, name: "Stall warning line", note: "Inlet → pressure switch." });
 
-// control cables — laid out after POH Figures 7-1 / 7-2 / 7-3 (see lib/rig.ts)
+// control cables — laid out after POH Figures 7-1 / 7-2 / 7-3 (see ./rig.ts)
 CABLES.forEach((c) => flow(c.key, c.pts, ["controls"], { r: 0.005, size: 0.045, tension: 0.05, name: c.name, note: c.note, count: 18, chan: chanOfKey(c.key) }));
 flow("flapPush", [[FT.x, FT.y, 0], [FT.x, FT.y, 0.9], wingP(1.2, 0.74, 0)], ["flaps"], { tube: false, pcolor: "#B9A3F0" });
 flow("flapPush2", [[FT.x, FT.y, 0], [FT.x, FT.y, -0.9], wingP(-1.2, 0.74, 0)], ["flaps"], { tube: false, pcolor: "#B9A3F0" });

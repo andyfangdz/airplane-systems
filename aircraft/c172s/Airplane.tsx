@@ -12,7 +12,7 @@ import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, clamp, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
-import { drawMfdScreen, drawOff, drawPfdScreen, drawSbyAi, drawSbyAlt, drawSbyAsi } from "./displays";
+import { drawMfdScreen, drawOff, drawPfdScreen, drawStbyAtt, drawStbyAlt, drawStbyAsi } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
@@ -126,11 +126,11 @@ const SCREENS: ScreenSpec[] = [
     note: "Engine Indication System strip (ENGINE page) and moving map. MFD breaker, AVIONICS BUS 2.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) { drawMfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
   { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, -3.6, 52.6), sys: ["avionics", "pitot"], name: "Standby airspeed",
-    note: "Mechanical, on the shared pitot and static lines (POH 7-12). Use it when the PFD airspeed shows a red X (POH 3-21).", draw: (ctx, W, H) => drawSbyAsi(ctx, W, H, st().s) },
+    note: "Mechanical, on the shared pitot and static lines (POH 7-12). Use it when the PFD airspeed shows a red X (POH 3-21).", draw: (ctx, W, H) => drawStbyAsi(ctx, W, H, st().s) },
   { key: "ai", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, 0.6, 52.6), sys: ["vacuum"], name: "Standby attitude",
-    note: "Vacuum-driven gyro with a GYRO flag for low vacuum. Don't use it if VAC is out of the green or the flag shows (POH 7-65, 3-23).", draw: (ctx, W, H) => drawSbyAi(ctx, W, H) },
+    note: "Vacuum-driven gyro with a GYRO flag for low vacuum. Don't use it if VAC is out of the green or the flag shows (POH 7-65, 3-23).", draw: (ctx, W, H) => drawStbyAtt(ctx, W, H) },
   { key: "alt", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, 4.8, 52.6), sys: ["avionics"], name: "Standby altimeter",
-    note: "Sensitive aneroid altimeter, 20 ft markings (POH 6-22). Set it before takeoff and in the descent (POH 4-15).", draw: (ctx, W, H) => drawSbyAlt(ctx, W, H, st().s) },
+    note: "Sensitive aneroid altimeter, 20 ft markings (POH 6-22). Set it before takeoff and in the descent (POH 4-15).", draw: (ctx, W, H) => drawStbyAlt(ctx, W, H, st().s) },
 ];
 
 /* ---------- lights ---------- */

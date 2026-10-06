@@ -65,7 +65,7 @@ button{font:inherit;color:inherit}
 .pin b{font-weight:500;color:var(--c)}
 .pin{margin-top:-10px}
 .tip{position:absolute;pointer-events:none;max-width:260px;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;
-  font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:5}
+  font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:30} /* above the label pins (drei Html zIndexRange [20,0]) */
 .tip h4{margin:0 0 2px;font-family:var(--f-disp);font-size:16px;letter-spacing:.02em;text-transform:uppercase}
 .tip p{margin:0;color:var(--muted)}
 .toolbar{position:absolute;top:12px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
@@ -76,8 +76,8 @@ button{font:inherit;color:inherit}
 .tb-theme .ico{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
 .hint{position:absolute;left:12px;top:12px;font-family:var(--f-mono);font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--panel) 80%,transparent);
   padding:4px 8px;border-radius:4px}
-/* foot of the viewport: alert window left, airplane HUD (SR20 CAPS timeline) right; stacked on phones */
-.stage-foot{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;pointer-events:none}
+/* foot of the viewport: alert window left, airplane HUD (SR20 CAPS timeline) right; wraps when the view is narrow, stacked on phones */
+.stage-foot{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;pointer-events:none}
 .stage-foot > *{pointer-events:auto}
 /* CAS window — deliberately always dark, like the display */
 .cas{flex:none;width:232px;background:var(--cas-bg);border:1px solid #2B3640;border-radius:4px;padding:6px 8px 7px;
@@ -169,6 +169,8 @@ button.chip:hover{border-color:var(--elec)}
 .overview-grid span{font-size:12.5px;color:var(--muted)}
 .disc{margin-top:26px;font-size:12px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
 
+/* the toolbar would run over the hint; the rail footer gives the same instructions */
+@media (max-width:1240px){ .hint{display:none} }
 @media (max-width:1100px){ .app{grid-template-columns:200px minmax(0,1fr) 340px} }
 @media (max-width:860px){
   html,body{height:auto}

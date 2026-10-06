@@ -70,7 +70,7 @@ export function Electrical() {
             {scen("…then ESS BUS ON (AFMS 3.7.2b)", (d) => { d.elec.fail.alt = true; d.elec.essBus = true; d.elec.tBat = 10; })}
             {scen("…battery exhausted → HORIZON EMERGENCY", (d) => { d.elec.fail.alt = true; d.elec.essBus = true; d.elec.emerg = true; d.elec.tBat = 45; })}
             {scen("Smoke: master OFF, emergency ON", (d) => { d.elec.bat = false; d.elec.alt = false; d.elec.emerg = true; })}
-            {scen("Smoke: ALT ON, then BATT + ESS TIE pulled", (d) => { d.cb["BATT"] = true; d.cb["ESS TIE"] = true; })}
+            {scen("Smoke: ALT ON, then BATT + ESS TIE pulled", (d) => { d.cb["BATT"] = true; d.cb["ESS TIE"] = true; d.elec.emerg = true; })}
           </BtnRow>
         </div>
         <Slider id="tBat" label="Time on battery power" min={0} max={100} step={1} value={e.tBat} onChange={(v) => up((d) => { d.elec.tBat = v; })} fmt={(v) => v + " min"} />

@@ -243,8 +243,8 @@ export function fuelOk(s: Sim) {
   return f.sel === "BOTH" ? tankHas(s, "L") || tankHas(s, "R") : tankHas(s, f.sel === "LEFT" ? "L" : "R");
 }
 
-export function solve(s: Sim): Elec {
-  const N = solveNav3(s.elec, ELEC_CFG, breakerLoads(s), rpmEstimate(s));
+export function solve(s: Sim, prev?: Elec): Elec {
+  const N = solveNav3(s.elec, ELEC_CFG, breakerLoads(s), rpmEstimate(s), prev?.altOn);
   const on = (bus: string, label: string) => !!N.on[`${bus}:${label}`];
   const either = (label: string) => on("ESS", label) || on("AV1", label);
   const gia1 = either("NAV 1 ENG"), gia2 = on("AV2", "NAV 2");

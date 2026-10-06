@@ -81,7 +81,7 @@ export const DA40_FLIGHT: FlightCfg = { v0: 52, vp: 93, fpmPerKt: 12, vMin: 50, 
  * throttle; engage 70–165 KIAS (AFMS p. 16), MAXSPD above 165. FLC solves with the DA40 flight model.
  */
 export const AFCS_CFG: Gfc700Cfg = { ...GFC700_BASE, bcKey: false, bcAngle: 105, vmo: 165, flight: DA40_FLIGHT };
-/** Elevator trim (−1 nose down … +1 nose up) that holds ~119 KIAS level with the stick centred (tick.ts TRIM_PITCH). */
+/** Elevator trim (−1 nose down … +1 nose up) that holds ~119 KIAS level with the stick centred (tick.ts trimPitch). */
 export const CRUISE_TRIM = 0.27;
 /** Trim wheel on its T/O mark (AFM 7-8). The mark's position on the wheel isn't given: modelled slightly nose up. */
 export const TO_TRIM = 0.1;
@@ -137,7 +137,8 @@ export interface Elec extends Record<BusId, number> {
 const LOAD = {
   pfd: 2.5, mfd: 2.5, gia1: 2.33, gia2: 2.33, ahrs: 0.3, adc: 0.6, gea: 1.02, xpdr: 1.4, audio: 1.75, stby: 0.55,
   servos: 1.5, gdl: 0.35, adf: 1.1, dme: 0.54, relays: 0.7, strobe: 3.4, position: 3.4, landing: 1.2, taxi: 1.2,
-  inst: 1.19, flood: 0.5, pitot: 5.8, pump: 2.2, flaps: 3.0, fans: 0.64, field: 2.6,
+  // pitot heat: 5.8 A element cycled by its thermal switch, duty-cycle factor 0.20 → 1.16 A (ELA p. 6, 8; AFM 7-45)
+  inst: 1.19, flood: 0.5, pitot: 1.16, pump: 2.2, flaps: 3.0, fans: 0.64, field: 2.6,
 };
 /** Battery: 11 Ah lead-acid, 70 % available = 7.7 Ah (ELA). Emergency pack: 1 h 30 min (AFM 7.11). */
 const BAT_AH = 7.7, EMERG_MIN = 90;
@@ -159,7 +160,7 @@ let altExcited = true;
  * follows the AFMS: the avionics relay needs the AVIONIC MASTER switch and the MSTR CNTRL breaker, not a live ESSENTIAL bus.
  * HORIZON 3 A (ESSENTIAL) or the emergency battery (HORIZON EMERGENCY switch) feeds the standby attitude and the flood light.
  */
-export function solveElec(s: Sim): Elec {
+export function solve(s: Sim): Elec {
   const first = solveWith(s, true);
   const E = first.batFrac < 1 ? first : solveWith(s, false);
   altExcited = E.altOn;

@@ -4,9 +4,10 @@
  * - Power-up: preflight self-test "PFT 1…", then display test (all segments + PITCH TRIM on the PFD) and the
  *   disconnect tone. The red P may stay on ~30 s (pitch axis can't engage meanwhile). BARO then flashes until set.
  * - AP (press & hold ~0.25 s) engages ROL + VS at the current vertical speed. HDG toggles HDG/ROL.
- * - NAV / APR / REV: capture at once with the D-bar within ~2–3 dots, otherwise "ARM"; HDG flashes 5 s to
- *   remind you to set the bug (it is the intercept heading). APR on an ILS arms GS at localizer capture;
- *   REV (back course, LOC only) locks the glideslope out.
+ * - NAV / APR / REV: capture at once with the D-bar within ~2–3 dots, otherwise "ARM" while the AP flies the
+ *   heading bug (the intercept heading, S3-11 item 15; from ROL it goes to HDG) and HDG flashes 5 s to remind
+ *   you to set it (S3-18). APR on an ILS arms GS at localizer capture; REV (back course) works only on a
+ *   LOC/ILS (S3-9 item 7) and locks the glideslope out. Selected with a flagged source: ROL, symbol flashing.
  * - UP/DN: VS ±100 fpm per press (300 fpm/s held); in ALT ±20 ft per press (held: 500 fpm, new ALT on release).
  *   VS limits +1500 / −2000 fpm.
  * - Knobs set the alerter / preselect altitude (arms ALT automatically with the AP engaged); ARM toggles ALT ARM.
@@ -119,13 +120,17 @@ export function kap140Fail(st: Kap140State, f: Kap140Fail, now: number): Kap140S
   return s;
 }
 
-function navSelect(s: Kap140State, m: "NAV" | "APR" | "REV", fs: FlightState, now: number) {
-  if (s.lat === m || s.latArm === m) { if (s.lat === m) s.lat = "ROL"; s.latArm = null; s.gsArm = false; return; }
-  if (!fs.navValid || (m === "REV" && !isLoc(fs.navSrc))) { s.lostLat = m; return; } // flags straight away
+/** NAV / APR / REV key; false when it does nothing. */
+function navSelect(s: Kap140State, m: "NAV" | "APR" | "REV", fs: FlightState, now: number): boolean {
+  if (s.lat === m || s.latArm === m) { if (s.lat === m) s.lat = "ROL"; s.latArm = null; s.gsArm = false; return true; }
+  if (m === "REV" && !isLoc(fs.navSrc)) return false; // REV is active only with a LOC/ILS tuned (S3-9 item 7)
+  // flagged source: the symbol flashes and the autopilot is in its default lateral mode, ROL (S3-18)
+  if (!fs.navValid) { s.lostLat = m; s.lat = "ROL"; s.latArm = null; s.gsArm = false; return true; }
   s.src = fs.navSrc; s.lostLat = null; s.gsArm = false; s.hdgFlash = now + 5;
   const d = navDots(fs) ?? 9;
   if (Math.abs(d) < 2.5) { s.lat = m; s.latArm = null; if (m === "APR" && isLoc(fs.navSrc) && fs.gsErr != null) s.gsArm = true; }
-  else s.latArm = m;
+  else { s.latArm = m; if (s.lat === "ROL") s.lat = "HDG"; } // armed: the heading bug is the datum (S3-11 item 15)
+  return true;
 }
 
 /** Apply a button / knob / switch. Returns the same state when it does nothing. */
@@ -145,8 +150,7 @@ export function kap140Key(st: Kap140State, key: Kap140Key, fs: FlightState): Kap
       s.lat = s.lat === "HDG" ? "ROL" : "HDG"; s.lostLat = null;
       break;
     case "NAV": case "APR": case "REV":
-      if (!s.ap) return st;
-      navSelect(s, key, fs, now);
+      if (!s.ap || !navSelect(s, key, fs, now)) return st;
       break;
     case "ALT":
       if (!s.ap) return st;
@@ -263,10 +267,12 @@ export function kap140Tick(st: Kap140State, fs: FlightState, dt: number): Kap140
   return c();
 }
 
-/** What the servos fly while engaged (null when disengaged). Standard-rate turns; ALT holds with ±20 ft steps, held UP/DN = ±500 fpm. */
+/** What the servos fly while engaged (null when disengaged). Standard-rate turns, limited to ~18°; ALT holds with ±20 ft steps, held UP/DN = ±500 fpm. */
 export function kap140Command(st: Kap140State, fs: FlightState): FlightCmd | null {
   if (!st.powered || !st.ap) return null;
-  const maxB = Math.min(stdRateBank(fs), 25);
+  // "the KAP 140 limits bank angle in the 182T to approximately 18°" — Supplement 3 as bound in the N780CP POH
+  // (182TPHAUS-S3-01) p. S3-35; Rev 2 (S3-02) gives no figure
+  const maxB = Math.min(stdRateBank(fs), 18);
   const bank = st.lat === "HDG" ? bankToHdg(fs, fs.hdgBug, maxB)
     : st.lat === "NAV" || st.lat === "APR" ? bankToHdg(fs, trackHdg(fs), maxB)
     : st.lat === "REV" ? bankToHdg(fs, trackHdg(fs, true), maxB) : 0;

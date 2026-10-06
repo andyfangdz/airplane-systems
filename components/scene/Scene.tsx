@@ -36,6 +36,11 @@ function CameraRig() {
 
   useEffect(() => {
     if (!cam || !controls) return;
+    // drop any momentum left from a drag (damping would keep turning the camera after the jump or flight);
+    // an update with damping off zeroes it, then the camera is put back where it was
+    const p0 = camera.position.clone(), t0 = controls.target.clone();
+    controls.enableDamping = false; controls.update(); controls.enableDamping = true;
+    camera.position.copy(p0); controls.target.copy(t0);
     const tt = V(...cam.t), tp = V(...cam.p).sub(tt).multiplyScalar(fitDist(size.width / size.height)).add(tt);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) { camera.position.copy(tp); controls.target.copy(tt); return; }
     flight.current = { fp: camera.position.clone(), ft: controls.target.clone(), tp, tt, t0: performance.now() };
@@ -79,18 +84,19 @@ function MaterialSync() {
   return null;
 }
 
-/* ---------- hover: prefer a real part over the ghost shell in front of it ---------- */
+/* ---------- hover (and tap): prefer a real part over the ghost shell in front of it ---------- */
 function usePicker() {
   const setHover = useView((x) => x.setHover);
-  return (e: ThreeEvent<PointerEvent>) => {
+  return (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (e.buttons) { setHover(null); return; }
-    const sys = useView.getState().sys;
+    const { sys, xray } = useView.getState();
     const cands = e.intersections.filter((h) => {
       const p = h.object.userData?.pick as PickInfo | undefined;
       return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
     });
-    const hit = cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0];
+    // only the X-ray ghost skin can be seen through; the solid skin hides what is behind it
+    const hit = xray ? cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0] : cands[0];
     if (!hit) { setHover(null); return; }
     const p = hit.object.userData.pick as PickInfo;
     setHover({ name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
@@ -108,10 +114,11 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
   return (
     <>
       <group ref={rootRef} position={[def.pivotX, 0, 0]}>
-        {/* Switching airplane remounts the model. Parts, shells and control surfaces reuse cached geometry and shared
+        {/* Touch has no hover: a tap (a click that is not the end of a drag) shows the note the same way.
+            Switching airplane remounts the model. Parts, shells and control surfaces reuse cached geometry and shared
             materials (passed as props, which R3F never disposes); R3F disposes JSX-created geometry and materials, and
             Flows, Screens, Tanks, LightFX, Links and WindowOutlines free what they build. */}
-        <group ref={modelRef} position={[-def.pivotX, 0, 0]} onPointerMove={onMove} onPointerOut={() => setHover(null)}>
+        <group ref={modelRef} position={[-def.pivotX, 0, 0]} onPointerMove={onMove} onClick={(e) => { if (e.delta <= 4) onMove(e); }} onPointerOut={() => setHover(null)}>
           <Model />
         </group>
       </group>

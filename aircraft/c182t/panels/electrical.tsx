@@ -1,10 +1,10 @@
 "use client";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Seg, Slider, Small, useTicker } from "@/components/ui/controls";
-import { FEEDER, NAV3_BUSES, nav3Init } from "../../cessna/electrical";
+import { FEEDER, NAV3_BUSES, nav3Init, stbyAhOf } from "../../cessna/electrical";
 import { BreakerBoard, Nav3Diagram, Nav3Meters, Nav3Switches } from "../../cessna/panels";
 import { BREAKERS, elecCfg, live, type Sim } from "../model";
 import { CAT } from "../parts";
-import { useC182 } from "../store";
+import { scenarioColdDark, useC182 } from "../store";
 
 const reset = (d: Sim) => { const k = { socMain: d.elec.socMain, socStby: d.elec.socStby }; d.elec = { ...nav3Init(), ...k }; };
 
@@ -13,8 +13,9 @@ export function Electrical() {
   const s = useC182((x) => x.s), E = useC182((x) => x.E), up = useC182((x) => x.update);
   const e = s.elec, cfg = elecCfg(s);
   const upE = (fn: (d: Sim["elec"]) => void) => up((d) => fn(d.elec));
-  const scen = (label: string, fn: (d: Sim) => void) => (
-    <button key={label} type="button" className="btn" onClick={() => { live.timers.stby = 0; up((d) => { reset(d); fn(d); }); }}>{label}</button>
+  // `pre` runs as its own update first (e.g. putting the airplane on the ramp), so this one builds on it
+  const scen = (label: string, fn: (d: Sim) => void, pre?: () => void) => (
+    <button key={label} type="button" className="btn" onClick={() => { pre?.(); live.timers.stby = 0; up((d) => { reset(d); fn(d); }); }}>{label}</button>
   );
   const run = (d: Sim) => { d.eng.running = true; d.eng.mags = "BOTH"; if (d.eng.mix < 0.1) d.eng.mix = 0.85; if (d.eng.throttle < 0.3 && !d.ground) d.eng.throttle = 0.82; };
   const mins = (Ah: number, soc: number, amps: number) => (amps < -0.2 ? `${Math.round((Ah * soc) / -amps * 60)} min` : "—");
@@ -33,10 +34,10 @@ export function Electrical() {
         <Readouts items={[
           ["Alternator", E.altOn ? `${E.altAmps.toFixed(1)} A` : ["OFF", "bad"]], ["Bus load", `${E.load.toFixed(1)} A`],
           ["Main battery", e.fail.bat ? ["FAILED", "bad"] : `${Math.round(e.socMain * 100)}% · ${mins(cfg.mainAh, e.socMain, E.mBatt)}`],
-          ["Standby battery", e.stby !== "ARM" || e.cb["ESS:STDBY BATT"] ? [e.stby !== "ARM" ? "OFF" : "C/B OUT (STDBY BATT)", "warnc"] : E.stbyOnline ? [`Supplying · ${mins(cfg.stbyAh, e.socStby, E.sBatt)}`, "warnc"] : `${Math.round(e.socStby * 100)}% · ${E.sBatt > 0 ? "charging" : "standing by"}`],
+          ["Standby battery", e.stby !== "ARM" || e.cb["ESS:STDBY BATT"] ? [e.stby !== "ARM" ? "OFF" : "C/B OUT (STDBY BATT)", "warnc"] : E.stbyOnline ? [`Supplying · ${mins(stbyAhOf(e, cfg), e.socStby, E.sBatt)}`, "warnc"] : `${Math.round(e.socStby * 100)}% · ${E.sBatt > 0 ? "charging" : "standing by"}`],
         ]} />
       </Ctl>
-      <Small>Hold TEST for 20 seconds with the MASTER off — the green lamp must not go off — then ARM: the PFD comes up on the standby battery (BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown) (POH 4-13). Which alternator N8050J and N21200 have isn&apos;t in the POH. Currents are illustrative.</Small>
+      <Small>Hold TEST for 20 seconds with the MASTER off — the green lamp must not go off — then ARM: the PFD comes up on the standby battery (BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown) (POH 4-13). Which alternator N8050J and N21200 have isn&apos;t in the POH. “Standby battery weak / cold” keeps the TEST lamp out and puts BUS E below 24 V on the standby battery, as the 2007 edition&apos;s cold-weather note warns (4-45; the 2005 POH has none); its shorter endurance is illustrative. Currents are illustrative.</Small>
       <H3>Failures &amp; scenarios</H3>
       <Ctl>
         <BtnRow>
@@ -54,7 +55,7 @@ export function Electrical() {
             {scen("HIGH VOLTS (ACU failed)", (d) => { run(d); d.elec.fail.ov = true; d.elec.fail.ovSense = true; })}
             {scen("Feeder A trips (BUS 2)", (d) => { run(d); d.elec.cb[FEEDER.E2] = true; })}
             {scen("Standby battery only", (d) => { run(d); d.elec.bat = false; d.elec.alt = false; })}
-            {scen("Pre-start STBY BATT check", (d) => { d.eng.running = false; d.eng.mags = "OFF"; d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = false; d.elec.stby = "ARM"; })}
+            {scen("Pre-start STBY BATT check", (d) => { d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = false; d.elec.stby = "ARM"; }, scenarioColdDark)}
           </BtnRow>
         </div>
         <Seg id="warp" label="Battery clock" options={[[1, "×1"], [10, "×10"], [60, "×60"]]} value={s.warp} onChange={(v) => up((d) => { d.warp = v; })} />
@@ -122,7 +123,7 @@ export function Lighting() {
       <PartsList parts={CAT.pinned("lighting")} />
       <H3>Breakers (Figure 7-7)</H3>
       <Facts rows={[["BEACON · LAND", "BCN LT, LAND LT — ELECTRICAL BUS 1"], ["TAXI · NAV · STROBE", "TAXI LT, NAV LTS, STROBE LTS — ELECTRICAL BUS 2"], ["Panel and pedestal", "PANEL LTS — ELECTRICAL BUS 2"], ["Overhead lights, 12 V outlet", "CABIN LTS/PWR — ELECTRICAL BUS 1 (the overhead console's breaker is an inference)"], ["Standby instrument lights", "STDBY IND LTS — ESSENTIAL BUS"], ["Map light", "On NAV LTS: turn NAV on first, then the knurled rheostat"]]} />
-      <Notes items={["Don't use the strobes or beacon when flying through cloud or overcast — reflected light can cause vertigo (POH 7-57). In cold weather the beacon can stay off until the engine is started to save the battery (POH 4-50).", "Use only the taxi light in the pattern or en route to extend the landing light's life (POH 7-57).", "Light failure: usually a bulb. Check PANEL LTS (inside) or the light's breaker; with no sign of a short, lights OFF, reset once, lights ON; if it opens again, leave it for maintenance (POH 7-60).", "Wing fire: LAND, TAXI, NAV, STROBE and PITOT HEAT OFF (POH 3-11).", "KOEL: strobes for every kind of operation; nav lights for VFR night and all IFR (day and night); the landing light at night for hire (POH 2-12)."]} />
+      <Notes items={["Don't use the strobes or beacon when flying through cloud or overcast — reflected light can cause vertigo (POH 7-57). In cold weather the beacon can stay off until the engine is started to save the battery (POH 4-50).", "Use only the taxi light in the pattern or en route to extend the landing light's life (POH 4-32).", "Light failure: usually a bulb. Check PANEL LTS (inside) or the light's breaker; with no sign of a short, lights OFF, reset once, lights ON; if it opens again, leave it for maintenance (POH 7-60).", "Wing fire: LAND, TAXI, NAV, STROBE and PITOT HEAT OFF (POH 3-11).", "KOEL: strobes for every kind of operation; nav lights for VFR night and all IFR (day and night); the landing light at night for hire (POH 2-12)."]} />
     </>
   );
 }

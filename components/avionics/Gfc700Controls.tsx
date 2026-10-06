@@ -63,8 +63,8 @@ export function Gfc700Controls({ st, fs, onKey, onSet, powered, cfg, layout = "c
           <div className="avx-col">
             <Key className="red wide" label={cfg.discLabel} onClick={() => onKey("AP_DISC")} disabled={!powered} title="Disconnects the AP, interrupts trim, acknowledges a disconnect" />
             <HoldKey className="wide" label="CWS" sub="hold" onDown={() => onKey("CWS")} onUp={() => onKey("CWS_UP")} disabled={!powered} title="Control wheel steering: hold to hand-fly, release to resync" />
-            <HoldKey label="TRIM DN" sub={cfg.trimLabel} repeat={120} onDown={() => onKey("TRIM_DN")} disabled={!powered} title="Manual electric trim, nose down (disconnects the AP)" />
-            <HoldKey label="TRIM UP" sub={cfg.trimLabel} repeat={120} onDown={() => onKey("TRIM_UP")} disabled={!powered} title="Manual electric trim, nose up (disconnects the AP)" />
+            <HoldKey label="TRIM DN" sub={cfg.trimLabel} repeat={120} onDown={() => onKey("TRIM_DN")} onRepeat={() => onKey("TRIM_DN_HOLD")} disabled={!powered} title="Manual electric trim, nose down (disconnects the AP)" />
+            <HoldKey label="TRIM UP" sub={cfg.trimLabel} repeat={120} onDown={() => onKey("TRIM_UP")} onRepeat={() => onKey("TRIM_UP_HOLD")} disabled={!powered} title="Manual electric trim, nose up (disconnects the AP)" />
             <Key className="wide" label="GA" sub={fs.onGround ? "TO" : "go-around"} onClick={() => onKey("GA")} disabled={!powered} />
           </div>
         </div>

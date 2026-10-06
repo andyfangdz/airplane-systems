@@ -90,14 +90,14 @@ export function PartsList({ parts }: { parts: PartSpec[] }) {
 
 /**
  * Momentary button (pointer or keyboard), e.g. a spring-loaded switch position. `onDown` on press, `onUp(held)` on release;
- * `onHold` fires once after `holdMs`; `repeat` (ms) re-fires `onDown` while held (e.g. trim switches).
+ * `onHold` fires once after `holdMs`; `repeat` (ms) re-fires `onRepeat` (default `onDown`) while held (e.g. trim switches).
  * Losing focus or unmounting while held (Tab away, switching system or airplane) counts as a release.
  */
 export interface HoldButtonProps {
-  onDown?: () => void; onUp?: (held: boolean) => void; onHold?: () => void; holdMs?: number; repeat?: number;
+  onDown?: () => void; onUp?: (held: boolean) => void; onHold?: () => void; holdMs?: number; repeat?: number; onRepeat?: () => void;
   className?: string; disabled?: boolean; title?: string; ariaLabel?: string; pressed?: boolean; children: ReactNode;
 }
-export function HoldButton({ onDown, onUp, onHold, holdMs = 500, repeat, className, disabled, title, ariaLabel, pressed, children }: HoldButtonProps) {
+export function HoldButton({ onDown, onUp, onHold, holdMs = 500, repeat, onRepeat, className, disabled, title, ariaLabel, pressed, children }: HoldButtonProps) {
   const [down, setDown] = useState(false);
   const r = useRef({ down: false, held: false, t: 0 as ReturnType<typeof setTimeout> | 0, i: 0 as ReturnType<typeof setInterval> | 0 });
   const stop = () => { clearTimeout(r.current.t || undefined); clearInterval(r.current.i || undefined); r.current.t = r.current.i = 0; };
@@ -112,7 +112,8 @@ export function HoldButton({ onDown, onUp, onHold, holdMs = 500, repeat, classNa
     r.current.down = true; r.current.held = false; setDown(true);
     onDown?.();
     if (onHold) r.current.t = setTimeout(() => { r.current.held = true; onHold(); }, holdMs);
-    if (repeat && onDown) r.current.i = setInterval(onDown, repeat);
+    const again = onRepeat ?? onDown;
+    if (repeat && again) r.current.i = setInterval(again, repeat);
   };
   const release = () => {
     if (!r.current.down) return;

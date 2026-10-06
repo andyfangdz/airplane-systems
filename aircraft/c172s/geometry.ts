@@ -21,7 +21,7 @@ import * as THREE from "three";
 import { cessnaAirframe, skinPainter, type CessnaSpec } from "../cessna/airframe";
 import { densify, loft } from "@/lib/geometry";
 
-export { box, cyl, sph, tubeGeo, loft, af, sided } from "@/lib/geometry";
+export { box, cyl, sph, tubeGeo, loft, sided } from "@/lib/geometry";
 export { taperTubeGeo, wheelFairingGeo } from "../cessna/airframe";
 
 export const SPEC: CessnaSpec = {
@@ -58,7 +58,6 @@ export const {
   fLE, fC, hingeX, finCut, finSec, strutGeo, springLegGeo, projectLoop, fuselageGeo, roundPoly,
 } = AF;
 export const GROUND_Y = groundY;
-export const FW = X(0);
 
 /** Wing stations (BL, in) used for the shells and surfaces. */
 export const BL = {

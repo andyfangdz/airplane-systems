@@ -531,7 +531,11 @@ function afcsBar(ctx: Ctx, a: AfcsAnnunc, L: Lay, t: number) {
       if (a.vertRef) { txt(ctx, a.vert, xs[4] + 8, cy + 1, c, 15); txt(ctx, a.vertRef, xs[4] + ws[4] - 8, cy + 1, c, 14, "right"); }
       else txt(ctx, a.vert, xs[4] + ws[4] / 2, cy + 1, c, 15, "center");
     }
-    if (a.vertArm) txt(ctx, a.vertArm, xs[5] + ws[5] / 2, cy + 1, WHITE, a.vertArm.length > 5 ? 12 : 15, "center");
+    if (a.vertArm) { // fitted to its field ("ALTS GS /V")
+      ctx.font = `700 15px ${FONT}`;
+      const px = Math.max(9, Math.min(15, (15 * (ws[5] - 6)) / ctx.measureText(a.vertArm).width));
+      txt(ctx, a.vertArm, xs[5] + ws[5] / 2, cy + 1, WHITE, px, "center");
+    }
   }
   // autopilot status in the centre
   const mid = xs[3] + ws[3] / 2, items: [string, string][] = [];
@@ -545,7 +549,8 @@ function afcsBar(ctx: Ctx, a: AfcsAnnunc, L: Lay, t: number) {
 /* annunciation / alerts window */
 function annWindow(ctx: Ctx, d: PfdData, L: Lay) {
   const order = { w: 0, c: 1, a: 2 };
-  const list: [CasLevel, string][] = [...(d.pitchTrim ? [["w", d.pitchTrim] as [CasLevel, string]] : []), ...[...d.alerts].sort((p, q) => order[p[0]] - order[q[0]])].slice(0, 8);
+  // up to 12 annunciations at once, on the PFD or (reversion) the MFD (DA40 CRG 190-00324-07 p. 12-1)
+  const list: [CasLevel, string][] = [...(d.pitchTrim ? [["w", d.pitchTrim] as [CasLevel, string]] : []), ...[...d.alerts].sort((p, q) => order[p[0]] - order[q[0]])].slice(0, 12);
   if (!list.length) return;
   // rows that fit above the transponder box (y 426): the reversion window would otherwise run into it and the softkeys
   const fit = (y: number, rh: number) => list.slice(0, Math.floor((426 - y - 6) / rh));
@@ -567,13 +572,15 @@ function annWindow(ctx: Ctx, d: PfdData, L: Lay) {
     });
     return;
   }
-  const rh = 16, { x, y, w } = L.ann;
+  // full PFD: right of the VSI, 16 px rows; reversion: right of the HSI from just below the baro box, rows shrunk to fit
+  const full = L.w >= 600, { x, w } = L.ann, y = full ? L.ann.y : TB + 22;
+  const rh = full ? 16 : Math.max(10, Math.min(16, Math.floor((426 - y - 6) / list.length)));
   const rows = fit(y, rh);
   rect(ctx, x, y, w, rows.length * rh + 6, "#000", WHITE, 1);
   rows.forEach(([lv, s], i) => {
     const c = lv === "w" ? RED : lv === "c" ? YEL : WHITE;
     ctx.font = `700 12px ${FONT}`;
-    const px = Math.max(7, Math.min(12, (12 * (w - 8)) / ctx.measureText(s).width)); // shrink to fit
+    const px = Math.max(7, Math.min(12, rh - 3, (12 * (w - 8)) / ctx.measureText(s).width)); // shrink to fit
     txt(ctx, s, x + w / 2, y + 3 + i * rh + rh / 2 + 1, c, px, "center");
   });
 }

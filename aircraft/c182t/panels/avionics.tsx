@@ -156,7 +156,7 @@ export function Autopilot() {
       <Facts rows={[
         ["AP", "Hold ≈ 0.25 s to engage in ROL + VS (the VS at the moment of engagement); press again to disengage. Not until the self-test passes and the red P is out"],
         ["ROL", "Wings level (turn-coordinator roll rate)"],
-        ["HDG", "Turns at about standard rate to the PFD heading bug; press again for ROL"],
+        ["HDG", "Turns at about standard rate (bank limited to about 18°, Supplement 3 Rev 1 S3-35) to the PFD heading bug; press again for ROL"],
         ["NAV", "VOR, LOC or GPS course on the HSI; ARM until the intercept, then captures. GPS roll steering with an active flight plan"],
         ["APR", "As NAV with higher sensitivity; on an ILS, GS ARM at localizer capture, then GS"],
         ["REV", "Localizer back course; glideslope locked out"],

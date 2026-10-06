@@ -161,7 +161,7 @@ const finAt = (h: number) => {
 };
 export const fLE = (h: number) => finAt(h)[0];
 export const fC = (h: number) => finAt(h)[0] - finAt(h)[1];
-export const FIN_TOP = 0.665, FIN_ROOT = -0.3, RUD_BOT = -0.53;
+export const FIN_TOP = 0.665, RUD_BOT = -0.53;
 /** Rudder hinge line: FS 7.40 at the bottom to FS 7.70 at the top (swept ≈ 14°, photos). */
 export const hingeX = (h: number) => lerp(fs(7.4), fs(7.7), (h - RUD_BOT) / (FIN_TOP - RUD_BOT));
 export const finCut = (h: number) => clamp((fLE(h) - hingeX(h)) / fC(h), 0.02, 0.98);

@@ -12,7 +12,7 @@ import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, clamp, type Vec3 } from "@/lib/math";
 import { narrowLayout, useView } from "@/lib/view";
-import { drawKapScreen, drawMfdScreen, drawOff, drawPfdScreen, drawSbyAi, drawSbyAlt, drawSbyAsi } from "./displays";
+import { drawKapScreen, drawMfdScreen, drawOff, drawPfdScreen, drawStbyAtt, drawStbyAlt, drawStbyAsi } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
@@ -187,11 +187,11 @@ const SCREENS: ScreenSpec[] = [
     note: "Engine Indication System strip (ENGINE or SYSTEM page) and the moving map. MFD breaker, AVIONICS BUS 2.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) { drawMfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
   { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, -3.6, 54.4), pinAt: [0, 0.041, 0], sys: ["avionics", "pitot"], name: "Standby airspeed",
-    note: "Mechanical, on the shared pitot and static lines, arm 16.2 (POH 7-11, 6-23). Use it when the PFD airspeed shows a red X (POH 3-19).", draw: (ctx, W, H) => drawSbyAsi(ctx, W, H, st().s) },
+    note: "Mechanical, on the shared pitot and static lines, arm 16.2 (POH 7-11, 6-23). Use it when the PFD airspeed shows a red X (POH 3-19).", draw: (ctx, W, H) => drawStbyAsi(ctx, W, H, st().s) },
   { key: "ai", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, 0.6, 54.4), pinAt: [0, -0.041, 0], sys: ["vacuum"], name: "Standby attitude",
-    note: "Vacuum gyro with a GYRO flag for low vacuum. Don't use it if VAC is out of the green or the flag shows (POH 7-63, 3-21).", draw: (ctx, W, H) => drawSbyAi(ctx, W, H) },
+    note: "Vacuum gyro with a GYRO flag for low vacuum. Don't use it if VAC is out of the green or the flag shows (POH 7-63, 3-21).", draw: (ctx, W, H) => drawStbyAtt(ctx, W, H) },
   { key: "alt", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, 4.8, 54.4), pinAt: [0, 0.041, 0], sys: ["avionics"], name: "Standby altimeter",
-    note: "Sensitive aneroid altimeter with 20 ft markings, inches of mercury and millibars, arm 15.3 (POH 6-23).", draw: (ctx, W, H) => drawSbyAlt(ctx, W, H, st().s) },
+    note: "Sensitive aneroid altimeter with 20 ft markings, inches of mercury and millibars, arm 15.3 (POH 6-23).", draw: (ctx, W, H) => drawStbyAlt(ctx, W, H, st().s) },
   { key: "kap", px: [400, 100], size: KAP_LCD.size, pos: KAP_LCD.pos, pinAt: [0, KAP_LCD.size[1] / 2, 0], sys: ["autopilot", "avionics"], name: "KAP 140 display",
     note: "Lateral mode and ARM left, AP and PT centre, vertical mode and ARM right, ALERT and the altitude / VS / baro readout; red P and R lamps bottom left (S3-8). Blank without the AUTO PILOT breaker or AVIONICS BUS 2.",
     draw: (ctx, W, H) => drawKapScreen(ctx, W, H) },

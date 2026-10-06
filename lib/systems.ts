@@ -16,12 +16,13 @@ export type Chan = "elevator" | "aileron" | "rudder";
 export type ColorKey = "accent" | "frame" | "ctrl" | "gear" | "oil" | "fuel" | "elec" | "air" | "pitot" | "avx" | "cabin" | "caps";
 
 /**
- * One entry in the system rail: POH page, palette colour, camera [position, target] and overview blurb. `ref` replaces the
- * panel's "<doc> · p. <pg>" source line when the system is described in another document (e.g. a supplement).
+ * One entry in the system rail: POH page, camera [position, target] and overview blurb (its colour comes from SYS_COLOR by
+ * id). `ref` replaces the panel's "<doc> · p. <pg>" source line when the system is described in another document (e.g. a
+ * supplement).
  */
-export interface SysDef { id: SysId; name: string; pg: string; key: ColorKey; cam: [Vec3, Vec3]; blurb: string; ref?: string }
+export interface SysDef { id: SysId; name: string; pg: string; cam: [Vec3, Vec3]; blurb: string; ref?: string }
 
-/** Which palette colour a part takes from its first system. */
+/** Each system's palette colour, used by the rail, the panel and the parts (by their first system). Every SysId needs one. */
 const SYS_COLOR: Record<SysId, ColorKey> = {
   overview: "accent", airframe: "frame", controls: "ctrl", flaps: "ctrl", gear: "gear", engine: "oil", propeller: "oil",
   fuel: "fuel", electrical: "elec", lighting: "elec", environment: "air", pitot: "pitot", vacuum: "pitot", avionics: "avx",

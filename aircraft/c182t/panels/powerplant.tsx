@@ -51,7 +51,7 @@ export function Engine() {
   const s = useC182((x) => x.s), E = useC182((x) => x.E), up = useC182((x) => x.update);
   const g = s.eng, alt = live.fs.alt;
   const lam = lambda(g.mix, alt), P = g.running ? powerFrac(s, live.map, live.rpm, alt) : 0;
-  const state = g.running ? (live.primeRun > 0 ? [g.mix < 0.06 ? "RUNNING ON PRIME — ADVANCE MIXTURE" : "TOO LEAN — DYING", "warnc"] : "RUNNING") : g.mags === "START" ? ["CRANKING", "warnc"] : g.flooded ? ["FLOODED", "bad"] : ["STOPPED", "bad"];
+  const state = g.running ? (live.primeRun > 0 ? [g.mix < 0.06 ? "RUNNING ON PRIME — ADVANCE MIXTURE" : "TOO LEAN — DYING", "warnc"] : "RUNNING") : g.mags === "START" ? (E.starterPwr ? ["CRANKING", "warnc"] : ["START — NO STARTER POWER", "bad"]) : g.flooded ? ["FLOODED", "bad"] : ["STOPPED", "bad"];
   const warm = live.hot > 0.6;
   const steps: [boolean, string][] = [
     [!s.elec.avn1 && !s.elec.avn2, "AVIONICS (BUS 1 and BUS 2) OFF"],

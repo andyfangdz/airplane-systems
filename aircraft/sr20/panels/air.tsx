@@ -36,7 +36,7 @@ export function Pitot() {
   const stalled = s.stall.aoa >= 14;
   return (
     <>
-      <p className="lead">One heated pitot under the left wing and two fuselage static ports feed the air-data computers and standby. A separate pneumatic stall warner on the right wing leading edge sounds the horn about 5 knots before the stall.</p>
+      <p className="lead">One heated pitot under the left wing and two fuselage static ports feed the air-data computers and standby. A separate electro-pneumatic stall warning system (an inlet in the right wing leading edge and a pressure switch, powered through the 2 A STALL WARNING breaker on ESS BUS 2) sounds the horn about 5 knots before the stall.</p>
       <H3>Pitot heat</H3>
       <Ctl>
         <Check id="pheat" label="PITOT HEAT switch on" checked={s.pitot.heat} onChange={(v) => up((d) => { d.pitot.heat = v; })} />
@@ -50,7 +50,7 @@ export function Pitot() {
         <Check id="sfault" label="Inlet iced / contaminated (fault)" checked={s.stall.fault} onChange={(v) => up((d) => { d.stall.fault = v; })} />
         <Readouts items={[
           ["Horn", s.stall.fault ? ["MUTED", "warnc"] : stalled && E.stallPwr ? ["SOUNDING", "bad"] : "Quiet"],
-          ["Autopilot", stalled && !s.stall.fault ? ["DISCONNECT", "bad"] : "—"],
+          ["Autopilot", stalled && !s.stall.fault && E.stallPwr ? ["DISCONNECT", "bad"] : "—"],
           ["Static source", s.pitot.alt ? ["CABIN", "warnc"] : "Ports"],
         ]} />
       </Ctl>
