@@ -20,6 +20,8 @@ export const sysOf = (def: AircraftDef, id: SysId): SysDef => def.systems.find((
 export const hasSys = (def: AircraftDef, id: unknown): id is SysId => def.systems.some((s) => s.id === id);
 
 const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
+/** Keep the address bar on the view shown, so a reload or a copied link opens it (App listens for hash changes). */
+const showInUrl = (ac: AircraftId, sys: SysId) => { try { history.replaceState(null, "", `#${ac}/${sys}`); } catch {} };
 
 /** Show a system of the current airplane, optionally flying the camera to it. */
 export function selectSys(id: SysId, fly = true) {
@@ -28,6 +30,7 @@ export function selectSys(id: SysId, fly = true) {
   useView.setState({ sys: id, focus: null });
   if (fly) { const [p, t] = sysOf(def, id).cam; v.flyTo(p, t); }
   remember("sys:" + v.ac, id);
+  showInUrl(v.ac, id);
 }
 
 /** Switch airplane (to its overview, or to `sys` if it has one). */
@@ -41,6 +44,7 @@ export function selectAircraft(id: AircraftId, sys?: SysId) {
   v.flyTo(p, t);
   remember("fleetAc", id);
   remember("sys:" + id, to);
+  showInUrl(id, to);
 }
 
 /** Camera for the toolbar's Reset view. */

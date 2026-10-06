@@ -22,6 +22,14 @@ function Fleet() {
 function Rail() {
   const def = useAircraft();
   const sys = useView((x) => x.sys), theme = useView((x) => x.theme);
+  // keep the selected entry visible (the list scrolls: vertically on desktop, a chip strip on phones) without scrolling the page
+  useEffect(() => {
+    const b = document.querySelector<HTMLElement>('.syslist button[aria-current="true"]'), ul = b?.closest("ul");
+    if (!b || !ul) return;
+    const r = b.getBoundingClientRect(), u = ul.getBoundingClientRect();
+    if (r.left < u.left) ul.scrollLeft -= u.left - r.left + 10; else if (r.right > u.right) ul.scrollLeft += r.right - u.right + 10;
+    if (r.top < u.top) ul.scrollTop -= u.top - r.top + 8; else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
+  }, [sys, def]);
   return (
     <nav className="rail" aria-label="Systems">
       <div className="brand">
@@ -48,7 +56,11 @@ function Panel() {
   const def = useAircraft();
   const sys = useView((x) => x.sys), theme = useView((x) => x.theme);
   const s = sysOf(def, sys), Body = def.panels[s.id];
-  useEffect(() => { if (matchMedia("(max-width:860px)").matches) document.querySelector(".panel")?.scrollTo(0, 0); }, [sys, def]);
+  // phones: the page scrolls, not the panel; after picking a system from far down the panel, bring the 3D view back up
+  useEffect(() => {
+    const stage = document.querySelector(".stage");
+    if (matchMedia("(max-width:860px)").matches && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
+  }, [sys, def]);
   return (
     <aside className="panel">
       <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
@@ -112,46 +124,57 @@ function Tooltip() {
 
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 
-/** Restore theme, airplane and last-viewed system. URL hash wins: #c172s/electrical, #c172s, or (SR20) #electrical. */
+/** Airplane and system named by the URL hash: #c172s/electrical, #c172s, or (SR20) #electrical. */
+function fromHash(): [AircraftId, string | undefined] | null {
+  let h = location.hash.slice(1);
+  try { h = decodeURIComponent(h); } catch {} // malformed escape (e.g. a truncated link): use the raw text
+  const [a, b] = h.split("/");
+  if (isAircraftId(a)) return [a, b];
+  if (a && hasSys(aircraft("sr20"), a)) return ["sr20", a];
+  return null;
+}
+
+/** Show an airplane at `sys`, or else at its last-viewed system, or else its overview; remember it for the next visit. */
+function show(ac: AircraftId, sys?: string | null) {
+  const def = aircraft(ac), v = useView.getState();
+  if (!hasSys(def, sys)) sys = read("sys:" + ac) ?? (ac === "sr20" ? read("sr20sys") : null);
+  const start: SysId = hasSys(def, sys) ? sys : "overview";
+  if (ac !== v.ac) selectAircraft(ac, start);
+  else if (start !== v.sys) selectSys(start);
+  try { localStorage.setItem("fleetAc", ac); } catch {}
+}
+
+/** Restore theme, airplane and last-viewed system; the URL hash wins, on load and when it changes. */
 function useBoot() {
   useEffect(() => {
-    const st = useView.getState();
     let theme: Theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     const t = read("sr20theme");
     if (t === "light" || t === "dark") theme = t;
-    st.setTheme(theme);
-    const [a, b] = decodeURIComponent(location.hash.slice(1)).split("/");
-    let ac: AircraftId = "sr20", sys: string | null | undefined;
-    if (isAircraftId(a)) { ac = a; sys = b; }
-    else if (a && hasSys(aircraft("sr20"), a)) sys = a;
-    else { const saved = read("fleetAc"); if (isAircraftId(saved)) ac = saved; }
-    const def = aircraft(ac);
-    if (!hasSys(def, sys)) sys = read("sys:" + ac) ?? (ac === "sr20" ? read("sr20sys") : null);
-    const start: SysId = hasSys(def, sys) ? sys : "overview";
-    if (ac !== st.ac) selectAircraft(ac, start);
-    else if (start !== "overview") selectSys(start);
+    useView.getState().setTheme(theme);
+    const h = fromHash(), saved = read("fleetAc");
+    if (h) show(...h);
+    else show(isAircraftId(saved) ? saved : "sr20");
+    const onHash = () => { const x = fromHash(); if (x) show(...x); };
+    addEventListener("hashchange", onHash);
+    return () => removeEventListener("hashchange", onHash);
   }, []);
-}
-
-/** Tab title follows the airplane. */
-function useTitle() {
-  const def = useAircraft();
-  useEffect(() => { document.title = `${def.name} Systems`; }, [def]);
 }
 
 export default function App() {
   useBoot();
-  useTitle();
-  const ac = useView((x) => x.ac);
+  const def = useAircraft();
   return (
     <div className="app">
+      <title>{`${def.name} Systems`}</title>
       <Rail />
       <main className="stage">
         <Scene />
         <div className="hint">Hover parts · drag to orbit</div>
         <Toolbar />
-        <Alerts key={ac} />
-        <Hud />
+        <div className="stage-foot">
+          <Alerts key={def.id} />
+          <Hud />
+        </div>
         <Tooltip />
       </main>
       <Panel />
