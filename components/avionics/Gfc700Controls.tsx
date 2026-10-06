@@ -8,7 +8,7 @@
 import "./avionics.css";
 import { Readouts } from "@/components/ui/controls";
 import { navDots, type FlightState, type FlySet } from "@/lib/avionics/flight";
-import { GFC700_C172S, gfc700Annunc, type Gfc700Cfg, type Gfc700Key, type Gfc700State } from "@/lib/avionics/gfc700";
+import { gfc700Annunc, type Gfc700Cfg, type Gfc700Key, type Gfc700State } from "@/lib/avionics/gfc700";
 import { AfcsStrip, FlyControls, HoldKey, Key, pad3, ToneLine } from "./parts";
 
 /** Bezel key arrangements: Cessna NAV III GDU 1040 (PFD and MFD) and DA40 MFD (no BC; YD slot empty unless installed). */
@@ -27,7 +27,8 @@ export interface Gfc700ControlsProps {
   onSet?: (p: FlySet) => void;
   /** AFCS has power (keys dead otherwise). */
   powered: boolean;
-  cfg?: Gfc700Cfg;
+  /** The airplane's GFC 700 configuration (BC key, YD, switch labels). */
+  cfg: Gfc700Cfg;
   /** Key layout: "cessna" (C172S, keys on PFD and MFD) or "da40" (MFD only). */
   layout?: "cessna" | "da40";
   /** Caption over the keys, e.g. "PFD / MFD bezel". */
@@ -38,7 +39,7 @@ export interface Gfc700ControlsProps {
   loc?: [boolean, boolean];
 }
 
-export function Gfc700Controls({ st, fs, onKey, onSet, powered, cfg = GFC700_C172S, layout = "cessna", where, yoke, loc }: Gfc700ControlsProps) {
+export function Gfc700Controls({ st, fs, onKey, onSet, powered, cfg, layout = "cessna", where, yoke, loc }: Gfc700ControlsProps) {
   const a = powered ? gfc700Annunc(st, fs, cfg) : null;
   const dots = navDots(fs);
   const grid = LAYOUTS[layout].flat().map((k, i) => {

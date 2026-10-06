@@ -11,7 +11,8 @@
  * - AP off by AP key / AP DISC / MET / GA: yellow "AP" flashes 5 s + 2 s tone. Automatic (failure)
  *   disconnect: red flashing "AP" + continuous tone until AP DISC (or MET) acknowledges.
  * Keep the state with the flight state (outside React), call `gfc700Tick` every frame and
- * `gfc700Key` on key presses; both return the same object when nothing changed.
+ * `gfc700Key` on key presses; both return the same object when nothing changed. Every function takes the
+ * airplane's `Gfc700Cfg` (built from GFC700_BASE in the airplane's model.ts).
  */
 import type { AfcsAnnunc } from "./g1000";
 import {
@@ -35,11 +36,13 @@ export type Gfc700Key =
 export interface Gfc700Cfg {
   /** Yaw damper installed (neither the C172S nor the DA40 has one). */
   hasYD: boolean;
-  /** Dedicated BC key (Cessna NAV III bezel). Without it NAV on a localizer becomes BC when the course is > 105° from the heading (DA40). */
+  /** Dedicated BC key (Cessna NAV III bezel). Without it (DA40) NAV on a localizer annunciates LOC until the course is more than `bcAngle` from the heading, then BC. */
   bcKey: boolean;
+  /** Course-to-heading angle (deg) beyond which NAV on a localizer is back course (airplanes without a BC key). */
+  bcAngle: number;
   /** NOSE UP/DN reference ranges: VS (fpm), FLC IAS (kt), PIT (deg). */
   vsMin: number; vsMax: number; flcMin: number; flcMax: number; pitMin: number; pitMax: number;
-  /** Max autopilot airspeed (kt): above it in PIT/VS/FLC/VPTH the FD pitches up and MAXSPD flashes. */
+  /** Max autopilot airspeed (kt): above it in PIT/VS/FLC/VPTH the FD pitches up and MAXSPD flashes. Infinity = not modelled. */
   vmo: number;
   /** FD bank limit (deg) and GA / TO pitch (deg). */
   maxBank: number; gaPitch: number;
@@ -51,14 +54,15 @@ export interface Gfc700Cfg {
   flight?: FlightCfg;
 }
 
-const BASE: Gfc700Cfg = {
-  hasYD: false, bcKey: true, vsMin: -3000, vsMax: 1500, flcMin: 70, flcMax: 165, pitMin: -15, pitMax: 20,
-  vmo: 165, maxBank: 22, gaPitch: 7, pftSec: 5, discLabel: "AP DISC", trimLabel: "AP TRIM",
+/**
+ * Starting point for an airplane's configuration: the G1000 CRG mode references (VS +1,500 / −3,000 fpm, FLC 70–165 KIAS,
+ * PIT +20° / −15°, 22° bank, 7° GA pitch; BC beyond 105°). No overspeed protection until the airplane sets `vmo` from its
+ * own documents. Airplane configs live in aircraft/<id>/model.ts.
+ */
+export const GFC700_BASE: Gfc700Cfg = {
+  hasYD: false, bcKey: true, bcAngle: 105, vsMin: -3000, vsMax: 1500, flcMin: 70, flcMax: 165, pitMin: -15, pitMax: 20,
+  vmo: Number.POSITIVE_INFINITY, maxBank: 22, gaPitch: 7, pftSec: 5, discLabel: "AP DISC", trimLabel: "AP TRIM",
 };
-/** C172S NAV III: keys on both PFD and MFD bezels incl. BC; A/P TRIM DISC on the yoke; AP 70–150 KIAS (POH §2). */
-export const GFC700_C172S: Gfc700Cfg = { ...BASE, vmo: 150, flcMax: 150, discLabel: "A/P TRIM DISC", trimLabel: "MET" };
-/** DA40: keys on the MFD bezel only, no BC key; AP DISC / CWS / AP TRIM on the stick, GA on the throttle; AP 70–165 KIAS (AFMS). */
-export const GFC700_DA40: Gfc700Cfg = { ...BASE, bcKey: false };
 
 /** AFCS system status annunciations (shown left of the mode bar), in increasing priority. */
 export type Gfc700Mistrim = "AIL→" | "←AIL" | "↓ELE" | "↑ELE";
@@ -116,7 +120,7 @@ export function gfc700Init(): Gfc700State {
 }
 
 /** Power the AFCS on/off (AVIONICS + AUTO PILOT / AFCS breaker). Idempotent — call it every tick. Power-up starts the preflight test. */
-export function gfc700Power(st: Gfc700State, on: boolean, now: number, cfg = GFC700_C172S): Gfc700State {
+export function gfc700Power(st: Gfc700State, on: boolean, now: number, cfg: Gfc700Cfg): Gfc700State {
   if (on === st.powered) return st;
   if (!on) return { ...gfc700Init(), fail: st.fail, trim: st.trim };
   return { ...gfc700Init(), fail: st.fail, trim: st.trim, powered: true, pft: "run", pftEnd: now + cfg.pftSec };
@@ -180,6 +184,9 @@ function loseVert(s: Gfc700State, fs: FlightState, now: number, cfg: Gfc700Cfg) 
   s.vertFlash = { text: was, c: "y", until: now + 10 };
 }
 
+/** Without a BC key, NAV on a localizer is back course once the course is more than `bcAngle` from the heading. */
+const navLocMode = (fs: FlightState, cfg: Gfc700Cfg): Gfc700Lat => (!cfg.bcKey && Math.abs(wrap180(fs.crs - fs.hdg)) > cfg.bcAngle ? "BC" : "LOC");
+
 /** The nav mode the NAV / APR / BC key would select on the current source. */
 function navModeFor(fs: FlightState, key: "NAV" | "APR" | "BC", cfg: Gfc700Cfg): Gfc700Lat | null {
   if (!fs.navValid) return null;
@@ -187,14 +194,15 @@ function navModeFor(fs: FlightState, key: "NAV" | "APR" | "BC", cfg: Gfc700Cfg):
   if (key === "BC") return isLoc(src) ? "BC" : null;
   if (src === "GPS") return "GPS";
   if (!isLoc(src)) return key === "APR" ? "VAPP" : "VOR";
-  if (key === "NAV" && !cfg.bcKey && Math.abs(wrap180(fs.crs - fs.hdg)) > 105) return "BC";
-  return "LOC";
+  return key === "NAV" ? navLocMode(fs, cfg) : "LOC";
 }
 
 /** NAV / APR / BC key; false when it can't do anything (no valid signal). */
 function navKey(s: Gfc700State, key: "NAV" | "APR" | "BC", fs: FlightState, cfg: Gfc700Cfg): boolean {
   const apr = key === "APR";
-  const fromThisKey = s.apr === apr && (key !== "BC" || s.lat === "BC" || s.latArm === "BC");
+  // Alternate action applies to the key that selected the mode: with a BC key, BC belongs to it and NAV goes to LOC.
+  const bc = s.lat === "BC" || s.latArm === "BC";
+  const fromThisKey = s.apr === apr && (key === "BC" ? bc : !(cfg.bcKey && bc));
   if (s.latArm && isNav(s.latArm) && fromThisKey) { s.latArm = null; s.apr = false; s.vertArm = withoutPath(s.vertArm); return true; }
   if (isNav(s.lat) && fromThisKey) { setLat(s, "ROL", fs, cfg); s.apr = false; s.src = null; s.vertArm = withoutPath(s.vertArm); return true; }
   const m = navModeFor(fs, key, cfg);
@@ -209,7 +217,7 @@ function navKey(s: Gfc700State, key: "NAV" | "APR" | "BC", fs: FlightState, cfg:
 }
 
 /** Apply a key / button / switch. Returns the same state when the key does nothing. */
-export function gfc700Key(st: Gfc700State, key: Gfc700Key, fs: FlightState, cfg = GFC700_C172S): Gfc700State {
+export function gfc700Key(st: Gfc700State, key: Gfc700Key, fs: FlightState, cfg: Gfc700Cfg): Gfc700State {
   if (!st.powered) return st;
   const s: Gfc700State = { ...st, ref: { ...st.ref }, vertArm: [...st.vertArm] };
   const now = fs.t;
@@ -299,7 +307,7 @@ export function gfc700Key(st: Gfc700State, key: Gfc700Key, fs: FlightState, cfg 
 }
 
 /** Per-frame logic: preflight test, sensor/nav losses, armed → active captures. Same object back when nothing changed. */
-export function gfc700Tick(st: Gfc700State, fs: FlightState, dt: number, cfg = GFC700_C172S): Gfc700State {
+export function gfc700Tick(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): Gfc700State {
   if (!st.powered) return st;
   const now = fs.t;
   let s: Gfc700State | null = null;
@@ -318,6 +326,14 @@ export function gfc700Tick(st: Gfc700State, fs: FlightState, dt: number, cfg = G
   if ((isNav(c.lat) || isNav(c.latArm)) && navLost) loseLat(w(), now, "nav");
   const c2 = s ?? st;
   if ((c2.vert === "GS" || c2.vert === "GP") && fs.gsErr == null) loseVert(w(), fs, now, cfg);
+
+  // no BC key: NAV on a localizer shows LOC until the course is more than bcAngle from the heading, then BC (DA40 AFMS)
+  const b = s ?? st;
+  if (!cfg.bcKey && !b.apr) {
+    const m = navLocMode(fs, cfg);
+    if ((b.lat === "LOC" || b.lat === "BC") && b.lat !== m) w().lat = m;
+    if ((b.latArm === "LOC" || b.latArm === "BC") && b.latArm !== m) w().latArm = m;
+  }
 
   // lateral capture
   const c3 = s ?? st;
@@ -358,7 +374,7 @@ const overspeed = (st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg) =>
   st.fd && fs.ias > cfg.vmo && ["PIT", "VS", "FLC", "VPTH"].includes(st.vert);
 
 /** Flight director command (what the command bars show and the servos fly when engaged); null with the FD off. */
-export function gfc700Command(st: Gfc700State, fs: FlightState, cfg = GFC700_C172S): FlightCmd | null {
+export function gfc700Command(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): FlightCmd | null {
   if (!st.powered || !st.fd) return null;
   const maxB = Math.min(cfg.maxBank, Math.max(stdRateBank(fs), 12));
   let bank = 0;
@@ -395,7 +411,7 @@ export function gfc700Command(st: Gfc700State, fs: FlightState, cfg = GFC700_C17
 const blank = (f: Gfc700Flash | null, now: number) => (f && f.until > now ? f : null);
 
 /** Mode annunciations for the PFD AFCS status bar (null when unpowered). */
-export function gfc700Annunc(st: Gfc700State, fs: FlightState, cfg = GFC700_C172S): AfcsAnnunc | null {
+export function gfc700Annunc(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): AfcsAnnunc | null {
   if (!st.powered) return null;
   const now = fs.t, f = st.fail;
   const sys: AfcsAnnunc["sys"] =

@@ -169,7 +169,7 @@ function stepAir(s: Sim, E: Elec, P: number, dt: number) {
   const cmd = ac ?? (live.stallDemo ? { bank: 0, vs: 0 } : pilot);
   fs = stepFlight(fs, cmd, dt, C172_FLIGHT);
   if (s.ground) fs = { ...fs, ias: 0, vs: 0, pitch: 0, roll: 0, iasDot: 0 };
-  live.afcs = gfc700Tick(live.afcs, fs, dt, AFCS_CFG);
+  live.afcs = gfc700Tick(live.afcs, fs, AFCS_CFG);
   // autotrim relieves the pitch servo: trim follows the attitude the AP is holding
   if (engaged && live.afcs.pft === "pass" && !live.afcs.fail.trim) {
     const want = clamp((fs.pitch - 2.8) / 5, -1, 1);

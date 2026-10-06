@@ -4,18 +4,15 @@
  * flight-state stepping. Continuous values go to `live`; only discrete changes go through the store.
  */
 import { pitchFor, stepFlight, yokeCmd, type FlightCmd } from "@/lib/avionics/flight";
-import { GFC700_DA40, gfc700Command, gfc700Engaged, gfc700Fail, gfc700Power, gfc700Tick, type Gfc700Key, type Gfc700Mistrim, type Gfc700State } from "@/lib/avionics/gfc700";
+import { gfc700Command, gfc700Engaged, gfc700Fail, gfc700Power, gfc700Tick, type Gfc700Key, type Gfc700Mistrim, type Gfc700State } from "@/lib/avionics/gfc700";
 import { clamp, lerp } from "@/lib/math";
-import { DA40_FLIGHT, fuelAvail, gaugeTarget, govRpm, live } from "./model";
+import { AFCS_CFG, DA40_FLIGHT, fuelAvail, gaugeTarget, govRpm, live } from "./model";
 import { useDA40 } from "./store";
 
-/** GFC 700 configuration with the DA40 flight model, so FLC and MAXSPD solve for this airplane's speeds. */
-export const AFCS_CFG = { ...GFC700_DA40, flight: DA40_FLIGHT };
 /** Ignition key START hold (s): released when the engine fires, or after this (AFM: crank at most 10 s). */
 export const START_HOLD = 6;
 /** Trim that holds ~119 KIAS level with the stick centred (pilot command pitch = 1.5° + 4° × trim). */
 export const TRIM_PITCH = (trim: number) => 1.5 + trim * 4;
-live.afcs = { ...live.afcs, trim: 0.27 };
 
 /** Engine power fraction 0..1 from MAP and RPM (illustrative). */
 export const powerFrac = (map: number, rpm: number) => clamp(((map - 10) / 18.5) * (rpm / 2700), 0, 1);
@@ -145,7 +142,7 @@ export function simTick(dt: number) {
   const ap = engaged ? gfc700Command(live.afcs, live.fs, AFCS_CFG) : null;
   const cmd: FlightCmd = ap ?? yokeCmd(s.ctrl.roll, s.ctrl.pitch, TRIM_PITCH(live.afcs.trim));
   live.fs = stepFlight({ ...live.fs, power: run ? s.eng.throttle : 0 }, cmd, dt, DA40_FLIGHT);
-  live.afcs = gfc700Tick(live.afcs, live.fs, dt, AFCS_CFG);
+  live.afcs = gfc700Tick(live.afcs, live.fs, AFCS_CFG);
 
   // servos drive the stick and surfaces while engaged; autotrim offloads the pitch servo (CRG 6-21)
   const f = live.fs;

@@ -1,7 +1,7 @@
 "use client";
 import { gfc700Init } from "@/lib/avionics/gfc700";
 import { createSimStore } from "@/lib/simStore";
-import { cruiseFlight, groundFlight, initialSim, live, solveElec, type Sim } from "./model";
+import { CRUISE_TRIM, cruiseFlight, groundFlight, initialSim, live, solveElec, type Sim } from "./model";
 
 /** DA40 systems state (switches, levers, failures, quantities) and its electrical solution. */
 export const useDA40 = createSimStore(initialSim, solveElec);
@@ -11,7 +11,7 @@ const fresh = (): Sim => structuredClone(initialSim);
 /** Normal cruise at 4,500 ft: everything on and working (the initial state). */
 export function scenarioCruise() {
   live.fs = cruiseFlight();
-  live.afcs = { ...gfc700Init(), trim: 0.27 };
+  live.afcs = { ...gfc700Init(), trim: CRUISE_TRIM };
   live.afcsDerived = "";
   Object.assign(live, { rpm: 2400, map: 23.5, ff: 9.4, fuelP: 27, oilP: 78, oilT: 188, cht: 345, egt: 1360, flapAng: 0, prime: 0, fireT: -1, oilLoss: 0 });
   useDA40.getState().update((d) => { const f = fresh(); Object.assign(d, { ...f, fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR } }); });

@@ -5,7 +5,7 @@
  * G1000 SMM 190-00303-03 Fig. 2-1 (breaker panel) and the Garmin GFC 700 electrical load analysis.
  */
 import { initFlight, type FlightCfg, type FlightState } from "@/lib/avionics/flight";
-import { gfc700Init, type Gfc700Fail } from "@/lib/avionics/gfc700";
+import { GFC700_BASE, gfc700Init, type Gfc700Cfg, type Gfc700Fail } from "@/lib/avionics/gfc700";
 import type { CasLevel } from "../types";
 
 /** Ignition key, in AFM order OFF – L – R – BOTH – START (AFM 7.9.1). */
@@ -73,6 +73,16 @@ export const initialSim: Sim = {
 /** Flight-state model tuned for the DA40: ~120 KIAS at 73 % power, ~145 at full power, Vy climb ≈ 900 fpm. */
 export const DA40_FLIGHT: FlightCfg = { v0: 52, vp: 93, fpmPerKt: 12, vMin: 50, maxBank: 30, rollRate: 8, tauVs: 1.6, tauIas: 7 };
 
+/**
+ * GFC 700 configuration (AFMS 190-00492-00): mode keys on the MFD bezel only and no BC key — NAV on a localizer annunciates
+ * LOC until the course is at least 115° from the heading, then BC (AFMS back-course procedure note; the CRG 190-00324-07
+ * p. 6-19 says "greater than 105°", the approved AFMS figure is used). No yaw damper; AP DISC, CWS and AP TRIM on the stick,
+ * GA on the throttle; engage 70–165 KIAS (AFMS p. 16), MAXSPD above 165. FLC solves with the DA40 flight model.
+ */
+export const AFCS_CFG: Gfc700Cfg = { ...GFC700_BASE, bcKey: false, bcAngle: 115, vmo: 165, flight: DA40_FLIGHT };
+/** Elevator trim (−1 nose down … +1 nose up) that holds ~119 KIAS level with the stick centred (tick.ts TRIM_PITCH). */
+export const CRUISE_TRIM = 0.27;
+
 export const cruiseFlight = (): FlightState => initFlight({ hdg: 40, hdgBug: 40, crs: 40, alt: 4500, selAlt: 4500, ias: 119, power: 0.72, oat: 6, baro: 30.02 });
 /** On the ramp: wings and fuselage about level on the wheels (the integrator does not move pitch on the ground). */
 export const groundFlight = (): FlightState => initFlight({ hdg: 10, hdgBug: 10, crs: 10, alt: 190, selAlt: 3000, ias: 0, power: 0, vs: 0, pitch: 0, oat: 6, onGround: true, baro: 30.02 });
@@ -91,7 +101,7 @@ export const live = {
   /** Effective control positions shown on the sticks and surfaces (pilot or autopilot servos). */
   eff: { pitch: 0, roll: 0, yaw: 0 },
   fs: cruiseFlight(),
-  afcs: gfc700Init(),
+  afcs: { ...gfc700Init(), trim: CRUISE_TRIM },
   /** Failures injected from the Autopilot panel (merged with failures derived from lost LRUs each tick). */
   afcsUser: {} as Gfc700Fail,
   /** Last AFCS failure set applied (so it is only re-applied on change). */

@@ -10,7 +10,7 @@ import type { CasLevel } from "../types";
 import { cbKey, nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
 import { nav3Annunciations } from "../cessna/annunciations";
 import { FLIGHT_DEFAULT, initFlight, type FlightCfg } from "@/lib/avionics/flight";
-import { GFC700_C172S, gfc700Init, type Gfc700Cfg } from "@/lib/avionics/gfc700";
+import { GFC700_BASE, gfc700Init, type Gfc700Cfg } from "@/lib/avionics/gfc700";
 
 export type Mags = "OFF" | "R" | "L" | "BOTH" | "START";
 export type FuelSel = "BOTH" | "LEFT" | "RIGHT";
@@ -82,12 +82,13 @@ export const initialSim: Sim = {
 /** Teaching flight model for the 172S: 110 KIAS at 75% power, ~730 fpm at Vy 74 KIAS with full power. */
 export const C172_FLIGHT: FlightCfg = { ...FLIGHT_DEFAULT, v0: 50, vp: 80, fpmPerKt: 13, vMin: 40, maxBank: 30 };
 /**
- * GFC 700 configuration. The 172S documents give only the 70–150 KIAS engagement limits (POH 2-21), not an autopilot
- * maximum operating speed, so the generic overspeed protection (MAXSPD, DA40: 165 KIAS) is not modelled here.
- * Bank limit, GA pitch and the NOSE UP/DN reference ranges are DA40 values (NOT IN DOCS for the 172S).
+ * GFC 700 configuration: keys on both the PFD and MFD bezels including BC, A/P TRIM DISC and MET on the pilot's wheel.
+ * The 172S documents give only the 70–150 KIAS engagement limits (POH 2-21), so FLC references stop at 150 KIAS; there is no
+ * autopilot maximum operating speed, so the overspeed protection (MAXSPD) is not modelled (GFC700_BASE leaves `vmo` open).
+ * Bank limit, GA pitch and the NOSE UP/DN reference ranges are the CRG values (NOT IN DOCS for the 172S).
  * FLC solves for speed with the 172S flight model.
  */
-export const AFCS_CFG: Gfc700Cfg = { ...GFC700_C172S, vmo: Number.POSITIVE_INFINITY, flight: C172_FLIGHT };
+export const AFCS_CFG: Gfc700Cfg = { ...GFC700_BASE, flcMax: 150, discLabel: "A/P TRIM DISC", trimLabel: "MET", flight: C172_FLIGHT };
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
 export const live = {

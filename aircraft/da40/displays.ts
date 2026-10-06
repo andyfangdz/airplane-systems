@@ -6,8 +6,7 @@ import { flightData } from "@/lib/avionics/flight";
 import { drawMFD, drawPFD, drawStandbyAirspeed, drawStandbyAltimeter, drawStandbyAttitude, type Gauge, type MfdData, type PfdData, type SpeedBands } from "@/lib/avionics/g1000";
 import { gfc700Annunc } from "@/lib/avionics/gfc700";
 import { drawOff } from "@/lib/canvas";
-import { BUSES, SPARE_CB, annunciations, displays, live, type Elec, type Sim } from "./model";
-import { AFCS_CFG } from "./tick";
+import { AFCS_CFG, BUSES, SPARE_CB, annunciations, displays, live, type Elec, type Sim } from "./model";
 
 export { drawOff };
 

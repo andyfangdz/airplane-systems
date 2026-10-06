@@ -4,10 +4,10 @@ import { useReducer } from "react";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Small, useTicker } from "@/components/ui/controls";
 import { initFlight, type FlightState, type FlySet } from "@/lib/avionics/flight";
 import { gfc700Key, type Gfc700Fail, type Gfc700Key } from "@/lib/avionics/gfc700";
-import { cruiseFlight, displays, live } from "../model";
+import { AFCS_CFG, cruiseFlight, displays, live } from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
-import { AFCS_CFG, PFD_LOST_KEYS } from "../tick";
+import { PFD_LOST_KEYS } from "../tick";
 
 export function Avionics() {
   useTicker(250);
@@ -153,7 +153,7 @@ export function Autopilot() {
         ["ALTS", "Selected-altitude capture (ALT knob) → ALT at 50 ft"],
         ["VS", "Holds vertical speed, 100 fpm steps, +1,500 / −3,000 fpm"],
         ["FLC", "Holds airspeed 70–165 KIAS; NOSE UP = slower; never away from the selected altitude"],
-        ["NAV: GPS / VOR / LOC / BC", "Captures with the CDI within one dot, otherwise arms (white). BC when the course is > 105° from heading"],
+        ["NAV: GPS / VOR / LOC / BC", "Captures with the CDI within one dot, otherwise arms (white). On a localizer LOC shows until the course is at least 115° from the heading, then BC (AFMS; the CRG says 105°)"],
         ["APR: GPS / VAPP / LOC + GS / GP", "Approach; GS only after LOC capture; GP needs WAAS (GIA 63W)"],
         ["VPTH", "VNAV path (VNV key — optional GDU 1044, N949KC fit unconfirmed); ALTV target capture"],
         ["GA", "Throttle button: AP off, wings level, 7° nose up, ALTS armed"],
