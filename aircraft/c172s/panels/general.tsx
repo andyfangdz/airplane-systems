@@ -105,7 +105,9 @@ export function Airframe() {
 /* ---------- cabin & safety ---------- */
 export function Cabin() {
   useTicker(500);
-  const s = useC172((x) => x.s), up = useC172((x) => x.update), c = s.cabin;
+  const s = useC172((x) => x.s), E = useC172((x) => x.E), up = useC172((x) => x.update), c = s.cabin;
+  // the hour meter needs oil pressure above 20 PSI and power through the WARN breaker (POH 7-13, 7-49)
+  const hobbs: [string, "warnc"] | string = !E.on["XF:WARN"] ? ["No (no WARN power)", "warnc"] : live.oilP > 20 ? "Yes (oil > 20 PSI)" : "No";
   return (
     <>
       <p className="lead">Two vertically adjusting crew seats and a rear bench, integrated belts with inertia reels, two cabin doors with openable windows, a two-area baggage compartment with a door on the left, and the safety equipment: Halon extinguisher, ELT, CO detector and hour meter.</p>
@@ -113,7 +115,7 @@ export function Cabin() {
       <Ctl>
         <Check id="lock" label="Control lock installed (flag over the ignition switch)" checked={c.lock} onChange={(v) => up((d) => { d.cabin.lock = v; })} />
         <Seg id="elt" label="ELT remote switch" options={[["ARM", "ARM"], ["ON", "ON"], ["TEST", "TEST/RESET"]]} value={c.elt} onChange={(v) => up((d) => { d.cabin.elt = v; })} />
-        <Readouts items={[["Hobbs", live.hobbs.toFixed(1)], ["Hobbs running", live.oilP > 20 ? "Yes (oil > 20 PSI)" : "No"], ["ELT", c.elt === "ON" ? ["TRANSMITTING", "bad"] : c.elt === "TEST" ? ["TEST", "warnc"] : "Armed"], ["CO", live.coPpm >= 50 ? ["CO LVL HIGH", "bad"] : `${Math.round(live.coPpm)} ppm`]]} />
+        <Readouts items={[["Hobbs", live.hobbs.toFixed(1)], ["Hobbs running", hobbs], ["ELT", c.elt === "ON" ? ["TRANSMITTING", "bad"] : c.elt === "TEST" ? ["TEST", "warnc"] : "Armed"], ["CO", live.coPpm >= 50 ? ["CO LVL HIGH", "bad"] : `${Math.round(live.coPpm)} ppm`]]} />
       </Ctl>
       {c.lock && <Caution title="Caution">CONTROL LOCK — REMOVE BEFORE STARTING ENGINE (placard, POH 2-23).</Caution>}
       <H3>Equipment — tap to locate</H3>

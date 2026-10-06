@@ -14,10 +14,10 @@ export function Overview() {
   return (
     <>
       <p className="lead">A study model of AFM Section 7 for Paramus Flying Club&apos;s 2008 Diamond DA40 XLS, N949KC (Canadian-built s/n 40.949): G1000 with the GFC 700 autopilot, Lycoming IO-360-M1A and an MT three-blade constant-speed propeller. Pick a system to fly the camera to it, hover parts for their notes, and work the switches, levers, breakers and failures in the panel. Everything is linked — pull a breaker and the bus, the load, the displays, the annunciations and the 3D model respond.</p>
-      <H3>Scenario</H3>
+      <H3>Start from</H3>
       <Ctl>
         <BtnRow>
-          <button type="button" className="btn" onClick={scenarioCruise}>Normal cruise · 4,500 ft</button>
+          <button type="button" className="btn" onClick={scenarioCruise}>Cruise · 4,500 ft</button>
           <button type="button" className="btn" onClick={() => { scenarioRamp(); selectSys("engine"); }}>Cold &amp; dark on the ramp → start</button>
         </BtnRow>
         <Readouts items={[["Where", air ? "Airborne" : "On the ramp"], ["Engine", running ? "RUNNING" : ["STOPPED", "bad"]]]} />

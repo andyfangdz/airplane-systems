@@ -1,7 +1,7 @@
 "use client";
 import { gfc700Init } from "@/lib/avionics/gfc700";
 import { createSimStore } from "@/lib/simStore";
-import { CRUISE_TRIM, cruiseFlight, groundFlight, initialSim, live, solveElec, type Sim } from "./model";
+import { CRUISE_TRIM, TO_TRIM, cruiseFlight, groundFlight, initialSim, live, solveElec, type Sim } from "./model";
 
 /** DA40 systems state (switches, levers, failures, quantities) and its electrical solution. */
 export const useDA40 = createSimStore(initialSim, solveElec);
@@ -23,7 +23,7 @@ export function scenarioCruise() {
  */
 export function scenarioRamp() {
   live.fs = groundFlight();
-  live.afcs = { ...gfc700Init(), trim: 0.1 };
+  live.afcs = { ...gfc700Init(), trim: TO_TRIM };
   live.afcsDerived = "";
   Object.assign(live, { rpm: 0, map: 29.7, ff: 0, fuelP: 0, oilP: 0, oilT: 43, cht: 43, egt: 43, flapAng: 0, prime: 0, fireT: -1, oilLoss: 0, crankT: 0 });
   useDA40.getState().update((d) => {

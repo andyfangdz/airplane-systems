@@ -142,7 +142,7 @@ const WICK = "#2A2F33";
 onSurf("elev", V(ELEV_HINGE_X - 0.27, SY, 0.0), () => cyl(0.004, 0.1, "x", 6), { color: WICK, name: "Static discharger", note: wickNote, ext: true });
 onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x", 6), { color: WICK, name: "Static discharger", note: wickNote, ext: true });
 [1, -1].forEach((s) => onSurf("elev", V(sLE(1.58) - 0.3 * sC(1.58), SY, s * 1.58), () => box(0.05, 0.03, 0.08), { color: "#6E7A84", name: "Elevator horn balance", note: "The elevator tips reach forward of the hinge line (horn balance), reducing stick forces and helping prevent flutter.", pin: s > 0 }));
-onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.004), { color: "#8C99A3", name: "Rudder trim tab", note: "Fixed, ground-adjustable tab — checked on the walk-around (AFM 4A-7). There is no cockpit rudder trim; the GFC 700 out-of-trim check means 'centre the ball with rudder'.", ext: true, pin: true });
+onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.004), { color: "#8C99A3", name: "Rudder trim tab", note: "Rudder trim tab — a walk-around item (visual inspection, AFM 4A-7). There is no cockpit rudder trim; the tab's type and position on the rudder are not in the documents, so it is shown as a fixed tab. The GFC 700 out-of-trim check then means 'centre the ball with rudder'.", ext: true, pin: true });
 // elevator trim tab rides on the elevator and turns about its own hinge with the trim position
 {
   const pv = surfacePivot("elev"), xh = ELEV_HINGE_X - 0.22 + TAB.chord, zc = (TAB.z0 + TAB.z1) / 2;

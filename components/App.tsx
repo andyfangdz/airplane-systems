@@ -64,7 +64,7 @@ function Panel() {
   return (
     <aside className="panel">
       <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
-        <div className="ref"><i />{def.doc} · p. {s.pg}</div>
+        <div className="ref"><i />{s.ref ?? `${def.doc} · p. ${s.pg}`}</div>
         <h2>{s.id === "overview" ? "Airplane & Systems" : s.name}</h2>
         {Body ? <Body /> : <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
       </div>

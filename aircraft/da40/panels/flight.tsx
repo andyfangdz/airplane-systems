@@ -5,7 +5,7 @@ import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider, Small, useTicker } from "@/components/ui/controls";
 import { gfc700Engaged } from "@/lib/avionics/gfc700";
-import { live, type FlapSel } from "../model";
+import { TO_TRIM, live, type FlapSel } from "../model";
 import { CAT } from "../parts";
 import { deflections } from "../rig";
 import { useDA40 } from "../store";
@@ -63,8 +63,11 @@ export function Controls() {
         <Slider id="ctlPitch" label="Stick pitch (push ↔ pull)" min={-1} max={1} step={0.01} value={s.ctrl.pitch} onChange={(v) => up((x) => { x.ctrl.pitch = v; })} fmt={(v) => dir(v, "Nose up", "Nose down", "Neutral")} />
         <Slider id="ctlRoll" label="Stick roll" min={-1} max={1} step={0.01} value={s.ctrl.roll} onChange={(v) => up((x) => { x.ctrl.roll = v; })} fmt={(v) => dir(v, "Right", "Left", "Neutral")} />
         <Slider id="ctlYaw" label="Rudder pedals" min={-1} max={1} step={0.01} value={s.ctrl.yaw} onChange={(v) => up((x) => { x.ctrl.yaw = v; })} fmt={(v) => dir(v, "Right", "Left", "Neutral")} />
-        <Slider id="trimW" label="Trim wheel (forward = nose down)" min={-1} max={1} step={0.01} value={trim} onChange={(v) => { live.afcs = { ...live.afcs, trim: v }; bump(); }} fmt={(v) => dir(v, `Nose up ${Math.round(v * 100)}%`, `Nose down ${Math.round(-v * 100)}%`, "Neutral")} />
-        <BtnRow><button type="button" className="btn" onClick={() => up((x) => { x.ctrl = { pitch: 0, roll: 0, yaw: 0 }; })}>Centre controls</button></BtnRow>
+        <Slider id="trimW" label="Trim wheel (forward = nose down)" min={-1} max={1} step={0.01} value={trim} onChange={(v) => { live.afcs = { ...live.afcs, trim: v }; bump(); }} fmt={(v) => (Math.abs(v - TO_TRIM) < 0.015 ? "T/O mark" : dir(v, `Nose up ${Math.round(v * 100)}%`, `Nose down ${Math.round(-v * 100)}%`, "Neutral"))} />
+        <BtnRow>
+          <button type="button" className="btn" onClick={() => up((x) => { x.ctrl = { pitch: 0, roll: 0, yaw: 0 }; })}>Center controls</button>
+          <button type="button" className="btn" onClick={() => { live.afcs = { ...live.afcs, trim: TO_TRIM }; bump(); }}>Trim to takeoff</button>
+        </BtnRow>
         <Readouts items={[
           ["Elevator", d.elev > 0.3 ? `${d.elev.toFixed(0)}° up` : d.elev < -0.3 ? `${(-d.elev).toFixed(0)}° down` : "0°"],
           ["L / R aileron", `${fmtAil(d.ailL)} / ${fmtAil(d.ailR)}`],

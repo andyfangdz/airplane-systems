@@ -5,9 +5,16 @@ import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Sma
 import { initFlight, type FlightState, type FlySet } from "@/lib/avionics/flight";
 import { gfc700Key, type Gfc700Fail, type Gfc700Key } from "@/lib/avionics/gfc700";
 import { AFCS_CFG, cruiseFlight, displays, live } from "../model";
-import { CAT } from "../parts";
+import type { Vec3 } from "@/lib/math";
+import { useView } from "@/lib/view";
+import { CAT, DISPLAY_X } from "../parts";
 import { useDA40 } from "../store";
+import { SYS } from "../systems";
 import { PFD_LOST_KEYS } from "../tick";
+
+/** Close-up on a display (labels off so they don't sit on it), and back to the whole panel. */
+const closeUp = (t: Vec3) => { useView.getState().set({ labels: false }); useView.getState().flyTo([t[0] - 0.46, t[1] + 0.02, t[2]], t); };
+const wholePanel = () => { const [p, t] = SYS.find((x) => x.id === "avionics")!.cam; useView.getState().set({ labels: true }); useView.getState().flyTo(p, t); };
 
 export function Avionics() {
   useTicker(250);
@@ -25,6 +32,11 @@ export function Avionics() {
           <Check id="mfdF" label="MFD fails" checked={s.avx.mfdFail} onChange={(v) => up((x) => { x.avx.mfdFail = v; })} />
           <Check id="ahrsF" label="AHRS fails" checked={s.avx.ahrsFail} onChange={(v) => up((x) => { x.avx.ahrsFail = v; })} />
           <Check id="adcF" label="ADC fails" checked={s.avx.adcFail} onChange={(v) => up((x) => { x.avx.adcFail = v; })} />
+        </BtnRow>
+        <BtnRow>
+          <button type="button" className="btn" onClick={() => closeUp([DISPLAY_X, -0.03, -0.26])}>Close-up: PFD</button>
+          <button type="button" className="btn" onClick={() => closeUp([DISPLAY_X, -0.03, 0.13])}>Close-up: MFD</button>
+          <button type="button" className="btn" onClick={wholePanel}>Whole panel</button>
         </BtnRow>
         <Readouts items={[
           ["PFD", d.pfd ? (d.pfdRev ? "Composite (reversion)" : "Normal") : ["OFF", "bad"]],

@@ -83,6 +83,8 @@ export const DA40_FLIGHT: FlightCfg = { v0: 52, vp: 93, fpmPerKt: 12, vMin: 50, 
 export const AFCS_CFG: Gfc700Cfg = { ...GFC700_BASE, bcKey: false, bcAngle: 105, vmo: 165, flight: DA40_FLIGHT };
 /** Elevator trim (−1 nose down … +1 nose up) that holds ~119 KIAS level with the stick centred (tick.ts TRIM_PITCH). */
 export const CRUISE_TRIM = 0.27;
+/** Trim wheel on its T/O mark (AFM 7-8). The mark's position on the wheel isn't given: modelled slightly nose up. */
+export const TO_TRIM = 0.1;
 
 export const cruiseFlight = (): FlightState => initFlight({ hdg: 40, hdgBug: 40, crs: 40, alt: 4500, selAlt: 4500, ias: 119, power: 0.72, oat: 6, baro: 30.02 });
 /** On the ramp: wings and fuselage about level on the wheels (the integrator does not move pitch on the ground). */

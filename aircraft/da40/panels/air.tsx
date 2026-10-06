@@ -86,6 +86,7 @@ export function Pitot() {
         ["Heat check", "Before taxi: ON — no PITOT FAIL; OFF if not needed (AFMS p. 45)"],
         ["Air data", "GDC 74A behind the panel; OAT probe under the right fuselage"],
         ["Standby", "Pneumatic airspeed and altimeter"],
+        ["Autopilot static sources", "Optional extra static ports on both fuselage sides for autopilot airplanes (OAM 40-267, AFM 7-54); walk-around: check for blockage (AFM 4A-7, 4A-8). Not modelled — N949KC's fit is unconfirmed"],
         ["Required", "Pitot heat and alternate static for night VFR (AFM 2-20)"],
         ["Stall horn check", "Walk-around: suck on the orifice (AFM 4A-6)"],
         ["Autopilot", "Below 70 KIAS in PIT/VS/ALT a stall is possible — disconnect if the horn sounds (AFMS p. 48)"],
