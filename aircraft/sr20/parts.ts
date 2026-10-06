@@ -266,6 +266,14 @@ part(() => box(0.2, 0.13, 0.26), ["electrical"], { pos: [-0.76, 0, 0], name: "BA
 part(() => box(0.08, 0.07, 0.02), ["electrical"], { pos: [2.45, -0.3, -0.6], name: "Ground service receptacle", note: "Left side just aft of the cowl. Regulated 28 V; works only with BAT 1 on.", ext: true });
 
 /* ---------- avionics ---------- */
+// GDU 1050A bezels around the 0.211 × 0.158 m screens (Airplane.tsx SCREENS), sized from the Pilot's Guide drawing (approximate):
+// ≈1.31 × 1.25 of the screen, knobs on the inboard edges, softkeys below. The red DISPLAY BACKUP button sits between them, at the top.
+part(() => box(0.014, 0.198, 0.276), ["avionics"], { pos: [2.285, 0.092, -0.241], color: "#15181B", name: "PFD bezel",
+  note: "COM volume and frequency knobs, BARO, RANGE joystick, menu keys and the FMS knob on its right (inboard) edge; 12 softkeys under the screen." });
+part(() => box(0.014, 0.198, 0.276), ["avionics"], { pos: [2.285, 0.092, 0.101], color: "#15181B", name: "MFD bezel",
+  note: "NAV volume and frequency knobs at the top of its left (inboard) edge; 12 softkeys under the screen." });
+part(() => cyl(0.008, 0.012, "x"), ["avionics"], { pos: [2.274, 0.165, -0.07], color: "#D32640", name: "DISPLAY BACKUP button",
+  note: "Puts both displays in reversionary mode: PFD instruments plus the Engine Strip. Press again to exit. The other display reverts on its own if one fails (POH 7-72)." });
 part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], { pos: [2.43, 0.1, -0.24], name: "GSU 75 ADAHRS", note: "Behind the PFD: attitude/heading reference plus air data computer. ADAHRS 1 on ESS BUS 1.", pin: true });
 part(() => box(0.12, 0.11, 0.15), ["avionics"], { pos: [2.44, 0.12, 0.2], name: "GIA 63W/64W ×2", note: "Integrated avionics units: WAAS GPS, VHF COM/NAV/GS, integration. GIA 1 on ESS BUS 1, GIA 2 on MAIN BUS 2.", pin: true });
 part(() => box(0.1, 0.07, 0.1), ["avionics", "engine"], { pos: [2.44, -0.04, 0.3], name: "GEA 71 Engine Airframe Unit", note: "Digitizes fuel, CHT, EGT, MAP, RPM and other sensors. 3 A ENGINE INSTR on ESS BUS 2." });

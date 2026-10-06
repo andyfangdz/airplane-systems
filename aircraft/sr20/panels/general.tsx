@@ -2,6 +2,7 @@
 import { selectSys } from "@/lib/fleet";
 import { sysColor } from "@/lib/systems";
 import { useView } from "@/lib/view";
+import { mfdReversion, pfdReversion } from "../displays";
 import { cabinLit, extLit } from "../model";
 import { CAT } from "../parts";
 import { useSR20 } from "../store";
@@ -108,14 +109,14 @@ export function Avionics() {
       <Ctl>
         <Check id="dbackup" label="Press DISPLAY BACKUP" checked={s.avx.backup} onChange={(v) => up((d) => { d.avx.backup = v; })} />
         <Check id="pfdfail" label="PFD fails (auto reversion)" checked={s.avx.pfdFail} onChange={(v) => up((d) => { d.avx.pfdFail = v; })} />
-        <Readouts items={[["PFD", E.pfd ? (s.avx.backup ? "Backup" : "ON") : ["OFF", "bad"]], ["MFD", E.mfd ? "ON" : ["OFF", "bad"]], ["Standby", E.stby ? "ON" : ["OFF", "bad"]], ["Avionics bus", E.avx > 0 ? "ON" : ["OFF", "warnc"]]]} />
+        <Readouts items={[["PFD", E.pfd ? (pfdReversion(s, E) ? "Backup" : "ON") : ["OFF", "bad"]], ["MFD", E.mfd ? (mfdReversion(s, E) ? "Backup" : "ON") : ["OFF", "bad"]], ["Standby", E.stby ? "ON" : ["OFF", "bad"]], ["Avionics bus", E.avx > 0 ? "ON" : ["OFF", "warnc"]]]} />
       </Ctl>
       <H3>Dual power paths</H3>
       <Facts rows={[["PFD", "PFD A ESS 1 · PFD B MAIN 2"], ["MFD", "MFD A MAIN 3 · MFD B MAIN 1"], ["Standby MD302", "ESS 1 + MAIN 1 via diodes"], ["ADAHRS 1 / 2", "ESS 1 / MAIN 2"], ["GIA 1", "COM 1 + GPS NAV, ESS 1"], ["GIA 2", "COM 2 + GPS NAV, MAIN 2"], ["GEA 71", "3 A ENGINE INSTR, ESS 2"], ["Audio · XPDR", "AVIONICS bus"]]} />
       <H3>CAS colors</H3>
       <Facts rows={[["Red warning", "Immediate awareness and action"], ["Amber caution", "Immediate awareness, later action"], ["White advisory", "Awareness; action may follow"]]} />
       <H3>Notes</H3>
-      <Notes items={["Typical alignment is 60 seconds after battery on.", "On a detected display failure the remaining screen shows PFD data plus engine indication with no pilot action. The red DISPLAY BACKUP button forces it.", "Baro-VNAV provides LNAV/VNAV guidance without SBAS (magenta pentagon). No SBAS→baro downgrade inside 60 s of the FAF.", "Three fans cool the stack: AVIONICS FAN 1 (NON ESS) and FAN 2 (MAIN 2)."]} />
+      <Notes items={["Typical alignment is 60 seconds after battery on.", "On a detected display failure the remaining screen shows PFD data plus engine indication with no pilot action. The red DISPLAY BACKUP button between the displays puts both in that mode; press it again to exit.", "Baro-VNAV provides LNAV/VNAV guidance without SBAS (magenta pentagon). No SBAS→baro downgrade inside 60 s of the FAF.", "Three fans cool the stack: AVIONICS FAN 1 (NON ESS) and FAN 2 (MAIN 2)."]} />
       <PartsList parts={CAT.pinned("avionics")} />
     </>
   );

@@ -86,15 +86,17 @@ const TANKS: TankSpec[] = ([["L", -1], ["R", 1]] as const).map(([k, s]) => ({
 }));
 
 /* ---------- live cockpit displays ---------- */
+// GDU 1050A: 10.4 in., 1024 × 768 (4:3) — the SR20's standard screens (12 in. optional). Centres 0.34 m apart, the
+// spacing of the 12 in. panel, which the 10 in. units share (approximate).
 const SCREENS: ScreenSpec[] = [
-  { key: "pfd", px: [640, 400], size: [0.36, 0.225], pos: [2.275, 0.1, -0.24], sys: ["avionics"], name: "PFD — GDU 1050A",
-    note: "Attitude, airspeed, altitude, HSI, CAS. PFD A (ESS BUS 1) and PFD B (MAIN BUS 2) — either one powers it.",
+  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: [2.275, 0.1, -0.24], sys: ["avionics"], name: "PFD — GDU 1050A",
+    note: "Attitude, airspeed, altitude, HSI, CAS window. PFD A (ESS BUS 1) and PFD B (MAIN BUS 2) — either one powers it. Shows PFD + Engine Strip if the MFD fails or with DISPLAY BACKUP.",
     draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.pfd) drawPFD(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "mfd", px: [640, 400], size: [0.36, 0.225], pos: [2.275, 0.1, 0.2], sys: ["avionics"], name: "MFD — GDU 1050A",
-    note: "Map, ENGINE page and Engine Strip. MFD A (MAIN BUS 3) or MFD B (MAIN BUS 1).",
+  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: [2.275, 0.1, 0.1], sys: ["avionics"], name: "MFD — GDU 1050A",
+    note: "Engine Strip on the left, map on the right. MFD A (MAIN BUS 3) or MFD B (MAIN BUS 1). The model adds the ENGINE page's bus volts and alternator amps under the strip; % power, oil, CHT and EGT aren't simulated.",
     draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.mfd) drawMFD(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "sby", px: [200, 200], size: [0.075, 0.075], pos: [2.115, -0.27, -0.3], sys: ["avionics", "pitot"], name: "Standby — MD302",
-    note: "Attitude, airspeed, altitude. STDBY ATTD A (ESS BUS 1) + STDBY ATTD B (MAIN BUS 1) through diodes.",
+  { key: "sby", px: [420, 180], size: [0.14, 0.06], pos: [2.115, -0.27, -0.3], sys: ["avionics", "pitot"], name: "Standby — MD302",
+    note: "Attitude on the left screen, airspeed and altitude on the right. STDBY ATTD A (ESS BUS 1) + STDBY ATTD B (MAIN BUS 1) through diodes.",
     draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.stby) drawStandby(ctx, W, H, s); else drawOff(ctx, W, H); } },
 ];
 

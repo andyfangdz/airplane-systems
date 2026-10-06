@@ -1,7 +1,8 @@
 /**
  * Garmin G1000 (GDU 1040, 10.4" 4:3) canvas drawing shared by the G1000 airplanes: PFD, MFD (EIS strip +
- * moving map), reversionary mode and round standby instruments. Pure: everything comes from the data passed
- * in. Drawn on a 640×480 design grid scaled uniformly (letterboxed) to the canvas — use ~640×480 canvases.
+ * moving map), reversionary mode and round standby instruments. The SR20's Cirrus Perspective+ (GDU 1050A, also
+ * 1024 × 768) uses the same drawing with `style: "perspective"` (see GduStyle). Pure: everything comes from the data
+ * passed in. Drawn on a 640×480 design grid scaled uniformly (letterboxed) to the canvas — use ~640×480 canvases.
  *
  * Colours follow the G1000: white scales, cyan pilot selections (bugs, selected altitude/heading, baro),
  * magenta GPS course and trend vectors, green VOR/LOC course and active AFCS modes, white armed modes,
@@ -89,9 +90,19 @@ export interface AfcsAnnunc {
   cmd?: { pitch: number; roll: number } | null;
 }
 
+/**
+ * Display family. "g1000" (default): Garmin G1000 as in the Cessna NAV III and DA40. "perspective": Cirrus Perspective+
+ * (Pilot's Guide 190-02183-03): no NAV box on the PFD and no COM box on the MFD (Fig 2-1, 3-1), mixed-case softkey
+ * labels, a frameless left-aligned CAS window right of the altimeter and VSI starting at the altitude pointer
+ * (Fig A-2), and OAT in °C and °F (p. 69). Everything else is drawn the same.
+ */
+export type GduStyle = "g1000" | "perspective";
+
 export interface PfdData {
   f: FlightData;
   speeds: SpeedBands;
+  /** Display family; default "g1000". */
+  style?: GduStyle;
   /** Annunciation window right of the altimeter: [level, text] (red warnings, yellow cautions, white advisories). */
   alerts: [CasLevel, string][];
   /** GFC 700 status bar; omit (or null) for airplanes without it (e.g. KAP 140 C182T). */
@@ -204,10 +215,15 @@ function layout(x0: number, w: number): Lay {
 
 const PFD_KEYS = ["", "INSET", "", "PFD", "OBS", "CDI", "DME", "XPDR", "IDENT", "TMR/REF", "NRST", "ALERTS"];
 const MFD_KEYS = ["ENGINE", "", "MAP", "", "", "", "", "", "", "DCLTR", "SHW CHRT", "CHKLIST"];
+/** Perspective+ level-1 softkeys (PG Fig 2-1, 3-1). */
+const PP_PFD_KEYS = ["", "Map/HSI", "TFC Map", "PFD Opt", "OBS", "CDI", "DME", "XPDR", "Ident", "TMR/REF", "Nearest", "Alerts"];
+const PP_MFD_KEYS = ["Engine", "", "Map Opt", "", "", "", "", "", "", "Detail", "Charts", "Checklist"];
+const isPP = (d: PfdData) => d.style === "perspective";
 
 /** Primary flight display. */
 export function drawPFD(ctx: Ctx, W: number, H: number, d: PfdData) {
-  frame(ctx, W, H, () => { pfdBody(ctx, d, layout(0, 640)); topBar(ctx, d.f, false); softkeys(ctx, PFD_KEYS); });
+  const pp = isPP(d);
+  frame(ctx, W, H, () => { pfdBody(ctx, d, layout(0, 640)); topBar(ctx, d.f, false, !pp); softkeys(ctx, pp ? PP_PFD_KEYS : PFD_KEYS); });
 }
 
 function pfdBody(ctx: Ctx, d: PfdData, L: Lay) {
@@ -220,8 +236,13 @@ function pfdBody(ctx: Ctx, d: PfdData, L: Lay) {
   if (d.afcs) afcsBar(ctx, d.afcs, L, t);
   annWindow(ctx, d, L);
   // OAT, transponder, time
-  rect(ctx, L.x0 + 4, 444, 78, 18, "#000", "#3A4046");
-  txt(ctx, `OAT ${Math.round(d.f.oat)}°C`, L.x0 + 9, 453, WHITE, 12);
+  if (isPP(d)) {
+    rect(ctx, L.x0 + 4, 444, 136, 18, "#000", "#3A4046");
+    txt(ctx, `OAT ${Math.round(d.f.oat)}°C`, L.x0 + 9, 453, WHITE, 12); txt(ctx, `OAT ${Math.round(d.f.oat * 1.8 + 32)}°F`, L.x0 + 135, 453, WHITE, 12, "right");
+  } else {
+    rect(ctx, L.x0 + 4, 444, 78, 18, "#000", "#3A4046");
+    txt(ctx, `OAT ${Math.round(d.f.oat)}°C`, L.x0 + 9, 453, WHITE, 12);
+  }
   rect(ctx, 540, 426, 96, 18, "#000", "#3A4046");
   txt(ctx, "XPDR", 545, 435, WHITE, 10); txt(ctx, d.f.xpdr ?? "1200", 575, 435, WHITE, 12);
   txt(ctx, d.f.xpdrMode ?? "ALT", 631, 435, GREEN, 11, "right");
@@ -492,7 +513,18 @@ function annWindow(ctx: Ctx, d: PfdData, L: Lay) {
   const order = { w: 0, c: 1, a: 2 };
   const list: [CasLevel, string][] = [...(d.pitchTrim ? [["w", d.pitchTrim] as [CasLevel, string]] : []), ...[...d.alerts].sort((p, q) => order[p[0]] - order[q[0]])].slice(0, 8);
   if (!list.length) return;
-  const { x, y, w } = L.ann, rh = 16;
+  const rh = 16;
+  if (isPP(d)) { // Perspective+ CAS window: black, no frame, left-aligned; full PFD: right of the VSI, top just below the altitude pointer
+    const full = L.w >= 600, x = full ? L.vsiX + 29 : L.ann.x, w = full ? L.x0 + L.w - x - 2 : L.ann.w, y = full ? YC + 18 : L.ann.y;
+    rect(ctx, x, y, w, list.length * rh + 6, "#000");
+    list.forEach(([lv, s], i) => {
+      ctx.font = `700 12px ${FONT}`;
+      const px = Math.max(7, Math.min(12, (12 * (w - 6)) / ctx.measureText(s).width));
+      txt(ctx, s, x + 3, y + 3 + i * rh + rh / 2 + 1, lv === "w" ? RED : lv === "c" ? YEL : WHITE, px);
+    });
+    return;
+  }
+  const { x, y, w } = L.ann;
   rect(ctx, x, y, w, list.length * rh + 6, "#000", WHITE, 1);
   list.forEach(([lv, s], i) => {
     const c = lv === "w" ? RED : lv === "c" ? YEL : WHITE;
@@ -502,8 +534,8 @@ function annWindow(ctx: Ctx, d: PfdData, L: Lay) {
   });
 }
 
-/* top bars: NAV left, COM right, navigation status / data centre */
-function topBar(ctx: Ctx, f: FlightData, mfd: boolean) {
+/* top bars: NAV left, COM right (either can be left off), navigation status / data centre */
+function topBar(ctx: Ctx, f: FlightData, mfd: boolean, nav = true, com = true) {
   rect(ctx, 0, 0, 640, TOP, "#000");
   line(ctx, 0, TOP - 0.5, 640, TOP - 0.5, "#5A6168", 1);
   const n1 = f.nav1 ?? ["117.95", "108.00"], n2 = f.nav2 ?? ["110.50", "113.40"], c1 = f.com1 ?? ["118.000", "136.975"], c2 = f.com2 ?? ["121.500", "132.450"];
@@ -514,13 +546,13 @@ function topBar(ctx: Ctx, f: FlightData, mfd: boolean) {
     txt(ctx, sby, 62, yy, WHITE, 14, "center"); txt(ctx, "↔", 95, yy, CYAN, 12, "center");
     txt(ctx, act, 128, yy, on ? GREEN : WHITE, 14, "center");
   };
-  navRow("NAV1", n1, 10, true, navOn(1)); navRow("NAV2", n2, 30, false, navOn(2));
+  if (nav) { navRow("NAV1", n1, 10, true, navOn(1)); navRow("NAV2", n2, 30, false, navOn(2)); }
   const comRow = (lab: string, [act, sby]: [string, string], yy: number, tune: boolean, on: boolean) => {
     txt(ctx, act, 498, yy, on ? GREEN : WHITE, 13, "center"); txt(ctx, "↔", 534, yy, CYAN, 12, "center");
     if (tune) rect(ctx, 545, yy - 8, 56, 16, null, CYAN, 1.2);
     txt(ctx, sby, 573, yy, WHITE, 13, "center"); txt(ctx, lab, 637, yy, WHITE, 10, "right");
   };
-  comRow("COM1", c1, 10, true, true); comRow("COM2", c2, 30, false, false);
+  if (com) { comRow("COM1", c1, 10, true, true); comRow("COM2", c2, 30, false, false); }
   line(ctx, 170, 4, 170, TOP - 4, "#3A4046"); line(ctx, 466, 4, 466, TOP - 4, "#3A4046");
   if (mfd) {
     const cells: [string, string][] = [["GS", `${Math.round(f.gs ?? f.tas ?? f.ias)}KT`], ["DTK", `${pad3(f.crs)}°`], ["TRK", `${pad3(f.trk ?? f.hdg)}°`], ["ETE", "--:--"]];
@@ -547,11 +579,12 @@ const EIS_W = 130;
 /** Multi-function display: EIS strip + navigation map, or (reversion) PFD + EIS strip. */
 export function drawMFD(ctx: Ctx, W: number, H: number, d: MfdData) {
   frame(ctx, W, H, () => {
-    const t = d.t ?? now();
+    const t = d.t ?? now(), pp = isPP(d);
     if (d.reversion) { pfdBody(ctx, d, layout(EIS_W, 640 - EIS_W)); topBar(ctx, d.f, false); }
-    else { navMap(ctx, d); topBar(ctx, d.f, true); }
+    else { navMap(ctx, d); topBar(ctx, d.f, true, true, !pp); }
     eisStrip(ctx, 0, TOP, EIS_W, BOT - TOP, d, t);
-    softkeys(ctx, d.reversion ? ["ENGINE", ...PFD_KEYS.slice(1)] : MFD_KEYS);
+    const mfdKeys = pp ? PP_MFD_KEYS : MFD_KEYS;
+    softkeys(ctx, d.reversion ? [mfdKeys[0], ...(pp ? PP_PFD_KEYS : PFD_KEYS).slice(1)] : mfdKeys);
   });
 }
 
