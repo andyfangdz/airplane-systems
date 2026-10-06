@@ -74,12 +74,13 @@ export const initialSim: Sim = {
 export const DA40_FLIGHT: FlightCfg = { v0: 52, vp: 93, fpmPerKt: 12, vMin: 50, maxBank: 30, rollRate: 8, tauVs: 1.6, tauIas: 7 };
 
 /**
- * GFC 700 configuration (AFMS 190-00492-00): mode keys on the MFD bezel only and no BC key — NAV on a localizer annunciates
- * LOC until the course is at least 115° from the heading, then BC (AFMS back-course procedure note; the CRG 190-00324-07
- * p. 6-19 says "greater than 105°", the approved AFMS figure is used). No yaw damper; AP DISC, CWS and AP TRIM on the stick,
- * GA on the throttle; engage 70–165 KIAS (AFMS p. 16), MAXSPD above 165. FLC solves with the DA40 flight model.
+ * GFC 700 configuration (G1000/GFC 700 AFMS 190-00492-10): mode keys on the MFD bezel only and no BC key — NAV on a localizer
+ * annunciates LOC until the course pointer is at least 105° from the heading, then BC (AFMS p. 51 back-course note; CRG
+ * 190-00324-07 p. 6-19 agrees). The stand-alone GFC 700 AFMS 190-00492-00 in the same AFM gives 115° for the same note; the
+ * model follows the G1000/GFC 700 AFMS used throughout. No yaw damper; AP DISC, CWS and AP TRIM on the stick, GA on the
+ * throttle; engage 70–165 KIAS (AFMS p. 16), MAXSPD above 165. FLC solves with the DA40 flight model.
  */
-export const AFCS_CFG: Gfc700Cfg = { ...GFC700_BASE, bcKey: false, bcAngle: 115, vmo: 165, flight: DA40_FLIGHT };
+export const AFCS_CFG: Gfc700Cfg = { ...GFC700_BASE, bcKey: false, bcAngle: 105, vmo: 165, flight: DA40_FLIGHT };
 /** Elevator trim (−1 nose down … +1 nose up) that holds ~119 KIAS level with the stick centred (tick.ts TRIM_PITCH). */
 export const CRUISE_TRIM = 0.27;
 

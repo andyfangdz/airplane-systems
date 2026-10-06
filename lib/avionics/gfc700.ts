@@ -327,7 +327,7 @@ export function gfc700Tick(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): Gf
   const c2 = s ?? st;
   if ((c2.vert === "GS" || c2.vert === "GP") && fs.gsErr == null) loseVert(w(), fs, now, cfg);
 
-  // no BC key: NAV on a localizer shows LOC until the course is more than bcAngle from the heading, then BC (DA40 AFMS)
+  // no BC key: NAV on a localizer shows LOC until the course is bcAngle from the heading, then BC (DA40 AFMS back-course note)
   const b = s ?? st;
   if (!cfg.bcKey && !b.apr) {
     const m = navLocMode(fs, cfg);

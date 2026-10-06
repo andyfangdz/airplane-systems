@@ -153,7 +153,7 @@ export function Autopilot() {
         ["ALTS", "Selected-altitude capture (ALT knob) → ALT at 50 ft"],
         ["VS", "Holds vertical speed, 100 fpm steps, +1,500 / −3,000 fpm"],
         ["FLC", "Holds airspeed 70–165 KIAS; NOSE UP = slower; never away from the selected altitude"],
-        ["NAV: GPS / VOR / LOC / BC", "Captures with the CDI within one dot, otherwise arms (white). On a localizer LOC shows until the course is at least 115° from the heading, then BC (AFMS; the CRG says 105°)"],
+        ["NAV: GPS / VOR / LOC / BC", "Captures with the CDI within one dot, otherwise arms (white). On a localizer LOC shows until the course is at least 105° from the heading, then BC (AFMS p. 51, CRG 6-19; the GFC 700 AFMS 190-00492-00 says 115°)"],
         ["APR: GPS / VAPP / LOC + GS / GP", "Approach; GS only after LOC capture; GP needs WAAS (GIA 63W)"],
         ["VPTH", "VNAV path (VNV key — optional GDU 1044, N949KC fit unconfirmed); ALTV target capture"],
         ["GA", "Throttle button: AP off, wings level, 7° nose up, ALTS armed"],
