@@ -281,10 +281,11 @@ function attitude(ctx: Ctx, d: PfdData, L: Lay) {
   const sk = clamp(f.slip ?? 0, -1, 1) * 16;
   poly(ctx, [cx - 9 + sk, cy - R + 15, cx + 9 + sk, cy - R + 15, cx + 11 + sk, cy - R + 20, cx - 11 + sk, cy - R + 20], WHITE);
 
-  // flight director command bars (magenta) and the single-cue aircraft symbol (yellow)
+  // flight director command bars (magenta) and the single-cue aircraft symbol (yellow). The bars show the commanded
+  // attitude relative to the airplane: up for more pitch, banked right (clockwise) for a right-turn command.
   const cmd = d.afcs?.fd ? d.afcs.cmd : null;
   if (cmd) {
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-(cmd.roll - f.roll) * D2R); ctx.translate(0, -(cmd.pitch - f.pitch) * ppd);
+    ctx.save(); ctx.translate(cx, cy - (cmd.pitch - f.pitch) * ppd); ctx.rotate((cmd.roll - f.roll) * D2R);
     poly(ctx, [0, -3, -74, 24, -74, 31, 0, 6, 74, 31, 74, 24], MAG, "#000", 1);
     ctx.restore();
   }
