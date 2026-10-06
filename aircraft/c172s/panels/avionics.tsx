@@ -84,8 +84,9 @@ export function Autopilot() {
       <H3>Set up</H3>
       <Ctl>
         <BtnRow>
-          {scen("GPS course to intercept", () => { live.fs = { ...live.fs, navSrc: "GPS", crs: wrap360(Math.round(live.fs.hdg) + 30), xtk: -2.2, gsErr: null, vpath: null }; })}
-          {scen("ILS: LOC + glideslope", () => { setLoc(true); live.fs = { ...live.fs, navSrc: "LOC1", crs: wrap360(Math.round(live.fs.hdg) + 20), xtk: -0.5, gsErr: -350, vpath: null, selAlt: 1500 }; })}
+          {/* left of the course (xtk < 0) with the present heading — and the heading bug — 30° / 20° right of it: an intercept */}
+          {scen("GPS course to intercept", () => { const h = Math.round(live.fs.hdg); live.fs = { ...live.fs, navSrc: "GPS", crs: wrap360(h - 30), hdgBug: h, xtk: -2.2, gsErr: null, vpath: null }; })}
+          {scen("ILS: LOC + glideslope", () => { setLoc(true); const h = Math.round(live.fs.hdg); live.fs = { ...live.fs, navSrc: "LOC1", crs: wrap360(h - 20), hdgBug: h, xtk: -0.5, gsErr: -350, vpath: null, selAlt: 1500 }; })}
           {scen("Climb: FLC to 6,500", () => { live.fs = { ...live.fs, selAlt: 6500 }; })}
           {scen("VNAV descent path", () => { live.fs = { ...live.fs, vpath: { err: -150, vs: -500 }, selAlt: 2500 }; })}
         </BtnRow>
