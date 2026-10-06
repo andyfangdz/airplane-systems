@@ -204,9 +204,9 @@ part(() => box(0.1, 0.08, 0.09), ["autopilot", "controls"], { pos: P3(SV.trim[0]
 
 /* ---------- pitot-static and stall warning (POH 7-62, 7-65) ---------- */
 const PIT = "#3A9448";
-/** Pitot mast under the left wing (spanwise station not in the POH); heated head centred near arm 28.0. */
-export const PITOT: Vec3 = wp(-110, 0.12, -1, -0.12);
-part(() => tubeGeo([wp(-110, 0.18, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2]]], 0.012), ["pitot"], { color: "#AEB6BC", name: "Pitot mast", note: "Under the left wing (POH 7-62).", ext: true });
+/** Pitot mast under the left wing, inboard of the strut: BL ≈ 65 scaled from both Figure 1-1 front views (the text gives no station); heated head centred near arm 28.0. */
+export const PITOT: Vec3 = wp(-65, 0.12, -1, -0.12);
+part(() => tubeGeo([wp(-65, 0.18, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2]]], 0.012), ["pitot"], { color: "#AEB6BC", name: "Pitot mast", note: "Under the left wing, inboard of the strut (POH 7-62; station scaled from Figure 1-1).", ext: true });
 part(() => cyl(0.012, 0.26, "x"), ["pitot"], { pos: [PITOT[0] + 0.08, PITOT[1], PITOT[2]], color: "#AEB6BC", anim: glow("#AEB6BC", () => EL().pitotHeating, ["pitot"], "#FF6A2A"),
   name: "Heated pitot head", note: "“Heated total pressure (pitot) head mounted on the lower surface of the left wing”, arm 28.0. PITOT HEAT switch and 10 A breaker (ELECTRICAL BUS 2) also heat the stall vane. No annunciation: check it's warm within 30 s on preflight (POH 7-62, 4-8).", ext: true, pin: true });
 /** External static ports on both sides of the forward fuselage (POH 7-62); station not in the POH. */

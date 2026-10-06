@@ -59,12 +59,12 @@ flow("toMan2", [P3(0.6, 14, 36.5), P3(3, 8, 32), MAN], ["environment"], { r: 0.0
 
 /* ---------- pitot-static, stall warning, vacuum ---------- */
 const PIT = "#3A9448", ADC = P3(118.7, -4, 55), SBY = P3(16, 0, 52);
-flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-112, 0.25, -1, 0.04), wp(-60, 0.3, 0), wp(-17, 0.25, -1, 0.03), P3(31.6, -18.4, 75), P3(31, -18.3, 32), P3(20, -6, 28), SBY], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line", note: "Pitot head → wing → door post → standby airspeed indicator and the air data computer (POH 7-12)." });
+flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-65, 0.25, -1, 0.04), wp(-45, 0.3, 0), wp(-17, 0.25, -1, 0.03), P3(31.6, -18.4, 75), P3(31, -18.3, 32), P3(20, -6, 28), SBY], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line", note: "Pitot head → wing → door post → standby airspeed indicator and the air data computer (POH 7-12)." });
 flow("pitot2", [P3(31, -18.3, 32), P3(70, -14, 29), P3(110, -6, 34), ADC], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line to the GDC 74A" });
 flow("static", [STATIC_PORT, P3(15, -17, 44), P3(16, -4, 49), SBY], ["pitot"], { r: 0.006, color: "#2E7A3A", name: "Static line", note: "Static port → standby airspeed and altimeter; shared with the air data computer (POH 7-12)." });
 flow("static2", [P3(15, -17, 44), P3(40, -14, 27.5), P3(110, -6, 36), ADC], ["pitot"], { r: 0.006, color: "#2E7A3A", name: "Static line to the GDC 74A" });
 flow("altStatic", [P3(30, -5, 40), P3(16.5, -3.5, 50.5), P3(16, -2, 51)], ["pitot"], { tube: false, pcolor: "#B7E5B4", size: 0.04, name: "Cabin static air" });
-flow("stall", [STALL_INLET, wp(-84, 0.15, 0), wp(-30, 0.18, 0), wp(-17, 0.15, 0, -0.04), P3(27, -17.4, 74.5)], ["pitot"], { r: 0.007, color: PIT, name: "Stall warning tube", note: "Inlet in the left wing leading edge → air-operated horn at the upper left windshield (POH 7-67)." });
+flow("stall", [STALL_INLET, wp(-91, 0.15, 0), wp(-30, 0.18, 0), wp(-17, 0.15, 0, -0.04), P3(27, -17.4, 74.5)], ["pitot"], { r: 0.007, color: PIT, name: "Stall warning tube", note: "Inlet in the left wing leading edge → air-operated horn at the upper left windshield (POH 7-67)." });
 const VACC = "#4FA8A0";
 flow("vac", [P3(2, 3, 58), P3(14, 1, 54), P3(12, 3, 54), P3(2, 8, 56), P3(-2, 0, 52), P3(-5, -5.5, 46.5)], ["vacuum"], { r: 0.008, color: VACC, name: "Vacuum line", note: "Filter → attitude indicator → regulator → engine-driven pump (Fig. 7-9).", pcolor: "#9FE3DA" });
 flow("vacOut", [P3(-5, -5.5, 44), P3(-6, -6, 32), P3(-6, -8, 24.8)], ["vacuum"], { tube: false, pcolor: "#9FE3DA", size: 0.04 });

@@ -38,8 +38,8 @@ part(() => tubeGeo([P3(16.5, 9, 50), P3(22, 17.5, 60), P3(31, 18.4, 74), P3(33, 
 const FUEL = "#2F7FE6";
 [1, -1].forEach((s) => {
   const sd = s > 0 ? "Right" : "Left";
-  part(() => cyl(0.04, 0.012), ["fuel"], { pos: wp(s * 75, 0.2, 1, 0.006), color: FUEL, name: "Fuel filler cap", note: "Top of each wing: placard FUEL 100LL / 100 MIN. GRADE, 26.5 gal usable, 17.5 gal to the bottom of the filler indicator tab. Caps are vacuum vented (POH 2-24, 7-44).", ext: true, pin: s > 0 });
-  part(() => box(0.02, 0.05, 0.02), ["fuel"], { pos: wp(s * 75, 0.2, 1, -0.04), color: "#7EB3F5", name: "Reduced capacity filler tab", note: "Inside the filler neck: filling to its bottom edge gives 17.5 gal usable per tank (POH 7-44)." });
+  part(() => cyl(0.04, 0.012), ["fuel"], { pos: wp(s * 36, 0.2, 1, 0.006), color: FUEL, name: "Fuel filler cap", note: "Top of each wing near the inboard end of the tank (BL ≈ 36, scaled from the Figure 1-1 top view), within reach of the refueling steps and assist handles on the forward fuselage (POH 4-3). Placard FUEL 100LL / 100 MIN. GRADE, 26.5 gal usable, 17.5 gal to the bottom of the filler indicator tab. Caps are vacuum vented (POH 2-24, 7-44).", ext: true, pin: s > 0 });
+  part(() => box(0.02, 0.05, 0.02), ["fuel"], { pos: wp(s * 36, 0.2, 1, -0.04), color: "#7EB3F5", name: "Reduced capacity filler tab", note: "Inside the filler neck: filling to its bottom edge gives 17.5 gal usable per tank (POH 7-44)." });
   part(() => box(0.03, 0.03, 0.03), ["fuel"], { pos: wp(s * 23.5, 0.28, -1, 0.02), color: FUEL, name: "Tank outlet screen", note: "At each tank outlet (Fig. 7-6). At 1/4 tank or less, prolonged uncoordinated flight can uncover the outlets (POH 7-45).", pin: s > 0 });
   part(() => cyl(0.012, 0.08), ["fuel"], { pos: wp(s * 47, 0.36, 0, 0), color: "#0B3A80", name: "Fuel quantity transmitter", note: "One per tank (FS 47.4) → GEA 71 → FUEL QTY GAL. Reads 0 at 1.5 gal unusable; tops out at ~24 gal — check the tanks visually before flight (POH 7-39).", pin: s > 0 });
   [24, 42, 60, 78, 94].forEach((b, i) => part(() => sph(0.018), ["fuel"], { pos: wp(s * b, 0.5, -1, -0.012), color: "#0B3A80", name: "Fuel tank sump drain", note: "Figure 7-6 labels “Fuel Tank Drain Valve (5 Total)” under each tank. Sample every sump before each flight and after refueling (POH 7-46, 4-7).", ext: true, pin: s > 0 && i === 0 }));
@@ -112,17 +112,19 @@ part(() => box(0.08, 0.05, 0.008), ["avionics"], { pos: [X(114.5), botY(X(114.5)
 
 /* ---------- pitot-static and stall warning (POH 7-64, 7-67) ---------- */
 const PIT = "#3A9448";
-export const PITOT: Vec3 = wp(-112, 0.18, -1, -0.12);
-part(() => tubeGeo([wp(-112, 0.25, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2]]], 0.012), ["pitot"], { color: "#AEB6BC", name: "Pitot mast", note: "Under the left wing (POH 7-64).", ext: true });
+/** Pitot under the left wing, inboard of the strut: BL ≈ 65 scaled from both Figure 1-1 front views (the text gives no station). */
+export const PITOT: Vec3 = wp(-65, 0.18, -1, -0.12);
+part(() => tubeGeo([wp(-65, 0.25, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2]]], 0.012), ["pitot"], { color: "#AEB6BC", name: "Pitot mast", note: "Under the left wing, inboard of the strut (POH 7-64; station scaled from Figure 1-1).", ext: true });
 part(() => cyl(0.012, 0.26, "x"), ["pitot"], { pos: [PITOT[0] + 0.08, PITOT[1], PITOT[2]], color: "#AEB6BC", anim: glow("#AEB6BC", () => EL().pitotHeating, ["pitot"], "#FF6A2A"), name: "Heated pitot head", note: "Heating element built into the head; PITOT HEAT switch and breaker (ELECTRICAL BUS 2). Preflight: warm to the touch within 30 s; no annunciation monitors it (POH 7-64, 4-6).", ext: true, pin: true });
 export const STATIC_PORT: Vec3 = PV(onSkin(X(15), Y(45), -1, 1.01));
 part(() => cyl(0.014, 0.006, "z"), ["pitot"], { pos: STATIC_PORT, color: PIT, name: "Static port", note: "External static port on the left side of the forward fuselage (POH 7-64). If the airplane has been waxed, check the hole (POH 4-23).", ext: true, pin: true });
 part(() => cyl(0.012, 0.03, "x"), ["pitot"], { pos: P3(18.4, -3.5, 50.5), color: PIT, anim: pushPull(X(18.4), () => (S().pitot.altStatic ? 1 : 0), 0.03), name: "ALT STATIC AIR valve", note: "Adjacent to the throttle: pull ON for cabin static pressure if the external source blocks. With it on, the Section 5 table shows airspeed 0–4 kt high (Fig. 5-1 Sheet 2); POH 3-32 states a maximum variation of 11 kt and 50 ft, and doesn't explain the difference (POH 7-64, 3-15).", pin: true });
 part(() => cyl(0.006, 0.05), ["pitot", "avionics"], { pos: [X(41.5), top(41.5, -4) + 0.022, Z(-4)], color: PIT, name: "OAT probe (GTP 59)", note: "On top of the cabin, arm 41.5; feeds the air data computer and the PFD OAT window (POH 7-67, 6-21).", ext: true, pin: true });
-export const STALL_INLET: Vec3 = wp(-84, 0.0, 0, 0);
+/** Stall warning opening in the left leading edge beside the fuel vent: BL ≈ 91 scaled from Figure 1-1. */
+export const STALL_INLET: Vec3 = wp(-91, 0.0, 0, 0);
 part(() => sph(0.02), ["pitot"], { pos: STALL_INLET, color: PIT, anim: glow(PIT, () => live.horn, ["pitot"], "#FF5050"), name: "Stall warning inlet", note: "In the LEFT wing leading edge. Near the stall the low pressure moves forward around the leading edge and draws air through the horn (POH 7-67). Test: handkerchief over the opening and apply suction (POH 4-10).", ext: true, pin: true });
 part(() => cyl(0.025, 0.05, "x"), ["pitot", "cabin"], { pos: P3(27, -17.4, 74.5), color: PIT, anim: glow(PIT, () => live.horn, ["pitot", "cabin"], "#FF5050"), name: "Stall warning horn", note: "Air-operated reed horn near the upper left corner of the windshield: sounds 5 to 10 knots above the stall in all configurations. The text describes it as purely pneumatic (POH 7-67), although Figure 7-7 lists “stall warning” among the WARN breaker loads.", pin: true });
-part(() => sph(0.035), ["pitot"], { pos: wp(-84, 0.1, 1), color: "#E0263B", anim: (m) => { const v = sysNow(); m.visible = v === "pitot" && !S().ground; const slow = Math.max(0, Math.min(1, (live.fs.ias - 40) / 50)); m.position.copy(wingP(Z(-84), 0.05 + slow * 0.3, 1)); }, name: "Low-pressure peak", note: "Moves forward around the leading edge as the angle of attack increases.", ext: true });
+part(() => sph(0.035), ["pitot"], { pos: wp(-91, 0.1, 1), color: "#E0263B", anim: (m) => { const v = sysNow(); m.visible = v === "pitot" && !S().ground; const slow = Math.max(0, Math.min(1, (live.fs.ias - 40) / 50)); m.position.copy(wingP(Z(-91), 0.05 + slow * 0.3, 1)); }, name: "Low-pressure peak", note: "Moves forward around the leading edge as the angle of attack increases.", ext: true });
 
 /* ---------- vacuum system and standby attitude (POH 7-65, Figure 7-9) ---------- */
 const VAC = "#4FA8A0";
@@ -139,7 +141,8 @@ export const LIGHTS = {
   /** White position light at the lower trailing edge of the rudder (POH 7-59: "on the wing tips and the tip of the rudder"). */
   tail: [AF.fLE(Y(52)) - AF.fC(Y(52)) - 0.012, Y(52), 0] as Vec3,
   beacon: P3(258.5, 0, 105.6),
-  land: wp(-68, 0.0, 0, -0.005), taxi: wp(-76, 0.0, 0, -0.005),
+  /** Twin lamps in the left leading edge just outboard of the strut: BL ≈ 102–116 in the Figure 1-1 front view (KAP edition). */
+  land: wp(-105, 0.0, 0, -0.005), taxi: wp(-112, 0.0, 0, -0.005),
   courtesyL: wp(-24, 0.55, -1, -0.01), courtesyR: wp(24, 0.55, -1, -0.01),
   flood: [P3(50, -5, 76.5), P3(50, 5, 76.5)], dome: P3(72, 0, 76.5),
   map: P3(26, -13.5, 52.5),
@@ -149,7 +152,7 @@ const ext = (s: SysId[] = ["lighting"]) => s;
   part(() => sph(0.035), ext(), { pos: LIGHTS[k], color: "#D9D9D9", name, note: "Position light and strobe in each wing tip; NAV LTS and STROBE LTS breakers on ELECTRICAL BUS 2. Strobes required for all operations (KOEL). Don't use the strobes, beacon or recognition lights when flying through cloud or overcast (POH 7-60).", ext: true, pin: true }));
 onSurf("rudder", LIGHTS.tail, () => sph(0.022), { sys: ["lighting"], color: "#F2F2F2", name: "Tail position light (white)", note: "At the tip of the rudder (POH 7-59). NAV switch.", ext: true, pin: true });
 part(() => cyl(0.03, 0.06), ["lighting"], { pos: LIGHTS.beacon, color: "#C8313B", name: "Flashing beacon", note: "Top of the vertical stabilizer; BCN LT breaker, ELECTRICAL BUS 1 (POH 7-59). The equipment list gives arm 240.7 (KAP 140 edition 204.7); the Figure 1-1 side view puts it on the fin top, as modelled.", ext: true, pin: true });
-part(() => box(0.02, 0.06, 0.1), ["lighting"], { pos: LIGHTS.land, color: "#F5F2E4", name: "Landing light", note: "Left wing leading edge (arm 26.6); LAND switch, LAND LT breaker on ELECTRICAL BUS 1. Optional LED landing/taxi/recognition lights sit in both leading edges (POH 7-59).", ext: true, pin: true });
+part(() => box(0.02, 0.06, 0.1), ["lighting"], { pos: LIGHTS.land, color: "#F5F2E4", name: "Landing light", note: "Left wing leading edge just outboard of the strut (arm 26.6; checked after the tie-down on the preflight, POH 4-10); LAND switch, LAND LT breaker on ELECTRICAL BUS 1. Optional LED landing/taxi/recognition lights sit in both leading edges (POH 7-59).", ext: true, pin: true });
 part(() => box(0.02, 0.06, 0.1), ["lighting"], { pos: LIGHTS.taxi, color: "#F5F2E4", name: "Taxi light", note: "Beside the landing light; TAXI switch, TAXI LT breaker on ELECTRICAL BUS 2. Use it in the pattern to extend the landing light's life (POH 4-31).", ext: true, pin: true });
 [LIGHTS.courtesyL, LIGHTS.courtesyR].forEach((p, i) => part(() => sph(0.018), ["lighting", "cabin"], { pos: p, color: "#E8C46A", name: "Courtesy light (under wing)", note: "Recessed in the lower surface of each wing to light the door area; on the overhead push button with the rear dome light (POH 7-59).", ext: true, pin: i === 0 }));
 part(() => box(0.5, 0.03, 0.16), ["lighting", "cabin"], { pos: P3(58, 0, 77), color: "#39424A", name: "Overhead console", note: "Two front FLOOD LIGHT knobs (rotatable lights), the rear dome light and its push button (with the courtesy lights), and the overhead speaker (POH 7-60, 7-75). CABIN LTS/PWR breaker.", pin: true });
