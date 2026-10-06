@@ -240,10 +240,12 @@ CYLS.forEach((c) => {
   part(() => cyl(0.058, 0.2, "z", 18), ["engine"], { pos: base, color: "#7C858C", name: "Cylinder " + c.n, note: (c.s > 0 ? "Right" : "Left") + " bank. Baffles route cooling air around the fins and out past the cowl flaps (POH 7-37). Numbering per Lycoming convention (not stated in the POH)." + (c.n === 3 ? " CHT 3 is the most critical: operation with CHT 3 inoperative is not allowed (POH 7-33)." : "") });
   for (let k = -2; k <= 2; k++) part(() => cyl(0.072, 0.008, "z", 18), ["engine"], { pos: [base[0], base[1], base[2] + c.s * k * 0.03], color: "#8C959C" });
   part(() => box(0.14, 0.15, 0.07), ["engine"], { pos: [base[0], base[1] + 0.01, base[2] + c.s * 0.12], color: "#6A737A", name: "Cylinder head " + c.n, note: "Two spark plugs; CHT thermocouple in the head and EGT thermocouple in the exhaust pipe (POH 7-33). Engine page shows the hottest; the LEAN page shows all six.", pin: c.n === 1 });
-  ([["U", 0.055], ["L", -0.055]] as const).forEach(([pos, dy]) => {
+  // upper plug on the top face of the head, lower plug on its bottom face (heads span y −0.065..+0.085 about base): along x they would
+  // sit in the 0.5 in. gap to the next head aft
+  ([["U", 0.105], ["L", -0.085]] as const).forEach(([pos, dy]) => {
     // POH 7-35 (KAP 140 edition, image-verified): right magneto fires lower right + upper left; left magneto lower left + upper right
     const mag = (c.s > 0) === (pos === "L") ? "R" : "L";
-    part(() => cyl(0.013, 0.05, "x", 10), ["engine"], { pos: [base[0] - 0.08, base[1] + dy, base[2] + c.s * 0.12], color: "#DADFE2", anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
+    part(() => cyl(0.013, 0.05, "y", 10), ["engine"], { pos: [base[0] - 0.03, base[1] + dy, base[2] + c.s * 0.12], color: "#DADFE2", anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`, note: `Fired by the ${mag === "L" ? "left" : "right"} magneto. “The right magneto fires the lower right and upper left spark plugs, and the left magneto fires the lower left and upper right” (POH 7-35; the 2007 edition states the reverse).` });
   });
   part(() => box(0.03, 0.03, 0.03), ["engine", "fuel"], { pos: [base[0] - 0.02, base[1] - 0.11, base[2] + c.s * 0.07], color: "#C9B98F", name: "Fuel injector nozzle", note: "Air-bleed type nozzle in the intake chamber of each cylinder, fed by the fuel distribution unit (POH 7-36, 7-40)." });
@@ -262,7 +264,8 @@ part(() => box(0.04, 0.04, 0.03), ["engine"], { pos: P3(-1.2, 7, 58), color: "#3
 // induction (POH 7-35)
 part(() => box(0.05, 0.1, 0.24), ["engine"], { pos: P3(-43.6, 0, 39), color: "#1E2A33", name: "Induction air intake", note: "Ram air through an intake on the lower front of the cowling, covered by the air filter (POH 7-35).", ext: true, pin: true });
 part(() => box(0.08, 0.1, 0.2), ["engine"], { pos: P3(-35.2, 0, 39), color: "#C9B98F", name: "Induction air filter", note: "P106150, arm −35.2 (POH 6-24). Check for dust preflight (POH 4-10); replace as condition warrants, 500 h maximum (POH 8-23). Ice on the filter shows as an unexplained MAP loss (POH 3-29).", pin: true });
-part(() => box(0.1, 0.07, 0.03), ["engine"], { pos: P3(-29, -5, 37.5), color: "#E0B040", anim: altDoorAnim(X(-29)), name: "Alternate air door", note: "One spring-loaded door in the air box: if the filter blocks, engine suction opens it and draws unfiltered air from the lower cowl — about 10% power loss at full throttle. No cockpit control (POH 7-35).", pin: true });
+// the air box lies between the filter and the servo, under the oil sump (bottom h 35.1): the door hangs below the sump
+part(() => box(0.1, 0.07, 0.03), ["engine"], { pos: P3(-29, -5, 33), color: "#E0B040", anim: altDoorAnim(X(-29)), name: "Alternate air door", note: "One spring-loaded door in the air box: if the filter blocks, engine suction opens it and draws unfiltered air from the lower cowl — about 10% power loss at full throttle. No cockpit control (POH 7-35). Where it sits on the air box is not in the POH (shown below the oil sump).", pin: true });
 part(() => cyl(0.05, 0.12, "x"), ["engine", "fuel"], { pos: P3(-22, 0, 35), color: "#7E8A93", name: "Fuel/air control unit (servo)", note: "Under the engine: meters fuel in proportion to induction air flow; throttle and mixture act here. An orificed fitting in its top feeds the fuel return line (POH 7-35, 7-40, 7-43).", pin: true });
 CYLS.forEach((c) => part(() => tubeGeo([P3(-22, 0, 36.5), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 12, 45.5)], 0.015), ["engine"], { color: "#8A969E", name: "Intake manifold tube", note: "From the fuel/air control unit to each cylinder's intake port (POH 7-35)." }));
 // exhaust and cabin heat (POH 7-36)

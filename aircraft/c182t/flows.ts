@@ -30,8 +30,11 @@ flow("fuelPump", [VALVE, P3(18, 1, 25), P3(2, 3, 26.8), P3(0, 4, 28), P3(-10, 5,
 flow("fuelStr", [P3(-12, 5, 31), P3(-9.5, 6, 30), P3(-7, 7, 29)], ["fuel"], { r: 0.01, color: FUEL, name: "Aux pump → fuel strainer" });
 flow("fuelEdp", [P3(-7, 7, 31), P3(-4, 2, 36), P3(-5, -4, 42), P3(-6, -6, 44)], ["fuel", "engine"], { r: 0.009, color: FUEL, name: "Strainer → engine-driven pump" });
 flow("fuelServo", [P3(-6, -6, 44), P3(-10, -5, 38), P3(-20, -1, 35.5), P3(-22, 0, 35)], ["fuel", "engine"], { r: 0.009, color: FUEL, name: "Engine-driven pump → fuel/air control unit" });
-flow("fuelMetered", [P3(-22, 0, 36.5), P3(-16, -2, 44), P3(-13, 0, 52), P3(-12.4, 0, 57.5), P3(-18, 0, 60), DIVIDER], ["fuel", "engine"],
-  { r: 0.008, color: FUEL, name: "Metered fuel → flow transducer → distribution unit", note: "From the servo under the engine, through the flow transducer on the engine centerline, to the flow divider on top (POH 7-40, 7-41)." });
+// outside the crankcase box (parts.ts: FS −40.5…−6.7, BL ±8.7, h 42.7–54.5): aft under the oil sump (bottom h 35.1), up behind the
+// block's aft face between the oil filter (BL ±1.6) and the vacuum pump / right magneto (BL ≥ 3.7), clear of the right heat duct,
+// then forward over the tach sensor into the transducer
+flow("fuelMetered", [P3(-20.5, 0.5, 34.2), P3(-15, 0.9, 34), P3(-8, 2.6, 34.4), P3(-5.4, 2.6, 37), P3(-5.3, 2.6, 44), P3(-5.3, 2.6, 52), P3(-6.5, 2, 57.3), P3(-10, 1, 57.6), P3(-12.4, 0, 57.5), P3(-18, 0, 60), DIVIDER], ["fuel", "engine"],
+  { r: 0.008, color: FUEL, name: "Metered fuel → flow transducer → distribution unit", note: "From the servo under the engine, through the flow transducer on the engine centerline, to the flow divider on top (POH 7-40, 7-41). The routing is approximate." });
 /** Injector nozzle positions (match the catalogue's nozzle parts). */
 export const NOZZLES = CYLS.map((c) => { const b = P3(c.fs, c.s * 12, 50); return [b[0] - 0.02, b[1] - 0.11, b[2] + c.s * 0.07] as Vec3; });
 CYLS.forEach((c, i) => flow("inj" + c.n, [DIVIDER, P3(c.fs, c.s * 7, 59), P3(c.fs - 0.8, c.s * 18.4, 51), NOZZLES[i]], ["fuel", "engine"],
@@ -48,7 +51,7 @@ flow("oilRet", [P3(-30, 6, 50), P3(-28, 4, 44), P3(-25, 0, 39)], ["engine"], { t
 flow("oilGov", [P3(-32, -7, 54), P3(-40, -7, 55), GOVERNOR, P3(-44, -2, 51.5), P3(-45.5, 0, 50.4)], ["engine", "propeller"],
   { r: 0.007, color: "#B85A2A", name: "Governor oil to the propeller hub", note: "The governing pump boosts engine oil to the hub piston: pressure in = higher pitch (lower RPM); relieved = lower pitch (POH 7-37)." });
 flow("intake", [P3(-43.6, 0, 39), P3(-35.2, 0, 39), P3(-29, 0, 38), P3(-22, 0, 35)], ["engine"], { tube: false, pcolor: "#8FD3E8", size: 0.06, name: "Induction air" });
-flow("altAir", [P3(-29, -12, 33), P3(-29, -5, 37.5), P3(-22, 0, 35)], ["engine"], { tube: false, pcolor: "#F2C26B", size: 0.06, name: "Alternate air (unfiltered)" });
+flow("altAir", [P3(-29, -12, 33), P3(-29, -5, 33), P3(-22, 0, 35)], ["engine"], { tube: false, pcolor: "#F2C26B", size: 0.06, name: "Alternate air (unfiltered)" });
 const MUF = (s: number, fs: number) => P3(clamp(fs, -30, -18.5), s * 9.5, 33.5);
 CYLS.forEach((c) => {
   flow("man" + c.n, [P3(-22, 0, 36.5), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 12, 45.5)], ["engine"], { tube: false, pcolor: "#8FD3E8", count: 4, size: 0.04 });
@@ -66,7 +69,8 @@ const AIR = "#149C94";
   flow("ram" + sd, [P3(-43, s * 6, 45), P3(-36, s * 9, 38), P3(-30.4, s * 9.5, 33.5)], ["environment"], { tube: false, pcolor: "#8FD3E8", size: 0.05, name: "Ram air to the muffler shroud" });
   flow("heat" + sd, [P3(-18, s * 9.5, 33.5), P3(-10, s * 6, 35.5), P3(-3, -3, 38.5), P3(0.6, -5, 39)], ["environment"], { r: 0.02, color: "#E0522B", pcolor: "#FF7A3D", name: "Heated air duct", note: "Muffler shroud → heater valve on the firewall (CABIN HT) (Fig. 7-8)." });
 });
-flow("ventIn", [P3(-36, 15, 46), P3(-14, 15, 41), P3(0.6, 13, 38)], ["environment"], { r: 0.02, color: AIR, pcolor: "#5FC8F0", name: "Ventilating air duct", note: "Ram air from a second inlet on the right side → ventilating air door (CABIN AIR) (Fig. 7-8)." });
+// below the right cylinder heads, outboard of the injector nozzles (BL ≤ 15.4) and exhaust risers, inside the cowl side
+flow("ventIn", [P3(-37, 16.8, 43.5), P3(-14, 16.8, 42), P3(-4, 16, 41.5), P3(0.6, 13, 38)], ["environment"], { r: 0.02, color: AIR, pcolor: "#5FC8F0", name: "Ventilating air duct", note: "Ram air from a second inlet on the right side → ventilating air door (CABIN AIR) (Fig. 7-8)." });
 flow("toMan", [P3(0.6, -5, 39), P3(3, -3, 34), MANIFOLD], ["environment"], { r: 0.022, color: AIR, name: "Into the cabin manifold" });
 flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 0.022, color: AIR });
 [1, -1].forEach((s) => {

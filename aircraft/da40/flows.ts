@@ -21,7 +21,9 @@ flow("fuelSel", [SEL, [fs(2.3), -0.5, 0], [fs(2.05), -0.6, 0], GASC], ["fuel"], 
 flow("fuelPump", [GASC, [fs(1.75), -0.6, 0.04], EPUMP], ["fuel"], { name: "Gascolator → electric pump", note: "The electric pump has a bypass, so fuel flows through it when it is off (AFM 7.10 schematic).", r: 0.012 });
 flow("fuelFw", [EPUMP, [FW + 0.02, -0.5, 0.0], [fs(1.3), -0.3, -0.1], MECH], ["fuel", "engine"], { name: "Through the firewall → engine-driven pump", note: "Feeds the mechanical pump at the rear of the engine.", r: 0.012 });
 flow("fuelEng", [MECH, [fs(1.15), -0.25, 0.05], [fs(0.98), -0.27, 0.15], [fs(1.02), -0.32, 0.06], SERVO], ["fuel", "engine"], { name: "Pump → fuel-flow transducer → servo", note: "The fuel-flow sensor sits between the mechanical pump and the injection timing device (fuel servo), where fuel pressure is tapped (AFM 7-31; SMM 2-18).", r: 0.011 });
-flow("fuelDist", [SERVO, [fs(1.0), -0.15, 0.0], DIST], ["fuel", "engine"], { name: "Servo → fuel distributor", note: "Metered fuel to the flow divider on top of the engine.", r: 0.01 });
+// outside the engine block (parts.ts: fs(0.92) ± 0.35, y −0.14…0.10, z ±0.15): aft from the servo, up behind the block's right rear
+// corner (between the right magneto and the battery), then forward over the top to the distributor
+flow("fuelDist", [SERVO, [fs(1.2), -0.29, 0.1], [fs(1.3), -0.2, 0.17], [fs(1.3), 0.08, 0.17], [fs(1.2), 0.16, 0.1], DIST], ["fuel", "engine"], { name: "Servo → fuel distributor", note: "Metered fuel to the flow divider on top of the engine. The routing is approximate.", r: 0.01 });
 CYLS.forEach((c) => flow("inj" + c.n, [DIST, [c.x, 0.1, c.s * 0.2], [c.x, 0.06, c.s * 0.37]], ["fuel", "engine"], { name: "Injector line, cyl " + c.n, note: "One of four lines 'to cylinders' from the fuel distributor (AFM 7-31).", r: 0.006, count: 5 }));
 flow("bleed", [MECH, [fs(1.3), -0.4, -0.15], [fs(1.32), botY(fs(1.32)) - 0.02, -0.12]], ["fuel", "engine"], { name: "Pump bleed line", note: "Bleed line from the mechanical pump out of the engine compartment; where it ends is not in the documents.", r: 0.006, count: 4, ext: true });
 [1, -1].forEach((s) => flow("vent" + (s > 0 ? "R" : "L"), [P(wingP(s * 3.5, 0.45, 1).add(V(0, -0.02, 0))), P(wingP(s * 3.9, 0.45, 0)), P(wingP(s * 3.9, 0.45, -1).add(V(0, -0.03, 0)))], ["fuel"], { name: "Tank vent line", note: "Capillary and check-valve vents end under the wing about 2 m from the tip (AFM 7-34).", r: 0.006, count: 4, pcolor: "#BFE3FF" }));
@@ -39,12 +41,14 @@ flow("tailpipe", [[fs(0.95), -0.36, 0.06], [fs(1.15), -0.42, 0.1], [fs(1.3), bot
 
 /* ---------- cabin heat & fresh air (heat source and ducting from an unofficial technical description) ---------- */
 const AIR = "#149C94", HOT = "#E0522B";
-const HV: Vec3 = [FW - 0.06, -0.4, 0.12], DV: Vec3 = [FW - 0.14, -0.42, 0.0];
+// Heat valve on the engine side of the firewall, distributor valve behind it (parts.ts; both must match these points)
+const HV: Vec3 = [FW + 0.045, -0.4, 0.12], DV: Vec3 = [FW - 0.14, -0.42, 0.0];
 // down past the oil cooler, under the right exhaust headers, in at the front of the muffler heat shroud (parts.ts: on the
 // muffler axis at fs(0.95), y −0.36, z 0.105–0.205), out at its back to the heat valve
-flow("heatIn", [[fs(0.48), -0.06, 0.25], [fs(0.53), -0.15, 0.25], [fs(0.7), -0.25, 0.28], [fs(0.86), -0.36, 0.15], [fs(0.95), -0.36, 0.155], [fs(1.1), -0.4, 0.17], [FW + 0.04, -0.42, 0.13], HV], ["environment"], { r: 0.022, color: HOT, pcolor: "#FF7A3D", name: "Heat duct", note: "Right cowl intake → shroud around the exhaust muffler → heat valve on the firewall." });
-flow("heatDump", [HV, [FW + 0.05, -0.5, 0.15], [FW + 0.08, botY(FW + 0.08) - 0.04, 0.15]], ["environment"], { r: 0.018, color: HOT, pcolor: "#FFA070", name: "Heat valve overboard outlet", note: "With CABIN HEAT OFF the flap dumps the hot air overboard at the bottom of the cowling.", ext: true });
-flow("heatCab", [HV, [FW - 0.1, -0.42, 0.06], DV], ["environment"], { r: 0.022, color: HOT, name: "Heat valve → distributor" });
+flow("heatIn", [[fs(0.48), -0.06, 0.25], [fs(0.53), -0.15, 0.25], [fs(0.7), -0.25, 0.28], [fs(0.86), -0.36, 0.15], [fs(0.95), -0.36, 0.155], [fs(1.1), -0.4, 0.17], [FW + 0.13, -0.4, 0.14], HV], ["environment"], { r: 0.022, color: HOT, pcolor: "#FF7A3D", name: "Heat duct", note: "Right cowl intake → shroud around the exhaust muffler → heat valve on the firewall." });
+// straight down from the valve, outboard of the exhaust tailpipe's exit (z 0.14)
+flow("heatDump", [HV, [FW + 0.055, -0.5, 0.19], [FW + 0.07, botY(FW + 0.07) - 0.04, 0.2]], ["environment"], { r: 0.018, color: HOT, pcolor: "#FFA070", name: "Heat valve overboard outlet", note: "With CABIN HEAT OFF the flap dumps the hot air overboard at the bottom of the cowling.", ext: true });
+flow("heatCab", [HV, [FW - 0.05, -0.41, 0.07], DV], ["environment"], { r: 0.022, color: HOT, name: "Heat valve → distributor", note: "Through the firewall to the floor / defrost distributor valve behind it (unofficial technical description)." });
 flow("defrost", [DV, [PANEL_X + 0.15, -0.2, 0.0], [DEFROST_X + 0.03, 0.1, 0.0], [DEFROST_X, 0.22, 0.0]], ["environment"], { r: 0.02, color: AIR, name: "Defrost duct", note: "Distributor ▲ position: air to the front of the canopy against mist and frost." });
 [1, -1].forEach((s) => {
   flow("floorF" + s, [DV, [fs(1.75), -0.56, s * 0.2], [fs(1.95), -0.56, s * 0.3]], ["environment"], { r: 0.014, color: AIR, name: "Pilots' floor outlets" });

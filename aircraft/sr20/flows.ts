@@ -23,7 +23,8 @@ const collector = (s: number) => wingP(s * 0.72, 0.45, 0);
 const tankOut = (s: number) => wingP(s * 1.15, 0.35, -1).add(V(0, 0.03, 0));
 flow("fuelL", [tankOut(-1), collector(-1), [1.2, -0.62, -0.3], [1.24, -0.28, 0]], ["fuel"], { name: "Left feed line", note: "Collector → selector valve." });
 flow("fuelR", [tankOut(1), collector(1), [1.2, -0.62, 0.3], [1.24, -0.28, 0]], ["fuel"], { name: "Right feed line", note: "Collector → selector valve." });
-flow("fuelMain", [[1.24, -0.28, 0], [1.4, -0.62, 0.08], [1.66, -0.62, 0.1], [2.2, -0.62, 0.08], [2.7, -0.52, 0.08], [2.8, -0.3, 0.12], [3.05, -0.42, 0.05], [3.32, -0.4, 0.05], [3.28, -0.12, 0.05], [3.1, 0, 0]], ["fuel", "engine"], { name: "Fuel supply", note: "Selector → boost pump → gascolator → firewall → engine pump → servo → flow divider.", r: 0.014 });
+// boost pump → gascolator along the floor right of the rudder horn, pedal links and forward cable pulleys, under the pedal torque tube
+flow("fuelMain", [[1.24, -0.28, 0], [1.4, -0.62, 0.08], [1.66, -0.62, 0.1], [1.95, -0.62, 0.24], [2.3, -0.645, 0.25], [2.5, -0.655, 0.25], [2.63, -0.6, 0.15], [2.7, -0.52, 0.08], [2.8, -0.3, 0.12], [3.05, -0.42, 0.05], [3.32, -0.4, 0.05], [3.28, -0.12, 0.05], [3.1, 0, 0]], ["fuel", "engine"], { name: "Fuel supply", note: "Selector → boost pump → gascolator → firewall → engine pump → servo → flow divider.", r: 0.014 });
 CYLS.forEach((c) => flow("inj" + c.n, [[3.1, 0, 0], [c.x, -0.04, c.s * 0.14], [c.x, -0.1, c.s * 0.33]], ["fuel", "engine"], { name: "Injector line, cyl " + c.n, note: "Continuous-flow nozzle at each intake port.", r: 0.007, count: 5 }));
 
 // induction & exhaust
@@ -37,10 +38,13 @@ flow("oil", [[3.08, -0.38, 0], [3.28, -0.32, -0.3], [3.36, -0.1, -0.35], [3.45, 
 const AIR = "#149C94";
 flow("fresh", [[3.4, -0.37, 0.44], [3.1, -0.5, 0.4], [2.75, -0.48, 0.34], [2.56, -0.46, 0.3]], ["environment"], { r: 0.025, color: AIR, pcolor: "#5FC8F0", name: "Fresh-air duct", note: "NACA inlet → fresh-air valve on the forward firewall." });
 flow("hot", [[3.62, -0.06, 0.28], [3.3, -0.3, 0.34], [3.04, -0.44, 0.22], [2.8, -0.5, 0.3], [2.56, -0.46, 0.3]], ["environment"], { r: 0.025, color: "#E0522B", pcolor: "#FF7A3D", name: "Heat duct", note: "Ram air → heat muff → hot-air valve → mixing chamber." });
-flow("toMan", [[2.54, -0.46, 0.3], [2.53, -0.36, 0.15], [2.52, -0.25, 0]], ["environment"], { r: 0.03, color: AIR, name: "Mixing chamber → manifold" });
-const E0: Vec3 = [2.52, -0.25, 0];
+/** Distribution manifold (parts.ts), above the aileron push rod and sector. */
+const E0: Vec3 = [2.52, -0.1, 0];
+// up the right side, aft of the aileron push rod (x 2.54, y −0.2), into the manifold's right end
+flow("toMan", [[2.54, -0.46, 0.3], [2.46, -0.3, 0.24], [2.5, -0.12, 0.2], E0], ["environment"], { r: 0.03, color: AIR, name: "Mixing chamber → manifold" });
 flow("panelL", [E0, [2.42, 0, -0.32], [2.3, 0.2, -0.44]], ["environment"], { r: 0.018, color: AIR, name: "Panel vent duct (L)", note: "Panel eyeball outlets are always fed." });
-flow("panelR", [E0, [2.42, 0, 0.32], [2.3, 0.2, 0.44]], ["environment"], { r: 0.018, color: AIR, name: "Panel vent duct (R)" });
+// passes between the GEA 71 (below) and the GIAs (above)
+flow("panelR", [E0, [2.47, 0.03, 0.2], [2.42, 0.03, 0.34], [2.3, 0.2, 0.44]], ["environment"], { r: 0.018, color: AIR, name: "Panel vent duct (R)" });
 flow("armL", [E0, [1.8, -0.62, -0.4], [0.5, -0.3, -0.55], [0.4, 0, -0.55]], ["environment"], { r: 0.014, color: AIR, name: "Armrest vent (rear L)", note: "Chest-high passenger outlets in the cabin wall armrests." });
 flow("armR", [E0, [1.8, -0.62, 0.4], [0.5, -0.3, 0.55], [0.4, 0, 0.55]], ["environment"], { r: 0.014, color: AIR, name: "Armrest vent (rear R)" });
 flow("floorF", [E0, [2.36, -0.55, -0.35]], ["environment"], { r: 0.014, color: AIR, name: "Front floor outlets", note: "Under each kick plate." });

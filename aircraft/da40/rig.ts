@@ -52,7 +52,11 @@ export const TAB = { z0: -0.22, z1: 0.22, chord: 0.07 };
 /* ---------- flaps ---------- */
 /** Flap torsion tube across the fuselage, its ends and arms inside the stub-wing trailing edge. */
 export const FLAP_TUBE = { x: fs(3.17), y: -0.5, half: 0.45, arm: 0.04 };
-export const FLAP_ACT: Vec3 = [fs(3.08), -0.5, 0.14];
+/**
+ * Flap actuator (0.24 m long, parts.ts; location not in the documents): its aft face (FS 2.98) is ahead of the torsion tube (FS 3.17),
+ * the rear seat pans (FS 3.02) and the roll servo (FS 3.00); the rod runs from it to the tube, under the seat pan and above the servo.
+ */
+export const FLAP_ACT: Vec3 = [fs(2.86), -0.53, 0.14];
 const flapHornZ = 1.28;
 /** Flap horn: hangs from the hinge line (mid-thickness) inside the wing. */
 export const FLAP_HORN = 0.03;
@@ -141,7 +145,7 @@ export function linkPoints(p: RigPose) {
     const hz = wingP(s * flapHornZ, FLAP.hinge, 0), fa = flapAngOf(p);
     out["flapRod" + (s > 0 ? "R" : "L")] = [arm, V(hz.x + FLAP_HORN * Math.sin(fa), hz.y - FLAP_HORN * Math.cos(fa), hz.z)];
   });
-  out.flapAct = [V(FLAP_ACT[0] + 0.12, FLAP_ACT[1], FLAP_ACT[2]), V(ft.x + ft.arm * Math.sin(tt), ft.y - ft.arm * Math.cos(tt), FLAP_ACT[2])];
+  out.flapAct = [V(FLAP_ACT[0] - 0.12, FLAP_ACT[1], FLAP_ACT[2]), V(ft.x + ft.arm * Math.sin(tt), ft.y - ft.arm * Math.cos(tt), FLAP_ACT[2])];
   return out;
 }
 const flapAngOf = (p: RigPose) => p.flapTube / 0.8;

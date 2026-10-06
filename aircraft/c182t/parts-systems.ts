@@ -16,6 +16,7 @@ import { glowAnim as glow, pushPull, sysNow } from "../cessna/anims";
 import { CAT, KNOB, P3, PV } from "./parts";
 import { RIG_SPEC } from "./rig";
 import { useC182 } from "./store";
+import { IN } from "../cessna/airframe";
 
 const { part } = CAT;
 const S = () => useC182.getState().s, EL = () => useC182.getState().E;
@@ -88,15 +89,31 @@ part(() => box(0.1, 0.16, 0.14), ["electrical"], { pos: JBOX, color: "#8A7A3A", 
 part(() => box(0.05, 0.05, 0.04), ["electrical"], { pos: P3(-1.5, -12.5, 46), color: "#C9B98F", name: "Alternator Control Unit (ACU)", note: "Inside the J-box: regulates the alternator field, opens the ALT FIELD breaker above about 31.75 V and sends LOW VOLTS below 24.5 V. It can nuisance-trip during a start — reset once (POH 7-55, 3-34).", pin: true });
 part(() => box(0.03, 0.03, 0.05), ["electrical"], { pos: P3(-2, -16.5, 47), color: "#8C959C", name: "Main battery current shunt", note: "Ammeter transducer, arm −2.0 → M BATT AMPS (+ charging, − discharging) (POH 6-20, 7-53)." });
 part(() => box(0.07, 0.08, 0.015), ["electrical"], { pos: PV(onSkin(X(-3), Y(40), -1, 1.012)), color: ELEC, name: "External power receptacle", note: "Integral to the J-box, behind a door on the left side of the cowl near the firewall. MASTER and AVIONICS OFF before connecting; it supplies the buses and charges the battery through the battery relay (POH 7-55, 4-13).", ext: true, pin: true });
-part(() => cyl(0.06, 0.12, "x"), ["electrical", "engine"], { pos: P3(-33.4, 9, 41.5), color: ELEC, anim: glow(ELEC, () => EL().altOn, ["electrical", "engine", "overview"], "#FFD34D"),
-  name: "Alternator — 28 V, 60 A", note: "Belt driven, front of the engine, arm −33.4. 60 A standard (24-01-R) or 95 A optional (24-02-O) — which N8050J and N21200 have is not in the POH. Field through the ALT FIELD breaker (CROSSFEED BUS) and MASTER (ALT) (POH 7-46, 6-20).", pin: true });
-part(() => tubeGeo([P3(-41, 0, 47.5), P3(-37, 6, 43), P3(-33.4, 9, 40.6), P3(-37, 3, 46), P3(-41, 0, 47.5)], 0.006), ["electrical", "engine"], { color: "#20262B", name: "Alternator belt", note: "A broken belt is one of the alternator failures behind the LOW VOLTS procedure (POH 3-33)." });
+/** Belt plane just ahead of the engine block's front face (FS −40.5): crankshaft pulley on the thrust line, alternator pulley on its shaft. */
+const BELT = { fs: -41.2, crank: { bl: 0, h: 50.4, r: 2.6 }, alt: { bl: 9, h: 41.5, r: 1.4 } };
+/** Closed belt path round two pulleys in a plane of constant FS: the long arc of the crank pulley, then the far arc of the alternator's. */
+const beltPath = (): Vec3[] => {
+  const { fs, crank: a, alt: b } = BELT, th = Math.atan2(b.h - a.h, b.bl - a.bl), ph = Math.acos((a.r - b.r) / Math.hypot(b.bl - a.bl, b.h - a.h));
+  const arc = (c: typeof a, from: number, span: number, n: number) => Array.from({ length: n + 1 }, (_, i) => { const t = from + (span * i) / n; return P3(fs, c.bl + c.r * Math.cos(t), c.h + c.r * Math.sin(t)); });
+  const pts = [...arc(a, th + ph, 2 * Math.PI - 2 * ph, 14), ...arc(b, th - ph, 2 * ph, 6)];
+  return [...pts, pts[0]];
+};
+/** Alternator body at its equipment-list arm, plus a short shaft carrying its pulley forward into the belt plane. */
+const alternatorGeo = () => {
+  const reach = X(BELT.fs) - X(-33.4), shaft = cyl(0.008, reach - 0.06, "x"), pulley = cyl(BELT.alt.r * IN - 0.004, 0.014, "x");
+  shaft.translate((reach + 0.06) / 2, 0, 0);
+  pulley.translate(reach, 0, 0);
+  return mergeGeos([cyl(0.06, 0.12, "x"), shaft, pulley]);
+};
+part(alternatorGeo, ["electrical", "engine"], { pos: P3(-33.4, 9, 41.5), color: ELEC, anim: glow(ELEC, () => EL().altOn, ["electrical", "engine", "overview"], "#FFD34D"),
+  name: "Alternator — 28 V, 60 A", note: "Belt driven, front of the engine, arm −33.4. 60 A standard (24-01-R) or 95 A optional (24-02-O) — which N8050J and N21200 have is not in the POH. Field through the ALT FIELD breaker (CROSSFEED BUS) and MASTER (ALT) (POH 7-46, 6-20). The pulley and shaft are drawn to line up with the belt; their sizes are approximate.", pin: true });
+part(() => tubeGeo(beltPath(), 0.006), ["electrical", "engine"], { color: "#20262B", name: "Alternator belt", note: "Crankshaft pulley to the alternator pulley at the front of the engine (layout approximate). A broken belt is one of the alternator failures behind the LOW VOLTS procedure (POH 3-33)." });
 part(() => box(0.14, 0.12, 0.16), ["electrical"], { pos: P3(10.8, -14, 50.5), color: ELEC, anim: glow(ELEC, () => EL().stbyOnline, ["electrical"], "#FF8A3D"),
   name: "Standby battery", note: "Between the firewall and the instrument panel, arm 10.8. Feeds only the ESSENTIAL BUS — automatically when the main bus falls below 20 V, for at least 30 minutes; it cannot power the transponder (POH 7-47, 3-15, 3-35).", pin: true });
 part(() => box(0.06, 0.05, 0.08), ["electrical"], { pos: P3(12, -9.5, 54), color: "#8A7A3A", name: "Standby battery controller", note: "On/off control, test load with an overheat switch, and a current shunt for S BATT; it senses main bus voltage through the WARN breaker; 25 A fuse at the battery (Fig. 7-7 Sheet 3)." });
 part(() => box(0.012, 0.025, 0.02), ["electrical"], { pos: P3(18.1, -19.0, 64.0), color: "#C9D0D5", anim: (m) => { const v = S().elec.stby; m.rotation.z = v === "ARM" ? 0.5 : v === "TEST" ? -0.5 : 0; },
   name: "STBY BATT switch", note: "Upper left corner of the pilot's panel: ARM – OFF – TEST (TEST momentary). Before start: TEST 20 s (hold; the green lamp must not go off) — then ARM (the PFD comes on) and check BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown (POH 7-10, 4-13).", pin: true });
-part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -17.7, 64.0), color: "#1E5A2A", anim: (m) => { m.material = EL().testLamp ? mats("#33FF66").hi : mats("#1E5A2A").on; },
+part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -17.7, 64.0), color: "#1E5A2A", anim: glow("#1E5A2A", () => EL().testLamp, ["electrical"], "#33FF66"),
   name: "STBY BATT TEST lamp", note: "Green lamp right of the switch; it must stay lit through the 20-second test (POH 4-13)." });
 part(() => box(0.012, 0.04, 0.04), ["electrical"], { pos: P3(18.1, -19.4, 61.7), color: "#C8313B", anim: (m) => { m.rotation.z = S().elec.bat ? 0.3 : -0.3; },
   name: "MASTER switch (ALT | BAT)", note: "Two-pole rocker directly below STBY BATT: BAT controls the battery relay, ALT the alternator field; ALT can't be ON without BAT (POH 7-51).", pin: true });
@@ -282,7 +299,9 @@ part(() => box(0.05, 0.04, 0.06), ["environment", "cabin"], { pos: P3(14, 4, 50.
 
 /* ---------- cabin and safety (POH 7-21 – 7-27, 7-74, Supplement 1) ---------- */
 const CAB = "#6F7F8C";
-part(() => cyl(0.04, 0.3), ["cabin"], { pos: P3(29, 0, 30), color: "#D32640", name: "Fire extinguisher", note: "Portable Halon 1211, 5B:C, in a holder on the floor between the front seats, arm 29.0. Gage in the green (≈ 125 psi), lever pin in place. Empties in about 8 s; ventilate promptly after use (POH 7-74, 4-8).", pin: true });
+// arm 29.0 puts it against the aft end of the pedestal, where the rudder trim wheel, its indicator and the fuel selector sit on the
+// centreline: shown just left of them, standing on the floor (h ≈ 27)
+part(() => cyl(0.04, 0.3), ["cabin"], { pos: P3(29, -5, 33), color: "#D32640", name: "Fire extinguisher", note: "Portable Halon 1211, 5B:C, in a holder on the floorboard between the front seats, arm 29.0; gage at the top. Gage in the green (≈ 125 psi), lever pin in place. Empties in about 8 s; ventilate promptly after use (POH 7-74, 4-8). The holder's lateral position is not in the POH (shown just left of the pedestal).", pin: true });
 part(() => box(0.12, 0.08, 0.1), ["cabin"], { pos: P3(150.8, 7, 47), color: "#EB7A12", anim: glow("#EB7A12", () => S().cabin.elt === "ON", ["cabin"], "#FF3B30"),
   name: "ELT", note: "As delivered a Pointer 3000-11 (arm 150.8): five alkaline C cells, 121.5 / 243.0 MHz, behind the aft cabin partition on the right side of the tailcone. The airplanes may now carry another ELT (e.g. Artex C406-N, Supplement 7) (S1-4, POH 6-21).", pin: true });
 part(() => box(0.012, 0.03, 0.03), ["cabin"], { pos: P3(18.1, 17.4, 64.2), color: "#EB7A12", anim: (m) => { const e = S().cabin.elt; m.rotation.z = e === "ON" ? 0.4 : e === "RESET" ? -0.4 : 0; },

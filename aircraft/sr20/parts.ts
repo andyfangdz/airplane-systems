@@ -158,7 +158,8 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
     note: "Single-disc caliper with pads. An orange temperature tab on the caliper turns brown if the brake overheated — inspect. Brake temp sensor also feeds the CAS alerts.",
   });
   part(() => tubeGeo([[2.4, -0.6, s * 0.3], [1.8, -0.58, s * 0.34], [1.28, -0.6, s * 0.8], wingP(s * 1.0, 0.33, -1).add(V(0, 0.012, 0))], 0.011), ["gear"], { name: "Brake line (" + (s > 0 ? "R" : "L") + ")", note: "Master cylinder at each pedal → parking-brake valve → caliper." });
-  part(() => tubeGeo([wingP(s * 1.0, 0.33, -1), [1.16, -0.9, s * 1.22], [MG.x, -1.12, s * (MG.z - 0.12)]], 0.011), ["gear"], { name: "Brake line (" + (s > 0 ? "R" : "L") + ")", note: "Runs down the gear leg to the caliper.", ext: true });
+  // down the aft face of the strut (r 0.04), clear of it, to the caliper on the inboard side of the disc
+  part(() => tubeGeo([wingP(s * 1.0, 0.33, -1), [MG.x - 0.04, -0.9, s * 1.22], [MG.x - 0.06, -1.13, s * (MG.z - 0.12)]], 0.011), ["gear"], { name: "Brake line (" + (s > 0 ? "R" : "L") + ")", note: "Runs down the aft side of the gear leg to the caliper (routing on the leg approximate).", ext: true });
 });
 export const NOSE_GEAR: Vec3 = [3.06, -0.52, 0];
 export const NOSE_CASTER: Vec3 = [0.22, -0.68, 0];
@@ -206,8 +207,10 @@ part(() => box(0.1, 0.09, 0.12), ["engine", "propeller"], { pos: [3.55, -0.06, 0
 part(() => box(0.08, 0.16, 0.12), ["engine"], { pos: [3.36, -0.1, -0.35], color: "#9A6A48", name: "Oil cooler", note: "Remote-mounted. Valve bypasses it below 170 °F or above an 18 psi pressure drop." });
 part(() => box(0.1, 0.12, 0.14), ["engine"], { pos: [3.58, -0.15, 0.2], color: "#C9B98F", name: "Induction air filter", note: "Paper filter screen just inside the right cowl inlet. (Costanzo deck)", pin: true });
 part(() => cyl(0.045, 0.11, "x"), ["engine"], { pos: [2.8, -0.02, 0.18], color: "#1F3A5A", name: "Oil filter (full-flow)", note: "Spin-on filter at the accessory case, next to the magnetos. (Costanzo deck)", pin: true });
-part(() => cyl(0.055, 0.14, "x"), ["engine", "fuel"], { pos: [3.32, -0.4, 0], color: "#7E8A93", name: "Throttle body / fuel servo", note: "Butterfly meters air; servo meters fuel in proportion to airflow and mixture. MAP sensor sits nearby.", pin: true });
-part(() => box(0.03, 0.08, 0.1), ["engine"], { pos: [3.5, -0.26, 0.2], color: "#E0B040", anim: altDoorAnim(3.5), name: "Alternate air door", note: "ALT AIR – PULL knob opens it: bypasses the filter with warm, unfiltered air." });
+// under the front of the engine, just forward of the oil sump (x ≤ 3.355) and above the cowl bottom; clear of ALT 1 / ALT 2 (|z| ≥ 0.15)
+part(() => cyl(0.055, 0.14, "x"), ["engine", "fuel"], { pos: [3.43, -0.435, 0], color: "#7E8A93", name: "Throttle body / fuel servo", note: "The power lever's cable works the air throttle body on the fuel servo: its butterfly meters air, and the servo meters fuel in proportion to airflow and mixture (POH 7-36). The MAP sensor is on the bottom of the induction air manifold near the throttle body (POH 7-41). The POH doesn't locate the servo: shown under the front of the engine (approximate).", pin: true });
+part(() => box(0.03, 0.08, 0.1), ["engine"], { pos: [3.514, -0.15, 0.2], color: "#E0B040", anim: altDoorAnim(3.514), name: "Alternate air door",
+  note: "On the engine induction air manifold (POH Section 7, Alternate Air Control); shown on its face just aft of the filter, above ALT 1 — the exact position is approximate. The ALT AIR – PULL knob opens it: bypasses the filter with warm, unfiltered air." });
 part(() => cyl(0.06, 0.28, "z"), ["engine", "environment"], { pos: [3.04, -0.44, 0.22], color: "#8A5A3C", name: "Muffler", note: "Single muffler; exhaust exits through the lower cowl. Placed on the right with the heat muff and mixing chamber per the POH environmental section and the Costanzo deck photo (the POH engine paragraph says left)." });
 part(() => cyl(0.08, 0.2, "z"), ["environment", "engine"], { pos: [3.04, -0.44, 0.22], color: "#E0522B", fairing: true, name: "Heat exchanger (muff)", note: "Shroud around the muffler; heats ram air for the cabin." });
 part(() => cyl(0.07, 0.12, "x"), ["electrical", "engine"], { pos: [3.5, -0.3, 0.22], color: "#D9960F", anim: altAnim("alt1"), name: "ALT 1 — 100 A", note: "Belt-driven, right front. Regulated to 27.7 V. Feeds Main Distribution Bus 1.", pin: true });
@@ -262,8 +265,9 @@ part(() => box(0.03, 0.02, 0.15), ["caps", "cabin"], { pos: [1.3, 0.58, -0.02], 
 part(() => cyl(0.04, 0.24), ["cabin"], { pos: [2.18, -0.45, -0.5], color: "#D32640", name: "Fire extinguisher", note: "Halon 1211, class B & C. Forward outboard in the pilot footwell. About 2.5 lb; check gauge/pin preflight.", pin: true });
 part(() => box(0.22, 0.05, 0.12), ["cabin"], { pos: [1.45, -0.24, 0], color: "#8A6A3A", name: "Armrest: egress hammer & hour meters", note: "8 oz ball-peen hammer for breaking the acrylic windows. HOBBS runs with BAT 1 + either ALT on; FLIGHT starts ~35 KIAS.", pin: true });
 part(() => box(0.16, 0.09, 0.11), ["cabin", "caps"], { pos: [-0.8, -0.28, 0.13], color: "#EB7A12", name: "ELT — Artex ELT 1000", note: "406 MHz + 121.5 MHz. Triggers at 4–5 ft/s longitudinal Δv or on CAPS deployment. Removable for portable use.", pin: true });
-part(() => box(0.05, 0.04, 0.02), ["cabin"], { pos: [1.92, -0.44, -0.14], color: "#EB7A12", name: "ELT remote switch (RCPI)", note: "ON – ARM/OFF – TEST, red LED flashes when transmitting. Below the ALT AIR knob by the pilot's right knee." });
-part(() => box(0.05, 0.05, 0.03), ["engine"], { pos: [1.92, -0.36, -0.14], color: "#E0B040", name: "ALT AIR – PULL knob", note: "Press lock button, pull, release. Use if induction filter blockage is suspected." });
+// both stand proud of the circuit breaker panel face (z −0.15) on the left side of the console
+part(() => box(0.05, 0.04, 0.02), ["cabin"], { pos: [1.92, -0.44, -0.161], color: "#EB7A12", name: "ELT remote switch (RCPI)", note: "ON – ARM/OFF – TEST, red LED flashes when transmitting. Below the ALT AIR knob by the pilot's right knee (POH Section 7, ELT Remote Switch and Indicator Panel)." });
+part(() => box(0.05, 0.05, 0.03), ["engine"], { pos: [1.92, -0.36, -0.166], color: "#E0B040", name: "ALT AIR – PULL knob", note: "On the left side of the console near the pilot's right knee. Press the lock button, pull, release: opens the alternate air door. Use if induction filter blockage is suspected (POH Section 7, Alternate Air Control)." });
 
 /* ---------- electrical ---------- */
 part(() => box(0.07, 0.18, 0.14), ["electrical"], { pos: [2.66, -0.08, -0.33], name: "Master Control Unit", note: "Left firewall. Regulates both alternators, houses the three distribution buses, fuses, the MDB1→MDB2 diode and the starter/external-power relays.", pin: true });
@@ -341,7 +345,8 @@ part(() => box(0.07, 0.05, 0.07), ["fuel", "engine"], { pos: [3.1, 0, 0], name: 
 /* ---------- environmental ---------- */
 part(() => box(0.1, 0.03, 0.02), ["environment"], { pos: [3.42, -0.38, 0.49], name: "NACA fresh-air inlet", note: "Lower right cowl. Ram air for ventilation and the heat muff.", pin: true, ext: true });
 part(() => box(0.1, 0.12, 0.14), ["environment"], { pos: [2.54, -0.46, 0.3], name: "Mixing chamber", note: "Lower right firewall. Hot-air and fresh-air valves on the forward side set the blend.", pin: true });
-part(() => box(0.08, 0.12, 0.28), ["environment"], { pos: [2.52, -0.25, 0], name: "Distribution manifold + fan", note: "Center, aft side of firewall. Butterfly valves feed floor and defrost; panel vents always fed. Optional 3-speed blower.", pin: true });
+// above the aileron push rod (y −0.2) and the central pulley sector below it; must match E0 in flows.ts
+part(() => box(0.08, 0.12, 0.28), ["environment"], { pos: [2.52, -0.1, 0], name: "Distribution manifold + fan", note: "Mounted to the center, aft side of the firewall (POH 7-69, 7-70); its height on the firewall is approximate. Butterfly valves feed floor and defrost; the panel vents are always fed. Blower: OFF (ram air), 1, 2, 3.", pin: true });
 part(() => box(0.2, 0.07, 0.2), ["environment"], { pos: [1.25, -0.58, 0.33], color: "#6EC9E6", name: "A/C evaporator (optional)", note: "Under the front passenger seat. Condensate drains overboard through the belly." });
 
 /* ---------- CAPS ---------- */
@@ -424,8 +429,9 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], { chan: ["rudder"], parent: "rig
     part(() => box(0.012, 0.012, AIL_DRIVE.crank), ["controls"], { chan: ["aileron"], parent: "rig:pul:aw" + (sd > 0 ? "R" : "L"), pos: [0, AIL_DRIVE.lift, sd * AIL_DRIVE.crank / 2], color: STEEL, name: "Wing sector crank arm", note: "Swings fore-aft as the sector turns and drives the aileron's conical drive arm." });
   });
 }
-// turnbuckles and cable guides
-([["elA", 3, 0.25], ["elB", 4, 0.25], ["elA", 3, 0.35], ["elB", 4, 0.35], ["rudR", 2, 0.3], ["rudL", 2, 0.3]] as [string, number, number][]).forEach(([k, i, t], j) =>
+// turnbuckles and cable guides. The elevator turnbuckles sit on each strand's long run up the tailcone (segment 4): elA's segment 3
+// is the short wrap round the intermediate pulley, where they would sit inside the pulley wheel.
+([["elA", 4, 0.25], ["elB", 4, 0.25], ["elA", 4, 0.35], ["elB", 4, 0.35], ["rudR", 2, 0.3], ["rudL", 2, 0.3]] as [string, number, number][]).forEach(([k, i, t], j) =>
   part(() => cyl(0.009, 0.07, "x"), ["controls"], { chan: chanOfKey(k), pos: alongCable(k, i, t), color: "#C9B98F", name: "Turnbuckle", note: "Sets cable tension; safety-wired after rigging.", pin: j === 0 }));
 [1, -1].forEach((sd) => [["ailBal", sd > 0 ? 1 : 6], ["ail" + (sd > 0 ? "R" : "L"), 7]].forEach(([k, i]) =>
   part(() => box(0.03, 0.03, 0.02), ["controls"], { chan: ["aileron"], pos: alongCable(k as string, i as number, 0.5), color: "#C9D0D5", name: "Cable guide", note: "Fairlead that keeps the aileron cable centred as it runs spanwise (the clips drawn in POH Fig. 7-2).", pin: sd > 0 && k === "ailBal" }))

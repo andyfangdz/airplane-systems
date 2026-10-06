@@ -22,20 +22,27 @@ const wp = (bl: number, c: number, up = 0, dy = 0): Vec3 => PV(wingP(Z(bl), c, u
 const RES = P3(14.5, 0, 25.6);
 flow("fuelSel", [FSEL, P3(18, 0, 25.4), RES], ["fuel"], { name: "Selector → reservoir tank", r: 0.01 });
 flow("fuelPump", [RES, P3(11, -2, 25.8), P3(9.5, -3, 26), P3(4.5, -2.5, 26.5), P3(0.5, -3, 27.5), P3(-4, -4, 29)], ["fuel"], { name: "Reservoir → aux pump → shutoff valve → strainer", note: "Through the firewall to the fuel strainer (Fig. 7-6).", r: 0.01 });
-flow("fuelEdp", [P3(-4, -4, 29), P3(-6, -6, 36), P3(-7, -6, 45)], ["fuel", "engine"], { name: "Strainer → engine-driven pump", r: 0.009 });
-flow("fuelServo", [P3(-7, -6, 45), P3(-12, -5, 38), P3(-20, 0, 36.5)], ["fuel", "engine"], { name: "Engine-driven pump → fuel/air control unit", r: 0.009 });
-flow("fuelMetered", [P3(-20, 0, 37.5), P3(-24, 3, 46), P3(-22.6, 3, 57), P3(-18, 0, 58.5)], ["fuel", "engine"], { name: "Metered fuel → flow transducer → distribution unit", note: "From the servo on the bottom of the engine up to the flow divider on top, through the fuel flow transducer (POH 7-37).", r: 0.008 });
+// pump on the accessory case (parts-systems.ts); both lines keep clear of the vacuum pump vent line (BL ≈ −5.5 to −6)
+flow("fuelEdp", [P3(-4, -4, 29), P3(-3.5, -6.5, 36), P3(-4.5, -9, 41), P3(-5.8, -9, 45)], ["fuel", "engine"], { name: "Strainer → engine-driven pump", r: 0.009 });
+// The fuel/air control unit (servo) is under the front of the engine at P3(−28.2, 0, 33.8) (parts.ts). Down aft of the block's rear
+// face (FS −6.4), forward under the oil sump (bottom h 36.1) outboard of the muffler (BL ±6.7), and into the servo's left side
+flow("fuelServo", [P3(-5.8, -9, 45), P3(-5.6, -9.6, 40), P3(-6.2, -8.8, 35), P3(-14, -8.6, 34.6), P3(-22.5, -8.4, 34.6), P3(-26.4, -6.6, 34.2), P3(-27.8, -1.2, 33.8)], ["fuel", "engine"], { name: "Engine-driven pump → fuel/air control unit", r: 0.009 });
+// up in front of the crankcase (front face FS −30.8; the alternator and its belt are at BL ≥ 5.6), then aft over the top, below
+// the cylinder baffles, into the transducer
+flow("fuelMetered", [P3(-29.8, 1, 35), P3(-31.4, 2.5, 38.5), P3(-31.7, 3, 47), P3(-31.2, 3, 54.8), P3(-27.5, 3, 55.6), P3(-22.6, 3, 57), P3(-18, 0, 58.5)], ["fuel", "engine"], { name: "Metered fuel → flow transducer → distribution unit", note: "From the servo under the engine up to the flow divider on top, through the fuel flow transducer (POH 7-37). The routing is approximate.", r: 0.008 });
 CYLS.forEach((c) => flow("inj" + c.n, [P3(-18, 0, 58.5), P3(c.fs + 1, c.s * 6, 57), P3(c.fs - 0.5, c.s * 9.5, 46)], ["fuel", "engine"], { name: "Injector line, cylinder " + c.n, note: "To the air-bleed nozzle at the intake port.", r: 0.005, count: 5 }));
-flow("fuelReturn", [P3(-20, 2, 38.5), P3(-10, 4, 34), P3(0, 3.5, 28.5), P3(4, 3, 27.5), [RES[0] + 0.02, RES[1] + 0.02, RES[2] + 0.03]], ["fuel"], { name: "Fuel return line", note: "Orifice in the top of the fuel/air control unit → check valve → reservoir tank: returns fuel/vapor to cut hot-weather vapor (POH 7-44).", r: 0.006, color: "#7EB3F5" });
+// from the servo's top out to the right (aft of the alternate air door), aft below the right exhaust risers and outboard of the muffler
+flow("fuelReturn", [P3(-27, 0.8, 35.3), P3(-26.2, 5.5, 34.8), P3(-24.6, 8.8, 34.8), P3(-16, 9, 35), P3(-8, 6.5, 33.5), P3(0, 3.5, 28.5), P3(4, 3, 27.5), [RES[0] + 0.02, RES[1] + 0.02, RES[2] + 0.03]], ["fuel"], { name: "Fuel return line", note: "Orifice in the top of the fuel/air control unit → check valve → reservoir tank: returns fuel/vapor to cut hot-weather vapor (POH 7-44).", r: 0.006, color: "#7EB3F5" });
 flow("vent", [wp(-90, 0.15, 1, -0.02), wp(-23, 0.15, 1, -0.02), wp(23, 0.15, 1, -0.02), wp(90, 0.15, 1, -0.02)], ["fuel"], { tube: false, pcolor: "#CFE3FF", size: 0.05, name: "Vent" });
 
 /* ---------- oil, induction, exhaust, cooling ---------- */
 flow("oil", [P3(-18, 0, 38.5), P3(-8, -3, 42), P3(-5, 0, 47.5), P3(-8, 9, 52), P3(-11, 14, 56), P3(-16, 6, 55), P3(-22, -6, 54), P3(-18, 0, 47)], ["engine"],
   { r: 0.009, color: "#B85A2A", name: "Oil circuit", note: "Sump pickup screen → engine-driven pump → full-flow filter → pressure relief valve → thermostatic remote oil cooler → galleries → back to the sump (POH 7-35)." });
-flow("intake", [P3(-38.5, 0, 37.8), P3(-27.5, 0, 38), P3(-23, 0, 37.5), P3(-20, 0, 36.5)], ["engine"], { tube: false, pcolor: "#8FD3E8", size: 0.06, name: "Induction air" });
-flow("altAir", [P3(-24, -12, 34), P3(-23, -5, 37.5), P3(-20, 0, 36.5)], ["engine"], { tube: false, pcolor: "#F2C26B", size: 0.06, name: "Alternate air (unfiltered)" });
+// intake → filter → air box → servo; the alternate air door is on the air box's right side (parts.ts); man* follow the intake tubes
+flow("intake", [P3(-38.5, 0, 37.8), P3(-29.5, 0, 37.9), P3(-27.6, 0, 36.8), P3(-28.2, 0, 33.8)], ["engine"], { tube: false, pcolor: "#8FD3E8", size: 0.06, name: "Induction air" });
+flow("altAir", [P3(-29.4, 10, 33), P3(-29.4, 3.8, 34.6), P3(-28.2, 0, 33.8)], ["engine"], { tube: false, pcolor: "#F2C26B", size: 0.06, name: "Alternate air (unfiltered)" });
 CYLS.forEach((c) => {
-  flow("man" + c.n, [P3(-20, 0, 37.5), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 11, 45.5)], ["engine"], { tube: false, pcolor: "#8FD3E8", count: 4, size: 0.04 });
+  flow("man" + c.n, [P3(-26.2, 0, 35.2), P3(-23.8, c.s * 2.5, 37.2), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 11, 45.5)], ["engine"], { tube: false, pcolor: "#8FD3E8", count: 4, size: 0.04 });
   flow("exh" + c.n, [P3(c.fs, c.s * 15, 46), P3(c.fs - 1, c.s * 12, 38), P3(-22.7, c.s * 3, 34.5)], ["engine", "environment"], { r: 0.016, color: "#8A5A3C", pcolor: "#FF8A4A", count: 4, name: "Exhaust riser", note: "Each cylinder's riser runs to the common muffler below the engine (POH 7-37)." });
 });
 flow("tailpipe", [P3(-22.7, 4, 33.5), P3(-16, 6, 29), P3(-12, 7, 24)], ["engine"], { r: 0.022, color: "#8A5A3C", pcolor: "#FF8A4A", name: "Tailpipe", note: "Single tailpipe overboard below the cowl (POH 7-37).", ext: true });
@@ -72,7 +79,8 @@ flow("vacOut", [P3(-5, -5.5, 44), P3(-6, -6, 32), P3(-6, -8, 24.8)], ["vacuum"],
 /* ---------- electrical feeders (Figure 7-7) ---------- */
 const JB = P3(-2.5, -15, 43), CB = P3(16.8, -12.5, 46.3);
 flow("alt", [P3(-29.5, 8, 43.5), P3(-20, 4, 34), P3(-8, -8, 36), JB], ["electrical"], { r: 0.01, color: "#D9960F", name: "Alternator output", note: "Alternator B terminal → ACU → alternator relay → J-box main node." });
-flow("bat", [P3(-5, -12, 53), P3(-4, -14, 48), JB], ["electrical"], { r: 0.012, color: "#D9960F", name: "Battery cable", note: "Main battery → battery relay (MASTER BAT) → current shunt (M BATT)." });
+// from the main battery's bottom face (h 48.7, parts-systems.ts) down to the J-box (top h 46.15)
+flow("bat", [P3(-5, -15.9, 49), P3(-4.2, -15.5, 47.4), JB], ["electrical"], { r: 0.012, color: "#D9960F", name: "Battery cable", note: "Main battery → battery relay (MASTER BAT) → current shunt (M BATT)." });
 flow("ext", [P3(-3, -20, 40), P3(-3, -17, 42), JB], ["electrical"], { r: 0.01, color: "#D9960F", name: "External power" });
 flow("feedA", [JB, P3(2, -16, 44), P3(12, -14, 45), CB], ["electrical"], { r: 0.01, color: "#D9960F", name: "Bus feeders (C/B “A” and “B”)", note: "Push-to-reset feeder breakers in the J-box feed ELECTRICAL BUS 1 and BUS 2 on the breaker panel (Fig. 7-7)." });
 flow("stbyBat", [P3(11.2, -14, 51), P3(14, -13.5, 48), CB], ["electrical"], { r: 0.008, color: "#D9960F", name: "Standby battery feed", note: "Standby battery → 25 A fuse → STBY BATT switch → STDBY BATT breaker → ESSENTIAL BUS." });
