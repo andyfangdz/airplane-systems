@@ -48,7 +48,7 @@ const QUIET: Partial<Record<SysId, string[]>> = {
     "Fuel tank sump drain", "Tank outlet screen", "Fuel flow transducer"],
   electrical: ["MAGNETOS switch", "Flap motor and actuator", "Auxiliary fuel pump", "Alternator Control Unit (ACU)", "STBY BATT switch", "AVIONICS switch (BUS 1 | BUS 2)",
     "Switch panel", "Forward avionics cooling fan", "Aft avionics cooling fan", "Circuit breaker panel", "MASTER switch (ALT | BAT)"],
-  lighting: ["Switch panel", "Flood light", "Overhead console", "Rear dome light", "Taxi light"],
+  lighting: ["Switch panel", "Flood light", "Overhead console", "Rear dome light", "Taxi light", "Control wheel map light"],
   avionics: ["PFD bezel AFCS keys", "AVIONICS switch (BUS 1 | BUS 2)", "DISPLAY BACKUP button", "Forward avionics cooling fan", "Aft avionics cooling fan",
     "COM 2 / GPS 2 antenna", "VOR/GS navigation antenna", "Marker beacon antenna", "Transponder antenna", "OAT probe (GTP 59)", "GEA 71 engine/airframe unit"],
   autopilot: ["Elevator trim cable pulley", "GIA 63W #2", "CWS button", "Manual Electric Trim (MET) switch", "PFD bezel AFCS keys", "GFC 700 pitch trim servo"],

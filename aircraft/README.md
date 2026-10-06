@@ -16,7 +16,7 @@ To add one:
 | `systems.ts` | `SysDef[]` rail entries in POH/AFM Section 7 order: id, name, page, camera `[position, target]`, overview blurb, and `ref` when a system is described in another document (e.g. a supplement). A system's colour comes from `SYS_COLOR` in `lib/systems.ts`, by id |
 | `geometry.ts` | Airframe shape: fuselage station table, wing/tail/fin functions, window outlines, painted skin |
 | `parts.ts` | `CAT = new Catalogue(id, labelLists?)`, the parts, shells and control surfaces, and the exported anchor positions |
-| `parts-systems.ts` | Optional second half of a long catalogue (C172S, C182T). It only adds to `CAT`, so `index.tsx` must side-effect-import it (`import "./parts-systems";`) |
+| `parts-systems.ts` | Optional second half of a long catalogue (C172S, C182T): adds the systems parts to `CAT` and exports their anchor positions; `index.tsx` also imports it (`import "./parts-systems";`) so the parts register with the airplane definition |
 | `rig.ts` | Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` or `Airplane.tsx` |
 | `flows.ts` | Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)` |
 | `model.ts` | Sim state type, `initialSim`, the pure solver `solve(s, prev?) → E` (buses, powered loads; `prev` is the last solution, for state that latches), alerts and annunciation list, breaker table, autopilot configuration (`AFCS_CFG`), and `live` (per-frame values, with their initial values) |

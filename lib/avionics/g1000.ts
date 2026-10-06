@@ -531,7 +531,7 @@ function afcsBar(ctx: Ctx, a: AfcsAnnunc, L: Lay, t: number) {
       if (a.vertRef) { txt(ctx, a.vert, xs[4] + 8, cy + 1, c, 15); txt(ctx, a.vertRef, xs[4] + ws[4] - 8, cy + 1, c, 14, "right"); }
       else txt(ctx, a.vert, xs[4] + ws[4] / 2, cy + 1, c, 15, "center");
     }
-    if (a.vertArm) { // fitted to its field ("ALTS GS /V")
+    if (a.vertArm) { // fitted to its field ("ALTS GP/V")
       ctx.font = `700 15px ${FONT}`;
       const px = Math.max(9, Math.min(15, (15 * (ws[5] - 6)) / ctx.measureText(a.vertArm).width));
       txt(ctx, a.vertArm, xs[5] + ws[5] / 2, cy + 1, WHITE, px, "center");

@@ -346,7 +346,7 @@ export function gfc700Tick(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): Gf
   // a glideslope / glidepath needs its approach lateral mode: an active one is lost (yellow, PIT) when that mode goes,
   // an armed one is dropped unless the mode is active or armed (CRG p. 6-15; AFMS: no glideslope capture before the localizer)
   const c2 = s ?? st;
-  if ((c2.vert === "GS" || c2.vert === "GP") && (fs.gsErr == null || c2.lat !== pathLat(c2.vert))) loseVert(w(), fs, now, cfg);
+  if ((c2.vert === "GS" || c2.vert === "GP") && (fs.gsErr == null || c2.lat !== pathLat(c2.vert) || !c2.apr)) loseVert(w(), fs, now, cfg);
   const c2b = s ?? st;
   if (pathArm(c2b.vertArm).some((m) => c2b.lat !== pathLat(m) && c2b.latArm !== pathLat(m))) w().vertArm = withoutPath(c2b.vertArm);
 
@@ -461,8 +461,9 @@ export function gfc700Annunc(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): 
     ...base,
     lat: lf?.c === "y" ? lf.text : st.lat, latFlash: lf?.c ?? null, latArm: st.latArm ?? undefined,
     vert: vf?.c === "y" ? vf.text : st.vert, vertFlash: vf?.c ?? null, vertRef: vf?.c === "y" ? undefined : ref,
-    // VPTH armed together with GS / GP shows as "/V" (CRG p. 6-10)
-    vertArm: st.vertArm.length ? st.vertArm.map((m) => (m === "VPTH" && pathArm(st.vertArm).length ? "/V" : m)).join(" ") : undefined,
+    // VPTH armed together with GS / GP shows as "/V" after the path mode, e.g. "ALTS GP/V" (CRG p. 6-10, Figure 6-10)
+    vertArm: st.vertArm.length ? st.vertArm.filter((m) => !(m === "VPTH" && pathArm(st.vertArm).length))
+      .map((m) => ((m === "GS" || m === "GP") && st.vertArm.includes("VPTH") ? m + "/V" : m)).join(" ") : undefined,
     iasRef: st.vert === "FLC" ? st.ref.ias : null, vsRef: st.vert === "VS" ? st.ref.vs : null,
     maxspd: overspeed(st, fs, cfg),
     // command bars; during CWS the FD is synchronized to the airplane's attitude

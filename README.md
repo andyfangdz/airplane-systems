@@ -66,7 +66,7 @@ How to add an airplane, and where each kind of code goes: [aircraft/README.md](a
 
 SR20 (each other airplane cites its POH/AFM, supplements and CRG in its files and panels):
 
-- Cirrus SR20 POH, P/N 11934-005 Reissue A — Section 7 (systems), Section 1 Figure 1-1 (three view, used for the fuselage profile), Section 2 limits and markings, Sections 3 and 3A (CAS message names), and the Section 4 and 5 speeds used on the PFD.
+- Cirrus SR20 POH, P/N 11934-005 Reissue A — Section 7 (systems), Section 1 Figure 1-1 (three view, used for the fuselage profile), Section 2 limits and markings, Sections 3 and 3A (CAS message names, best glide), the Section 4 speeds used on the PFD, and the Section 5 cruise table (percent power).
 - Garmin Cirrus Perspective+ Pilot's Guide 190-02183-03 and the Cirrus Perspective+ brochure — display layout and bezels.
 - Mid-Continent MD302 Standby Attitude Module Pilot's Guide and Installation Manual — the standby instrument.
 - Side photos of SR20 G6 OO-CBB (s/n 2347), Wikimedia Commons — tailcone, fin and window outlines.
