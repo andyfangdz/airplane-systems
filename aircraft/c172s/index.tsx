@@ -3,7 +3,7 @@ import { useTicker } from "@/components/ui/controls";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
 import { annunciations } from "./model";
-import { Model } from "./Model";
+import { Model } from "./Airplane";
 import { Environment, Pitot, Vacuum } from "./panels/air";
 import { Autopilot, Avionics } from "./panels/avionics";
 import { Electrical, Lighting } from "./panels/electrical";

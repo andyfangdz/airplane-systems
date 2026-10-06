@@ -86,7 +86,7 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
 shell(() => loft(finHs.map((h) => finSec(h, 0, finCut(h)))), "Vertical stabilizer", "GFRP twin-spar fin carrying the T-tail. The levelling wedge (600:31) sits on the tail boom just ahead of it (AFM 6-3).");
 
 /* ---------- moving shells: front canopy and rear passenger door ---------- */
-/** Canopy and door shells live in their own hinged groups (Model.tsx); geometry is hinge-relative. */
+/** Canopy and door shells live in their own hinged groups (Airplane.tsx); geometry is hinge-relative. */
 export const CANOPY_HINGE = CANOPY.hinge;
 export const DOOR_HINGE: Vec3 = (() => { const x = (DOOR.x0 + DOOR.x1) / 2; const p = onSkin(x, Math.min(0.42, topY(x) - 0.05), -1, 1); return [x, p.y, p.z]; })();
 const rel = (g: THREE.BufferGeometry, o: Vec3) => { g.translate(-o[0], -o[1], -o[2]); return g; };

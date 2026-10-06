@@ -38,7 +38,7 @@ part(() => tubeGeo([P3(16.5, 9, 47), P3(15.5, 20.0, 60), P3(29.0, 20.0, 60.5), P
 
 /* ---------- fuel system (POH Figure 7-6, 7-38 – 7-46) ---------- */
 const FUEL = "#2F7FE6";
-/** Integral tank span (BL, in) used by the tank volumes in Model.tsx: between the spars of the constant-chord inboard panel. */
+/** Integral tank span (BL, in) used by the tank volumes in Airplane.tsx: between the spars of the constant-chord inboard panel. */
 export const TANK_BL = [24, 100] as const;
 [1, -1].forEach((s) => {
   part(() => cyl(0.04, 0.012), ["fuel"], { pos: wp(s * 92, 0.2, 1, 0.006), color: FUEL, name: "Fuel filler cap", note: "Top of each wing. Placard: FUEL 100LL/100 MIN. GRADE AVIATION GASOLINE CAP. 43.5 U.S. GAL. USABLE, CAP. 32.0 U.S. GAL. USABLE TO BOTTOM OF FILLER INDICATOR TAB. Vacuum-vented caps open if the overboard vents block (POH 2-19, 7-44).", ext: true, pin: s > 0 });
@@ -176,7 +176,7 @@ part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], { pos: P3(19.5, 0, 68.
 part(() => box(0.065, 0.008, 0.035), ["avionics", "cabin"], { pos: P3(18.4, 0, 67.3), color: "#20262B" }); // compass bracket on the glareshield
 
 /* ---------- KAP 140 (POH 7-12, Supplement 3) ---------- */
-/** KAP 140 faceplate on the center panel below the standby instruments (Fig. 7-2 item 13); LCD drawn by Model.tsx. */
+/** KAP 140 faceplate on the center panel below the standby instruments (Fig. 7-2 item 13); LCD drawn by Airplane.tsx. */
 export const KAP = { fs: 18.15, bl: 0.6, h: 49.4, w: 0.16, hgt: 0.034 };
 const kapOn = () => live.kap.powered;
 const apBtn: PartAnim = (m) => { const k = live.kap, lit = k.powered && kap140Phase(k, live.fs.t).ph === "ready"; m.material = !lit ? mats("#2B3035").on : k.ap ? mats("#7CFF8A").hi : mats("#3A4046").on; };
@@ -301,5 +301,5 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], { pos: PV(onSkin(X(109.5), Y(40),
 // cowl flap lever, right side of the pedestal (Fig 7-2 item 26): down = CLOSED, right-then-up = OPEN
 part(() => box(0.06, 0.012, 0.012), ["engine", "cabin"], { pos: P3(24.5, 3.3, 36), color: "#E8ECEE", anim: (m) => { m.rotation.z = -0.5 + S().eng.cowl * 1.0; }, pinIn: ["engine"],
   name: "Cowl flap lever", note: "Right side of the pedestal: move right and up to OPEN, down to CLOSED. OPEN for start, takeoff, climb and ground runs; CLOSED in cruise unless needed to hold CHT near two-thirds of the green arc, and in long descents (POH 7-37, 4-15 – 4-24).", pin: true });
-// the Kap140 faceplate's position is shared with the screen in Model.tsx
+// the Kap140 faceplate's position is shared with the screen in Airplane.tsx
 export const KAP_LCD = { pos: P3(KAP.fs + 0.05, KAP.bl - 0.6, KAP.h + 0.3), size: [0.085, 0.0213] as [number, number] };

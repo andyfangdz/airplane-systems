@@ -15,7 +15,7 @@ knows nothing airplane-specific. `aircraft/sr20/` is the reference implementatio
 | `model.ts` | Sim state type, `initialSim`, the pure solver `solve(s) → E` (buses, powered loads), alerts, breaker table, and `live` (per-frame values) |
 | `store.ts` | `createSimStore(initialSim, solve)` |
 | `tick.ts` | Per-frame step: engine, RPM, flap motor, timers. Writes `live`; discrete changes go through the store |
-| `Model.tsx` | The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>` |
+| `Airplane.tsx` | The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>` |
 | `panels/*.tsx` | Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH |
 
 ## Conventions
@@ -25,7 +25,7 @@ knows nothing airplane-specific. `aircraft/sr20/` is the reference implementatio
   Each airplane's switches, levers, failures and quantities live in its own store, so they survive switching airplanes.
   Values that change every frame (RPM, flap angle, timers) go in a mutable `live` object, not React state.
 - **Parts:** The first part with a given name and `pin: true` gets a label pin and a "tap to locate" entry (`CAT.pinned(sys)`).
-  A part's `parent` puts it on a moving group that `Model.tsx` renders and animates
+  A part's `parent` puts it on a moving group that `Airplane.tsx` renders and animates
   (e.g. `"surf:elevR"` is added automatically by `<ControlSurfaces>`). `anim(mesh, t)` runs every frame for live material and position changes.
 - **Accuracy:** Every number and claim in notes and panels comes from the POH/AFM for the club airplane's serial number.
   Cite figures and pages where helpful, and say so when sources differ or when the model is approximate.
