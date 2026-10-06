@@ -11,7 +11,6 @@ import { useView } from "./view";
 let FLEET: AircraftDef[] = [];
 /** Called once by aircraft/index.ts with every airplane, in picker order. */
 export function registerFleet(defs: AircraftDef[]) { FLEET = defs; }
-export const fleet = () => FLEET;
 export const aircraft = (id: AircraftId) => FLEET.find((a) => a.id === id) ?? FLEET[0];
 /** The airplane currently shown. */
 export const useAircraft = () => aircraft(useView((v) => v.ac));

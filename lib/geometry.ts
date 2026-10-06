@@ -287,7 +287,6 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
 
   return { xNose, xTail, nTop, nBot, tumble, fus, topY, botY, ring, inside, onSkin, thetaAt, geo, plate, slab };
 }
-export type Fuselage = ReturnType<typeof fuselage>;
 
 /* ---------- lifting-surface factory (wings, stabilizers) ---------- */
 

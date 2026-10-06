@@ -15,6 +15,7 @@ import { ControlRig } from "./ControlRig";
 import { drawBreakers, drawGma, drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { PANEL_X, canopyOutlines, doorOutlines, loft, windowOutlines, wingSec } from "./geometry";
+import { sided } from "@/lib/geometry";
 import { bladeAngle, extLit, live } from "./model";
 import { CANOPY_HINGE, CANOPY_SHELL, CAT, CBP_Z, CYLS, DISPLAY_X, DOOR_HINGE, DOOR_SHELL, GMA_Z, LIGHTS, NOSE_CASTER, NOSE_GEAR, PROP, STBY_X } from "./parts";
 import { deflections } from "./rig";
@@ -102,7 +103,7 @@ function Openings() {
 /* ---------- long-range wing tanks (aluminium, 3 chambers each; 25 US gal usable per side) ---------- */
 const TANKS: TankSpec[] = ([["L", -1], ["R", 1]] as const).map(([k, s]) => ({
   key: k,
-  geo: () => { const secs = [1.18, 1.6, 2.2, 2.8, 3.3, 3.55].map((z) => wingSec(s * z, 0.12, 0.62, 0.8)); return loft(s < 0 ? secs.map((r) => r.reverse()) : secs); },
+  geo: () => { const secs = [1.18, 1.6, 2.2, 2.8, 3.3, 3.55].map((z) => wingSec(s * z, 0.12, 0.62, 0.8)); return loft(sided(secs, s)); },
   level: () => { const f = useDA40.getState().s.fuel; return (k === "L" ? f.qL : f.qR) / 25; },
   name: (s > 0 ? "Right" : "Left") + " fuel tank (long range)",
   note: "Aluminium tank in the wing, three chambers joined by flexible hose: 25.5 US gal total, 25 usable (AFM 2-23, 7-34). Two probes (inboard + outboard chambers) feed one G1000 gauge.",

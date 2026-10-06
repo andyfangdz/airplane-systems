@@ -6,22 +6,21 @@
  */
 import * as THREE from "three";
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec, type ShellSpec } from "@/lib/catalogue";
-import { afRing, mergeGeos } from "@/lib/geometry";
+import { afRing, mergeGeos, sided } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
 import { D2R, V, clamp, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
 import {
-  AIL, BAG_FRAME, CANOPY, DOOR, ELEV_HINGE_X, EF, FIN_ROOT, FIN_TOP, FLAP, FW, HF, HZ, PANEL_X, ROLLBAR_X, RUD_BOT, SSPAN, SY,
-  WJ, WOUT, WR, WTIP, af, box, botY, canopyGeo, cyl, doorGeo, fC, fLE, finCut, finHs, finSec, fixedFuselageGeo, fRing, fs,
+  AIL, BAG_FRAME, CANOPY, DOOR, ELEV_HINGE_X, EF, FIN_TOP, FLAP, FW, HF, HZ, PANEL_X, ROLLBAR_X, RUD_BOT, SSPAN, SY,
+  WJ, WR, WTIP, af, box, botY, canopyGeo, cyl, doorGeo, fC, fLE, finCut, finHs, finSec, fixedFuselageGeo, fRing, fs,
   hingeX, loft, onSkin, paintSkin, pantGeo, planeRing, rudHs, sC, sLE, sectionSlab, sph, stabSec, topY, tubeGeo, wC,
   wLE, wT, wY, wingP, wingSec,
 } from "./geometry";
 import { hornLevel, live } from "./model";
-import { ARMS, ELEV_HORN, FLAP_ACT, FLAP_HORN, FLAP_TUBE, PEDALS, PIVOTS, RUD_HORN, SERVO, STICK, TAB, TRIM_WHEEL, rudHornPivot } from "./rig";
+import { ARMS, ELEV_HORN, FLAP_ACT, FLAP_HORN, FLAP_TUBE, PEDALS, RUD_HORN, SERVO, STICK, TAB, TRIM_WHEEL, rudHornPivot } from "./rig";
 import { useDA40 } from "./store";
 
-export { chanOfKey };
 const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 
 export const CAT = new Catalogue("da40");
@@ -71,7 +70,6 @@ shell(() => {
   for (let i = 0; i <= 18; i++) { const t = i / 18; pts.push(new THREE.Vector2(0.17 * Math.pow(Math.max(0, 1 - t * t), 0.55) + 0.001, t * 0.4)); }
   const g = new THREE.LatheGeometry(pts, 32); g.rotateZ(-Math.PI / 2); g.translate(fs(0.46), 0, 0); return g;
 }, "Spinner", "Polished spinner over the MT propeller hub (XLS package).");
-const sided = (secs: THREE.Vector3[][], s: number) => (s < 0 ? secs.map((r) => r.reverse()) : secs);
 const wingSt = [WR, 0.58, 0.8, WJ, FLAP.z0, 1.8, 2.6, 3.4, FLAP.z1, AIL.z0, 4.6, 5.2, AIL.z1];
 const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
 [1, -1].forEach((s) => {
@@ -502,7 +500,4 @@ part(() => box(0.03, 0.05, 0.1), ["lighting"], { pos: LIGHTS.taxi, color: "#F2F2
 part(() => box(0.03, 0.01, 0.7), ["lighting"], { pos: LIGHTS.flood, color: "#E8C46A", anim: glow("#6A5A30", "#FFE7B0", () => { const { s, E } = sim(); return E.floodPwr && (s.lights.flood > 0 || s.elec.emerg); }, ["lighting", "electrical"]), name: "Flood light (glareshield EL panel)", note: "Electroluminescent panel above the instrument panel lighting all instruments, levers and switches; FLOOD knob. Emergency-battery powered with HORIZON EMERGENCY ON (AFM 7-42, 7-44).", pin: true });
 part(() => sph(0.02), ["lighting", "cabin"], { pos: LIGHTS.map, color: "#E8C46A", name: "Map / reading light", note: "Crew map/reading light (Rivoret), on the TAXI/MAP breaker (AFM 6-24, 1-13). Location not in the documents." });
 
-/* ---------- moving-group mechanism parts used by ControlRig ---------- */
-export const RIG = PIVOTS;
-export { FIN_ROOT, WOUT };
 export type { PartSpec };

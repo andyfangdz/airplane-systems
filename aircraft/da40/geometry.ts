@@ -241,6 +241,4 @@ export function paintSkin(): THREE.CanvasTexture {
   return t;
 }
 
-/** Small helpers shared by parts/rig. */
-export const P3 = (v: THREE.Vector3): [number, number, number] => [v.x, v.y, v.z];
 export { V };

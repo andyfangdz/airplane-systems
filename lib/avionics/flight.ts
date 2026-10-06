@@ -79,7 +79,6 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 export const wrap360 = (a: number) => ((a % 360) + 360) % 360;
 export const wrap180 = (a: number) => { const w = wrap360(a); return w > 180 ? w - 360 : w; };
 export const isLoc = (s: NavSrc) => s === "LOC1" || s === "LOC2";
-export const isVhf = (s: NavSrc) => s !== "GPS";
 
 /** True airspeed (kt): +2 % per 1,000 ft. */
 export const tasOf = (fs: Pick<FlightState, "ias" | "alt">) => fs.ias * (1 + fs.alt * 0.00002);
