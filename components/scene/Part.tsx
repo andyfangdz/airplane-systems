@@ -4,7 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Catalogue, PartSpec, ShellSpec } from "@/lib/catalogue";
-import { mats, plateMat, shellMat, skinMat, solidMat } from "@/lib/materials";
+import { ghostMat, mats, plateMat, shellMat, skinMat, solidMat } from "@/lib/materials";
 import { partObjects } from "@/lib/registry";
 import { palette, sysColor, type SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -49,8 +49,12 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   // Flight-controls channel focus: parts outside the chosen channel fade out
   const chanDim = sys === "controls" && cf !== "all" && !spec.chan?.includes(cf);
   const act = (all || spec.sys.includes(sys)) && !chanDim;
+  const focused = !!focus && focus === spec.name;
+  // fairings (wheel pants) ghost in X-ray like the skin, so what they cover stays visible
+  const ghost = !!spec.fairing && xray && !focused && act;
   const material = spec.plate ? (act ? plateMat.on : plateMat.dim)
-    : focus && focus === spec.name ? mats(color).hi
+    : focused ? mats(color).hi
+    : ghost ? (all ? shellMat : ghostMat(sysColor(spec.sys[0], theme)))
     : act || !xray ? mats(color).on : mats(color).dim;
   const pick: PickInfo | undefined = spec.name ? { name: spec.name, note: spec.note ?? "", color, sys: spec.sys } : undefined;
   const showPin = labels && !all && !chanDim && cat.isPinned(spec, sys);
@@ -65,7 +69,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   useFrame(({ clock }) => { if (spec.anim) spec.anim(ref.current, clock.elapsedTime); });
 
   return (
-    <mesh ref={ref} geometry={geo} material={material} position={spec.pos} rotation={spec.rot} scale={spec.scale} userData={{ pick }}>
+    <mesh ref={ref} geometry={geo} material={material} renderOrder={ghost ? 2 : 0} position={spec.pos} rotation={spec.rot} scale={spec.scale} userData={{ pick }}>
       {showPin && spec.name && <Pin at={centerOf(geo)} label={spec.name} color={sysColor(sys, theme)} />}
     </mesh>
   );

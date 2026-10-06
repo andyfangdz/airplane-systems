@@ -38,6 +38,18 @@ export const shellMat = new THREE.ShaderMaterial({
     }`,
 });
 
+const ghosts = new Map<string, THREE.ShaderMaterial>();
+/** X-ray ghost like `shellMat`, tinted with a system colour and a little denser, for fairings in their own system's view. */
+export function ghostMat(hex: string) {
+  let m = ghosts.get(hex);
+  if (!m) {
+    m = shellMat.clone();
+    m.uniforms = { uColor: { value: new THREE.Color(hex) }, uOpacity: { value: 0.85 } };
+    ghosts.set(hex, m);
+  }
+  return m;
+}
+
 export const solidMat = new THREE.MeshStandardMaterial({ color: "#F1F3F4", roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
 
 export const plateMat = {

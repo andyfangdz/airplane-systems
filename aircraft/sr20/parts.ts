@@ -152,7 +152,7 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
   const top = wingP(s * 1.0, 0.28, -1);
   part(() => tubeGeo([[top.x, top.y + 0.02, s * 1.0], [1.14, -0.9, s * 1.22], [MG.x, -1.1, s * 1.36]], 0.04), ["gear"], { name: "Main gear strut", note: "Composite strut bolted to the wing between spar and shear web.", ext: true });
   part(() => cyl(0.19, 0.15, "z", 28), ["gear"], { pos: [MG.x, MG.y, s * MG.z], color: "#2A2F33", name: "Main wheel", note: "15 × 6.00 × 6 tubeless tire.", ext: true });
-  part(() => pantGeo(0.92, 0.19), ["gear"], { pos: [MG.x, -1.17, s * MG.z], scale: [1, 1, 0.62], name: "Wheel pant", note: "Removable; access plugs allow tire inflation checks.", ext: true });
+  part(() => pantGeo(0.92, 0.19), ["gear"], { pos: [MG.x, -1.17, s * MG.z], scale: [1, 1, 0.62], fairing: true, name: "Wheel pant", note: "Removable; access plugs allow tire inflation checks.", ext: true });
   part(() => cyl(0.12, 0.03, "z", 20), ["gear"], {
     pos: [MG.x, MG.y, s * (MG.z - 0.1)], color: "#9AA3AA", ext: true, anim: brakeAnim(s > 0 ? "R" : "L"), name: "Disc brake",
     note: "Single-disc caliper with pads. An orange temperature tab on the caliper turns brown if the brake overheated — inspect. Brake temp sensor also feeds the CAS alerts.",
@@ -164,7 +164,7 @@ export const NOSE_GEAR: Vec3 = [3.06, -0.52, 0];
 export const NOSE_CASTER: Vec3 = [0.22, -0.68, 0];
 part(() => tubeGeo([[0, 0, 0], [0.09, -0.34, 0], [0.22, -0.66, 0]], 0.035), ["gear"], { parent: "noseGear", name: "Nose gear strut", note: "Tubular steel on the engine mount; oleo shock absorber. Plastic fairing.", ext: true });
 part(() => cyl(0.17, 0.11, "z", 24), ["gear"], { parent: "caster", pos: [0.02, 0, 0], color: "#2A2F33", name: "Nose wheel", note: "5.00 × 5 tire. Free-castering ±85°; steer with differential braking.", ext: true });
-part(() => pantGeo(0.7, 0.17), ["gear"], { parent: "caster", pos: [0.02, 0.02, 0], scale: [1, 1, 0.55], name: "Nose wheel pant", note: "", ext: true });
+part(() => pantGeo(0.7, 0.17), ["gear"], { parent: "caster", pos: [0.02, 0.02, 0], scale: [1, 1, 0.55], fairing: true, name: "Nose wheel pant", note: "", ext: true });
 part(() => box(0.1, 0.08, 0.3), ["gear"], { pos: [2.22, -0.4, -0.26], name: "PARK BRAKE handle", note: "Right side kick plate by the pilot's right knee. Set toe brakes, then pull aft. Never set in flight.", pin: true });
 [-0.36, -0.14, 0.14, 0.36].forEach((z) => {
   const parent = z < 0 ? "rig:pedL" : "rig:pedR";
