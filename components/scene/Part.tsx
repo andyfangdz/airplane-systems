@@ -56,7 +56,8 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
     : focused ? mats(color).hi
     : ghost ? (all ? shellMat : ghostMat(sysColor(spec.sys[0], theme)))
     : act || !xray ? mats(color).on : mats(color).dim;
-  const pick: PickInfo | undefined = spec.name ? { name: spec.name, note: spec.note ?? "", color, sys: spec.sys } : undefined;
+  // a ghosted fairing picks like the skin, so the wheel or brake seen through it gets the tooltip
+  const pick: PickInfo | undefined = spec.name ? { name: spec.name, note: spec.note ?? "", color, sys: spec.sys, shell: ghost || undefined } : undefined;
   const showPin = labels && !all && !chanDim && cat.isPinned(spec, sys);
 
   useEffect(() => {

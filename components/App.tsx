@@ -109,14 +109,22 @@ function Hud() {
   return H ? <H /> : null;
 }
 
+/** A part's colour for the tooltip title, or the ink colour when it is too pale (light theme) or too dark (dark theme) to read. */
+function tipColor(c: string, theme: Theme) {
+  const m = /^#([0-9a-f]{6})$/i.exec(c);
+  if (!m) return c;
+  const n = parseInt(m[1], 16), lum = (0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  return (theme === "light" ? lum > 0.75 : lum < 0.25) ? "var(--ink)" : c;
+}
+
 function Tooltip() {
-  const hover = useView((x) => x.hover);
+  const hover = useView((x) => x.hover), theme = useView((x) => x.theme);
   if (!hover) return null;
   const stage = document.querySelector(".stage") as HTMLElement | null;
   const w = stage?.clientWidth ?? 800, h = stage?.clientHeight ?? 600;
   return (
     <div className="tip" style={{ left: Math.min(hover.x + 14, w - 270), top: Math.min(hover.y + 14, h - 120) }}>
-      <h4 style={{ color: hover.color }}>{hover.name}</h4>
+      <h4 style={{ color: tipColor(hover.color, theme) }}>{hover.name}</h4>
       {hover.note && <p>{hover.note}</p>}
     </div>
   );

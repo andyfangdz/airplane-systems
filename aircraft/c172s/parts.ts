@@ -222,7 +222,7 @@ part(() => cyl(0.05, 0.12, "x"), ["engine", "fuel"], { pos: P3(-20, 0, 36.5), co
 CYLS.forEach((c) => part(() => tubeGeo([P3(-20, 0, 37.5), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 11, 45.5)], 0.016), ["engine"], { color: "#8A969E", name: "Intake tube", note: "From the fuel/air control unit to each cylinder's intake port." }));
 // exhaust and cabin heat
 part(() => cyl(0.06, 0.34, "z"), ["engine", "environment"], { pos: P3(-22.7, 0, 33.5), color: "#8A5A3C", name: "Muffler", note: "Each cylinder's riser feeds one common muffler below the engine, then a single tailpipe (POH 7-37). Arm −22.7." });
-part(() => cyl(0.078, 0.26, "z"), ["environment", "engine"], { pos: P3(-22.7, 0, 33.5), color: "#E0522B", name: "Muffler heater shroud", note: "Outside air flows through a shroud around the muffler and is heated for the cabin (POH 7-37). A muffler crack under the shroud can put CO in the cabin (POH 3-39).", pin: true });
+part(() => cyl(0.078, 0.26, "z"), ["environment", "engine"], { pos: P3(-22.7, 0, 33.5), color: "#E0522B", fairing: true, name: "Muffler heater shroud", note: "Outside air flows through a shroud around the muffler and is heated for the cabin (POH 7-37). A muffler crack under the shroud can put CO in the cabin (POH 3-39).", pin: true });
 // cooling
 [1, -1].forEach((s) => {
   part(() => { const g = new THREE.TorusGeometry(0.056, 0.011, 8, 22); g.rotateY(Math.PI / 2); return g; }, ["engine", "airframe"], { pos: P3(-37.25, s * 10.2, 53.3), color: "#1E2A33", ext: true, pin: s > 0, name: "Cooling air inlet", note: "Two intake openings in the front of the cowl; baffles route the air down around the cylinders; it exits at the bottom aft edge of the cowl. No cowl flaps (POH 7-37)." });
@@ -258,7 +258,7 @@ const FSPAR = 0.25, RSPAR = 0.68;
 });
 part(() => new THREE.TorusGeometry(0.02, 0.006, 6, 12), ["airframe"], { pos: P3(250, 0, 42.9), color: "#8C959C", name: "Tail tiedown ring", note: "Tail tiedown under the tailcone; the tail rests on it when the nose is raised (POH 8-10).", ext: true, pin: true });
 [108, 142].forEach((fs, i) => part(() => cyl(0.012, 0.01, "z"), ["airframe"], { pos: PV(onSkin(X(fs), Y(52), -1, 1.01)), color: "#E0B040", name: "Leveling screws", note: "Left side of the tailcone at FS 108.00 and 142.00; lateral leveling uses the upper door sills (POH 6-4).", ext: true, pin: i === 0 }));
-part(rearRoofGeo, ["airframe", "cabin"], { color: "#26323C", name: "Rear window", note: "Fixed wraparound rear window over the tailcone behind the wing; with the rear side windows it is not openable (POH 7-28).", ext: true });
+part(rearRoofGeo, ["airframe", "cabin"], { color: "#26323C", fairing: true, name: "Rear window", note: "Fixed wraparound rear window over the tailcone behind the wing; with the rear side windows it is not openable (POH 7-28).", ext: true });
 [1, -1].forEach((s) => {
   // refueling steps and assist handles on the forward fuselage sides, arm 16.3 (POH 6-22 equipment list 53-01-S, walkaround 4-6 NOTE)
   part(() => box(0.1, 0.012, 0.05), ["airframe", "fuel"], { pos: PV(onSkin(X(16.3), Y(40), s, 1.0).add(V(0, 0, s * 0.02))), color: "#5C666E", name: "Refueling step", note: "Steps on both sides of the forward fuselage with an assist handle above; use them to reach the upper wing for fuel checks and refueling (POH 4-6).", ext: true, pin: s > 0 });
@@ -269,7 +269,7 @@ part(() => box(0.06, 0.04, 0.005), ["airframe", "cabin"], { pos: PV(onSkin(X(200
 /* ---------- cockpit: panel, pedestal, seats ---------- */
 part(() => sectionSlab(X(16.8), Y(44.5), Y(67.2), 0.97, 0.035, X(16.8)), ["avionics", "cabin"], { color: "#2B3238", name: "Instrument panel", note: "Figure 7-2 Sheet 1 (serials 172S10656 thru 172S12700): PFD, audio panel, MFD; standby airspeed, attitude and altimeter below; switch and breaker panels lower left." });
 part(() => sectionSlab(X(16.5), Y(66.2), Y(67.6), 0.97, 0.06, X(15.3)), ["cabin"], { color: "#20262B", name: "Glareshield", note: "Placard above the PFD: MANEUVERING SPEED: 105 KIAS (POH 2-26)." });
-part(() => box(0.26, 0.5, 0.2), ["cabin", "fuel"], { pos: P3(20.5, 0, 35.5), color: "#39424A", name: "Center pedestal", note: "Elevator trim wheel and position indicator, fuel shutoff knob, fuel selector at its base, 12 V outlet, hand mic (POH 7-13)." });
+part(() => box(0.26, 0.5, 0.2), ["cabin", "fuel"], { pos: P3(20.5, 0, 35.5), color: "#39424A", fairing: true, name: "Center pedestal", note: "Elevator trim wheel and position indicator, fuel shutoff knob, fuel selector at its base, 12 V outlet, hand mic (POH 7-13)." });
 ([[42, -10, "Pilot seat", "Vertically adjusting crew seat: fore/aft handle under the center of the frame, height crank under the right corner, seat-back angle button (POH 7-24)."],
   [42, 10, "Front passenger seat", "Same as the pilot seat. Average occupant CG FS 37 (range 34–46) (POH 6-10)."],
   [79.5, 0, "Rear bench seat", "Fixed one-piece bottom, three-position reclining back; rear passengers FS 73 (POH 7-24, 6-13)."]] as [number, number, string, string][]).forEach(([fs, bl, name, note], i) => {

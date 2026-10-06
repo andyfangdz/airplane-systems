@@ -33,8 +33,9 @@ export interface PartSpec {
   /** Translucent plate (bulkheads, firewalls). */
   plate?: boolean;
   /**
-   * Exterior fairing over other modelled parts (wheel pants): in X-ray it ghosts like the skin — rim-lit in the overview, a
-   * tinted ghost in its own system's view — so the wheel and brake inside stay visible. Solid when X-ray is off.
+   * Cover over other modelled parts (wheel pants, heater shrouds, rear windows, pedestals): in X-ray it ghosts like the skin —
+   * rim-lit in the overview, tinted with its first system's colour in its own systems' views — and picks like the skin, so what
+   * it covers stays visible and hoverable. Solid when X-ray is off.
    */
   fairing?: boolean;
   /** Flight-control channel(s) this part belongs to (for the channel focus view). */
