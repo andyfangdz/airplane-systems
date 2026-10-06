@@ -21,10 +21,20 @@
 .n3-buses .chip.tripped::after{content:" ⏏ reset";}
 .n3-buses .chip i{font-style:normal;opacity:.65}
 .n3-meter{display:block}
-.n3-dia{width:100%;height:auto;display:block;margin:4px 0 2px}
-.n3-dia text{font-family:var(--f-mono);font-size:10px;fill:var(--ink)}
-.n3-dia .w{stroke:var(--rule);stroke-width:2;fill:none}
-.n3-dia .w.on{stroke:var(--elec)}
-.n3-dia rect.b{fill:var(--panel2);stroke:var(--rule)}
-.n3-dia rect.b.on{stroke:var(--elec);fill:color-mix(in srgb,var(--elec) 14%,var(--panel2))}
-.n3-dia .d{fill:var(--muted)}
+.n3-dia{width:100%;max-width:440px;height:auto;display:block;margin:6px auto 2px;
+  --dead:color-mix(in srgb,var(--muted) 45%,var(--panel));--live:var(--elec)}
+.n3-dia text{font-family:var(--f-mono);font-size:11px;fill:var(--ink)}
+.n3-dia .d{fill:var(--muted);font-size:10px}
+.n3-dia .s{font-size:9px;letter-spacing:.04em}
+.n3-dia .x{fill:var(--elec)}
+.n3-dia .w{stroke:var(--dead);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.n3-dia .w.on{stroke:var(--live)}
+.n3-dia .w.out{stroke:var(--elec);stroke-dasharray:2 2}
+.n3-dia .t{fill:var(--panel);stroke:var(--dead);stroke-width:1.4}
+.n3-dia .t.on{stroke:var(--live)}
+.n3-dia .j{fill:var(--dead)}
+.n3-dia .j.on{fill:var(--live)}
+.n3-dia .dio{fill:var(--dead);stroke:var(--dead);stroke-width:1.6;stroke-linejoin:round}
+.n3-dia .dio.on{fill:var(--live);stroke:var(--live)}
+.n3-dia rect.b{fill:var(--panel2);stroke:var(--dead)}
+.n3-dia rect.b.on{stroke:var(--live);fill:color-mix(in srgb,var(--elec) 14%,var(--panel2))}
