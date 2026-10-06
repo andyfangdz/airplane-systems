@@ -6,6 +6,7 @@
 import type * as THREE from "three";
 import type { Vec3 } from "./math";
 import type { Chan, SysId } from "./systems";
+import { narrowLayout } from "./view";
 
 /** Per-frame hook for parts that animate or change material with the sim (t = clock seconds). */
 export type PartAnim = (mesh: THREE.Mesh, t: number) => void;
@@ -73,6 +74,17 @@ export const chanOfKey = (k: string): Chan[] | undefined =>
 
 type PartOpts = Omit<PartSpec, "id" | "geo" | "sys">;
 
+/**
+ * Per-view label lists, by part name, for views that would otherwise pile labels up. Names that match no pinned part of the
+ * view are reported in development, so renaming a part can't silently bring its label back.
+ */
+export interface LabelLists {
+  /** Pinned parts that stay in a view's "tap to locate" list but carry no label pin there. */
+  quiet?: Partial<Record<SysId, string[]>>;
+  /** Phone layout (lib/view `narrowLayout`): the only parts labelled in a view; the list keeps them all. */
+  narrow?: Partial<Record<SysId, string[]>>;
+}
+
 /** Collects one airplane's parts, shells and control surfaces. Methods are bound, so they can be destructured. */
 export class Catalogue {
   readonly parts: PartSpec[] = [];
@@ -81,9 +93,9 @@ export class Catalogue {
   private n = 0;
   private byParent = new Map<string, PartSpec[]>();
   private pins = new Map<SysId, PartSpec[]>();
-  private pinIds = new Map<SysId, Set<string>>();
+  private pinIds = new Map<string, Set<string>>();
 
-  constructor(readonly prefix: string) {}
+  constructor(readonly prefix: string, readonly labels: LabelLists = {}) {}
 
   uid = (s: string) => `${this.prefix}/${s}-${this.n++}`;
 
@@ -126,10 +138,19 @@ export class Catalogue {
     return l;
   };
 
-  /** Does this part carry the label pin in the given system view? */
+  /** Does this part carry the label pin in the given system view? (`pin`, `pinIn`, then the airplane's label lists.) */
   isPinned = (spec: PartSpec, sys: SysId) => {
-    let s = this.pinIds.get(sys);
-    if (!s) { s = new Set(this.pinned(sys).filter((p) => !p.pinIn || p.pinIn.includes(sys)).map((p) => p.id)); this.pinIds.set(sys, s); }
+    const nar = !!this.labels.narrow && narrowLayout(), key = nar ? sys + ":narrow" : sys;
+    let s = this.pinIds.get(key);
+    if (!s) {
+      const pinned = this.pinned(sys), quiet = this.labels.quiet?.[sys] ?? [], only = nar ? this.labels.narrow?.[sys] ?? [] : null;
+      if (process.env.NODE_ENV !== "production") {
+        const names = new Set(pinned.map((p) => p.name));
+        for (const n of [...quiet, ...(only ?? [])]) if (!names.has(n)) console.warn(`${this.prefix}: label list for "${sys}" names "${n}", which is not a pinned part of that view`);
+      }
+      s = new Set(pinned.filter((p) => (!p.pinIn || p.pinIn.includes(sys)) && (only ? only.includes(p.name!) : !quiet.includes(p.name!))).map((p) => p.id));
+      this.pinIds.set(key, s);
+    }
     return s.has(spec.id);
   };
 }

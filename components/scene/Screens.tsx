@@ -20,6 +20,8 @@ export interface ScreenSpec {
   sys: SysId[];
   /** Label pin anchor in the screen's own plane (metres; default the centre) — e.g. its top edge, so the label doesn't cover the display. */
   pinAt?: Vec3;
+  /** Label pin in its systems' views (default true); a function is read on render (e.g. no pin on the phone layout). */
+  pin?: boolean | (() => boolean);
   name: string;
   note: string;
   /** Redraws the whole canvas (called a few times a second). */
@@ -51,7 +53,7 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
       userData={{ pick: { name: d.name, note: d.note, color: sysColor("avionics", theme), sys: d.sys } }}>
       <planeGeometry args={d.size} />
       <meshBasicMaterial map={tx} toneMapped={false} />
-      {labels && d.sys.includes(sys) && <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />}
+      {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin() : d.pin ?? true) && <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />}
     </mesh>
   ))}</>;
 }

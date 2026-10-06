@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, sysOf, useAircraft } from "@/aircraft";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
-import { useView } from "@/lib/view";
+import { narrowLayout, useView } from "@/lib/view";
 
 // WebGL scene is client-only
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div className="loading">Loading 3D model…</div> });
@@ -59,7 +59,7 @@ function Panel() {
   // phones: the page scrolls, not the panel; after picking a system from far down the panel, bring the 3D view back up
   useEffect(() => {
     const stage = document.querySelector(".stage");
-    if (matchMedia("(max-width:860px)").matches && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
+    if (narrowLayout() && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
   }, [sys, def]);
   return (
     <aside className="panel">

@@ -1,27 +1,11 @@
-import type { Vec3 } from "@/lib/math";
 import type { SysDef } from "@/lib/systems";
-import { narrowLayout } from "./layout";
-
-/** Stage aspect (width / height) the cameras are framed for: the 1440 × 900 desktop layout. */
-const FRAME_ASPECT = 0.91;
-/**
- * A narrower stage (phone, small window) shows less width at the fixed vertical field of view, so pull the camera back along its
- * line of sight until the same width fits — on the phone layout a little more, to leave room for the (fixed-size) labels at the
- * edges. Read when a view is selected, so it follows the current layout.
- */
-function fit([p, t]: [Vec3, Vec3]): [Vec3, Vec3] {
-  if (typeof document === "undefined") return [p, t];
-  const el = document.querySelector(".stage"), w = el?.clientWidth ?? 0, h = el?.clientHeight ?? 0;
-  const k = w > 0 && h > 0 ? Math.max(1, FRAME_ASPECT / (w / h)) * (narrowLayout() ? 1.1 : 1) : 1;
-  return k === 1 ? [p, t] : [[t[0] + (p[0] - t[0]) * k, t[1] + (p[1] - t[1]) * k, t[2] + (p[2] - t[2]) * k], t];
-}
 
 /**
  * Rail entries in POH Section 7 order (182TPHAUS-04 table of contents, pp. 7-1 – 7-4). Ground control (7-19) leads
  * the gear entry; cabin & safety starts at the baggage/seats pages (7-21) and also covers cabin features (7-74);
  * the KAP 140 is described on 7-68 and in Supplement 3.
  */
-const BASE: SysDef[] = [
+export const SYS: SysDef[] = [
   { id: "overview", name: "Overview", pg: "7-5", key: "accent", cam: [[8.2, 4.6, 11.4], [-0.3, 0.1, 0]], blurb: "" },
   { id: "airframe", name: "Airframe", pg: "7-5", key: "frame", cam: [[6.9, 6.6, 9.8], [-0.2, 0.15, 0]], blurb: "Semimonocoque, strut-braced wing" },
   { id: "controls", name: "Flight controls", pg: "7-6", key: "ctrl", cam: [[-8.6, 6.8, 8.4], [-0.9, 0.1, 0]], blurb: "Cables, bellcranks, elevator + rudder trim" },
@@ -39,4 +23,3 @@ const BASE: SysDef[] = [
   { id: "avionics", name: "Avionics (G1000)", pg: "7-66", key: "avx", cam: [[0.45, 0.4, -0.07], [2.1, 0.02, -0.07]], blurb: "GDU 1040 ×2, GIA 63, AHRS, EIS" },
   { id: "autopilot", name: "Autopilot (KAP 140)", pg: "7-68", key: "avx", cam: [[-5.6, 3.5, 6.9], [-0.9, 0.15, 0]], blurb: "2-axis, altitude preselect, servos" },
 ];
-export const SYS: SysDef[] = BASE.map(({ cam, ...d }) => Object.defineProperty(d, "cam", { get: () => fit(cam), enumerable: true }) as SysDef);

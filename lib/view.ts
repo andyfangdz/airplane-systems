@@ -33,6 +33,10 @@ interface ViewStore extends View {
   setHover: (h: HoverInfo | null) => void;
 }
 
+/** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */
+export const NARROW_PX = 860;
+export const narrowLayout = () => typeof window !== "undefined" && window.matchMedia(`(max-width:${NARROW_PX}px)`).matches;
+
 let camId = 0;
 let focusTimer: ReturnType<typeof setTimeout> | undefined;
 

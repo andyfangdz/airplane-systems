@@ -14,7 +14,6 @@ import {
   AF, AIL_C, BL, EF, FLAP_C, HF, HZ, SY, X, Y, Z, box, cyl, finCut, finSec, fLE, fC, hingeX, loft, onSkin, paintSkin,
   planeRing, rearRoofGeo, sC, sLE, sectionSlab, sided, sph, stabSec, strutGeo, taperTubeGeo, tubeGeo, wC, wLE, wheelFairingGeo, wingP, wingSec, wY,
 } from "./geometry";
-import { narrowLayout } from "./layout";
 import { live } from "./model";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM } from "./rig";
 import { useC182 } from "./store";
@@ -39,32 +38,31 @@ const QUIET: Partial<Record<SysId, string[]>> = {
     "KS 271C roll servo", "KS-270C pitch servo", "KS-272C pitch trim servo", "Elevator trim tab actuator", "Rudder horn", "Trim position indicator", "Rudder trim indicator",
     "Elevator downspring", "Aileron horn", "Elevator bellcrank (forward)", "Rudder bars", "Steering arm", "Elevator arm"],
   cabin: ["Main gear step bracket", "Tow bar (stowed)", "Aft cabin wall — FS 134", "Front passenger seat", "Control lock", "Stall warning horn", "Baggage area C (shelf)",
-    "Courtesy light (under wing)", "ELT remote switch", "Hour (Hobbs) meter", "Inertia reel (front seat)", "Openable door window", "Baggage area A (FS 82–109)", "Sun visor", "Fuel sampler cup"],
+    "Courtesy light (under wing)", "ELT remote switch", "Hour (Hobbs) meter", "Inertia reel (front seat)", "Openable door window", "Baggage area A (FS 82–109)"],
   // the lever and indicator are in the cockpit, out of this view's frame (pins aren't depth-tested): listed, not labelled
   flaps: ["Flap bellcrank", "Wing flap switch lever", "Flap position indicator"],
   gear: ["Brake disc", "Rudder bars", "Main gear step bracket", "Steering arm", "Nose gear fork and torque link", "Wheel fairing"],
-  environment: ["CABIN AIR knob", "Cabin manifold", "Rear cabin ventilator", "DEFROST knob"],
+  environment: ["CABIN AIR knob", "Cabin manifold", "DEFROST knob"],
   engine: ["Propeller blade", "Oil dipstick / filler", "Induction air intake", "Cooling air inlet", "MAGNETOS switch", "Firewall — FS 0 (datum)",
     "Fuel flow transducer", "Fuel distribution unit (flow divider)", "GEA 71 engine/airframe unit", "Engine-driven vacuum pump", "Hour (Hobbs) meter", "Mixture (red, vernier)",
     "Throttle (with friction lock)", "Left magneto", "Engine-driven fuel pump", "Fuel/air control unit (servo)", "Propeller governor", "Cylinder head 1", "Tach sensor",
-    "Low oil pressure switch", "Oil pressure transducer", "Manifold pressure transducer", "Cylinder baffles", "PROPELLER control (blue)", "Engine mount",
+    "Oil pressure transducer", "Manifold pressure transducer", "PROPELLER control (blue)", "Engine mount",
     "Induction air filter", "Alternator — 28 V, 60 A"],
-  fuel: ["Refueling step", "Assist handle", "Fuel vent interconnect", "Fuel quantity transmitter", "Fuel tank sump drain", "Tank outlet screen", "Fuel flow transducer",
-    "Fuel distribution unit (flow divider)", "Fuel return line drain", "Fuel selector drain", "Fuel sampler cup", "Fuel manifold (aft door post)", "Fuel strainer",
+  fuel: ["Refueling step", "Assist handle", "Fuel vent interconnect", "Fuel quantity transmitter", "Tank outlet screen", "Fuel flow transducer",
+    "Fuel distribution unit (flow divider)", "Fuel return line drain", "Fuel manifold (aft door post)", "Fuel strainer",
     "Fuel/air control unit (servo)"],
   electrical: ["MAGNETOS switch", "Flap motor and actuator", "Auxiliary fuel pump", "Alternator Control Unit (ACU)", "STBY BATT switch", "AVIONICS switch (BUS 1 | BUS 2)",
-    "Switch panel", "Forward avionics cooling fan", "Aft avionics cooling fan", "Circuit breaker panel (BUS 1 · BUS 2 · X-FEED)", "MASTER switch (ALT | BAT)", "Main battery current shunt",
-    "Standby battery controller", "12 V power converter", "POWER OUTLET 12V–10A", "Starter", "External power receptacle",
+    "Switch panel", "Forward avionics cooling fan", "Aft avionics cooling fan", "Circuit breaker panel (BUS 1 · BUS 2 · X-FEED)", "MASTER switch (ALT | BAT)", "Starter", "External power receptacle",
     "Circuit breaker panel (ESS · AVN 1 · AVN 2)"],
   lighting: ["Switch panel", "Flood light", "Overhead console", "Rear dome light", "Taxi light", "DIMMING panel"],
   avionics: ["AVIONICS switch (BUS 1 | BUS 2)", "DISPLAY BACKUP button", "Forward avionics cooling fan", "Aft avionics cooling fan", "COM 2 / GPS 2 / XM antenna",
-    "VOR/GS navigation antenna", "Marker beacon antenna", "Transponder antenna", "OAT probe (GTP 59)", "GEA 71 engine/airframe unit", "GIA 63 #2", "GDL 69A data link",
+    "VOR/GS navigation antenna", "Marker beacon antenna", "Transponder antenna", "OAT probe (GTP 59)", "GEA 71 engine/airframe unit", "GIA 63 #2",
     "DC turn coordinator (KAP 140)", "Magnetic compass (non-stabilized)", "GDC 74A air data computer", "KAP 140 flight computer",
     "GMU 44 magnetometer", "COM 1 / GPS 1 antenna"],
   autopilot: ["Elevator trim cable pulley", "GIA 63 #2", "Manual electric trim (MET) switches", "Trim position indicator", "Elevator trim tab", "KAP 140 flight computer",
-    "DC turn coordinator (KAP 140)", "KAP 140 mode keys", "Altitude select knobs", "KS-272C pitch trim servo"],
+    "DC turn coordinator (KAP 140)", "KS-272C pitch trim servo"],
   propeller: ["Propeller control cable"],
-  pitot: ["Water traps", "Static port"],
+  pitot: ["Static port"],
   vacuum: ["Vacuum regulator"],
 };
 /**
@@ -88,21 +86,7 @@ const NARROW: Partial<Record<SysId, string[]>> = {
   avionics: [],
   autopilot: ["KS 271C roll servo", "KS-270C pitch servo"],
 };
-class C182Catalogue extends Catalogue {
-  private labelled = new Map<string, Set<string>>();
-  /** Label pins: the pinned parts of a view minus its QUIET names, or only its NARROW names on a phone (the "tap to locate" list keeps them all). */
-  isPinned = (spec: PartSpec, sys: SysId) => {
-    const nar = narrowLayout(), key = nar ? sys + ":narrow" : sys;
-    let s = this.labelled.get(key);
-    if (!s) {
-      const q = QUIET[sys] ?? [], only = nar ? NARROW[sys] ?? [] : null;
-      s = new Set(this.pinned(sys).filter((p) => (only ? only.includes(p.name!) : !q.includes(p.name!)) && (!p.pinIn || p.pinIn.includes(sys))).map((p) => p.id));
-      this.labelled.set(key, s);
-    }
-    return s.has(spec.id);
-  };
-}
-export const CAT = new C182Catalogue("c182t");
+export const CAT = new Catalogue("c182t", { quiet: QUIET, narrow: NARROW });
 const { part, surfacePivot } = CAT;
 export { surfacePivot };
 const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) => CAT.shell(geo, name, note, skin ? paintSkin : undefined);

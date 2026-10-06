@@ -52,16 +52,7 @@ const QUIET: Partial<Record<SysId, string[]>> = {
     "COM 2 / GPS 2 antenna", "VOR/GS navigation antenna", "Marker beacon antenna", "Transponder antenna", "OAT probe (GTP 59)", "GEA 71 engine/airframe unit"],
   autopilot: ["Elevator trim cable pulley", "GIA 63W #2", "CWS button", "Manual Electric Trim (MET) switch", "PFD bezel AFCS keys", "GFC 700 pitch trim servo"],
 };
-class C172Catalogue extends Catalogue {
-  private labelled = new Map<SysId, Set<string>>();
-  /** Label pins: the pinned parts of a view minus its QUIET names (the "tap to locate" list keeps them all). */
-  isPinned = (spec: PartSpec, sys: SysId) => {
-    let s = this.labelled.get(sys);
-    if (!s) { const q = QUIET[sys] ?? []; s = new Set(this.pinned(sys).filter((p) => !q.includes(p.name!)).map((p) => p.id)); this.labelled.set(sys, s); }
-    return s.has(spec.id);
-  };
-}
-export const CAT = new C172Catalogue("c172s");
+export const CAT = new Catalogue("c172s", { quiet: QUIET });
 const { part, surfacePivot } = CAT;
 export { surfacePivot };
 const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) => CAT.shell(geo, name, note, skin ? paintSkin : undefined);

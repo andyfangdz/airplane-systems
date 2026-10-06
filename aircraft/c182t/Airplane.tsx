@@ -11,20 +11,18 @@ import { Screens, type ScreenSpec } from "@/components/scene/Screens";
 import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, clamp, type Vec3 } from "@/lib/math";
-import { useView } from "@/lib/view";
+import { narrowLayout, useView } from "@/lib/view";
 import { drawKapScreen, drawMfdScreen, drawOff, drawPfdScreen, drawSbyAi, drawSbyAlt, drawSbyAsi } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
-import type { SysId } from "@/lib/systems";
-import { narrowLayout } from "./layout";
 import { CAT, COWL_FLAP, NOSE, NOSE_CASTER, NOSE_RAKE, P3, PROP, YOKES, surfacePivot } from "./parts";
 import { KAP_LCD, LIGHTS, TANK_BL } from "./parts-systems";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM, aftCrankAngle, aftLinks, rudTrimLinks } from "./rig";
 import type { CtlIn } from "../cessna/rig";
+import { useC182 } from "./store";
 
 type Pose = ReturnType<typeof RIG.pose>;
-import { useC182 } from "./store";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
 const st = () => useC182.getState();
@@ -199,12 +197,8 @@ const SCREENS: ScreenSpec[] = [
     draw: (ctx, W, H) => drawKapScreen(ctx, W, H) },
 ];
 
-// on the phone layout the standby instruments and the KAP 140 LCD carry no label pin (a screen's pin follows its `sys`)
-SCREENS.forEach((d) => {
-  if (!["asi", "ai", "alt", "kap"].includes(d.key)) return;
-  const all = d.sys, none: SysId[] = [];
-  Object.defineProperty(d, "sys", { get: () => (narrowLayout() ? none : all), enumerable: true });
-});
+// on the phone layout the standby instruments and the KAP 140 LCD carry no label pin (they stay hoverable)
+for (const d of SCREENS) if (["asi", "ai", "alt", "kap"].includes(d.key)) d.pin = () => !narrowLayout();
 
 /* ---------- lights ---------- */
 const extOn = (k: "nav" | "strobe" | "land" | "taxi" | "beacon") => () => {
