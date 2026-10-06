@@ -1,6 +1,5 @@
 /** Shared materials. Everything is cached so hundreds of parts share a handful of materials. */
 import * as THREE from "three";
-import { paintSkin } from "./geometry";
 
 export interface MatSet { on: THREE.MeshStandardMaterial; hi: THREE.MeshStandardMaterial; dim: THREE.MeshStandardMaterial }
 const cache = new Map<string, MatSet>();
@@ -39,6 +38,32 @@ export const shellMat = new THREE.ShaderMaterial({
     }`,
 });
 
+const ghosts = new Map<string, THREE.ShaderMaterial>();
+/** X-ray ghost like `shellMat`, tinted with a system colour and a little denser, for fairings in their own system's view. */
+export function ghostMat(hex: string) {
+  let m = ghosts.get(hex);
+  if (!m) {
+    m = shellMat.clone();
+    m.uniforms = { uColor: { value: new THREE.Color(hex) }, uOpacity: { value: 0.85 } };
+    ghosts.set(hex, m);
+  }
+  return m;
+}
+
+const sees = new Map<string, THREE.MeshStandardMaterial>();
+/** X-ray highlight for a moving control surface in its own view: the `hi` colour made translucent (no depth writes,
+ *  drawn with the ghost shells), so the balance weights and horns inside it show through. Flagged `userData.seeThrough`. */
+export function seeMat(hex: string) {
+  let m = sees.get(hex);
+  if (!m) {
+    const c = new THREE.Color(hex);
+    m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.1, emissive: c.clone().multiplyScalar(0.4), transparent: true, opacity: 0.65, depthWrite: false });
+    m.userData.seeThrough = true;
+    sees.set(hex, m);
+  }
+  return m;
+}
+
 export const solidMat = new THREE.MeshStandardMaterial({ color: "#F1F3F4", roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
 
 export const plateMat = {
@@ -48,11 +73,12 @@ export const plateMat = {
 
 export const outlineMat = new THREE.LineBasicMaterial({ color: "#10171C", transparent: true, opacity: 0.9 });
 
-let _skin: THREE.MeshStandardMaterial | null = null;
-/** Painted fuselage skin (windows, door seam, pinstripes) for solid mode. */
-export function skinMat() {
-  if (!_skin) _skin = new THREE.MeshStandardMaterial({ map: paintSkin(), roughness: 0.36, metalness: 0.05, side: THREE.DoubleSide });
-  return _skin;
+const skins = new Map<() => THREE.Texture, THREE.MeshStandardMaterial>();
+/** Painted skin (windows, door seams, stripes) for solid mode, one material per painter. */
+export function skinMat(paint: () => THREE.Texture) {
+  let m = skins.get(paint);
+  if (!m) { m = new THREE.MeshStandardMaterial({ map: paint(), roughness: 0.36, metalness: 0.05, side: THREE.DoubleSide }); skins.set(paint, m); }
+  return m;
 }
 
 let _dot: THREE.CanvasTexture | null = null;

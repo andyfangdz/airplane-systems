@@ -6,9 +6,10 @@ const disp = Saira_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"]
 const body = Source_Sans_3({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-body" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
+// The tab title is rendered by App (<title> in components/App.tsx): neutral in the static HTML, since the URL hash that
+// names the airplane never reaches the server, then the airplane shown once mounted.
 export const metadata: Metadata = {
-  title: "SR20 G6 Systems",
-  description: "Interactive 3D walkthrough of the Cirrus SR20 (Perspective+/G6) airplane systems from POH Section 7.",
+  description: "Interactive 3D walkthroughs of airplane systems from POH/AFM Section 7: Cirrus SR20 G6, Cessna 172S and 182T NAV III, Diamond DA40 XLS.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };

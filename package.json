@@ -1,8 +1,8 @@
 {
-  "name": "sr20-g6-systems",
+  "name": "airplane-systems",
   "version": "0.1.0",
   "private": true,
-  "description": "Interactive 3D study model of the Cirrus SR20 G6 airplane systems (POH Section 7), built with Next.js and React Three Fiber.",
+  "description": "Interactive 3D study models of airplane systems (POH/AFM Section 7): Cirrus SR20 G6, Cessna 172S and 182T NAV III, Diamond DA40. Built with Next.js and React Three Fiber.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

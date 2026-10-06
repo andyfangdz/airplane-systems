@@ -1,10 +1,10 @@
-/* SR20 G6 Systems — design tokens and layout. */
+/* Airplane Systems — design tokens and layout. */
 :root{
   --paper:#E6EBEE; --panel:#F5F7F8; --panel2:#EDF1F3; --ink:#14202A; --muted:#566570; --rule:#CBD4DA;
   --accent:#1B5E88; --scene:#DCE3E7; --grid:#B9C4CB; --shell:#2A3B48;
   --elec:#D9960F; --fuel:#2F7FE6; --oil:#B85A2A; --air:#149C94; --hot:#E0522B; --ctrl:#7C57CF;
   --pitot:#3A9448; --caps:#D32640; --avx:#C8399F; --cabin:#6F7F8C; --gear:#5C6E7E; --frame:#3D5A73;
-  --warn:#E0263B; --caut:#E7B416; --adv:#F2F5F7; --cas-bg:#05080B;
+  --warn:#E0263B; --caut:#E7B416; --adv:#F2F5F7; --cas-bg:#05080B; --on-accent:#fff;
   --f-disp:var(--font-disp),"Arial Narrow",system-ui,sans-serif;
   --f-body:var(--font-body),system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-mono:var(--font-mono),ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -14,14 +14,14 @@
     color-scheme:dark;
     --paper:#0B1117; --panel:#111A21; --panel2:#16212A; --ink:#E0E7EC; --muted:#8B9AA6; --rule:#24323D;
     --accent:#63B4E6; --scene:#0C141B; --grid:#1D2A34; --shell:#9FB6C8; --frame:#8FB0CC;
-    --cabin:#9AA8B3; --gear:#8C9DAC;
+    --cabin:#9AA8B3; --gear:#8C9DAC; --on-accent:#0B1117;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
   --paper:#0B1117; --panel:#111A21; --panel2:#16212A; --ink:#E0E7EC; --muted:#8B9AA6; --rule:#24323D;
   --accent:#63B4E6; --scene:#0C141B; --grid:#1D2A34; --shell:#9FB6C8; --frame:#8FB0CC;
-  --cabin:#9AA8B3; --gear:#8C9DAC;
+  --cabin:#9AA8B3; --gear:#8C9DAC; --on-accent:#0B1117;
 }
 html,body{height:100%}
 /* app-like page: no text selection or long-press callout anywhere (iOS otherwise starts selecting while orbiting the model) */
@@ -37,6 +37,12 @@ button{font:inherit;color:inherit}
 .brand{padding:18px 18px 14px;border-bottom:1px solid var(--rule)}
 .brand .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
 .brand h1{font-family:var(--f-disp);font-weight:700;font-size:30px;line-height:1;margin:6px 0 4px;letter-spacing:.01em}
+/* fleet picker: one button per airplane */
+.fleet{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin:10px 0 10px;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.fleet button{background:var(--panel2);border:0;border-right:1px solid var(--rule);padding:6px 2px;cursor:pointer;font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--muted)}
+.fleet button:last-child{border-right:0}
+.fleet button:hover{color:var(--ink)}
+.fleet button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .brand p{margin:0;font-size:13px;color:var(--muted)}
 .syslist{list-style:none;margin:0;padding:8px 8px 16px;overflow:auto;flex:1}
 .syslist button{width:100%;display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;text-align:left;
@@ -59,7 +65,7 @@ button{font:inherit;color:inherit}
 .pin b{font-weight:500;color:var(--c)}
 .pin{margin-top:-10px}
 .tip{position:absolute;pointer-events:none;max-width:260px;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;
-  font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:5}
+  font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:30} /* above the label pins (drei Html zIndexRange [20,0]) */
 .tip h4{margin:0 0 2px;font-family:var(--f-disp);font-size:16px;letter-spacing:.02em;text-transform:uppercase}
 .tip p{margin:0;color:var(--muted)}
 .toolbar{position:absolute;top:12px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
@@ -70,17 +76,20 @@ button{font:inherit;color:inherit}
 .tb-theme .ico{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
 .hint{position:absolute;left:12px;top:12px;font-family:var(--f-mono);font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--panel) 80%,transparent);
   padding:4px 8px;border-radius:4px}
+/* foot of the viewport: alert window left, airplane HUD (SR20 CAPS timeline) right; wraps when the view is narrow, stacked on phones */
+.stage-foot{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;pointer-events:none}
+.stage-foot > *{pointer-events:auto}
 /* CAS window — deliberately always dark, like the display */
-.cas{position:absolute;left:12px;bottom:12px;width:232px;background:var(--cas-bg);border:1px solid #2B3640;border-radius:4px;padding:6px 8px 7px;
+.cas{flex:none;width:232px;background:var(--cas-bg);border:1px solid #2B3640;border-radius:4px;padding:6px 8px 7px;
   font-family:var(--f-mono);font-size:12px;color:#DDE5EA;box-shadow:0 6px 20px rgba(0,0,0,.25)}
-.cas .hd{display:flex;justify-content:space-between;font-size:10px;color:#7E8E99;letter-spacing:.08em;margin-bottom:4px}
+.cas .hd{display:flex;justify-content:space-between;gap:10px;white-space:nowrap;font-size:10px;color:#7E8E99;letter-spacing:.08em;margin-bottom:4px}
 .cas ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
 .cas li{padding:1px 5px;font-weight:500;letter-spacing:.03em}
 .cas li.w{background:var(--warn);color:#fff}
 .cas li.c{color:#10151A;background:var(--caut)}
 .cas li.a{color:var(--adv)}
 .cas .none{color:#5E6E79}
-.caps-hud{position:absolute;right:12px;bottom:12px;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 12px;font-family:var(--f-mono);font-size:12px;min-width:200px}
+.caps-hud{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 12px;font-family:var(--f-mono);font-size:12px;min-width:200px}
 .caps-hud span{display:block}
 .caps-hud b{font-family:var(--f-disp);font-size:22px;color:var(--caps);display:block;line-height:1.1}
 
@@ -160,6 +169,8 @@ button.chip:hover{border-color:var(--elec)}
 .overview-grid span{font-size:12.5px;color:var(--muted)}
 .disc{margin-top:26px;font-size:12px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
 
+/* the toolbar would run over the hint; the rail footer gives the same instructions */
+@media (max-width:1240px){ .hint{display:none} }
 @media (max-width:1100px){ .app{grid-template-columns:200px minmax(0,1fr) 340px} }
 @media (max-width:860px){
   html,body{height:auto}
@@ -167,6 +178,7 @@ button.chip:hover{border-color:var(--elec)}
   .rail{border-right:0;border-bottom:1px solid var(--rule)}
   .brand{padding:14px 16px 10px}
   .brand h1{font-size:26px}
+  .fleet{max-width:420px}
   .syslist{display:flex;overflow-x:auto;padding:6px 10px 10px;gap:4px}
   .syslist li{flex:none}
   .syslist button{grid-template-columns:10px auto;padding:6px 10px;border:1px solid var(--rule)}
@@ -176,7 +188,9 @@ button.chip:hover{border-color:var(--elec)}
   .stage{height:58vh;min-height:340px}
   .panel{border-left:0;border-top:1px solid var(--rule);overflow:visible}
   .panel-inner{padding:18px 16px 40px}
+  .stage-foot{flex-direction:column-reverse;align-items:flex-start;gap:8px}
   .cas{width:200px;font-size:11px}
+  .cas .hd{letter-spacing:.02em;gap:8px}
   .hint{display:none}
   .caps-hud{min-width:0}
 }
