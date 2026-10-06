@@ -24,7 +24,7 @@ export function Overview() {
           </button>
         ))}
       </div>
-      <p className="disc">Unofficial study aid built from POH P/N 11934-005 (Reissue A), Section 7, with a few Section 2 limits, plus photos and notes from the Costanzo Air Flight School “Cirrus SR20 Systems” deck (where the two differ, the POH wins and the page says so). Geometry is approximate and not to scale in detail. CAS message text is illustrative except where Section 7 names it (PITOT HEAT FAIL/REQD, STALL, STALL WARN FAIL). Always use the POH/AFM and supplements for your serial number.</p>
+      <p className="disc">Unofficial study aid built from POH P/N 11934-005 (Reissue A), Section 7, with a few Section 2 limits, plus photos and notes from the Costanzo Air Flight School “Cirrus SR20 Systems” deck (where the two differ, the POH wins and the page says so). Geometry is approximate and not to scale in detail. CAS messages use the POH Section 3 and 3A names, for the conditions the model simulates; their triggers are simplified. Always use the POH/AFM and supplements for your serial number.</p>
     </>
   );
 }

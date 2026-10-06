@@ -92,7 +92,7 @@ export function Electrical() {
       <Facts rows={[["ALT 1", "100 A, right front, 27.7 V"], ["ALT 2", "70 A, left front, 28.7 V"], ["BAT 1", "24 V, 10 Ah, right firewall"], ["BAT 2", "2 × 12 V, 7 Ah, aft of FS 222"], ["ALT 1 start", "Needs BAT 1 on"], ["ALT 2 start", "Needs BAT 1 or BAT 2 on"], ["External power", "28 V regulated; BAT 1 must be on"], ["Lightning", "TVS suppressors at bus entry points"]]} />
       <Caution title="Caution">Running with the alternators off drains the batteries until the battery relay opens, removing alternator field power and preventing a restart.</Caution>
       <H3>CAS by failure (G6)</H3>
-      <Facts rows={[["ALT 2 fails", "ALT 2"], ["ALT 1 fails", "M BUS 1 · ALT 1 · BAT 1"], ["Both fail", "M BUS 1 · M BUS 2 · ALT 1 · ALT 2 · BAT 1 · ESS BUS (red)"]]} />
+      <Facts rows={[["ALT 2 fails", "ALT 2"], ["ALT 1 fails", "ALT 1 · M BUS 1"], ["Both fail", "ALT 1 · ALT 2 · M BUS 1 · M BUS 2 · ESS BUS (red)"], ["BATT 1", "Battery 1 discharging with ALT 1 working: an MCU fault, not an ALT 1 failure (not modelled)"]]} />
       <H3>Ground check logic</H3>
       <Notes items={["BAT 2 alone should power only ESS BUS 1 and 2. Anything else lit means the interconnect diode has failed.", "Turn AVIONICS off before master switches, engine start or external power."]} />
     </>

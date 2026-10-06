@@ -71,7 +71,7 @@ export function Fuel() {
         <Slider id="qL" label="Left tank" min={0} max={28} step={0.1} value={f.qL} onChange={(v) => up((d) => { d.fuel.qL = v; })} fmt={(v) => v.toFixed(1) + " gal"} />
         <Slider id="qR" label="Right tank" min={0} max={28} step={0.1} value={f.qR} onChange={(v) => up((d) => { d.fuel.qR = v; })} fmt={(v) => v.toFixed(1) + " gal"} />
         <BtnRow>
-          {([["Full · 56", 28, 28], ["Tabs · 26", 13, 13], ["Low · 7 / 6", 7, 6], ["Imbalance", 20, 6]] as const).map(([t, l, r]) => (
+          {([["Full · 56", 28, 28], ["Tabs · 26", 13, 13], ["Low · 5 / 4", 5, 4], ["Imbalance", 20, 6]] as const).map(([t, l, r]) => (
             <button key={t} type="button" className="btn" onClick={() => up((d) => { d.fuel.qL = l; d.fuel.qR = r; })}>{t}</button>
           ))}
         </BtnRow>
@@ -84,10 +84,10 @@ export function Fuel() {
       </Ctl>
       <Small>Selecting OFF or a dry tank with the engine running stops it after a few seconds — restart from the Engine panel.</Small>
       <H3>Annunciations</H3>
-      <Facts rows={[["White advisory", "Either tank < 8.2 gal"], ["Amber caution", "Both tanks < 8.2 gal"], ["Red warning", "Total (sensed or totalizer) < 7 gal"]]} />
+      <Facts rows={[["FUEL LOW LEFT / RIGHT", "Red: that tank < 1 gal"], ["FUEL LOW TOTAL", "Amber ≤ 10 gal · red < 7 gal (sensed or totalizer)"], ["FUEL IMBALANCE", "L/R difference: white > 5.5 · amber > 7.5 · red > 9.5 gal"]]} />
       <Caution title="Caution">At ¼ tank or less, prolonged slips or skids can unport the tank outlet. With a tank that low (or one dry), stay coordinated — no more than 30 seconds uncoordinated.</Caution>
       <H3>Details</H3>
-      <Facts rows={[["Capacity", "29.3 gal per tank · 28 usable"], ["Total usable", "56 gal"], ["Filled to tabs", "13 gal/side · 26 total"], ["Boost pump", "23 psi · 5 A, MAIN BUS 2"], ["Training deck", "Lists 26.5 gal usable/side — this G6 POH says 28"], ["Drains", "5: 2 tank, 2 collector, gascolator"], ["Vents", "NACA vent under each wing near tip"], ["Gauge", "0–28 gal · yellow 0–8.2"], ["Totalizer", "Independent of float sensors"]]} />
+      <Facts rows={[["Capacity", "29.3 gal per tank · 28 usable"], ["Total usable", "56 gal"], ["Filled to tabs", "13 gal/side · 26 total"], ["Boost pump", "23 psi · 5 A, MAIN BUS 2"], ["Training deck", "Lists 26.5 gal usable/side — this G6 POH says 28"], ["Drains", "5: 2 tank, 2 collector, gascolator"], ["Vents", "NACA vent under each wing near tip"], ["Gauge", "0–28 gal · yellow 0–10 · green 10–28"], ["Totalizer", "Independent of float sensors"]]} />
       <H3>Components</H3>
       <PartsList parts={CAT.pinned("fuel")} />
     </>

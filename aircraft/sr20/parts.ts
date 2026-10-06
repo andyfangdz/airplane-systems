@@ -20,7 +20,9 @@ import { useSR20 } from "./store";
 export { chanOfKey };
 const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 
-export const CAT = new Catalogue("sr20");
+// The ADAHRS and GIAs sit behind the displays, and the bezels frame them: listed under "tap to locate" but not labelled, so
+// their pins don't cover the screens (which carry their own labels on the top bezel edge, Airplane.tsx SCREENS).
+export const CAT = new Catalogue("sr20", { quiet: { avionics: ["GSU 75 ADAHRS", "GIA 63W/64W ×2", "PFD bezel", "MFD bezel"] } });
 const { part, surfacePivot } = CAT;
 const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) => CAT.shell(geo, name, note, skin ? paintSkin : undefined);
 export { surfacePivot };
@@ -267,13 +269,23 @@ part(() => box(0.08, 0.07, 0.02), ["electrical"], { pos: [2.45, -0.3, -0.6], nam
 
 /* ---------- avionics ---------- */
 // GDU 1050A bezels around the 0.211 × 0.158 m screens (Airplane.tsx SCREENS), sized from the Pilot's Guide drawing (approximate):
-// ≈1.31 × 1.25 of the screen, knobs on the inboard edges, softkeys below. The red DISPLAY BACKUP button sits between them, at the top.
-part(() => box(0.014, 0.198, 0.276), ["avionics"], { pos: [2.285, 0.092, -0.241], color: "#15181B", name: "PFD bezel",
+// ≈1.31 × 1.25 of the screen, knobs on the inboard edges, softkeys below. The inboard control strips nearly meet, with a narrow
+// strip between them carrying the red DISPLAY BACKUP button at the top (PG Fig 1-2, 1-6; Perspective+ brochure).
+const BEZEL_Z = { pfd: -0.241, mfd: 0.054 } as const;
+part(() => box(0.014, 0.198, 0.276), ["avionics"], { pos: [2.285, 0.092, BEZEL_Z.pfd], color: "#15181B", name: "PFD bezel", pin: true,
   note: "COM volume and frequency knobs, BARO, RANGE joystick, menu keys and the FMS knob on its right (inboard) edge; 12 softkeys under the screen." });
-part(() => box(0.014, 0.198, 0.276), ["avionics"], { pos: [2.285, 0.092, 0.101], color: "#15181B", name: "MFD bezel",
+part(() => box(0.014, 0.198, 0.276), ["avionics"], { pos: [2.285, 0.092, BEZEL_Z.mfd], color: "#15181B", name: "MFD bezel", pin: true,
   note: "NAV volume and frequency knobs at the top of its left (inboard) edge; 12 softkeys under the screen." });
-part(() => cyl(0.008, 0.012, "x"), ["avionics"], { pos: [2.274, 0.165, -0.07], color: "#D32640", name: "DISPLAY BACKUP button",
+part(() => cyl(0.008, 0.012, "x"), ["avionics"], { pos: [2.274, 0.165, -0.0935], color: "#D32640", name: "DISPLAY BACKUP button",
   note: "Puts both displays in reversionary mode: PFD instruments plus the Engine Strip. Press again to exit. The other display reverts on its own if one fails (POH 7-72)." });
+// bezel controls (decorative): knobs on each inboard strip (PFD: COM volume, COM, BARO, RANGE, FMS; MFD: NAV volume, NAV), 12 softkeys under each screen
+const KNOB = "#2C3136";
+for (const [y, r] of [[0.165, 0.008], [0.127, 0.011], [0.089, 0.009], [0.055, 0.007], [0.008, 0.011]] as const)
+  part(() => cyl(r, 0.014, "x"), ["avionics"], { pos: [2.272, y, BEZEL_Z.pfd + 0.121], color: KNOB });
+for (const [y, r] of [[0.165, 0.008], [0.127, 0.011]] as const)
+  part(() => cyl(r, 0.014, "x"), ["avionics"], { pos: [2.272, y, BEZEL_Z.mfd - 0.121], color: KNOB });
+for (const z0 of [BEZEL_Z.pfd, BEZEL_Z.mfd]) for (let i = 0; i < 12; i++)
+  part(() => box(0.004, 0.006, 0.012), ["avionics"], { pos: [2.277, 0.008, z0 + (i - 5.5) * 0.0176], color: KNOB });
 part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], { pos: [2.43, 0.1, -0.24], name: "GSU 75 ADAHRS", note: "Behind the PFD: attitude/heading reference plus air data computer. ADAHRS 1 on ESS BUS 1.", pin: true });
 part(() => box(0.12, 0.11, 0.15), ["avionics"], { pos: [2.44, 0.12, 0.2], name: "GIA 63W/64W ×2", note: "Integrated avionics units: WAAS GPS, VHF COM/NAV/GS, integration. GIA 1 on ESS BUS 1, GIA 2 on MAIN BUS 2.", pin: true });
 part(() => box(0.1, 0.07, 0.1), ["avionics", "engine"], { pos: [2.44, -0.04, 0.3], name: "GEA 71 Engine Airframe Unit", note: "Digitizes fuel, CHT, EGT, MAP, RPM and other sensors. 3 A ENGINE INSTR on ESS BUS 2." });

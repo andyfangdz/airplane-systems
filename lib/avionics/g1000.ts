@@ -38,7 +38,7 @@ export interface FlightData {
   selAlt?: number;
   /** Radios as [active, standby]. Defaults are shown when omitted. */
   com1?: [string, string]; com2?: [string, string]; nav1?: [string, string]; nav2?: [string, string];
-  /** Transponder code and mode (e.g. "1200", "ALT"), local time text (e.g. "14:05:22"). */
+  /** Transponder code and mode (e.g. "1200", "ALT"), clock text (e.g. "14:05:22": local time, UTC in the "perspective" style). */
   xpdr?: string; xpdrMode?: string; time?: string;
   /** Airspeed predicted 6 s ahead minus current (kt) — magenta trend vector. */
   iasTrend?: number;
@@ -92,9 +92,11 @@ export interface AfcsAnnunc {
 
 /**
  * Display family. "g1000" (default): Garmin G1000 as in the Cessna NAV III and DA40. "perspective": Cirrus Perspective+
- * (Pilot's Guide 190-02183-03): no NAV box on the PFD and no COM box on the MFD (Fig 2-1, 3-1), mixed-case softkey
- * labels, a frameless left-aligned CAS window right of the altimeter and VSI starting at the altitude pointer
- * (Fig A-2), and OAT in °C and °F (p. 69). Everything else is drawn the same.
+ * (Pilot's Guide 190-02183-03): a "% Power" box instead of the NAV box on the PFD and no COM box on the MFD (Fig 2-1, 3-1),
+ * a Flight ID box under the COM box, mixed-case softkey labels with OBS subdued, GS beside TAS (p. 48), UTC clock, no
+ * HDG / CRS readouts beside the heading box (shown only while being set, POH 7-21), a frameless left-aligned CAS window
+ * right of the altimeter and VSI starting at the altitude pointer (Fig A-2), and OAT in °C and °F (p. 69). Everything
+ * else is drawn the same.
  */
 export type GduStyle = "g1000" | "perspective";
 
@@ -103,6 +105,8 @@ export interface PfdData {
   speeds: SpeedBands;
   /** Display family; default "g1000". */
   style?: GduStyle;
+  /** Perspective+ "% Power" box (top left of the PFD); null or undefined shows dashes. Not drawn in the "g1000" style. */
+  pctPower?: number | null;
   /** Annunciation window right of the altimeter: [level, text] (red warnings, yellow cautions, white advisories). */
   alerts: [CasLevel, string][];
   /** GFC 700 status bar; omit (or null) for airplanes without it (e.g. KAP 140 C182T). */
@@ -119,8 +123,11 @@ export interface Gauge {
   /** Label as printed on the G1000, e.g. "OIL PRES", "FUEL QTY GAL", "M BUS E BUS". */
   label: string;
   unit?: string;
-  /** dial (tach), horizontal bar, pair (L/R pointers on one bar, e.g. fuel), text row, or head (section title). */
-  style: "dial" | "bar" | "pair" | "text" | "head";
+  /**
+   * dial (tach), horizontal bar, pair (L/R pointers on one bar, e.g. fuel), text row, head (section title), or tanks
+   * (Perspective+ fuel: L/R vertical bars for value / value2, with `side` drawn as a vertical bar to their right).
+   */
+  style: "dial" | "bar" | "pair" | "text" | "head" | "tanks";
   min: number; max: number;
   /** Colour bands [from, to, colour]. */
   bands?: [number, number, "green" | "yellow" | "red" | "white"][];
@@ -139,6 +146,8 @@ export interface Gauge {
   compact?: boolean;
   /** Character drawn inside a bar's pointer, e.g. the hottest cylinder number on CHT / EGT. */
   ptrLabel?: string;
+  /** "tanks" only: the vertical bar beside the tank pair (fuel flow), with its own label, range, bands, value and alert (readout colour). */
+  side?: Gauge;
 }
 
 export interface MfdData extends PfdData {
@@ -181,6 +190,13 @@ function poly(ctx: Ctx, pts: number[], fill?: string | null, stroke?: string | n
 function line(ctx: Ctx, x1: number, y1: number, x2: number, y2: number, c: string, lw = 1) {
   ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
 }
+/** `s` cut to `maxW` at a bold `px` font, ending in "…" when it had to be cut. */
+function clip(ctx: Ctx, s: string, maxW: number, px: number) {
+  ctx.font = `700 ${px}px ${FONT}`;
+  if (ctx.measureText(s).width <= maxW) return s;
+  while (s.length > 1 && ctx.measureText(s + "…").width > maxW) s = s.slice(0, -1);
+  return s.trimEnd() + "…";
+}
 /** Red X across a failed field. */
 function redX(ctx: Ctx, x: number, y: number, w: number, h: number) {
   ctx.save(); ctx.strokeStyle = RED; ctx.lineWidth = 3; ctx.lineCap = "round";
@@ -215,30 +231,41 @@ function layout(x0: number, w: number): Lay {
 
 const PFD_KEYS = ["", "INSET", "", "PFD", "OBS", "CDI", "DME", "XPDR", "IDENT", "TMR/REF", "NRST", "ALERTS"];
 const MFD_KEYS = ["ENGINE", "", "MAP", "", "", "", "", "", "", "DCLTR", "SHW CHRT", "CHKLIST"];
-/** Perspective+ level-1 softkeys (PG Fig 2-1, 3-1). */
+/** Perspective+ level-1 softkeys (PG Fig 2-1, 3-1); OBS is subdued (unavailable) in the default picture. */
 const PP_PFD_KEYS = ["", "Map/HSI", "TFC Map", "PFD Opt", "OBS", "CDI", "DME", "XPDR", "Ident", "TMR/REF", "Nearest", "Alerts"];
 const PP_MFD_KEYS = ["Engine", "", "Map Opt", "", "", "", "", "", "", "Detail", "Charts", "Checklist"];
+const PP_SUBDUED = new Set(["OBS"]);
 const isPP = (d: PfdData) => d.style === "perspective";
 
 /** Primary flight display. */
 export function drawPFD(ctx: Ctx, W: number, H: number, d: PfdData) {
   const pp = isPP(d);
-  frame(ctx, W, H, () => { pfdBody(ctx, d, layout(0, 640)); topBar(ctx, d.f, false, !pp); softkeys(ctx, pp ? PP_PFD_KEYS : PFD_KEYS); });
+  frame(ctx, W, H, () => {
+    pfdBody(ctx, d, layout(0, 640)); topBar(ctx, d.f, false, !pp);
+    if (pp) { // Cirrus percent-power box where the G1000 has its NAV box (PG Fig 2-1 item 1)
+      const p = d.pctPower;
+      txt(ctx, `${p == null ? "--" : Math.round(p)}% Power`, 85, 20, WHITE, 15, "center");
+    }
+    softkeys(ctx, pp ? PP_PFD_KEYS : PFD_KEYS, pp ? PP_SUBDUED : undefined);
+  });
 }
 
 function pfdBody(ctx: Ctx, d: PfdData, L: Lay) {
-  const t = d.t ?? now();
+  const t = d.t ?? now(), pp = isPP(d);
   attitude(ctx, d, L);
   airspeed(ctx, d, L, t);
   altimeter(ctx, d, L);
   vsi(ctx, d, L);
-  hsi(ctx, d.f, L);
+  hsi(ctx, d.f, L, pp);
   if (d.afcs) afcsBar(ctx, d.afcs, L, t);
   annWindow(ctx, d, L);
   // OAT, transponder, time
-  if (isPP(d)) {
+  if (pp) {
     rect(ctx, L.x0 + 4, 444, 136, 18, "#000", "#3A4046");
     txt(ctx, `OAT ${Math.round(d.f.oat)}°C`, L.x0 + 9, 453, WHITE, 12); txt(ctx, `OAT ${Math.round(d.f.oat * 1.8 + 32)}°F`, L.x0 + 135, 453, WHITE, 12, "right");
+    // Flight ID box under the COM box (PG Fig A-2); no ID entered
+    rect(ctx, 562, TOP + 3, 74, 16, "#000", "#3A4046");
+    txt(ctx, "ID", 566, TOP + 11, WHITE, 10); txt(ctx, "--------", 632, TOP + 11, WHITE, 11, "right");
   } else {
     rect(ctx, L.x0 + 4, 444, 78, 18, "#000", "#3A4046");
     txt(ctx, `OAT ${Math.round(d.f.oat)}°C`, L.x0 + 9, 453, WHITE, 12);
@@ -247,7 +274,7 @@ function pfdBody(ctx: Ctx, d: PfdData, L: Lay) {
   txt(ctx, "XPDR", 545, 435, WHITE, 10); txt(ctx, d.f.xpdr ?? "1200", 575, 435, WHITE, 12);
   txt(ctx, d.f.xpdrMode ?? "ALT", 631, 435, GREEN, 11, "right");
   rect(ctx, 540, 444, 96, 18, "#000", "#3A4046");
-  txt(ctx, "LCL", 545, 453, WHITE, 10); txt(ctx, d.f.time ?? "12:00:00", 631, 453, WHITE, 12, "right");
+  txt(ctx, pp ? "UTC" : "LCL", 545, 453, WHITE, 10); txt(ctx, d.f.time ?? "12:00:00", 631, 453, WHITE, 12, "right");
 }
 
 /* attitude indicator */
@@ -321,6 +348,11 @@ function airspeed(ctx: Ctx, d: PfdData, L: Lay, t: number) {
   if (a?.maxspd) { if (blinkOn(t)) { rect(ctx, x, TT - 20, w, 18, YEL); txt(ctx, "MAXSPD", x + w / 2, TT - 11, "#000", 12, "center"); } }
   else if (a?.iasRef != null && a.fd) { rect(ctx, x, TT - 20, w, 18, "#000", "#4A5056"); txt(ctx, `${a.iasRef}KT`, x + w / 2, TT - 11, CYAN, 14, "center"); }
   rect(ctx, x, TB + 2, w, 16, "#000", "#3A4046");
+  if (isPP(d)) { // Perspective+ ground speed (GPS): left of TAS on the full PFD (PG p. 48), under it in reversion (Fig 3-19)
+    const full = L.w >= 600, gx = full ? x - 66 : x, gy = full ? TB + 2 : TB + 20;
+    rect(ctx, gx, gy, w, 16, "#000", "#3A4046");
+    txt(ctx, `GS ${Math.round(f.gs ?? f.tas ?? f.ias)}KT`, gx + w / 2, gy + 8, WHITE, 11, "center");
+  }
   if (f.fail?.air) { redX(ctx, x, TT, w, TB - TT); txt(ctx, "TAS ---KT", x + w / 2, TB + 10, WHITE, 11, "center"); return; }
   txt(ctx, `TAS ${Math.round(f.tas ?? f.ias)}KT`, x + w / 2, TB + 10, WHITE, 11, "center");
   const ias = Math.max(f.ias, 20), y = (v: number) => YC - (v - ias) * ppk;
@@ -415,15 +447,17 @@ function vsi(ctx: Ctx, d: PfdData, L: Lay) {
   if (Math.abs(f.vs) >= 100) txt(ctx, String(Math.round(f.vs / 50) * 50), x + 39, yy + 1, WHITE, 11, "right");
 }
 
-/* HSI */
-function hsi(ctx: Ctx, f: FlightData, L: Lay) {
+/* HSI. `pp`: Perspective+ shows the selected heading / course readouts only for ~3 s after setting (POH 7-21, 7-22), so they're left off. */
+function hsi(ctx: Ctx, f: FlightData, L: Lay, pp: boolean) {
   const cx = L.cx, cy = L.hy, r = L.hr;
   const gps = f.navSrc === "GPS", cc = gps ? MAG : GREEN;
   // selected heading and course boxes
-  rect(ctx, cx - 116, cy - r - 2, 74, 18, "#000", "#3A4046");
-  txt(ctx, "HDG", cx - 111, cy - r + 7, WHITE, 11); txt(ctx, `${pad3(f.hdgBug)}°`, cx - 46, cy - r + 7, CYAN, 14, "right");
-  rect(ctx, cx + 42, cy - r - 2, 74, 18, "#000", "#3A4046");
-  txt(ctx, "CRS", cx + 47, cy - r + 7, WHITE, 11); txt(ctx, `${pad3(f.crs)}°`, cx + 112, cy - r + 7, cc, 14, "right");
+  if (!pp) {
+    rect(ctx, cx - 116, cy - r - 2, 74, 18, "#000", "#3A4046");
+    txt(ctx, "HDG", cx - 111, cy - r + 7, WHITE, 11); txt(ctx, `${pad3(f.hdgBug)}°`, cx - 46, cy - r + 7, CYAN, 14, "right");
+    rect(ctx, cx + 42, cy - r - 2, 74, 18, "#000", "#3A4046");
+    txt(ctx, "CRS", cx + 47, cy - r + 7, WHITE, 11); txt(ctx, `${pad3(f.crs)}°`, cx + 112, cy - r + 7, cc, 14, "right");
+  }
   // rose
   ctx.save(); ctx.translate(cx, cy);
   ctx.fillStyle = "rgba(18,20,24,0.88)"; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
@@ -513,20 +547,30 @@ function annWindow(ctx: Ctx, d: PfdData, L: Lay) {
   const order = { w: 0, c: 1, a: 2 };
   const list: [CasLevel, string][] = [...(d.pitchTrim ? [["w", d.pitchTrim] as [CasLevel, string]] : []), ...[...d.alerts].sort((p, q) => order[p[0]] - order[q[0]])].slice(0, 8);
   if (!list.length) return;
-  const rh = 16;
-  if (isPP(d)) { // Perspective+ CAS window: black, no frame, left-aligned; full PFD: right of the VSI, top just below the altitude pointer
-    const full = L.w >= 600, x = full ? L.vsiX + 29 : L.ann.x, w = full ? L.x0 + L.w - x - 2 : L.ann.w, y = full ? YC + 18 : L.ann.y;
-    rect(ctx, x, y, w, list.length * rh + 6, "#000");
-    list.forEach(([lv, s], i) => {
-      ctx.font = `700 12px ${FONT}`;
-      const px = Math.max(7, Math.min(12, (12 * (w - 6)) / ctx.measureText(s).width));
-      txt(ctx, s, x + 3, y + 3 + i * rh + rh / 2 + 1, lv === "w" ? RED : lv === "c" ? YEL : WHITE, px);
+  // rows that fit above the transponder box (y 426): the reversion window would otherwise run into it and the softkeys
+  const fit = (y: number, rh: number) => list.slice(0, Math.floor((426 - y - 6) / rh));
+  if (isPP(d)) {
+    // Perspective+ CAS window: black, no frame, left-aligned, one narrow font for every row (PG Fig A-2). Full PFD: right of
+    // the VSI, top just below the altitude pointer. Reversion: right of the HSI, below the baro box. The widest message sets
+    // a common horizontal squeeze (down to 0.75, like Garmin's condensed face), then a common smaller size (down to 8 px).
+    const full = L.w >= 600, x = full ? L.vsiX + 29 : L.ann.x, w = full ? L.x0 + L.w - x - 2 : L.ann.w, y = full ? YC + 18 : TB + 22;
+    const room = w - 6, widest = (px: number) => { ctx.font = `700 ${px}px ${FONT}`; return Math.max(...list.map(([, s]) => ctx.measureText(s).width)); };
+    let px = 12, k = Math.min(1, room / widest(px));
+    if (k < 0.75) { px = Math.max(8, Math.floor((px * k) / 0.75)); k = Math.min(1, room / widest(px)); }
+    k = Math.max(k, 0.75);
+    const rh = px + 4, rows = fit(y, rh);
+    rect(ctx, x, y, w, rows.length * rh + 6, "#000");
+    rows.forEach(([lv, s], i) => {
+      ctx.save(); ctx.translate(x + 3, y + 3 + i * rh + rh / 2 + 1); ctx.scale(k, 1);
+      txt(ctx, clip(ctx, s, room / k, px), 0, 0, lv === "w" ? RED : lv === "c" ? YEL : WHITE, px);
+      ctx.restore();
     });
     return;
   }
-  const { x, y, w } = L.ann;
-  rect(ctx, x, y, w, list.length * rh + 6, "#000", WHITE, 1);
-  list.forEach(([lv, s], i) => {
+  const rh = 16, { x, y, w } = L.ann;
+  const rows = fit(y, rh);
+  rect(ctx, x, y, w, rows.length * rh + 6, "#000", WHITE, 1);
+  rows.forEach(([lv, s], i) => {
     const c = lv === "w" ? RED : lv === "c" ? YEL : WHITE;
     ctx.font = `700 12px ${FONT}`;
     const px = Math.max(7, Math.min(12, (12 * (w - 8)) / ctx.measureText(s).width)); // shrink to fit
@@ -563,12 +607,13 @@ function topBar(ctx: Ctx, f: FlightData, mfd: boolean, nav = true, com = true) {
   }
 }
 
-function softkeys(ctx: Ctx, keys: string[]) {
+/** Softkey labels along the bottom; keys in `subdued` are greyed out (unavailable). */
+function softkeys(ctx: Ctx, keys: string[], subdued?: Set<string>) {
   rect(ctx, 0, BOT, 640, 480 - BOT, "#0B0D0F");
   const w = 640 / keys.length;
   keys.forEach((k, i) => {
     if (i) line(ctx, i * w, BOT + 3, i * w, 478, "#3A4046");
-    if (k) txt(ctx, k, i * w + w / 2, BOT + 8, "#E8ECEE", 10, "center");
+    if (k) txt(ctx, k, i * w + w / 2, BOT + 8, subdued?.has(k) ? "#5E666C" : "#E8ECEE", 10, "center");
   });
 }
 
@@ -584,7 +629,7 @@ export function drawMFD(ctx: Ctx, W: number, H: number, d: MfdData) {
     else { navMap(ctx, d); topBar(ctx, d.f, true, true, !pp); }
     eisStrip(ctx, 0, TOP, EIS_W, BOT - TOP, d, t);
     const mfdKeys = pp ? PP_MFD_KEYS : MFD_KEYS;
-    softkeys(ctx, d.reversion ? [mfdKeys[0], ...(pp ? PP_PFD_KEYS : PFD_KEYS).slice(1)] : mfdKeys);
+    softkeys(ctx, d.reversion ? [mfdKeys[0], ...(pp ? PP_PFD_KEYS : PFD_KEYS).slice(1)] : mfdKeys, pp ? PP_SUBDUED : undefined);
   });
 }
 
@@ -596,7 +641,7 @@ function eisStrip(ctx: Ctx, x: number, y: number, w: number, h: number, d: MfdDa
   for (const g of d.eis) yy += gauge(ctx, g, x, yy, w, t);
 }
 
-const H_OF = { dial: 78, bar: 36, pair: 50, text: 17, text2: 30, head: 18 } as const;
+const H_OF = { dial: 78, bar: 36, pair: 50, text: 17, text2: 30, head: 18, tanks: 100 } as const;
 const H_COMPACT = { dial: 60, bar: 30 } as const;
 
 function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): number {
@@ -659,6 +704,35 @@ function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): 
         return H_OF.pair;
       }
       return g.compact ? H_COMPACT.bar : H_OF.bar;
+    }
+    case "tanks": { // Perspective+ fuel block (PG Fig 3-2): L/R vertical tank bars with a scale between them, fuel flow bar on the right
+      const top = y + 12, hh = 62, bot = top + hh;
+      // each pointer takes the colour of the band it sits in (red / yellow), so one low tank doesn't colour the other
+      const vbar = (bx: number, gg: Gauge, v: number | null | undefined, ptrLeft: boolean) => {
+        const fr = (u: number) => clamp((u - gg.min) / (gg.max - gg.min), 0, 1);
+        rect(ctx, bx, top, 6, hh, "#3B4147");
+        for (const [b0, b1, c] of gg.bands ?? []) rect(ctx, bx, bot - fr(b1) * hh, 6, (fr(b1) - fr(b0)) * hh, BAND[c]);
+        if (v == null) { redX(ctx, bx - 7, top, 20, hh); return; }
+        const band = gg.bands?.find(([b0, b1]) => v >= b0 && v <= b1)?.[2];
+        const py = bot - fr(v) * hh, pc = band === "red" ? RED : band === "yellow" ? YEL : WHITE;
+        if (ptrLeft) poly(ctx, [bx - 1, py, bx - 10, py - 5, bx - 10, py + 5], pc, "#000", 1);
+        else poly(ctx, [bx + 7, py, bx + 16, py - 5, bx + 16, py + 5], pc, "#000", 1);
+      };
+      line(ctx, x + 4, y + 1, x + w - 4, y + 1, "#3A4046");
+      const lx = x + 18, rx = x + 46, sc = x + 35;
+      vbar(lx, g, g.value, true); vbar(rx, g, g.value2, false);
+      txt(ctx, "F", sc, top - 5, GRAY, 8, "center");
+      for (let v = g.min; v < g.max - 2; v += 5) txt(ctx, String(v), sc, bot - frac(v) * hh, GRAY, 8, "center");
+      txt(ctx, "L", lx + 3, bot + 8, WHITE, 10, "center"); txt(ctx, "R", rx + 3, bot + 8, WHITE, 10, "center");
+      txt(ctx, g.label, sc, bot + 20, WHITE, 11, "center");
+      const sd = g.side;
+      if (sd) {
+        const sx = x + w - 26, sv = sd.value, sc2 = sd.alert === "warning" ? RED : sd.alert === "caution" ? YEL : WHITE;
+        vbar(sx, sd, sv, true);
+        if (sv != null) txt(ctx, sd.fmt ? sd.fmt(sv) : String(Math.round(sv)), x + w - 6, bot + 8, sc2, 13, "right");
+        txt(ctx, sd.label, x + w - 6, bot + 20, WHITE, 10, "right");
+      }
+      return H_OF.tanks;
     }
   }
 }

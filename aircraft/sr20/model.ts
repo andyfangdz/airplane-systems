@@ -137,25 +137,31 @@ export function extLit(s: Sim, E: Elec) {
 }
 
 export type { CasLevel };
-/** Crew Alerting System messages. G6 electrical names per the Costanzo training deck. */
+/**
+ * Crew Alerting System messages, named as in POH Sections 3 and 3A (and the Pilot's Guide CAS lists), for the conditions the
+ * model simulates. Fuel: FUEL LOW LEFT / RIGHT below 1 gal in that tank (3-24); FUEL LOW TOTAL warning below 7 gal (3-25),
+ * caution at 10 gal or less (3A-10); FUEL IMBALANCE warning / caution / advisory above 9.5 / 7.5 / 5.5 gal (3-25, 3A-10, 3A-11).
+ * An alternator failure gives ALT n plus the bus caution (3A-13); BATT 1 (battery 1 discharging while ALT 1 works, an MCU
+ * fault, 3A-12) has no counterpart in the model, so it isn't raised.
+ */
 export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
-  const m: [CasLevel, string][] = [], f = s.fuel;
+  const m: [CasLevel, string][] = [], f = s.fuel, tot = f.qL + f.qR, imb = Math.abs(f.qL - f.qR);
+  const imbalance: CasLevel | null = imb > 9.5 ? "w" : imb > 7.5 ? "c" : imb > 5.5 ? "a" : null;
   if (s.stall.aoa >= 14 && !s.stall.fault && E.stallPwr) m.push(["w", "STALL"]);
   if (E.ess1 < 24.5) m.push(["w", "ESS BUS"]);
-  if (f.qL + f.qR < 7) m.push(["w", "FUEL QTY < 7 GAL TOTAL"]);
+  if (f.qL < 1) m.push(["w", "FUEL LOW LEFT"]);
+  if (f.qR < 1) m.push(["w", "FUEL LOW RIGHT"]);
+  if (tot < 7) m.push(["w", "FUEL LOW TOTAL"]);
   if (E.mdb1 < 24.5) m.push(["c", "M BUS 1"]);
   if (E.mdb2 < 24.5) m.push(["c", "M BUS 2"]);
   if (s.eng.running && !E.alt1) m.push(["c", "ALT 1"]);
   if (s.eng.running && !E.alt2) m.push(["c", "ALT 2"]);
-  if (s.eng.running && s.elec.bat1 && !E.bat1Charging) m.push(["c", "BAT 1"]);
-  if (f.qL < 8.2 && f.qR < 8.2) m.push(["c", "FUEL LOW BOTH TANKS"]);
+  if (tot >= 7 && tot <= 10) m.push(["c", "FUEL LOW TOTAL"]);
+  if (imbalance) m.push([imbalance, "FUEL IMBALANCE"]);
   if (s.pitot.heat && (s.pitot.heaterFail || !E.pitotPwr)) m.push(["c", "PITOT HEAT FAIL"]);
   if (!s.pitot.heat && s.pitot.oat < 5) m.push(["c", "PITOT HEAT REQD"]);
   if (s.stall.fault) m.push(["c", "STALL WARN FAIL"]);
-  if (s.gear.park) m.push(["c", "PARK BRAKE SET"]);
-  if (f.qL < 8.2 !== f.qR < 8.2) m.push(["a", (f.qL < 8.2 ? "L" : "R") + " FUEL < 8.2 GAL"]);
-  if (s.fuel.boost && E.boostPwr) m.push(["a", "FUEL PUMP ON"]);
-  if (s.avx.backup || s.avx.pfdFail) m.push(["a", "DISPLAY BACKUP"]);
+  if (s.gear.park) m.push(["c", "PARK BRAKE"]);
   return m;
 }
 
