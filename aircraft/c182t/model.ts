@@ -3,9 +3,9 @@
  * and the G1000 annunciations. Continuous values (RPM, MAP, temperatures, flap angle, flight state, KAP 140 state) live in the
  * mutable `live` object, advanced by tick.ts.
  *
- * Sources: POH/AFM 182TPHAUS-04 Revision 4 (22 Dec 2005; the KAP 140 edition for serials 18281228 and 18281318–18281868, which includes
- * N8050J s/n 18281633 and N21200 s/n 18281732) Figure 7-7 Sheets 1–3 (electrical), Figure 7-6 (fuel), Section 2 limitations;
- * Supplement 3 (KAP 140, 182TPHAUS-S3-02); G1000 Cockpit Reference Guide 190-00384-13 Rev. B; the 2007 GFC 700 edition
+ * Sources: POH/AFM 182TPHAUS-04 Revision 4 (22 Dec 2005; this copy issued for s/n 18281780) Figure 7-7 Sheets 1–3 (electrical),
+ * Figure 7-6 (fuel), Section 2 limitations; Supplement 3 (KAP 140, 182TPHAUS-S3-02), effective for serials 18281228, 18281318–18281868
+ * and 18281870–18281875, which includes N8050J s/n 18281633 and N21200 s/n 18281732; G1000 Cockpit Reference Guide 190-00384-13 Rev. B; the 2007 GFC 700 edition
  * (182TPHBUS-01) only where the 2005 text is silent, and marked as such.
  */
 import type { CasLevel } from "../types";
@@ -141,6 +141,10 @@ export const live = {
   testHeld: 0,
   /** KAP 140 voice messages (S3-16) and when they were last spoken. */
   voice: "" as "" | "TRIM IN MOTION" | "CHECK PITCH TRIM", voiceT: -99,
+  /** Disconnect horn sounding until (s) after the KAP 140 lost power while engaged (the horn is on WARN, not the AUTO PILOT breaker). */
+  discTone: -99,
+  /** An EIS exceedance was present last frame (the SYSTEM page returns to ENGINE when one starts). */
+  eisEx: false,
 };
 
 /* ---------- breakers: POH Figure 7-7 Sheet 2 (182TPHAUS-04), labels and order as drawn ---------- */
@@ -251,7 +255,7 @@ export const fuelFlowGph = (map: number, rpm: number, l: number) => 0.6 + 17 * (
 export interface Elec extends Nav3Solution {
   pfd: boolean; mfd: boolean; ahrs: boolean; adc: boolean; gia1: boolean; gia2: boolean; gea: boolean; com1: boolean; com2: boolean;
   audio: boolean; xpdr: boolean;
-  /** KAP 140 computer and servos (AUTO PILOT breaker, AVIONICS BUS 2); WARN feeds the PITCH TRIM annunciation and disconnect horn. */
+  /** KAP 140 computer and servos (AUTO PILOT breaker, AVIONICS BUS 2); WARN feeds the PITCH TRIM annunciation and disconnect horn (S3-10). */
   kapPwr: boolean; warnPwr: boolean;
   starterPwr: boolean; fuelPumpOn: boolean; flapsPwr: boolean; pitotHeating: boolean;
   /** Forward + PFD fans (AVN 1 PFD breaker), MFD fan (MFD breaker), aft tailcone fan (NAV 2 breaker) — POH 7-49, 7-69. */
@@ -347,6 +351,13 @@ export function solve(s: Sim): Elec {
 /** Fuel quantity indication: 0 at the 2.5 gal unusable level; the float travel ends at ≈ 35–36 gal, the top of the green arc (POH 7-40, 2-7). */
 export const fuelInd = (usable: number) => Math.min(35.5, Math.max(0, usable));
 export const oilPressSwitch = () => live.oilP <= 20;
+/**
+ * An engine limit in the red: RPM ≥ 2,472, oil pressure ≤ 20 or ≥ 115 PSI, oil temperature ≥ 245 °F or CHT ≥ 500 °F. When one
+ * starts while the SYSTEM (or LEAN) page is shown, the EIS returns to the ENGINE page (POH 7-29 – 7-33); tick.ts flips the page as
+ * the G1000 does, so the pilot can select SYSTEM again afterwards (e.g. on the ground with the engine stopped).
+ */
+export const eisExceedance = (E: Pick<Elec, "gea">) =>
+  E.gea && (Math.round(live.rpm / 10) * 10 >= 2472 || live.oilP <= 20 || live.oilP >= 115 || live.oilT >= 245 || live.cht >= 500);
 
 /** The 182T annunciation window (POH 7-51 list, CRG 115–116 levels and tones), warnings first. */
 export const C182T_ANN: Nav3AnnDef[] = [

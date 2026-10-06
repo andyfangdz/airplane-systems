@@ -114,7 +114,8 @@ export function rearRoofGeo() {
   const f0 = pts[0][0], f1 = pts[pts.length - 1][0];
   for (let k = 0; k <= 24; k++) {
     const fs = f0 + ((f1 - f0) * k) / 24, x = X(fs), th = FUSE.thetaAt(x, Y(edgeH(fs)));
-    secs.push(fRing(x, 1.004, 24, th, Math.PI - th, false));
+    // 1 % proud of the skin: closer than that and the skin z-fights through it at overview distances
+    secs.push(fRing(x, 1.01, 24, th, Math.PI - th, false));
   }
   return loft(secs.reverse(), { closed: false, caps: false }); // aft → forward: faces outward
 }

@@ -14,6 +14,7 @@ import {
   AF, AIL_C, BL, EF, FLAP_C, HF, HZ, SY, X, Y, Z, box, cyl, finCut, finSec, fLE, fC, hingeX, loft, onSkin, paintSkin,
   planeRing, rearRoofGeo, sC, sLE, sectionSlab, sided, sph, stabSec, strutGeo, taperTubeGeo, tubeGeo, wC, wLE, wheelFairingGeo, wingP, wingSec, wY,
 } from "./geometry";
+import { narrowLayout } from "./layout";
 import { live } from "./model";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM } from "./rig";
 import { useC182 } from "./store";
@@ -31,42 +32,73 @@ const IN = 0.0254;
  */
 const QUIET: Partial<Record<SysId, string[]>> = {
   airframe: ["Refueling step", "Assist handle", "Leveling screws", "Tail tiedown ring", "Strut-to-wing fitting", "Identification plate", "Rear window", "Wing tiedown ring",
-    "Strut-to-fuselage fitting", "Engine mount", "Main gear leg (spring steel)", "Wing rear spar (partial span)"],
+    "Strut-to-fuselage fitting", "Engine mount", "Main gear leg (spring steel)", "Wing rear spar (partial span)", "Rear carry-through spar"],
   controls: ["Static discharger", "Elevator balance weight", "Aileron balance weights", "Rudder balance weight", "Control column", "Copilot's control wheel",
     "A/P DISC/TRIM INT switch", "Manual electric trim (MET) switches", "Column interconnect", "Elevator cable pulleys (forward)", "Elevator cable pulleys",
     "Aileron cable pulley (lower forward cabin)", "Aileron door-post pulley", "Rudder cable pulley", "Elevator trim cable pulley", "Turnbuckle", "Control lock",
     "KS 271C roll servo", "KS-270C pitch servo", "KS-272C pitch trim servo", "Elevator trim tab actuator", "Rudder horn", "Trim position indicator", "Rudder trim indicator",
-    "Elevator downspring", "Aileron horn", "Elevator bellcrank (forward)"],
+    "Elevator downspring", "Aileron horn", "Elevator bellcrank (forward)", "Rudder bars", "Steering arm", "Elevator arm"],
   cabin: ["Main gear step bracket", "Tow bar (stowed)", "Aft cabin wall — FS 134", "Front passenger seat", "Control lock", "Stall warning horn", "Baggage area C (shelf)",
     "Courtesy light (under wing)", "ELT remote switch", "Hour (Hobbs) meter", "Inertia reel (front seat)", "Openable door window", "Baggage area A (FS 82–109)", "Sun visor", "Fuel sampler cup"],
-  flaps: ["Flap bellcrank"],
-  gear: ["Brake disc", "Rudder bars", "Main gear step bracket", "Steering arm", "Nose gear fork and torque link"],
+  // the lever and indicator are in the cockpit, out of this view's frame (pins aren't depth-tested): listed, not labelled
+  flaps: ["Flap bellcrank", "Wing flap switch lever", "Flap position indicator"],
+  gear: ["Brake disc", "Rudder bars", "Main gear step bracket", "Steering arm", "Nose gear fork and torque link", "Wheel fairing"],
   environment: ["CABIN AIR knob", "Cabin manifold", "Rear cabin ventilator", "DEFROST knob"],
   engine: ["Propeller blade", "Oil dipstick / filler", "Induction air intake", "Cooling air inlet", "MAGNETOS switch", "Firewall — FS 0 (datum)",
     "Fuel flow transducer", "Fuel distribution unit (flow divider)", "GEA 71 engine/airframe unit", "Engine-driven vacuum pump", "Hour (Hobbs) meter", "Mixture (red, vernier)",
     "Throttle (with friction lock)", "Left magneto", "Engine-driven fuel pump", "Fuel/air control unit (servo)", "Propeller governor", "Cylinder head 1", "Tach sensor",
-    "Low oil pressure switch", "Oil pressure transducer", "Manifold pressure transducer", "Cylinder baffles", "PROPELLER control (blue)", "Engine mount"],
+    "Low oil pressure switch", "Oil pressure transducer", "Manifold pressure transducer", "Cylinder baffles", "PROPELLER control (blue)", "Engine mount",
+    "Induction air filter", "Alternator — 28 V, 60 A"],
   fuel: ["Refueling step", "Assist handle", "Fuel vent interconnect", "Fuel quantity transmitter", "Fuel tank sump drain", "Tank outlet screen", "Fuel flow transducer",
-    "Fuel distribution unit (flow divider)", "Fuel return line drain", "Fuel selector drain", "Fuel sampler cup", "Fuel manifold (aft door post)"],
+    "Fuel distribution unit (flow divider)", "Fuel return line drain", "Fuel selector drain", "Fuel sampler cup", "Fuel manifold (aft door post)", "Fuel strainer",
+    "Fuel/air control unit (servo)"],
   electrical: ["MAGNETOS switch", "Flap motor and actuator", "Auxiliary fuel pump", "Alternator Control Unit (ACU)", "STBY BATT switch", "AVIONICS switch (BUS 1 | BUS 2)",
     "Switch panel", "Forward avionics cooling fan", "Aft avionics cooling fan", "Circuit breaker panel (BUS 1 · BUS 2 · X-FEED)", "MASTER switch (ALT | BAT)", "Main battery current shunt",
-    "Standby battery controller", "12 V power converter", "POWER OUTLET 12V–10A"],
+    "Standby battery controller", "12 V power converter", "POWER OUTLET 12V–10A", "Starter", "External power receptacle",
+    "Circuit breaker panel (ESS · AVN 1 · AVN 2)"],
   lighting: ["Switch panel", "Flood light", "Overhead console", "Rear dome light", "Taxi light", "DIMMING panel"],
   avionics: ["AVIONICS switch (BUS 1 | BUS 2)", "DISPLAY BACKUP button", "Forward avionics cooling fan", "Aft avionics cooling fan", "COM 2 / GPS 2 / XM antenna",
     "VOR/GS navigation antenna", "Marker beacon antenna", "Transponder antenna", "OAT probe (GTP 59)", "GEA 71 engine/airframe unit", "GIA 63 #2", "GDL 69A data link",
-    "DC turn coordinator (KAP 140)", "Magnetic compass (non-stabilized)", "GDC 74A air data computer", "KAP 140 flight computer"],
+    "DC turn coordinator (KAP 140)", "Magnetic compass (non-stabilized)", "GDC 74A air data computer", "KAP 140 flight computer",
+    "GMU 44 magnetometer", "COM 1 / GPS 1 antenna"],
   autopilot: ["Elevator trim cable pulley", "GIA 63 #2", "Manual electric trim (MET) switches", "Trim position indicator", "Elevator trim tab", "KAP 140 flight computer",
-    "DC turn coordinator (KAP 140)", "KAP 140 mode keys", "Altitude select knobs"],
+    "DC turn coordinator (KAP 140)", "KAP 140 mode keys", "Altitude select knobs", "KS-272C pitch trim servo"],
   propeller: ["Propeller control cable"],
-  pitot: ["Water traps"],
-  vacuum: [],
+  pitot: ["Water traps", "Static port"],
+  vacuum: ["Vacuum regulator"],
+};
+/**
+ * On a phone-width layout (the stacked layout, ≤ 860 px) the labels are as wide as half the 3D view, so each view shows only these few,
+ * spread-out labels; everything stays in the panel's "tap to locate" list.
+ */
+const NARROW: Partial<Record<SysId, string[]>> = {
+  airframe: ["Wing strut", "Aft cabin wall — FS 134"],
+  controls: ["Pilot's control wheel", "Elevator trim tab", "Aileron bellcrank"],
+  gear: ["Main wheel and tire", "Nose wheel and tire", "Tow bar (stowed)"],
+  flaps: ["Flap motor and actuator"],
+  cabin: ["Pilot seat", "Baggage door", "ELT"],
+  engine: ["Lycoming IO-540-AB1A5", "Cowl flap", "Muffler heater shroud"],
+  propeller: ["Propeller governor", "Propeller blade"],
+  fuel: ["Fuel selector valve"],
+  electrical: ["Power distribution module (J-box)"],
+  lighting: ["Flashing beacon", "Landing light", "Control wheel map light"],
+  environment: ["Muffler heater shroud", "Defroster outlet", "Adjustable ventilator (forward)"],
+  pitot: ["Heated pitot head", "ALT STATIC AIR valve", "GRS 77 AHRS"],
+  vacuum: ["Engine-driven vacuum pump", "Vacuum system air filter"],
+  avionics: [],
+  autopilot: ["KS 271C roll servo", "KS-270C pitch servo"],
 };
 class C182Catalogue extends Catalogue {
-  private labelled = new Map<SysId, Set<string>>();
-  /** Label pins: the pinned parts of a view minus its QUIET names (the "tap to locate" list keeps them all). */
+  private labelled = new Map<string, Set<string>>();
+  /** Label pins: the pinned parts of a view minus its QUIET names, or only its NARROW names on a phone (the "tap to locate" list keeps them all). */
   isPinned = (spec: PartSpec, sys: SysId) => {
-    let s = this.labelled.get(sys);
-    if (!s) { const q = QUIET[sys] ?? []; s = new Set(this.pinned(sys).filter((p) => !q.includes(p.name!) && (!p.pinIn || p.pinIn.includes(sys))).map((p) => p.id)); this.labelled.set(sys, s); }
+    const nar = narrowLayout(), key = nar ? sys + ":narrow" : sys;
+    let s = this.labelled.get(key);
+    if (!s) {
+      const q = QUIET[sys] ?? [], only = nar ? NARROW[sys] ?? [] : null;
+      s = new Set(this.pinned(sys).filter((p) => (only ? only.includes(p.name!) : !q.includes(p.name!)) && (!p.pinIn || p.pinIn.includes(sys))).map((p) => p.id));
+      this.labelled.set(key, s);
+    }
     return s.has(spec.id);
   };
 }
@@ -193,19 +225,28 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     part(() => box(0.1, 0.012, 0.09), ["gear", "cabin"], { pos: [sb.x - 0.05, sb.y + 0.01, sb.z], color: "#5C666E", name: "Main gear step bracket", note: "Step on each main gear strut; its jack pad lets one main wheel be jacked at a time — the strut flexes and the wheel slides inboard. Don't jack both mains at once (POH 8-10).", ext: true, pin: s > 0 });
   }
   part(() => cyl(8.75 * IN, 6 * IN, "z", 28), ["gear"], { pos: P3(MG.fs, s * MG.bl, MG.h), color: "#2A2F33", name: "Main wheel and tire", note: "6.00-6, 6-ply rated, 42 PSI, with tube; Cleveland 40-75B wheel, arm 58.9 (POH 8-21, 6-22).", ext: true, pin: s > 0 });
-  part(() => wheelFairingGeo({ len: 38, height: 20, width: 10.5, axle: 0.47, lift: 1.2, cut: 3.2 - MG.h }), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 0.8), MG.h), color: "#EEF1F3", anim: fairingAnim, name: "Wheel fairing", note: "Main fairings, set of 2, arm 60.6 (equipment item 32-03-A). Optional in the 2005 POH (standard in 2007); worth ≈ 3 knots (POH v, 7-21). Whether N8050J and N21200 carry them: check the airplanes — toggle them in the Gear panel.", ext: true, pin: s > 0 });
+  part(() => wheelFairingGeo({ len: 38, height: 18, width: 9.5, axle: 0.42, lift: 0.6, cut: 3.2 - MG.h, tail: 1.1 }), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 0.8), MG.h), color: "#EEF1F3", anim: fairingAnim, name: "Wheel fairing", note: "Main fairings, set of 2, arm 60.6 (equipment item 32-03-A). Optional in the 2005 POH (standard in 2007); worth ≈ 3 knots (POH v, 7-21). Whether N8050J and N21200 carry them: check the airplanes — toggle them in the Gear panel.", ext: true, pin: s > 0 });
   part(() => cyl(4.4 * IN, 0.25 * IN, "z", 24), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 3.8), MG.h), color: "#9AA3AA", anim: brakeAnim(s > 0 ? "R" : "L"), name: "Brake disc", note: "Single-disc, hydraulically actuated brake on the inboard side of each main wheel; Cleveland 30-52, arm 55.5 (POH 7-46, 7-21, 6-22).", ext: true, pin: s > 0 });
   part(() => box(0.08, 0.06, 0.04), ["gear"], { pos: P3(MG.fs - 2.5, s * (MG.bl - 4.8), MG.h + 3), color: "#C8313B", name: "Brake caliper", note: "MIL-H-5606 fluid (POH 8-21). Fading, noisy or dragging brakes, soft or spongy pedals: release and reapply hard; pump to build pressure; with one brake weak use the other sparingly with opposite rudder (POH 7-46).", ext: true });
   part(() => tubeGeo([P3(8.5, s * 8, 27.2), P3(30, s * 11, 26.4), P3(55, s * 13, 25.6), P3(63.5, s * 16.5, 24.0), [top[0], top[1] - 0.01, top[2]], [axle[0] + 0.05, axle[1] + 0.05, axle[2] - s * 0.03]], 0.006), ["gear"], { name: "Brake line", note: "From the master cylinder on each of the pilot's pedals, down the gear leg to the wheel cylinder (POH 7-46)." });
 });
-export const NOSE: Vec3 = P3(-12.5, 0, 30.5);
-/** The steering group pivots at the strut top; the axle sits below and slightly aft (trail). */
+/** Top of the nose strut inside the cowl. The strut rakes forward: the axle (FS −7.6, which keeps the POH 66.5 in wheelbase) sits about
+ *  4.6 in ahead of where the strut leaves the cowl (182T photos). The noseGear group is tilted by NOSE_RAKE so its y axis runs
+ *  down the strut and the steering turns about the strut. */
+export const NOSE: Vec3 = P3(-3, 0, 30.5);
+const AXLE: Vec3 = P3(-7.6, 0, 7.1);
+export const NOSE_RAKE = Math.atan2(AXLE[0] - NOSE[0], NOSE[1] - AXLE[1]);
+/** The steering group pivots at the strut top, about the strut axis. */
 export const NOSE_CASTER: Vec3 = [0, 0, 0];
-const NA: Vec3 = (() => { const a = P3(-7.6, 0, 7.1); return [a[0] - NOSE[0], a[1] - NOSE[1], 0]; })();
+/** Axle in the strut frame (on the strut line). */
+const NA: Vec3 = [0, -Math.hypot(AXLE[0] - NOSE[0], AXLE[1] - NOSE[1]), 0];
 part(() => cyl(0.036, 0.22), ["gear"], { parent: "noseGear", pos: [0, -0.07, 0], color: "#AEB6BC", name: "Nose gear shock strut (air/oil)", note: "Air/oil shock strut: MIL-H-5606 and 55–60 PSI with no load on the strut; about 2 in of strut shows in the normal ground attitude (POH 7-21, 8-21, 1-4). A deflated strut raises the tail when towing (POH 8-9).", ext: true, pin: true });
-part(() => tubeGeo([[0, -0.16, 0], [NA[0] * 0.5, -0.42, 0], [NA[0], NA[1] + 0.02, 0]], 0.022), ["gear"], { parent: "caster", color: "#C9D0D5", name: "Nose gear fork and torque link", note: "Turns with the steering bungee: about 11° each side with the pedals, up to 29° with differential braking (POH 7-19).", ext: true, pin: true });
+// fork: a stem from the strut down to a crown above the tire, two legs either side of the wheel to the axle
+[1, -1].forEach((s) => part(() => tubeGeo([[0, NA[1] + 0.21, s * 0.075], [0, NA[1], s * 0.075]], 0.012), ["gear"], { parent: "caster", color: "#C9D0D5" }));
+part(() => box(0.035, 0.03, 0.17), ["gear"], { parent: "caster", pos: [0, NA[1] + 0.215, 0], color: "#C9D0D5" });
+part(() => tubeGeo([[0, -0.16, 0], [0.01, NA[1] * 0.55, 0], [0, NA[1] + 0.22, 0]], 0.022), ["gear"], { parent: "caster", color: "#C9D0D5", name: "Nose gear fork and torque link", note: "Turns with the steering bungee: about 11° each side with the pedals, up to 29° with differential braking (POH 7-19).", ext: true, pin: true });
 part(() => cyl(7.1 * IN, 5 * IN, "z", 24), ["gear"], { parent: "caster", pos: NA, color: "#2A2F33", name: "Nose wheel and tire", note: "5.00-5, 6-ply rated, 49 PSI, with tube; Cleveland 40-77 wheel, arm −7.1 (POH 8-21, 6-22). Never turn it more than 29° either side when towing (POH 7-19).", ext: true, pin: true });
-part(() => wheelFairingGeo({ len: 32, height: 17.5, width: 9, axle: 0.47, lift: 1, cut: -4.6 }), ["gear"], { parent: "caster", pos: [NA[0], NA[1], 0], color: "#EEF1F3", anim: fairingAnim, name: "Nose wheel fairing", note: "Nose speed fairing, arm −6.0 (equipment item 32-03-A, optional in 2005). Check fairings for mud, snow or slush (POH 4-26).", ext: true });
+part(() => wheelFairingGeo({ len: 32, height: 16, width: 8.5, axle: 0.42, lift: 0.6, cut: -4.6, tail: 1.1 }), ["gear"], { parent: "caster", pos: [NA[0], NA[1], 0], rot: [0, 0, -NOSE_RAKE], color: "#EEF1F3", anim: fairingAnim, name: "Nose wheel fairing", note: "Nose speed fairing, arm −6.0 (equipment item 32-03-A, optional in 2005). Check fairings for mud, snow or slush (POH 4-26).", ext: true });
 part(() => box(0.06, 0.03, 0.16), ["gear", "controls"], { parent: "caster", pos: [0.0, -0.02, 0], color: "#7C57CF", name: "Steering arm", note: "The spring-loaded steering bungees from the rudder bars attach here (POH 7-19).", chan: ["rudder"], pin: true });
 part(() => box(0.06, 0.03, 0.1), ["gear"], { pos: P3(18.6, -13.5, 40.4), color: "#C8313B", name: "Parking brake handle", note: "Under the left side of the panel (Fig 7-2 item 37): set the brakes with the pedals, pull the handle aft and rotate it 90° down (POH 7-46). Not in cold weather with moisture, nor with hot brakes (POH 8-9).", pin: true });
 part(() => box(0.5, 0.04, 0.04), ["gear", "cabin"], { pos: P3(108, 11.5, 36), color: "#8C959C", name: "Tow bar (stowed)", note: "Stowed on the side of the baggage area, arm 108.0 (POH 8-9, 6-21). Without it, push on the wing struts — never on the tail surfaces (POH 7-19).", pin: true });
@@ -223,7 +264,7 @@ part(() => cyl(0.075, 0.13, "x"), ["propeller"], { pos: P3(-45.5, 0, 50.375), co
 
 /* ---------- engine: Lycoming IO-540-AB1A5, 230 BHP @ 2,400 RPM (POH 1-5) ---------- */
 part(() => box(0.86, 0.3, 0.44), ["engine"], { pos: P3(-23.6, 0, 48.6), color: "#7E8890", name: "Lycoming IO-540-AB1A5", note: "Normally aspirated, direct drive, air-cooled, horizontally opposed, fuel injected, six cylinders, 541 cu in; 230 BHP at 2,400 RPM; wet sump; 400.4 lb at arm −23.6 (POH 1-5, 7-27, 6-24).", pin: true });
-part(() => box(0.62, 0.12, 0.36), ["engine"], { pos: P3(-24, 0, 37.5), color: "#B85A2A", name: "Oil sump", note: "Wet sump on the bottom of the engine: 8 qt sump, 9 qt total with the filter — never operate on less than 4 qt; fill to 8 qt for flights under 3 hours, 9 qt for extended flight (POH 1-7, 7-34, 8-14). Placard “OIL 9 QTS”." });
+part(() => box(0.62, 0.12, 0.36), ["engine"], { pos: P3(-24, 0, 37.5), color: "#B85A2A", name: "Oil sump", note: "Wet sump on the bottom of the engine: 8 qt sump, 9 qt total (POH 1-7, 8-14; placard “OIL 9 QTS”) — never operate on less than 4 qt; fill to 8 qt for flights under 3 hours, 9 qt for extended flight (POH 7-34). Section 7 (p. 7-34) states the sump as 9 qt plus 1 qt in the filter; Sections 1 and 8 and the 9-qt placard govern." });
 /** Cylinder positions: 1, 3, 5 right bank, 2, 4, 6 left (Lycoming numbering — the POH does not map numbers to positions). */
 export const CYLS = [{ n: 1, fs: -35.5, s: 1 }, { n: 2, fs: -32.5, s: -1 }, { n: 3, fs: -29.5, s: 1 }, { n: 4, fs: -26.5, s: -1 }, { n: 5, fs: -23.5, s: 1 }, { n: 6, fs: -20.5, s: -1 }];
 CYLS.forEach((c) => {
@@ -293,7 +334,7 @@ const FSPAR = 0.25, RSPAR = 0.68;
   part(() => tubeGeo([22, 60, 102, 132].map((b) => wingP(s * Z(b), RSPAR, 0)), 0.018), ["airframe"], { color: "#3D5A73", name: "Wing rear spar (partial span)", note: "The aft spars are partial-span spars with wing-to-fuselage attach fittings (POH 7-5).", pin: s > 0 });
   // lift strut: base of the forward door post → front spar near the chord break (Fig 1-1)
   const lo = PV(onSkin(X(29.5), Y(28.5), s, 1.0)), hi = PV(wingP(s * Z(100), FSPAR, -1).add(V(0, -0.02, 0)));
-  part(() => strutGeo(lo, hi, 0.16, 0.042), ["airframe"], { color: "#E9EDF0", name: "Wing strut", note: "One streamlined lift strut per side from the fitting at the base of the forward door post to the front spar near the chord break (POH 7-5, Fig 1-1). Use the struts as push points when moving the airplane by hand (POH 7-19).", ext: true, pin: s > 0 });
+  part(() => strutGeo(lo, hi, 0.16, 0.055), ["airframe"], { color: "#E9EDF0", name: "Wing strut", note: "One streamlined lift strut per side from the fitting at the base of the forward door post to the front spar near the chord break (POH 7-5, Fig 1-1). Use the struts as push points when moving the airplane by hand (POH 7-19).", ext: true, pin: s > 0 });
   [lo, hi].forEach((p, i) => part(() => sph(0.03), ["airframe"], { pos: p, color: "#E0522B", name: i ? "Strut-to-wing fitting" : "Strut-to-fuselage fitting", note: i ? "On the wing front spar." : "Bulkhead with attach fittings at the base of the forward door post (POH 7-5).", ext: true, pin: s > 0 }));
   part(() => tubeGeo([PV(onSkin(X(29.8), Y(29), s, 0.955)), PV(onSkin(X(30.6), Y(76), s, 0.955))], 0.012), ["airframe", "cabin"], { color: "#5C6E7E", name: "Forward door post", note: "Strut attach fitting at its base; the aileron cables run up inside it (POH 7-5, Fig 7-1)." });
   part(() => tubeGeo([PV(onSkin(X(65.3), Y(28), s, 0.955)), PV(onSkin(X(65.3), Y(76.5), s, 0.955))], 0.012), ["airframe", "cabin", "fuel"], { color: "#5C6E7E", name: "Rear door post", note: "Rear door post bulkhead at FS 65.30 with the main gear forgings at its base (POH 7-5, 6-15); the fuel manifold from each tank runs down inside it (POH 7-38)." });
@@ -302,7 +343,7 @@ const FSPAR = 0.25, RSPAR = 0.68;
 });
 part(() => new THREE.TorusGeometry(0.02, 0.006, 6, 12), ["airframe"], { pos: P3(250, 0, 41.2), color: "#8C959C", name: "Tail tiedown ring", note: "Tail tiedown under the tailcone; the tail rests on it when the nose is raised by pressing on a tailcone bulkhead — never on the stabilizer (POH 8-10).", ext: true, pin: true });
 [139.65, 171.65].forEach((fs, i) => part(() => cyl(0.012, 0.01, "z"), ["airframe"], { pos: PV(onSkin(X(fs), Y(50), -1, 1.01)), color: "#E0B040", name: "Leveling screws", note: "Left side of the tailcone at FS 139.65 and 171.65; lateral leveling uses the upper door sills (POH 6-6, 8-11).", ext: true, pin: i === 0 }));
-part(rearRoofGeo, ["airframe", "cabin"], { color: "#26323C", name: "Rear window", note: "Fixed wraparound rear window over the tailcone behind the wing; with the rear side windows it can't be opened (POH 7-26).", ext: true, pin: true });
+part(rearRoofGeo, ["airframe", "cabin"], { color: "#141B22", name: "Rear window", note: "Fixed wraparound rear window over the tailcone behind the wing; with the rear side windows it can't be opened (POH 7-26).", ext: true, pin: true });
 [1, -1].forEach((s) => {
   // refueling steps and assist handles on the forward fuselage sides, arm 15.2 (POH 6-24, 4-6)
   part(() => box(0.1, 0.012, 0.05), ["airframe", "fuel"], { pos: PV(onSkin(X(15.2), Y(38), s, 1.0).add(V(0, 0, s * 0.02))), color: "#5C666E", name: "Refueling step", note: "Steps on both sides of the forward fuselage with an assist handle above; they simplify access to the upper wing for fuel checks and refueling (POH 4-6, 6-24).", ext: true, pin: s > 0 });
@@ -313,7 +354,7 @@ part(() => box(0.06, 0.04, 0.005), ["airframe", "cabin"], { pos: PV(onSkin(X(200
 /* ---------- cockpit: panel, pedestal, seats ---------- */
 part(() => sectionSlab(X(17), Y(41.5), Y(67.4), 0.97, 0.035, X(17)), ["avionics", "cabin"], { color: "#2B3238", name: "Instrument panel", note: "Figure 7-2: PFD, GMA 1347 audio panel and MFD across the top; standby airspeed, attitude and altimeter, then the KAP 140, then throttle / propeller / mixture down the centre; switch, dimming and breaker panels at the lower left; ELT switch and Hobbs at the upper right (POH 7-10 – 7-14)." });
 part(() => sectionSlab(X(16.6), Y(66.4), Y(67.8), 0.97, 0.06, X(15.4)), ["cabin"], { color: "#20262B", name: "Glareshield", note: "Placard above the PFD: MANEUVERING SPEED – 110 KIAS (POH 2-20). The forward avionics fan blows warm air up the windshield through a screen in it (POH 7-69, 3-20)." });
-part(() => box(0.28, 0.38, 0.21), ["cabin", "fuel"], { pos: P3(21.5, 0, 33.5), color: "#39424A", name: "Center pedestal", note: "Elevator and rudder trim wheels and indicators, cowl flap lever, 12V outlet, AUX AUDIO IN jack and microphone bracket; the fuel selector handle is at its base (POH 7-12)." });
+part(() => box(0.28, 0.38, 0.15), ["cabin", "fuel"], { pos: P3(21.5, 0, 33.5), color: "#39424A", name: "Center pedestal", note: "Elevator and rudder trim wheels and indicators, cowl flap lever, 12V outlet, AUX AUDIO IN jack and microphone bracket; the fuel selector handle is at its base (POH 7-12)." });
 ([[41.5, -11, "Pilot seat", "Vertically adjusting crew seat: fore/aft handle below the centre of the frame, height crank under the right corner, seat-back release at the front centre (POH 7-21, 7-22). Occupant CG range FS 32–50 (POH 6-14)."],
   [41.5, 11, "Front passenger seat", "Same as the pilot's seat. Front occupants at arm 37 for loading (POH 6-14)."],
   [82, 0, "Rear bench seat", "Fixed one-piece bottom with an infinitely adjustable split back; rear passengers at arm 74. It can be removed to carry cargo (POH 7-22, 6-14)."]] as [number, number, string, string][]).forEach(([fs, bl, name, note], i) => {
@@ -368,7 +409,7 @@ part(() => { const g = new THREE.CylinderGeometry(RIG_SPEC.trim.r * IN, RIG_SPEC
   note: "Vertically mounted wheel on the pedestal: forward = nose down, aft = nose up (POH 7-7). It turns under KAP 140 autotrim and manual electric trim because the KS-272C servo drives the same cable (S3-21).",
 });
 part(() => box(0.012, 0.012, 0.035), ["controls", "autopilot"], { parent: "rig:trimWheel", pos: [0, RIG_SPEC.trim.r * IN, 0], color: "#E8ECEE", chan: ["elevator"] });
-part(() => box(0.01, 0.02, 0.01), ["controls", "autopilot"], { pos: P3(26.4, -2.0, 37.5), color: "#FFFFFF", chan: ["elevator"], anim: (m) => { m.position.y = Y(37.5) + live.kap.trim * 0.04; },
+part(() => box(0.01, 0.02, 0.01), ["controls", "autopilot"], { pos: P3(27.2, -1.6, 37.5), color: "#FFFFFF", chan: ["elevator"], anim: (m) => { m.position.y = Y(37.5) + live.kap.trim * 0.04; },
   name: "Trim position indicator", note: "Elevator trim tab is in the takeoff position when the pointer lines up with the index mark on the pedestal cover (POH 7-7, 4-32). Required for all operations (KOEL, POH 2-11).", pin: true });
 part(() => box(0.06, 0.035, 0.05), ["controls"], { pos: RIG.p3(RIG_SPEC.trim.actuator), color: CTL, chan: ["elevator"], name: "Elevator trim tab actuator", note: "Inside the horizontal stabilizer (POH 7-6), right side; driven by the trim cable, it pushes the tab through a push-pull rod (Fig 7-1 Sheet 2).", pin: true });
 // rudder trim: horizontally mounted wheel on the pedestal + indicator; a bungee biases the rudder bars (POH 7-7)
@@ -377,7 +418,7 @@ part(() => { const g = new THREE.CylinderGeometry(RUD_TRIM.r, RUD_TRIM.r, 0.022,
 part(() => box(0.03, 0.012, 0.012), ["controls"], { parent: "rig:rudTrim", pos: [RUD_TRIM.r * 0.8, 0.012, 0], color: "#E8ECEE", chan: ["rudder"] });
 part(() => box(0.012, 0.006, 0.02), ["controls"], { pos: [RUD_TRIM.wheel[0] - 0.05, RUD_TRIM.wheel[1] + 0.02, RUD_TRIM.wheel[2]], color: "#FFFFFF", chan: ["rudder"], anim: (m) => { m.position.z = RUD_TRIM.wheel[2] + S().ctrl.rudTrim * 0.03; },
   name: "Rudder trim indicator", note: "Rudder trim position indicator beside the wheel; the KOEL requires it for every kind of operation (POH 2-11).", pin: true });
-part(() => cyl(0.006, Y(31.5) - Y(26.5), "y"), ["controls"], { pos: [X(18), (Y(31.5) + Y(26.5)) / 2, Z(2.6)], color: STEEL, chan: ["rudder"], name: "Rudder trim shaft", note: "Vertical shaft from the rudder-bar linkage up to the horizontal rudder trim wheel (Fig 7-1 Sheet 1)." });
+part(() => cyl(0.006, Y(RUD_TRIM.shaftTop) - Y(RUD_TRIM.shaftBot), "y"), ["controls"], { pos: [RUD_TRIM.wheel[0], (Y(RUD_TRIM.shaftTop) + Y(RUD_TRIM.shaftBot)) / 2, RUD_TRIM.wheel[2]], color: STEEL, chan: ["rudder"], name: "Rudder trim shaft", note: "Vertical shaft from the rudder-bar linkage up to the horizontal rudder trim wheel (Fig 7-1 Sheet 1)." });
 (["elUp", "elDn", "rudL", "rudR", "trim"] as const).forEach((k, i) => {
   const c = RIG.cable(k).pts, a = c[c.length - 3], b = c[c.length - 2];
   part(() => cyl(0.008, 0.06, "x"), ["controls"], { pos: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], color: "#C9B98F", chan: chanOfKey(k === "trim" ? "el" : k), name: "Turnbuckle", note: "Sets cable tension; safety-wired after rigging. Cable tensions are not in the POH.", pin: i === 0 });

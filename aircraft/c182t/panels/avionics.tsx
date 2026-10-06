@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Kap140Unit } from "@/components/avionics/Kap140Unit";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Small, useTicker } from "@/components/ui/controls";
 import { wrap360, type FlySet } from "@/lib/avionics/flight";
-import { kap140Fail, kap140Key, kap140P, kap140Pfd, kap140Phase, kap140R, type Kap140Fail, type Kap140Key } from "@/lib/avionics/kap140";
+import { kap140Fail, kap140Key, kap140P, kap140Pfd, kap140Phase, kap140R, type Kap140Fail, type Kap140Key, type Kap140State } from "@/lib/avionics/kap140";
 import type { Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
 import { Nav3AnnTable } from "../../cessna/panels";
@@ -56,12 +56,14 @@ export function Avionics() {
       <Small>Expected before start with the MASTER on: OIL PRESSURE and LOW VACUUM shown (and LOW VOLTS); LOW FUEL not shown (POH 4-7). Run-up: no annunciations (POH 4-17). PITCH TRIM is drawn in its own red box at the top right of the PFD (S3-11); it also shows briefly as the lamp check at the end of the KAP 140 self-test. No pitot-heat annunciation.</Small>
       <H3>Units — tap to locate</H3>
       <PartsList parts={CAT.pinned("avionics")} />
-      <Notes items={["A missing CDI deviation bar is the navigation warning flag on the HSI (POH 4-17).", "Red X on the attitude or HSI: AHRS lost — check both ADC/AHRS breakers, use the standby attitude indicator and the magnetic compass; the KAP 140 works in ROL only (POH 3-19, 3-20; S3-19).", "Use of the TRAFFIC MAP to maneuver, TERRAIN for primary avoidance or the NAVIGATION MAP for pilotage is prohibited; split COM 1/2 is not approved (POH 2-16).", "Avionics cooling: the forward fan blows warm air up the windshield (check it on preflight with AVIONICS BUS 1 on); the aft fan cools the GIAs and transponder (check it with BUS 2) (POH 4-7, 7-69)."]} />
+      <Notes items={["A missing CDI deviation bar is the navigation warning flag on the HSI (POH 4-17).", "Red X on the attitude or HSI: AHRS lost — check both ADC/AHRS breakers, use the standby attitude indicator and the magnetic compass (POH 3-19, 3-20). The KAP 140 then works in ROL only (S3-19, modelled here). POH 3-26 says NAV/APR/REV still work with a valid GPS/NAV signal and a good turn coordinator and only HDG is lost — the sources disagree; the supplement governs the autopilot.", "Use of the TRAFFIC MAP to maneuver, TERRAIN for primary avoidance or the NAVIGATION MAP for pilotage is prohibited; split COM 1/2 is not approved (POH 2-16).", "Avionics cooling: the forward fan blows warm air up the windshield (check it on preflight with AVIONICS BUS 1 on); the aft fan cools the GIAs and transponder (check it with BUS 2) (POH 4-7, 7-69)."]} />
     </>
   );
 }
 
 /* ---------- autopilot ---------- */
+/** Throttle for the ILS scenario (fraction of 230 BHP): the teaching flight model adds ≈ 1 kt per 13 fpm of descent. */
+const ILS_POWER = 0.08;
 const FAILS: [keyof Kap140Fail, string][] = [["p", "Pitch axis fails (red P)"], ["r", "Roll axis fails (red R)"], ["trim", "Pitch trim fault (PT / PITCH TRIM)"]];
 /** Throttle that gives `power` (fraction of 230 BHP) at the present RPM and altitude, by bisection on the engine model. */
 function throttleFor(s: Sim, power: number) {
@@ -93,13 +95,29 @@ export function Autopilot() {
   const ph = kap140Phase(st, now).ph;
   const ias = fs.ias, outside = !s.ground && (ias < 80 || ias > 160);
   const pitchTrim = E.warnPwr && kap140Pfd(st, now) != null;
+  // Aural: the disconnect horn (also the end-of-test tone) is powered through WARN and heard through the audio panel — it still sounds
+  // when the computer loses power while engaged; the altitude-alert tones need the audio panel (S3-10 items 11–12, S3-19 item 7).
+  const lostPwr = !st.powered && live.discTone > now;
+  const kind = lostPwr ? "disc" : st.tone > now ? st.toneKind : null;
+  const heard = kind === "alert" ? E.audio : E.warnPwr && E.audio;
+  const unit: Kap140State = !kind || !heard ? { ...st, tone: 0 } : lostPwr ? { ...st, tone: live.discTone, toneKind: "disc" } : st;
+  /** Knob → 7,500 through the KAP logic (arms ALT with the AP engaged and resets the alerter, S3-12); engages AP if needed, +500 FPM. */
+  const preselectClimb = () => {
+    const c = useC182.getState(), v = kapView(c.s, c.E, live.fs);
+    let k: Kap140State = { ...live.kap, baroSet: true, disp: "alt", dispUntil: 0 };
+    if (!k.ap) k = kap140Key(k, "AP", v);
+    k = kap140Key({ ...k, selAlt: 7400 }, "INNER_INC", v);
+    if (k.ap && k.vert === "VS") k = { ...k, vsRef: 500 };
+    live.kap = k;
+    onSet({ power: 1 }); // climb: full throttle (POH 4-20)
+  };
   return (
     <>
-      <p className="lead">The Bendix/King KAP 140 is a two-axis (roll and pitch) autopilot with altitude preselect and electric pitch trim — no flight director, yaw damper, CWS or go-around button. The panel unit flies three servos: KS 271C roll (aileron cables, FS 52.0), KS-270C pitch (elevator cables, FS 158.8) and KS-272C pitch trim (trim cable, FS 176.4). ROL, VS and ALT use its own hidden DC turn coordinator and the encoder altitude; HDG, NAV, APR and REV follow the G1000 heading bug, course and CDI through GIA #2. Power: the 5 A AUTO PILOT breaker on AVIONICS BUS 2; WARN feeds the PFD&apos;s PITCH TRIM box and the disconnect horn (POH 7-12, 7-68; Supplement 3).</p>
-      <Kap140Unit st={st} fs={fs} onKey={onKey} onSet={onSet} loc={[loc, false]} />
+      <p className="lead">The Bendix/King KAP 140 is a two-axis (roll and pitch) autopilot with altitude preselect and electric pitch trim — no flight director, yaw damper, CWS or go-around button. The panel unit flies three servos: KS 271C roll (aileron cables, FS 52.0), KS-270C pitch (elevator cables, FS 158.8) and KS-272C pitch trim (trim cable, FS 176.4). ROL uses its own hidden DC turn coordinator; VS and ALT run independently of the G1000 (their sensor is not given in the POH); the encoder&apos;s gray-code altitude feeds only the altitude alerter and preselect (POH 7-12; S3-19). HDG, NAV, APR and REV follow the G1000 heading bug, course and CDI through GIA #2. Power: the 5 A AUTO PILOT breaker on AVIONICS BUS 2; WARN feeds the PFD&apos;s PITCH TRIM box and the disconnect horn (POH 7-12, 7-68; Supplement 3).</p>
+      <Kap140Unit st={unit} fs={fs} onKey={onKey} onSet={onSet} loc={[loc, false]} />
       {live.voice && now - live.voiceT < 3 && <Caution title="Voice message">“{live.voice}” (S3-16)</Caution>}
       {pitchTrim && <Caution title="PITCH TRIM (red, PFD)">{st.fail.trim ? "Pitch trim fault: Recovery Procedure — grasp the wheel, A/P DISC/TRIM INT push and hold, trim manually, AUTO PILOT breaker OPEN (S3-14)." : "Lamp check at the end of the self-test."}</Caution>}
-      {!st.powered && <Caution title="No power">The KAP 140 and its servos need AVIONICS BUS 2 and the AUTO PILOT breaker. Turn the AVIONICS switch (BUS 2) on — the preflight self-test (PFT 1…5) starts by itself, then the display test, PITCH TRIM and the disconnect tone; the red P can stay on for about 30 s.</Caution>}
+      {!st.powered && <Caution title="No power">The KAP 140 and its servos need AVIONICS BUS 2 and the AUTO PILOT breaker. Turn the AVIONICS switch (BUS 2) on — the preflight self-test (PFT 1, 2, … — the step number) starts by itself, then the display test, PITCH TRIM and the disconnect tone; the red P can stay on for about 30 s.</Caution>}
       {st.ap && outside && <Caution title="Limitation">Autopilot airspeed range 80–160 KIAS (S3-13).</Caution>}
       {st.ap && live.flapAng > 10.5 && <Caution title="Limitation">Maximum flap extension with the autopilot engaged is 10° (S3-13).</Caution>}
       <H3>Set up</H3>
@@ -107,13 +125,14 @@ export function Autopilot() {
         <BtnRow>
           {/* left of the course (xtk < 0) with the present heading — and the heading bug — 30° / 20° right of it: an intercept */}
           {scen("GPS course to intercept", () => { setLoc(false); const h = Math.round(live.fs.hdg); live.fs = { ...live.fs, navSrc: "GPS", crs: wrap360(h - 30), hdgBug: h, xtk: -1.6, gsErr: null, vpath: null }; })}
-          {scen("ILS: LOC + glideslope", () => { setLoc(true); const h = Math.round(live.fs.hdg); live.fs = { ...live.fs, navSrc: "LOC1", crs: wrap360(h - 20), hdgBug: h, xtk: -0.5, gsErr: -350, vpath: null }; })}
-          {scen("Preselect 7,500 and climb", () => { live.kap = { ...live.kap, selAlt: 7500 }; })}
+          {/* approach power: the descent on the glideslope adds speed, so the throttle comes back (keeps it inside 80–160 KIAS, S3-13) */}
+          {scen("ILS: LOC + glideslope", () => { setLoc(true); const h = Math.round(live.fs.hdg); live.fs = { ...live.fs, navSrc: "LOC1", crs: wrap360(h - 20), hdgBug: h, xtk: -0.5, gsErr: -350, vpath: null }; onSet({ power: ILS_POWER }); })}
+          {scen("Preselect 7,500 and climb", preselectClimb)}
           {scen("CDI softkey: change source (reversion)", () => { live.fs = { ...live.fs, navSrc: live.fs.navSrc === "GPS" ? (loc ? "LOC1" : "VOR1") : "GPS" }; })}
         </BtnRow>
         <Check id="loc1" label="NAV 1 tuned to a localizer (CDI shows LOC1)" checked={loc} onChange={setLoc} />
       </Ctl>
-      <Small>Try: hold AP (engages ROL + VS at the current vertical speed), then HDG and move the bug; NAV with the GPS course (captures at once within about 2½ dots, otherwise NAV ARM and HDG flashes 5 s as a reminder to set the intercept heading); set an altitude with the knobs (ALT ARM) and UP for a climb — ALT captures at the preselect; APR on the ILS captures LOC, then GS ARM → GS. Switching the CDI while coupled drops to ROL with the old mode flashing and no chime or PFD alert (S3-31).</Small>
+      <Small>Try: hold AP (engages ROL + VS at the current vertical speed), then HDG and move the bug; NAV with the GPS course (captures at once within 2–3 dots, otherwise NAV ARM; on any NAV/APR/REV selection HDG flashes 5 s to remind you to set the bug to the desired course — S3-18, S3-33); set an altitude with the knobs (ALT ARM) and UP for a climb — ALT captures at the preselect; APR on the ILS captures LOC, then GS ARM → GS. Switching the CDI while coupled drops to ROL with the old mode flashing and no chime or PFD alert (S3-31).</Small>
       <H3>Failures</H3>
       <Ctl>
         <BtnRow>
@@ -129,7 +148,7 @@ export function Autopilot() {
           ["Autotrim", st.pt ? `PT ${st.pt === "up" ? "▲" : "▼"}` : st.fail.trim ? ["PT FAULT", "bad"] : "—"], ["Trim wheel", st.trim > 0.02 ? "Nose up" : st.trim < -0.02 ? "Nose down" : "Takeoff"],
           ["PITCH TRIM (PFD)", pitchTrim ? ["SHOWN", "bad"] : E.warnPwr ? "—" : ["No WARN power", "warnc"]], ["Lateral source", E.gia2 && E.ahrs ? "GIA #2 (HDG/NAV)" : ["ROL only", "warnc"]],
         ]} />
-        <Small>Turn-coordinator failure disengages the autopilot and stops it engaging. With the AHRS or GIA #2 lost there is no heading or nav signal: ROL only (HDG flashes) (S3-19). Pulling AUTO PILOT removes the computer and servo power — and manual electric trim with it (S3-13).</Small>
+        <Small>Turn-coordinator failure disengages the autopilot and stops it engaging. With the AHRS or GIA #2 lost: ROL only (HDG flashes) (S3-19 — POH 3-26 says only HDG is lost with the AHRS; the supplement is modelled). Pulling AUTO PILOT removes the computer and servo power — and manual electric trim with it (S3-13); if the autopilot was engaged the display goes blank but the disconnect horn, on WARN, still sounds through the audio panel. Trip WARN (Electrical) and the horn and PITCH TRIM go silent.</Small>
       </Ctl>
       <Caution title="Autopilot or trim malfunction — Recovery (S3-14)">Control wheel — GRASP FIRMLY · A/P DISC/TRIM INT — PUSH and HOLD throughout recovery · airplane — TRIM manually · AUTO PILOT breaker — OPEN. Maximum altitude loss: 650 ft in cruise, climb or descent; 100 ft maneuvering or on approach.</Caution>
       <H3>Modes (S3-8 – S3-12)</H3>
@@ -150,7 +169,7 @@ export function Autopilot() {
       <H3>Limitations (S3-13)</H3>
       <Notes items={["Complete the preflight test before every flight; AP and MET use is prohibited until then.", "Autopilot OFF for takeoff and landing; a pilot with the belt fastened in the left seat.", "80–160 KIAS; maximum flap extension 10°; maximum fuel imbalance 90 lb.", "Disengage below 200 ft AGL on approach and 800 ft AGL otherwise; Category I approaches only.", "Manually overriding the autopilot in pitch or roll is prohibited — disengage first.", "No KAP 140 use with the GMA 1347 audio panel inoperative (no disconnect tone)."]} />
       <H3>Preflight test (S3-20 – S3-24)</H3>
-      <Notes items={["MASTER (BAT) ON, AVIONICS (BUS 2) ON: PFT 1…5, display test, PITCH TRIM on the PFD and the disconnect tone. If the red P stays on, the test failed — pull AUTO PILOT.", "MET: each switch half alone must not move the trim wheel (the right half alone lights the red PT within 5 s); both together trim, and A/P DISC/TRIM INT held stops it. The tab moves UP with nose-down trim.", "Set or accept BARO; engage AP and overpower it in pitch and roll; A/P DISC — disengages with the tone; trim wheel to TAKEOFF."]} />
+      <Notes items={["MASTER (BAT) ON, AVIONICS (BUS 2) ON: PFT X (X = the test step number), display test, PITCH TRIM on the PFD and the disconnect tone. If the red P stays on, the test failed — pull AUTO PILOT.", "MET: each switch half alone must not move the trim wheel (the right half alone lights the red PT within 5 s); both together trim, and A/P DISC/TRIM INT held stops it. The tab moves UP with nose-down trim.", "Set or accept BARO; engage AP and overpower it in pitch and roll; A/P DISC — disengages with the tone; trim wheel to TAKEOFF."]} />
       <H3>Servos &amp; controls — tap to locate</H3>
       <PartsList parts={CAT.pinned("autopilot")} />
       <Notes items={["There is no connection between the G1000 ALT SEL and the KAP 140 altitude alerter — set both (POH 7-16, S3-12).", "On a GPS approach to an ILS the G1000 switches the CDI to NAV1 near the final course: the KAP 140 reverts to ROL — press APR again (POH 4-45, S3-38).", "The trim servo drives the same cable as the trim wheel, so the wheel turns under MET and autotrim (S3-21)."]} />

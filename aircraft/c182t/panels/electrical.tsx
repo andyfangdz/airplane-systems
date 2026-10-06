@@ -23,7 +23,7 @@ export function Electrical() {
       <p className="lead">A 28-volt DC system: a belt-driven 60-ampere alternator (95 A optional) with an Alternator Control Unit, a 24-volt main battery in the tailcone and a standby battery behind the panel. Everything meets in the power distribution module (J-box) on the left forward firewall, which feeds ELECTRICAL BUS 1 and BUS 2; both feed the CROSSFEED and ESSENTIAL buses through diodes, and each feeds an avionics bus through the AVIONICS switch. The standby battery takes over the essential bus by itself when main bus voltage falls below 20 V (POH 7-46 – 7-57, Figure 7-7).</p>
       <H3>Switches</H3>
       <Ctl>
-        <Nav3Switches e={e} E={E} up={upE} testHeld={live.testHeld} />
+        <Nav3Switches e={e} E={E} up={upE} testHeld={live.testHeld} testSeconds={20} />
         <Check id="ext" label="External power connected (28 V regulated)" checked={e.ext} onChange={(v) => upE((d) => { d.ext = v; })} />
         <div className="row"><div className="lbl"><span>Switch panel</span><span>12 V outlet {E.outlet12 ? "live" : s.lights.cabinPwr ? "— no power" : "off"}</span></div>
           <div className="switches"><Rocker label="CABIN PWR 12V" on={s.lights.cabinPwr} onToggle={() => up((d) => { d.lights.cabinPwr = !d.lights.cabinPwr; })} /></div>
@@ -33,10 +33,10 @@ export function Electrical() {
         <Readouts items={[
           ["Alternator", E.altOn ? `${E.altAmps.toFixed(1)} A` : ["OFF", "bad"]], ["Bus load", `${E.load.toFixed(1)} A`],
           ["Main battery", e.fail.bat ? ["FAILED", "bad"] : `${Math.round(e.socMain * 100)}% · ${mins(cfg.mainAh, e.socMain, E.mBatt)}`],
-          ["Standby battery", e.stby !== "ARM" ? ["OFF", "warnc"] : E.stbyOnline ? [`Supplying · ${mins(cfg.stbyAh, e.socStby, E.sBatt)}`, "warnc"] : `${Math.round(e.socStby * 100)}% · ${E.sBatt > 0 ? "charging" : "standing by"}`],
+          ["Standby battery", e.stby !== "ARM" || e.cb["ESS:STDBY BATT"] ? [e.stby !== "ARM" ? "OFF" : "C/B OUT (STDBY BATT)", "warnc"] : E.stbyOnline ? [`Supplying · ${mins(cfg.stbyAh, e.socStby, E.sBatt)}`, "warnc"] : `${Math.round(e.socStby * 100)}% · ${E.sBatt > 0 ? "charging" : "standing by"}`],
         ]} />
       </Ctl>
-      <Small>Hold TEST for the standby battery test with the MASTER off — the green lamp must stay on — then ARM: the PFD comes up on the standby battery (BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown) (POH 4-13). Which alternator N8050J and N21200 have isn&apos;t in the POH. Currents are illustrative.</Small>
+      <Small>Hold TEST for 20 seconds with the MASTER off — the green lamp must not go off — then ARM: the PFD comes up on the standby battery (BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown) (POH 4-13). Which alternator N8050J and N21200 have isn&apos;t in the POH. Currents are illustrative.</Small>
       <H3>Failures &amp; scenarios</H3>
       <Ctl>
         <BtnRow>
@@ -78,7 +78,7 @@ export function Electrical() {
       </BtnRow>
       <Small>WARN feeds the stall warning, autopilot warning (PITCH TRIM and the disconnect horn), ELT warning, main bus voltmeter, hour meter, starter relay, standby battery controller and main bus sense — trip it and watch the starter, Hobbs, stall horn and M BUS reading go (Fig. 7-7).</Small>
       <H3>Monitoring (POH 7-53 – 7-55)</H3>
-      <Facts rows={[["M BUS volts", "Measured at the WARN breaker (CROSSFEED BUS); ≈ 28 V normal, 27–29 V at 1,800 RPM"], ["E BUS volts", "Measured at NAV 1 ENG (ESSENTIAL BUS)"], ["VOLTS red", "Below 24.5 V (and above 32.0 V)"], ["M BATT amps", "+ charging; < 5 A charge after 30 min of cruise"], ["S BATT amps", "+ charging, − discharging (normally < 4 A)"], ["LOW VOLTS", "Red, continuous tone: main bus below 24.5 V (ACU signal); inhibited on the ground"], ["HIGH VOLTS", "Red: bus above 32.0 V — the ACU should have opened ALT FIELD at ≈ 31.75 V"], ["STBY BATT", "Amber: standby battery discharging"]]} />
+      <Facts rows={[["M BUS volts", "Measured at the WARN breaker (CROSSFEED BUS); ≈ 28 V normal, 27–29 V at 1,800 RPM"], ["E BUS volts", "Measured at NAV 1 ENG (ESSENTIAL BUS)"], ["VOLTS red", "At or below 24.5 V (POH 7-53); above 32.0 V per the 2007 edition (GFC 7-57)"], ["M BATT amps", "+ charging; < 5 A charge after 30 min of cruise"], ["S BATT amps", "+ charging, − discharging (normally < 4 A)"], ["LOW VOLTS", "Red, continuous tone (tone inhibited on the ground): main bus below 24.5 V (ACU signal) — expected on the ground before start (POH 7-54, 4-8; CRG 115)"], ["HIGH VOLTS", "Red: bus above 32.0 V (2007 edition threshold, GFC 7-60) — the ACU should have opened ALT FIELD at ≈ 31.75 V"], ["STBY BATT", "Amber: standby battery discharging"]]} />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("electrical")} />
       <Caution title="Caution">Both AVIONICS switches OFF before turning the MASTER on or off, starting the engine or connecting external power (POH 7-47, 4-12).</Caution>
@@ -122,7 +122,7 @@ export function Lighting() {
       <PartsList parts={CAT.pinned("lighting")} />
       <H3>Breakers (Figure 7-7)</H3>
       <Facts rows={[["BEACON · LAND", "BCN LT, LAND LT — ELECTRICAL BUS 1"], ["TAXI · NAV · STROBE", "TAXI LT, NAV LTS, STROBE LTS — ELECTRICAL BUS 2"], ["Panel and pedestal", "PANEL LTS — ELECTRICAL BUS 2"], ["Overhead lights, 12 V outlet", "CABIN LTS/PWR — ELECTRICAL BUS 1 (the overhead console's breaker is an inference)"], ["Standby instrument lights", "STDBY IND LTS — ESSENTIAL BUS"], ["Map light", "On NAV LTS: turn NAV on first, then the knurled rheostat"]]} />
-      <Notes items={["Don't use the strobes or beacon when flying through cloud or overcast — reflected light can cause vertigo (POH 7-57). In cold weather the beacon can stay off until the engine is started to save the battery (POH 4-50).", "Use only the taxi light in the pattern or en route to extend the landing light's life (POH 7-57).", "Light failure: usually a bulb. Check PANEL LTS (inside) or the light's breaker; with no sign of a short, lights OFF, reset once, lights ON; if it opens again, leave it for maintenance (POH 7-60).", "Wing fire: LAND, TAXI, NAV, STROBE and PITOT HEAT OFF (POH 3-11).", "KOEL: strobes for every kind of operation; nav lights at night; the landing light at night for hire (POH 2-12)."]} />
+      <Notes items={["Don't use the strobes or beacon when flying through cloud or overcast — reflected light can cause vertigo (POH 7-57). In cold weather the beacon can stay off until the engine is started to save the battery (POH 4-50).", "Use only the taxi light in the pattern or en route to extend the landing light's life (POH 7-57).", "Light failure: usually a bulb. Check PANEL LTS (inside) or the light's breaker; with no sign of a short, lights OFF, reset once, lights ON; if it opens again, leave it for maintenance (POH 7-60).", "Wing fire: LAND, TAXI, NAV, STROBE and PITOT HEAT OFF (POH 3-11).", "KOEL: strobes for every kind of operation; nav lights for VFR night and all IFR (day and night); the landing light at night for hire (POH 2-12)."]} />
     </>
   );
 }

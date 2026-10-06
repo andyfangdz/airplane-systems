@@ -4,7 +4,9 @@
  * Fore/aft positions are the POH Figure 6-9 equipment-list arms; butt lines and heights are placed from the descriptions in
  * Section 7 and Figure 7-2 (the POH gives no BL or WL).
  */
+import * as THREE from "three";
 import type { PartAnim } from "@/lib/catalogue";
+import { mergeGeos } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
 import { V, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
@@ -32,7 +34,7 @@ part(() => box(0.16, 0.08, 0.09), ["flaps", "electrical"], { pos: wp(30, 0.62), 
   name: "Flap motor and actuator", note: "At the inboard end of the RIGHT flap (Figure 7-3): drives a bellcrank that moves the flap through a push-pull rod. 10 A FLAP breaker on ELECTRICAL BUS 1. Motor type and transit time are not in the POH.", pin: true });
 [1, -1].forEach((s) => part(() => box(0.08, 0.05, 0.03), ["flaps"], { pos: wp(s * 24, 0.67), color: "#9F85E6", name: "Flap bellcrank", note: "At the inboard end of each flap; a push-pull rod drives the flap. The left bellcrank follows the right through the cross-cabin cables (Fig. 7-3).", pin: s > 0 }));
 part(() => tubeGeo([wp(-24, 0.67), wp(-12, 0.65, 0, -0.03), wp(12, 0.65, 0, -0.03), wp(24, 0.67)], 0.006), ["flaps"], { color: "#9F85E6", name: "Flap interconnect cables", note: "Cables across the cabin top (several pulleys) tie the left flap to the right-wing drive so both move together (Fig. 7-3).", pin: true });
-part(() => tubeGeo([P3(16.5, 9, 47), P3(22, 17.5, 60), P3(31, 18.6, 74), P3(33, 17.6, 79.6), wp(26, 0.55, 0, -0.03)], 0.004), ["flaps"], { color: "#B9A3F0", name: "Flap follow-up / control cable", note: "Figure 7-3 draws a single line from behind the panel up to the right wing root drive — the follow-up or wiring between the lever and the actuator (unlabeled in the POH)." });
+part(() => tubeGeo([P3(16.5, 9, 47), P3(15.5, 20.0, 60), P3(29.0, 20.0, 60.5), P3(29.5, 19.7, 76), P3(33, 17.6, 79.6), wp(26, 0.55, 0, -0.03)], 0.004), ["flaps"], { color: "#B9A3F0", name: "Flap follow-up / control cable", note: "Figure 7-3 draws a single line from behind the panel up to the right wing root drive — the follow-up or wiring between the lever and the actuator (unlabeled in the POH)." });
 
 /* ---------- fuel system (POH Figure 7-6, 7-38 – 7-46) ---------- */
 const FUEL = "#2F7FE6";
@@ -47,7 +49,7 @@ export const TANK_BL = [24, 100] as const;
   // overboard vent: below the wing behind the strut, slightly below the upper strut attach point (POH 7-44)
   part(() => tubeGeo([wp(s * 100, 0.36, -1, 0.01), wp(s * 100, 0.38, -1, -0.07)], 0.007), ["fuel"], { color: FUEL, name: "Overboard fuel vent (check valve)", note: "One per tank, protruding from the bottom of the wing behind the strut, slightly below the upper strut attach point. Complete blockage starves the engine; the vacuum-vented filler caps are the backup (POH 7-44). Preflight: check for blockage.", ext: true, pin: s > 0 });
   // fuel manifold down each aft door post (FS 65.30) to the selector, with the return line beside it
-  part(() => tubeGeo([wp(s * 24.5, 0.62, -1, 0.02), P3(65, s * 21.2, 78), P3(65, s * 21.3, 30), P3(40, s * 8, 26.8), P3(27.5, s * 2.5, 25.4)], 0.008), ["fuel"], { color: FUEL, name: "Fuel manifold (aft door post)", note: "“Two fuel manifolds (one in each aft doorpost)”: gravity feed from each tank outlet down the door post and under the floor to the selector (POH 7-38, Fig. 7-6).", pin: s > 0 });
+  part(() => tubeGeo([wp(s * 24.5, 0.62, -1, 0.02), P3(65, s * 19.4, 78), P3(65, s * 19.4, 30), P3(40, s * 8, 26.8), P3(27.5, s * 2.5, 25.4)], 0.008), ["fuel"], { color: FUEL, name: "Fuel manifold (aft door post)", note: "“Two fuel manifolds (one in each aft doorpost)”: gravity feed from each tank outlet down the door post and under the floor to the selector (POH 7-38, Fig. 7-6).", pin: s > 0 });
 });
 part(() => tubeGeo([wp(-90, 0.14, 1, -0.02), wp(-23, 0.14, 1, -0.02), wp(23, 0.14, 1, -0.02), wp(90, 0.14, 1, -0.02)], 0.006), ["fuel"], { color: "#7EB3F5", name: "Fuel vent interconnect", note: "Vent line joining the tanks' air spaces: fuel may slosh between nearly full tanks if the wings aren't level — park with the selector on LEFT or RIGHT to stop crossfeeding (POH 7-45, 4-24).", pin: true });
 /** Fuel selector handle on the floor at the base of the pedestal (Fig 7-2 item 28); the valve body is below the floor. */
@@ -56,8 +58,8 @@ part(() => cyl(0.05, 0.02), ["fuel"], { pos: FSEL, color: "#20262B", name: "Fuel
 part(() => { const g = box(0.09, 0.014, 0.024); g.translate(0.03, 0, 0); return g; }, ["fuel"], { pos: [FSEL[0], FSEL[1] + 0.02, FSEL[2]], color: "#F2F5F7",
   anim: (m) => { const sel = S().fuel.sel; m.rotation.y = sel === "BOTH" ? 0 : sel === "LEFT" ? Math.PI / 2 : sel === "RIGHT" ? -Math.PI / 2 : Math.PI; } });
 part(() => cyl(0.04, 0.05), ["fuel"], { pos: P3(27.2, 0, 24.6), color: FUEL, name: "Selector valve (supply / return stacks)", note: "Below the floor: supply and return portions are isolated from each other, so “fuel returns only to the tank that is selected as the feed tank” (POH 7-43)." });
-part(() => sph(0.014), ["fuel"], { pos: P3(25.8, -2, 22.6), color: "#0B3A80", name: "Fuel selector drain", note: "Drain it, with the return-line drain, when contamination is found in the other samples — and take samples from all drain points (POH 4-10, 8-20).", ext: true });
-part(() => sph(0.014), ["fuel"], { pos: P3(22.5, 3, 22.4), color: "#0B3A80", name: "Fuel return line drain", note: "“One drain is added to properly drain the return system” (POH 7-43); its position is not given.", ext: true, pin: true });
+part(() => sph(0.014), ["fuel"], { pos: P3(25.8, -2, 21.4), color: "#0B3A80", name: "Fuel selector drain", note: "Drain it, with the return-line drain, when contamination is found in the other samples — and take samples from all drain points (POH 4-10, 8-20).", ext: true });
+part(() => sph(0.014), ["fuel"], { pos: P3(22.5, 3, 21.4), color: "#0B3A80", name: "Fuel return line drain", note: "“One drain is added to properly drain the return system” (POH 7-43); its position is not given.", ext: true, pin: true });
 part(() => cyl(0.035, 0.12, "x"), ["fuel", "electrical"], { pos: P3(-12, 5, 31), color: "#5D8FD6", anim: glow("#5D8FD6", () => EL().fuelPumpOn, ["fuel", "electrical"], "#A9CCFF"),
   name: "Auxiliary fuel pump", note: "Electric, arm −12.0 (forward of the firewall). Primes through the injection system before start; vapor suppression; replaces a failed engine-driven pump at maximum continuous power. Left on with the MASTER on, mixture rich and the engine stopped, it floods the engine. FUEL PUMP breaker, ELECTRICAL BUS 1 (POH 7-43, 6-22).", pin: true });
 part(() => cyl(0.035, 0.08), ["fuel"], { pos: P3(-7, 7, 29), color: FUEL, name: "Fuel strainer", note: "Between the aux pump and the engine-driven pump, the low point of the system (POH 7-40).", pin: true });
@@ -93,10 +95,10 @@ part(() => tubeGeo([P3(-41, 0, 47.5), P3(-37, 6, 43), P3(-33.4, 9, 40.6), P3(-37
 part(() => box(0.14, 0.12, 0.16), ["electrical"], { pos: P3(10.8, -14, 50.5), color: ELEC, anim: glow(ELEC, () => EL().stbyOnline, ["electrical"], "#FF8A3D"),
   name: "Standby battery", note: "Between the firewall and the instrument panel, arm 10.8. Feeds only the ESSENTIAL BUS — automatically when the main bus falls below 20 V, for at least 30 minutes; it cannot power the transponder (POH 7-47, 3-15, 3-35).", pin: true });
 part(() => box(0.06, 0.05, 0.08), ["electrical"], { pos: P3(12, -9.5, 54), color: "#8A7A3A", name: "Standby battery controller", note: "On/off control, test load with an overheat switch, and a current shunt for S BATT; it senses main bus voltage through the WARN breaker; 25 A fuse at the battery (Fig. 7-7 Sheet 3)." });
-part(() => box(0.012, 0.025, 0.02), ["electrical"], { pos: P3(18.1, -19.4, 65.3), color: "#C9D0D5", anim: (m) => { const v = S().elec.stby; m.rotation.z = v === "ARM" ? 0.5 : v === "TEST" ? -0.5 : 0; },
-  name: "STBY BATT switch", note: "Upper left corner of the pilot's panel: ARM – OFF – TEST (TEST momentary). Before start: TEST 10 s — the green lamp must stay on — then ARM and check BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown (POH 7-10, 4-13).", pin: true });
-part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -17.9, 65.3), color: "#1E5A2A", anim: (m) => { m.material = EL().testLamp ? mats("#33FF66").hi : mats("#1E5A2A").on; },
-  name: "STBY BATT TEST lamp", note: "Green lamp right of the switch; it must stay lit through the 10-second test (POH 4-13)." });
+part(() => box(0.012, 0.025, 0.02), ["electrical"], { pos: P3(18.1, -19.0, 64.0), color: "#C9D0D5", anim: (m) => { const v = S().elec.stby; m.rotation.z = v === "ARM" ? 0.5 : v === "TEST" ? -0.5 : 0; },
+  name: "STBY BATT switch", note: "Upper left corner of the pilot's panel: ARM – OFF – TEST (TEST momentary). Before start: TEST 20 s (hold; the green lamp must not go off) — then ARM (the PFD comes on) and check BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown (POH 7-10, 4-13).", pin: true });
+part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -17.7, 64.0), color: "#1E5A2A", anim: (m) => { m.material = EL().testLamp ? mats("#33FF66").hi : mats("#1E5A2A").on; },
+  name: "STBY BATT TEST lamp", note: "Green lamp right of the switch; it must stay lit through the 20-second test (POH 4-13)." });
 part(() => box(0.012, 0.04, 0.04), ["electrical"], { pos: P3(18.1, -19.4, 61.7), color: "#C8313B", anim: (m) => { m.rotation.z = S().elec.bat ? 0.3 : -0.3; },
   name: "MASTER switch (ALT | BAT)", note: "Two-pole rocker directly below STBY BATT: BAT controls the battery relay, ALT the alternator field; ALT can't be ON without BAT (POH 7-51).", pin: true });
 part(() => box(0.012, 0.04, 0.04), ["electrical", "avionics"], { pos: P3(18.1, -19.4, 58.4), color: "#E8ECEE", anim: (m) => { m.rotation.z = S().elec.avn1 ? 0.3 : -0.3; },
@@ -123,22 +125,55 @@ part(() => box(0.1, 0.07, 0.12), ["avionics", "engine"], { pos: P3(11.4, -3, 57)
 part(() => box(0.14, 0.06, 0.12), ["avionics"], { pos: P3(140, 5, 52.5), color: AVX, name: "GTX 33 transponder", note: "Mode S, in the tailcone racks, arm 134.0; controlled from the PFD. XPNDR breaker, AVIONICS BUS 2 — not available on the standby battery (POH 7-67, 3-35).", pin: true });
 part(() => box(0.06, 0.03, 0.06), ["avionics"], { pos: wp(-170, cAt(44, 170)), color: AVX, name: "GMU 44 magnetometer", note: "Inside the left wing panel, arm 44.0 (spanwise station not given): heading reference for the AHRS (POH 7-67, 6-23).", pin: true });
 part(() => box(0.12, 0.05, 0.1), ["avionics"], { pos: P3(11.4, 10.5, 55), color: "#9C4C88", name: "GDL 69A data link", note: "XM weather and radio, behind the panel just forward of the MFD, arm 11.4; FIS breaker, AVIONICS BUS 1 (if installed) (POH 7-68, 6-23)." });
-part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], { pos: P3(12.7, 0, 64.5), color: "#5A6168", anim: glow("#5A6168", () => EL().fwdFan, ["avionics", "electrical"], "#9FE3FF"),
+part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], { pos: P3(12.7, 0, 63), color: "#5A6168", anim: glow("#5A6168", () => EL().fwdFan, ["avionics", "electrical"], "#9FE3FF"),
   name: "Forward avionics cooling fan", note: "Forward of the panel, arm 12.7: draws air from between the firewall and the panel and blows it up the inside of the windshield; on the AVN BUS 1 PFD breaker. Preflight: AVIONICS BUS 1 on — verify the fan is heard (POH 7-69, 4-7).", pin: true });
 part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], { pos: P3(125.5, 0, 55), color: "#5A6168", anim: glow("#5A6168", () => EL().aftFan, ["avionics", "electrical"], "#9FE3FF"),
   name: "Aft avionics cooling fan", note: "Tailcone, arm 125.5: forced air to the GIAs and the transponder; NAV 2 breaker, AVIONICS BUS 2. None of the four fans runs on the standby battery (POH 7-69).", pin: true });
 part(() => box(0.06, 0.06, 0.06), ["avionics", "autopilot"], { pos: P3(15.5, 4, 53), color: "#9C4C88", anim: glow("#9C4C88", () => S().avx.tcFail, ["avionics", "autopilot"], "#E0263B"),
   name: "DC turn coordinator (KAP 140)", note: "“A DC electric powered turn coordinator, installed forward of the instrument panel and not visible to the pilot, provides a roll rate signal to the KAP 140”, arm 15.5. Its loss disengages the autopilot (POH 7-12, 6-23).", pin: true });
+/* ---------- faceplate detail (POH Figure 7-2; CRG): GDU 1040 knobs and softkeys, GMA 1347 keys, switch rockers, breaker heads ---------- */
+const tr = (g: THREE.BufferGeometry, x: number, y: number, z: number) => { g.translate(x, y, z); return g; };
+/** GDU 1040 bezel: NAV, HDG and ALT knobs down the left, COM, CRS/BARO, the range joystick and FMS down the right (bezel-centre coordinates). */
+const gduKnobs = () => mergeGeos([
+  ...[0.075, 0.03, -0.02, -0.068].map((y) => tr(cyl(0.0095, 0.012, "x", 16), 0, y, -0.123)),
+  ...[0.075, 0.03, -0.015, -0.05, -0.083].map((y, i) => tr(cyl(i === 3 ? 0.006 : 0.0095, 0.012, "x", 16), 0, y, 0.123)),
+]);
+/** The 12 softkeys under the screen. */
+const gduKeys = () => mergeGeos(Array.from({ length: 12 }, (_, i) => tr(box(0.006, 0.008, 0.0125), 0, 0, -0.0935 + i * 0.017)));
+[-11.5, 10.5].forEach((bl) => {
+  const c = P3(18.1, bl, 61.4), x = c[0] - 0.015 - 0.006; // just aft of the bezel face
+  part(gduKnobs, ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
+  part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] - 0.092, c[2]], color: "#4A525A" });
+});
+// GMA 1347: two columns of COM / NAV / speaker / intercom keys and the volume / squelch knob above DISPLAY BACKUP
+part(() => mergeGeos(Array.from({ length: 16 }, (_, i) => tr(box(0.006, 0.009, 0.016), 0, 0.085 - Math.floor(i / 2) * 0.017, (i % 2 ? 1 : -1) * 0.0125))), ["avionics"],
+  { pos: [X(18.1) - 0.018, Y(61.4), Z(-0.5)], color: "#4A525A" });
+part(() => mergeGeos([tr(cyl(0.011, 0.01, "x", 16), 0, 0, 0), tr(cyl(0.007, 0.016, "x", 12), 0, 0, 0)]), ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) - 0.064, Z(-0.5)], color: "#3A4046" });
+// switch panel rockers, up = ON (POH 7-10): BEACON, LAND, TAXI, NAV, STROBE, PITOT HEAT, FUEL PUMP, CABIN PWR 12V
+([() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe, () => S().pitot.heat, () => S().fuel.pump, () => S().lights.cabinPwr] as (() => boolean)[])
+  .forEach((on, i) => part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.9) - 0.011, Y(52.3) + 0.006, Z(-12.4) - 0.0945 + i * 0.027], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
+/** Breaker heads in rows on the two breaker panels (not mapped one-to-one to the breakers). */
+const cbHeads = (cols: number) => mergeGeos(Array.from({ length: 3 * cols }, (_, i) => tr(cyl(0.0045, 0.008, "x", 10), 0, 0.02 - Math.floor(i / cols) * 0.02, (i % cols - (cols - 1) / 2) * 0.016)));
+part(() => cbHeads(4), ["electrical"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-18.6)], color: "#1A1D20" });
+part(() => cbHeads(8), ["electrical", "avionics"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-8.6)], color: "#1A1D20" });
+
 /** Top of the wing centre section over the cabin (antennas sit on it). */
 const ANT = "#C8399F", top = (fs: number, bl = 0) => wingP(Z(bl), cAt(fs, bl), 1).y;
-part(() => box(0.03, 0.2, 0.006), ["avionics"], { pos: [X(61.2), top(61.2, 7) + 0.095, Z(7)], rot: [0, 0, 0.35], color: ANT, name: "COM 1 / GPS 1 antenna", note: "Top of the cabin, right side, arm 61.2 (POH 7-69).", ext: true, pin: true });
-part(() => box(0.03, 0.2, 0.006), ["avionics"], { pos: [X(61.2), top(61.2, -7) + 0.095, Z(-7)], rot: [0, 0, 0.35], color: ANT, name: "COM 2 / GPS 2 / XM antenna", note: "Top of the cabin, left side, arm 61.2 (POH 7-69).", ext: true, pin: true });
+/** Swept blade antenna, base on the skin: base chord 0.14 m, tip chord 0.06 m, 0.22 m tall, leading edge swept ≈ 30°. */
+const bladeAnt = () => {
+  const sh = new THREE.Shape();
+  sh.moveTo(0.07, 0); sh.lineTo(-0.057, 0.22); sh.lineTo(-0.117, 0.22); sh.lineTo(-0.07, 0); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.006, bevelEnabled: false }); g.translate(0, 0, -0.003); return g;
+};
+part(bladeAnt, ["avionics"], { pos: [X(61.2), top(61.2, 7) - 0.005, Z(7)], color: ANT, name: "COM 1 / GPS 1 antenna", note: "Top of the cabin, right side, arm 61.2 (POH 7-69).", ext: true, pin: true });
+part(bladeAnt, ["avionics"], { pos: [X(61.2), top(61.2, -7) - 0.005, Z(-7)], color: ANT, name: "COM 2 / GPS 2 / XM antenna", note: "Top of the cabin, left side, arm 61.2 (POH 7-69).", ext: true, pin: true });
 [1, -1].forEach((s) => part(() => box(0.36, 0.02, 0.006), ["avionics"], { pos: [fLE(Y(88)) - 0.12, Y(88), s * 0.06], rot: [s * 0.5, 0, -0.1], color: ANT, name: "VOR/GS navigation antenna", note: "Blade-type element on either side of the vertical stabilizer (POH 7-69).", ext: true, pin: s > 0 }));
 part(() => box(0.28, 0.012, 0.08), ["avionics"], { pos: [X(131.5), botY(X(131.5)) - 0.006, 0], color: ANT, name: "Marker beacon antenna", note: "Bottom of the tailcone, arm 131.5 (POH 7-70).", ext: true, pin: true });
 part(() => cyl(0.006, 0.08), ["avionics"], { pos: [X(86.5), botY(X(86.5)) - 0.04, Z(2)], color: ANT, name: "Transponder antenna", note: "Bottom of the cabin, arm 86.5 (POH 7-70).", ext: true, pin: true });
 part(() => box(0.08, 0.05, 0.008), ["avionics"], { pos: [X(114.5), botY(X(114.5)) - 0.026, Z(-2)], color: "#9C4C88", name: "DME antenna (if installed)", note: "Bottom of the tailcone, arm 114.5 (KN 63 option, POH 6-23).", ext: true });
-part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], { pos: P3(17.0, 0, 70.2), color: "#20262B", anim: glow("#20262B", () => EL().lit.stbyInd, ["avionics", "cabin"], "#E8C46A"),
-  name: "Magnetic compass (non-stabilized)", note: "Arm 18.0 (cockpit position not in the POH — modelled above the glareshield). Required for all operations (KOEL) and the heading source after an AHRS failure; lit by the STDBY IND dimmer; deviation card in 30° steps (POH 2-13, 3-28, 7-59).", pin: true });
+part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], { pos: P3(19.5, 0, 68.3), color: "#20262B", anim: glow("#20262B", () => EL().lit.stbyInd, ["avionics", "cabin"], "#E8C46A"),
+  name: "Magnetic compass (non-stabilized)", note: "Arm 18.0 (cockpit position not in the POH — modelled on top of the glareshield, inside the windshield). Required for all operations (KOEL) and the heading source after an AHRS failure; lit by the STDBY IND dimmer; deviation card in 30° steps (POH 2-13, 3-28, 7-59).", pin: true });
+part(() => box(0.065, 0.008, 0.035), ["avionics", "cabin"], { pos: P3(18.4, 0, 67.3), color: "#20262B" }); // compass bracket on the glareshield
 
 /* ---------- KAP 140 (POH 7-12, Supplement 3) ---------- */
 /** KAP 140 faceplate on the center panel below the standby instruments (Fig. 7-2 item 13); LCD drawn by Model.tsx. */
@@ -152,16 +187,19 @@ part(() => box(0.02, KAP.hgt, KAP.w), ["autopilot", "avionics"], { pos: P3(KAP.f
   anim: k === "AP" ? apBtn : (m) => { const s = live.kap; const on = s.ap && (s.lat === k || s.vert === k || s.latArm === k); m.material = on ? mats("#7CFF8A").on : mats(kapOn() ? "#3A4046" : "#2B3035").on; },
   ...(i === 0 ? { name: "KAP 140 mode keys", note: "AP (engage: ROL + VS), HDG, NAV, APR, REV and ALT. Lit here while the mode is active. AP needs the self-test complete and the red P out (≈ 30 s after power-up) (S3-8 – S3-12)." } : {}),
 }));
-part(() => cyl(0.012, 0.012, "x"), ["autopilot"], { pos: [X(KAP.fs + 0.25), Y(KAP.h), Z(KAP.bl) + 0.068], color: "#30353A", name: "Altitude select knobs", note: "Concentric knobs: outer 1,000 ft, inner 100 ft; also set BARO. Selecting an altitude with the autopilot engaged arms ALT (S3-9)." });
+part(() => mergeGeos([0.011, 0.003, -0.006, -0.014].map((y) => tr(box(0.008, 0.007, 0.011), 0, y, 0))), ["autopilot"], {
+  pos: [X(KAP.fs + 0.2), Y(KAP.h), Z(KAP.bl) + 0.0475], color: "#3A4046", name: "KAP 140 ARM, BARO, UP and DN keys",
+  note: "ARM turns altitude arming on or off; BARO shows the baro setting for 3 s (hold 2 s: IN HG ↔ HPA); UP / DN change the VS reference 100 fpm a press (300 fpm/s held) or the ALT reference 20 ft (500 fpm held) (S3-10 – S3-12)." });
+part(() => cyl(0.012, 0.012, "x"), ["autopilot"], { pos: [X(KAP.fs + 0.25), Y(KAP.h), Z(KAP.bl) + 0.068], color: "#30353A", name: "Altitude select knobs", note: "Concentric rotary knobs: set the altitude alerter reference altitude, or the baro setting right after BARO is pressed (S3-11). Selecting an altitude with them while the autopilot is engaged arms ALT automatically (S3-12). Step sizes are not in the POH (1,000 / 100 ft modelled)." });
 
 /** KAP 140 servos (equipment list 22-01-S, POH 6-20): they glow while driving. */
 const servo = (on: () => boolean): PartAnim => glow("#7C57CF", on, ["autopilot", "controls"], "#FFD34D");
 const SV = RIG_SPEC.servo;
 part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], { pos: P3(SV.roll[0], SV.roll[1], SV.roll[2] - 2.6), color: "#7C57CF", chan: ["aileron"], anim: servo(() => live.kap.ap),
   name: "KS 271C roll servo", note: "Arm 52.0, on the aileron cables across the cabin top. Drives the ailerons — and so the control wheels — while the autopilot is engaged; easily overpowered (S3-7, POH 6-20).", pin: true });
-part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], { pos: P3(SV.pitch[0], SV.pitch[1] + 4, SV.pitch[2]), color: "#7C57CF", chan: ["elevator"], anim: servo(() => live.kap.ap),
+part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], { pos: P3(SV.pitch[0], SV.pitch[1] + 1.5, SV.pitch[2]), color: "#7C57CF", chan: ["elevator"], anim: servo(() => live.kap.ap),
   name: "KS-270C pitch servo", note: "Tailcone, arm 158.8, on the elevator cables. Pitch modes VS, ALT and GS move the elevator, and the control wheels with it (S3-7, POH 6-20).", pin: true });
-part(() => box(0.1, 0.08, 0.09), ["autopilot", "controls"], { pos: P3(SV.trim[0], SV.trim[1] - 4, SV.trim[2]), color: "#7C57CF", chan: ["elevator"], anim: servo(() => live.kap.pt != null || live.kap.ap && live.timers.trimRun > 0),
+part(() => box(0.1, 0.08, 0.09), ["autopilot", "controls"], { pos: P3(SV.trim[0], SV.trim[1] - 1.5, SV.trim[2]), color: "#7C57CF", chan: ["elevator"], anim: servo(() => live.kap.pt != null || live.kap.ap && live.timers.trimRun > 0),
   name: "KS-272C pitch trim servo", note: "Tailcone, arm 176.4, on the elevator trim cable: autotrim while engaged, manual electric trim (MET) otherwise — so the trim wheel turns. A trim fault lights PT and the red PITCH TRIM on the PFD (S3-11, S3-21).", pin: true });
 
 /* ---------- pitot-static and stall warning (POH 7-62, 7-65) ---------- */
@@ -234,7 +272,7 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], { pos: knobAt(15), color: "#E
 part(() => cyl(0.014, 0.02, "x"), ["environment"], { pos: knobAt(17.4), color: "#3E4A52", anim: (m) => { m.rotation.x = S().env.defrost * 2.4; }, name: "DEFROST knob", note: "Rotating control (Fig. 7-2 item 19): clockwise ON, counter-clockwise OFF — regulates air to the windshield; defrost air is as warm as the cabin heat (POH 7-60).", pin: true });
 part(() => box(0.012, 0.012, 0.03), ["environment"], { pos: knobAt(17.4), color: "#E8ECEE", anim: (m) => { m.rotation.x = S().env.defrost * 2.4; } });
 [1, -1].forEach((s) => {
-  part(() => box(0.03, 0.012, 0.12), ["environment"], { pos: P3(15.6, s * 7, 67.9), color: AIR, name: "Defroster outlet", note: "Two outlets on top of the glareshield fed from the cabin manifold (POH 7-60).", pin: s > 0 });
+  part(() => box(0.03, 0.012, 0.12), ["environment"], { pos: P3(17.0, s * 7, 67.35), color: AIR, name: "Defroster outlet", note: "Two outlets on top of the glareshield fed from the cabin manifold (POH 7-60).", pin: s > 0 });
   part(() => cyl(0.025, 0.02, "y"), ["environment"], { pos: wp(s * 19, 0.01, 0, -0.005), color: AIR, name: "Wing-root fresh air inlet", note: "Ram air at each wing root feeds the forward cabin upper and lower outlets and the duct to the rear cabin outlet — none of it passes the heater (Fig. 7-8).", ext: true, pin: s > 0 });
   part(() => sph(0.025), ["environment"], { pos: P3(30, s * 18.8, 76), color: AIR, name: "Adjustable ventilator (forward)", note: "Near each upper corner of the windshield for the pilot and front passenger (the gooseneck forward cabin upper outlet, arm 38.5) (POH 7-62, 6-20).", pin: s > 0 });
   part(() => cyl(0.022, 0.012, "z"), ["environment"], { pos: P3(31, s * 19.5, 34), color: AIR, name: "Forward cabin lower air outlet", note: "Round outlet below each wing-root duct, facing inboard (Fig. 7-8)." });
@@ -261,7 +299,7 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], { pos: PV(onSkin(X(109.5), Y(40),
 [1, -1].forEach((s) => part(() => box(0.12, 0.025, 0.02), ["cabin"], { pos: PV(onSkin(X(60.3), Y(48.3), s, 1.02)), color: "#5C666E", name: "Cabin door handle", note: "Recessed outside handle near the aft edge of each door; it must be out whenever the door is open. Inside handle OPEN – CLOSE – LOCK; key lock on the left door only. A door opening in flight isn't a reason to land: trim ≈ 80 KIAS, push the door out slightly, slam and lock it (POH 7-25).", ext: true, pin: s < 0 }));
 [1, -1].forEach((s) => part(() => box(0.5, 0.008, 0.008), ["cabin"], { pos: PV(onSkin(X(48), Y(53), s, 1.012)), color: "#0B1014", name: "Openable door window", note: "Hinged door windows (arm 48.0) with a detent latch on the lower edge; open at any speed up to 175 KIAS. Rear side windows and the rear window are fixed (POH 7-26, 2-4).", ext: true, pin: s < 0 }));
 // cowl flap lever, right side of the pedestal (Fig 7-2 item 26): down = CLOSED, right-then-up = OPEN
-part(() => box(0.06, 0.012, 0.012), ["engine", "cabin"], { pos: P3(24.5, 4.8, 36), color: "#E8ECEE", anim: (m) => { m.rotation.z = -0.5 + S().eng.cowl * 1.0; }, pinIn: ["engine"],
+part(() => box(0.06, 0.012, 0.012), ["engine", "cabin"], { pos: P3(24.5, 3.3, 36), color: "#E8ECEE", anim: (m) => { m.rotation.z = -0.5 + S().eng.cowl * 1.0; }, pinIn: ["engine"],
   name: "Cowl flap lever", note: "Right side of the pedestal: move right and up to OPEN, down to CLOSED. OPEN for start, takeoff, climb and ground runs; CLOSED in cruise unless needed to hold CHT near two-thirds of the green arc, and in long descents (POH 7-37, 4-15 – 4-24).", pin: true });
 // the Kap140 faceplate's position is shared with the screen in Model.tsx
 export const KAP_LCD = { pos: P3(KAP.fs + 0.05, KAP.bl - 0.6, KAP.h + 0.3), size: [0.085, 0.0213] as [number, number] };

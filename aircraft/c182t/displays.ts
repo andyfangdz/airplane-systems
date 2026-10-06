@@ -59,6 +59,7 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
   const fuelAlert = iL <= 0.05 || iR <= 0.05 ? "warning" : s.ann.lowFuelL || s.ann.lowFuelR ? "caution" : null;
   const rpm = Math.round(live.rpm / 10) * 10;
   const top: Gauge[] = [
+    // MAN IN green 15–23 (POH 2-6); the white arcs 10–15 and 23–35 are from the 2007 edition only (GFC 7-31)
     { key: "map", label: "MAN IN", style: "dial", compact: true, min: 10, max: 35, bands: [[10, 15, "white"], [15, 23, "green"], [23, 35, "white"]], value: v(live.map), fmt: f1 },
     // RPM pointer, value and label turn red and flash at 2,472 RPM or more (POH 7-29)
     { key: "rpm", label: "RPM", style: "dial", compact: true, min: 0, max: 2700, bands: [[2000, 2400, "green"], [2400, 2700, "red"]], value: v(rpm), fmt: f0, alert: rpm >= 2472 ? "warning" : null },
@@ -66,9 +67,8 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
   const oilPAlert = ok && (live.oilP <= 20 || live.oilP >= 115) ? "warning" : null, oilTAlert = live.oilT >= 245 ? "warning" : null, chtAlert = live.cht >= 500 ? "warning" : null;
   const fuel: Gauge = { key: "fuel", label: "FUEL QTY GAL", style: "pair", min: 0, max: 40, bands: [[0, 0.6, "red"], [0.6, 8, "yellow"], [8, 35, "green"]], value: v(iL), value2: v(iR), alert: fuelAlert };
   const elec = nav3ElecGauges({ ...E, mBus: ok ? E.mBus : null, eBus: ok ? E.eBus : null });
-  // exceedances bring the ENGINE page back from SYSTEM (POH 7-29 – 7-33)
-  const exceed = rpm >= 2472 || oilPAlert || oilTAlert || chtAlert;
-  if (s.avx.eisPage === "SYSTEM" && !exceed) {
+  // an exceedance starting on SYSTEM switches the page back to ENGINE (tick.ts, POH 7-29 – 7-33): the page and its title stay in step
+  if (s.avx.eisPage === "SYSTEM") {
     const rem = Math.max(0, live.galStart - live.galUsed);
     return [
       ...top,

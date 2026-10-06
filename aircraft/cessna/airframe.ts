@@ -112,15 +112,20 @@ export function cessnaAirframe(S: CessnaSpec) {
   /** Point on the fuselage side skin at FS / height (in), side ±1. */
   const skin = (fs: number, h: number, side: number, push = 1.006) => FUSE.onSkin(X(fs), Y(h), side, push);
 
-  /** Streamlined (teardrop-section) strut from a to b; `chord` and `thick` in metres, chord aligned with x. */
+  /**
+   * Streamlined (teardrop-section) strut from a to b; `chord` and `thick` in metres. Each section lies in the plane perpendicular to
+   * the strut, with the chord as close to fore-and-aft (x) as that plane allows and the thickness across it.
+   */
   function strutGeo(a: Vec3, b: Vec3, chord = 0.15, thick = 0.042, n = 14) {
     const A = V(...a), B = V(...b), secs: Ring[] = [];
+    const d = B.clone().sub(A).normalize();
+    const cd = V(1, 0, 0).addScaledVector(d, -d.x).normalize(), td = cd.clone().cross(d).normalize(); // (cd, td) winds like (x, z)
     for (let k = 0; k <= 6; k++) {
       const c = A.clone().lerp(B, k / 6), r: Ring = [];
       for (let i = 0; i < n; i++) {
         const th = (i / n) * Math.PI * 2, u = (1 - Math.cos(th)) / 2; // 0 at LE → 1 at TE
         const half = (thick / 2) * Math.sqrt(Math.max(0, u * (1 - u)) * 4) * (1 - 0.35 * u);
-        r.push(V(c.x + chord * 0.35 - u * chord, c.y, c.z + Math.sign(Math.sin(th)) * half));
+        r.push(c.clone().addScaledVector(cd, chord * 0.35 - u * chord).addScaledVector(td, Math.sign(Math.sin(th)) * half));
       }
       secs.push(r);
     }
@@ -183,11 +188,11 @@ export function taperTubeGeo(a: Vec3, b: Vec3, r0: number, r1: number, n = 14) {
  * Cessna speed fairing ("wheel pant"), inches in, metres out. A rounded pill, widest at the axle, with a blunt elliptical
  * nose and a tapering tail, cut flat underneath so the bottom of the tire shows. Origin at the axle, x forward, y up.
  * `axle` = fraction of the length from the nose to the axle; `lift` = centre height above the axle; `cut` = height of the
- * flat bottom relative to the axle (negative).
+ * flat bottom relative to the axle (negative); `tail` = exponent of the tail taper (0.62 = blunt, rounded; ≈ 1.1 = pointed).
  */
-export function wheelFairingGeo(o: { len: number; height: number; width: number; axle: number; lift: number; cut: number }) {
-  const L = o.len * IN, a = o.axle, x0 = a * L, N = 32, M = 28, ne = 2.6;
-  const prof = (t: number) => (t <= a ? Math.sqrt(Math.max(0, 1 - Math.pow((a - t) / a, 2))) : Math.pow(Math.max(0, 1 - Math.pow((t - a) / (1 - a), 2.3)), 0.62));
+export function wheelFairingGeo(o: { len: number; height: number; width: number; axle: number; lift: number; cut: number; tail?: number }) {
+  const L = o.len * IN, a = o.axle, x0 = a * L, N = 32, M = 28, ne = 2.6, tp = o.tail ?? 0.62;
+  const prof = (t: number) => (t <= a ? Math.sqrt(Math.max(0, 1 - Math.pow((a - t) / a, 2))) : Math.pow(Math.max(0, 1 - Math.pow((t - a) / (1 - a), 2.3)), tp));
   const secs: Ring[] = [];
   for (let k = 0; k <= N; k++) {
     const t = k / N, f = Math.max(0.03, prof(t)), x = x0 - t * L;

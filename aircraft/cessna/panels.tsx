@@ -13,8 +13,11 @@ import { FEEDER, NAV3_BUS_NAME, PULLABLE, cbKey, type Breaker, type Nav3Bus, typ
 
 type Upd = (fn: (d: Nav3Elec) => void) => void;
 
-/** MASTER (ALT | BAT), AVIONICS (BUS 1 | BUS 2) and STBY BATT (ARM / OFF / TEST, TEST momentary) with its green TEST lamp. */
-export function Nav3Switches({ e, E, up, testHeld = 0 }: { e: Nav3Elec; E: Nav3Solution; up: Upd; testHeld?: number }) {
+/**
+ * MASTER (ALT | BAT), AVIONICS (BUS 1 | BUS 2) and STBY BATT (ARM / OFF / TEST, TEST momentary) with its green TEST lamp.
+ * `testSeconds`: how long the POH says to hold TEST — 10 s in the 172S, 20 s in the 182T (POH 4-13); don't share the value.
+ */
+export function Nav3Switches({ e, E, up, testHeld = 0, testSeconds = 10 }: { e: Nav3Elec; E: Nav3Solution; up: Upd; testHeld?: number; testSeconds?: number }) {
   const hold = (on: boolean) => up((d) => { d.stby = on ? "TEST" : "OFF"; });
   return (
     <div className="n3-row">
@@ -23,7 +26,7 @@ export function Nav3Switches({ e, E, up, testHeld = 0 }: { e: Nav3Elec; E: Nav3S
         <div className="n3-seg" role="group" aria-label="STBY BATT switch">
           <button type="button" aria-pressed={e.stby === "ARM"} onClick={() => up((d) => { d.stby = "ARM"; })}>ARM</button>
           <button type="button" aria-pressed={e.stby === "OFF"} onClick={() => up((d) => { d.stby = "OFF"; })}>OFF</button>
-          <button type="button" aria-pressed={e.stby === "TEST"} title="Hold for the 10-second energy test (spring-loaded)"
+          <button type="button" aria-pressed={e.stby === "TEST"} title={`Hold for the ${testSeconds}-second energy test (spring-loaded)`}
             onPointerDown={(ev) => { ev.currentTarget.setPointerCapture?.(ev.pointerId); hold(true); }} onPointerUp={() => hold(false)} onPointerCancel={() => hold(false)}
             onKeyDown={(ev) => { if ((ev.key === " " || ev.key === "Enter") && !ev.repeat) { ev.preventDefault(); hold(true); } }}
             onKeyUp={(ev) => { if (ev.key === " " || ev.key === "Enter") hold(false); }}>{e.stby === "TEST" ? `${testHeld.toFixed(0)} s` : "TEST"}</button>

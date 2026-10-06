@@ -60,7 +60,12 @@ export function Engine() {
     [g.throttle > 0.04 && g.throttle < 0.2, "Throttle OPEN ¼ INCH"],
     [g.prop > 0.97, "PROPELLER HIGH RPM (push full in)"],
     [g.mix <= 0.05 || g.running, "Mixture IDLE CUTOFF"],
-    [s.elec.stby === "ARM" && E.eBus != null && E.eBus >= 24, "STBY BATT: TEST (lamp stays on), then ARM — BUS E ≥ 24 V, M BUS ≤ 1.5 V"],
+    [s.elec.stby === "ARM" && E.pfd, "STBY BATT: TEST 20 s (the green lamp must not go off), then ARM — the PFD comes on"],
+    [E.gea, "Engine Indicating System: no red X through the ENGINE page indicators"],
+    // checked before the MASTER goes on; once it is on (or the engine runs) these stay ticked
+    [s.elec.stby === "ARM" && E.eBus != null && E.eBus >= 24 && (s.elec.bat || g.running || (E.mBus ?? 0) <= 1.5), "BUS E ≥ 24 V and M BUS ≤ 1.5 V shown"],
+    [s.elec.stby === "ARM" && (s.elec.bat || g.running || E.sBatt < 0), "BATT S amps discharge (negative) and the STBY BATT annunciator shown"],
+    [s.elec.bat || g.running, "Propeller area CLEAR (people and equipment at a safe distance)"],
     [s.elec.bat && s.elec.alt, "MASTER (ALT and BAT) ON"],
     [s.lights.beacon, "BEACON ON"],
     [live.wet > 0.3 || g.running || warm, `Prime: FUEL PUMP ON, mixture FULL RICH until stable fuel flow (3–5 s), then IDLE CUTOFF and FUEL PUMP OFF${warm ? " — engine warm: omit" : ""}`],
@@ -92,7 +97,7 @@ export function Engine() {
       <Small>Full-throttle static RPM is about 2,350–2,400 and idle about 650 (POH 4-31, 4-32). Too much priming floods the engine: FUEL PUMP OFF, mixture IDLE CUTOFF, throttle ½ to full, crank; when it fires, mixture FULL RICH and retard the throttle (POH 4-13, 4-27). A warm engine (within 20–30 minutes of shutdown) needs no priming. Temperatures and fuel flow are a teaching model; cowl flaps and airspeed change CHT and oil temperature.</Small>
       <H3>Starting with battery (POH 4-12 – 4-14)</H3>
       <ol className="notes">{steps.map(([ok, t]) => <li key={t} style={{ color: ok ? "var(--ink)" : "var(--muted)" }}>{tick(ok)}{t}</li>)}</ol>
-      {live.crankTotal > 10 && <Caution title="Starter limit">Crank no more than 10 seconds, then let the starter cool 20 seconds; after three cycles cool it 10 minutes (POH 4-28).</Caution>}
+      {!g.running && live.crankTotal > 10 && <Caution title="Starter limit">Crank no more than 10 seconds, then let the starter cool 20 seconds; after three cycles cool it 10 minutes (POH 4-28).</Caution>}
       {g.running && s.ground && g.cowl < 0.5 && <Caution title="Cowl flaps">The engine is closely cowled: on the ground keep the cowl flaps open and point the airplane into the wind to avoid overheating (POH 4-31).</Caution>}
       <H3>Failures</H3>
       <Ctl>
@@ -105,13 +110,14 @@ export function Engine() {
           <Check id="gov" label="Governor fails (no oil to the hub)" checked={g.fail.gov} onChange={(v) => up((d) => { d.eng.fail.gov = v; })} />
         </BtnRow>
       </Ctl>
-      <Small>Engine-driven pump failure: FFLOW drops suddenly just before the power loss — FUEL PUMP ON restores enough fuel for maximum continuous power (POH 3-31). Engine failure in flight: 76 KIAS, selector BOTH, FUEL PUMP ON, mixture RICH, MAGNETOS BOTH (START if the propeller has stopped) — a windmilling propeller restarts it within a few seconds (POH 3-6, 3-7). Blocked filter: the alternate air door opens, ≈ 10% power loss at full throttle; hold manifold pressure with the throttle (POH 7-35, 3-29).</Small>
+      {g.fail.oil && <Caution title="Low oil pressure (POH 3-32)">OIL PRESSURE on: confirm on OIL PRES / OIL PSI. Pressure and temperature normal: suspect the sender or relief valve — land at the nearest airport. Total loss of oil pressure with rising oil temperature: the engine may be about to fail — reduce power immediately, select a field suitable for a forced landing and use only the minimum power needed to reach it.</Caution>}
+      <Small>Engine-driven pump failure: FFLOW drops suddenly just before the power loss — FUEL PUMP ON restores enough fuel for maximum continuous power (POH 3-31). Engine failure in flight: 76 KIAS, selector BOTH, FUEL PUMP ON, mixture RICH, MAGNETOS BOTH (START if the propeller has stopped) — a windmilling propeller restarts it within a few seconds — then FUEL PUMP OFF (back ON if FFLOW drops to zero: engine-driven pump failure) (POH 3-6, 3-7). Blocked filter: the alternate air door opens, ≈ 10% power loss at full throttle; hold manifold pressure with the throttle (POH 7-35, 3-29).</Small>
       <H3>Ignition</H3>
       <Facts rows={[["Right magneto", "Lower right + upper left plugs (POH 7-35)"], ["Left magneto", "Lower left + upper right plugs"], ["MAGNETOS", "OFF – R – L – BOTH – START (springs back to BOTH)"], ["Starter", "Front of the engine; relay in the J-box, coil fed through WARN (CROSSFEED BUS)"], ["Mag check", "1,800 RPM: ≤ 175 RPM drop each, ≤ 50 RPM between (POH 4-17)"], ["No drop", "Faulty ground (hot mag) or timing set in advance"]]} />
       <H3>Engine data (POH 1-5, 2-6, 7-27 – 7-37)</H3>
       <Facts rows={[
         ["Rating", "230 BHP @ 2,400 RPM (maximum for takeoff and continuous)"],
-        ["Oil", "8 qt sump, 9 qt with the filter · never less than 4 qt · 9 qt for extended flight"],
+        ["Oil", "8 qt sump, 9 qt total (POH 1-7, 8-14; placard OIL 9 QTS) · never less than 4 qt · 8 qt for flights under 3 h, 9 qt for extended flight (POH 7-34). Section 7 (p. 7-34) states the sump as 9 qt plus 1 qt in the filter; Sections 1 and 8 and the placard govern"],
         ["Oil pressure", "Red 0–20 · green 50–90 · red 115–120 PSI"],
         ["Oil temperature", "Green 100–245 °F · red 245"],
         ["MAN IN", "Green 15–23 in.Hg"],
@@ -151,8 +157,8 @@ export function Propeller() {
       </Ctl>
       <Small>Blade angle at the 30-inch station: 14.9° (low-pitch stop) to 31.7° (high pitch) (POH 1-5). Below the governed RPM — at idle, or with little power — the blades sit on the low-pitch stop and the propeller acts like a fixed-pitch one. Governor range here: 2,400 RPM full in down to ≈ 1,500 full out (the low end is an assumption). A failed governor lets the blades go to low pitch, so RPM follows throttle and airspeed and can overspeed (an inference from POH 7-37).</Small>
       <H3>Using it</H3>
-      <Notes items={["Takeoff and climb: 2,400 RPM, PROPELLER full in (POH 4-19).", "Run-up at 1,800 RPM: cycle the propeller from high to low RPM and back to high (full in) — it checks the governor and puts warm oil in the hub (POH 4-17).", "Reduce power with the throttle first, then RPM; increase RPM first, then throttle. Cruise 15–23 in.Hg at 2,000–2,400 RPM (POH 4-20).", "Before landing and for a balked landing: PROPELLER HIGH RPM (push full in) (POH 4-22, 4-23).", "Ice: if vibration builds, momentarily reduce to 2,200 RPM with the propeller control, then move it rapidly forward to shed ice (POH 3-12)."]} />
-      <Facts rows={[["Model", "McCauley B3D36C431/80VSA-1, oil-filled hub"], ["Diameter", "79.0 in (77.5 minimum)"], ["Blades", "3, all metal, constant speed"], ["Pitch", "14.9° low · 31.7° high at the 30-in station"], ["Governor", "C161031-0119, arm −42.5, oil from the left gallery"], ["Ground clearance", "10 7/8 in"], ["Spinner", "D-7261-2, arm −49.9"], ["Care", "Check for nicks and red oil leaks; never alkaline cleaners (POH 4-10, 8-23)"]]} />
+      <Notes items={["Takeoff and climb: 2,400 RPM, PROPELLER full in (POH 4-19).", "Run-up at 1,800 RPM: cycle the propeller from high to low RPM and back to high (full in) — it checks the governor and puts warm oil in the hub (POH 4-17).", "Cruise 15–23 in.Hg at 2,000–2,400 RPM, no more than 80% power recommended (POH 4-20).", "General constant-speed practice, not stated in the POH: to reduce power, throttle first, then RPM; to increase power, RPM first, then throttle.", "Before landing and for a balked landing: PROPELLER HIGH RPM (push full in) (POH 4-22, 4-23).", "Ice: if vibration builds, momentarily reduce to 2,200 RPM with the propeller control, then move it rapidly forward to shed ice (POH 3-12)."]} />
+      <Facts rows={[["Model", "McCauley B3D36C431/80VSA-1, oil-filled hub"], ["Diameter", "79.0 in (POH 1-5, 2-6); minimum 77.5 in per the 2007 edition (GFC 2-6) and TCDS 3A13"], ["Blades", "3, all metal, constant speed"], ["Pitch", "14.9° low · 31.7° high at the 30-in station"], ["Governor", "C161031-0119, arm −42.5, oil from the left gallery"], ["Ground clearance", "10 7/8 in"], ["Spinner", "D-7261-2, arm −49.9"], ["Care", "Check for nicks and red oil leaks; never alkaline cleaners (POH 4-10, 8-23)"]]} />
       <PartsList parts={CAT.pinned("propeller")} />
     </>
   );

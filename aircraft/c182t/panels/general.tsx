@@ -50,7 +50,7 @@ export function Overview() {
           </button>
         ))}
       </div>
-      <p className="disc">Unofficial study aid. Sources: Cessna Model 182T NAV III Pilot&apos;s Operating Handbook and FAA Approved Airplane Flight Manual 182TPHAUS-04 (Revision 4, 22 December 2005; the KAP 140 edition for serials 18281228 and 18281318 – 18281868, which includes 18281633 and 18281732) Sections 1–8; Supplement 3, Bendix/King KAP 140 2-Axis Autopilot (182TPHAUS-S3-02); Supplement 1 (Pointer 3000-11 ELT); Garmin G1000 Cockpit Reference Guide for the Cessna NAV III, 190-00384-13 Rev. B; FAA TCDS 3A13 Rev 66 for control-surface travel. The 2007 GFC 700 edition (182TPHBUS-01) is used only where the 2005 text is silent, and marked. Breaker ratings the POH doesn&apos;t print are left blank. Geometry is approximate, flight behaviour is a teaching model and currents are illustrative. The equipment actually fitted to N8050J and N21200 (alternator, fairings, ELT, options) is not known — always use the airplane&apos;s own POH/AFM, supplements and equipment list.</p>
+      <p className="disc">Unofficial study aid. Sources: Cessna Model 182T NAV III Pilot&apos;s Operating Handbook and FAA Approved Airplane Flight Manual 182TPHAUS-04 (Revision 4, 22 December 2005; this copy issued for s/n 18281780) Sections 1–8; Supplement 3, Bendix/King KAP 140 2-Axis Autopilot (182TPHAUS-S3-02), effective for serials 18281228, 18281318 – 18281868 and 18281870 – 18281875, which includes 18281633 and 18281732; Supplement 1 (Pointer 3000-11 ELT); Garmin G1000 Cockpit Reference Guide for the Cessna NAV III, 190-00384-13 Rev. B; FAA TCDS 3A13 Rev 66 for control-surface travel. The 2007 GFC 700 edition (182TPHBUS-01) is used only where the 2005 text is silent, and marked. Breaker ratings the POH doesn&apos;t print are left blank. Geometry is approximate, flight behaviour is a teaching model and currents are illustrative. The equipment actually fitted to N8050J and N21200 (alternator, fairings, ELT, options) is not known — always use the airplane&apos;s own POH/AFM, supplements and equipment list.</p>
     </>
   );
 }
@@ -110,7 +110,9 @@ export function Airframe() {
 /* ---------- cabin & safety ---------- */
 export function Cabin() {
   useTicker(500);
-  const s = useC182((x) => x.s), up = useC182((x) => x.update), c = s.cabin;
+  const s = useC182((x) => x.s), E = useC182((x) => x.E), up = useC182((x) => x.update), c = s.cabin;
+  // the hour meter needs oil pressure above 20 PSI and power through the WARN breaker (POH 7-12, Fig 7-7 Sheet 2)
+  const hobbs: [string, "" | "warnc"] | string = !E.warnPwr ? ["No (no WARN power)", "warnc"] : live.oilP > 20 ? "Yes (oil > 20 PSI)" : "No";
   return (
     <>
       <p className="lead">Two vertically adjusting crew seats and a split-back rear bench, integrated belts with inertia reels, two cabin doors with openable windows, a three-area baggage compartment with a lockable door on the left, and the safety equipment: Halon extinguisher, ELT, CO detector and hour meter (POH 7-21 – 7-27, 7-74).</p>
@@ -118,7 +120,7 @@ export function Cabin() {
       <Ctl>
         <Check id="lock" label="Control lock installed (flag over the ignition switch)" checked={c.lock} onChange={(v) => up((d) => { d.cabin.lock = v; })} />
         <Seg id="elt" label="ELT remote switch" options={[["ON", "ON"], ["AUTO", "AUTO"], ["RESET", "RESET"]] as [Elt, string][]} value={c.elt} onChange={(v) => up((d) => { d.cabin.elt = v; })} />
-        <Readouts items={[["Hobbs", live.hobbs.toFixed(1)], ["Hobbs running", live.oilP > 20 ? "Yes (oil > 20 PSI)" : "No"], ["ELT", c.elt === "ON" ? ["TRANSMITTING", "bad"] : c.elt === "RESET" ? ["RESET", "warnc"] : "Armed (AUTO)"], ["CO", live.coPpm >= 50 ? ["CO LVL HIGH", "bad"] : `${Math.round(live.coPpm)} ppm`]]} />
+        <Readouts items={[["Hobbs", live.hobbs.toFixed(1)], ["Hobbs running", hobbs], ["ELT", c.elt === "ON" ? ["TRANSMITTING", "bad"] : c.elt === "RESET" ? ["RESET", "warnc"] : "Armed (AUTO)"], ["CO", live.coPpm >= 50 ? ["CO LVL HIGH", "bad"] : `${Math.round(live.coPpm)} ppm`]]} />
       </Ctl>
       {c.lock && <Caution title="Caution">CONTROL LOCK — REMOVE BEFORE STARTING ENGINE (placard, POH 2-18).</Caution>}
       <H3>Equipment — tap to locate</H3>

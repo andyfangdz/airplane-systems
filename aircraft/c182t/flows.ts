@@ -21,9 +21,9 @@ const FUEL = "#2F7FE6", RET = "#7EB3F5", VALVE = P3(27.2, 0, 24.6);
 [1, -1].forEach((s) => {
   const sd = s > 0 ? "R" : "L";
   // particles only: the manifold tube itself is a catalogue part
-  flow("fuel" + sd, [wp(s * 24.5, 0.62, -1, 0.02), P3(65, s * 21.2, 78), P3(65, s * 21.3, 30), P3(40, s * 8, 26.8), P3(27.5, s * 2.5, 25.4)], ["fuel"],
+  flow("fuel" + sd, [wp(s * 24.5, 0.62, -1, 0.02), P3(65, s * 19.4, 78), P3(65, s * 19.4, 30), P3(40, s * 8, 26.8), P3(27.5, s * 2.5, 25.4)], ["fuel"],
     { tube: false, pcolor: "#5FA0FF", size: 0.05, name: (s > 0 ? "Right" : "Left") + " tank supply" });
-  flow("ret" + sd, [P3(27.4, s * 1, 25.9), P3(40, s * 9.4, 27.8), P3(64.4, s * 20.4, 31), P3(64.4, s * 20.4, 77.5), wp(s * 27, 0.6, -1, 0.03)], ["fuel"],
+  flow("ret" + sd, [P3(27.4, s * 1, 25.9), P3(40, s * 9.4, 27.8), P3(64.2, s * 18.9, 31), P3(64.2, s * 18.9, 77.5), wp(s * 27, 0.6, -1, 0.03)], ["fuel"],
     { r: 0.005, color: RET, name: "Fuel return line to the " + (s > 0 ? "right" : "left") + " tank", note: "From the top (return) section of the selector back up the aft door post to the tank — only to the tank(s) selected as the feed (POH 7-43)." });
 });
 flow("fuelPump", [VALVE, P3(18, 1, 25), P3(2, 3, 26.8), P3(0, 4, 28), P3(-10, 5, 30.4), P3(-12, 5, 31)], ["fuel"], { r: 0.01, color: FUEL, name: "Selector → auxiliary fuel pump", note: "Supply section of the selector, forward under the floor and through the firewall to the aux pump (Fig. 7-6)." });
@@ -71,7 +71,7 @@ flow("toMan", [P3(0.6, -5, 39), P3(3, -3, 34), MANIFOLD], ["environment"], { r: 
 flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 0.022, color: AIR });
 [1, -1].forEach((s) => {
   const sd = s > 0 ? "R" : "L";
-  flow("defrost" + sd, [MANIFOLD, P3(8, s * 4, 48), P3(13, s * 6, 63), P3(15.6, s * 7, 67.6)], ["environment"], { r: 0.014, color: AIR, name: "Defroster duct", note: "Manifold → defroster outlet on top of the glareshield; the DEFROST knob sets the flow (POH 7-60)." });
+  flow("defrost" + sd, [MANIFOLD, P3(8, s * 4, 48), P3(13, s * 6, 63), P3(16.8, s * 7, 67.1)], ["environment"], { r: 0.014, color: AIR, name: "Defroster duct", note: "Manifold → defroster outlet on top of the glareshield; the DEFROST knob sets the flow (POH 7-60)." });
   flow("floor" + sd, [MANIFOLD, P3(8, s * 10, 27)], ["environment"], { r: 0.012, color: AIR, name: "Front floor outlets", note: "Outlet holes across the manifold just forward of the front occupants' feet (POH 7-60)." });
   flow("rear" + sd, [MANIFOLD, P3(8, s * 14, 28), P3(14, s * 16.5, 27.5)], ["environment"], { r: 0.012, color: AIR, name: "Rear cabin floor duct", note: "Down each side of the cabin to an outlet just aft of the rudder pedals at floor level (POH 7-60)." });
   flow("wroot" + sd, [wp(s * 19, 0.01, 0, -0.005), wp(s * 17.5, 0.06, 0, -0.01), P3(29, s * 18.2, 79), P3(30, s * 18.8, 76)], ["environment"], { r: 0.012, color: AIR, pcolor: "#5FC8F0", name: "Wing-root fresh air", note: "To the forward cabin upper (adjustable) and lower outlets — not heated (Fig. 7-8)." });
@@ -81,7 +81,7 @@ flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 
 
 /* ---------- pitot-static, stall warning, vacuum ---------- */
 const PIT = "#3A9448", ADC = P3(11.4, 10.5, 61.5), SBY = P3(16.6, 0.6, 52.2);
-flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-110, 0.2, -1, 0.04), wp(-60, 0.25, 0), wp(-17, 0.22, -1, 0.03), P3(31.6, -18.9, 76), P3(30.6, -18.9, 50), P3(20, -8, 50), SBY], ["pitot"],
+flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-110, 0.2, -1, 0.04), wp(-60, 0.25, 0), wp(-17, 0.22, -1, 0.03), P3(31.6, -19.4, 76), P3(30.6, -19.6, 50), P3(16, -19.6, 50), P3(16, -8, 50), SBY], ["pitot"],
   { r: 0.006, color: PIT, name: "Pitot line", note: "Pitot head → left wing → forward door post → standby airspeed indicator and the GDC 74A (POH 7-62)." });
 flow("pitot2", [SBY, P3(14, 5, 57), ADC], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line to the GDC 74A" });
 const STAT = "#2E7A3A";
@@ -109,9 +109,10 @@ flow("starter", [JBOX, P3(-12, -12, 40), P3(-36, -8, 42.5)], ["electrical", "eng
 const KAPU = P3(KAP.fs - 0.6, KAP.bl, KAP.h), SV = RIG_SPEC.servo, APC = "#E0A21C";
 flow("kapNav", [P3(136, 4.5, 49.5), P3(110, 9, 31), P3(40, 9, 27.5), P3(16, 3, 40), KAPU], ["autopilot"], { r: 0.004, color: "#C8399F", name: "NAV / HDG / GPSS signals", note: "GIA 63 #2 sends the selected course, heading bug and GPS roll steering to the KAP 140 (Fig. S3-1)." });
 flow("kapTc", [P3(15.5, 4, 53), P3(16, 2, 51), KAPU], ["autopilot"], { r: 0.004, color: "#9C4C88", name: "Roll-rate signal", note: "From the hidden DC turn coordinator — the KAP 140's own attitude sensing (POH 7-12)." });
-flow("apRoll", [KAPU, P3(16, 2, 60), P3(28, 17, 70), P3(40, 14, 79.6), P3(SV.roll[0], SV.roll[1], SV.roll[2] - 2.6)], ["autopilot"], { r: 0.004, color: APC, name: "Roll servo drive", note: "KAP 140 → KS 271C roll servo (FS 52.0)." });
-flow("apPitch", [KAPU, P3(16, 2, 45), P3(20, 7, 29), P3(90, 8, 28.5), P3(SV.pitch[0], SV.pitch[1] + 4, SV.pitch[2])], ["autopilot"], { r: 0.004, color: APC, name: "Pitch servo drive", note: "KAP 140 → KS-270C pitch servo (FS 158.8)." });
-flow("apTrim", [P3(90, 8, 28.5), P3(150, -1, 33), P3(SV.trim[0], SV.trim[1] - 4, SV.trim[2])], ["autopilot"], { r: 0.004, color: APC, name: "Pitch trim servo drive", note: "KAP 140 → KS-272C pitch trim servo (FS 176.4): autotrim and manual electric trim." });
+// behind the panel to the right side wall, aft under the windshield sill, up inside the forward door post, across the cabin top
+flow("apRoll", [KAPU, P3(15, 2, 60), P3(15, 19.8, 62), P3(29.3, 20.0, 62.5), P3(29.8, 19.6, 76), P3(40, 14, 79.6), P3(SV.roll[0], SV.roll[1], SV.roll[2] - 2.6)], ["autopilot"], { r: 0.004, color: APC, name: "Roll servo drive", note: "KAP 140 → KS 271C roll servo (FS 52.0)." });
+flow("apPitch", [KAPU, P3(16, 2, 45), P3(20, 7, 29), P3(90, 8, 28.5), P3(SV.pitch[0], SV.pitch[1] + 1.5, SV.pitch[2])], ["autopilot"], { r: 0.004, color: APC, name: "Pitch servo drive", note: "KAP 140 → KS-270C pitch servo (FS 158.8)." });
+flow("apTrim", [P3(90, 8, 28.5), P3(150, -1, 33), P3(SV.trim[0], SV.trim[1] - 1.5, SV.trim[2])], ["autopilot"], { r: 0.004, color: APC, name: "Pitch trim servo drive", note: "KAP 140 → KS-272C pitch trim servo (FS 176.4): autotrim and manual electric trim." });
 
 /* ---------- control cables (Figure 7-1) and flap drive ---------- */
 CABLES.forEach((c) => flow(c.key, c.pts, ["controls"], { r: 0.004, size: 0.04, tension: 0.05, name: c.name, note: c.note, count: 18, chan: c.chan === "trim" ? ["elevator"] : [c.chan as Chan] }));
@@ -206,8 +207,9 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   return R;
 }
 
+const HOT_AIR = new THREE.Color("#FF7A3D");
 /** Cabin-air particle colour follows the CABIN HT / CABIN AIR blend. */
 export function cabinAirColor(s: Sim, out: THREE.Color) {
   const h = s.env.heat / Math.max(0.05, s.env.heat + s.env.air);
-  return out.set("#5FC8F0").lerp(new THREE.Color("#FF7A3D"), s.eng.running ? h : 0);
+  return out.set("#5FC8F0").lerp(HOT_AIR, s.eng.running ? h : 0);
 }

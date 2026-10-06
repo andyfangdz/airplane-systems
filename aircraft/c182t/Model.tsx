@@ -16,27 +16,47 @@ import { drawKapScreen, drawMfdScreen, drawOff, drawPfdScreen, drawSbyAi, drawSb
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
-import { CAT, COWL_FLAP, NOSE, NOSE_CASTER, P3, PROP, YOKES, surfacePivot } from "./parts";
+import type { SysId } from "@/lib/systems";
+import { narrowLayout } from "./layout";
+import { CAT, COWL_FLAP, NOSE, NOSE_CASTER, NOSE_RAKE, P3, PROP, YOKES, surfacePivot } from "./parts";
 import { KAP_LCD, LIGHTS, TANK_BL } from "./parts-systems";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM, aftCrankAngle, aftLinks, rudTrimLinks } from "./rig";
+import type { CtlIn } from "../cessna/rig";
+
+type Pose = ReturnType<typeof RIG.pose>;
 import { useC182 } from "./store";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
 const st = () => useC182.getState();
-/** Effective control inputs: the pilot's (or the KAP 140 servos'), the rudder trim bungee's bias on the rudder bars, the trim position. */
-const ctlIn = () => ({ ...live.ctl, yaw: clamp(live.ctl.yaw + st().s.ctrl.rudTrim * RUD_TRIM.bias, -1, 1), trim: live.kap.trim });
+
+/**
+ * Effective control inputs — the pilot's (or the KAP 140 servos'), the rudder trim bungee's bias on the rudder bars, the trim
+ * position — with the rig pose and surface angles that follow from them. The surfaces, the rig and the links all ask every frame,
+ * so these are recomputed only when an input changes.
+ */
+const IN = { p: NaN, r: NaN, y: NaN, t: NaN, f: NaN, c: { pitch: 0, roll: 0, yaw: 0, trim: 0 } as CtlIn, pose: null as unknown as Pose, sa: {} as Record<string, number> };
+function rigState() {
+  const p = live.ctl.pitch, r = live.ctl.roll, y = clamp(live.ctl.yaw + st().s.ctrl.rudTrim * RUD_TRIM.bias, -1, 1), t = live.kap.trim, f = live.flapAng;
+  if (p !== IN.p || r !== IN.r || y !== IN.y || t !== IN.t || f !== IN.f) {
+    IN.p = p; IN.r = r; IN.y = y; IN.t = t; IN.f = f;
+    IN.c = { pitch: p, roll: r, yaw: y, trim: t };
+    IN.pose = RIG.pose(IN.c);
+    IN.sa = RIG.surfaceAngles(IN.c, f);
+  }
+  return IN;
+}
 
 /** Control-surface deflections (radians) from the wheel/pedals or the KAP 140 servos, the flap motor and the trim. */
-const surfaceAngle = (key: string) => (RIG.surfaceAngles(ctlIn(), live.flapAng) as Record<string, number>)[key] ?? 0;
+const surfaceAngle = (key: string) => rigState().sa[key] ?? 0;
 
 /** Nosewheel steering: about 11° each side with the pedals, up to 29° with differential braking (POH 7-19). */
-const steerDeg = () => clamp(ctlIn().yaw * 11 + st().s.gear.diff * 18, -29, 29);
+const steerDeg = () => clamp(rigState().c.yaw * 11 + st().s.gear.diff * 18, -29, 29);
 
 function NoseGear() {
   const caster = useRef<THREE.Group>(null!);
   useFrame(() => { caster.current.rotation.y = -steerDeg() * D2R; });
   return (
-    <group position={NOSE}>
+    <group position={NOSE} rotation={[0, 0, NOSE_RAKE]}>
       <P parent="noseGear" />
       <group ref={caster} position={NOSE_CASTER}><P parent="caster" /></group>
     </group>
@@ -88,7 +108,7 @@ function ControlRig() {
   const set = (k: string) => (o: THREE.Object3D | null) => { g.current[k] = o; };
   const Y = RIG_SPEC.yoke;
   useFrame(() => {
-    const c = ctlIn(), p = RIG.pose(c), G = g.current;
+    const { c, pose: p } = rigState(), G = g.current;
     YOKES.forEach(({ side }) => { const y = G["yoke:" + side], w = G["wheel:" + side]; if (y) y.position.x = P3(Y.fs, 0, 0)[0] + p.yokeX; if (w) w.rotation.x = p.wheel; });
     if (G.cross) G.cross.position.x = P3(Y.colFs, 0, 0)[0] + p.yokeX;
     if (G.crank) G.crank.rotation.z = p.crank;
@@ -131,14 +151,18 @@ const LINKS: Record<string, LinkSpec> = {
   bungeeL: { name: "Steering bungee", note: "Spring-loaded steering bungee from the rudder bars to the nose gear: about 11° each side with the pedals, up to 29° with differential braking (POH 7-19).", r: 0.008, chan: "rudder", sys: ["controls", "gear"], color: "#7C57CF" },
   bungeeR: { name: "Steering bungee", note: "Spring-loaded steering bungee from the rudder bars to the nose gear: about 11° each side with the pedals, up to 29° with differential braking (POH 7-19).", r: 0.008, chan: "rudder", sys: ["controls", "gear"], color: "#7C57CF" },
 };
-const PIV = (() => {
-  const g = (k: string) => surfacePivot(k);
-  const ax = (k: string) => CAT.surfaces.find((s) => s.key === k)!.axis;
-  return () => ({ ailR: g("ailR"), ailL: g("ailL"), axR: ax("ailR"), axL: ax("ailL"), elevR: g("elevR"), axE: ax("elevR") });
-})();
+/** Hinge pivots and axes of the surfaces the links ride on (fixed: looked up once, on first use). */
+let piv: { ailR: Vec3; ailL: Vec3; axR: Vec3; axL: Vec3; elevR: Vec3; axE: Vec3 } | null = null;
+const PIV = () => {
+  if (!piv) {
+    const g = (k: string) => surfacePivot(k), ax = (k: string) => CAT.surfaces.find((s) => s.key === k)!.axis;
+    piv = { ailR: g("ailR"), ailL: g("ailL"), axR: ax("ailR"), axL: ax("ailL"), elevR: g("elevR"), axE: ax("elevR") };
+  }
+  return piv;
+};
 const linkPoints = () => {
-  const c = ctlIn(), piv = PIV(), sa = RIG.surfaceAngles(c, 0);
-  return { ...RIG.links(c, RIG.pose(c), steerDeg(), piv), ...aftLinks(c.pitch, sa.elevR, piv.elevR, piv.axE), ...rudTrimLinks(RIG.pose(c).pedal, st().s.ctrl.rudTrim) };
+  const { c, pose, sa } = rigState(), pv = PIV();
+  return { ...RIG.links(c, pose, steerDeg(), pv), ...aftLinks(c.pitch, sa.elevR, pv.elevR, pv.axE), ...rudTrimLinks(pose.pedal, st().s.ctrl.rudTrim) };
 };
 
 /* ---------- integral wing tanks: fuel level is a clipping plane ---------- */
@@ -157,22 +181,30 @@ const dimDisplay = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
   if (v > 0.03) { ctx.fillStyle = `rgba(0,0,0,${(0.78 * (1 - v)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
 };
 const SCREENS: ScreenSpec[] = [
-  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, -11.5, 61.6), sys: ["avionics"], name: "PFD — GDU 1040",
+  // label anchors on the bezel's top edge / the instrument's top edge, so the labels sit above the displays instead of on them
+  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, -11.5, 61.6), pinAt: [0, 0.104, 0], sys: ["avionics"], name: "PFD — GDU 1040",
     note: "Primary flight display with the annunciation window and the red PITCH TRIM box (top right) — no AFCS status bar: the KAP 140 has its own display. Shows PFD + EIS when the MFD is lost or DISPLAY BACKUP is pressed.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.pfd) { drawPfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
-  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, 10.5, 61.6), sys: ["avionics", "engine"], name: "MFD — GDU 1040",
+  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, 10.5, 61.6), pinAt: [0, 0.104, 0], sys: ["avionics", "engine"], name: "MFD — GDU 1040",
     note: "Engine Indication System strip (ENGINE or SYSTEM page) and the moving map. MFD breaker, AVIONICS BUS 2.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) { drawMfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
-  { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, -3.6, 54.4), sys: ["avionics", "pitot"], name: "Standby airspeed",
+  { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, -3.6, 54.4), pinAt: [0, 0.041, 0], sys: ["avionics", "pitot"], name: "Standby airspeed",
     note: "Mechanical, on the shared pitot and static lines, arm 16.2 (POH 7-11, 6-23). Use it when the PFD airspeed shows a red X (POH 3-19).", draw: (ctx, W, H) => drawSbyAsi(ctx, W, H, st().s) },
-  { key: "ai", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, 0.6, 54.4), sys: ["vacuum"], name: "Standby attitude",
+  { key: "ai", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, 0.6, 54.4), pinAt: [0, -0.041, 0], sys: ["vacuum"], name: "Standby attitude",
     note: "Vacuum gyro with a GYRO flag for low vacuum. Don't use it if VAC is out of the green or the flag shows (POH 7-63, 3-21).", draw: (ctx, W, H) => drawSbyAi(ctx, W, H) },
-  { key: "alt", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, 4.8, 54.4), sys: ["avionics"], name: "Standby altimeter",
+  { key: "alt", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, 4.8, 54.4), pinAt: [0, 0.041, 0], sys: ["avionics"], name: "Standby altimeter",
     note: "Sensitive aneroid altimeter with 20 ft markings, inches of mercury and millibars, arm 15.3 (POH 6-23).", draw: (ctx, W, H) => drawSbyAlt(ctx, W, H, st().s) },
-  { key: "kap", px: [400, 100], size: KAP_LCD.size, pos: KAP_LCD.pos, sys: ["autopilot", "avionics"], name: "KAP 140 display",
+  { key: "kap", px: [400, 100], size: KAP_LCD.size, pos: KAP_LCD.pos, pinAt: [0, KAP_LCD.size[1] / 2, 0], sys: ["autopilot", "avionics"], name: "KAP 140 display",
     note: "Lateral mode and ARM left, AP and PT centre, vertical mode and ARM right, ALERT and the altitude / VS / baro readout; red P and R lamps bottom left (S3-8). Blank without the AUTO PILOT breaker or AVIONICS BUS 2.",
     draw: (ctx, W, H) => drawKapScreen(ctx, W, H) },
 ];
+
+// on the phone layout the standby instruments and the KAP 140 LCD carry no label pin (a screen's pin follows its `sys`)
+SCREENS.forEach((d) => {
+  if (!["asi", "ai", "alt", "kap"].includes(d.key)) return;
+  const all = d.sys, none: SysId[] = [];
+  Object.defineProperty(d, "sys", { get: () => (narrowLayout() ? none : all), enumerable: true });
+});
 
 /* ---------- lights ---------- */
 const extOn = (k: "nav" | "strobe" | "land" | "taxi" | "beacon") => () => {

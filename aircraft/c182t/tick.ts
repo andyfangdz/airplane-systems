@@ -6,11 +6,11 @@
  */
 import { clamp, lerp } from "@/lib/math";
 import { initFlight, pitchFor, stepFlight, yokeCmd, type FlightState, type NavSrc } from "@/lib/avionics/flight";
-import { kap140Command, kap140Power, kap140Tick } from "@/lib/avionics/kap140";
+import { kap140Command, kap140Power, kap140Tick, type Kap140State } from "@/lib/avionics/kap140";
 import { stepNav3Soc } from "../cessna/electrical";
 import { vacuumInHg } from "../cessna/annunciations";
 import {
-  C182_FLIGHT, bladeGov, elecCfg, fuelFlowGph, fuelInd, govRpm, kapReady, lambda, live, magsLive, manifold, powerFrac, rpmFine, stallKias,
+  C182_FLIGHT, bladeGov, eisExceedance, elecCfg, fuelFlowGph, fuelInd, govRpm, kapReady, lambda, live, magsLive, manifold, powerFrac, rpmFine, stallKias,
   type Elec, type Sim,
 } from "./model";
 import { useC182 } from "./store";
@@ -58,7 +58,7 @@ export function simTick(dt: number) {
     // warm engine: the fuel manifold stays primed for 20–30 min after shutdown — omit priming (POH 4-13 NOTE, 4-27)
     const warm = live.hot > 0.6 && E.fuelOk;
     if (cranking && live.crankT > 1.0 && magsLive(g) > 0 && live.wet < 1.9 && (live.wet > 0.3 || warm)) {
-      live.wet = 0.15; live.primeRun = 0;
+      live.wet = 0.15; live.primeRun = 0; live.crankTotal = 0;
       up((d) => { d.eng.running = true; });
     }
     // windmilling restart (POH 3-7: "If propeller is windmilling, engine will restart automatically within a few seconds")
@@ -115,6 +115,10 @@ export function simTick(dt: number) {
   if (run && E.gea) live.engHrs += dt / 3600;
   const rpmQ = Math.round(live.rpm / 50) * 50;
   if (rpmQ !== cur.eng.rpm) up((d) => { d.eng.rpm = rpmQ; });
+  // an exceedance starting on the SYSTEM page brings the EIS back to the ENGINE page (POH 7-29 – 7-33)
+  const ex = eisExceedance(E);
+  if (ex && !live.eisEx && cur.avx.eisPage === "SYSTEM") up((d) => { d.avx.eisPage = "ENGINE"; });
+  live.eisEx = ex;
 
   /* ---------- vacuum and the standby attitude gyro ---------- */
   live.vac = vacuumInHg(live.rpm, cur.vac.fail);
@@ -169,9 +173,10 @@ export function simTick(dt: number) {
 }
 
 /**
- * The flight state as the KAP 140 sees it. It gets NAV, HDG and roll steering from the G1000 through GIA #2 (Fig S3-1); ROL, VS and
- * ALT run on its own DC turn coordinator and the encoder altitude (POH 7-12). Its "attitude" failure is the turn coordinator, not the
- * AHRS; with the AHRS or GIA #2 lost it works in ROL only (S3-19).
+ * The flight state as the KAP 140 sees it. It gets NAV, HDG and roll steering from the G1000 through GIA #2 (Fig S3-1). ROL uses its
+ * own DC turn coordinator; VS and ALT run independently of the G1000 (POH 7-12 — their sensor isn't named); the encoder's gray-code
+ * altitude feeds only the alerter and preselect (S3-19 item 5). Its "attitude" failure is the turn coordinator, not the AHRS; with the
+ * AHRS or GIA #2 lost it works in ROL only (S3-19; POH 3-26 instead says only HDG is lost — the supplement is modelled).
  */
 export const kapView = (s: Sim, E: Elec, f: FlightState): FlightState => ({ ...f, fail: { ...f.fail, att: s.avx.tcFail }, navValid: f.navValid && E.gia2 && E.ahrs });
 
@@ -182,6 +187,8 @@ function stepAir(s: Sim, E: Elec, P: number, dt: number) {
     navValid: navValid(live.fs.navSrc, E),
   };
   const kfs = (f: FlightState) => kapView(s, E, f);
+  // engaged when the AUTO PILOT breaker or AVIONICS BUS 2 drops: the computer goes dark, but the disconnect horn is on WARN (S3-10)
+  if (live.kap.ap && !E.kapPwr) live.discTone = fs.t + 2;
   live.kap = kap140Power(live.kap, E.kapPwr, fs.t);
   // no heading signal (AHRS or GIA #2 lost): HDG can't work — it flashes and the pilot selects ROL (S3-18, S3-19)
   if (live.kap.ap && live.kap.lat === "HDG" && (!E.ahrs || !E.gia2)) live.kap = { ...live.kap, lat: "ROL", lostLat: "HDG" };
@@ -233,8 +240,13 @@ export function scenarioColdDark() {
   });
 }
 
+/** KAP 140 disengaged and back to ROL / VS with nothing armed (keeps power, self-test, preselect, baro and trim). */
+const kapOff = (k: Kap140State): Kap140State => ({ ...k, ap: false, lat: "ROL", latArm: null, vert: "VS", gsArm: false, altArm: false, hold: null, pt: null, lostLat: null, lostGs: false, apFlash: 0, hdgFlash: 0, tone: 0, toneKind: null });
+
 /** Engine running at 1,000 RPM on the ramp, avionics on (after the POH start checklist): the KAP 140 runs its self-test. */
 export function scenarioRunUp() {
+  // AVIONICS BUS 2 has just come on after the start: power-cycle the computer so the next tick starts the preflight test (S3-20)
+  live.kap = kap140Power(live.kap, false, live.fs.t); live.discTone = -99;
   live.fs = ground(); live.rpm = 1000; live.map = 13; live.oilP = 60; live.oilT = 120; live.cht = 260; live.hot = 0.7; live.gyro = 1; live.flapAng = 0; live.stallDemo = false; live.blade = 14.9;
   useC182.getState().update((d) => {
     d.ground = true; d.eng.running = true; d.eng.mags = "BOTH"; d.eng.rpm = 1000; d.eng.throttle = 0.12; d.eng.prop = 1; d.eng.mix = 0.95; d.eng.cowl = 1; d.eng.flooded = false;
@@ -249,6 +261,7 @@ export function scenarioCruise() {
   live.fs = initFlight({ t: live.fs.t, ias: 113, alt: 6000, selAlt: 6000, hdg: 90, hdgBug: 90, crs: 90, power: 0.59, oat: 3 });
   live.oilP = 72; live.oilT = 190; live.cht = 385; live.egt = 1380; live.hot = 1; live.gyro = 1; live.rpm = 2300; live.map = 21; live.flapAng = 0; live.stallDemo = false; live.blade = 29;
   if (!live.kap.powered || !live.kap.ready) live.kap = { ...kapReady(), on: live.fs.t - 100, trim: live.kap.trim };
+  live.kap = kapOff(live.kap); live.discTone = -99;
   useC182.getState().update((d) => {
     d.ground = false; d.eng.running = true; d.eng.mags = "BOTH"; d.eng.rpm = 2300; d.eng.throttle = 0.82; d.eng.prop = 0.89; d.eng.mix = 0.69; d.eng.cowl = 0; d.eng.flooded = false;
     d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = true; d.elec.stby = "ARM";

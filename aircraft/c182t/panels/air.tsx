@@ -38,12 +38,12 @@ export function Environment() {
         </BtnRow>
       </Ctl>
       <Small>Maximum heat is CABIN HT pulled full out with CABIN AIR pushed in. A small amount of heat: CABIN HT ¼ to ½ inch out. With a leak, CO reaches the cabin only with CABIN HT open; fresh air and vents dilute it. CO LVL HIGH flashes with a continuous tone until acknowledged, then stays until CO falls below 50 PPM (POH 7-75). The model is illustrative.</Small>
-      <Caution title="CO LVL HIGH (POH 3-21)">CABIN HT knob OFF (push full in) · CABIN AIR knob ON (pull full out) · cabin vents OPEN · cabin windows OPEN (175 KIAS maximum). If it stays on, land as soon as possible.</Caution>
+      <Caution title="CO LVL HIGH (POH 3-21)">CABIN HT knob OFF (push full in) · CABIN AIR knob ON (pull full out) · cabin vents OPEN · cabin windows OPEN (175 KIAS maximum). If it remains on, land as soon as practical.</Caution>
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("environment")} />
       <H3>Outlets (Figure 7-8)</H3>
       <Facts rows={[["Front floor", "Outlet holes across the manifold just forward of the front seats"], ["Rear floor", "One duct down each side to an outlet just aft of the rudder pedals"], ["Defrost", "Two outlets on top of the glareshield; air as warm as the cabin heat"], ["Forward ventilators", "Gooseneck outlet near each upper corner of the windshield, and a lower outlet, from the wing roots"], ["Rear ventilators", "Two, fed by ducts from the wing roots"], ["Heater", "Shrouded muffler type, arm −29.5 (POH 6-20)"]]} />
-      <Notes items={["Electrical or cabin fire: vents, cabin air and heat CLOSED to avoid drafts; open once the fire is out (POH 3-10, 3-11). Engine fire: cabin heat and air OFF except the overhead vents (POH 3-10).", "Inadvertent icing: pull cabin heat full out and turn DEFROST clockwise for maximum defroster airflow (POH 3-12).", "Static source blocked: CABIN HT and CABIN AIR pulled ON and vents CLOSED — the conditions the alternate-static tables assume (POH 3-13).", "PFD1 / MFD1 COOLING: reduce cabin heat and feel for the forward avionics fan's air at the glareshield screen (POH 3-20)."]} />
+      <Notes items={["Electrical or cabin fire: vents, cabin air and heat CLOSED to avoid drafts; open once the fire is out (POH 3-10, 3-11). Engine fire: cabin heat and air OFF except the overhead vents (POH 3-10).", "Inadvertent icing: pull cabin heat full out and turn DEFROST clockwise for maximum defroster airflow (POH 3-12).", "Static source blocked: ALT STATIC AIR, CABIN HT and CABIN AIR pulled ON and vents CLOSED — the checklist (POH 3-13); the Section 5 alternate-static tables assume windows and vents closed and heater, cabin air and defroster at maximum (Figs 5-1 Sheet 2, 5-2).", "PFD1 / MFD1 COOLING: reduce cabin heat and feel for the forward avionics fan's air at the glareshield screen (POH 3-20)."]} />
     </>
   );
 }
