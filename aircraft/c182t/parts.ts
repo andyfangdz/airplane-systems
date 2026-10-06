@@ -6,10 +6,8 @@
  */
 import * as THREE from "three";
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
-import { mats } from "@/lib/materials";
 import { V, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
 import {
   AF, AIL_C, BL, EF, FLAP_C, HF, HZ, SY, X, Y, Z, box, cyl, finCut, finSec, fLE, fC, hingeX, loft, onSkin, paintSkin,
   planeRing, rearRoofGeo, sC, sLE, sectionSlab, sided, sph, stabSec, strutGeo, taperTubeGeo, tubeGeo, wC, wLE, wheelFairingGeo, wingP, wingSec, wY,
@@ -18,12 +16,13 @@ import { live } from "./model";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM } from "./rig";
 import { useC182 } from "./store";
 import { IN } from "../cessna/airframe";
+import { brakeAnim, magAnim, plugAnim, pushPull, sparkPhase } from "../cessna/anims";
 import { pulleyGeo } from "../cessna/rig";
 
-export { chanOfKey };
 /** POH station → scene position: FS (in aft of datum), BL (in right), h (in above ground). */
 export const P3 = (fs: number, bl: number, h: number): Vec3 => [X(fs), Y(h), Z(bl)];
-export const PV = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
+/** Vector3 → Vec3. */
+export const PV = AF.P;
 
 /**
  * Pinned parts that stay in a view's "tap to locate" list but carry no label pin there, so each view shows about a dozen labels
@@ -93,28 +92,13 @@ const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin
 
 /* ---------- per-frame part animations ---------- */
 const S = () => useC182.getState().s;
-const sysNow = () => useView.getState().sys;
-const engView = () => { const v = sysNow(); return v === "engine" || v === "overview" || v === "propeller"; };
-const keyFires = (mag: "R" | "L") => { const k = S().eng.mags; return (k === "BOTH" || k === "START" || k === mag) && !(mag === "L" ? S().eng.fail.magL : S().eng.fail.magR); };
-const sparkPhase = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return (h % 100) / 10; };
-const plugAnim = (mag: "R" | "L", phase: number): PartAnim => (m, t) => {
-  const flash = live.rpm > 150 && keyFires(mag) && Math.sin(t * 18 + phase) > 0.3;
-  m.material = engView() && flash ? mats("#6FD8FF").hi : engView() ? mats("#DADFE2").on : mats("#DADFE2").dim;
+/** The magneto is firing: engine turning, its key position on, and not failed. */
+const fires = (mag: "R" | "L") => () => {
+  const e = S().eng, k = e.mags;
+  return live.rpm > 150 && (k === "BOTH" || k === "START" || k === mag) && !(mag === "L" ? e.fail.magL : e.fail.magR);
 };
-const magAnim = (mag: "R" | "L"): PartAnim => (m) => {
-  m.material = engView() ? (live.rpm > 150 && keyFires(mag) ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
-};
-/** Lit when `on()` in the given systems' views, otherwise the normal / dimmed colour. */
-export const glowAnim = (color: string, on: () => boolean, sys: SysId[], hot = "#FFD34D"): PartAnim => (m) => {
-  const v = sysNow(), show = v === "overview" || sys.includes(v);
-  m.material = !show ? mats(color).dim : on() ? mats(hot).hi : mats(color).on;
-};
-const brakeAnim = (side: "R" | "L"): PartAnim => (m) => {
-  const g = S().gear, amt = g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff);
-  m.material = amt > 0.05 ? mats("#FF6A2A").hi : mats("#9AA3AA").on;
-};
-/** Push-pull knob: `get` 0 = pulled out … 1 = pushed in; moves aft by `travel` m when out. */
-export const pushPull = (x0: number, get: () => number, travel = 0.05): PartAnim => (m) => { m.position.x = x0 - (1 - get()) * travel; };
+/** Toe brake (differential) or parking brake on one side, 0..1. */
+const braking = (side: "R" | "L") => () => { const g = S().gear; return g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff); };
 const altDoorAnim = (x0: number): PartAnim => (m) => { m.rotation.z = S().eng.filter ? -0.6 : 0; m.position.x = x0; };
 const fairingAnim: PartAnim = (m) => { m.visible = S().gear.fairings; };
 
@@ -210,7 +194,7 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
   }
   part(() => cyl(8.75 * IN, 6 * IN, "z", 28), ["gear"], { pos: P3(MG.fs, s * MG.bl, MG.h), color: "#2A2F33", name: "Main wheel and tire", note: "6.00-6, 6-ply rated, 42 PSI, with tube; Cleveland 40-75B wheel, arm 58.9 (POH 8-21, 6-22).", ext: true, pin: s > 0 });
   part(() => wheelFairingGeo({ len: 38, height: 18, width: 9.5, axle: 0.42, lift: 0.6, cut: 3.2 - MG.h, tail: 1.1 }), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 0.8), MG.h), color: "#EEF1F3", anim: fairingAnim, name: "Wheel fairing", note: "Main fairings, set of 2, arm 60.6 (equipment item 32-03-A). Optional in the 2005 POH (standard in 2007); worth ≈ 3 knots (POH v, 7-21). Whether N8050J and N21200 carry them: check the airplanes — toggle them in the Gear panel.", ext: true, pin: s > 0 });
-  part(() => cyl(4.4 * IN, 0.25 * IN, "z", 24), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 3.8), MG.h), color: "#9AA3AA", anim: brakeAnim(s > 0 ? "R" : "L"), name: "Brake disc", note: "Single-disc, hydraulically actuated brake on the inboard side of each main wheel; Cleveland 30-52, arm 55.5 (POH 7-46, 7-21, 6-22).", ext: true, pin: s > 0 });
+  part(() => cyl(4.4 * IN, 0.25 * IN, "z", 24), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 3.8), MG.h), color: "#9AA3AA", anim: brakeAnim(braking(s > 0 ? "R" : "L")), name: "Brake disc", note: "Single-disc, hydraulically actuated brake on the inboard side of each main wheel; Cleveland 30-52, arm 55.5 (POH 7-46, 7-21, 6-22).", ext: true, pin: s > 0 });
   part(() => box(0.08, 0.06, 0.04), ["gear"], { pos: P3(MG.fs - 2.5, s * (MG.bl - 4.8), MG.h + 3), color: "#C8313B", name: "Brake caliper", note: "MIL-H-5606 fluid (POH 8-21). Fading, noisy or dragging brakes, soft or spongy pedals: release and reapply hard; pump to build pressure; with one brake weak use the other sparingly with opposite rudder (POH 7-46).", ext: true });
   part(() => tubeGeo([P3(8.5, s * 8, 27.2), P3(30, s * 11, 26.4), P3(55, s * 13, 25.6), P3(63.5, s * 16.5, 24.0), [top[0], top[1] - 0.01, top[2]], [axle[0] + 0.05, axle[1] + 0.05, axle[2] - s * 0.03]], 0.006), ["gear"], { name: "Brake line", note: "From the master cylinder on each of the pilot's pedals, down the gear leg to the wheel cylinder (POH 7-46)." });
 });
@@ -259,13 +243,13 @@ CYLS.forEach((c) => {
   ([["U", 0.055], ["L", -0.055]] as const).forEach(([pos, dy]) => {
     // POH 7-35 (KAP 140 edition, image-verified): right magneto fires lower right + upper left; left magneto lower left + upper right
     const mag = (c.s > 0) === (pos === "L") ? "R" : "L";
-    part(() => cyl(0.013, 0.05, "x", 10), ["engine"], { pos: [base[0] - 0.08, base[1] + dy, base[2] + c.s * 0.12], color: "#DADFE2", anim: plugAnim(mag, sparkPhase(`${c.n}${pos}`)),
+    part(() => cyl(0.013, 0.05, "x", 10), ["engine"], { pos: [base[0] - 0.08, base[1] + dy, base[2] + c.s * 0.12], color: "#DADFE2", anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`, note: `Fired by the ${mag === "L" ? "left" : "right"} magneto. “The right magneto fires the lower right and upper left spark plugs, and the left magneto fires the lower left and upper right” (POH 7-35; the 2007 edition states the reverse).` });
   });
   part(() => box(0.03, 0.03, 0.03), ["engine", "fuel"], { pos: [base[0] - 0.02, base[1] - 0.11, base[2] + c.s * 0.07], color: "#C9B98F", name: "Fuel injector nozzle", note: "Air-bleed type nozzle in the intake chamber of each cylinder, fed by the fuel distribution unit (POH 7-36, 7-40)." });
 });
-part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-4.5, -5.5, 55), color: "#3E4A52", anim: magAnim("L"), name: "Left magneto", note: "Rear accessory case; fires the lower left and upper right plugs (POH 7-35). Self-powered: OFF grounds it, so with a loose P-lead the engine can fire when the propeller is turned (POH 4-49).", pin: true });
-part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-4.5, 5.5, 55), color: "#3E4A52", anim: magAnim("R"), name: "Right magneto", note: "Fires the lower right and upper left plugs (POH 7-35). Normal operation is BOTH; R and L are for checking and emergencies. Mag check at 1,800 RPM: ≤ 175 RPM drop, ≤ 50 RPM between (POH 4-17).", pin: true });
+part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-4.5, -5.5, 55), color: "#3E4A52", anim: magAnim(fires("L")), name: "Left magneto", note: "Rear accessory case; fires the lower left and upper right plugs (POH 7-35). Self-powered: OFF grounds it, so with a loose P-lead the engine can fire when the propeller is turned (POH 4-49).", pin: true });
+part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-4.5, 5.5, 55), color: "#3E4A52", anim: magAnim(fires("R")), name: "Right magneto", note: "Fires the lower right and upper left plugs (POH 7-35). Normal operation is BOTH; R and L are for checking and emergencies. Mag check at 1,800 RPM: ≤ 175 RPM drop, ≤ 50 RPM between (POH 4-17).", pin: true });
 part(() => box(0.12, 0.1, 0.11), ["engine", "electrical"], { pos: P3(-39, -8, 42.5), color: "#4B5860", name: "Starter", note: "Front of the engine (POH 7-27). MAGNETOS to START with the MASTER on closes the starter contactor in the J-box. 10 s cranking, 20 s cool; three cycles then 10 minutes (POH 4-28).", pin: true });
 part(() => cyl(0.04, 0.1, "x"), ["engine"], { pos: P3(-4.5, 0, 47.5), color: "#1F3A5A", name: "Oil filter (full flow)", note: "Rear of the accessory case; its adapter has a bypass valve for a plugged filter or very cold oil and carries the oil temperature sensor (POH 7-34, 7-32).", pin: true });
 part(() => box(0.06, 0.15, 0.2), ["engine"], { pos: P3(-11.4, -13, 56), color: "#9A6A48", name: "Oil cooler", note: "Thermostatically controlled remote cooler, arm −11.4 (POH 7-34, 6-25). In extreme cold the oil congeals in it — preheat (POH 4-49). Lateral position assumed." });

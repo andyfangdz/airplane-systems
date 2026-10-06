@@ -2,25 +2,17 @@
  * C172S catalogue, part 2: flap drive, fuel, electrical, avionics, pitot-static and stall warning, vacuum,
  * lighting, cabin heat/ventilation and cabin equipment. Imported for its side effects (adds to CAT).
  */
-import * as THREE from "three";
-import type { PartAnim } from "@/lib/catalogue";
 import { mats } from "@/lib/materials";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
-import { AF, BL, X, Y, Z, box, cyl, onSkin, sph, topY, botY, tubeGeo, wingP, wLE, wC, fLE } from "./geometry";
+import { AF, X, Y, Z, box, cyl, onSkin, sph, topY, botY, tubeGeo, wingP, wLE, wC, fLE } from "./geometry";
 import { live } from "./model";
+import { glowAnim as glow, pushPull, sysNow } from "../cessna/anims";
 import { CAT, P3, PV, onSurf } from "./parts";
 import { useC172 } from "./store";
 
 const { part } = CAT;
 const S = () => useC172.getState().s, EL = () => useC172.getState().E;
-const sysNow = () => useView.getState().sys;
-const glow = (color: string, on: () => boolean, sys: SysId[], hot = "#FFD34D"): PartAnim => (m) => {
-  const v = sysNow(), show = v === "overview" || sys.includes(v);
-  m.material = !show ? mats(color).dim : on() ? mats(hot).hi : mats(color).on;
-};
-const pushPull = (x0: number, get: () => number, travel = 0.04): PartAnim => (m) => { m.position.x = x0 - get() * travel; };
 const wp = (bl: number, c: number, up = 0, dy = 0): Vec3 => PV(wingP(Z(bl), c, up).add(V(0, dy, 0)));
 
 /* ---------- flaps: electric motor drive (POH 7-23, Figure 7-3) ---------- */
@@ -37,7 +29,6 @@ part(() => tubeGeo([P3(16.5, 9, 50), P3(22, 17.5, 60), P3(31, 18.4, 74), P3(33, 
 /* ---------- fuel system (POH Figure 7-6) ---------- */
 const FUEL = "#2F7FE6";
 [1, -1].forEach((s) => {
-  const sd = s > 0 ? "Right" : "Left";
   part(() => cyl(0.04, 0.012), ["fuel"], { pos: wp(s * 36, 0.2, 1, 0.006), color: FUEL, name: "Fuel filler cap", note: "Top of each wing near the inboard end of the tank (BL ≈ 36, scaled from the Figure 1-1 top view), within reach of the refueling steps and assist handles on the forward fuselage (POH 4-3). Placard FUEL 100LL / 100 MIN. GRADE, 26.5 gal usable, 17.5 gal to the bottom of the filler indicator tab. Caps are vacuum vented (POH 2-24, 7-44).", ext: true, pin: s > 0 });
   part(() => box(0.02, 0.05, 0.02), ["fuel"], { pos: wp(s * 36, 0.2, 1, -0.04), color: "#7EB3F5", name: "Reduced capacity filler tab", note: "Inside the filler neck: filling to its bottom edge gives 17.5 gal usable per tank (POH 7-44)." });
   part(() => box(0.03, 0.03, 0.03), ["fuel"], { pos: wp(s * 23.5, 0.28, -1, 0.02), color: FUEL, name: "Tank outlet screen", note: "At each tank outlet (Fig. 7-6). At 1/4 tank or less, prolonged uncoordinated flight can uncover the outlets (POH 7-45).", pin: s > 0 });
@@ -54,7 +45,7 @@ part(() => box(0.12, 0.06, 0.12), ["fuel"], { pos: P3(14.5, 0, 25.6), color: FUE
 part(() => sph(0.014), ["fuel"], { pos: P3(14.5, 0, 23.6), color: "#0B3A80", name: "Fuel reservoir drain", note: "Quick drain on the reservoir (POH 7-46).", ext: true });
 part(() => cyl(0.035, 0.12, "x"), ["fuel", "electrical"], { pos: P3(9.5, -3, 26), color: "#5D8FD6", anim: glow("#5D8FD6", () => EL().fuelPumpOn, ["fuel", "electrical"], "#A9CCFF"), name: "Auxiliary fuel pump", note: "Electric, arm 9.5 (POH 6-21). For priming through the injection system, vapor suppression and a failed engine-driven pump. FUEL PUMP breaker, ELECTRICAL BUS 1 (POH 7-43).", pin: true });
 part(() => cyl(0.025, 0.05), ["fuel"], { pos: P3(4.5, -2.5, 26.5), color: FUEL, name: "Fuel shutoff valve", note: "Between the aux pump and the strainer (Fig. 7-6); mechanically linked to the FUEL SHUTOFF knob.", pin: true });
-part(() => cyl(0.014, 0.03, "x"), ["fuel"], { pos: P3(25.9, 2.2, 31), color: "#C8313B", anim: pushPull(X(25.9), () => (S().fuel.shutoff ? 0 : 1)), name: "FUEL SHUTOFF knob", note: "Pedestal: ON = pushed full in, OFF = pulled full out (POH 4-11, 3-6).", pin: true });
+part(() => cyl(0.014, 0.03, "x"), ["fuel"], { pos: P3(25.9, 2.2, 31), color: "#C8313B", anim: pushPull(X(25.9), () => (S().fuel.shutoff ? 1 : 0), 0.04), name: "FUEL SHUTOFF knob", note: "Pedestal: ON = pushed full in, OFF = pulled full out (POH 4-11, 3-6).", pin: true });
 part(() => cyl(0.035, 0.08), ["fuel"], { pos: P3(-4, -4, 29), color: FUEL, name: "Fuel strainer", note: "Ahead of the firewall, the low point before the engine-driven pump; quick drain on the bottom of the fuselage (POH 7-39, 4-8).", pin: true });
 part(() => sph(0.014), ["fuel"], { pos: P3(-4, -4, 24.8), color: "#0B3A80", name: "Fuel strainer quick drain", note: "Drain at the NOSE on preflight (POH 4-8).", ext: true });
 part(() => cyl(0.035, 0.08, "x"), ["fuel", "engine"], { pos: P3(-7, -6, 45), color: FUEL, anim: glow(FUEL, () => S().eng.fail.edp, ["fuel", "engine"], "#E0263B"), name: "Engine-driven fuel pump", note: "Rear accessory case; feeds the fuel/air control unit. A failure shows as FFLOW suddenly dropping just before a power loss — FUEL PUMP ON (POH 3-34).", pin: true });
@@ -118,7 +109,7 @@ part(() => tubeGeo([wp(-65, 0.25, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2
 part(() => cyl(0.012, 0.26, "x"), ["pitot"], { pos: [PITOT[0] + 0.08, PITOT[1], PITOT[2]], color: "#AEB6BC", anim: glow("#AEB6BC", () => EL().pitotHeating, ["pitot"], "#FF6A2A"), name: "Heated pitot head", note: "Heating element built into the head; PITOT HEAT switch and breaker (ELECTRICAL BUS 2). Preflight: warm to the touch within 30 s; no annunciation monitors it (POH 7-64, 4-6).", ext: true, pin: true });
 export const STATIC_PORT: Vec3 = PV(onSkin(X(15), Y(45), -1, 1.01));
 part(() => cyl(0.014, 0.006, "z"), ["pitot"], { pos: STATIC_PORT, color: PIT, name: "Static port", note: "External static port on the left side of the forward fuselage (POH 7-64). If the airplane has been waxed, check the hole (POH 4-23).", ext: true, pin: true });
-part(() => cyl(0.012, 0.03, "x"), ["pitot"], { pos: P3(18.4, -3.5, 50.5), color: PIT, anim: pushPull(X(18.4), () => (S().pitot.altStatic ? 1 : 0), 0.03), name: "ALT STATIC AIR valve", note: "Adjacent to the throttle: pull ON for cabin static pressure if the external source blocks. With it on, the Section 5 table shows airspeed 0–4 kt high (Fig. 5-1 Sheet 2); POH 3-32 states a maximum variation of 11 kt and 50 ft, and doesn't explain the difference (POH 7-64, 3-15).", pin: true });
+part(() => cyl(0.012, 0.03, "x"), ["pitot"], { pos: P3(18.4, -3.5, 50.5), color: PIT, anim: pushPull(X(18.4), () => (S().pitot.altStatic ? 0 : 1), 0.03), name: "ALT STATIC AIR valve", note: "Adjacent to the throttle: pull ON for cabin static pressure if the external source blocks. With it on, the Section 5 table shows airspeed 0–4 kt high (Fig. 5-1 Sheet 2); POH 3-32 states a maximum variation of 11 kt and 50 ft, and doesn't explain the difference (POH 7-64, 3-15).", pin: true });
 part(() => cyl(0.006, 0.05), ["pitot", "avionics"], { pos: [X(41.5), top(41.5, -4) + 0.022, Z(-4)], color: PIT, name: "OAT probe (GTP 59)", note: "On top of the cabin, arm 41.5; feeds the air data computer and the PFD OAT window (POH 7-67, 6-21).", ext: true, pin: true });
 /** Stall warning opening in the left leading edge beside the fuel vent: BL ≈ 91 scaled from Figure 1-1. */
 export const STALL_INLET: Vec3 = wp(-91, 0.0, 0, 0);
@@ -165,8 +156,8 @@ const AIR = "#149C94";
 part(() => box(0.08, 0.08, 0.08), ["environment"], { pos: P3(0.6, 5, 37.5), color: "#E0522B", anim: (m) => { m.rotation.x = S().env.heat * 1.2; }, name: "Heater control valve", note: "At the firewall; mechanically linked to the CABIN HT knob — meters shroud-heated air into the cabin manifold (Fig. 7-8).", pin: true });
 part(() => box(0.08, 0.08, 0.08), ["environment"], { pos: P3(0.6, 14, 36.5), color: AIR, anim: (m) => { m.rotation.x = S().env.air * 1.2; }, name: "Ventilating air door", note: "Ram air from a second inlet on the right side; linked to the CABIN AIR knob, blending with the heated air (Fig. 7-8).", pin: true });
 part(() => box(0.08, 0.06, 0.6), ["environment"], { pos: P3(5, 0, 31), color: AIR, name: "Cabin manifold", note: "Behind the firewall: outlet holes across it just forward of the front occupants' feet; two ducts to the defroster outlets; one duct down each side to the rear cabin floor (POH 7-62).", pin: true });
-part(() => cyl(0.012, 0.03, "x"), ["environment"], { pos: P3(18.4, 15.5, 48.5), color: "#E0522B", anim: pushPull(X(18.4), () => S().env.heat), name: "CABIN HT knob", note: "Push-pull, double-button lock: pull for heat; maximum heat = CABIN HT out, CABIN AIR in. Placard CABIN HT PULL ON (POH 7-62, Fig. 7-8).", pin: true });
-part(() => cyl(0.012, 0.03, "x"), ["environment"], { pos: P3(18.4, 15.5, 46.5), color: AIR, anim: pushPull(X(18.4), () => S().env.air), name: "CABIN AIR knob", note: "Pull full out for ventilation. CO LVL HIGH: CABIN HT off, CABIN AIR on, vents and windows open (POH 7-62, 3-24).", pin: true });
+part(() => cyl(0.012, 0.03, "x"), ["environment"], { pos: P3(18.4, 15.5, 48.5), color: "#E0522B", anim: pushPull(X(18.4), () => 1 - S().env.heat, 0.04), name: "CABIN HT knob", note: "Push-pull, double-button lock: pull for heat; maximum heat = CABIN HT out, CABIN AIR in. Placard CABIN HT PULL ON (POH 7-62, Fig. 7-8).", pin: true });
+part(() => cyl(0.012, 0.03, "x"), ["environment"], { pos: P3(18.4, 15.5, 46.5), color: AIR, anim: pushPull(X(18.4), () => 1 - S().env.air, 0.04), name: "CABIN AIR knob", note: "Pull full out for ventilation. CO LVL HIGH: CABIN HT off, CABIN AIR on, vents and windows open (POH 7-62, 3-24).", pin: true });
 [1, -1].forEach((s) => {
   part(() => box(0.03, 0.012, 0.12), ["environment"], { pos: P3(15.5, s * 7, 66), color: AIR, name: "Defroster outlet", note: "Two outlets at the lower edge of the windshield; each has a knob-operated sliding valve (POH 7-62).", pin: s > 0 });
   part(() => cyl(0.025, 0.02, "y"), ["environment"], { pos: wp(s * 19, 0.01, 0, -0.005), color: AIR, name: "Wing-root fresh air inlet", note: "Ram air at the wing root feeds the forward cabin upper and lower outlets and ducts to the rear cabin upper outlets — none of it passes through the heater (Fig. 7-8).", ext: true, pin: s > 0 });

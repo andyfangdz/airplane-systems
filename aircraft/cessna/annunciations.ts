@@ -9,7 +9,7 @@
  */
 import type { CasLevel } from "../types";
 import type { Gauge } from "@/lib/avionics/g1000";
-import { mBattAlert, sBattAlert, voltsAlert, type Nav3Solution } from "./electrical";
+import { amp, mBattAlert, sBattAlert, voltsAlert, type Nav3Solution } from "./electrical";
 
 export interface Nav3AnnDef { text: string; level: CasLevel; tone: string; trigger: string; cite: string }
 
@@ -49,7 +49,6 @@ export function nav3Annunciations(i: Nav3AnnIn, defs: Nav3AnnDef[] = NAV3_ANN): 
 
 /** EIS "ELECTRICAL" block: M BUS / E BUS volts and M BATT / S BATT amps with the POH 7-53/7-54 colours. */
 export function nav3ElecGauges(E: Pick<Nav3Solution, "mBus" | "eBus" | "mBatt" | "sBatt">): Gauge[] {
-  const amp = (a: number) => (a > 0 ? "+" : "") + a.toFixed(1);
   const va = [voltsAlert(E.mBus), voltsAlert(E.eBus)].find(Boolean) ?? null;
   const aa = mBattAlert(E.mBatt) ?? sBattAlert(E.sBatt);
   return [

@@ -1,54 +1,18 @@
 "use client";
 /** Building blocks shared by the GFC 700 and KAP 140 panels: hardware keys, the AFCS strip and the G1000 "fly" knobs. */
 import "./avionics.css";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BtnRow, Slider } from "@/components/ui/controls";
+import type { ReactNode } from "react";
+import { BtnRow, HoldButton, Slider, type HoldButtonProps } from "@/components/ui/controls";
 import type { AfcsAnnunc } from "@/lib/avionics/g1000";
 import { nextCdi, wrap360, type FlightState, type FlySet } from "@/lib/avionics/flight";
 
 const pad3 = (h: number) => String(Math.round(wrap360(h)) || 360).padStart(3, "0");
 export { pad3 };
 
-/**
- * Momentary hardware key (pointer or keyboard). `onDown` on press, `onUp(held)` on release;
- * `onHold` fires once after `holdMs`; `repeat` (ms) re-fires `onDown` while held (e.g. trim switches).
- * Losing focus or unmounting while held (Tab away, switching system or airplane) counts as a release.
- */
-export function HoldKey({ label, sub, onDown, onUp, onHold, holdMs = 500, repeat, className = "", disabled, title }: {
-  label: ReactNode; sub?: string; onDown?: () => void; onUp?: (held: boolean) => void; onHold?: () => void; holdMs?: number; repeat?: number;
-  className?: string; disabled?: boolean; title?: string;
-}) {
-  const [down, setDown] = useState(false);
-  const r = useRef({ down: false, held: false, t: 0 as ReturnType<typeof setTimeout> | 0, i: 0 as ReturnType<typeof setInterval> | 0 });
-  const stop = () => { clearTimeout(r.current.t || undefined); clearInterval(r.current.i || undefined); r.current.t = r.current.i = 0; };
-  const upRef = useRef(onUp);
-  upRef.current = onUp;
-  useEffect(() => () => {
-    stop();
-    if (r.current.down) { r.current.down = false; upRef.current?.(r.current.held); }
-  }, []);
-  const press = () => {
-    if (r.current.down || disabled) return;
-    r.current.down = true; r.current.held = false; setDown(true);
-    onDown?.();
-    if (onHold) r.current.t = setTimeout(() => { r.current.held = true; onHold(); }, holdMs);
-    if (repeat && onDown) r.current.i = setInterval(onDown, repeat);
-  };
-  const release = () => {
-    if (!r.current.down) return;
-    r.current.down = false; setDown(false); stop();
-    onUp?.(r.current.held);
-  };
-  return (
-    <button type="button" className={`avx-k ${className}`} data-down={down} disabled={disabled} title={title} aria-label={aria(label, sub)}
-      onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); press(); }}
-      onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} onBlur={release}
-      onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(); } }}
-      onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); release(); } }}>
-      {label}{sub && <small>{sub}</small>}
-    </button>
-  );
-}
+/** Momentary hardware key with the avionics key look (see HoldButton for the behaviour). */
+export const HoldKey = ({ label, sub, className = "", ...p }: Omit<HoldButtonProps, "children" | "ariaLabel"> & { label: ReactNode; sub?: string }) => (
+  <HoldButton {...p} className={`avx-k ${className}`} ariaLabel={aria(label, sub)}>{label}{sub && <small>{sub}</small>}</HoldButton>
+);
 
 /** Accessible name for a key with a small second line ("NOSE" + "UP" → "NOSE UP"). */
 const aria = (label: ReactNode, sub?: string) => (typeof label === "string" && sub ? `${label} ${sub}` : undefined);

@@ -22,6 +22,15 @@ export type Nav3Bus = "E1" | "E2" | "XF" | "ESS" | "AV1" | "AV2";
 export const NAV3_BUS_NAME: Record<Nav3Bus, string> = {
   E1: "ELECTRICAL BUS 1", E2: "ELECTRICAL BUS 2", XF: "CROSSFEED BUS", ESS: "ESSENTIAL BUS", AV1: "AVIONICS BUS 1", AV2: "AVIONICS BUS 2",
 };
+/** Rows for the electrical panel: [bus, name, fed from] (POH Figure 7-7). */
+export const NAV3_BUSES: [Nav3Bus, string, string][] = ([
+  ["E1", "J-box feeder C/B “B”"],
+  ["E2", "J-box feeder C/B “A”"],
+  ["XF", "Bus 1 and Bus 2 through diodes"],
+  ["ESS", "Bus 1 and Bus 2 through diodes · standby battery (ARM)"],
+  ["AV1", "Bus 1 · AVN 1 breaker · AVIONICS (BUS 1)"],
+  ["AV2", "Bus 2 · AVN 2 breaker · AVIONICS (BUS 2)"],
+] as [Nav3Bus, string][]).map(([b, from]) => [b, NAV3_BUS_NAME[b], from]);
 /** "All circuit breakers on ESSENTIAL BUS, AVIONICS BUS 1 and AVIONICS BUS 2 are capable of being opened" (POH 7-57). */
 export const PULLABLE: Record<Nav3Bus, boolean> = { E1: false, E2: false, XF: false, ESS: true, AV1: true, AV2: true };
 
@@ -204,6 +213,8 @@ export function stepNav3Soc(e: Nav3Elec, cfg: Nav3Cfg, E: Pick<Nav3Solution, "mB
 }
 
 /** EIS ELECTRICAL colours (POH 7-53/7-54): volts red > 32.0 or < 24.5; M BATT white > −1.5 A; S BATT amber when negative. */
+/** Ammeter text with a sign: +3.2 / −1.5. */
+export const amp = (a: number) => (a > 0 ? "+" : "") + a.toFixed(1);
 export const voltsAlert = (v: number | null) => (v == null ? null : v > 32 || v < 24.5 ? ("warning" as const) : null);
 export const mBattAlert = (a: number) => (a < -1.5 ? ("caution" as const) : null);
 export const sBattAlert = (a: number) => (a < 0 ? ("caution" as const) : null);

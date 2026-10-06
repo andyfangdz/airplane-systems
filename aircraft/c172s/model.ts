@@ -7,7 +7,7 @@
  * Figure 7-7 Sheets 1–3 (electrical), Figure 7-6 (fuel), Section 2 limitations; G1000 CRG 190-00384-13.
  */
 import type { CasLevel } from "../types";
-import { cbKey, nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
+import { nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
 import { nav3Annunciations } from "../cessna/annunciations";
 import { FLIGHT_DEFAULT, initFlight, type FlightCfg } from "@/lib/avionics/flight";
 import { GFC700_BASE, gfc700Init, type Gfc700Cfg } from "@/lib/avionics/gfc700";
@@ -156,16 +156,6 @@ export const BREAKERS: Breaker[] = [
 /** Main battery 24 V 8.0 Ah (POH 6-19; the KAP 140 edition lists 12.75 Ah). Standby capacity is not given; sized so a ~3.5 A essential load lasts well over the POH's "at least 30 minutes". */
 export const ELEC_CFG: Nav3Cfg = { altAmps: 60, mainAh: 8, stbyAh: 2.4, breakers: BREAKERS };
 
-/** Rows for the electrical panel: [bus, name, fed from]. */
-export const BUSES: [Nav3Bus2, string, string][] = [
-  ["E1", "ELECTRICAL BUS 1", "J-box feeder C/B “B”"],
-  ["E2", "ELECTRICAL BUS 2", "J-box feeder C/B “A”"],
-  ["XF", "CROSSFEED BUS", "Bus 1 and Bus 2 through diodes"],
-  ["ESS", "ESSENTIAL BUS", "Bus 1 and Bus 2 through diodes · standby battery (ARM)"],
-  ["AV1", "AVIONICS BUS 1", "Bus 1 · AVN 1 breaker · AVIONICS (BUS 1)"],
-  ["AV2", "AVIONICS BUS 2", "Bus 2 · AVN 2 breaker · AVIONICS (BUS 2)"],
-];
-type Nav3Bus2 = Breaker["bus"];
 
 /* ---------- engine helpers (pure) ---------- */
 /** Engine RPM for the alternator's low-RPM capacity: the tach value (rounded to 50 RPM by tick.ts), so cranking, idle and a windmilling engine all count. */
@@ -305,4 +295,3 @@ export function annunciations(s: Sim, E: Elec): [CasLevel, string][] {
 /** Stall speed (KIAS, power idle, wings level, 2550 lb, most rearward CG — POH Figure 5-3) by flap angle. */
 export const stallKias = (flapDeg: number) => (flapDeg < 5 ? 48 : flapDeg < 15 ? 42 : flapDeg < 25 ? 41 : 40);
 
-export { cbKey };

@@ -6,24 +6,24 @@
  */
 import * as THREE from "three";
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
-import { mats } from "@/lib/materials";
-import { V, clamp, type Vec3 } from "@/lib/math";
+import { V, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
 import { gfc700Engaged } from "@/lib/avionics/gfc700";
 import {
-  AF, AIL_C, BL, EF, FLAP_C, HF, HZ, SY, X, Y, Z, box, cyl, fus, fuselageGeo, finCut, finSec, fLE, fC, hingeX, loft, onSkin, paintSkin,
-  planeRing, rearRoofGeo, sC, sLE, sectionSlab, sided, sph, stZ, stabSec, strutGeo, taperTubeGeo, topY, botY, tubeGeo, wC, wLE, wT, wY, wheelFairingGeo, wingP, wingSec, fRing,
+  AF, AIL_C, BL, EF, FLAP_C, HF, HZ, SY, X, Y, Z, box, cyl, fuselageGeo, finCut, finSec, fLE, fC, hingeX, loft, onSkin, paintSkin,
+  planeRing, rearRoofGeo, sC, sLE, sectionSlab, sided, sph, stabSec, strutGeo, taperTubeGeo, tubeGeo, wC, wLE, wY, wheelFairingGeo, wingP, wingSec,
 } from "./geometry";
-import { live, type Sim } from "./model";
+import { live } from "./model";
 import { PULLEYS, RIG, RIG_SPEC } from "./rig";
 import { useC172 } from "./store";
+import { IN } from "../cessna/airframe";
+import { brakeAnim, glowAnim, magAnim, plugAnim, pushPull, sparkPhase } from "../cessna/anims";
 import { pulleyGeo } from "../cessna/rig";
 
-export { chanOfKey };
 /** POH station → scene position: FS (in aft of datum), BL (in right), h (in above ground). */
 export const P3 = (fs: number, bl: number, h: number): Vec3 => [X(fs), Y(h), Z(bl)];
-const PV = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
+/** Vector3 → Vec3. */
+const PV = AF.P;
 
 /**
  * Pinned parts that stay in a view's "tap to locate" list but carry no label pin there, so each view shows about ten
@@ -59,44 +59,28 @@ const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin
 
 /* ---------- per-frame part animations ---------- */
 const S = () => useC172.getState().s;
-const EL = () => useC172.getState().E;
-const sysNow = () => useView.getState().sys;
-const engView = () => { const v = sysNow(); return v === "engine" || v === "overview" || v === "propeller"; };
-const keyFires = (mag: "R" | "L") => { const k = S().eng.mags; return (k === "BOTH" || k === "START" || k === mag) && !(mag === "L" ? S().eng.fail.magL : S().eng.fail.magR); };
-const sparkPhase = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return (h % 100) / 10; };
-const plugAnim = (mag: "R" | "L", phase: number): PartAnim => (m, t) => {
-  const flash = live.rpm > 150 && keyFires(mag) && Math.sin(t * 18 + phase) > 0.3;
-  m.material = engView() && flash ? mats("#6FD8FF").hi : engView() ? mats("#DADFE2").on : mats("#DADFE2").dim;
+/** The magneto is firing: engine turning, its key position on, and not failed. */
+const fires = (mag: "R" | "L") => () => {
+  const e = S().eng, k = e.mags;
+  return live.rpm > 150 && (k === "BOTH" || k === "START" || k === mag) && !(mag === "L" ? e.fail.magL : e.fail.magR);
 };
-const magAnim = (mag: "R" | "L"): PartAnim => (m) => {
-  m.material = engView() ? (live.rpm > 150 && keyFires(mag) ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
-};
-/** Lit when `on()` in the given systems' views, otherwise the normal / dimmed colour. */
-const glowAnim = (color: string, on: () => boolean, sys: SysId[], hot = "#FFD34D"): PartAnim => (m) => {
-  const v = sysNow(), show = v === "overview" || sys.includes(v);
-  m.material = !show ? mats(color).dim : on() ? mats(hot).hi : mats(color).on;
-};
-const brakeAnim = (side: "R" | "L"): PartAnim => (m) => {
-  const g = S().gear, amt = g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff);
-  m.material = amt > 0.05 ? mats("#FF6A2A").hi : mats("#9AA3AA").on;
-};
-const pushPull = (x0: number, get: () => number, travel = 0.05): PartAnim => (m) => { m.position.x = x0 - (1 - get()) * travel; };
+/** Toe brake (differential) or parking brake on one side, 0..1. */
+const braking = (side: "R" | "L") => () => { const g = S().gear; return g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff); };
 const altDoorAnim = (x0: number): PartAnim => (m) => { m.rotation.z = S().eng.filter ? -0.6 : 0; m.position.x = x0; };
 
 /* ---------- airframe shells ---------- */
 shell(fuselageGeo, "Fuselage", "All-metal semimonocoque: formed bulkheads, stringers and skin. Front and rear carry-through spars take the wings; a bulkhead and forgings at the base of the rear door posts take the main gear; four engine mount stringers run from the forward door posts to the firewall (POH 7-5).", true);
 shell(() => {
   const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 18; i++) { const t = i / 18; pts.push(new THREE.Vector2(Math.max(1e-4, 7.6 * 0.0254 * Math.sqrt(1 - t * t * 0.985)), t * 9.6 * 0.0254)); }
+  for (let i = 0; i <= 18; i++) { const t = i / 18; pts.push(new THREE.Vector2(Math.max(1e-4, 7.6 * IN * Math.sqrt(1 - t * t * 0.985)), t * 9.6 * IN)); }
   const g = new THREE.LatheGeometry(pts, 32); g.rotateZ(-Math.PI / 2); g.translate(X(-37.4), 0, 0); return g;
 }, "Spinner", "Spinner dome FS −42.6, forward bulkhead −40.8, aft bulkhead −37.3 (POH 6-23). Covers the McCauley fixed-pitch propeller hub.");
 
-const kink = BL.flap1 + 0.0, ailS = [BL.ail0, 125, 150, 175, 195, BL.ail1];
 const tipS = [BL.ail1, 209, 211, 212.5, 213.5];
 [1, -1].forEach((s) => {
   const side = s > 0 ? "Right" : "Left";
   const zs = (bls: number[]) => bls.map((b) => Z(b));
-  shell(() => loft(sided(zs([0, 10, 21.5, 40, 60, 80, kink, BL.ail0]).map((z) => wingSec(s * z, 0, FLAP_C)), s)), side + " wing",
+  shell(() => loft(sided(zs([0, 10, 21.5, 40, 60, 80, BL.flap1, BL.ail0]).map((z) => wingSec(s * z, 0, FLAP_C)), s)), side + " wing",
     "Externally braced all-metal wing with an integral fuel tank. Front spar with wing-to-fuselage and wing-to-strut fittings; partial-span rear spar (POH 7-5). Constant chord inboard, tapered outboard panel, conical-camber tip.");
   shell(() => loft(sided(zs([BL.ail0, 125, 150, 175, 195, BL.ail1, ...tipS.slice(1)]).map((z) => wingSec(s * z, 0, AIL_C)), s)), side + " wing", "Outboard tapered panel carrying the aileron and the wing-tip lights.");
   shell(() => loft(sided(zs([0, 10, BL.flap0]).map((z) => wingSec(s * z, FLAP_C, 1)), s)), "Wing root trailing edge", "");
@@ -104,7 +88,6 @@ const tipS = [BL.ail1, 209, 211, 212.5, 213.5];
   shell(() => loft(sided(zs(tipS).map((z) => wingSec(s * z, AIL_C, 1)), s)), "Wing tip", "Fiberglass conical-camber tip; carries the position light and strobe.");
   shell(() => loft(sided([...[0, 0.12, 0.3, 0.5, 0.75, 1.0].map((b) => stabSec(s * Z(b * (HZ - 0.05)), 0, EF)), ...[HZ, 62, 64.5, 66.5, 67.6, 68].map((b) => stabSec(s * Z(b), 0, HF))], s)),
     "Horizontal stabilizer", "Forward and aft spars, ribs and wraparound skins; it also houses the elevator trim tab actuator (POH 7-6). Span 11'-4\" (POH 1-3).");
-  void ailS;
 });
 const finHs = [44.5, 52, 59, 60, 61.5, 64, 70, 78, 85, 92, 100, 103, 104.4].map(Y);
 shell(() => loft(finHs.map((h) => finSec(h, 0, finCut(h)))), "Vertical stabilizer", "Spar, ribs, wraparound skin and a dorsal fin (POH 7-5). The rudder hinges on its rear spar.");
@@ -169,15 +152,15 @@ onSurf("rudder", V(fLE(Y(95)) - fC(Y(95)) - 0.04, Y(95), 0), () => cyl(0.004, 0.
 export const MG = { fs: 58.2, bl: 50, h: 8.6 };
 [1, -1].forEach((s) => {
   const top = P3(60.5, s * 14.5, 25.8), axle = P3(MG.fs, s * (MG.bl - 4.2), MG.h + 1.4);
-  part(() => taperTubeGeo(top, axle, 1.1 * 0.0254, 0.8 * 0.0254), ["gear", "airframe"], { color: "#AEB6BC", name: "Main gear leg (spring steel)", note: "Tubular spring-steel main landing gear strut attached by a bulkhead and forgings at the base of the rear door posts (POH 7-5, 7-23). Jack pad in the step bracket (POH 8-10).", ext: true, pin: s > 0 });
+  part(() => taperTubeGeo(top, axle, 1.1 * IN, 0.8 * IN), ["gear", "airframe"], { color: "#AEB6BC", name: "Main gear leg (spring steel)", note: "Tubular spring-steel main landing gear strut attached by a bulkhead and forgings at the base of the rear door posts (POH 7-5, 7-23). Jack pad in the step bracket (POH 8-10).", ext: true, pin: s > 0 });
   {
     // step bracket about a third of the way down the strut, on its aft side; it carries the jack pad (POH 8-10)
     const sb = V(...top).lerp(V(...axle), 0.36);
     part(() => box(0.1, 0.012, 0.09), ["gear", "cabin"], { pos: [sb.x - 0.05, sb.y + 0.01, sb.z], color: "#5C666E", name: "Main gear step bracket", note: "Step on each main gear strut; the individual-gear jack pad is built into it (POH 8-10). Jack one main wheel at a time — the strut flexes and the wheel slides inboard.", ext: true, pin: s > 0 });
   }
-  part(() => cyl(8.75 * 0.0254, 6 * 0.0254, "z", 28), ["gear"], { pos: P3(MG.fs, s * MG.bl, MG.h), color: "#2A2F33", name: "Main wheel and tire", note: "6.00 × 6, 6-ply tube type, 42 PSI (POH 8-21). Wheel assembly arm FS 58.2.", ext: true, pin: s > 0 });
+  part(() => cyl(8.75 * IN, 6 * IN, "z", 28), ["gear"], { pos: P3(MG.fs, s * MG.bl, MG.h), color: "#2A2F33", name: "Main wheel and tire", note: "6.00 × 6, 6-ply tube type, 42 PSI (POH 8-21). Wheel assembly arm FS 58.2.", ext: true, pin: s > 0 });
   part(() => wheelFairingGeo({ len: 36, height: 20, width: 11, axle: 0.47, lift: 1, cut: 3 - MG.h }), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 0.7), MG.h), name: "Wheel fairing", note: "Speed fairings are standard (POH 7-23) and worth about 2 knots (POH v); removable per the KOEL.", ext: true, pin: s > 0, color: "#EEF1F3" });
-  part(() => cyl(4.2 * 0.0254, 0.25 * 0.0254, "z", 24), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 3.6), MG.h), color: "#9AA3AA", anim: brakeAnim(s > 0 ? "R" : "L"), name: "Brake disc", note: "Single-disc, hydraulically actuated brake on the inboard side of each main wheel (POH 7-46, 7-23).", ext: true, pin: s > 0 });
+  part(() => cyl(4.2 * IN, 0.25 * IN, "z", 24), ["gear"], { pos: P3(MG.fs, s * (MG.bl - 3.6), MG.h), color: "#9AA3AA", anim: brakeAnim(braking(s > 0 ? "R" : "L")), name: "Brake disc", note: "Single-disc, hydraulically actuated brake on the inboard side of each main wheel (POH 7-46, 7-23).", ext: true, pin: s > 0 });
   part(() => box(0.08, 0.06, 0.04), ["gear"], { pos: P3(MG.fs - 2, s * (MG.bl - 4.6), MG.h + 3), color: "#C8313B", name: "Brake caliper", note: "MIL-H-5606 fluid (POH 8-21). Fading, spongy pedals or dragging brakes: release and reapply hard; pump to build pressure (POH 7-46).", ext: true });
   part(() => tubeGeo([P3(9, s * 8, 27.5), P3(30, s * 11, 27), P3(55, s * 12, 27), P3(59.5, s * 14.5, 25.6), [top[0], top[1] - 0.01, top[2]], [axle[0] + 0.05, axle[1] + 0.05, axle[2] - s * 0.03]], 0.006), ["gear"], { name: "Brake line", note: "From the master cylinder on the pilot's pedal, down the gear leg to the wheel cylinder (POH 7-46)." });
 });
@@ -187,7 +170,7 @@ export const NOSE_CASTER: Vec3 = [0, 0, 0];
 const NA: Vec3 = (() => { const a = P3(-6.8, 0, 7.1); return [a[0] - NOSE[0], a[1] - NOSE[1], 0]; })();
 part(() => cyl(0.034, 0.2), ["gear"], { parent: "noseGear", pos: [0, -0.06, 0], color: "#AEB6BC", name: "Nose gear shock strut (oleo)", note: "Air/oil shock strut: MIL-H-5606 and 45 PSI with no load on the strut; about 2 in of strut shows in the normal ground attitude (POH 7-23, 8-21, 1-4).", ext: true, pin: true });
 part(() => tubeGeo([[0, -0.15, 0], [NA[0] * 0.5, -0.4, 0], [NA[0], NA[1] + 0.02, 0]], 0.022), ["gear"], { parent: "caster", color: "#C9D0D5", name: "Nose gear fork and torque link", note: "Turns with the steering bungee: about 10° each side with the pedals, up to 30° with differential braking (POH 7-22).", ext: true });
-part(() => cyl(7.1 * 0.0254, 4.6 * 0.0254, "z", 24), ["gear"], { parent: "caster", pos: NA, color: "#2A2F33", name: "Nose wheel and tire", note: "5.00 × 5, 6-ply tube type, 45 PSI; nose wheel arm FS −6.8 (POH 6-21, 8-21). Never turn more than 30° when towing (POH 7-22).", ext: true, pin: true });
+part(() => cyl(7.1 * IN, 4.6 * IN, "z", 24), ["gear"], { parent: "caster", pos: NA, color: "#2A2F33", name: "Nose wheel and tire", note: "5.00 × 5, 6-ply tube type, 45 PSI; nose wheel arm FS −6.8 (POH 6-21, 8-21). Never turn more than 30° when towing (POH 7-22).", ext: true, pin: true });
 part(() => wheelFairingGeo({ len: 32, height: 18, width: 9.5, axle: 0.47, lift: 1, cut: -4.5 }), ["gear"], { parent: "caster", pos: [NA[0], NA[1], 0], color: "#EEF1F3", name: "Nose wheel fairing", note: "Nose speed fairing, arm FS −3.5 (POH 6-21).", ext: true });
 part(() => box(0.06, 0.03, 0.16), ["gear", "controls"], { parent: "caster", pos: [0.0, -0.02, 0], color: "#7C57CF", name: "Steering arm", note: "The spring-loaded steering bungees from the rudder bars attach here (POH 7-22).", chan: ["rudder"] });
 part(() => box(0.06, 0.1, 0.03), ["gear"], { pos: P3(19, -12, 46), color: "#C8313B", name: "Parking brake handle", note: "Under the left side of the panel: set the brakes with the pedals, pull the handle aft and rotate it 90° down (POH 7-46). Don't set it in cold weather or with hot brakes (POH 8-9).", pin: true });
@@ -197,7 +180,7 @@ part(() => box(0.5, 0.04, 0.04), ["gear", "cabin"], { pos: P3(121, 9.5, 36), col
 /** Blades between the spinner bulkheads (FS −40.8 / −37.3, POH 6-23), clear of the nose bowl face at about FS −37.4. */
 export const PROP: Vec3 = P3(-39.6, 0, 49.25);
 const bladeGeo = () => {
-  const R = 38 * 0.0254, sh = new THREE.Shape();
+  const R = 38 * IN, sh = new THREE.Shape();
   sh.moveTo(-0.055, 0.1); sh.quadraticCurveTo(-0.075, R * 0.55, -0.04, R); sh.lineTo(0.025, R); sh.quadraticCurveTo(0.06, R * 0.5, 0.05, 0.1); sh.lineTo(-0.055, 0.1);
   const g = new THREE.ExtrudeGeometry(sh, { depth: 0.016, bevelEnabled: false }); g.translate(0, 0, -0.008); g.rotateY(Math.PI / 2 - 0.35); return g;
 };
@@ -217,13 +200,13 @@ CYLS.forEach((c) => {
   ([["U", 0.055], ["L", -0.055]] as const).forEach(([pos, dy]) => {
     // POH 7-36: left magneto fires the upper left and lower right plugs; right magneto the lower left and upper right
     const mag = (c.s < 0) === (pos === "U") ? "L" : "R";
-    part(() => cyl(0.014, 0.05, "x", 10), ["engine"], { pos: [base[0] - 0.09, base[1] + dy, base[2] + c.s * 0.12], color: "#DADFE2", anim: plugAnim(mag, sparkPhase(`${c.n}${pos}`)),
+    part(() => cyl(0.014, 0.05, "x", 10), ["engine"], { pos: [base[0] - 0.09, base[1] + dy, base[2] + c.s * 0.12], color: "#DADFE2", anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`, note: `Fired by the ${mag === "L" ? "left" : "right"} magneto. “The left magneto fires the upper left and lower right spark plugs, and the right magneto fires the lower left and upper right” (POH 7-36).` });
   });
   part(() => box(0.03, 0.03, 0.03), ["engine"], { pos: [base[0] - 0.02, base[1] - 0.12, base[2] + c.s * 0.08], color: "#C9B98F", name: "Fuel injector nozzle", note: "Air-bleed nozzle in the intake valve chamber of each cylinder (POH 7-37)." });
 });
-part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-5.5, -5.5, 54), color: "#3E4A52", anim: magAnim("L"), name: "Left magneto", note: "Fires the upper left and lower right plugs (POH 7-36). Rear accessory case.", pin: true });
-part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-5.5, 5.5, 54), color: "#3E4A52", anim: magAnim("R"), name: "Right magneto", note: "Fires the lower left and upper right plugs (POH 7-36). Normal operation is BOTH; R and L are for checking and emergencies.", pin: true });
+part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-5.5, -5.5, 54), color: "#3E4A52", anim: magAnim(fires("L")), name: "Left magneto", note: "Fires the upper left and lower right plugs (POH 7-36). Rear accessory case.", pin: true });
+part(() => cyl(0.045, 0.12, "x"), ["engine"], { pos: P3(-5.5, 5.5, 54), color: "#3E4A52", anim: magAnim(fires("R")), name: "Right magneto", note: "Fires the lower left and upper right plugs (POH 7-36). Normal operation is BOTH; R and L are for checking and emergencies.", pin: true });
 part(() => box(0.12, 0.1, 0.1), ["engine", "electrical"], { pos: P3(-33.5, -7, 42.5), color: "#4B5860", name: "Starter", note: "Front of the engine (POH 7-29). MAGNETOS to START with the MASTER on closes the starter contactor in the J-box. Crank 10 s, cool 20 s (POH 4-26).", pin: true });
 part(() => cyl(0.04, 0.1, "x"), ["engine"], { pos: P3(-5, 0, 47.5), color: "#1F3A5A", name: "Oil filter (full flow)", note: "Rear of the accessory case; its adapter has a bypass valve for a plugged filter or very cold oil, and carries the oil temperature sensor (POH 7-35, 7-33).", pin: true });
 part(() => box(0.06, 0.14, 0.18), ["engine"], { pos: P3(-11, 11, 54), color: "#9A6A48", name: "Oil cooler", note: "Thermostatically controlled remote cooler (POH 7-35); arm −11.0 (POH 6-24). The KAP 140 POH puts it on the right rear baffle." });
@@ -299,7 +282,7 @@ part(() => box(0.26, 0.5, 0.2), ["cabin", "fuel"], { pos: P3(20.5, 0, 35.5), col
 const CTL = "#7C57CF", STEEL = "#8C959C";
 export const YOKES = [{ side: "L", bl: -RIG_SPEC.yoke.bl }, { side: "R", bl: RIG_SPEC.yoke.bl }] as const;
 YOKES.forEach(({ side }) => {
-  const yk = "yoke:" + side, wh = "wheel:" + side, colLen = (RIG_SPEC.yoke.fs - RIG_SPEC.yoke.colFs) * 0.0254;
+  const yk = "yoke:" + side, wh = "wheel:" + side, colLen = (RIG_SPEC.yoke.fs - RIG_SPEC.yoke.colFs) * IN;
   part(() => cyl(0.016, colLen, "x"), ["controls"], { parent: yk, pos: [colLen / 2, 0, 0], color: STEEL, chan: ["elevator", "aileron"], name: "Control column", note: "Passes through the instrument panel: slides fore/aft for pitch and turns for roll. Both columns are joined behind the panel (POH Fig. 7-1).", pin: side === "L" });
   part(() => { const g = new THREE.TorusGeometry(0.095, 0.014, 8, 28, Math.PI * 1.1); g.rotateZ(Math.PI * 1.45); g.rotateY(Math.PI / 2); return g; }, ["controls"], { parent: wh, color: "#20262B", chan: ["elevator", "aileron"], name: side === "L" ? "Pilot's control wheel" : "Copilot's control wheel", note: side === "L" ? "Left horn: microphone button, Control Wheel Steering (CWS), A/P TRIM DISC button and the split Manual Electric Trim switch; map light and rheostat underneath (POH 7-14, 7-61)." : "Dual controls, right seat: copilot control wheel at FS 26.0 (POH 6-21).", pin: true });
   part(() => box(0.03, 0.06, 0.06), ["controls"], { parent: wh, color: "#20262B", chan: ["elevator", "aileron"] });
@@ -311,7 +294,7 @@ part(() => box(0.02, 0.03, 0.012), ["autopilot", "controls"], { parent: "wheel:L
 part(() => box(0.03, 0.01, 0.03), ["lighting"], { parent: "wheel:L", pos: [0.0, -0.06, -0.02], color: "#E8C46A", name: "Control wheel map light", note: "Under the pilot's wheel; turn NAV on, then set the knurled rheostat (POH 7-61). NAV LTS breaker, ELECTRICAL BUS 2.", pin: true });
 part(() => box(0.03, 0.05, Z(RIG_SPEC.yoke.bl) * 2 + 0.04), ["controls"], { parent: "rig:cross", color: STEEL, chan: ["elevator", "aileron"], name: "Column interconnect", note: "Joins the two control columns behind the panel so both wheels move together (POH Fig. 7-1).", pin: true });
 [-1, 1].forEach((s) => part(() => box(0.02, Y(RIG_SPEC.yoke.h) - Y(RIG_SPEC.yoke.crossH), 0.02), ["controls"], { parent: "rig:cross", pos: [0, (Y(RIG_SPEC.yoke.h) - Y(RIG_SPEC.yoke.crossH)) / 2, s * Z(RIG_SPEC.yoke.bl)], color: STEEL, chan: ["elevator"] }));
-part(() => box(0.04, RIG_SPEC.elev.arm * 0.0254 * 3.2, 0.03), ["controls"], { parent: "rig:crank", color: CTL, chan: ["elevator"], name: "Elevator bellcrank (forward)", note: "Under the forward cabin floor: the link from the column interconnect rocks it, pulling one elevator cable and paying out the other (POH Fig. 7-1).", pin: true });
+part(() => box(0.04, RIG_SPEC.elev.arm * IN * 3.2, 0.03), ["controls"], { parent: "rig:crank", color: CTL, chan: ["elevator"], name: "Elevator bellcrank (forward)", note: "Under the forward cabin floor: the link from the column interconnect rocks it, pulling one elevator cable and paying out the other (POH Fig. 7-1).", pin: true });
 Object.entries(PULLEYS).forEach(([k, d]) => part(() => pulleyGeo(d.r, d.axis, d.double, d.gap), d.chan === "trim" ? ["controls", "autopilot"] : ["controls"], {
   chan: d.chan === "trim" ? ["elevator"] : [d.chan as Chan], parent: "rig:pul:" + k, color: k.startsWith("aw") ? CTL : "#A6AEB4", name: d.name, note: d.note, pin: true }));
 (["L", "R"] as const).forEach((sd) => part(() => box(0.16, 0.012, 0.016), ["controls"], { parent: "rig:pul:aw" + sd, pos: [-0.04, -0.012, 0], color: STEEL, chan: ["aileron"] }));
@@ -324,7 +307,7 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], { po
 });
 // elevator bellcrank / torque tube in the tailcone, rudder horn, aileron horns
 {
-  const pv = surfacePivot("elevR"), arm = RIG_SPEC.elev.hornArm * 0.0254;
+  const pv = surfacePivot("elevR"), arm = RIG_SPEC.elev.hornArm * IN;
   part(() => box(0.025, arm * 2.2, 0.025), ["controls"], { parent: "surf:elevR", pos: [0.02, 0, -pv[2] + 0.02], color: CTL, chan: ["elevator"], name: "Elevator bellcrank (tail)", note: "On the elevator torque tube: the up and down cables pull its upper and lower arms (POH 7-6, Fig. 7-1).", pin: true });
   part(() => cyl(0.012, Z(4) * 2, "z"), ["controls"], { parent: "surf:elevR", pos: [0, 0, -pv[2]], color: STEEL, chan: ["elevator"], name: "Elevator torque tube", note: "Joins both elevator halves on the hinge line." });
   const rv = surfacePivot("rudder"), hy = Y(RIG_SPEC.rud.hornH);
@@ -332,11 +315,11 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], { po
 }
 [1, -1].forEach((s) => { const sd = s > 0 ? "R" : "L", aw = PULLEYS["aw" + sd].c; onSurf("ail" + sd, [aw[0] - 0.16, aw[1] - 0.035, aw[2]], () => box(0.03, 0.04, 0.012), { color: CTL, name: "Aileron horn", note: "The push-pull rod from the bellcrank drives the aileron here." }); });
 // trim wheel and indicator, trim actuator
-part(() => { const g = new THREE.CylinderGeometry(RIG_SPEC.trim.r * 0.0254, RIG_SPEC.trim.r * 0.0254, 0.03, 28); g.rotateX(Math.PI / 2); return g; }, ["controls", "autopilot"], {
+part(() => { const g = new THREE.CylinderGeometry(RIG_SPEC.trim.r * IN, RIG_SPEC.trim.r * IN, 0.03, 28); g.rotateX(Math.PI / 2); return g; }, ["controls", "autopilot"], {
   parent: "rig:trimWheel", color: "#20262B", chan: ["elevator"], name: "Elevator trim wheel", pin: true,
   note: "Vertical wheel on the pedestal: forward = nose down, aft = nose up (POH 7-7). It turns when the GFC 700 trim servo runs (MET or autotrim) because the servo drives the same cable (Fig. 7-10).",
 });
-part(() => box(0.012, 0.012, 0.035), ["controls", "autopilot"], { parent: "rig:trimWheel", pos: [0, RIG_SPEC.trim.r * 0.0254, 0], color: "#E8ECEE", chan: ["elevator"] });
+part(() => box(0.012, 0.012, 0.035), ["controls", "autopilot"], { parent: "rig:trimWheel", pos: [0, RIG_SPEC.trim.r * IN, 0], color: "#E8ECEE", chan: ["elevator"] });
 part(() => box(0.01, 0.02, 0.01), ["controls"], { pos: P3(25.8, 2.6, 37.5), color: "#FFFFFF", chan: ["elevator"], anim: (m) => { m.position.y = Y(37.5) + live.afcs.trim * 0.04; },
   name: "Trim position indicator", note: "Pointer beside the wheel; TAKEOFF when it lines up with the index mark on the pedestal cover (POH 4-31). Required for all operations (KOEL)." });
 part(() => box(0.06, 0.035, 0.05), ["controls"], { pos: RIG.p3(RIG_SPEC.trim.actuator), color: CTL, chan: ["elevator"], name: "Elevator trim tab actuator", note: "Inside the horizontal stabilizer (POH 7-6); driven by the trim cable, it pushes the tab through a push-pull rod.", pin: true });

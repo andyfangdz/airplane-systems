@@ -7,9 +7,9 @@
  */
 import "./cessna.css";
 import type { ReactNode } from "react";
-import { Facts, Readouts, Rocker } from "@/components/ui/controls";
+import { Facts, HoldButton, Readouts, Rocker } from "@/components/ui/controls";
 import { NAV3_ANN, type Nav3AnnDef } from "./annunciations";
-import { FEEDER, NAV3_BUS_NAME, PULLABLE, cbKey, type Breaker, type Nav3Bus, type Nav3Elec, type Nav3Solution } from "./electrical";
+import { FEEDER, PULLABLE, amp, cbKey, mBattAlert, sBattAlert, voltsAlert, type Breaker, type Nav3Bus, type Nav3Elec, type Nav3Solution } from "./electrical";
 
 type Upd = (fn: (d: Nav3Elec) => void) => void;
 
@@ -26,10 +26,9 @@ export function Nav3Switches({ e, E, up, testHeld = 0, testSeconds = 10 }: { e: 
         <div className="n3-seg" role="group" aria-label="STBY BATT switch">
           <button type="button" aria-pressed={e.stby === "ARM"} onClick={() => up((d) => { d.stby = "ARM"; })}>ARM</button>
           <button type="button" aria-pressed={e.stby === "OFF"} onClick={() => up((d) => { d.stby = "OFF"; })}>OFF</button>
-          <button type="button" aria-pressed={e.stby === "TEST"} title={`Hold for the ${testSeconds}-second energy test (spring-loaded)`}
-            onPointerDown={(ev) => { ev.currentTarget.setPointerCapture?.(ev.pointerId); hold(true); }} onPointerUp={() => hold(false)} onPointerCancel={() => hold(false)}
-            onKeyDown={(ev) => { if ((ev.key === " " || ev.key === "Enter") && !ev.repeat) { ev.preventDefault(); hold(true); } }}
-            onKeyUp={(ev) => { if (ev.key === " " || ev.key === "Enter") hold(false); }}>{e.stby === "TEST" ? `${testHeld.toFixed(0)} s` : "TEST"}</button>
+          <HoldButton pressed={e.stby === "TEST"} title={`Hold for the ${testSeconds}-second energy test (spring-loaded)`} onDown={() => hold(true)} onUp={() => hold(false)}>
+            {e.stby === "TEST" ? `${testHeld.toFixed(0)} s` : "TEST"}
+          </HoldButton>
         </div>
       </div>
       <div className="n3-split" aria-label="MASTER switch">
@@ -46,13 +45,13 @@ export function Nav3Switches({ e, E, up, testHeld = 0, testSeconds = 10 }: { e: 
   );
 }
 
-const amp = (a: number) => (a > 0 ? "+" : "") + a.toFixed(1);
-/** EIS ELECTRICAL block as the G1000 shows it: M BUS / E BUS volts and M BATT / S BATT amps, with the POH colour rules. */
+const tone = (a: "warning" | "caution" | null) => (a === "warning" ? "bad" : a === "caution" ? "warnc" : "") as "" | "bad" | "warnc";
+/** EIS ELECTRICAL block as the G1000 shows it: M BUS / E BUS volts and M BATT / S BATT amps, coloured by the POH rules in electrical.ts. */
 export function Nav3Meters({ E }: { E: Nav3Solution }) {
-  const v = (x: number | null): [string, "" | "bad" | "warnc"] => (x == null ? ["✕", "bad"] : [x.toFixed(1), x > 32 || x < 24.5 ? "bad" : ""]);
+  const v = (x: number | null): [string, "" | "bad" | "warnc"] => (x == null ? ["✕", "bad"] : [x.toFixed(1), tone(voltsAlert(x))]);
   return (
     <div className="n3-meter">
-      <Readouts items={[["M BUS V", v(E.mBus)], ["E BUS V", v(E.eBus)], ["M BATT A", [amp(E.mBatt), E.mBatt < -1.5 ? "warnc" : ""]], ["S BATT A", [amp(E.sBatt), E.sBatt < 0 ? "warnc" : ""]]]} />
+      <Readouts items={[["M BUS V", v(E.mBus)], ["E BUS V", v(E.eBus)], ["M BATT A", [amp(E.mBatt), tone(mBattAlert(E.mBatt))]], ["S BATT A", [amp(E.sBatt), tone(sBattAlert(E.sBatt))]]]} />
     </div>
   );
 }
@@ -68,12 +67,12 @@ export function Nav3Diagram({ e, E }: { e: Nav3Elec; E: Nav3Solution }) {
       {v != null && <text x={x + w / 2} y={y + 19} textAnchor="middle" className="d">{lit ? v.toFixed(1) + " V" : "0 V"}</text>}
     </g>
   );
-  const node = E.node > 0, src = (x: boolean) => x;
+  const node = E.node > 0;
   return (
     <svg className="n3-dia" viewBox="0 0 360 214" role="img" aria-label="Electrical system diagram (POH Figure 7-7)">
-      {B(4, 8, 62, "ALTERNATOR", src(E.altOn))}
-      {B(4, 52, 62, "MAIN BATT", src(e.bat && !e.fail.bat && e.socMain > 0.02))}
-      {B(4, 96, 62, "EXT PWR", src(e.ext))}
+      {B(4, 8, 62, "ALTERNATOR", E.altOn)}
+      {B(4, 52, 62, "MAIN BATT", e.bat && !e.fail.bat && e.socMain > 0.02)}
+      {B(4, 96, 62, "EXT PWR", e.ext)}
       {W("M66 19 H84 V58", E.altOn)}
       {W("M66 63 H84", e.bat && node)}
       {W("M66 107 H84 V68", e.ext && e.bat)}
@@ -140,4 +139,3 @@ export function BreakerBoard({ breakers, buses, E, cb, up, extra }: {
 export const Nav3AnnTable = ({ defs = NAV3_ANN }: { defs?: Nav3AnnDef[] }) =>
   <Facts rows={defs.map((a) => [<b key={a.text} style={{ color: a.level === "w" ? "var(--warn)" : "#B98A00" }}>{a.text}</b>, `${a.level === "w" ? "Warning" : "Caution"} · ${a.tone} tone · ${a.trigger} (${a.cite})`])} />;
 
-export { NAV3_BUS_NAME };

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useReducer, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
 import type { PartSpec } from "@/lib/catalogue";
 import { focusPart } from "@/lib/registry";
 
@@ -75,10 +75,9 @@ export const BtnRow = ({ children }: { children: ReactNode }) => <div className=
 
 /** "Tap to locate": flies the camera to a part and highlights it briefly. Pass `cat.pinned(sys)`. */
 export function PartsList({ parts }: { parts: PartSpec[] }) {
-  const list = parts;
   return (
     <ul className="parts">
-      {list.map((p) => (
+      {parts.map((p) => (
         <li key={p.id}>
           <button type="button" onClick={() => focusPart(p.name!)}>
             <b>{p.name}</b><span>{p.note}</span>
@@ -86,5 +85,47 @@ export function PartsList({ parts }: { parts: PartSpec[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Momentary button (pointer or keyboard), e.g. a spring-loaded switch position. `onDown` on press, `onUp(held)` on release;
+ * `onHold` fires once after `holdMs`; `repeat` (ms) re-fires `onDown` while held (e.g. trim switches).
+ * Losing focus or unmounting while held (Tab away, switching system or airplane) counts as a release.
+ */
+export interface HoldButtonProps {
+  onDown?: () => void; onUp?: (held: boolean) => void; onHold?: () => void; holdMs?: number; repeat?: number;
+  className?: string; disabled?: boolean; title?: string; ariaLabel?: string; pressed?: boolean; children: ReactNode;
+}
+export function HoldButton({ onDown, onUp, onHold, holdMs = 500, repeat, className, disabled, title, ariaLabel, pressed, children }: HoldButtonProps) {
+  const [down, setDown] = useState(false);
+  const r = useRef({ down: false, held: false, t: 0 as ReturnType<typeof setTimeout> | 0, i: 0 as ReturnType<typeof setInterval> | 0 });
+  const stop = () => { clearTimeout(r.current.t || undefined); clearInterval(r.current.i || undefined); r.current.t = r.current.i = 0; };
+  const upRef = useRef(onUp);
+  upRef.current = onUp;
+  useEffect(() => () => {
+    stop();
+    if (r.current.down) { r.current.down = false; upRef.current?.(r.current.held); }
+  }, []);
+  const press = () => {
+    if (r.current.down || disabled) return;
+    r.current.down = true; r.current.held = false; setDown(true);
+    onDown?.();
+    if (onHold) r.current.t = setTimeout(() => { r.current.held = true; onHold(); }, holdMs);
+    if (repeat && onDown) r.current.i = setInterval(onDown, repeat);
+  };
+  const release = () => {
+    if (!r.current.down) return;
+    r.current.down = false; setDown(false); stop();
+    onUp?.(r.current.held);
+  };
+  return (
+    <button type="button" className={className} data-down={down} aria-pressed={pressed} disabled={disabled} title={title} aria-label={ariaLabel}
+      onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); press(); }}
+      onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} onBlur={release}
+      onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(); } }}
+      onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); release(); } }}>
+      {children}
+    </button>
   );
 }

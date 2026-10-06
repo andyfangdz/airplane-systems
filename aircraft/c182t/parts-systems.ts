@@ -9,17 +9,16 @@ import type { PartAnim } from "@/lib/catalogue";
 import { mergeGeos } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
 import { V, type Vec3 } from "@/lib/math";
-import { useView } from "@/lib/view";
 import { kap140Phase } from "@/lib/avionics/kap140";
 import { AF, X, Y, Z, box, cyl, onSkin, sph, botY, tubeGeo, wingP, wLE, wC, fLE } from "./geometry";
 import { live } from "./model";
-import { CAT, KNOB, P3, PV, glowAnim as glow, pushPull } from "./parts";
+import { glowAnim as glow, pushPull, sysNow } from "../cessna/anims";
+import { CAT, KNOB, P3, PV } from "./parts";
 import { RIG_SPEC } from "./rig";
 import { useC182 } from "./store";
 
 const { part } = CAT;
 const S = () => useC182.getState().s, EL = () => useC182.getState().E;
-const sysNow = () => useView.getState().sys;
 const wp = (bl: number, c: number, up = 0, dy = 0): Vec3 => PV(wingP(Z(bl), c, up).add(V(0, dy, 0)));
 /** Chord fraction of a fuselage station on the wing at BL (for equipment-list arms in the wing). */
 const cAt = (fs: number, bl: number) => { const z = Z(bl); return (wLE(z) - X(fs)) / wC(z); };

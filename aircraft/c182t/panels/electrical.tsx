@@ -1,8 +1,8 @@
 "use client";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Seg, Slider, Small, useTicker } from "@/components/ui/controls";
-import { FEEDER, nav3Init } from "../../cessna/electrical";
+import { FEEDER, NAV3_BUSES, nav3Init } from "../../cessna/electrical";
 import { BreakerBoard, Nav3Diagram, Nav3Meters, Nav3Switches } from "../../cessna/panels";
-import { BREAKERS, BUSES, elecCfg, live, type Sim } from "../model";
+import { BREAKERS, elecCfg, live, type Sim } from "../model";
 import { CAT } from "../parts";
 import { useC182 } from "../store";
 
@@ -68,7 +68,7 @@ export function Electrical() {
       <Nav3Diagram e={e} E={E} />
       <H3>Circuit breakers (Figure 7-7 Sheet 2)</H3>
       <Small>Tap an ESS or AVN breaker to pull it (white collar) or reset it. ELECTRICAL BUS 1, BUS 2 and CROSSFEED breakers can&apos;t be pulled (POH 7-55) — they can only trip (amber) and be reset. Only FLAP 10 A, PITOT HEAT 10 A, WARN 5 A and AUTO PILOT 5 A are rated in the documents; the others are left blank. Hover a breaker for its load and source.</Small>
-      <BreakerBoard breakers={BREAKERS} buses={BUSES} E={E} cb={e.cb} up={upE} />
+      <BreakerBoard breakers={BREAKERS} buses={NAV3_BUSES} E={E} cb={e.cb} up={upE} />
       <BtnRow>
         <button type="button" className="btn" onClick={() => upE((d) => { d.cb["E1:LAND LT"] = true; })}>Trip LAND LT</button>
         <button type="button" className="btn" onClick={() => upE((d) => { d.cb["XF:ALT FIELD"] = true; })}>Trip ALT FIELD</button>

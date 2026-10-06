@@ -9,7 +9,7 @@
  * (182TPHBUS-01) only where the 2005 text is silent, and marked as such.
  */
 import type { CasLevel } from "../types";
-import { cbKey, nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
+import { nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
 import { nav3Annunciations, type Nav3AnnDef } from "../cessna/annunciations";
 import { FLIGHT_DEFAULT, initFlight, type FlightCfg } from "@/lib/avionics/flight";
 import { kap140Init, kap140Pfd, type Kap140State } from "@/lib/avionics/kap140";
@@ -194,16 +194,6 @@ export const BREAKERS: Breaker[] = [
  */
 export const elecCfg = (s: Pick<Sim, "altAmps">): Nav3Cfg => ({ altAmps: s.altAmps, mainAh: 12.75, stbyAh: 6.2, breakers: BREAKERS });
 
-type Nav3Bus2 = Breaker["bus"];
-/** Rows for the electrical panel: [bus, name, fed from]. */
-export const BUSES: [Nav3Bus2, string, string][] = [
-  ["E1", "ELECTRICAL BUS 1", "J-box feeder C/B “B”"],
-  ["E2", "ELECTRICAL BUS 2", "J-box feeder C/B “A”"],
-  ["XF", "CROSSFEED BUS", "Bus 1 and Bus 2 through diodes"],
-  ["ESS", "ESSENTIAL BUS", "Bus 1 and Bus 2 through diodes · standby battery (ARM)"],
-  ["AV1", "AVIONICS BUS 1", "Bus 1 · AVN 1 breaker · AVIONICS (BUS 1)"],
-  ["AV2", "AVIONICS BUS 2", "Bus 2 · AVN 2 breaker · AVIONICS (BUS 2)"],
-];
 
 /* ---------- engine helpers (pure) ---------- */
 /** Ambient pressure (in.Hg) at a pressure altitude (ft), standard atmosphere. */
@@ -386,4 +376,3 @@ export function annunciations(s: Sim, E: Elec, withPitchTrim = true): [CasLevel,
 /** Stall speed (KIAS, power off, wings level, 3,100 lb, most rearward CG — POH Figure 5-4) by flap angle; 10° interpolated. */
 export const stallKias = (flapDeg: number) => (flapDeg < 5 ? 50 : flapDeg < 15 ? 47 : flapDeg < 29 ? 43 : 40);
 
-export { cbKey };

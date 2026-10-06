@@ -6,6 +6,7 @@
 import { flightData, type FlightState } from "@/lib/avionics/flight";
 import { drawMFD, drawPFD, drawStandbyAirspeed, drawStandbyAltimeter, drawStandbyAttitude, type FlightData, type Gauge, type MfdData, type PfdData, type SpeedBands } from "@/lib/avionics/g1000";
 import { drawKap140, kap140Pfd } from "@/lib/avionics/kap140";
+import { lin } from "@/lib/geometry";
 import { nav3ElecGauges } from "../cessna/annunciations";
 import { annunciations, fuelInd, live, type Elec, type Sim } from "./model";
 
@@ -18,11 +19,6 @@ export { drawOff } from "@/lib/canvas";
 export const SPEEDS: SpeedBands = { white: [41, 100], green: [51, 140], yellow: [140, 175], red: 175, vr: 55, vx: 65, vy: 80, vg: 76 };
 
 const clock = (t: number) => { const s = Math.floor(14 * 3600 + 5 * 60 + t); return [Math.floor(s / 3600) % 24, Math.floor(s / 60) % 60, s % 60].map((v) => String(v).padStart(2, "0")).join(":"); };
-const lin = (tab: number[][], x: number) => {
-  if (x <= tab[0][0]) return tab[0][1];
-  for (let i = 1; i < tab.length; i++) if (x <= tab[i][0]) { const [a, b] = [tab[i - 1], tab[i]]; return a[1] + ((b[1] - a[1]) * (x - a[0])) / (b[0] - a[0]); }
-  return tab[tab.length - 1][1];
-};
 /** Alternate static source, flaps UP (POH Fig 5-1 Sheet 2): normal KIAS → alternate KIAS. */
 const ALT_KIAS = [[55, 53], [60, 58], [70, 70], [80, 81], [90, 91], [100, 101], [120, 121], [140, 141], [160, 161]];
 /** Altimeter correction with the alternate static source, flaps UP, sea level to 4,000 ft (POH Fig 5-2): indicated = true + correction. */
@@ -33,7 +29,7 @@ export function indicated(s: Sim, fs: FlightState) {
   let ias = fs.ias, alt = fs.alt, vs = fs.vs;
   if (s.pitot.pitotBlocked) ias = 0;
   if (s.pitot.staticBlocked && !s.pitot.altStatic) { alt = live.staticAlt ?? fs.alt; vs = 0; }
-  if (s.pitot.altStatic && ias > 40) { ias = lin(ALT_KIAS, ias); alt += lin(ALT_FT, fs.ias); }
+  if (s.pitot.altStatic && ias > 40) { ias = lin(ALT_KIAS, ias)[0]; alt += lin(ALT_FT, fs.ias)[0]; }
   return { ias, alt, vs };
 }
 
