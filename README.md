@@ -30,7 +30,7 @@ The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Se
 | Lighting | NAV / STROBE / LAND / ICE switches: wingtip nav, strobe, aft position and landing lights (no tail light, no cowl light), ice inspection lights; cabin and convenience lights |
 | Environmental | OFF–0–1–2–3 fan knob, temperature blend, vent modes, A/C, recirculation |
 | Pitot-static & stall | Pitot heat logic and annunciations, stall-warning suction peak and horn |
-| Avionics | Live PFD / MFD / standby textures that go dark with their buses; display backup |
+| Avionics | Live Perspective+ PFD / MFD (shared Garmin renderer) and MD302 standby that go dark with their buses; DISPLAY BACKUP reversion |
 | CAPS | Scrubbable deployment: rocket extraction, slider, snubbed riser, line cut, descent |
 
 ## Project structure
@@ -50,7 +50,7 @@ lib/
   systems.ts          Airplane ids, system ids, palette
   catalogue.ts        Declarative part catalogue with label lists
   simStore.ts         createSimStore: one zustand store per airplane (discrete state + derived solution)
-  avionics/           G1000 display drawing, flight-state integrator, GFC 700 and KAP 140 logic (pure functions)
+  avionics/           G1000 / Perspective+ display drawing, flight-state integrator, GFC 700 and KAP 140 logic (pure functions)
   geometry.ts, materials.ts, math.ts, registry.ts, canvas.ts
 ```
 
