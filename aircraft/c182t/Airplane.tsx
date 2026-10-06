@@ -32,16 +32,16 @@ const st = () => useC182.getState();
  * position — with the rig pose and surface angles that follow from them. The surfaces, the rig and the links all ask every frame,
  * so these are recomputed only when an input changes.
  */
-const IN = { p: NaN, r: NaN, y: NaN, t: NaN, f: NaN, c: { pitch: 0, roll: 0, yaw: 0, trim: 0 } as CtlIn, pose: null as unknown as Pose, sa: {} as Record<string, number> };
+const rigCache = { p: NaN, r: NaN, y: NaN, t: NaN, f: NaN, c: { pitch: 0, roll: 0, yaw: 0, trim: 0 } as CtlIn, pose: null as unknown as Pose, sa: {} as Record<string, number> };
 function rigState() {
   const p = live.ctl.pitch, r = live.ctl.roll, y = clamp(live.ctl.yaw + st().s.ctrl.rudTrim * RUD_TRIM.bias, -1, 1), t = live.kap.trim, f = live.flapAng;
-  if (p !== IN.p || r !== IN.r || y !== IN.y || t !== IN.t || f !== IN.f) {
-    IN.p = p; IN.r = r; IN.y = y; IN.t = t; IN.f = f;
-    IN.c = { pitch: p, roll: r, yaw: y, trim: t };
-    IN.pose = RIG.pose(IN.c);
-    IN.sa = RIG.surfaceAngles(IN.c, f);
+  if (p !== rigCache.p || r !== rigCache.r || y !== rigCache.y || t !== rigCache.t || f !== rigCache.f) {
+    rigCache.p = p; rigCache.r = r; rigCache.y = y; rigCache.t = t; rigCache.f = f;
+    rigCache.c = { pitch: p, roll: r, yaw: y, trim: t };
+    rigCache.pose = RIG.pose(rigCache.c);
+    rigCache.sa = RIG.surfaceAngles(rigCache.c, f);
   }
-  return IN;
+  return rigCache;
 }
 
 /** Control-surface deflections (radians) from the wheel/pedals or the KAP 140 servos, the flap motor and the trim. */

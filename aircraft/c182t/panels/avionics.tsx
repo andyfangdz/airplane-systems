@@ -13,7 +13,8 @@ import { CAT, P3 } from "../parts";
 import { KAP_LCD } from "../parts-systems";
 import { useC182 } from "../store";
 import { SYS } from "../systems";
-import { kapView, scenarioCruise } from "../tick";
+import { scenarioCruise } from "../store";
+import { kapView } from "../tick";
 
 const onOff = (b: boolean): [string, "" | "bad"] => (b ? ["ON", ""] : ["OFF", "bad"]);
 /** Camera close-up in front of a panel point (labels off so they don't sit on the display). */

@@ -8,7 +8,7 @@
 import "./cessna.css";
 import type { ReactNode } from "react";
 import { Facts, HoldButton, Readouts, Rocker } from "@/components/ui/controls";
-import { NAV3_ANN, type Nav3AnnDef } from "./annunciations";
+import type { Nav3AnnDef } from "./annunciations";
 import { FEEDER, PULLABLE, amp, cbKey, mBattAlert, sBattAlert, voltsAlert, type Breaker, type Nav3Bus, type Nav3Elec, type Nav3Solution } from "./electrical";
 
 type Upd = (fn: (d: Nav3Elec) => void) => void;
@@ -135,7 +135,7 @@ export function BreakerBoard({ breakers, buses, E, cb, up, extra }: {
   );
 }
 
-/** The G1000 NAV III annunciation set (POH 7-51) with levels, tones and triggers; `defs` defaults to the 172S list. */
-export const Nav3AnnTable = ({ defs = NAV3_ANN }: { defs?: Nav3AnnDef[] }) =>
+/** The airplane's G1000 NAV III annunciation set (POH 7-51) with levels, tones and triggers. */
+export const Nav3AnnTable = ({ defs }: { defs: Nav3AnnDef[] }) =>
   <Facts rows={defs.map((a) => [<b key={a.text} style={{ color: a.level === "w" ? "var(--warn)" : "#B98A00" }}>{a.text}</b>, `${a.level === "w" ? "Warning" : "Caution"} · ${a.tone} tone · ${a.trigger} (${a.cite})`])} />;
 

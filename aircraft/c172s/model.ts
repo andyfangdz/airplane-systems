@@ -8,7 +8,7 @@
  */
 import type { CasLevel } from "../types";
 import { nav3Init, solveNav3, type Breaker, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "../cessna/electrical";
-import { nav3Annunciations } from "../cessna/annunciations";
+import { nav3Annunciations, type Nav3AnnDef } from "../cessna/annunciations";
 import { FLIGHT_DEFAULT, initFlight, type FlightCfg } from "@/lib/avionics/flight";
 import { GFC700_BASE, gfc700Init, type Gfc700Cfg } from "@/lib/avionics/gfc700";
 
@@ -284,12 +284,24 @@ export function solve(s: Sim): Elec {
 export const fuelInd = (usable: number) => Math.min(24, Math.max(0, usable));
 export const oilPressSwitch = () => live.oilP <= 20;
 
+/** The 172S annunciation set with exact text, level, aural and trigger (POH 7-51; levels and tones CRG 190-00384-13 pp. 115–116). */
+export const C172S_ANN: Nav3AnnDef[] = [
+  { text: "OIL PRESSURE", level: "w", tone: "Continuous", trigger: "Low oil pressure switch: 0–20 PSI (shown with the engine stopped)", cite: "POH 7-33" },
+  { text: "LOW VOLTS", level: "w", tone: "Continuous (inhibited on the ground)", trigger: "ACU: main bus voltage in the power distribution module below 24.5 V", cite: "POH 7-55" },
+  { text: "HIGH VOLTS", level: "w", tone: "Continuous", trigger: "Main or essential bus above 32.0 V (ACU automatic shutdown not working)", cite: "POH 7-56" },
+  { text: "CO LVL HIGH", level: "w", tone: "Continuous until the WARNING softkey", trigger: "CO ≥ 50 PPM; flashes until acknowledged, steady until below 50 PPM", cite: "POH 7-80" },
+  { text: "LOW FUEL L", level: "c", tone: "Single", trigger: "Left tank < 5 gal indicated for more than 60 s", cite: "POH 7-40" },
+  { text: "LOW FUEL R", level: "c", tone: "Single", trigger: "Right tank < 5 gal indicated for more than 60 s", cite: "POH 7-40" },
+  { text: "LOW VACUUM", level: "c", tone: "Single", trigger: "Engine-driven pump vacuum below 3.5 in.Hg (shown with the engine stopped)", cite: "POH 7-65" },
+  { text: "STBY BATT", level: "c", tone: "Single", trigger: "Standby battery discharging more than 0.5 A for more than 10 s", cite: "POH 7-54" },
+];
+
 /** G1000 annunciation window (POH 7-51) for this airplane. Needs a powered display. */
 export function annunciations(s: Sim, E: Elec): [CasLevel, string][] {
   return nav3Annunciations({
     oilPress: oilPressSwitch(), lowFuelL: s.ann.lowFuelL, lowFuelR: s.ann.lowFuelR, vac: live.vac,
     lowVolts: E.lowVolts, highVolts: E.highVolts, stbyBatt: s.ann.stbyBatt, co: live.coPpm >= 50,
-  });
+  }, C172S_ANN);
 }
 
 /** Stall speed (KIAS, power idle, wings level, 2550 lb, most rearward CG — POH Figure 5-3) by flap angle. */

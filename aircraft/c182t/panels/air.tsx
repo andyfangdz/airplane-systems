@@ -5,7 +5,7 @@ import { indicated } from "../displays";
 import { live, stallKias, type FlapCmd } from "../model";
 import { CAT } from "../parts";
 import { useC182 } from "../store";
-import { scenarioCruise } from "../tick";
+import { scenarioCruise } from "../store";
 
 const knob = (v: number) => (v < 0.03 ? "Pushed in (OFF)" : v > 0.97 ? "Pulled full out" : `Pulled ${Math.round(v * 100)}%`);
 

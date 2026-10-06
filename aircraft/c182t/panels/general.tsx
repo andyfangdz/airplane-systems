@@ -8,7 +8,7 @@ import { live, type Elt } from "../model";
 import { CAT } from "../parts";
 import { useC182 } from "../store";
 import { SYS } from "../systems";
-import { scenarioColdDark, scenarioCruise, scenarioRunUp } from "../tick";
+import { scenarioColdDark, scenarioCruise, scenarioRunUp } from "../store";
 
 export function Scenarios() {
   return (

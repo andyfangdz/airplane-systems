@@ -7,11 +7,11 @@ import { gfc700Engaged, gfc700Fail, gfc700Key, type Gfc700Fail, type Gfc700Key }
 import { useView } from "@/lib/view";
 import { Nav3AnnTable } from "../../cessna/panels";
 import { mfdReversion, pfdReversion } from "../displays";
-import { AFCS_CFG, densityFactor, live } from "../model";
+import { AFCS_CFG, C172S_ANN, densityFactor, live } from "../model";
 import { CAT, P3 } from "../parts";
 import { useC172 } from "../store";
 import { SYS } from "../systems";
-import { scenarioCruise } from "../tick";
+import { scenarioCruise } from "../store";
 
 const onOff = (b: boolean): [string, "" | "bad"] => (b ? ["ON", ""] : ["OFF", "bad"]);
 
@@ -49,7 +49,7 @@ export function Avionics() {
       <H3>Power paths (Figure 7-7)</H3>
       <Facts rows={[["PFD", `PFD breakers on ESS and AVN BUS 1 — live: ${both("PFD")}`], ["ADC / AHRS", `ADC AHRS on ESS and AVN BUS 1 — live: ${both("ADC AHRS")}`], ["NAV 1 / GEA 71", `NAV 1 ENG on ESS and AVN BUS 1 — live: ${both("NAV 1 ENG")}`], ["COM 1", "COMM 1, ESSENTIAL BUS"], ["MFD (+ fan)", "MFD, AVIONICS BUS 2"], ["Audio · XPDR · NAV 2 · COM 2 · AP", "AVIONICS BUS 2"], ["Fans", "Forward + PFD fans on AVN 1 PFD; aft fan on NAV 2; none on the standby battery"]]} />
       <H3>Annunciation window (POH 7-51)</H3>
-      <Nav3AnnTable />
+      <Nav3AnnTable defs={C172S_ANN} />
       <Small>Expected before start with the MASTER on: OIL PRESSURE, LOW VOLTS and LOW VACUUM shown; LOW FUEL not shown (POH 4-5). Run-up: no annunciations (POH 4-16). PITOT HEAT has no annunciation on this airplane; “PITCH TRIM” is KAP 140 only.</Small>
       <H3>Units — tap to locate</H3>
       <PartsList parts={CAT.pinned("avionics")} />
