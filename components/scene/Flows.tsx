@@ -1,6 +1,6 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { FlowSpec } from "@/lib/catalogue";
 import { curveOf } from "@/lib/geometry";
@@ -36,6 +36,8 @@ export function Flows({ flows, rates, color }: { flows: FlowSpec[]; rates: () =>
     pts.visible = false;
     return { f, curve, len, n, off, tube, pts, t: 0 };
   }), [flows]);
+  // free the GPU buffers when the airplane is switched away (the shared dot texture stays)
+  useEffect(() => () => items.forEach((it) => { it.tube?.dispose(); it.pts.geometry.dispose(); (it.pts.material as THREE.Material).dispose(); }), [items]);
 
   const tmp = useRef(new THREE.Vector3());
   const live = useRef(new THREE.Color());

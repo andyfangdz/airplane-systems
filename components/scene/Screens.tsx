@@ -1,6 +1,6 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
 import { V } from "@/lib/math";
@@ -38,6 +38,7 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
     tx.anisotropy = 4; tx.colorSpace = THREE.SRGBColorSpace;
     return { d, ctx: c.getContext("2d")!, tx };
   }), [screens]);
+  useEffect(() => () => items.forEach((it) => it.tx.dispose()), [items]);
   const acc = useRef(1);
   useFrame((_, dt) => {
     acc.current += dt;

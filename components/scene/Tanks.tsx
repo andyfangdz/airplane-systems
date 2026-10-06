@@ -1,6 +1,6 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { V } from "@/lib/math";
 import { sysColor } from "@/lib/systems";
@@ -34,6 +34,7 @@ export function Tanks({ tanks }: { tanks: TankSpec[] }) {
       fuel: new THREE.MeshStandardMaterial({ color: c, transparent: true, opacity: 0.62, clippingPlanes: [plane], side: THREE.DoubleSide, depthWrite: false, emissive: new THREE.Color("#0B3A80") }),
     };
   }), [tanks]);
+  useEffect(() => () => items.forEach((it) => { it.geo.dispose(); it.shell.dispose(); it.fuel.dispose(); }), [items]);
   useFrame(() => {
     for (const it of items) {
       const q = Math.max(0, Math.min(1, it.t.level()));

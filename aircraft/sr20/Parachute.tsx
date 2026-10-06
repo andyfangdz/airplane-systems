@@ -44,6 +44,7 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
   }, []);
   const goreGeo = useMemo(() => new THREE.EdgesGeometry(new THREE.SphereGeometry(5.52, 16, 4, 0, Math.PI * 2, 0, Math.PI * 0.42)), []);
   const wasOn = useRef(false);
+  useEffect(() => () => { lineGeo.dispose(); goreGeo.dispose(); }, [lineGeo, goreGeo]);
   // leaving the airplane mid-deployment: show the ground grid again
   useEffect(() => () => { if (gridRef.current) gridRef.current.visible = true; }, [gridRef]);
 

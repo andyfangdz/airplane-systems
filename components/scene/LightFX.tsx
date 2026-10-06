@@ -1,6 +1,6 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { dotTex } from "@/lib/materials";
 import { V, type Vec3 } from "@/lib/math";
@@ -21,6 +21,7 @@ export function LightFX({ glows, beams = [] }: { glows: GlowSpec[]; beams?: Beam
   const refs = useRef<Record<string, THREE.Object3D | null>>({});
   const set = (key: string) => (o: THREE.Object3D | null) => { refs.current[key] = o; };
   const geos = useMemo(() => beams.map((b) => ({ b, ...beamProps(b.from, b.to, b.r) })), [beams]);
+  useEffect(() => () => geos.forEach((g) => g.geo.dispose()), [geos]);
   useFrame(({ clock }) => {
     const R = refs.current, t = clock.elapsedTime;
     for (const g of glows) { const o = R["g:" + g.key]; if (o) o.visible = g.on(t); }

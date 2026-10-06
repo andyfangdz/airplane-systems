@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { outlineMat } from "@/lib/materials";
 
@@ -10,5 +10,6 @@ export function WindowOutlines({ loops }: { loops: () => THREE.Vector3[][] }) {
     l.raycast = () => {};
     return l;
   }), [loops]);
+  useEffect(() => () => lines.forEach((l) => l.geometry.dispose()), [lines]);
   return <>{lines.map((l, i) => <primitive key={i} object={l} />)}</>;
 }

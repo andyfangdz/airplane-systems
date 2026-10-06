@@ -108,8 +108,10 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
   return (
     <>
       <group ref={rootRef} position={[def.pivotX, 0, 0]}>
-        {/* dispose={null}: geometries and materials are cached across airplane switches */}
-        <group ref={modelRef} position={[-def.pivotX, 0, 0]} onPointerMove={onMove} onPointerOut={() => setHover(null)} dispose={null}>
+        {/* Switching airplane remounts the model. Parts, shells and control surfaces reuse cached geometry and shared
+            materials (passed as props, which R3F never disposes); R3F disposes JSX-created geometry and materials, and
+            Flows, Screens, Tanks, LightFX, Links and WindowOutlines free what they build. */}
+        <group ref={modelRef} position={[-def.pivotX, 0, 0]} onPointerMove={onMove} onPointerOut={() => setHover(null)}>
           <Model />
         </group>
       </group>

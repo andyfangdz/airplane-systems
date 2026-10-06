@@ -1,6 +1,6 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { mats } from "@/lib/materials";
 import { V } from "@/lib/math";
@@ -21,6 +21,7 @@ export function Links({ links, points }: { links: Record<string, LinkSpec>; poin
   const theme = useView((x) => x.theme);
   const meshes = useRef<Record<string, THREE.Mesh | null>>({});
   const geo = useMemo(() => new THREE.CylinderGeometry(1, 1, 1, 8), []);
+  useEffect(() => () => geo.dispose(), [geo]);
   const tmp = useMemo(() => ({ mid: new THREE.Vector3(), dir: new THREE.Vector3() }), []);
 
   useFrame(() => {
