@@ -32,7 +32,7 @@ const LINKS: Record<string, LinkSpec> = {
   flapAct: { sys: ["flaps"], name: "Flap actuator rod", note: "The electric actuator turns the torsion tube.", r: 0.01, color: "#7C57CF" },
 };
 
-const pose = () => rigPose(live.eff, live.afcs.trim, live.flapAng);
+const pose = () => rigPose(live.eff, live.flapAng);
 const points = () => linkPoints(pose());
 
 /** Sticks, pedals, bellcranks, flap torsion tube and push rods, animated from the effective controls. */

@@ -115,7 +115,7 @@ function ControlRig() {
     if (G.aftCrank) G.aftCrank.rotation.z = aftCrankAngle(c.pitch);
     if (G.pedL) G.pedL.position.x = -p.pedal;
     if (G.pedR) G.pedR.position.x = p.pedal;
-    if (G.trimWheel) G.trimWheel.rotation.z = -p.trimWheel;
+    if (G.trimWheel) G.trimWheel.rotation.z = p.trimWheel; // nose up rolls the top aft (POH 7-7: forward = nose down)
     if (G.rudTrim) G.rudTrim.rotation.y = -st().s.ctrl.rudTrim * Math.PI * 1.5;
     for (const [k, d] of Object.entries(PULLEYS)) { const o = G["pul:" + k]; if (o) o.rotation[d.axis] = p.pulley[k]; }
   });

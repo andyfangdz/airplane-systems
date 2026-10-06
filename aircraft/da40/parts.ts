@@ -56,7 +56,8 @@ const brakeAnim = (side: "R" | "L"): PartAnim => (m) => {
 const selPtrAnim: PartAnim = (m) => { const sel = sim().s.fuel.sel; m.rotation.y = sel === "L" ? Math.PI * 0.75 : sel === "R" ? Math.PI * 0.25 : -Math.PI * 0.25; };
 /** Throttle-quadrant lever knob slides fore/aft with its value. */
 const leverAnim = (x0: number, val: () => number): PartAnim => (m) => { m.position.x = x0 - 0.05 + val() * 0.1; };
-const trimWheelAnim: PartAnim = (m) => { m.rotation.z = -live.afcs.trim * 2.6; };
+/** Nose-up trim rolls the top of the wheel aft (AFM 7-8: forward = nose down). */
+const trimWheelAnim: PartAnim = (m) => { m.rotation.z = live.afcs.trim * 2.6; };
 const flapLight = (pos: 0 | 1 | 2, lit: string): PartAnim => (m) => {
   const { E } = sim(), a = live.flapAng, th = [0, 20, 42][pos];
   const on = E.flapsPwr && (Math.abs(a - th) < 1 || (pos === 0 && a > 1 && a < 19) || (pos === 1 && ((a > 1 && a < 19) || (a > 21 && a < 41))) || (pos === 2 && a > 21 && a < 41));
@@ -147,8 +148,9 @@ onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.0
   const pv = surfacePivot("elev"), xh = ELEV_HINGE_X - 0.22 + TAB.chord, zc = (TAB.z0 + TAB.z1) / 2;
   part(() => { const g = box(TAB.chord, 0.008, Math.abs(TAB.z1 - TAB.z0)); g.translate(-TAB.chord / 2, 0, 0); return g; }, ["controls"], {
     parent: "surf:elev", chan: ["elevator"], pos: [xh - pv[0], SY - pv[1], zc - pv[2]], color: "#9F85E6", ext: true, pin: true,
-    anim: (m) => { const t = live.afcs.trim; m.rotation.z = t > 0 ? -t * 12 * D2R : -t * 39 * D2R; },
-    name: "Elevator trim tab", note: "One GFRP tab in the middle of the elevator trailing edge, behind the top of the fin. Two cranked levers from the actuator bracket at the fin top drive it: the left one by the Bowden cable from the trim wheel (also moved by the GFC 700 trim servo), the right one through a friction damper that stops the tab fluttering if the cable fails (AMM 27-38-00). Tab travel nose up +12°, nose down −39° with the elevator neutral (TCDS). Span approximate.",
+    // nose-up trim puts the tab trailing edge down, so the air load holds the elevator trailing edge up (+ rotation = TE down)
+    anim: (m) => { const t = live.afcs.trim; m.rotation.z = t > 0 ? t * 12 * D2R : t * 39 * D2R; },
+    name: "Elevator trim tab", note: "One GFRP tab in the middle of the elevator trailing edge, behind the top of the fin. Walk-around: visual inspection, check the locking wire (AFM 4A-7). Two cranked levers from the actuator bracket at the fin top drive it: the left one by the Bowden cable from the trim wheel (also moved by the GFC 700 trim servo), the right one through a friction damper that stops the tab fluttering if the cable fails (AMM 27-38-00). Tab travel with the elevator neutral: nose up 12° trailing edge down, nose down 39° trailing edge up (TCDS +12° / −39°). Span approximate.",
   });
 }
 
@@ -330,7 +332,7 @@ crank("rig:aAft", "aileron", "Aileron bellcrank (aft)", "Splits the aileron run 
   part(() => box(0.03, 0.025, RUD_HORN.half * 2 + 0.02), ["controls"], { chan: ["rudder"], parent: "surf:rudder", pos: [rh[0] - surfacePivot("rudder")[0], rh[1] - surfacePivot("rudder")[1], 0], color: CTL, name: "Rudder lower bracket (cable horn)", note: "The cable eyes connect to bolts on this bracket; the bearing bracket below it carries the rudder stops (AFM 7-7).", pin: true });
 }
 part(() => { const g = new THREE.CylinderGeometry(TRIM_WHEEL.r, TRIM_WHEEL.r, 0.025, 28); g.rotateX(Math.PI / 2); return g; }, ["controls", "autopilot"], { pos: TRIM_WHEEL.c, chan: ["elevator"], color: "#1B1F23", anim: trimWheelAnim, name: "Elevator trim wheel", note: "Black wheel in the centre console behind the engine controls, with friction and a T/O mark. Forward = nose down, rear = nose up (AFM 7-8). It turns when the GFC 700 trims.", pin: true });
-part(() => box(0.012, 0.02, 0.028), ["controls"], { pos: [TRIM_WHEEL.c[0], TRIM_WHEEL.c[1] + TRIM_WHEEL.r - 0.005, TRIM_WHEEL.c[2]], chan: ["elevator"], color: "#F2F5F7", anim: (m) => { const a = -live.afcs.trim * 2.6; m.position.set(TRIM_WHEEL.c[0] - Math.sin(a) * (TRIM_WHEEL.r - 0.005), TRIM_WHEEL.c[1] + Math.cos(a) * (TRIM_WHEEL.r - 0.005), TRIM_WHEEL.c[2]); m.rotation.z = a; } });
+part(() => box(0.012, 0.02, 0.028), ["controls"], { pos: [TRIM_WHEEL.c[0], TRIM_WHEEL.c[1] + TRIM_WHEEL.r - 0.005, TRIM_WHEEL.c[2]], chan: ["elevator"], color: "#F2F5F7", anim: (m) => { const a = live.afcs.trim * 2.6; m.position.set(TRIM_WHEEL.c[0] - Math.sin(a) * (TRIM_WHEEL.r - 0.005), TRIM_WHEEL.c[1] + Math.cos(a) * (TRIM_WHEEL.r - 0.005), TRIM_WHEEL.c[2]); m.rotation.z = a; } });
 part(() => box(0.1, 0.06, 0.07), ["autopilot", "controls"], { pos: SERVO.trim, chan: ["elevator"], color: "#C8399F", anim: glow("#7A3866", "#C8399F", () => sim().E.afcsPwr && live.afcs.pft === "pass", ["autopilot", "controls"]), name: "Pitch trim servo (GSA)", note: "GFC 700 trim servo on the trim Bowden cable: autotrim with the AP engaged, manual electric trim (both MET halves) otherwise. Location not documented — shown at the KAP 140 trim-servo arm (2.21 m).", pin: true });
 part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], { pos: SERVO.pitch, chan: ["elevator"], color: "#C8399F", anim: glow("#7A3866", "#C8399F", () => live.afcs.ap && !live.afcs.cws, ["autopilot", "controls"]), name: "Pitch servo (GSA)", note: "Moves the elevator push rod when the AP is engaged; a slip clutch lets the pilot overpower it in an emergency (CRG 6-21). Location not documented — KAP 140 pitch-servo arm 3.93 m.", pin: true });
 part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], { pos: SERVO.roll, chan: ["aileron"], color: "#C8399F", anim: glow("#7A3866", "#C8399F", () => live.afcs.ap && !live.afcs.cws, ["autopilot", "controls"]), name: "Roll servo (GSA)", note: "Drives the aileron push rod with the AP engaged (slip clutch for override). Location not documented — KAP 140 roll-servo arm 3.06 m.", pin: true });

@@ -69,7 +69,7 @@ export function Controls() {
           ["Elevator", d.elev > 0.3 ? `${d.elev.toFixed(0)}° up` : d.elev < -0.3 ? `${(-d.elev).toFixed(0)}° down` : "0°"],
           ["L / R aileron", `${fmtAil(d.ailL)} / ${fmtAil(d.ailR)}`],
           ["Rudder", d.rud > 0.3 ? `${d.rud.toFixed(0)}° R` : d.rud < -0.3 ? `${(-d.rud).toFixed(0)}° L` : "0°"],
-          ["Trim tab", trim > 0 ? `${(trim * 12).toFixed(0)}° (nose up)` : `${(-trim * 39).toFixed(0)}° (nose down)`],
+          ["Trim tab", trim > 0 ? `${(trim * 12).toFixed(0)}° TE down (nose up)` : trim < 0 ? `${(-trim * 39).toFixed(0)}° TE up (nose down)` : "0°"],
           ["Driven by", apOn ? ["AUTOPILOT SERVOS", "warnc"] : "Pilot"],
         ]} />
       </Ctl>
@@ -87,7 +87,7 @@ export function Controls() {
         ["Ailerons", "4 hinges, roll-pinned · up 20° / down 13°"],
         ["Elevator", "5 hinges · up 18° / down 16° (1,200 kg rigging; LR tank 23°/16°)"],
         ["Rudder", "Cable-driven · L 24° / R 26° (long-range tank)"],
-        ["Trim tab", "Bowden cable · nose up +12°, nose down −39° (TCDS)"],
+        ["Trim tab", "Bowden cable · nose up 12° TE down, nose down 39° TE up (TCDS +12° / −39°)"],
         ["Trim wheel", "Centre console, friction device, T/O mark"],
         ["Electric trim", "GFC 700 servo, split switch on the pilot's stick; max 178 KIAS"],
         ["Pedals", "Ground-adjustable; electric on the XLS (rocker on leg-room wall)"],

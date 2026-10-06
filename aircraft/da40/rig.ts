@@ -77,15 +77,15 @@ export function deflections(pitch: number, roll: number, yaw: number) {
   };
 }
 
-export interface RigPose { a: number; b: number; pedal: number; elev: number; ailR: number; ailL: number; rud: number; trimRot: number; flapTube: number }
+export interface RigPose { a: number; b: number; pedal: number; elev: number; ailR: number; ailL: number; rud: number; flapTube: number }
 
-/** Mechanism pose from the effective stick/pedal positions, trim (−1..1) and flap angle (deg). */
-export function rigPose(c: { pitch: number; roll: number; yaw: number }, trim: number, flapAng: number): RigPose {
+/** Mechanism pose from the effective stick/pedal positions and flap angle (deg). The trim wheel turns in parts.ts. */
+export function rigPose(c: { pitch: number; roll: number; yaw: number }, flapAng: number): RigPose {
   const d = deflections(c.pitch, c.roll, c.yaw);
   return {
     a: c.pitch * STICK.pitchMax, b: c.roll * STICK.rollMax, pedal: c.yaw * PEDALS.travel,
     elev: d.elev * D2R, ailR: d.ailR * D2R, ailL: d.ailL * D2R, rud: d.rud * D2R,
-    trimRot: -trim * 2.6, flapTube: flapAng * 0.8 * D2R,
+    flapTube: flapAng * 0.8 * D2R,
   };
 }
 

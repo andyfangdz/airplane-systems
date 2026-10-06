@@ -64,7 +64,7 @@ function ControlRig() {
     if (G.crank) G.crank.rotation.z = p.crank;
     if (G.pedL) G.pedL.position.x = -p.pedal;
     if (G.pedR) G.pedR.position.x = p.pedal;
-    if (G.trimWheel) G.trimWheel.rotation.z = -p.trimWheel;
+    if (G.trimWheel) G.trimWheel.rotation.z = p.trimWheel; // nose up rolls the top aft (POH 7-7: forward = nose down)
     for (const [k, d] of Object.entries(PULLEYS)) { const o = G["pul:" + k]; if (o) o.rotation[d.axis] = p.pulley[k]; }
   });
   return (
