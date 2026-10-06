@@ -12,6 +12,7 @@ export { pad3 };
 /**
  * Momentary hardware key (pointer or keyboard). `onDown` on press, `onUp(held)` on release;
  * `onHold` fires once after `holdMs`; `repeat` (ms) re-fires `onDown` while held (e.g. trim switches).
+ * Losing focus or unmounting while held (Tab away, switching system or airplane) counts as a release.
  */
 export function HoldKey({ label, sub, onDown, onUp, onHold, holdMs = 500, repeat, className = "", disabled, title }: {
   label: ReactNode; sub?: string; onDown?: () => void; onUp?: (held: boolean) => void; onHold?: () => void; holdMs?: number; repeat?: number;
@@ -20,7 +21,12 @@ export function HoldKey({ label, sub, onDown, onUp, onHold, holdMs = 500, repeat
   const [down, setDown] = useState(false);
   const r = useRef({ down: false, held: false, t: 0 as ReturnType<typeof setTimeout> | 0, i: 0 as ReturnType<typeof setInterval> | 0 });
   const stop = () => { clearTimeout(r.current.t || undefined); clearInterval(r.current.i || undefined); r.current.t = r.current.i = 0; };
-  useEffect(() => stop, []);
+  const upRef = useRef(onUp);
+  upRef.current = onUp;
+  useEffect(() => () => {
+    stop();
+    if (r.current.down) { r.current.down = false; upRef.current?.(r.current.held); }
+  }, []);
   const press = () => {
     if (r.current.down || disabled) return;
     r.current.down = true; r.current.held = false; setDown(true);
@@ -36,7 +42,7 @@ export function HoldKey({ label, sub, onDown, onUp, onHold, holdMs = 500, repeat
   return (
     <button type="button" className={`avx-k ${className}`} data-down={down} disabled={disabled} title={title} aria-label={aria(label, sub)}
       onPointerDown={(e) => { e.currentTarget.setPointerCapture?.(e.pointerId); press(); }}
-      onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}
+      onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release} onBlur={release}
       onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(); } }}
       onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); release(); } }}>
       {label}{sub && <small>{sub}</small>}
