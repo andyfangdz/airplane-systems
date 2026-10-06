@@ -50,6 +50,20 @@ export function ghostMat(hex: string) {
   return m;
 }
 
+const sees = new Map<string, THREE.MeshStandardMaterial>();
+/** X-ray highlight for a moving control surface in its own view: the `hi` colour made translucent (no depth writes,
+ *  drawn with the ghost shells), so the balance weights and horns inside it show through. Flagged `userData.seeThrough`. */
+export function seeMat(hex: string) {
+  let m = sees.get(hex);
+  if (!m) {
+    const c = new THREE.Color(hex);
+    m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.1, emissive: c.clone().multiplyScalar(0.4), transparent: true, opacity: 0.65, depthWrite: false });
+    m.userData.seeThrough = true;
+    sees.set(hex, m);
+  }
+  return m;
+}
+
 export const solidMat = new THREE.MeshStandardMaterial({ color: "#F1F3F4", roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
 
 export const plateMat = {

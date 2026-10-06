@@ -249,7 +249,11 @@ part(() => box(0.08, 0.04, 0.06), ["controls"], { pos: [PEDAL_TT.x - 0.05, PEDAL
 export const FT = { x: 0.66, y: -0.54 };
 part(() => cyl(0.02, 1.9, "z"), ["flaps"], { pos: [FT.x, FT.y, 0], color: "#9F85E6", name: "Flap torque tube", note: "Mechanically ties both flaps to one actuator." });
 part(() => box(0.24, 0.07, 0.09), ["flaps"], { pos: [FT.x + 0.02, FT.y + 0.02, 0], color: "#7C57CF", name: "Flap actuator", note: "Motorized linear actuator; proximity switches stop travel and drive the position lights. 10 A FLAPS, NON ESS BUS.", pin: true });
-part(() => box(0.06, 0.08, 0.07), ["flaps"], { pos: [2.12, -0.36, 0.02], color: "#7C57CF", name: "FLAPS switch", note: "Airfoil-shaped knob with UP / 50% / 100% detents at the bottom of the console. UP light green, 50/100 lights amber.", pin: true });
+// POH 7-23: at the bottom of the console's vertical section. Fig. 7-4 (7-14/7-15) item 10 is the panel between the avionics panel
+// (15) and the engine controls (13), knob on its right. This console is one box with the GCU 479 on its top front, so the knob sits
+// on top just aft of it, right of centre (approximate).
+part(() => box(0.04, 0.04, 0.07), ["flaps"], { pos: [1.87, -0.2495, 0.05], color: "#7C57CF", name: "FLAPS switch", pin: true,
+  note: "Airfoil-shaped knob at the bottom of the console's vertical section, with detents at UP (0%), 50% and 100%; VFE is marked at 50% and 100%. A light at each position comes on when the flaps reach it: UP green, 50% and 100% yellow (POH 7-23, Fig. 7-4 item 10). Position in the model is approximate." });
 part(() => cyl(0.045, 0.03, "y"), ["fuel"], { pos: [1.24, -0.25, 0], name: "Fuel selector valve", note: "LEFT / RIGHT / OFF at the rear of the console. Lift the release to select OFF.", pin: true });
 part(() => box(0.09, 0.02, 0.02), ["fuel"], { pos: [1.24, -0.23, 0], color: "#F2F5F7", anim: selPtrAnim });
 part(() => box(0.04, 0.03, 0.04), ["fuel"], { pos: [1.34, -0.26, 0.08], name: "BOOST PUMP switch", note: "Next to the selector. On for takeoff, climb, maneuvering, landing and tank switching." });

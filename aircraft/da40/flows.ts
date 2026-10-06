@@ -40,7 +40,9 @@ flow("tailpipe", [[fs(0.95), -0.36, 0.06], [fs(1.15), -0.42, 0.1], [fs(1.3), bot
 /* ---------- cabin heat & fresh air (heat source and ducting from an unofficial technical description) ---------- */
 const AIR = "#149C94", HOT = "#E0522B";
 const HV: Vec3 = [FW - 0.06, -0.4, 0.12], DV: Vec3 = [FW - 0.14, -0.42, 0.0];
-flow("heatIn", [[fs(0.48), -0.06, 0.25], [fs(0.7), -0.25, 0.28], [fs(0.95), -0.32, 0.2], [fs(1.2), -0.42, 0.18], [FW + 0.04, -0.42, 0.13], HV], ["environment"], { r: 0.022, color: HOT, pcolor: "#FF7A3D", name: "Heat duct", note: "Right cowl intake → shroud around the exhaust muffler → heat valve on the firewall." });
+// down past the oil cooler, under the right exhaust headers, in at the front of the muffler heat shroud (parts.ts: on the
+// muffler axis at fs(0.95), y −0.36, z 0.105–0.205), out at its back to the heat valve
+flow("heatIn", [[fs(0.48), -0.06, 0.25], [fs(0.53), -0.15, 0.25], [fs(0.7), -0.25, 0.28], [fs(0.86), -0.36, 0.15], [fs(0.95), -0.36, 0.155], [fs(1.1), -0.4, 0.17], [FW + 0.04, -0.42, 0.13], HV], ["environment"], { r: 0.022, color: HOT, pcolor: "#FF7A3D", name: "Heat duct", note: "Right cowl intake → shroud around the exhaust muffler → heat valve on the firewall." });
 flow("heatDump", [HV, [FW + 0.05, -0.5, 0.15], [FW + 0.08, botY(FW + 0.08) - 0.04, 0.15]], ["environment"], { r: 0.018, color: HOT, pcolor: "#FFA070", name: "Heat valve overboard outlet", note: "With CABIN HEAT OFF the flap dumps the hot air overboard at the bottom of the cowling.", ext: true });
 flow("heatCab", [HV, [FW - 0.1, -0.42, 0.06], DV], ["environment"], { r: 0.022, color: HOT, name: "Heat valve → distributor" });
 flow("defrost", [DV, [PANEL_X + 0.15, -0.2, 0.0], [DEFROST_X + 0.03, 0.1, 0.0], [DEFROST_X, 0.22, 0.0]], ["environment"], { r: 0.02, color: AIR, name: "Defrost duct", note: "Distributor ▲ position: air to the front of the canopy against mist and frost." });
@@ -69,10 +71,12 @@ flow("altStatic", [[fs(1.86), -0.3, -0.42], [PANEL_X + 0.02, -0.3, -0.36], [PANE
 flow("stall", STALL_HOSE, ["pitot"], { tube: false, pcolor: "#FF6A6A", size: 0.04 });
 
 /* ---------- electrical feeders (AMM-E Fig. 2-3) ---------- */
-const BAT: Vec3 = [fs(1.19), -0.08, 0.31], RELAY: Vec3 = [fs(1.3), -0.04, 0.32], CBP: Vec3 = [PANEL_X + 0.03, -0.03, CBP_Z];
-flow("bat", [BAT, RELAY], ["electrical"], { r: 0.014, name: "Battery cable", note: "Battery → battery relay in the relay box (closed by the BAT switch)." });
+// BAT: terminal on top of the main battery (parts.ts, arm 1.19 m); the cable ends at the relay box's forward face
+const BAT: Vec3 = [fs(1.19), -0.035, 0.37], RELAY: Vec3 = [fs(1.3), -0.04, 0.32], CBP: Vec3 = [PANEL_X + 0.03, -0.03, CBP_Z];
+flow("bat", [BAT, [fs(1.255), -0.03, 0.35]], ["electrical"], { r: 0.014, name: "Battery cable", note: "Battery → battery relay in the relay box (closed by the BAT switch)." });
 flow("batEss", [RELAY, [FW + 0.02, 0.0, 0.34], [PANEL_X + 0.1, -0.05, 0.4], CBP], ["electrical"], { r: 0.014, name: "Relay box → BATT 70 A → ESSENTIAL", note: "Main feeder from the relay-box bus bar through the BATT breaker to the Essential bus." });
-flow("start", [RELAY, [fs(1.2), -0.25, 0.25], [fs(0.64), -0.22, 0.16]], ["electrical", "engine"], { r: 0.016, color: "#B0761A", name: "Starter cable", note: "START relay → starter (~160 A, AFM 7-41 figure)." });
+// down from the relay box, under the main battery, outboard of the alternate air door, into the starter
+flow("start", [RELAY, [fs(1.29), -0.27, 0.3], [fs(1.2), -0.26, 0.25], [fs(0.8), -0.21, 0.27], [fs(0.64), -0.22, 0.16]], ["electrical", "engine"], { r: 0.016, color: "#B0761A", name: "Starter cable", note: "START relay → starter (~160 A, AFM 7-41 figure)." });
 flow("alt", [[fs(0.64), -0.18, -0.17], [fs(1.0), -0.3, -0.3], [FW + 0.02, -0.1, -0.2], [PANEL_X + 0.1, -0.08, 0.2], [PANEL_X + 0.08, -0.08, 0.37], CBP], ["electrical"], { r: 0.014, name: "Alternator output", note: "Alternator → current sensor → ALT 70 A → MAIN bus." });
 flow("ext", [P(V(fs(1.42), -0.36, 0.48)), [fs(1.36), -0.2, 0.36], RELAY], ["electrical"], { r: 0.012, name: "External power", note: "Receptacle → external-power relay → relay-box bus bar (AFM 7-40 figure)." });
 flow("avFeed", [CBP, [PANEL_X + 0.15, -0.3, 0.3], [fs(2.2), -0.6, 0.22], [fs(3.3), -0.62, 0.2], [ENCL[0] + 0.15, ENCL[1], 0.15]], ["electrical", "avionics"], { r: 0.012, name: "Remote avionics power", note: "ESSENTIAL (GIA 1, XPDR) and MAIN AVIONICS (GIA 2, GDL 69) feeds to the enclosure under the baggage floor." });

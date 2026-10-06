@@ -239,7 +239,13 @@ part(() => box(0.08, 0.14, 0.1), ["engine"], { pos: [fs(0.6), -0.06, 0.32], colo
 part(() => box(0.09, 0.1, 0.11), ["engine"], { pos: [fs(0.62), 0.0, 0.2], color: "#C9B98F", name: "Induction air filter", note: "Normal induction air passes an air filter. Location not in the AFM; shown behind the right inlet.", pin: true });
 part(() => box(0.03, 0.08, 0.1), ["engine"], { pos: [fs(0.82), -0.18, 0.2], color: "#E0B040", anim: (m) => { m.position.y = -0.18 - (sim().s.eng.altAir ? 0.05 : 0); }, name: "Alternate air door", note: "Opened by the ALTERNATE AIR lever: takes warm air from the engine compartment if MP drops from icing or a blocked filter (AFM 7-23)." });
 part(() => cyl(0.06, 0.3, "z"), ["engine", "environment"], { pos: [fs(0.95), -0.36, 0.06], color: "#8A5A3C", name: "Tuned exhaust (Power Flow)", note: "Underslung exhaust; the XLS has the Power Flow Systems tuned exhaust (AOPA 2008). Hot — can cause burns (AFM 4A-10).", pin: true });
-part(() => cyl(0.075, 0.14, "z"), ["environment", "engine"], { pos: [fs(0.95), -0.32, 0.2], color: "#E0522B", fairing: true, name: "Muffler heat shroud", note: "Cabin heat source: ram air from the right intake through a shroud around the exhaust muffler (unofficial DA40 technical description; not in the AFM)." });
+// open sleeve on the muffler's own axis (muffler r 0.06), its ends necked onto the muffler wall, over the muffler's
+// right-hand end (the side the right-intake duct comes from): z 0.105–0.205 leaves the tailpipe outlet (z ≈ 0.06–0.1)
+// uncovered, and r 0.068 keeps it below the fuel-flow transducer
+part(() => {
+  const g = new THREE.LatheGeometry([[0.0615, -0.05], [0.068, -0.038], [0.068, 0.038], [0.0615, 0.05]].map(([r, y]) => new THREE.Vector2(r, y)), 24);
+  g.rotateX(Math.PI / 2); return g;
+}, ["environment", "engine"], { pos: [fs(0.95), -0.36, 0.155], color: "#E0522B", fairing: true, name: "Muffler heat shroud", note: "Cabin heat source: 'a shroud round the exhaust muffler and the outside wall of the muffler make the heat exchanger'. Ram air from the right cowl intake flows through it to the heat valve on the firewall (unofficial DA40 technical description and its heating schematic; the AFM, AFMS and AMM give no heat source). Which part of the muffler it covers is approximate." });
 
 /* ---------- engine controls ---------- */
 const Q = { x: fs(2.0), y: -0.27 };
@@ -365,7 +371,8 @@ part(() => box(0.1, 0.08, 0.09), ["fuel", "electrical"], { pos: [fs(1.6), -0.55,
 part(() => box(0.04, 0.04, 0.04), ["fuel", "engine", "avionics"], { pos: [fs(0.83), -0.28, 0.08], color: "#2F7FE6", name: "Fuel-pressure sensor (Kulite)", note: "On a sensor mount at the oil sump (FS 830), hosed to the fuel-pressure port; FUEL PRES LO < 14 psi, HI > 35 psi (SMM 2-18; AFMS p. 19)." });
 
 /* ---------- electrical ---------- */
-part(() => box(0.24, 0.18, 0.17), ["electrical", "engine"], { pos: [fs(1.19), -0.18, 0.31], pinIn: ["electrical"], color: "#D9960F", name: "Main battery — 24 V, 11 Ah", note: "Lead-acid (Concorde RG24-11M or similar), right side of the engine compartment, arm 1.19 m. Connected through the battery relay and the BATT 70 A breaker to the ESSENTIAL bus (AFM 7-42, 6-19).", pin: true });
+// arm 1.19 m puts it between the rear right cylinder (cyl 3) and the firewall, so it stands with its narrow side fore-aft
+part(() => box(0.1, 0.18, 0.24), ["electrical", "engine"], { pos: [fs(1.19), -0.14, 0.31], pinIn: ["electrical"], color: "#D9960F", name: "Main battery — 24 V, 11 Ah", note: "Lead-acid battery mounted in the right-hand side of the engine compartment (AFM 7-42), arm 1.19 m — Concorde CB24-11M, RG24-11M or RG24-15M per the equipment list (AFM 6-19); which one N949KC has is not in the documents. Here that arm puts it just behind the rear right cylinder, ahead of the firewall; its height and orientation are approximate (not in the documents). Connected through the battery relay and the main 70 A breaker (BATT) to the ESSENTIAL bus (AFM 7-42; SMM 2-11).", pin: true });
 part(() => box(0.1, 0.08, 0.12), ["electrical"], { pos: [fs(1.3), -0.04, 0.32], color: "#6E5A2A", name: "Relay box", note: "Battery relay, START relay and external-power relay on one bus bar (AFM 7-40/7-41). Location not given — shown beside the battery." , pin: true });
 part(() => box(0.08, 0.07, 0.02), ["electrical"], { pos: P(onSkin(fs(1.42), -0.36, 1, 1.01)), color: "#3F4B54", name: "External power receptacle", note: "Behind an access panel (AFM 4B-14); location not in the AFM. Not for starting with a flat battery if the flight will be IFR (AFM 2-32).", ext: true, pin: true });
 part(() => box(0.1, 0.06, 0.08), ["electrical"], { pos: [fs(0.58), -0.06, -0.16], color: "#5A5040", name: "Voltage regulator (VR2000)", note: "Regulates the alternator field; its over-voltage protection opens the field (AFM 6-20, 7-41 figure). Location not in the documents." });
