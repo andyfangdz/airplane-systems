@@ -17,13 +17,13 @@ import {
 import { live } from "./model";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM } from "./rig";
 import { useC182 } from "./store";
+import { IN } from "../cessna/airframe";
 import { pulleyGeo } from "../cessna/rig";
 
 export { chanOfKey };
 /** POH station → scene position: FS (in aft of datum), BL (in right), h (in above ground). */
 export const P3 = (fs: number, bl: number, h: number): Vec3 => [X(fs), Y(h), Z(bl)];
 export const PV = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
-const IN = 0.0254;
 
 /**
  * Pinned parts that stay in a view's "tap to locate" list but carry no label pin there, so each view shows about a dozen labels

@@ -15,7 +15,8 @@ export const RIG_SPEC: RigSpec = {
   rud: { barFs: 3, barH: 30, half: 16.5, armBl: 6, pulleys: [[30, 6, 25.4], [92, 5, 26.8], [205, 2.5, 40]], hornArm: 3.2, hornH: 46, pedalTravel: 2.6 },
   trim: { wheel: [23, -2.4, 37.5], r: 4.5, pulleys: [[23, -2.4, 25.6], [92, -2.5, 26.8], [160, -2.5, 35.8], [222, -3, 42.2]], actuator: [229, 9, 43.2], tabBl: 14 },
   steer: { fs: -10, h: 30.2, half: 3 },
-  servo: { roll: [59.5, 4, 76], pitch: [180.7, 2.5, 37.8], trim: [180.7, -2.5, 37.8] },
+  servo: { roll: [59.5, 4, 76], pitch: [180.7, 2.5, 37.8], trim: [180.7, -2.5, 37.8],
+    names: { roll: "GFC 700 roll servo (FS 59.5)", pitch: "GFC 700 pitch servo (FS 180.7)", trim: "GFC 700 pitch trim servo (FS 180.7)" } },
 };
 export const TRAVEL: Travel = { ailUp: 20, ailDn: 15, elUp: 28, elDn: 23, rud: 16.17, tabUp: 22, tabDn: 19 };
 export const RIG = cessnaRig(AF, RIG_SPEC, TRAVEL);
