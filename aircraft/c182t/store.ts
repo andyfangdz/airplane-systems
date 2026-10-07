@@ -2,12 +2,32 @@
 import { initFlight, type FlightState } from "@/lib/avionics/flight";
 import { kap140Power, type Kap140State } from "@/lib/avionics/kap140";
 import { createSimStore } from "@/lib/simStore";
-import { initialSim, kapReady, live, solve } from "./model";
+import { initialSim, kapReady, live, solve, type Sim } from "./model";
 
 /** C182T systems state (switches, levers, failures, quantities) and its solved electrical/fuel picture. */
 export const useC182 = createSimStore(initialSim, solve);
 
 /* ---------- scenarios ---------- */
+/**
+ * Every scenario starts from the initial state, so failures, pulled breakers and battery drain from before don't carry
+ * over; only the fuel on board, the time warp and the airplane's configuration (alternator, speed fairings) do. The
+ * KAP 140's failures live outside the store and are cleared too.
+ */
+function fresh(d: Sim) {
+  const f = structuredClone(initialSim);
+  Object.assign(d, {
+    ...f,
+    warp: d.warp,
+    altAmps: d.altAmps,
+    fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR },
+    gear: { ...f.gear, fairings: d.gear.fairings },
+  });
+}
+function clearLiveFailures() {
+  live.kap = { ...live.kap, fail: {} };
+  live.coPpm = 0;
+}
+
 /** Scenarios keep the flight clock running so KAP 140 timers (self-test, tones) stay consistent. */
 const ground = (p: Partial<FlightState> = {}) =>
   initFlight({
@@ -27,6 +47,7 @@ const ground = (p: Partial<FlightState> = {}) =>
 
 /** Cold and dark on the ramp: everything off, engine cold, ready for the POH 4-13 start. */
 export function scenarioColdDark() {
+  clearLiveFailures();
   live.fs = ground();
   live.rpm = 0;
   live.map = 29.9;
@@ -43,6 +64,7 @@ export function scenarioColdDark() {
   live.blade = 14.9;
   live.galUsed = 0;
   useC182.getState().update((d) => {
+    fresh(d);
     d.ground = true;
     d.eng.running = false;
     d.eng.mags = "OFF";
@@ -88,6 +110,7 @@ const kapOff = (k: Kap140State): Kap140State => ({
 
 /** Engine running at 1,000 RPM on the ramp, avionics on (after the POH start checklist): the KAP 140 runs its self-test. */
 export function scenarioRunUp() {
+  clearLiveFailures();
   // AVIONICS BUS 2 has just come on after the start: power-cycle the computer so the next tick starts the preflight test (S3-20)
   live.kap = kap140Power(live.kap, false, live.fs.t);
   live.discTone = -99;
@@ -103,6 +126,7 @@ export function scenarioRunUp() {
   live.stallDemo = false;
   live.blade = 14.9;
   useC182.getState().update((d) => {
+    fresh(d);
     d.ground = true;
     d.eng.running = true;
     d.eng.mags = "BOTH";
@@ -127,6 +151,7 @@ export function scenarioRunUp() {
 
 /** Cruise at 6,000 ft, 2,300 RPM / 21 in, leaned, cowl flaps closed, autopilot off (KAP 140 already tested). */
 export function scenarioCruise() {
+  clearLiveFailures();
   live.fs = initFlight({
     t: live.fs.t,
     ias: 113,
@@ -153,6 +178,7 @@ export function scenarioCruise() {
   live.kap = kapOff(live.kap);
   live.discTone = -99;
   useC182.getState().update((d) => {
+    fresh(d);
     d.ground = false;
     d.eng.running = true;
     d.eng.mags = "BOTH";

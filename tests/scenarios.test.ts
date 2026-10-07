@@ -1,13 +1,17 @@
 /**
  * The "Start from" scenarios on each airplane's General panel: after one runs, the store's solved electrical picture `E`
- * matches it, whichever scenario ran before. (The SR20 store has no such scenarios, only the CAPS demo.)
+ * matches it, whichever scenario ran before, and no failure or pulled breaker from before is left. (The SR20 store has no
+ * such scenarios, only the CAPS demo.)
  */
 import { describe, expect, it } from "vitest";
 import * as c172 from "@/aircraft/c172s/store";
 import * as c182 from "@/aircraft/c182t/store";
 import * as da40 from "@/aircraft/da40/store";
+import { live as live172 } from "@/aircraft/c172s/model";
 import { live as live182 } from "@/aircraft/c182t/model";
 import type { Nav3Solution } from "@/aircraft/cessna/electrical";
+import { gfc700Fail } from "@/lib/avionics/gfc700";
+import { kap140Fail } from "@/lib/avionics/kap140";
 
 type NavE = Nav3Solution & { pfd: boolean; mfd: boolean };
 type Scenario = "coldDark" | "runUp" | "cruise";
@@ -43,6 +47,47 @@ describe.each(cessnas)("%s", (_, store, run) => {
       expect(E().pfd && E().mfd).toBe(true);
       expect(E().lowVolts || E().highVolts).toBe(false);
     }
+  });
+});
+
+describe.each(cessnas)("%s scenarios start clean", (_, store, run) => {
+  const s = () => store.getState().s;
+
+  it.each(ORDER)("%s clears failures and pulled breakers, and keeps the fuel on board and the time warp", (to) => {
+    run.cruise();
+    store.getState().update((d) => {
+      d.elec.fail.alt = true;
+      d.elec.cb = { "E1:FLAPS": true };
+      d.vac.fail = true;
+      d.pitot.staticBlocked = true;
+      d.fuel.qL = 15;
+      d.fuel.qR = 14;
+      d.warp = 10;
+    });
+    run[to]();
+    expect(s().elec.fail.alt || s().vac.fail || s().pitot.staticBlocked).toBe(false);
+    expect(s().elec.cb).toEqual({});
+    expect([s().fuel.qL, s().fuel.qR, s().warp]).toEqual([15, 14, 10]);
+  });
+});
+
+describe("Cessna scenarios clear the autopilot's failures", () => {
+  it.each(ORDER)("C172S %s: no GFC 700 failure is left", (to) => {
+    live172.afcs = gfc700Fail(live172.afcs, { pitch: true, trim: true }, live172.fs.t);
+    ({ coldDark: c172.scenarioColdDark, runUp: c172.scenarioRunUp, cruise: c172.scenarioCruise })[to]();
+    expect(live172.afcs.fail).toEqual({});
+    expect(live172.afcs.ap).toBe(false);
+  });
+
+  it.each(ORDER)("C182T %s: no KAP 140 failure is left, and the alternator and fairings fitted stay as set", (to) => {
+    live182.kap = kap140Fail(live182.kap, { r: true }, live182.fs.t);
+    c182.useC182.getState().update((d) => {
+      d.altAmps = 95;
+      d.gear.fairings = false;
+    });
+    ({ coldDark: c182.scenarioColdDark, runUp: c182.scenarioRunUp, cruise: c182.scenarioCruise })[to]();
+    expect(live182.kap.fail).toEqual({});
+    expect(c182.useC182.getState().s).toMatchObject({ altAmps: 95, gear: { fairings: false } });
   });
 });
 

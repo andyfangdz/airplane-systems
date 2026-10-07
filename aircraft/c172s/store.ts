@@ -1,12 +1,28 @@
 "use client";
 import { initFlight, type FlightState } from "@/lib/avionics/flight";
+import { gfc700Init } from "@/lib/avionics/gfc700";
 import { createSimStore } from "@/lib/simStore";
-import { initialSim, live, solve } from "./model";
+import { initialSim, live, solve, type Sim } from "./model";
 
 /** C172S systems state (switches, levers, failures, quantities) and its solved electrical/fuel picture. */
 export const useC172 = createSimStore(initialSim, solve);
 
 /* ---------- scenarios ---------- */
+/**
+ * Every scenario starts from the initial state, so failures, pulled breakers and battery drain from before don't carry
+ * over; only the fuel on board and the time warp do. The GFC 700's failures live outside the store and are cleared too.
+ */
+function fresh(d: Sim) {
+  const f = structuredClone(initialSim);
+  Object.assign(d, { ...f, warp: d.warp, fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR } });
+}
+/** The GFC 700 with no failures and nothing engaged: unpowered (it runs its preflight test at power-up) or powered and tested. */
+const afcsReset = (tested: boolean) => ({
+  ...gfc700Init(),
+  trim: live.afcs.trim,
+  ...(tested ? { powered: true, pft: "pass" as const } : {}),
+});
+
 /** Scenarios keep the flight clock running so AFCS timers (preflight test, disconnect tone) stay consistent. */
 const ground = (p: Partial<FlightState> = {}) =>
   initFlight({
@@ -26,6 +42,7 @@ const ground = (p: Partial<FlightState> = {}) =>
 
 /** Cold and dark on the ramp: everything off, engine cold, ready for the POH 4-11 start. */
 export function scenarioColdDark() {
+  live.afcs = afcsReset(false);
   live.fs = ground();
   live.rpm = 0;
   live.oilP = 0;
@@ -38,7 +55,10 @@ export function scenarioColdDark() {
   live.gyro = 0;
   live.flapAng = 0;
   live.stallDemo = false;
+  live.coPpm = 0;
+  live.sysUser = live.servoLost = false;
   useC172.getState().update((d) => {
+    fresh(d);
     d.ground = true;
     d.eng.running = false;
     d.eng.mags = "OFF";
@@ -63,6 +83,8 @@ export function scenarioColdDark() {
 
 /** Engine running at 1,000 RPM on the ramp, avionics on (after the POH start checklist). */
 export function scenarioRunUp() {
+  // AVIONICS has just come on after the start: the GFC 700 powers up and runs its preflight test
+  live.afcs = afcsReset(false);
   live.fs = ground();
   live.rpm = 1050;
   live.oilP = 60;
@@ -72,7 +94,10 @@ export function scenarioRunUp() {
   live.gyro = 1;
   live.flapAng = 0;
   live.stallDemo = false;
+  live.coPpm = 0;
+  live.sysUser = live.servoLost = false;
   useC172.getState().update((d) => {
+    fresh(d);
     d.ground = true;
     d.eng.running = true;
     d.eng.mags = "BOTH";
@@ -94,8 +119,9 @@ export function scenarioRunUp() {
   });
 }
 
-/** Cruise at 4,500 ft, 110 KIAS, AP off. */
+/** Cruise at 4,500 ft, 110 KIAS, AP off (GFC 700 already tested). */
 export function scenarioCruise() {
+  live.afcs = afcsReset(true);
   live.fs = initFlight({
     t: live.fs.t,
     ias: 110,
@@ -116,7 +142,10 @@ export function scenarioCruise() {
   live.rpm = 2400;
   live.flapAng = 0;
   live.stallDemo = false;
+  live.coPpm = 0;
+  live.sysUser = live.servoLost = false;
   useC172.getState().update((d) => {
+    fresh(d);
     d.ground = false;
     d.eng.running = true;
     d.eng.mags = "BOTH";
