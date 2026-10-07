@@ -168,6 +168,18 @@ export const WIN = {
   ],
 };
 
+/** Cabin door seam (x, y), painted on the skin. */
+export const DOOR = roundPoly(
+  [
+    [1.96, -0.3],
+    [1.94, 0.12],
+    [1.74, 0.64],
+    [0.84, 0.67],
+    [0.8, -0.3],
+  ],
+  0.12,
+);
+
 /** Window outline loops projected onto the skin (both sides + windshield). */
 export function windowOutlines(): THREE.Vector3[][] {
   const loops: THREE.Vector3[][] = [];
@@ -205,18 +217,7 @@ export function paintSkin(): THREE.CanvasTexture {
   };
   g.fillStyle = "#F3F5F6";
   g.fillRect(0, 0, SK.W, SK.H);
-  path(
-    roundPoly(
-      [
-        [1.96, -0.3],
-        [1.94, 0.12],
-        [1.74, 0.64],
-        [0.84, 0.67],
-        [0.8, -0.3],
-      ],
-      0.12,
-    ),
-  );
+  path(DOOR);
   g.strokeStyle = "#A9B2B9";
   g.lineWidth = 2;
   g.stroke();
