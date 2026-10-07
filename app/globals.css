@@ -167,12 +167,13 @@ button.chip:hover{border-color:var(--elec)}
 .disc{margin-top:26px;font-size:12px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
 
 /* ---------- welcome tour ---------- */
-/* a full-page layer that blocks the app while open; the spotlight's huge shadow dims everything around its target */
-.tour{position:fixed;inset:0;z-index:100}
-.tour-dim{background:rgba(4,9,13,.55)}
-.tour-spot{position:fixed;border-radius:8px;box-shadow:0 0 0 2px var(--accent),0 0 0 100vmax rgba(4,9,13,.55);pointer-events:none;
+/* a full-page layer that lets pointer input through to the app (only the card takes it); the spotlight's huge shadow
+   lightly dims everything around its target */
+.tour{position:fixed;inset:0;z-index:100;pointer-events:none}
+.tour-dim{background:rgba(4,9,13,.3)}
+.tour-spot{position:fixed;border-radius:8px;box-shadow:0 0 0 2px var(--accent),0 0 0 100vmax rgba(4,9,13,.3);
   transition:left .25s,top .25s,width .25s,height .25s}
-.tour-card{position:fixed;width:min(330px,calc(100vw - 24px));background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+.tour-card{position:fixed;pointer-events:auto;width:min(330px,calc(100vw - 24px));background:var(--panel);border:1px solid var(--rule);border-radius:8px;
   padding:14px 16px 12px;box-shadow:0 12px 32px rgba(0,0,0,.3);transition:left .25s,top .25s}
 .tour-count{font-size:12px;color:var(--muted)}
 .tour-card h2{font-family:var(--f-disp);font-weight:700;font-size:24px;line-height:1.05;margin:4px 0 6px}

@@ -1,6 +1,7 @@
 "use client";
 /**
- * Welcome tour: a few cards that spotlight the parts of the page in turn. Shown once on a first visit; skipping or
+ * Welcome tour: a few cards that spotlight the parts of the page in turn. The page stays usable underneath (only the card
+ * takes pointer input), so visitors can try each thing as it is pointed out. Shown once on a first visit; skipping or
  * finishing it is remembered, and the toolbar's ? button replays it.
  */
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
@@ -15,12 +16,12 @@ interface Step { title: string; body: ReactNode; /** element to spotlight; none 
 const STEPS: Step[] = [
   {
     title: "Welcome aboard",
-    body: <>Interactive 3D study models of airplane systems, built from POH/AFM Section 7. This quick tour shows you around; it takes
-      about half a minute.</>,
+    body: <>Interactive 3D study models of airplane systems, built from POH/AFM Section 7. This quick tour shows you around, and
+      everything stays usable while it&apos;s open, so try things as you go.</>,
   },
   {
     sel: ".fleet", place: "right", title: "Pick an airplane",
-    body: <>Switch between the SR20, 172S, 182T and DA40. Each airplane keeps its own switch positions while you look at another.</>,
+    body: <>Switch between the SR20, 172S, 182T and DA40. Each airplane keeps its own switch positions while you look at another. Try one now.</>,
   },
   {
     sel: ".syslist", place: "right", title: "Pick a system",
@@ -136,14 +137,17 @@ export function Tour() {
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
-    return () => prev?.focus?.();
+    return () => prev?.focus?.({ preventScroll: true });
   }, [open]);
   useEffect(() => { next.current?.focus(); }, [step]);
 
   useEffect(() => {
     if (step === null) return;
     const onKey = (e: KeyboardEvent) => {
+      // arrows step the tour only from the card (or nothing focused), so they still work in sliders and the like
+      const a = document.activeElement, ours = !a || a === document.body || !!card.current?.contains(a);
       if (e.key === "Escape") endTour();
+      else if (!ours) return;
       else if (e.key === "ArrowRight") go(step + 1);
       else if (e.key === "ArrowLeft") go(step - 1);
       else return;
@@ -159,7 +163,7 @@ export function Tour() {
   return (
     <div className={`tour${s.sel ? "" : " tour-dim"}`}>
       <div ref={spot} className="tour-spot" hidden />
-      <div ref={card} className="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-body">
+      <div ref={card} className="tour-card" role="dialog" aria-labelledby="tour-title" aria-describedby="tour-body">
         <div className="tour-count">{step + 1} of {STEPS.length}</div>
         <h2 id="tour-title">{s.title}</h2>
         <p id="tour-body">{s.body}</p>
