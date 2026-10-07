@@ -16,7 +16,8 @@ function surfaceRaycast(this: THREE.Mesh, rc: THREE.Raycaster, hits: THREE.Inter
   THREE.Mesh.prototype.raycast.call(this, rc, own);
   if (!own.length) return;
   if ((this.material as THREE.Material).userData.seeThrough) {
-    const sys = useView.getState().sys, inner: THREE.Intersection[] = [];
+    const sys = useView.getState().sys,
+      inner: THREE.Intersection[] = [];
     for (const o of this.parent?.children ?? []) {
       const p = o.userData.pick as PickInfo | undefined;
       if (o !== this && o instanceof THREE.Mesh && o.visible && p?.sys.includes(sys)) o.raycast(rc, inner);
@@ -27,7 +28,15 @@ function surfaceRaycast(this: THREE.Mesh, rc: THREE.Raycaster, hits: THREE.Inter
 }
 
 /** A control surface rotating about its hinge line; `angle` gives its deflection (radians) every frame. */
-export function ControlSurface({ spec, cat, angle }: { spec: SurfaceSpec; cat: Catalogue; angle: (key: string) => number }) {
+export function ControlSurface({
+  spec,
+  cat,
+  angle,
+}: {
+  spec: SurfaceSpec;
+  cat: Catalogue;
+  angle: (key: string) => number;
+}) {
   const geo = specGeo(spec);
   const ref = useRef<THREE.Group>(null!);
   const axis = useMemo(() => V(...spec.axis), [spec]);
@@ -40,15 +49,28 @@ export function ControlSurface({ spec, cat, angle }: { spec: SurfaceSpec; cat: C
   const color = sysColor(spec.sys[0], theme);
   // highlighted in its own view; in X-ray the highlight is translucent so the balance weights inside show
   const material = active ? (xray ? seeMat(color) : mats(color).hi) : xray ? shellMat : solidMat;
-  useFrame(() => { ref.current.quaternion.setFromAxisAngle(axis, angle(spec.key)); });
+  useFrame(() => {
+    ref.current.quaternion.setFromAxisAngle(axis, angle(spec.key));
+  });
   const pick: PickInfo = { name: spec.name, note: spec.note, color, sys: spec.sys };
   return (
     <group ref={ref} position={spec.pivot}>
-      <mesh geometry={geo} material={material} renderOrder={xray ? 2 : 0} raycast={surfaceRaycast} userData={{ pick }} />
+      <mesh
+        geometry={geo}
+        material={material}
+        renderOrder={xray ? 2 : 0}
+        raycast={surfaceRaycast}
+        userData={{ pick }}
+      />
       <Parts cat={cat} parent={"surf:" + spec.key} />
     </group>
   );
 }
 
-export const ControlSurfaces = ({ cat, angle }: { cat: Catalogue; angle: (key: string) => number }) =>
-  <>{cat.surfaces.map((s) => <ControlSurface key={s.key} spec={s} cat={cat} angle={angle} />)}</>;
+export const ControlSurfaces = ({ cat, angle }: { cat: Catalogue; angle: (key: string) => number }) => (
+  <>
+    {cat.surfaces.map((s) => (
+      <ControlSurface key={s.key} spec={s} cat={cat} angle={angle} />
+    ))}
+  </>
+);

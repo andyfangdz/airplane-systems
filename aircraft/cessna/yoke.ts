@@ -13,7 +13,8 @@ import { mergeGeos, roundEnds, sweepGeo } from "@/lib/geometry";
 import type { Vec3 } from "@/lib/math";
 
 /** Outer corner and end cap of the right horn (z mirrored for the left); the grip leans inboard between them. */
-const CORNER = { y: -0.025, z: 0.158 }, CAP = { y: 0.112, z: 0.104 };
+const CORNER = { y: -0.025, z: 0.158 },
+  CAP = { y: 0.112, z: 0.104 };
 /** The grips rake slightly aft, toward the pilot. */
 const RAKE = -0.014;
 /** Inboard lean of each grip from vertical (rad). */
@@ -23,12 +24,18 @@ const CAP_SIZE = { d: 0.034, l: 0.03, w: 0.036 };
 
 /** Horn centreline, hub to cap, for side s (−1 left, +1 right). */
 const horn = (s: number): Vec3[] => [
-  [0.004, -0.004, s * 0.03], [0.002, -0.02, s * 0.09], [0, -0.03, s * 0.135], [-0.001, -0.016, s * 0.158],
-  [RAKE * 0.3, 0.025, s * 0.148], [RAKE * 0.7, 0.07, s * 0.126], [RAKE, CAP.y - 0.006, s * (CAP.z + 0.003)],
+  [0.004, -0.004, s * 0.03],
+  [0.002, -0.02, s * 0.09],
+  [0, -0.03, s * 0.135],
+  [-0.001, -0.016, s * 0.158],
+  [RAKE * 0.3, 0.025, s * 0.148],
+  [RAKE * 0.7, 0.07, s * 0.126],
+  [RAKE, CAP.y - 0.006, s * (CAP.z + 0.003)],
 ];
 /** Arm: flattened fore-aft; grip: rounder and fuller in the middle, where the hand closes. */
 const hornR = (t: number): [number, number] => {
-  const g = THREE.MathUtils.smoothstep(t, 0.35, 0.55), mid = Math.sin(Math.PI * THREE.MathUtils.clamp((t - 0.5) / 0.5, 0, 1)) * 0.002;
+  const g = THREE.MathUtils.smoothstep(t, 0.35, 0.55),
+    mid = Math.sin(Math.PI * THREE.MathUtils.clamp((t - 0.5) / 0.5, 0, 1)) * 0.002;
   const e = roundEnds(t, 0, 0.04);
   return [(0.011 + 0.005 * g + mid) * e, (0.014 + 0.002 * g + mid) * e];
 };
@@ -40,7 +47,9 @@ export const capRot = (s: number): Vec3 => [-s * LEAN, 0, 0];
  * w across it (+ toward the right wing). `onCap(s, 0, CAP_END, 0)` is the middle of the end face.
  */
 export function onCap(s: number, u: number, v: number, w: number): Vec3 {
-  const a = -s * LEAN, c = Math.cos(a), sn = Math.sin(a);
+  const a = -s * LEAN,
+    c = Math.cos(a),
+    sn = Math.sin(a);
   return [RAKE + u, CAP.y + v * c - w * sn, s * CAP.z + v * sn + w * c];
 }
 /** End face of the cap, as `v` in `onCap`. */

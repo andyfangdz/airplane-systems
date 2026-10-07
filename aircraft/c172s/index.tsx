@@ -19,7 +19,8 @@ import { simTick } from "./tick";
 /** G1000 annunciation window: shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
 function useAlerts() {
   useTicker(400);
-  const s = useC172((x) => x.s), E = useC172((x) => x.E);
+  const s = useC172((x) => x.s),
+    E = useC172((x) => x.E);
   const powered = E.pfd || E.mfd;
   return { powered, msgs: powered ? annunciations(s, E) : [] };
 }
@@ -35,8 +36,22 @@ export const C172S: AircraftDef = {
   pivotX: 0,
   Model,
   panels: {
-    overview: Overview, airframe: Airframe, controls: Controls, flaps: Flaps, gear: Gear, cabin: Cabin, engine: Engine, propeller: Propeller,
-    fuel: Fuel, electrical: Electrical, lighting: Lighting, environment: Environment, pitot: Pitot, vacuum: Vacuum, avionics: Avionics, autopilot: Autopilot,
+    overview: Overview,
+    airframe: Airframe,
+    controls: Controls,
+    flaps: Flaps,
+    gear: Gear,
+    cabin: Cabin,
+    engine: Engine,
+    propeller: Propeller,
+    fuel: Fuel,
+    electrical: Electrical,
+    lighting: Lighting,
+    environment: Environment,
+    pitot: Pitot,
+    vacuum: Vacuum,
+    avionics: Avionics,
+    autopilot: Autopilot,
   },
   tick: simTick,
   useAlerts,

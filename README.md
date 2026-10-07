@@ -19,19 +19,19 @@ npm run typecheck
 
 The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Section 7 the same way (see each airplane's rail), with a NAV III / DA40 electrical solver and its live power distribution diagram, live G1000 PFD/MFD textures and a working autopilot (GFC 700 or KAP 140) driving a simple flight-state model.
 
-| SR20 system | Interactive |
-| --- | --- |
-| Flight controls | Cable runs from POH Figs 7-1/7-2/7-3: torque tube, sectors, pulleys, push-pull tubes and bellcranks move with the yokes and pedals; per-channel focus (elevator / aileron / rudder); horn balances, trim tabs, static wicks |
-| Wing flaps | UP / 50% / 100% with position lights and VFE; needs the FLAPS breaker and NON ESS bus |
-| Gear & brakes | Differential braking castering the nose wheel, parking brake |
-| Engine & propeller | Ignition key (magneto → plug mapping), power lever (governor schedule), mixture, alternate air |
-| Fuel | Selector, boost pump, tank quantities (clipped fuel level), starvation |
-| Electrical | Master switches, failures, battery endurance, live power distribution diagram, **pullable circuit breakers**, G6 CAS names |
-| Lighting | NAV / STROBE / LAND / ICE switches: wingtip nav, strobe, aft position and landing lights (no tail light, no cowl light), ice inspection lights; cabin and convenience lights |
-| Environmental | OFF–0–1–2–3 fan knob, temperature blend, vent modes, A/C, recirculation |
-| Pitot-static & stall | Pitot heat logic and annunciations, stall-warning suction peak and horn |
-| Avionics | Live Perspective+ PFD / MFD (shared Garmin renderer) and MD302 standby that go dark with their buses; DISPLAY BACKUP reversion |
-| CAPS | Scrubbable deployment: rocket extraction, slider, snubbed riser, line cut, descent |
+| SR20 system          | Interactive                                                                                                                                                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flight controls      | Cable runs from POH Figs 7-1/7-2/7-3: torque tube, sectors, pulleys, push-pull tubes and bellcranks move with the yokes and pedals; per-channel focus (elevator / aileron / rudder); horn balances, trim tabs, static wicks |
+| Wing flaps           | UP / 50% / 100% with position lights and VFE; needs the FLAPS breaker and NON ESS bus                                                                                                                                       |
+| Gear & brakes        | Differential braking castering the nose wheel, parking brake                                                                                                                                                                |
+| Engine & propeller   | Ignition key (magneto → plug mapping), power lever (governor schedule), mixture, alternate air                                                                                                                              |
+| Fuel                 | Selector, boost pump, tank quantities (clipped fuel level), starvation                                                                                                                                                      |
+| Electrical           | Master switches, failures, battery endurance, live power distribution diagram, **pullable circuit breakers**, G6 CAS names                                                                                                  |
+| Lighting             | NAV / STROBE / LAND / ICE switches: wingtip nav, strobe, aft position and landing lights (no tail light, no cowl light), ice inspection lights; cabin and convenience lights                                                |
+| Environmental        | OFF–0–1–2–3 fan knob, temperature blend, vent modes, A/C, recirculation                                                                                                                                                     |
+| Pitot-static & stall | Pitot heat logic and annunciations, stall-warning suction peak and horn                                                                                                                                                     |
+| Avionics             | Live Perspective+ PFD / MFD (shared Garmin renderer) and MD302 standby that go dark with their buses; DISPLAY BACKUP reversion                                                                                              |
+| CAPS                 | Scrubbable deployment: rocket extraction, slider, snubbed riser, line cut, descent                                                                                                                                          |
 
 ## Project structure
 
@@ -72,6 +72,6 @@ SR20 (each other airplane cites its POH/AFM, supplements and CRG in its files an
 - Garmin Cirrus Perspective+ Pilot's Guide 190-02183-03 and the Cirrus Perspective+ brochure — display layout and bezels.
 - Mid-Continent MD302 Standby Attitude Module Pilot's Guide and Installation Manual — the standby instrument.
 - Side photos of SR20 G6 OO-CBB (s/n 2347), Wikimedia Commons — tailcone, fin and window outlines.
-- Costanzo Air Flight School, *Cirrus SR20 Systems* deck — electrical readouts, battery-endurance rule of thumb, and photo detail (horn balances, static wicks, OAT probes, ECS knob). Where it differs from the POH, the POH wins and the page says so.
+- Costanzo Air Flight School, _Cirrus SR20 Systems_ deck — electrical readouts, battery-endurance rule of thumb, and photo detail (horn balances, static wicks, OAT probes, ECS knob). Where it differs from the POH, the POH wins and the page says so.
 
 Geometry is approximate. CAS and annunciation text follow the documents; the conditions that trigger them are simplified.

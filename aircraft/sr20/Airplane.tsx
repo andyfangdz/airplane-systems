@@ -23,18 +23,29 @@ const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} 
 
 /** Control-surface deflections (radians) from the yokes, pedals and flap motor. */
 function surfaceAngle(key: string) {
-  const c = useSR20.getState().s.ctrl, fl = live.flapAng * D2R;
-  const ail = c.roll * 18 * D2R, el = c.pitch * 22 * D2R, rud = c.yaw * 22 * D2R;
-  return ({ flapR: fl, flapL: -fl, ailR: -ail, ailL: -ail, elevR: -el, elevL: el, rudder: rud } as Record<string, number>)[key] ?? 0;
+  const c = useSR20.getState().s.ctrl,
+    fl = live.flapAng * D2R;
+  const ail = c.roll * 18 * D2R,
+    el = c.pitch * 22 * D2R,
+    rud = c.yaw * 22 * D2R;
+  return (
+    ({ flapR: fl, flapL: -fl, ailR: -ail, ailL: -ail, elevR: -el, elevL: el, rudder: rud } as Record<string, number>)[
+      key
+    ] ?? 0
+  );
 }
 
 function NoseGear() {
   const caster = useRef<THREE.Group>(null!);
-  useFrame(() => { caster.current.rotation.y = -useSR20.getState().s.gear.diff * 85 * D2R; });
+  useFrame(() => {
+    caster.current.rotation.y = -useSR20.getState().s.gear.diff * 85 * D2R;
+  });
   return (
     <group position={NOSE_GEAR}>
       <P parent="noseGear" />
-      <group ref={caster} position={NOSE_CASTER}><P parent="caster" /></group>
+      <group ref={caster} position={NOSE_CASTER}>
+        <P parent="caster" />
+      </group>
     </group>
   );
 }
@@ -42,7 +53,10 @@ function NoseGear() {
 function Propeller() {
   const prop = useRef<THREE.Group>(null!);
   const blades = useRef<THREE.Group[]>([]);
-  const reduce = useMemo(() => typeof window !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches, []);
+  const reduce = useMemo(
+    () => typeof window !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
   useFrame((_, dt) => {
     prop.current.rotation.x -= (live.rpm / 60) * Math.PI * 2 * dt * (reduce ? 0.02 : 0.12);
     const ba = bladeAngle(useSR20.getState().s) * D2R * 0.6;
@@ -52,35 +66,77 @@ function Propeller() {
     <group ref={prop} position={PROP}>
       {[0, 1, 2].map((i) => (
         <group key={i} rotation-x={(i * Math.PI * 2) / 3}>
-          <group ref={(g) => { if (g) blades.current[i] = g; }}><P parent={"blade:" + i} /></group>
+          <group
+            ref={(g) => {
+              if (g) blades.current[i] = g;
+            }}
+          >
+            <P parent={"blade:" + i} />
+          </group>
         </group>
       ))}
     </group>
   );
 }
 
-const Cylinders = () => <>{CYLS.map((c) => <group key={c.n} position={[c.x, -0.14, c.s * 0.25]}><P parent={"cyl:" + c.n} /></group>)}</>;
+const Cylinders = () => (
+  <>
+    {CYLS.map((c) => (
+      <group key={c.n} position={[c.x, -0.14, c.s * 0.25]}>
+        <P parent={"cyl:" + c.n} />
+      </group>
+    ))}
+  </>
+);
 
 function Yokes() {
-  const g = useRef<THREE.Group[]>([]), grip = useRef<THREE.Group[]>([]);
+  const g = useRef<THREE.Group[]>([]),
+    grip = useRef<THREE.Group[]>([]);
   useFrame(() => {
     const c = useSR20.getState().s.ctrl;
     g.current.forEach((y) => y && (y.position.x = YOKE_X - c.pitch * 0.07));
     grip.current.forEach((y) => y && (y.rotation.x = c.roll * 0.6));
   });
-  return <>{YOKES.map((y, i) => (
-    <group key={y.side} ref={(o) => { if (o) g.current[i] = o; }} position={[YOKE_X, YOKE_Y, y.z]}>
-      <P parent={"yoke:" + y.side} />
-      <group ref={(o) => { if (o) grip.current[i] = o; }}><P parent={"grip:" + y.side} /></group>
-    </group>
-  ))}</>;
+  return (
+    <>
+      {YOKES.map((y, i) => (
+        <group
+          key={y.side}
+          ref={(o) => {
+            if (o) g.current[i] = o;
+          }}
+          position={[YOKE_X, YOKE_Y, y.z]}
+        >
+          <P parent={"yoke:" + y.side} />
+          <group
+            ref={(o) => {
+              if (o) grip.current[i] = o;
+            }}
+          >
+            <P parent={"grip:" + y.side} />
+          </group>
+        </group>
+      ))}
+    </>
+  );
 }
 
 /* ---------- wet-wing tanks: fuel level is a clipping plane ---------- */
-const TANKS: TankSpec[] = ([["L", -1], ["R", 1]] as const).map(([k, s]) => ({
+const TANKS: TankSpec[] = (
+  [
+    ["L", -1],
+    ["R", 1],
+  ] as const
+).map(([k, s]) => ({
   key: k,
-  geo: () => { const secs = [0.95, 1.6, 2.4, 3.2, 4.0, 4.5].map((z) => wingSec(s * z, 0.1, 0.6, 0.85)); return loft(s < 0 ? secs.map((r) => r.reverse()) : secs); },
-  level: () => { const f = useSR20.getState().s.fuel; return (k === "L" ? f.qL : f.qR) / 28; },
+  geo: () => {
+    const secs = [0.95, 1.6, 2.4, 3.2, 4.0, 4.5].map((z) => wingSec(s * z, 0.1, 0.6, 0.85));
+    return loft(s < 0 ? secs.map((r) => r.reverse()) : secs);
+  },
+  level: () => {
+    const f = useSR20.getState().s.fuel;
+    return (k === "L" ? f.qL : f.qR) / 28;
+  },
   name: (s > 0 ? "Right" : "Left") + " wing tank",
   note: "Integral wet-wing tank: 29.3 gal capacity, 28 gal usable. Float-type quantity sensor.",
 }));
@@ -90,20 +146,57 @@ const TANKS: TankSpec[] = ([["L", -1], ["R", 1]] as const).map(([k, s]) => ({
 // (0.293 m), the proportion of the Perspective+ panel render, so the two inboard control strips nearly meet around the
 // DISPLAY BACKUP button (approximate: no panel drawing found). Labels sit on the top bezel edge, clear of the pictures.
 const SCREENS: ScreenSpec[] = [
-  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: [2.275, 0.1, -0.24], pinAt: [0, 0.085, 0], sys: ["avionics"], name: "PFD — GDU 1050A",
+  {
+    key: "pfd",
+    px: [640, 480],
+    size: [0.211, 0.158],
+    pos: [2.275, 0.1, -0.24],
+    pinAt: [0, 0.085, 0],
+    sys: ["avionics"],
+    name: "PFD — GDU 1050A",
     note: "Attitude, airspeed, altitude, HSI, CAS window. PFD A (ESS BUS 1) and PFD B (MAIN BUS 2) — either one powers it. Shows PFD + Engine Strip if the MFD fails or with DISPLAY BACKUP.",
-    draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.pfd) drawPfdScreen(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: [2.275, 0.1, 0.053], pinAt: [0, 0.085, 0], sys: ["avionics"], name: "MFD — GDU 1050A",
+    draw: (ctx, W, H) => {
+      const { s, E } = useSR20.getState();
+      if (E.pfd) drawPfdScreen(ctx, W, H, s, E);
+      else drawOff(ctx, W, H);
+    },
+  },
+  {
+    key: "mfd",
+    px: [640, 480],
+    size: [0.211, 0.158],
+    pos: [2.275, 0.1, 0.053],
+    pinAt: [0, 0.085, 0],
+    sys: ["avionics"],
+    name: "MFD — GDU 1050A",
     note: "Engine Strip on the left, map on the right. MFD A (MAIN BUS 3) or MFD B (MAIN BUS 1). % power is estimated from RPM and manifold pressure and fuel flow is illustrative; GAL Used, oil, CHT and EGT aren't simulated.",
-    draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.mfd) drawMfdScreen(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "sby", px: [420, 180], size: [0.14, 0.06], pos: [2.175, -0.07, -0.245], pinAt: [0, 0.033, 0], sys: ["avionics", "pitot"], name: "Standby — MD302",
+    draw: (ctx, W, H) => {
+      const { s, E } = useSR20.getState();
+      if (E.mfd) drawMfdScreen(ctx, W, H, s, E);
+      else drawOff(ctx, W, H);
+    },
+  },
+  {
+    key: "sby",
+    px: [420, 180],
+    size: [0.14, 0.06],
+    pos: [2.175, -0.07, -0.245],
+    pinAt: [0, 0.033, 0],
+    sys: ["avionics", "pitot"],
+    name: "Standby — MD302",
     note: "Attitude on the left screen, airspeed and altitude on the right. STDBY ATTD A (ESS BUS 1) + STDBY ATTD B (MAIN BUS 1) through diodes.",
-    draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.stby) drawStandby(ctx, W, H, s); else drawOff(ctx, W, H); } },
+    draw: (ctx, W, H) => {
+      const { s, E } = useSR20.getState();
+      if (E.stby) drawStandby(ctx, W, H, s);
+      else drawOff(ctx, W, H);
+    },
+  },
 ];
 
 /* ---------- exterior + cabin light glows (exterior in Overview/Lighting, cabin in Lighting) ---------- */
 const extOn = (k: "nav" | "strobe" | "land" | "ice") => () => {
-  const sys = useView.getState().sys, { s, E } = useSR20.getState();
+  const sys = useView.getState().sys,
+    { s, E } = useSR20.getState();
   return (sys === "overview" || sys === "lighting") && extLit(s, E)[k];
 };
 const cabOn = (k: "dome" | "foot" | "step" | "bag") => () => {
@@ -136,8 +229,15 @@ const BEAMS: BeamSpec[] = [
   { key: "iceR", from: LIGHTS.iceR, to: LIGHTS.iceAimR, r: 0.16, opacity: 0.12, on: extOn("ice") },
 ];
 
-const rates = () => { const { s, E } = useSR20.getState(); return flowRates(s, E); };
-const flowColor = (k: string, out: THREE.Color) => { if (!isCabinAir(k)) return false; cabinAirColor(useSR20.getState().s, out); return true; };
+const rates = () => {
+  const { s, E } = useSR20.getState();
+  return flowRates(s, E);
+};
+const flowColor = (k: string, out: THREE.Color) => {
+  if (!isCabinAir(k)) return false;
+  cabinAirColor(useSR20.getState().s, out);
+  return true;
+};
 
 /** The SR20 G6 scene: airframe shells, control surfaces, moving assemblies, tanks, displays, lights. */
 export function Model() {
@@ -159,4 +259,3 @@ export function Model() {
     </>
   );
 }
-

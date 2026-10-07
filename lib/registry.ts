@@ -16,7 +16,10 @@ export function focusPart(name: string) {
   const g = o.geometry;
   if (!g.boundingSphere) g.computeBoundingSphere();
   const c = o.localToWorld(g.boundingSphere!.center.clone());
-  const dir = view.camera && view.target ? view.camera.position.clone().sub(view.target).normalize() : new THREE.Vector3(1, 0.6, 1).normalize();
+  const dir =
+    view.camera && view.target
+      ? view.camera.position.clone().sub(view.target).normalize()
+      : new THREE.Vector3(1, 0.6, 1).normalize();
   const p = c.clone().add(dir.multiplyScalar(2.6));
   useView.getState().flyTo([p.x, p.y, p.z], [c.x, c.y, c.z]);
 }

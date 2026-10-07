@@ -52,7 +52,16 @@ export interface ShellSpec {
 }
 
 /** Control surface hinged at `pivot` about `axis`; its geometry is already hinge-relative. */
-export interface SurfaceSpec { key: string; geo: () => THREE.BufferGeometry; pivot: Vec3; axis: Vec3; sys: SysId[]; name: string; note: string; chan?: Chan[] }
+export interface SurfaceSpec {
+  key: string;
+  geo: () => THREE.BufferGeometry;
+  pivot: Vec3;
+  axis: Vec3;
+  sys: SysId[];
+  name: string;
+  note: string;
+  chan?: Chan[];
+}
 
 /** Pipe / wire / duct / cable with moving particles. */
 export interface FlowSpec {
@@ -76,7 +85,13 @@ export interface FlowSpec {
 
 /** Channel from a surface/cable key prefix: elev…/el… → elevator, ail… → aileron, rud… → rudder. */
 export const chanOfKey = (k: string): Chan[] | undefined =>
-  k.startsWith("elev") || k.startsWith("el") ? ["elevator"] : k.startsWith("ail") ? ["aileron"] : k.startsWith("rud") ? ["rudder"] : undefined;
+  k.startsWith("elev") || k.startsWith("el")
+    ? ["elevator"]
+    : k.startsWith("ail")
+      ? ["aileron"]
+      : k.startsWith("rud")
+        ? ["rudder"]
+        : undefined;
 
 type PartOpts = Omit<PartSpec, "id" | "geo" | "sys">;
 
@@ -101,7 +116,10 @@ export class Catalogue {
   private pins = new Map<SysId, PartSpec[]>();
   private pinIds = new Map<string, Set<string>>();
 
-  constructor(readonly prefix: string, readonly labels: LabelLists = {}) {}
+  constructor(
+    readonly prefix: string,
+    readonly labels: LabelLists = {},
+  ) {}
 
   uid = (s: string) => `${this.prefix}/${s}-${this.n++}`;
 
@@ -129,7 +147,10 @@ export class Catalogue {
   partsFor = (parent?: string) => {
     const k = parent ?? "";
     let l = this.byParent.get(k);
-    if (!l) { l = this.parts.filter((p) => (p.parent ?? "") === k); this.byParent.set(k, l); }
+    if (!l) {
+      l = this.parts.filter((p) => (p.parent ?? "") === k);
+      this.byParent.set(k, l);
+    }
     return l;
   };
 
@@ -138,7 +159,9 @@ export class Catalogue {
     let l = this.pins.get(sys);
     if (!l) {
       const seen = new Set<string>();
-      l = this.parts.filter((p) => p.pin && p.name && p.sys.includes(sys) && !seen.has(p.name) && (seen.add(p.name), true));
+      l = this.parts.filter(
+        (p) => p.pin && p.name && p.sys.includes(sys) && !seen.has(p.name) && (seen.add(p.name), true),
+      );
       this.pins.set(sys, l);
     }
     return l;
@@ -146,15 +169,28 @@ export class Catalogue {
 
   /** Does this part carry the label pin in the given system view? (`pin`, `pinIn`, then the airplane's label lists.) */
   isPinned = (spec: PartSpec, sys: SysId) => {
-    const nar = !!this.labels.narrow && narrowLayout(), key = nar ? sys + ":narrow" : sys;
+    const nar = !!this.labels.narrow && narrowLayout(),
+      key = nar ? sys + ":narrow" : sys;
     let s = this.pinIds.get(key);
     if (!s) {
-      const pinned = this.pinned(sys), quiet = this.labels.quiet?.[sys] ?? [], only = nar ? this.labels.narrow?.[sys] ?? [] : null;
+      const pinned = this.pinned(sys),
+        quiet = this.labels.quiet?.[sys] ?? [],
+        only = nar ? (this.labels.narrow?.[sys] ?? []) : null;
       if (process.env.NODE_ENV !== "production") {
         const names = new Set(pinned.map((p) => p.name));
-        for (const n of [...quiet, ...(only ?? [])]) if (!names.has(n)) console.warn(`${this.prefix}: label list for "${sys}" names "${n}", which is not a pinned part of that view`);
+        for (const n of [...quiet, ...(only ?? [])])
+          if (!names.has(n))
+            console.warn(
+              `${this.prefix}: label list for "${sys}" names "${n}", which is not a pinned part of that view`,
+            );
       }
-      s = new Set(pinned.filter((p) => (!p.pinIn || p.pinIn.includes(sys)) && (only ? only.includes(p.name!) : !quiet.includes(p.name!))).map((p) => p.id));
+      s = new Set(
+        pinned
+          .filter(
+            (p) => (!p.pinIn || p.pinIn.includes(sys)) && (only ? only.includes(p.name!) : !quiet.includes(p.name!)),
+          )
+          .map((p) => p.id),
+      );
       this.pinIds.set(key, s);
     }
     return s.has(spec.id);

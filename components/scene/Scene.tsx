@@ -26,31 +26,57 @@ function CameraRig() {
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
-  const flight = useRef<{ fp: THREE.Vector3; ft: THREE.Vector3; tp: THREE.Vector3; tt: THREE.Vector3; t0: number } | null>(null);
+  const flight = useRef<{
+    fp: THREE.Vector3;
+    ft: THREE.Vector3;
+    tp: THREE.Vector3;
+    tt: THREE.Vector3;
+    t0: number;
+  } | null>(null);
 
   // the starting view, fitted once to the viewport
   useEffect(() => {
     if (!controls) return;
-    camera.position.sub(controls.target).multiplyScalar(fitDist(size.width / size.height)).add(controls.target);
+    camera.position
+      .sub(controls.target)
+      .multiplyScalar(fitDist(size.width / size.height))
+      .add(controls.target);
   }, [controls, camera]);
 
   useEffect(() => {
     if (!cam || !controls) return;
     // drop any momentum left from a drag (damping would keep turning the camera after the jump or flight);
     // an update with damping off zeroes it, then the camera is put back where it was
-    const p0 = camera.position.clone(), t0 = controls.target.clone();
-    controls.enableDamping = false; controls.update(); controls.enableDamping = true;
-    camera.position.copy(p0); controls.target.copy(t0);
-    const tt = V(...cam.t), tp = V(...cam.p).sub(tt).multiplyScalar(fitDist(size.width / size.height)).add(tt);
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { camera.position.copy(tp); controls.target.copy(tt); return; }
+    const p0 = camera.position.clone(),
+      t0 = controls.target.clone();
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
+    camera.position.copy(p0);
+    controls.target.copy(t0);
+    const tt = V(...cam.t),
+      tp = V(...cam.p)
+        .sub(tt)
+        .multiplyScalar(fitDist(size.width / size.height))
+        .add(tt);
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      camera.position.copy(tp);
+      controls.target.copy(tt);
+      return;
+    }
     flight.current = { fp: camera.position.clone(), ft: controls.target.clone(), tp, tt, t0: performance.now() };
   }, [cam, controls, camera]);
 
-  useEffect(() => { view.camera = camera; view.target = controls?.target ?? null; }, [camera, controls]);
+  useEffect(() => {
+    view.camera = camera;
+    view.target = controls?.target ?? null;
+  }, [camera, controls]);
 
   useEffect(() => {
     if (!controls) return;
-    const cancel = () => { flight.current = null; };
+    const cancel = () => {
+      flight.current = null;
+    };
     controls.addEventListener("start", cancel);
     return () => controls.removeEventListener("start", cancel);
   }, [controls]);
@@ -58,7 +84,8 @@ function CameraRig() {
   useFrame(() => {
     const f = flight.current;
     if (!f || !controls) return;
-    const u = clamp((performance.now() - f.t0) / 1000, 0, 1), e = ease(u);
+    const u = clamp((performance.now() - f.t0) / 1000, 0, 1),
+      e = ease(u);
     camera.position.lerpVectors(f.fp, f.tp, e);
     controls.target.lerpVectors(f.ft, f.tt, e);
     if (u >= 1) flight.current = null;
@@ -89,15 +116,21 @@ function usePicker() {
   const setHover = useView((x) => x.setHover);
   return (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (e.buttons) { setHover(null); return; }
+    if (e.buttons) {
+      setHover(null);
+      return;
+    }
     const { sys, xray } = useView.getState();
     const cands = e.intersections.filter((h) => {
       const p = h.object.userData?.pick as PickInfo | undefined;
       return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
     });
     // only the X-ray ghost skin can be seen through; the solid skin hides what is behind it
-    const hit = xray ? cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0] : cands[0];
-    if (!hit) { setHover(null); return; }
+    const hit = xray ? (cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0]) : cands[0];
+    if (!hit) {
+      setHover(null);
+      return;
+    }
     const p = hit.object.userData.pick as PickInfo;
     setHover({ name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
   };
@@ -118,7 +151,15 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
             Switching airplane remounts the model. Parts, shells and control surfaces reuse cached geometry and shared
             materials (passed as props, which R3F never disposes); R3F disposes JSX-created geometry and materials, and
             Flows, Screens, Tanks, LightFX, Links and WindowOutlines free what they build. */}
-        <group ref={modelRef} position={[-def.pivotX, 0, 0]} onPointerMove={onMove} onClick={(e) => { if (e.delta <= 4) onMove(e); }} onPointerOut={() => setHover(null)}>
+        <group
+          ref={modelRef}
+          position={[-def.pivotX, 0, 0]}
+          onPointerMove={onMove}
+          onClick={(e) => {
+            if (e.delta <= 4) onMove(e);
+          }}
+          onPointerOut={() => setHover(null)}
+        >
           <Model />
         </group>
       </group>
@@ -148,7 +189,9 @@ export default function Scene() {
       flat
       dpr={[1, 2]}
       camera={{ fov: 38, near: 0.05, far: 400, position: startPos }}
-      onCreated={({ gl }) => { gl.localClippingEnabled = true; }}
+      onCreated={({ gl }) => {
+        gl.localClippingEnabled = true;
+      }}
       onPointerMissed={() => useView.getState().setHover(null)}
       aria-label={`3D model of the ${def.name} and its systems`}
     >
@@ -157,11 +200,29 @@ export default function Scene() {
       <hemisphereLight args={["#ffffff", "#445566", 0.85 * Math.PI]} />
       <directionalLight position={[6, 10, 5]} intensity={0.9 * Math.PI} />
       <directionalLight position={[-6, 3, -6]} intensity={0.35 * Math.PI} />
-      <gridHelper ref={gridRef} args={[40, 40, "#ffffff", "#ffffff"]} position-y={def.groundY}
-        onUpdate={(g) => { const m = g.material as THREE.LineBasicMaterial; m.transparent = true; m.opacity = 0.5; m.color.set(pal.grid); }} />
+      <gridHelper
+        ref={gridRef}
+        args={[40, 40, "#ffffff", "#ffffff"]}
+        position-y={def.groundY}
+        onUpdate={(g) => {
+          const m = g.material as THREE.LineBasicMaterial;
+          m.transparent = true;
+          m.opacity = 0.5;
+          m.color.set(pal.grid);
+        }}
+      />
       <MaterialSync />
       <AircraftScene key={def.id} def={def} gridRef={gridRef} />
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={0.4} maxDistance={70} autoRotate={spin} autoRotateSpeed={0.6} target={startTarget} />
+      <OrbitControls
+        makeDefault
+        enableDamping
+        dampingFactor={0.08}
+        minDistance={0.4}
+        maxDistance={70}
+        autoRotate={spin}
+        autoRotateSpeed={0.6}
+        target={startTarget}
+      />
       <CameraRig />
       <SimClock tick={def.tick} />
     </Canvas>

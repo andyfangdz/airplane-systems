@@ -42,18 +42,36 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(3 * 2 * (16 + 3)), 3));
     return g;
   }, []);
-  const goreGeo = useMemo(() => new THREE.EdgesGeometry(new THREE.SphereGeometry(5.52, 16, 4, 0, Math.PI * 2, 0, Math.PI * 0.42)), []);
+  const goreGeo = useMemo(
+    () => new THREE.EdgesGeometry(new THREE.SphereGeometry(5.52, 16, 4, 0, Math.PI * 2, 0, Math.PI * 0.42)),
+    [],
+  );
   const wasOn = useRef(false);
-  useEffect(() => () => { lineGeo.dispose(); goreGeo.dispose(); }, [lineGeo, goreGeo]);
+  useEffect(
+    () => () => {
+      lineGeo.dispose();
+      goreGeo.dispose();
+    },
+    [lineGeo, goreGeo],
+  );
   // leaving the airplane mid-deployment: show the ground grid again
-  useEffect(() => () => { if (gridRef.current) gridRef.current.visible = true; }, [gridRef]);
+  useEffect(
+    () => () => {
+      if (gridRef.current) gridRef.current.visible = true;
+    },
+    [gridRef],
+  );
 
   useFrame(() => {
     const on = useSR20.getState().s.capsOn && live.capsT >= 0;
-    const root = rootRef.current, model = modelRef.current;
+    const root = rootRef.current,
+      model = modelRef.current;
     if (!root || !model) return;
     if (!on) {
-      if (wasOn.current) { root.rotation.set(0, 0, 0); if (gridRef.current) gridRef.current.visible = true; }
+      if (wasOn.current) {
+        root.rotation.set(0, 0, 0);
+        if (gridRef.current) gridRef.current.visible = true;
+      }
       wasOn.current = false;
       group.current.visible = false;
       return;
@@ -66,8 +84,12 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     if (gridRef.current) gridRef.current.visible = t < 1.5;
     model.updateMatrixWorld(true);
     const can = model.localToWorld(V(...CAPS_BOX));
-    const top = V(-0.3, 11.5, 0), mid = V(-2.4, 9.5, 0);
-    const packPos = t < 1.6 ? can.clone().lerp(mid, ease(clamp((t - 0.3) / 1.3, 0, 1))) : mid.clone().lerp(top, clamp((t - 1.6) / 1.2, 0, 1));
+    const top = V(-0.3, 11.5, 0),
+      mid = V(-2.4, 9.5, 0);
+    const packPos =
+      t < 1.6
+        ? can.clone().lerp(mid, ease(clamp((t - 0.3) / 1.3, 0, 1)))
+        : mid.clone().lerp(top, clamp((t - 1.6) / 1.2, 0, 1));
     pack.current.position.copy(packPos);
     pack.current.visible = t < 2.4;
     flame.current.visible = t >= 0.3 && t < 1.5;
@@ -80,22 +102,28 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     const hp = (["fwdL", "fwdR", "aft"] as const).map((k) => model.localToWorld(V(...HARNESS[k])));
     const pos = lineGeo.attributes.position as THREE.BufferAttribute;
     let i = 0;
-    const rimR = 5.5 * Math.sin(Math.PI * 0.42) * (0.15 + 0.85 * inf), rimY = canopy.current.position.y + 5.5 * Math.cos(Math.PI * 0.42) * (0.25 + 0.75 * inf);
+    const rimR = 5.5 * Math.sin(Math.PI * 0.42) * (0.15 + 0.85 * inf),
+      rimY = canopy.current.position.y + 5.5 * Math.cos(Math.PI * 0.42) * (0.25 + 0.75 * inf);
     const conf = V(canopy.current.position.x, lerp(packPos.y - 1, (hp[0].y + hp[2].y) / 2 + 3.2, inf), 0);
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2;
       const rp = inf > 0.01 ? V(canopy.current.position.x + Math.cos(a) * rimR, rimY, Math.sin(a) * rimR) : packPos;
-      pos.setXYZ(i++, rp.x, rp.y, rp.z); pos.setXYZ(i++, conf.x, conf.y, conf.z);
+      pos.setXYZ(i++, rp.x, rp.y, rp.z);
+      pos.setXYZ(i++, conf.x, conf.y, conf.z);
     }
     const anchor = t < 1.6 ? packPos : conf;
-    hp.forEach((p) => { pos.setXYZ(i++, p.x, p.y, p.z); pos.setXYZ(i++, anchor.x, anchor.y, anchor.z); });
+    hp.forEach((p) => {
+      pos.setXYZ(i++, p.x, p.y, p.z);
+      pos.setXYZ(i++, anchor.x, anchor.y, anchor.z);
+    });
     if (t < 0.3) for (let k = 0; k < i; k++) pos.setXYZ(k, can.x, can.y, can.z);
     pos.needsUpdate = true;
     lineGeo.computeBoundingSphere();
     // slider rides down the suspension lines from the skirt toward the confluence
     slider.current.visible = t >= 2 && inf > 0.01;
     if (slider.current.visible) {
-      const u = clamp((t - 2) / 2.2, 0, 1) * 0.75, rr = Math.max(0.15, rimR * (1 - u));
+      const u = clamp((t - 2) / 2.2, 0, 1) * 0.75,
+        rr = Math.max(0.15, rimR * (1 - u));
       slider.current.position.set(canopy.current.position.x, lerp(rimY, conf.y, u), 0);
       slider.current.scale.set(rr, rr, rr);
     }
@@ -106,12 +134,30 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
       <mesh ref={canopy} raycast={() => {}}>
         <sphereGeometry args={[5.5, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.42]} />
         <meshStandardMaterial color="#F2F2EE" side={THREE.DoubleSide} roughness={0.8} transparent opacity={0.95} />
-        <lineSegments geometry={goreGeo}><lineBasicMaterial color="#D32640" /></lineSegments>
+        <lineSegments geometry={goreGeo}>
+          <lineBasicMaterial color="#D32640" />
+        </lineSegments>
       </mesh>
-      <mesh ref={pack}><cylinderGeometry args={[0.22, 0.22, 0.5, 12]} /><meshStandardMaterial color="#D32640" /></mesh>
-      <mesh ref={slider} rotation-x={Math.PI / 2}><torusGeometry args={[1, 0.06, 6, 40]} /><meshStandardMaterial color="#FF8A1F" /></mesh>
-      <lineSegments geometry={lineGeo} frustumCulled={false}><lineBasicMaterial color="#8A8F94" /></lineSegments>
-      <sprite ref={flame} scale={[1.2, 1.2, 1.2]}><spriteMaterial map={dotTex()} color="#FFB020" blending={THREE.AdditiveBlending} transparent depthWrite={false} /></sprite>
+      <mesh ref={pack}>
+        <cylinderGeometry args={[0.22, 0.22, 0.5, 12]} />
+        <meshStandardMaterial color="#D32640" />
+      </mesh>
+      <mesh ref={slider} rotation-x={Math.PI / 2}>
+        <torusGeometry args={[1, 0.06, 6, 40]} />
+        <meshStandardMaterial color="#FF8A1F" />
+      </mesh>
+      <lineSegments geometry={lineGeo} frustumCulled={false}>
+        <lineBasicMaterial color="#8A8F94" />
+      </lineSegments>
+      <sprite ref={flame} scale={[1.2, 1.2, 1.2]}>
+        <spriteMaterial
+          map={dotTex()}
+          color="#FFB020"
+          blending={THREE.AdditiveBlending}
+          transparent
+          depthWrite={false}
+        />
+      </sprite>
     </group>
   );
 }

@@ -15,15 +15,31 @@ export function simTick(dt: number) {
     live.startTimer -= dt;
     if (E.starterPwr && !g.running) {
       live.crankT += dt;
-      if (live.crankT > 1.3 && fuelAvail(s) && g.mix > 0.05) update((d) => { d.eng.running = true; });
+      if (live.crankT > 1.3 && fuelAvail(s) && g.mix > 0.05)
+        update((d) => {
+          d.eng.running = true;
+        });
     }
-    if (live.startTimer <= 0) { live.crankT = 0; update((d) => { d.eng.key = "BOTH"; }); }
+    if (live.startTimer <= 0) {
+      live.crankT = 0;
+      update((d) => {
+        d.eng.key = "BOTH";
+      });
+    }
   }
   const cur = useSR20.getState().s;
-  if (cur.eng.running && (cur.eng.key === "OFF" || cur.eng.mix <= 0.05)) update((d) => { d.eng.running = false; });
+  if (cur.eng.running && (cur.eng.key === "OFF" || cur.eng.mix <= 0.05))
+    update((d) => {
+      d.eng.running = false;
+    });
   if (cur.eng.running && !fuelAvail(cur)) {
     live.starve += dt;
-    if (live.starve > 3) { live.starve = 0; update((d) => { d.eng.running = false; }); }
+    if (live.starve > 3) {
+      live.starve = 0;
+      update((d) => {
+        d.eng.running = false;
+      });
+    }
   } else live.starve = 0;
 
   // RPM: POH governor schedule — 2,500 from idle through cruise, 2,700 at full power
