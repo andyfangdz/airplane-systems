@@ -122,7 +122,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
   ext: true,
 });
 part(() => box(0.2, 0.015, 0.015), ["avionics"], {
-  pos: [-3.36, 1.48, 0],
+  pos: [-3.67, 1.545, 0],
   color: ANT,
   name: "NAV antenna",
   note: "Top of the fin: VOR/LOC and glideslope for both GIAs.",

@@ -79,28 +79,30 @@ export const SY = -0.02,
 /** Elevator horn balance: outboard of HZ the elevator reaches forward to HF chord. */
 export const HZ = 1.72,
   HF = 0.5;
-/** Rudder horn balance: above HH the rudder reaches forward to HR chord. */
-export const HH = 1.36,
-  HR = 0.45;
+/** Rudder horn (balance): above HH (WL 160.2) the rudder is a full-chord cap (AMM Fig 6-00-2, Fig 55-40-1 Detail B). */
+export const HH = 1.4;
 export const stabSec = liftingSurface({ le: sLE, chord: sC, y: () => SY, t: () => 0.1, m: 0 }).sec;
 
 /* ---------- fin: dorsal fillet from x -1.95, swept LE, flat top ---------- */
-// [height, leading edge x, trailing edge x] traced from the G6 side photo
+// [height, leading edge x, trailing edge x]: leading edge traced from the G6 side photo; trailing edge and top scaled from
+// AMM 13773-002 Fig 6-00-2 (SR22/SR22T): top WL 165.5, aft-most point FS 350.2 (SR20 POH Fig 1-1: length 26.0 ft)
 export const FIN = [
-  [-0.25, -2.95, -3.25],
-  [-0.1, -2.7, -3.36],
-  [0.05, -2.45, -3.41],
-  [0.2, -2.15, -3.43],
-  [0.31, -1.95, -3.44],
-  [0.35, -2.14, -3.445],
-  [0.4, -2.29, -3.45],
-  [0.45, -2.42, -3.455],
-  [0.52, -2.56, -3.465],
-  [0.8, -2.7, -3.52],
-  [1.1, -2.88, -3.585],
-  [1.32, -3.0, -3.63],
-  [1.42, -3.1, -3.65],
-  [1.47, -3.24, -3.66],
+  [-0.25, -2.95, -3.2],
+  [-0.1, -2.7, -3.4],
+  [0.05, -2.45, -3.455],
+  [0.2, -2.15, -3.48],
+  [0.31, -1.95, -3.5],
+  [0.35, -2.14, -3.505],
+  [0.4, -2.29, -3.515],
+  [0.45, -2.42, -3.525],
+  [0.52, -2.56, -3.535],
+  [0.8, -2.7, -3.585],
+  [1.1, -2.88, -3.64],
+  [1.32, -3.0, -3.68],
+  [1.42, -3.15, -3.7],
+  [1.47, -3.29, -3.715],
+  [1.51, -3.45, -3.73],
+  [1.534, -3.62, -3.745],
 ];
 const finAt = (h: number) => {
   let i = 0;
@@ -112,20 +114,17 @@ const finAt = (h: number) => {
 };
 export const fLE = (h: number) => finAt(h)[0];
 export const fC = (h: number) => finAt(h)[0] - finAt(h)[1];
+// rudder hinge line (height, x): the rudder/fin split line, FS 320.7 at WL 98 to FS 339.3 at WL 155 (AMM Fig 6-00-2)
 const RH = [
-  [-0.2, -2.98],
-  [1.44, -3.44],
-]; // rudder hinge line (height, x)
-export const hingeX = (h: number) => lerp(RH[0][1], RH[1][1], (h - RH[0][0]) / (RH[1][0] - RH[0][0]));
-const rFrac = (h: number) => (h < RH[0][0] || h > RH[1][0] ? 1 : clamp((fLE(h) - hingeX(h)) / fC(h), 0.05, 1));
-export const finCut = (h: number) => (h >= HH ? HR : rFrac(h));
-export const finSec = finSurface({ le: fLE, chord: fC, t: (h) => Math.min(0.11, 0.1 / fC(h)) }).sec;
-export const finHs = [
-  ...FIN.map((r) => r[0]).filter((h) => h < HH),
-  HH - 0.002,
-  HH,
-  ...FIN.map((r) => r[0]).filter((h) => h > HH),
+  [-0.18, -3.0],
+  [1.44, -3.52],
 ];
+export const hingeX = (h: number) => lerp(RH[0][1], RH[1][1], (h - RH[0][0]) / (RH[1][0] - RH[0][0]));
+/** Chord fraction of the rudder hinge below the horn. */
+export const finCut = (h: number) => (h < RH[0][0] || h > RH[1][0] ? 1 : clamp((fLE(h) - hingeX(h)) / fC(h), 0.05, 1));
+export const finSec = finSurface({ le: fLE, chord: fC, t: (h) => Math.min(0.11, 0.1 / fC(h)) }).sec;
+/** Fin section heights: the fin ends at the horn joint. */
+export const finHs = [...FIN.map((r) => r[0]).filter((h) => h < HH), HH];
 
 /* ---------- windows & painted skin ---------- */
 export const SK = { x0: -3.45, x1: 4.2, y0: -0.95, y1: 1.0, W: 2048, H: 512 };
