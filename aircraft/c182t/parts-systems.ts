@@ -17,7 +17,7 @@ import { CAT, KNOB, P3, PV } from "./parts";
 import { RIG_SPEC } from "./rig";
 import { useC182 } from "./store";
 import { IN } from "../cessna/airframe";
-import { GDU_KEYS_Y, cbHeads, gduKeys, gduKnobs, gmaKeys, gmaKnob, GMA_KNOB_Y } from "../cessna/faceplate";
+import { GDU_H, GDU_KEYS_Y, GDU_W, GMA_KNOB_Y, GMA_W, NAV3_BL, cbHeads, gduKeys, gduKnobs, gmaKeys, gmaKnob, switchRows } from "../cessna/faceplate";
 
 const { part } = CAT;
 const S = () => useC182.getState().s, EL = () => useC182.getState().E;
@@ -112,36 +112,37 @@ part(() => tubeGeo(beltPath(), 0.006), ["electrical", "engine"], { color: "#2026
 part(() => box(0.14, 0.12, 0.16), ["electrical"], { pos: P3(10.8, -14, 50.5), color: ELEC, anim: glow(ELEC, () => EL().stbyOnline, ["electrical"], "#FF8A3D"),
   name: "Standby battery", note: "Between the firewall and the instrument panel, arm 10.8. Feeds only the ESSENTIAL BUS — automatically when the main bus falls below 20 V, for at least 30 minutes; it cannot power the transponder (POH 7-47, 3-15, 3-35).", pin: true });
 part(() => box(0.06, 0.05, 0.08), ["electrical"], { pos: P3(12, -9.5, 54), color: "#8A7A3A", name: "Standby battery controller", note: "On/off control, test load with an overheat switch, and a current shunt for S BATT; it senses main bus voltage through the WARN breaker; 25 A fuse at the battery (Fig. 7-7 Sheet 3)." });
-part(() => box(0.012, 0.025, 0.02), ["electrical"], { pos: P3(18.1, -19.0, 64.0), color: "#C9D0D5", anim: (m) => { const v = S().elec.stby; m.rotation.z = v === "ARM" ? 0.5 : v === "TEST" ? -0.5 : 0; },
+part(() => box(0.012, 0.025, 0.02), ["electrical"], { pos: P3(18.1, -17.6, 64.7), color: "#C9D0D5", anim: (m) => { const v = S().elec.stby; m.rotation.z = v === "ARM" ? 0.5 : v === "TEST" ? -0.5 : 0; },
   name: "STBY BATT switch", note: "Upper left corner of the pilot's panel: ARM – OFF – TEST (TEST momentary). Before start: TEST 20 s (hold; the green lamp must not go off) — then ARM (the PFD comes on) and check BUS E ≥ 24 V, M BUS ≤ 1.5 V, BATT S negative, STBY BATT shown (POH 7-10, 4-13).", pin: true });
-part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -17.7, 64.0), color: "#1E5A2A", anim: glow("#1E5A2A", () => EL().testLamp, ["electrical"], "#33FF66"),
+part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -16.6, 64.7), color: "#1E5A2A", anim: glow("#1E5A2A", () => EL().testLamp, ["electrical"], "#33FF66"),
   name: "STBY BATT TEST lamp", note: "Green lamp right of the switch; it must stay lit through the 20-second test (POH 4-13)." });
-part(() => box(0.012, 0.04, 0.04), ["electrical"], { pos: P3(18.1, -19.4, 61.7), color: "#C8313B", anim: (m) => { m.rotation.z = S().elec.bat ? 0.3 : -0.3; },
-  name: "MASTER switch (ALT | BAT)", note: "Two-pole rocker directly below STBY BATT: BAT controls the battery relay, ALT the alternator field; ALT can't be ON without BAT (POH 7-51).", pin: true });
-part(() => box(0.012, 0.04, 0.04), ["electrical", "avionics"], { pos: P3(18.1, -19.4, 58.4), color: "#E8ECEE", anim: (m) => { m.rotation.z = S().elec.avn1 ? 0.3 : -0.3; },
+// MASTER and AVIONICS side by side below STBY BATT, left of the PFD (POH Fig. 7-2; photos)
+part(() => box(0.012, 0.04, 0.04), ["electrical"], { pos: P3(18.1, -17.6, 60.9), color: "#C8313B", anim: (m) => { m.rotation.z = S().elec.bat ? 0.3 : -0.3; },
+  name: "MASTER switch (ALT | BAT)", note: "Red two-pole rocker below STBY BATT, AVIONICS to its right: BAT controls the battery relay, ALT the alternator field; ALT can't be ON without BAT (POH 7-51).", pin: true });
+part(() => box(0.012, 0.04, 0.04), ["electrical", "avionics"], { pos: P3(18.1, -15.4, 60.9), color: "#E8ECEE", anim: (m) => { m.rotation.z = S().elec.avn1 ? 0.3 : -0.3; },
   name: "AVIONICS switch (BUS 1 | BUS 2)", note: "Two-pole rocker for AVIONICS BUS 1 and BUS 2 — both OFF before the MASTER is turned on or off, for starting and for external power (POH 7-47).", pin: true });
 part(() => box(0.012, 0.07, 0.075), ["electrical"], { pos: P3(17.9, -18.6, 44.2), color: "#3A3424", name: "Circuit breaker panel (BUS 1 · BUS 2 · X-FEED)", note: "Lower edge of the pilot's panel, left of the control wheel (low-confidence position): ELECTRICAL BUS 1, BUS 2 and X-FEED breakers are non-pullable — they can only trip and be pushed back in (POH 7-11, 7-55).", pin: true });
 part(() => box(0.012, 0.07, 0.15), ["electrical", "avionics"], { pos: P3(17.9, -8.6, 44.2), color: "#3A3424", name: "Circuit breaker panel (ESS · AVN 1 · AVN 2)", note: "Inboard of the control wheel: ESSENTIAL BUS, AVN BUS 1 and AVN BUS 2 breakers, all pullable (POH 7-11, 7-55).", pin: true });
-part(() => box(0.012, 0.07, 0.22), ["electrical", "lighting"], { pos: P3(17.9, -12.4, 52.3), color: "#2F3A42", name: "Switch panel", note: "Below the lower left corner of the PFD, internally lit: LIGHTS (BEACON, LAND, TAXI, NAV, STROBE), PITOT HEAT, FUEL PUMP and CABIN PWR 12V (if installed). Up = ON (POH 7-10, 7-57).", pin: true });
+part(() => box(0.012, 0.07, 0.22), ["electrical", "lighting"], { pos: P3(17.9, -12.4, 52.3), color: "#2F3A42", name: "Switch panel", note: "Below the lower left corner of the PFD, internally lit: LIGHTS (BEACON, LAND, TAXI, NAV, STROBE) across the top, FUEL PUMP, PITOT HEAT and CABIN PWR 12V (if installed) below. Up = ON (POH 7-10, 7-57). Where CABIN PWR 12V sits on the panel is approximate.", pin: true });
 part(() => box(0.08, 0.06, 0.1), ["electrical", "cabin"], { pos: P3(12, 16, 50), color: "#8A7A3A", name: "12 V power converter", note: "Cabin side of the firewall, forward of the right panel: 28 → 12 V, up to 10 A to the POWER OUTLET 12V – 10A on the pedestal. CABIN LTS/PWR breaker; Fig. 7-7 marks the 12V CAB PWR switch “if installed” (POH 7-73, 7-49)." });
 part(() => cyl(0.012, 0.02, "x"), ["electrical", "cabin"], { pos: P3(27.3, 2, 36), color: "#20262B", name: "POWER OUTLET 12V–10A", note: "Center pedestal (Fig. 7-2 item 29). Not for flight-critical devices; off for takeoff and landing (POH 7-73, 2-19)." });
 
 /* ---------- avionics (POH 7-66 – 7-70) ---------- */
 const AVX = "#C8399F";
-part(() => box(0.03, 0.22, 0.285), ["avionics"], { pos: P3(18.1, -11.5, 61.4), color: "#1A1F23", name: "PFD — GDU 1040", note: "In front of the pilot, arm 15.0. PFD breakers on the ESSENTIAL BUS and AVIONICS BUS 1 (with the deckskin and PFD fans). Shows the EIS during engine start, reversion or DISPLAY BACKUP (POH 7-10, 7-66)." });
-part(() => box(0.03, 0.22, 0.285), ["avionics"], { pos: P3(18.1, 10.5, 61.4), color: "#1A1F23", name: "MFD — GDU 1040", note: "Right of the audio panel: moving map with the EIS strip on its left edge. MFD breaker (with the MFD fan), AVIONICS BUS 2 (POH 7-66, 7-49)." });
-part(() => box(0.03, 0.215, 0.055), ["avionics"], { pos: P3(18.1, -0.5, 61.4), color: "#24292E", name: "GMA 1347 audio panel", note: "Between the PFD and MFD: audio, intercom and marker beacon; it also controls reversionary mode. AUDIO breaker, AVIONICS BUS 2 — no autopilot use with it inoperative (no disconnect tone, S3-13). Split COM 1/2 is not approved (POH 7-66, 2-16).", pin: true });
-part(() => box(0.012, 0.014, 0.03), ["avionics"], { pos: P3(18.7, -0.5, 57.2), color: "#D32626", anim: (m) => { m.material = S().avx.backup ? mats("#FF4040").hi : mats("#B32020").on; },
+part(() => box(0.03, GDU_H, GDU_W), ["avionics"], { pos: P3(18.1, NAV3_BL.pfd, 61.4), color: "#1A1F23", name: "PFD — GDU 1040", note: "In front of the pilot, arm 15.0. PFD breakers on the ESSENTIAL BUS and AVIONICS BUS 1 (with the deckskin and PFD fans). Shows the EIS during engine start, reversion or DISPLAY BACKUP (POH 7-10, 7-66)." });
+part(() => box(0.03, GDU_H, GDU_W), ["avionics"], { pos: P3(18.1, NAV3_BL.mfd, 61.4), color: "#1A1F23", name: "MFD — GDU 1040", note: "Right of the audio panel: moving map with the EIS strip on its left edge. MFD breaker (with the MFD fan), AVIONICS BUS 2 (POH 7-66, 7-49)." });
+part(() => box(0.03, GDU_H, GMA_W), ["avionics"], { pos: P3(18.1, NAV3_BL.gma, 61.4), color: "#24292E", name: "GMA 1347 audio panel", note: "Between the PFD and MFD: audio, intercom and marker beacon; it also controls reversionary mode. AUDIO breaker, AVIONICS BUS 2 — no autopilot use with it inoperative (no disconnect tone, S3-13). Split COM 1/2 is not approved (POH 7-66, 2-16).", pin: true });
+part(() => box(0.012, 0.014, 0.022), ["avionics"], { pos: P3(18.7, NAV3_BL.gma, 57.8), color: "#D32626", anim: (m) => { m.material = S().avx.backup ? mats("#FF4040").hi : mats("#B32020").on; },
   name: "DISPLAY BACKUP button", note: "Red button on the lower face of the GMA 1347: PFD instruments plus the EIS on both displays; press again to cancel (POH 7-11, CRG 109).", pin: true });
 ([[136, -4.5, "GIA 63 #1", "Integrated avionics unit in the tailcone racks behind the baggage curtain, arm 134.0: GPS, VHF NAV/COM and main processor. NAV 1 ENG (ESS and AVN BUS 1) and COMM 1 (ESS) breakers (POH 7-67, 6-20)."],
   [136, 4.5, "GIA 63 #2", "Second integrated avionics unit: NAV 2 and COMM 2 on AVIONICS BUS 2. The first GIA to get a 3-D GPS fix is the active GPS source. The KAP 140 takes its NAV, HDG and GPS roll-steering signals through GIA #2 (POH 7-67; Fig. S3-1)."]] as [number, number, string, string][]).forEach(([fs, bl, name, note]) =>
   part(() => box(0.24, 0.07, 0.13), bl > 0 ? ["avionics", "autopilot"] : ["avionics"], { pos: P3(fs, bl, 49.5), color: AVX, name, note, pin: true }));
 part(() => box(0.12, 0.08, 0.1), ["avionics", "pitot"], { pos: P3(140, 0, 43.5), color: AVX, name: "GRS 77 AHRS", note: "Tailcone, arm 134.0: accelerometers, tilt and rate sensors for attitude and heading. ADC AHRS breakers on the ESS bus and AVN BUS 1. The KAP 140 doesn't use it for attitude — it has its own turn coordinator — but HDG mode needs its heading (POH 7-67, 3-26).", pin: true });
-part(() => box(0.12, 0.06, 0.1), ["avionics", "pitot"], { pos: P3(11.4, 10.5, 61.5), color: AVX, name: "GDC 74A air data computer", note: "Behind the panel just forward of the MFD, arm 11.4: pressure altitude, airspeed, TAS, vertical speed and OAT from the pitot-static system and the OAT probe (POH 7-67, 6-23).", pin: true });
+part(() => box(0.12, 0.06, 0.1), ["avionics", "pitot"], { pos: P3(11.4, NAV3_BL.mfd, 61.5), color: AVX, name: "GDC 74A air data computer", note: "Behind the panel just forward of the MFD, arm 11.4: pressure altitude, airspeed, TAS, vertical speed and OAT from the pitot-static system and the OAT probe (POH 7-67, 6-23).", pin: true });
 part(() => box(0.1, 0.07, 0.12), ["avionics", "engine"], { pos: P3(11.4, -3, 57), color: AVX, name: "GEA 71 engine/airframe unit", note: "Forward of the panel, arm 11.4: RPM, MAP, fuel flow, oil, CHT/EGT, fuel quantity, vacuum and bus voltages to the EIS. NAV 1 ENG breakers (ESS and AVN BUS 1) (POH 7-28, 7-67).", pin: true });
 part(() => box(0.14, 0.06, 0.12), ["avionics"], { pos: P3(140, 5, 52.5), color: AVX, name: "GTX 33 transponder", note: "Mode S, in the tailcone racks, arm 134.0; controlled from the PFD. XPNDR breaker, AVIONICS BUS 2 — not available on the standby battery (POH 7-67, 3-35).", pin: true });
 part(() => box(0.06, 0.03, 0.06), ["avionics"], { pos: wp(-170, cAt(44, 170)), color: AVX, name: "GMU 44 magnetometer", note: "Inside the left wing panel, arm 44.0 (spanwise station not given): heading reference for the AHRS (POH 7-67, 6-23).", pin: true });
-part(() => box(0.12, 0.05, 0.1), ["avionics"], { pos: P3(11.4, 10.5, 55), color: "#9C4C88", name: "GDL 69A data link", note: "XM weather and radio, behind the panel just forward of the MFD, arm 11.4; FIS breaker, AVIONICS BUS 1 (if installed) (POH 7-68, 6-23)." });
+part(() => box(0.12, 0.05, 0.1), ["avionics"], { pos: P3(11.4, NAV3_BL.mfd, 55), color: "#9C4C88", name: "GDL 69A data link", note: "XM weather and radio, behind the panel just forward of the MFD, arm 11.4; FIS breaker, AVIONICS BUS 1 (if installed) (POH 7-68, 6-23)." });
 part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], { pos: P3(12.7, 0, 63), color: "#5A6168", anim: glow("#5A6168", () => EL().fwdFan, ["avionics", "electrical"], "#9FE3FF"),
   name: "Forward avionics cooling fan", note: "Forward of the panel, arm 12.7: draws air from between the firewall and the panel and blows it up the inside of the windshield; on the AVN BUS 1 PFD breaker. Preflight: AVIONICS BUS 1 on — verify the fan is heard (POH 7-69, 4-7).", pin: true });
 part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], { pos: P3(125.5, 0, 55), color: "#5A6168", anim: glow("#5A6168", () => EL().aftFan, ["avionics", "electrical"], "#9FE3FF"),
@@ -149,16 +150,17 @@ part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], { pos: P3(125.5, 0
 part(() => box(0.06, 0.06, 0.06), ["avionics", "autopilot"], { pos: P3(15.5, 4, 53), color: "#9C4C88", anim: glow("#9C4C88", () => S().avx.tcFail, ["avionics", "autopilot"], "#E0263B"),
   name: "DC turn coordinator (KAP 140)", note: "“A DC electric powered turn coordinator, installed forward of the instrument panel and not visible to the pilot, provides a roll rate signal to the KAP 140”, arm 15.5. Its loss disengages the autopilot (POH 7-12, 6-23).", pin: true });
 /* ---------- faceplate detail (POH Figure 7-2; CRG): GDU 1040 knobs and softkeys, GMA 1347 keys, switch rockers, breaker heads ---------- */
-[-11.5, 10.5].forEach((bl) => {
+[NAV3_BL.pfd, NAV3_BL.mfd].forEach((bl) => {
   const c = P3(18.1, bl, 61.4), x = c[0] - 0.015 - 0.006; // just aft of the bezel face
   part(() => gduKnobs(), ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
   part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]], color: "#4A525A" });
 });
-part(gmaKeys, ["avionics"], { pos: [X(18.1) - 0.018, Y(61.4), Z(-0.5)], color: "#4A525A" });
-part(gmaKnob, ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) + GMA_KNOB_Y, Z(-0.5)], color: "#3A4046" });
-// switch panel rockers, up = ON (POH 7-10): BEACON, LAND, TAXI, NAV, STROBE, PITOT HEAT, FUEL PUMP, CABIN PWR 12V
-([() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe, () => S().pitot.heat, () => S().fuel.pump, () => S().lights.cabinPwr] as (() => boolean)[])
-  .forEach((on, i) => part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.9) - 0.011, Y(52.3) + 0.006, Z(-12.4) - 0.0945 + i * 0.027], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
+part(gmaKeys, ["avionics"], { pos: [X(18.1) - 0.018, Y(61.4), Z(NAV3_BL.gma)], color: "#4A525A" });
+part(gmaKnob, ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) + GMA_KNOB_Y, Z(NAV3_BL.gma)], color: "#3A4046" });
+// switch panel rockers, up = ON (POH 7-10): BEACON, LAND, TAXI, NAV, STROBE on top; FUEL PUMP, PITOT HEAT, CABIN PWR 12V below
+switchRows([[() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe],
+  [() => S().fuel.pump, () => S().pitot.heat, () => S().lights.cabinPwr]]).forEach(([y, z, on]) =>
+  part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.9) - 0.011, Y(52.3) + y, Z(-12.4) + z], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
 part(() => cbHeads(4), ["electrical"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-18.6)], color: "#1A1D20" });
 part(() => cbHeads(8), ["electrical", "avionics"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-8.6)], color: "#1A1D20" });
 
@@ -264,7 +266,7 @@ part(() => box(0.02, 0.06, 0.1), ["lighting"], { pos: LIGHTS.taxi, color: "#F5F2
 part(() => box(0.5, 0.03, 0.16), ["lighting", "cabin"], { pos: P3(58, 0, 78.3), color: "#39424A", name: "Overhead console", note: "One dimmable, rotatable front flood light with its dimmer (serials 18280945 – 18281741 — both club airplanes), the rear dome light with its push button (also the courtesy lights) and the overhead speaker (POH 7-58, 7-70).", pin: true });
 part(() => cyl(0.022, 0.022), ["lighting"], { pos: LIGHTS.flood, color: "#E8C46A", name: "Flood light", note: "Front crew flood light: dimmable and rotatable for the pilot or front passenger. Placard “Flood Light” near its control (POH 7-58, 2-21).", pin: true });
 part(() => cyl(0.03, 0.012), ["lighting"], { pos: LIGHTS.dome, color: "#E8C46A", name: "Rear dome light", note: "Fixed light for the rear cabin; on/off push button on the overhead console, shared with the courtesy lights (POH 7-58).", pin: true });
-part(() => box(0.012, 0.09, 0.08), ["lighting"], { pos: P3(17.9, -19.4, 54.6), color: "#2F3A42", name: "DIMMING panel", note: "Below the MASTER and AVIONICS switches: SW/CB PANELS, PEDESTAL, AVIONICS (full counter-clockwise = photocell) and STDBY IND (POH 7-58, 7-59).", pin: true });
+part(() => box(0.012, 0.09, 0.08), ["lighting"], { pos: P3(17.9, -17.4, 55.8), color: "#2F3A42", name: "DIMMING panel", note: "Below the MASTER and AVIONICS switches: SW/CB PANELS, PEDESTAL, AVIONICS (full counter-clockwise = photocell) and STDBY IND (POH 7-58, 7-59).", pin: true });
 
 /* ---------- cabin heat and ventilation (POH 7-60, Figure 7-8) ---------- */
 const AIR = "#149C94";
@@ -294,10 +296,10 @@ const CAB = "#6F7F8C";
 part(() => cyl(0.04, 0.3), ["cabin"], { pos: P3(29, -5, 33), color: "#D32640", name: "Fire extinguisher", note: "Portable Halon 1211, 5B:C, in a holder on the floorboard between the front seats, arm 29.0; gage at the top. Gage in the green (≈ 125 psi), lever pin in place. Empties in about 8 s; ventilate promptly after use (POH 7-74, 4-8). The holder's lateral position is not in the POH (shown just left of the pedestal).", pin: true });
 part(() => box(0.12, 0.08, 0.1), ["cabin"], { pos: P3(150.8, 7, 47), color: "#EB7A12", anim: glow("#EB7A12", () => S().cabin.elt === "ON", ["cabin"], "#FF3B30"),
   name: "ELT", note: "As delivered a Pointer 3000-11 (arm 150.8): five alkaline C cells, 121.5 / 243.0 MHz, behind the aft cabin partition on the right side of the tailcone. The airplanes may now carry another ELT (e.g. Artex C406-N, Supplement 7) (S1-4, POH 6-21).", pin: true });
-part(() => box(0.012, 0.03, 0.03), ["cabin"], { pos: P3(18.1, 17.4, 64.2), color: "#EB7A12", anim: (m) => { const e = S().cabin.elt; m.rotation.z = e === "ON" ? 0.4 : e === "RESET" ? -0.4 : 0; },
+part(() => box(0.012, 0.03, 0.03), ["cabin"], { pos: P3(18.1, 13.4, 64.2), color: "#EB7A12", anim: (m) => { const e = S().cabin.elt; m.rotation.z = e === "ON" ? 0.4 : e === "RESET" ? -0.4 : 0; },
   name: "ELT remote switch", note: "Upper inboard corner of the right panel next to the MFD: ON / AUTO / RESET rocker with a red light (Pointer 3000-11). Before a forced landing: ON (POH 7-12, 3-24, S1-6).", pin: true });
 part(() => cyl(0.004, 0.18), ["cabin"], { pos: [X(152.6), AF.topY(X(152.6)) + 0.09, 0], color: "#EB7A12", name: "ELT antenna", note: "Top of the tailcone, arm 152.6 (POH 6-21, S1-5).", ext: true });
-part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], { pos: P3(18.1, 19.4, 64.2), color: "#20262B", name: "Hour (Hobbs) meter", note: "Right of the ELT switch, arm 16.7: records engine time while oil pressure is above 20 PSI; powered through the WARN breaker (POH 7-12, 6-22, Fig. 7-7).", pin: true });
+part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], { pos: P3(18.1, 15.0, 64.2), color: "#20262B", name: "Hour (Hobbs) meter", note: "Right of the ELT switch, arm 16.7: records engine time while oil pressure is above 20 PSI; powered through the WARN breaker (POH 7-12, 6-22, Fig. 7-7).", pin: true });
 [1, -1].forEach((s) => part(() => box(0.06, 0.06, 0.04), ["cabin"], { pos: P3(50.3, s * 3, 78), color: CAB, name: "Inertia reel (front seat)", note: "Integrated belt/shoulder harness: front inertia reels on the centerline of the upper cabin (arm 50.3), rear reels outboard of each passenger (arm 87.8). No more than one extra inch should pull out once the lap belt is fitted (POH 7-22, 6-21).", pin: s > 0 }));
 part(() => box(0.68, 0.008, 0.6), ["cabin"], { pos: P3(95.5, 0, 29), color: "#B7A27E", name: "Baggage area A (FS 82–109)", note: "120 lb maximum, arm 97 (POH 1-8, 6-14). Placard: 120 lb forward of the baggage door latch, 80 lb aft of it, 200 lb combined (POH 2-20).", pin: true });
 part(() => box(0.38, 0.008, 0.48), ["cabin"], { pos: P3(116.5, 0, 32), color: "#B7A27E", name: "Baggage area B (FS 109–124)", note: "Arm 116. Areas B and C together 80 lb maximum (POH 1-8, 2-8).", pin: true });

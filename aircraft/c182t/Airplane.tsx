@@ -18,6 +18,7 @@ import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
 import { CAT, COWL_FLAP, NOSE, NOSE_CASTER, NOSE_RAKE, P3, PROP, YOKES, surfacePivot } from "./parts";
 import { KAP_LCD, LIGHTS, TANK_BL } from "./parts-systems";
+import { NAV3_BL } from "../cessna/faceplate";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM, aftCrankAngle, aftLinks, rudTrimLinks } from "./rig";
 import type { CtlIn } from "../cessna/rig";
 import { useC182 } from "./store";
@@ -180,10 +181,10 @@ const dimDisplay = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
 };
 const SCREENS: ScreenSpec[] = [
   // label anchors on the bezel's top edge / the instrument's top edge, so the labels sit above the displays instead of on them
-  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, -11.5, 61.6), pinAt: [0, 0.104, 0], sys: ["avionics"], name: "PFD — GDU 1040",
+  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, NAV3_BL.pfd, 61.9), pinAt: [0, 0.085, 0], sys: ["avionics"], name: "PFD — GDU 1040",
     note: "Primary flight display with the annunciation window and the red PITCH TRIM box (top right) — no AFCS status bar: the KAP 140 has its own display. Shows PFD + EIS when the MFD is lost or DISPLAY BACKUP is pressed.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.pfd) { drawPfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
-  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, 10.5, 61.6), pinAt: [0, 0.104, 0], sys: ["avionics", "engine"], name: "MFD — GDU 1040",
+  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.82, NAV3_BL.mfd, 61.9), pinAt: [0, 0.085, 0], sys: ["avionics", "engine"], name: "MFD — GDU 1040",
     note: "Engine Indication System strip (ENGINE or SYSTEM page) and the moving map. MFD breaker, AVIONICS BUS 2.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) { drawMfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
   { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(18.15, -3.6, 54.4), pinAt: [0, 0.041, 0], sys: ["avionics", "pitot"], name: "Standby airspeed",

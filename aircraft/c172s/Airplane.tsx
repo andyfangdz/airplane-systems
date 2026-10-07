@@ -17,6 +17,7 @@ import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
 import { CAT, NOSE, NOSE_CASTER, P3, PROP, YOKES, surfacePivot } from "./parts";
+import { NAV3_BL } from "../cessna/faceplate";
 import { LIGHTS } from "./parts-systems";
 import { PULLEYS, RIG, RIG_SPEC } from "./rig";
 import { useC172 } from "./store";
@@ -119,10 +120,10 @@ const dimDisplay = (ctx: CanvasRenderingContext2D, W: number, H: number) => {
   if (v > 0.03) { ctx.fillStyle = `rgba(0,0,0,${(0.78 * (1 - v)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
 };
 const SCREENS: ScreenSpec[] = [
-  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, -11.5, 61.4), sys: ["avionics"], name: "PFD — GDU 1040",
+  { key: "pfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, NAV3_BL.pfd, 61.5), sys: ["avionics"], name: "PFD — GDU 1040",
     note: "Primary flight display with the AFCS status bar and the annunciation window. Dual-fed (PFD breakers on ESS and AVN BUS 1). Shows PFD + EIS when the MFD is lost or DISPLAY BACKUP is pressed.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.pfd) { drawPfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
-  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, 10.5, 61.4), sys: ["avionics", "engine"], name: "MFD — GDU 1040",
+  { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: P3(18.62, NAV3_BL.mfd, 61.5), sys: ["avionics", "engine"], name: "MFD — GDU 1040",
     note: "Engine Indication System strip (ENGINE page) and moving map. MFD breaker, AVIONICS BUS 2.",
     draw: (ctx, W, H) => { const { s, E } = st(); if (E.mfd) { drawMfdScreen(ctx, W, H, s, E); dimDisplay(ctx, W, H); } else drawOff(ctx, W, H); } },
   { key: "asi", px: [220, 220], size: [0.08, 0.08], pos: P3(17.95, -3.6, 52.6), sys: ["avionics", "pitot"], name: "Standby airspeed",
