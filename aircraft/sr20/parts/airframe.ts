@@ -1,6 +1,6 @@
 /** Airframe shells: fuselage, spinner, wings, trailing edges, stabilizers and fin. */
 import * as THREE from "three";
-import { EF, HF, HZ, SSPAN, WR, finCut, finHs, finSec, fuselageGeo, loft, stabSec, wingSec } from "../geometry";
+import { EF, HZ, WR, finCut, finHs, finSec, fuselageGeo, loft, stabSec, wingSec } from "../geometry";
 import { shell, sided } from "./catalogue";
 
 /* ---------- airframe shells ---------- */
@@ -59,10 +59,7 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.65, 5.78, 5.8
     () =>
       loft(
         sided(
-          [
-            ...[0, 0.3, 1.0, 1.7, HZ - 0.002].map((z) => stabSec(s * z, 0, EF)),
-            ...[HZ, SSPAN].map((z) => stabSec(s * z, 0, HF)),
-          ],
+          [0, 0.3, 1.0, 1.7, HZ].map((z) => stabSec(s * z, 0, EF)),
           s,
         ),
       ),
