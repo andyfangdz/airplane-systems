@@ -7,7 +7,6 @@ import type { SysId } from "@/lib/systems";
 import {
   EF,
   HH,
-  HR,
   HZ,
   SSPAN,
   SY,
@@ -89,8 +88,11 @@ const hp = (s: number, z: number, xc: number) => {
 });
 surface(
   "rudder",
-  () => [-0.2, 0.05, 0.31, 0.52, 0.8, 1.1, HH - 0.002, HH, 1.42, 1.47].map((h) => finSec(h, finCut(h), 1)),
-  V(hingeX(-0.2), -0.2, 0),
+  () => [
+    ...[-0.18, 0.05, 0.31, 0.52, 0.8, 1.1, HH - 0.002].map((h) => finSec(h, finCut(h), 1)),
+    ...[HH, 1.42, 1.47, 1.51, 1.534].map((h) => finSec(h, 0, 1)),
+  ],
+  V(hingeX(-0.18), -0.18, 0),
   V(hingeX(1.44), 1.44, 0),
   ["controls"],
   "Rudder",
@@ -173,7 +175,7 @@ onSurf("rudder", V(fLE(1.3) - fC(1.3) - 0.05, 1.3, 0), () => cyl(0.004, 0.12, "x
   note: wickNote,
   ext: true,
 });
-onSurf("rudder", V(fLE(1.42) - (HR + 0.05) * fC(1.42), 1.42, 0), () => box(0.06, 0.04, 0.03), {
+onSurf("rudder", V(fLE(1.46) - 0.3 * fC(1.46), 1.46, 0), () => box(0.06, 0.04, 0.03), {
   color: "#6E7A84",
   name: "Rudder horn balance + weight",
   note: "Top of the rudder extends forward of the hinge with a balance weight — reduces pedal force and flutter risk. (Costanzo deck)",
