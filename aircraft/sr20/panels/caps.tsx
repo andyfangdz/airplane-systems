@@ -91,8 +91,14 @@ export function Caps() {
       <Facts
         rows={[
           ["Max demonstrated", "133 KIAS (VPD)"],
-          ["Harness", "3-point: 2 fwd to firewall, 1 aft to bulkhead"],
+          ["Harness", "3-point: 2 forward at firewall; 1 aft at baggage bulkhead"],
           ["ELT", "Auto-activates on deployment"],
+        ]}
+      />
+      <Notes
+        items={[
+          "The forward straps run just under the fuselage skin and pull through its covering on deployment; the aft strap is stowed in the canister (POH 7-94).",
+          "Harness paths, fitting heights and riser lengths are illustrative. The aft snub release is shown by the change in attitude.",
         ]}
       />
       <Caution title="Warning">
