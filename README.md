@@ -1,6 +1,6 @@
 # Airplane Systems
 
-Interactive 3D study models of four airplanes' systems, built from **POH/AFM Section 7 – Airplane and Systems**: the Cirrus SR20 G6, the Cessna 172S NAV III (G1000 + GFC 700), the Cessna 182T NAV III (G1000 + KAP 140) and the Diamond DA40 XLS (G1000 + GFC 700). Pick an airplane and a system to fly the camera to it, hover parts for notes, and operate switches, levers and failures. The systems are linked: pull an alternator and the buses, displays and alert window respond. Each airplane keeps its own switch positions when you switch to another, and the URL path (`/c172s/electrical`) names the view shown.
+Interactive 3D study models of five airplanes' systems, built from **POH/AFM Section 7 – Airplane and Systems** (or, for the Mooney, the Owner's Manual's Part I): the Cirrus SR20 G6, the Cessna 172S NAV III (G1000 + GFC 700), the Cessna 182T NAV III (G1000 + KAP 140), the Diamond DA40 XLS (G1000 + GFC 700) and a 1968 Mooney M20C Ranger (N6947N: Johnson-bar gear, hand-pumped flaps, Brittain PC, steam gauges). Pick an airplane and a system to fly the camera to it, hover parts for notes, and operate switches, levers and failures. The systems are linked: pull an alternator and the buses, displays and alert window respond. Each airplane keeps its own switch positions when you switch to another, and the URL path (`/c172s/electrical`) names the view shown.
 
 Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zustand**.
 
@@ -22,7 +22,7 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 
 ## What's modelled
 
-The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Section 7 the same way (see each airplane's rail), with a NAV III / DA40 electrical solver and its live power distribution diagram, live G1000 PFD/MFD textures and a working autopilot (GFC 700 or KAP 140) driving a simple flight-state model.
+The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Section 7 the same way (see each airplane's rail), with a NAV III / DA40 electrical solver and its live power distribution diagram, live G1000 PFD/MFD textures and a working autopilot (GFC 700 or KAP 140) driving a simple flight-state model. The M20C has no glass: its panel is one live canvas of round mph gauges, and its systems are the manual Johnson-bar gear with its horn and lights, the hydraulic hand-pump flaps (stroke by stroke), the whole-tail pitch trim, the vacuum-powered Brittain Positive Control wing leveler (with cut-off button and roll trim), a carbureted O-360 with throttle-pump priming and carburetor ice, a single-bus 12 V alternator system with switch-breakers, and the vacuum system that feeds the gyros and PC.
 
 | SR20 system          | Interactive                                                                                                                                                                                                                 |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -81,6 +81,7 @@ SR20 (each other airplane cites its POH/AFM, supplements and CRG in its files an
 - Garmin Cirrus Perspective+ Pilot's Guide 190-02183-03 and the Cirrus Perspective+ brochure — display layout and bezels.
 - Mid-Continent MD302 Standby Attitude Module Pilot's Guide and Installation Manual — the standby instrument.
 - Side photos of SR20 G6 OO-CBB (s/n 2347), Wikimedia Commons — tailcone, fin and window outlines.
+- M20C: the 1965 Mark 21 (M20C) Owner's Manual with its 1962–64 supplement, the M20C Ranger Operator's Manual (Dec 1974), the 1963 FAA Approved Flight Manual for s/n 2394, FAA TCDS 2A3 (limits, control travels, stations, equipment), the 1968 Ranger manual's dimensioned three-view, Lycoming and Hartzell manuals and ADs, Mooney's serial chronology and type-club material (marked where used). N6947N is registered as a 1968 M20C, s/n 680194.
 - Costanzo Air Flight School, _Cirrus SR20 Systems_ deck — electrical readouts, battery-endurance rule of thumb, and photo detail (horn balances, static wicks, OAT probes, ECS knob). Where it differs from the POH, the POH wins and the page says so.
 
 Geometry is approximate. CAS and annunciation text follow the documents; the conditions that trigger them are simplified.

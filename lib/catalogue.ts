@@ -52,7 +52,7 @@ export interface ShellSpec {
   skin?: () => THREE.Texture;
 }
 
-/** Control surface hinged at `pivot` about `axis`; its geometry is already hinge-relative. */
+/** Control surface hinged at `pivot` about `axis`; its geometry is already hinge-relative. `skin` paints it in solid mode (needs UVs). */
 export interface SurfaceSpec {
   key: string;
   geo: () => THREE.BufferGeometry;
@@ -62,6 +62,7 @@ export interface SurfaceSpec {
   name: string;
   note: string;
   chan?: Chan[];
+  skin?: () => THREE.Texture;
 }
 
 /** Pipe / wire / duct / cable with moving particles. */
