@@ -7,7 +7,7 @@ import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { AF, X, Y, Z, box, cyl, onSkin, sph, topY, botY, tubeGeo, wingP, wLE, wC, fLE } from "./geometry";
 import { live } from "./model";
-import { glowAnim as glow, pushPull, sysNow } from "../cessna/anims";
+import { glowAnim as glow, pushPull, sysNow } from "@/lib/anims";
 import { CAT, P3, PV, onSurf } from "./parts";
 import { useC172 } from "./store";
 import {

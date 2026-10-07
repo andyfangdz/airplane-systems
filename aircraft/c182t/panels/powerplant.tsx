@@ -1,5 +1,4 @@
 "use client";
-import { HoldKey } from "@/components/avionics/parts";
 import {
   BtnRow,
   Caution,
@@ -16,6 +15,7 @@ import {
   useTicker,
 } from "@/components/ui/controls";
 import { fuelInd, govRpm, lambda, live, powerFrac, type EisPage, type FuelSel, type Mags } from "../model";
+import { Nav3MagSwitch } from "../../cessna/panels";
 import { CAT } from "../parts";
 import { useC182 } from "../store";
 import { QUARTER_TANK } from "../tick";
@@ -39,41 +39,17 @@ function MagSwitch() {
     up((d) => {
       d.eng.mags = m;
     });
+  const crankSec = live.crankT > 0 ? live.crankTotal : null;
   return (
-    <div className="row">
-      <div className="lbl">
-        <span>MAGNETOS switch</span>
-        <span>
-          {s.eng.mags}
-          {live.crankT > 0 ? ` · cranking ${live.crankTotal.toFixed(0)} s` : ""}
-        </span>
-      </div>
-      <div className="btnrow" style={{ alignItems: "center" }}>
-        <div className="seg" role="group" aria-label="MAGNETOS">
-          {(["OFF", "R", "L", "BOTH"] as const).map((m) => (
-            <button key={m} type="button" aria-pressed={s.eng.mags === m} onClick={() => set(m)}>
-              {m}
-            </button>
-          ))}
-        </div>
-        <HoldKey
-          className="wide"
-          label="START"
-          sub="hold"
-          title="Turn the key through BOTH to START and hold to crank; it springs back to BOTH"
-          onDown={() => {
-            live.crankT = 0;
-            set("START");
-          }}
-          onUp={() => set("BOTH")}
-        />
-        {!E.starterPwr && (
-          <span className="small" style={{ margin: 0 }}>
-            No starter power (MASTER BAT / WARN breaker)
-          </span>
-        )}
-      </div>
-    </div>
+    <Nav3MagSwitch
+      mags={s.eng.mags}
+      starterPwr={E.starterPwr}
+      crankSec={crankSec}
+      set={set}
+      onStart={() => {
+        live.crankT = 0;
+      }}
+    />
   );
 }
 

@@ -8,9 +8,9 @@ import * as THREE from "three";
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec, type ShellSpec } from "@/lib/catalogue";
 import { afRing, mergeGeos, sided } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
-import { D2R, V, clamp, type Vec3 } from "@/lib/math";
+import { D2R, V, clamp, toVec3, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
+import { brakeAmount, brakeAnim, glowAnim, magAnim, plugAnim, sparkPhase, sysNow } from "@/lib/anims";
 import {
   AIL,
   BAG_FRAME,
@@ -83,8 +83,6 @@ import {
 } from "./rig";
 import { useDA40 } from "./store";
 
-const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
-
 export const CAT = new Catalogue("da40");
 const { part, surfacePivot } = CAT;
 const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) =>
@@ -92,47 +90,17 @@ const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin
 export { surfacePivot };
 
 /* ---------- per-frame part animations ---------- */
-const sysNow = () => useView.getState().sys;
 const sim = () => useDA40.getState();
 const firing = () => live.rpm > 100 && sim().s.eng.key !== "OFF";
 const keyFires = (mag: "R" | "L") => {
   const k = sim().s.eng.key;
   return k === "BOTH" || k === "START" || k === mag;
 };
-const sparkPhase = (id: string) => {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return (h % 100) / 10;
-};
-const plugAnim =
-  (mag: "R" | "L", phase: number): PartAnim =>
-  (m, t) => {
-    const sys = sysNow(),
-      engSys = sys === "engine" || sys === "overview";
-    const flash = firing() && keyFires(mag) && Math.sin(t * 18 + phase) > 0.3;
-    m.material = engSys && flash ? mats("#6FD8FF").hi : engSys ? mats("#DADFE2").on : mats("#DADFE2").dim;
-  };
-const magAnim =
-  (mag: "R" | "L"): PartAnim =>
-  (m) => {
-    const engSys = sysNow() === "engine" || sysNow() === "overview";
-    m.material = engSys ? (firing() && keyFires(mag) ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
-  };
-/** Glows `on` when cond() is true in the given systems' views. */
-const glow =
-  (base: string, lit: string, cond: () => boolean, sys: SysId[]): PartAnim =>
-  (m) => {
-    const v = sysNow(),
-      show = v === "overview" || sys.includes(v);
-    m.material = !show ? mats(base).dim : cond() ? mats(lit).hi : mats(base).on;
-  };
-const brakeAnim =
-  (side: "R" | "L"): PartAnim =>
-  (m) => {
-    const g = sim().s.gear,
-      amt = g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff);
-    m.material = amt > 0.05 ? mats("#FF6A2A").hi : mats("#9AA3AA").on;
-  };
+const fires = (mag: "R" | "L") => () => firing() && keyFires(mag);
+/** Engine parts are live in the Overview and Engine views. */
+const ENGINE: SysId[] = ["engine", "overview"];
+/** Glows `lit` when cond() is true in the given systems' views. */
+const glow = (base: string, lit: string, cond: () => boolean, sys: SysId[]) => glowAnim(base, cond, sys, lit);
 const selPtrAnim: PartAnim = (m) => {
   const sel = sim().s.fuel.sel;
   m.rotation.y = sel === "L" ? Math.PI * 0.75 : sel === "R" ? Math.PI * 0.25 : -Math.PI * 0.25;
@@ -286,8 +254,8 @@ function surface(
 ) {
   CAT.surface({
     key,
-    pivot: P(a),
-    axis: P(b.clone().sub(a).normalize()),
+    pivot: toVec3(a),
+    axis: toVec3(b.clone().sub(a).normalize()),
     sys,
     name,
     note,
@@ -392,7 +360,7 @@ const WICK = "#2A2F33";
     pin: s > 0,
   });
   part(() => cyl(0.004, 0.12, "x", 6), ["controls"], {
-    pos: P(wingP(s * 5.9, 1.0, 0).add(V(-0.05, 0, 0))),
+    pos: toVec3(wingP(s * 5.9, 1.0, 0).add(V(-0.05, 0, 0))),
     color: WICK,
     name: "Static discharger",
     note: wickNote,
@@ -406,7 +374,7 @@ const WICK = "#2A2F33";
   });
   [1.6, 2.6, 3.6].forEach((z, i) =>
     part(() => box(0.3, 0.04, 0.02), ["flaps"], {
-      pos: P(wingP(s * z, 0.77, -1).add(V(-0.02, -0.02, 0))),
+      pos: toVec3(wingP(s * z, 0.77, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name: "Flap hinge bracket",
       note: "Aluminium hinge bracket; the hinge pin is held by a roll pin — a lost roll pin can let the hinge pin walk out (AFM 7-5). Six hinges per flap.",
@@ -417,7 +385,7 @@ const WICK = "#2A2F33";
   [4.2, 5.1].forEach((z, i) =>
     part(() => box(0.28, 0.04, 0.02), ["controls"], {
       chan: ["aileron"],
-      pos: P(wingP(s * z, 0.79, -1).add(V(-0.02, -0.02, 0))),
+      pos: toVec3(wingP(s * z, 0.79, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name: "Aileron hinge",
       note: "One of 4 hinges per aileron (hinge pin in an aluminium bracket, roll-pinned). Walk-around: aileron hinges and safety pin, no foreign objects in the aileron paddle (AFM 4A-7).",
@@ -428,7 +396,7 @@ const WICK = "#2A2F33";
   // stall strips: 2 per wing (AFM 4A-7)
   [1.6, 2.0].forEach((z, i) =>
     part(() => box(0.03, 0.025, 0.22), ["airframe"], {
-      pos: P(wingP(s * z, 0.0, 0).add(V(0.005, 0, 0))),
+      pos: toVec3(wingP(s * z, 0.0, 0).add(V(0.005, 0, 0))),
       color: "#8C959C",
       name: "Stall strips",
       note: "Two per wing on the leading edge (AFM 4A-7); they make the inboard wing stall first. The fuel measuring device is held against a marked bore in the stall strip (AFM 7-38).",
@@ -437,7 +405,7 @@ const WICK = "#2A2F33";
     }),
   );
   part(() => box(0.18, 0.012, 0.16), ["airframe", "cabin"], {
-    pos: P(wingP(s * 0.75, 0.45, 1).add(V(0, 0.008, 0))),
+    pos: toVec3(wingP(s * 0.75, 0.45, 1).add(V(0, 0.008, 0))),
     color: "#30363B",
     name: "Wing step",
     note: "Walkway step on each stub wing; you board over the wing. Its unpainted latch areas are the grounding points for refuelling (AFM 4A-40).",
@@ -445,7 +413,7 @@ const WICK = "#2A2F33";
     pin: s > 0,
   });
   part(() => cyl(0.012, 0.03), ["airframe"], {
-    pos: P(wingP(s * 5.4, 0.45, -1).add(V(0, -0.02, 0))),
+    pos: toVec3(wingP(s * 5.4, 0.45, -1).add(V(0, -0.02, 0))),
     color: "#9AA3AA",
     name: "Tie-down eyelet",
     note: "An M8 eyelet can be screwed in near each wing tip; the tail tie-down is a hole in the fin (AFM 8-7).",
@@ -601,7 +569,7 @@ export const MG = { x: fs(2.73), y: -1.045, z: 1.485, r: 0.19 };
     pos: [MG.x, MG.y, s * (MG.z - 0.1)],
     color: "#9AA3AA",
     ext: true,
-    anim: brakeAnim(s > 0 ? "R" : "L"),
+    anim: brakeAnim(() => brakeAmount(sim().s.gear, s > 0 ? "R" : "L")),
     name: "Disc brake (Cleveland 30-239)",
     note: "Hydraulic single-disc brake on each main wheel, operated by the toe pedals (AFM 7-13, 6-23).",
     pin: s > 0,
@@ -797,7 +765,7 @@ CYLS.forEach((c) => {
       parent,
       pos: [-0.1, dy, c.s * 0.115],
       color: "#DADFE2",
-      anim: plugAnim(mag, sparkPhase(`${c.n}${pos}`)),
+      anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`), ENGINE),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
       note: `Fired by the ${mag === "R" ? "right" : "left"} magneto (plug assignment not in the AFM; conventional cross-firing assumed).`,
     });
@@ -806,7 +774,7 @@ CYLS.forEach((c) => {
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pos: [fs(1.27), 0.07, 0.1],
   color: "#3E4A52",
-  anim: magAnim("R"),
+  anim: magAnim(fires("R"), ENGINE),
   name: "Right magneto",
   note: "Slick magneto at the rear of the engine; the G1000 tach sensor sits in its bleed port (SMM 2-19). SlickSTART boosts spark energy for starting (AFM 7-43).",
   pin: true,
@@ -814,7 +782,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pos: [fs(1.27), 0.07, -0.1],
   color: "#3E4A52",
-  anim: magAnim("L"),
+  anim: magAnim(fires("L"), ENGINE),
   name: "Left magneto",
   note: "Second Slick magneto. Run-up check L–BOTH–R–BOTH: max drop 175 RPM, max difference 50 RPM (AFMS p. 47).",
   pin: true,
@@ -1052,7 +1020,7 @@ part(
 });
 [1, -1].forEach((s) =>
   part(() => box(0.06, 0.13, 0.03), ["airframe"], {
-    pos: P(wingP(s * WJ, 0.4, 0)),
+    pos: toVec3(wingP(s * WJ, 0.4, 0)),
     color: "#E0522B",
     name: "Root rib / wing joint",
     note: "The outer wing bolts to the stub wing here. The Datum Plane is 2.194 m (86.38 in) forward of the most forward point of this root rib (AFM 6-3).",
@@ -1517,7 +1485,7 @@ part(() => box(0.1, 0.07, 0.05), ["flaps"], {
 [1, -1].forEach((s) => {
   const nm = s > 0 ? "Right" : "Left";
   part(() => cyl(0.04, 0.012), ["fuel"], {
-    pos: P(wingP(s * 3.45, 0.32, 1).add(V(0, 0.006, 0))),
+    pos: toVec3(wingP(s * 3.45, 0.32, 1).add(V(0, 0.006, 0))),
     color: "#2F7FE6",
     name: "Fuel filler neck",
     note: "At the outboard end of each tank (AFM 7-31). Placard AVGAS 100LL, 94 l / 25 US gal (long range). Ground the airplane at the step latches before refuelling (AFM 2-25, 4A-40).",
@@ -1525,7 +1493,7 @@ part(() => box(0.1, 0.07, 0.05), ["flaps"], {
     pin: s > 0,
   });
   part(() => sph(0.022), ["fuel"], {
-    pos: P(wingP(s * 1.22, 0.42, -1)),
+    pos: toVec3(wingP(s * 1.22, 0.42, -1)),
     color: "#0B3A80",
     name: nm + " tank drain",
     note: "Outlet valve at the tank's lowest, inboard point, behind a finger filter (AFM 7-35). Drain before every flight. The measuring device's connector is pressed against this drain (AFM 7-38).",
@@ -1533,14 +1501,14 @@ part(() => box(0.1, 0.07, 0.05), ["flaps"], {
     pin: s > 0,
   });
   part(() => box(0.08, 0.025, 0.04), ["fuel"], {
-    pos: P(wingP(s * 1.24, 0.44, 0)),
+    pos: toVec3(wingP(s * 1.24, 0.44, 0)),
     color: "#2F7FE6",
     name: "Finger filter",
     note: "Coarse filter before the tank outlet (AFM 7-35).",
   });
   [3.9, 4.04].forEach((z, i) =>
     part(() => cyl(0.008, 0.05), ["fuel"], {
-      pos: P(wingP(s * z, 0.45, -1).add(V(0, -0.02, 0))),
+      pos: toVec3(wingP(s * z, 0.45, -1).add(V(0, -0.02, 0))),
       color: "#2F7FE6",
       name: i ? "Tank vent — check valve" : "Tank vent — capillary",
       note: i
@@ -1621,7 +1589,7 @@ part(() => box(0.1, 0.08, 0.12), ["electrical"], {
   pin: true,
 });
 part(() => box(0.08, 0.07, 0.02), ["electrical"], {
-  pos: P(onSkin(fs(1.42), -0.36, 1, 1.01)),
+  pos: toVec3(onSkin(fs(1.42), -0.36, 1, 1.01)),
   color: "#3F4B54",
   name: "External power receptacle",
   note: "Behind an access panel (AFM 4B-14); location not in the AFM. Not for starting with a flat battery if the flight will be IFR (AFM 2-32).",
@@ -1966,7 +1934,7 @@ part(() => box(0.12, 0.07, 0.1), ["avionics"], {
   pin: true,
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
-  pos: P(wingP(2.6, 0.45, 0)),
+  pos: toVec3(wingP(2.6, 0.45, 0)),
   color: "#C8399F",
   name: "GMU 44 magnetometer",
   note: "Under the right wing at the old flux-valve location, behind an access plate (SMM 2-7). Span station approximate.",
@@ -2174,7 +2142,7 @@ part(
   },
   ["pitot"],
   {
-    pos: P(wingP(STALL_Z, 0, 0).add(V(0.004, 0, 0))),
+    pos: toVec3(wingP(STALL_Z, 0, 0).add(V(0.004, 0, 0))),
     color: "#E0263B",
     name: "Stall-warning orifice (red ring)",
     note: "In the left wing leading edge, marked by a red ring. Suction here sounds the horn through a hose (AFM 7-54). Pre-flight: suck on the opening (AFM 4A-6).",
@@ -2183,7 +2151,7 @@ part(
   },
 );
 part(() => sph(0.035), ["pitot"], {
-  pos: P(wingP(STALL_Z, 0.2, 1)),
+  pos: toVec3(wingP(STALL_Z, 0.2, 1)),
   color: "#E0263B",
   anim: (m) => {
     const s = sim().s;
@@ -2199,9 +2167,9 @@ part(() => sph(0.035), ["pitot"], {
 });
 /** Stall-warning hose: inside the left wing to the root, under the floor ahead of the pilot's seat, up behind the panel to the horn. */
 export const STALL_HOSE: Vec3[] = [
-  P(wingP(STALL_Z, 0.04, 0)),
-  P(wingP(-2.0, 0.2, 0)),
-  P(wingP(-0.6, 0.2, 0)),
+  toVec3(wingP(STALL_Z, 0.04, 0)),
+  toVec3(wingP(-2.0, 0.2, 0)),
+  toVec3(wingP(-0.6, 0.2, 0)),
   [fs(2.05), -0.54, -0.36],
   [PANEL_X + 0.05, -0.45, -0.36],
   [PANEL_X + 0.05, -0.12, -0.42],
@@ -2341,18 +2309,18 @@ part(() => box(0.04, 0.03, 0.05), ["cabin"], {
 });
 
 /* ---------- lights ---------- */
-const tipLE = (s: number): Vec3 => P(wingP(s * 5.62, 0.05, 0));
+const tipLE = (s: number): Vec3 => toVec3(wingP(s * 5.62, 0.05, 0));
 export const LIGHTS = {
   tipL: tipLE(-1),
   tipR: tipLE(1),
-  aftL: P(wingP(-5.95, 1.0, 0).add(V(-0.02, 0, 0))),
-  aftR: P(wingP(5.95, 1.0, 0).add(V(-0.02, 0, 0))),
+  aftL: toVec3(wingP(-5.95, 1.0, 0).add(V(-0.02, 0, 0))),
+  aftR: toVec3(wingP(5.95, 1.0, 0).add(V(-0.02, 0, 0))),
   /**
    * Landing and taxi lights built into the left wing leading edge, outboard of the pitot mast: the AFM walk-around checks
    * them after the pitot probe and just before the wing tip (AFM 4A-7). Span stations not in the documents.
    */
-  land: P(wingP(-4.45, 0, 0).add(V(0.01, 0, 0))),
-  taxi: P(wingP(-4.7, 0, 0).add(V(0.01, 0, 0))),
+  land: toVec3(wingP(-4.45, 0, 0).add(V(0.01, 0, 0))),
+  taxi: toVec3(wingP(-4.7, 0, 0).add(V(0.01, 0, 0))),
   flood: [PANEL_X + 0.06, 0.18, 0] as Vec3,
   instr: [PANEL_X - 0.05, 0.05, -0.1] as Vec3,
   map: [ROLLBAR_X + 0.03, 0.42, -0.2] as Vec3,
@@ -2400,7 +2368,7 @@ part(() => box(0.03, 0.05, 0.1), ["lighting"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.12, 0.05, 0.06), ["lighting", "electrical"], {
-    pos: P(wingP(s * 1.45, 0.3, 0)),
+    pos: toVec3(wingP(s * 1.45, 0.3, 0)),
     color: "#7A6A3A",
     name: "Strobe power supply",
     note: "Whelen A490ATS, LH and RH, arm 2.566 m (AFM 6-24).",

@@ -12,7 +12,7 @@ import { V, type Vec3 } from "@/lib/math";
 import { kap140Phase } from "@/lib/avionics/kap140";
 import { AF, X, Y, Z, box, cyl, onSkin, sph, botY, tubeGeo, wingP, wLE, wC, fLE } from "./geometry";
 import { live } from "./model";
-import { glowAnim as glow, pushPull, sysNow } from "../cessna/anims";
+import { glowAnim as glow, pushPull, sysNow } from "@/lib/anims";
 import { CAT, KNOB, P3, PV } from "./parts";
 import { RIG_SPEC } from "./rig";
 import { useC182 } from "./store";

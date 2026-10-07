@@ -55,7 +55,7 @@ import { live } from "./model";
 import { PULLEYS, RIG, RIG_SPEC } from "./rig";
 import { useC172 } from "./store";
 import { IN } from "../cessna/airframe";
-import { brakeAnim, glowAnim, magAnim, plugAnim, pushPull, sparkPhase } from "../cessna/anims";
+import { brakeAnim, glowAnim, magAnim, plugAnim, pushPull, sparkPhase } from "@/lib/anims";
 import { pulleyGeo } from "../cessna/rig";
 import { NAV3_BL, afcsKeys } from "../cessna/faceplate";
 import { CAP_END, HUB_LOW, capRot, controlWheelGeo, gripAft, onCap, wheelEmblemGeo } from "../cessna/yoke";

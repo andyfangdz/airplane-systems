@@ -25,7 +25,7 @@ import {
   sided,
   type Ring,
 } from "@/lib/geometry";
-import { V, clamp, lerp, type Vec3 } from "@/lib/math";
+import { V, clamp, lerp, toVec3, type Vec3 } from "@/lib/math";
 
 export const IN = 0.0254;
 
@@ -146,7 +146,6 @@ export function cessnaAirframe(S: CessnaSpec) {
   const FINS = finSurface({ le: fLE, chord: fC, t: (y) => Math.min(0.12, 0.09 / Math.max(fC(y), 0.3)) });
 
   /* ---------- helpers ---------- */
-  const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
   /** Point on the fuselage side skin at FS / height (in), side ±1. */
   const skin = (fs: number, h: number, side: number, push = 1.006) => FUSE.onSkin(X(fs), Y(h), side, push);
 
@@ -251,7 +250,7 @@ export function cessnaAirframe(S: CessnaSpec) {
     FS,
     H,
     groundY,
-    P,
+    P: toVec3,
     skin,
     FUSE,
     fus: FUSE.fus,

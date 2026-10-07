@@ -7,6 +7,7 @@
  */
 import "./cessna.css";
 import type { ReactNode } from "react";
+import { HoldKey } from "@/components/avionics/parts";
 import { Facts, HoldButton, Readouts, Rocker } from "@/components/ui/controls";
 import { Box, Cb, Diode, Dot, Key, Sw, W as Wire } from "@/components/ui/wiring";
 import type { Nav3AnnDef } from "./annunciations";
@@ -377,3 +378,60 @@ export const Nav3AnnTable = ({ defs }: { defs: Nav3AnnDef[] }) => (
     ])}
   />
 );
+
+export type Nav3Mags = "OFF" | "R" | "L" | "BOTH" | "START";
+
+/**
+ * MAGNETOS rotary with the spring-loaded START position held by a button. `crankSec`: seconds cranked so far while the
+ * starter turns (else null); `onStart` is called as START is pressed (after it springs back, `set("BOTH")`).
+ */
+export function Nav3MagSwitch({
+  mags,
+  starterPwr,
+  crankSec,
+  set,
+  onStart,
+}: {
+  mags: Nav3Mags;
+  starterPwr: boolean;
+  crankSec: number | null;
+  set: (m: Nav3Mags) => void;
+  onStart: () => void;
+}) {
+  return (
+    <div className="row">
+      <div className="lbl">
+        <span>MAGNETOS switch</span>
+        <span>
+          {mags}
+          {crankSec != null ? ` · cranking ${crankSec.toFixed(0)} s` : ""}
+        </span>
+      </div>
+      <div className="btnrow" style={{ alignItems: "center" }}>
+        <div className="seg" role="group" aria-label="MAGNETOS">
+          {(["OFF", "R", "L", "BOTH"] as const).map((m) => (
+            <button key={m} type="button" aria-pressed={mags === m} onClick={() => set(m)}>
+              {m}
+            </button>
+          ))}
+        </div>
+        <HoldKey
+          className="wide"
+          label="START"
+          sub="hold"
+          title="Turn the key through BOTH to START and hold to crank; it springs back to BOTH"
+          onDown={() => {
+            onStart();
+            set("START");
+          }}
+          onUp={() => set("BOTH")}
+        />
+        {!starterPwr && (
+          <span className="small" style={{ margin: 0 }}>
+            No starter power (MASTER BAT / WARN breaker)
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

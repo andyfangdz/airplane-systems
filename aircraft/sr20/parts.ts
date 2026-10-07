@@ -8,9 +8,9 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
 import { mergeGeos, roundEnds, sweepGeo } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
-import { V, clamp, type Vec3 } from "@/lib/math";
+import { V, clamp, toVec3, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
+import { brakeAmount, brakeAnim, magAnim, plugAnim, sparkPhase, sysNow } from "@/lib/anims";
 import {
   AB,
   EF,
@@ -74,7 +74,6 @@ import {
 import { useSR20 } from "./store";
 
 export { chanOfKey };
-const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 
 // The ADAHRS and GIAs sit behind the displays, and the bezels frame them: listed under "tap to locate" but not labelled, so
 // their pins don't cover the screens (which carry their own labels on the top bezel edge, Airplane.tsx SCREENS).
@@ -87,34 +86,14 @@ const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin
 export { surfacePivot };
 
 /* ---------- per-frame part animations ---------- */
-const sysNow = () => useView.getState().sys;
 const firing = () => live.rpm > 100 && useSR20.getState().s.eng.key !== "OFF";
 const keyFires = (mag: "R" | "L") => {
   const k = useSR20.getState().s.eng.key;
   return k === "BOTH" || k === "START" || k === mag;
 };
-const sparkPhase = (id: string) => {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
-  return (h % 100) / 10;
-};
-/** Spark plug: flashes while its magneto fires (engine view). */
-const plugAnim =
-  (mag: "R" | "L", phase: number): PartAnim =>
-  (m, t) => {
-    const sys = sysNow(),
-      engSys = sys === "engine" || sys === "overview";
-    const flash = firing() && keyFires(mag) && Math.sin(t * 18 + phase) > 0.3;
-    m.material =
-      engSys && flash ? mats("#6FD8FF").hi : engSys || sys === "propeller" ? mats("#DADFE2").on : mats("#DADFE2").dim;
-  };
-const magAnim =
-  (mag: "R" | "L"): PartAnim =>
-  (m) => {
-    const sys = sysNow(),
-      engSys = sys === "engine" || sys === "overview";
-    m.material = engSys ? (firing() && keyFires(mag) ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
-  };
+const fires = (mag: "R" | "L") => () => firing() && keyFires(mag);
+/** Engine parts are live in the Overview and Engine views; the plugs also show (unlit) in the Propeller view. */
+const ENGINE: SysId[] = ["engine", "overview"];
 const altAnim =
   (which: "alt1" | "alt2"): PartAnim =>
   (m) => {
@@ -122,13 +101,6 @@ const altAnim =
       sys = sysNow();
     const show = sys === "overview" || sys === "electrical" || sys === "engine";
     m.material = !show ? mats("#D9960F").dim : up ? mats("#D9960F").hi : mats("#5A5040").on;
-  };
-const brakeAnim =
-  (side: "R" | "L"): PartAnim =>
-  (m) => {
-    const g = useSR20.getState().s.gear;
-    const amt = g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff);
-    m.material = amt > 0.05 ? mats("#FF6A2A").hi : mats("#9AA3AA").on;
   };
 const selPtrAnim: PartAnim = (m) => {
   const sel = useSR20.getState().s.fuel.sel;
@@ -232,8 +204,8 @@ function surface(
 ) {
   CAT.surface({
     key,
-    pivot: P(a),
-    axis: P(b.clone().sub(a).normalize()),
+    pivot: toVec3(a),
+    axis: toVec3(b.clone().sub(a).normalize()),
     sys,
     name,
     note,
@@ -359,7 +331,7 @@ const wickNote =
     ] as [number, string, string, SysId[]][]
   ).forEach(([z, name, note, sys], i) =>
     part(() => box(0.34, 0.05, 0.025), sys, {
-      pos: P(wingP(s * z, 0.74, -1).add(V(-0.02, -0.02, 0))),
+      pos: toVec3(wingP(s * z, 0.74, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name,
       note,
@@ -472,7 +444,7 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
     pos: [MG.x, MG.y, s * (MG.z - 0.1)],
     color: "#9AA3AA",
     ext: true,
-    anim: brakeAnim(s > 0 ? "R" : "L"),
+    anim: brakeAnim(() => brakeAmount(useSR20.getState().s.gear, s > 0 ? "R" : "L")),
     name: "Disc brake",
     note: "Single-disc caliper with pads. An orange temperature tab on the caliper turns brown if the brake overheated — inspect. Brake temp sensor also feeds the CAS alerts.",
   });
@@ -640,7 +612,7 @@ CYLS.forEach((c) => {
       parent,
       pos: [-0.12, dy, c.s * 0.13],
       color: "#DADFE2",
-      anim: plugAnim(mag, sparkPhase(`${c.n}${pos}`)),
+      anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`), ENGINE, ["propeller"]),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
       note: `Fired by the ${mag === "R" ? "right" : "left"} magneto.`,
     });
@@ -649,7 +621,7 @@ CYLS.forEach((c) => {
 part(() => cyl(0.05, 0.13, "x"), ["engine"], {
   pos: [2.72, -0.04, 0.11],
   color: "#3E4A52",
-  anim: magAnim("R"),
+  anim: magAnim(fires("R"), ENGINE),
   name: "Right magneto",
   note: "Fires lower-right and upper-left plugs. Also the tachometer's RPM pickup.",
   pin: true,
@@ -657,7 +629,7 @@ part(() => cyl(0.05, 0.13, "x"), ["engine"], {
 part(() => cyl(0.05, 0.13, "x"), ["engine"], {
   pos: [2.72, -0.04, -0.11],
   color: "#3E4A52",
-  anim: magAnim("L"),
+  anim: magAnim(fires("L"), ENGINE),
   name: "Left magneto",
   note: "Fires lower-left and upper-right plugs.",
   pin: true,
@@ -1091,7 +1063,7 @@ part(() => box(0.08, 0.05, 0.05), ["controls"], {
   note: "Electric motor shifts the spring cartridge's neutral point. 2 A PITCH TRIM breaker, ESS BUS 2.",
 });
 part(() => box(0.08, 0.04, 0.06), ["controls"], {
-  pos: P(wingP(-3.4, 0.66, 0)),
+  pos: toVec3(wingP(-3.4, 0.66, 0)),
   color: "#9F85E6",
   chan: ["aileron"],
   name: "Roll trim cartridge",
@@ -1369,7 +1341,7 @@ part(() => box(0.1, 0.06, 0.012), ["avionics"], {
   ext: true,
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
-  pos: P(wingP(-4.9, 0.45, 0)),
+  pos: toVec3(wingP(-4.9, 0.45, 0)),
   color: ANT,
   name: "Magnetometer (MAG 1)",
   note: "Senses the local magnetic field for AHRS heading. Mounted out near a wing tip, away from ferrous masses. Exact location approximate.",
@@ -1418,7 +1390,7 @@ part(() => box(0.05, 0.04, 0.05), ["pitot"], {
 });
 export const STALL_Z = 3.0;
 part(() => sph(0.025), ["pitot"], {
-  pos: P(wingP(STALL_Z, 0, 0)),
+  pos: toVec3(wingP(STALL_Z, 0, 0)),
   color: "#3A9448",
   name: "Stall warning inlet",
   note: "Right wing leading edge. Sucks as the low-pressure peak moves forward near stall → pressure switch → horn, red STALL, autopilot disconnect.",
@@ -1426,7 +1398,7 @@ part(() => sph(0.025), ["pitot"], {
   ext: true,
 });
 part(() => sph(0.04), ["pitot"], {
-  pos: P(wingP(STALL_Z, 0.3, 1)),
+  pos: toVec3(wingP(STALL_Z, 0.3, 1)),
   color: "#E0263B",
   anim: suctionAnim,
   name: "Low-pressure peak",
@@ -1447,26 +1419,26 @@ part(() => sph(0.04), ["pitot"], {
 /* ---------- fuel system hardware (tanks are rendered separately) ---------- */
 [1, -1].forEach((s) => {
   part(() => box(0.2, 0.07, 0.16), ["fuel"], {
-    pos: P(wingP(s * 0.72, 0.45, 0)),
+    pos: toVec3(wingP(s * 0.72, 0.45, 0)),
     name: (s > 0 ? "Right" : "Left") + " collector tank / sump",
     note: "Tank fuel gravity-feeds through strainers and a flapper valve into the collector. Flush drain.",
   });
   part(() => box(0.08, 0.012, 0.12), ["fuel"], {
-    pos: P(wingP(s * 5.1, 0.45, -1).add(V(0, -0.006, 0))),
+    pos: toVec3(wingP(s * 5.1, 0.45, -1).add(V(0, -0.006, 0))),
     color: "#2F7FE6",
     name: "NACA fuel vent",
     note: "Under the wing near the tip. A blocked vent starves the engine — check it preflight.",
     ext: true,
   });
   part(() => sph(0.025), ["fuel"], {
-    pos: P(wingP(s * 1.3, 0.3, -1)),
+    pos: toVec3(wingP(s * 1.3, 0.3, -1)),
     color: "#0B3A80",
     name: "Tank drain",
     note: "One of 5 drains: 2 tank, 2 collector, 1 gascolator. Sample before every flight.",
     ext: true,
   });
   part(() => cyl(0.045, 0.012), ["fuel"], {
-    pos: P(wingP(s * 2.7, 0.38, 1)),
+    pos: toVec3(wingP(s * 2.7, 0.38, 1)),
     color: "#2F7FE6",
     name: "Filler cap",
     note: "Top of each wing. Filling to the tab = 13 gal usable per side.",
@@ -1579,15 +1551,15 @@ export const LIGHTS = {
   // wingtip assemblies: forward nav + strobe, aft-facing white position light, leading-edge landing light
   tipL: tipAt(-1),
   tipR: tipAt(1),
-  aftL: P(wingP(-5.8, 0.93, 0).add(V(-0.02, 0, -0.01))),
-  aftR: P(wingP(5.8, 0.93, 0).add(V(-0.02, 0, 0.01))),
-  landL: P(wingP(-5.5, 0, 0).add(V(0.01, 0, 0))),
-  landR: P(wingP(5.5, 0, 0).add(V(0.01, 0, 0))),
+  aftL: toVec3(wingP(-5.8, 0.93, 0).add(V(-0.02, 0, -0.01))),
+  aftR: toVec3(wingP(5.8, 0.93, 0).add(V(-0.02, 0, 0.01))),
+  landL: toVec3(wingP(-5.5, 0, 0).add(V(0.01, 0, 0))),
+  landR: toVec3(wingP(5.5, 0, 0).add(V(0.01, 0, 0))),
   /** Ice inspection lights on the fuselage sides, aimed at each wing leading edge. */
-  iceL: P(iceAt(-1)),
-  iceR: P(iceAt(1)),
-  iceAimL: P(wingP(-2.4, 0.02, 1)),
-  iceAimR: P(wingP(2.4, 0.02, 1)),
+  iceL: toVec3(iceAt(-1)),
+  iceR: toVec3(iceAt(1)),
+  iceAimL: toVec3(wingP(-2.4, 0.02, 1)),
+  iceAimR: toVec3(wingP(2.4, 0.02, 1)),
   dome: [1.2, 0.64, 0] as Vec3,
   foot: [
     [2.2, -0.55, -0.35],

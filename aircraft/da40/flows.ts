@@ -1,7 +1,7 @@
 /** Pipes, wires, ducts and cables with moving particles, plus the rules that drive them. */
 import * as THREE from "three";
 import { chanOfKey, type FlowSpec } from "@/lib/catalogue";
-import { V, type Vec3 } from "@/lib/math";
+import { V, toVec3, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { FW, PANEL_X, ROLLBAR_X, botY, fs, wingP } from "./geometry";
 import { fuelAvail, hornLevel, live, type Elec, type Sim } from "./model";
@@ -11,13 +11,18 @@ import { CABLES } from "./rig";
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) =>
   F.push({ key, pts, sys, ...o });
-const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 
 /* ---------- fuel: AFM 7.10 schematic (long-range tank) ---------- */
 const tankOut = (s: number) => wingP(s * 1.24, 0.42, -1).add(V(0, 0.03, 0));
 flow(
   "fuelL",
-  [tankOut(-1), P(wingP(-0.7, 0.42, -1).add(V(0, 0.03, 0))), [fs(2.6), -0.6, -0.12], [fs(2.45), -0.42, -0.04], SEL],
+  [
+    tankOut(-1),
+    toVec3(wingP(-0.7, 0.42, -1).add(V(0, 0.03, 0))),
+    [fs(2.6), -0.6, -0.12],
+    [fs(2.45), -0.42, -0.04],
+    SEL,
+  ],
   ["fuel"],
   {
     name: "Left feed line",
@@ -26,7 +31,7 @@ flow(
 );
 flow(
   "fuelR",
-  [tankOut(1), P(wingP(0.7, 0.42, -1).add(V(0, 0.03, 0))), [fs(2.6), -0.6, 0.12], [fs(2.45), -0.42, 0.04], SEL],
+  [tankOut(1), toVec3(wingP(0.7, 0.42, -1).add(V(0, 0.03, 0))), [fs(2.6), -0.6, 0.12], [fs(2.45), -0.42, 0.04], SEL],
   ["fuel"],
   { name: "Right feed line", note: "Right tank → fuel tank selector. There is no crossfeed or BOTH position." },
 );
@@ -91,9 +96,9 @@ flow("bleed", [MECH, [fs(1.3), -0.4, -0.15], [fs(1.32), botY(fs(1.32)) - 0.02, -
   flow(
     "vent" + (s > 0 ? "R" : "L"),
     [
-      P(wingP(s * 3.5, 0.45, 1).add(V(0, -0.02, 0))),
-      P(wingP(s * 3.9, 0.45, 0)),
-      P(wingP(s * 3.9, 0.45, -1).add(V(0, -0.03, 0))),
+      toVec3(wingP(s * 3.5, 0.45, 1).add(V(0, -0.02, 0))),
+      toVec3(wingP(s * 3.9, 0.45, 0)),
+      toVec3(wingP(s * 3.9, 0.45, -1).add(V(0, -0.03, 0))),
     ],
     ["fuel"],
     {
@@ -269,7 +274,7 @@ flow(
     { r: 0.014, color: AIR, name: "Passengers' floor outlets" },
   );
 });
-const NACA = P(wingP(-0.85, 0.08, -1).add(V(0, 0.03, 0)));
+const NACA = toVec3(wingP(-0.85, 0.08, -1).add(V(0, 0.03, 0)));
 const RBN = (s: number): Vec3 => [ROLLBAR_X + 0.02, RB_NOZZLE.y, s * RB_NOZZLE.z];
 flow(
   "fresh",
@@ -325,7 +330,7 @@ const GDC: Vec3 = [PANEL_X + 0.1, 0.06, 0.12],
   STBY_ASI: Vec3 = [PANEL_X + 0.03, 0.15, -0.107],
   STBY_ALT: Vec3 = [PANEL_X + 0.03, 0.15, 0.089];
 const root: Vec3 = [fs(2.3), -0.5, -0.5];
-const probeIn = P(pitotBase.clone().add(V(0, 0.01, 0)));
+const probeIn = toVec3(pitotBase.clone().add(V(0, 0.01, 0)));
 // Lines run inboard in the wing to the root filters, under the floor ahead of the pilot's seat and up behind the panel (routing assumed).
 const PT: Vec3 = [PANEL_X + 0.06, -0.2, -0.3],
   ST: Vec3 = [PANEL_X + 0.075, -0.2, -0.26];
@@ -333,8 +338,8 @@ flow(
   "pitot",
   [
     probeIn,
-    P(wingP(PITOT_Z, 0.32, 0)),
-    P(wingP(-1.4, 0.32, 0)),
+    toVec3(wingP(PITOT_Z, 0.32, 0)),
+    toVec3(wingP(-1.4, 0.32, 0)),
     root,
     [fs(2.05), -0.55, -0.32],
     [PANEL_X + 0.06, -0.46, -0.33],
@@ -353,9 +358,9 @@ flow("pitot2", [PT, [PANEL_X + 0.06, 0.05, -0.2], STBY_ASI], ["pitot"], { r: 0.0
 flow(
   "static",
   [
-    P(pitotBase.clone().add(V(-0.03, 0.01, 0.03))),
-    P(wingP(PITOT_Z, 0.36, 0)),
-    P(wingP(-1.4, 0.36, 0)),
+    toVec3(pitotBase.clone().add(V(-0.03, 0.01, 0.03))),
+    toVec3(wingP(PITOT_Z, 0.36, 0)),
+    toVec3(wingP(-1.4, 0.36, 0)),
     [root[0] - 0.04, root[1], root[2] + 0.04],
     [fs(2.05), -0.555, -0.28],
     [PANEL_X + 0.075, -0.46, -0.29],
@@ -420,7 +425,7 @@ flow(
   ["electrical"],
   { r: 0.014, name: "Alternator output", note: "Alternator → current sensor → ALT 70 A → MAIN bus." },
 );
-flow("ext", [P(V(fs(1.42), -0.36, 0.48)), [fs(1.36), -0.2, 0.36], RELAY], ["electrical"], {
+flow("ext", [toVec3(V(fs(1.42), -0.36, 0.48)), [fs(1.36), -0.2, 0.36], RELAY], ["electrical"], {
   r: 0.012,
   name: "External power",
   note: "Receptacle → external-power relay → relay-box bus bar (AFM 7-40 figure).",
