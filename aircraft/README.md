@@ -11,28 +11,27 @@ To add one:
 
 ## Files
 
-| File                                   | Role                                                                                                                                                                                                                                                                                         |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `systems.ts`                           | `SysDef[]` rail entries in POH/AFM Section 7 order: id, name, page, camera `[position, target]`, overview blurb, and `ref` when a system is described in another document (e.g. a supplement). A system's colour comes from `SYS_COLOR` in `lib/systems.ts`, by id                           |
-| `geometry.ts`                          | Airframe shape: fuselage station table, wing/tail/fin functions, window outlines, painted skin                                                                                                                                                                                               |
-| `parts.ts`                             | `CAT = new Catalogue(id, labelLists?)`, the parts, shells and control surfaces, and the exported anchor positions                                                                                                                                                                            |
-| `parts-systems.ts`                     | Optional second half of a long catalogue (C172S, C182T): adds the systems parts to `CAT` and exports their anchor positions; `index.tsx` also imports it (`import "./parts-systems";`) so the parts register with the airplane definition                                                    |
-| `rig.ts`                               | Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` or `Airplane.tsx`                         |
-| `flows.ts`                             | Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)`                                                                                                                                                                                                                          |
-| `model.ts`                             | Sim state type, `initialSim`, the pure solver `solve(s, prev?) → E` (buses, powered loads; `prev` is the last solution, for state that latches), alerts and annunciation list, breaker table, autopilot configuration (`AFCS_CFG`), and `live` (per-frame values, with their initial values) |
-| `store.ts`                             | `createSimStore(initialSim, solve)` and the scenarios ("Start from" buttons)                                                                                                                                                                                                                 |
-| `tick.ts`                              | Per-frame step: engine, RPM, flap motor, timers, flight state and autopilot. Writes `live`; discrete changes go through the store. No side effects at import                                                                                                                                 |
-| `Airplane.tsx`                         | The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>`                                                                                                                                                     |
-| `ControlRig.tsx`                       | Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (SR20, DA40; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`)                                                                                                              |
-| `Parachute.tsx` (SR20)                 | The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment)                                                                                                                                                                                         |
-| `displays.ts`                          | Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000.ts`; the SR20 calls it with `style: "perspective"` and draws its MD302 standby itself                                                                                                                  |
-| `panels/*.tsx`                         | Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH                                                                                                                                                                                                      |
-| `panels/distribution.tsx` (SR20, DA40) | The electrical panel's live single-line power distribution diagram, drawn from the solution `E` with the symbols in `components/ui/wiring.tsx` (the Cessnas share theirs, `Nav3Diagram` in `cessna/panels.tsx`)                                                                              |
+- `systems.ts`: `SysDef[]` rail entries in POH/AFM Section 7 order: id, name, page, camera `[position, target]`, overview blurb, and `ref` when a system is described in another document (e.g. a supplement). A system's colour comes from `SYS_COLOR` in `lib/systems.ts`, by id.
+- `geometry.ts`: Airframe shape: fuselage station table, wing/tail/fin functions, window outlines, painted skin.
+- `parts/`: The parts catalogue, one file per system group. `catalogue.ts` creates `CAT = new Catalogue(id, labelLists?)` and the helpers the sections share; each section file (`engine.ts`, `fuel.ts`, …) registers its parts, shells and control surfaces; `index.ts` imports the sections in order and re-exports the anchor positions other files use. Registration order sets part ids and which part carries a name's label pin, so add a part to the section it belongs to and keep the import order in `index.ts`.
+- `rig.ts`: Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` or `Airplane.tsx`.
+- `flows.ts`: Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)`.
+- `model.ts`: Sim state type, `initialSim`, the pure solver `solve(s, prev?) → E` (buses, powered loads; `prev` is the last solution, for state that latches), alerts and annunciation list, breaker table, autopilot configuration (`AFCS_CFG`), and `live` (per-frame values, with their initial values).
+- `store.ts`: `createSimStore(initialSim, solve)` and the scenarios ("Start from" buttons).
+- `tick.ts`: Per-frame step: engine, RPM, flap motor, timers, flight state and autopilot. Writes `live`; discrete changes go through the store. No side effects at import.
+- `Airplane.tsx`: The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>`.
+- `ControlRig.tsx`: Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (SR20, DA40; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`).
+- `Parachute.tsx` (SR20): The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment).
+- `displays.ts`: Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000.ts`; the SR20 calls it with `style: "perspective"` and draws its MD302 standby itself.
+- `panels/*.tsx`: Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH.
+- `panels/distribution.tsx` (SR20, DA40): The electrical panel's live single-line power distribution diagram, drawn from the solution `E` with the symbols in `components/ui/wiring.tsx` (the Cessnas share theirs, `Nav3Diagram` in `cessna/panels.tsx`).
 
 ## Shared code
 
 - `components/scene/` draws what the airplane declares. Parts, shells and control surfaces cache their geometry per spec and
   share materials, so switching airplanes is cheap; everything else a component builds is disposed when the airplane is switched away.
+- `lib/anims.ts` holds the part animations every airplane uses (spark plugs, magnetos, brakes, glow, push-pull knobs); each takes
+  getters into the airplane's own store or `live` values.
 - `components/ui/wiring.tsx` holds the symbols for the live electrical diagrams (breaker, switch or relay contact, diode, fuse, bus box, key),
   drawn on a vertical or horizontal wire, dead or live.
 - `lib/avionics/` holds the G1000 / Perspective+ display drawing, the flight-state integrator, and the GFC 700 and KAP 140 logic (pure functions;
@@ -47,7 +46,6 @@ To add one:
   | `electrical.ts`            | NAV III buses, breaker board model, solver, EIS colour rules, `NAV3_BUSES`                                         |
   | `annunciations.ts`         | Annunciation window and EIS gauges (each airplane passes its own `Nav3AnnDef[]` list)                              |
   | `panels.tsx`, `cessna.css` | MASTER / AVIONICS / STBY BATT switches, bus diagram, breaker board, meters, annunciation table                     |
-  | `anims.ts`                 | Part animations: glow, push-pull knobs, spark plugs, magnetos, brakes                                              |
   | `tick.ts`                  | Per-frame models (vacuum pump)                                                                                     |
 
 ## Conventions

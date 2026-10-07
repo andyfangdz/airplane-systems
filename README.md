@@ -12,8 +12,13 @@ Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zu
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # production build
-npm run typecheck
+npm run check      # formatting, typecheck and tests (what CI runs, plus the build)
+npm run format     # format everything with Prettier
+npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all") into .shots/
 ```
+
+`npm install` also sets up a pre-commit hook that formats staged files. `npm run shot` needs Chromium for Playwright
+(`npx playwright-core install chromium`); with `--compare <dir>` it reports which views changed against an earlier set.
 
 ## What's modelled
 
@@ -51,9 +56,13 @@ lib/
   fleet.ts            Airplane / system selection, remembered view, URL path
   systems.ts          Airplane ids, system ids, palette
   catalogue.ts        Declarative part catalogue with label lists
+  anims.ts            Part animations shared by every airplane (spark plugs, magnetos, brakes, glow, push-pull knobs)
   simStore.ts         createSimStore: one zustand store per airplane (discrete state + derived solution)
   avionics/           G1000 / Perspective+ display drawing, flight-state integrator, GFC 700 and KAP 140 logic (pure functions)
   geometry.ts, materials.ts, math.ts, registry.ts, canvas.ts
+tests/                Vitest: fleet-wide invariants, electrical solvers, scenarios, GFC 700 and KAP 140 logic
+scripts/shot.mjs      Screenshots of any view (npm run shot), with a comparison mode
+AGENTS.md             Working notes for coding agents (CLAUDE.md points to it)
 ```
 
 ### State model
