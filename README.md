@@ -1,6 +1,6 @@
 # Airplane Systems
 
-Interactive 3D study models of four airplanes' systems, built from **POH/AFM Section 7 – Airplane and Systems**: the Cirrus SR20 G6, the Cessna 172S NAV III (G1000 + GFC 700), the Cessna 182T NAV III (G1000 + KAP 140) and the Diamond DA40 XLS (G1000 + GFC 700). Pick an airplane and a system to fly the camera to it, hover parts for notes, and operate switches, levers and failures. The systems are linked: pull an alternator and the buses, displays and alert window respond. Each airplane keeps its own switch positions when you switch to another, and the URL hash (`#c172s/electrical`) names the view shown.
+Interactive 3D study models of four airplanes' systems, built from **POH/AFM Section 7 – Airplane and Systems**: the Cirrus SR20 G6, the Cessna 172S NAV III (G1000 + GFC 700), the Cessna 182T NAV III (G1000 + KAP 140) and the Diamond DA40 XLS (G1000 + GFC 700). Pick an airplane and a system to fly the camera to it, hover parts for notes, and operate switches, levers and failures. The systems are linked: pull an alternator and the buses, displays and alert window respond. Each airplane keeps its own switch positions when you switch to another, and the URL path (`/c172s/electrical`) names the view shown.
 
 Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zustand**.
 
@@ -38,7 +38,8 @@ The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Se
 ```
 app/                  Next.js App Router entry (layout, page, icon, global CSS)
 components/
-  App.tsx             Shell: fleet picker, system rail, toolbar, alert window, HUD, tooltip, panel; URL hash and tab title
+  App.tsx             Shell: fleet picker, system rail, toolbar, alert window, HUD, tooltip, panel; URL and tab title
+  Tour.tsx            Welcome tour shown on a first visit (skipping or finishing it is remembered; the toolbar's ? replays it)
   scene/              Shared React Three Fiber scene: Scene (canvas, camera flights, sim clock), Part / Shells,
                       ControlSurface, Flows, Links, Tanks, Screens, LightFX, WindowOutlines, PinDeclutter
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)
@@ -46,7 +47,7 @@ components/
 aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) — see aircraft/README.md
 lib/
   view.ts             View state shared by every airplane (airplane, system, toggles, theme, camera); phone breakpoint
-  fleet.ts            Airplane / system selection, remembered view, URL hash
+  fleet.ts            Airplane / system selection, remembered view, URL path
   systems.ts          Airplane ids, system ids, palette
   catalogue.ts        Declarative part catalogue with label lists
   simStore.ts         createSimStore: one zustand store per airplane (discrete state + derived solution)

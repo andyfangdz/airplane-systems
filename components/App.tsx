@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, showInUrl, sysOf, useAircraft } from "@/aircraft";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
 import { narrowLayout, useView } from "@/lib/view";
+import { Tour, startTour } from "./Tour";
 
 // WebGL scene is client-only
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div className="loading">Loading 3D model…</div> });
@@ -87,6 +88,7 @@ function Toolbar() {
         <svg className="ico" viewBox="0 0 16 16" aria-hidden="true">{dark ? SUN : MOON}</svg><span>{dark ? "Light" : "Dark"}</span>
       </button>
       <button className="tb" onClick={() => { const [p, t] = resetCam(); flyTo([...p], [...t]); }}>Reset view</button>
+      <button className="tb tb-help" title="Show the welcome tour" aria-label="Show the welcome tour" onClick={startTour}>?</button>
     </div>
   );
 }
@@ -139,15 +141,17 @@ function Tooltip() {
 
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 
-/** Airplane and system named by the URL hash: #c172s/electrical, #c172s, or (SR20) #electrical. */
-function fromHash(): [AircraftId, string | undefined] | null {
-  let h = location.hash.slice(1);
-  try { h = decodeURIComponent(h); } catch {} // malformed escape (e.g. a truncated link): use the raw text
-  const [a, b] = h.split("/");
+/** Airplane and system named by `s`, a URL path or hash: c172s/electrical, c172s, or (SR20) electrical. */
+function viewIn(s: string): [AircraftId, string | undefined] | null {
+  try { s = decodeURIComponent(s); } catch {} // malformed escape (e.g. a truncated link): use the raw text
+  const [a, b] = s.replace(/^[/#]+/, "").split("/");
   if (isAircraftId(a)) return [a, b];
   if (a && hasSys(aircraft("sr20"), a)) return ["sr20", a];
   return null;
 }
+
+/** The view named by the URL: its path (/c172s/electrical), or a hash from links made before views had paths (#c172s/electrical). */
+const fromUrl = () => viewIn(location.pathname) ?? viewIn(location.hash);
 
 /** Show an airplane at `sys`, or else at its last-viewed system, or else its overview; remember it for the next visit. */
 function show(ac: AircraftId, sys?: string | null) {
@@ -160,7 +164,7 @@ function show(ac: AircraftId, sys?: string | null) {
   try { localStorage.setItem("fleetAc", ac); } catch {}
 }
 
-/** Restore theme, airplane and last-viewed system; the URL hash wins, on load and when it changes. */
+/** Restore theme, airplane and last-viewed system; a view named by the URL wins. */
 function useBoot() {
   useEffect(() => {
     // the toolbar's theme toggle saves a choice; until then follow the system setting, without saving it
@@ -169,21 +173,19 @@ function useBoot() {
     useView.getState().setTheme(t === "light" || t === "dark" ? t : os.matches ? "dark" : "light", false);
     const onOs = () => { if (!chosen()) useView.getState().setTheme(os.matches ? "dark" : "light", false); };
     os.addEventListener("change", onOs);
-    const h = fromHash(), saved = read("fleetAc");
-    if (h) show(...h);
+    // either way the address bar ends up on the view shown, as a path
+    const u = fromUrl(), saved = read("fleetAc");
+    if (u) show(...u);
     else show(isAircraftId(saved) ? saved : "sr20");
-    // a hash that names no view is replaced by the view shown
-    const onHash = () => { const x = fromHash(); if (x) show(...x); else { const v = useView.getState(); showInUrl(v.ac, v.sys); } };
-    addEventListener("hashchange", onHash);
-    return () => { removeEventListener("hashchange", onHash); os.removeEventListener("change", onOs); };
+    return () => os.removeEventListener("change", onOs);
   }, []);
 }
 
 export default function App() {
   useBoot();
   const def = useAircraft();
-  // The tab title follows the airplane shown, but only once mounted: the URL hash, which names the airplane, never reaches
-  // the server, so the static HTML gets a neutral title. (React hoists <title> into <head>; app/layout.tsx sets none.)
+  // The tab title follows the airplane shown, but only once mounted: every view is served the same static HTML
+  // (next.config.ts rewrites), which gets a neutral title. (React hoists <title> into <head>; app/layout.tsx sets none.)
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   return (
@@ -200,6 +202,7 @@ export default function App() {
         <Tooltip />
       </main>
       <Panel />
+      <Tour />
     </div>
   );
 }
