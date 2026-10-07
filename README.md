@@ -55,7 +55,7 @@ lib/
   view.ts             View state shared by every airplane (airplane, system, toggles, theme, camera); phone breakpoint
   fleet.ts            Airplane / system selection, remembered view, URL path
   systems.ts          Airplane ids, system ids, palette
-  catalogue.ts        Declarative part catalogue with label lists
+  catalogue.ts        Declarative part catalogue: parts, shells, lofted control surfaces and the parts riding on them, label lists
   anims.ts            Part animations shared by every airplane (spark plugs, magnetos, brakes, glow, push-pull knobs)
   simStore.ts         createSimStore: one zustand store per airplane (discrete state + derived solution)
   avionics/           G1000 / Perspective+ display drawing, flight-state integrator, GFC 700 and KAP 140 logic (pure functions)

@@ -6,17 +6,16 @@
  * POH and are placed from the descriptions ("left forward side of the firewall", "tailcone", …) and photos.
  */
 import * as THREE from "three";
-import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { Catalogue, type PartAnim, type PartSpec } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { AF, X, Y, Z, loft, paintSkin, wC, wLE, wingP } from "../geometry";
+import { AF, X, Z, paintSkin, wC, wLE, wingP } from "../geometry";
+import { brakeAmount, magFires } from "@/lib/anims";
 import { live } from "../model";
 import { useC172 } from "../store";
 
-/** POH station → scene position: FS (in aft of datum), BL (in right), h (in above ground). */
-export const P3 = (fs: number, bl: number, h: number): Vec3 => [X(fs), Y(h), Z(bl)];
-/** Vector3 → Vec3. */
-export const PV = AF.P;
+/** POH station → scene position (FS, BL, h in inches), and Vector3 → Vec3: from the Cessna airframe builder. */
+export const { P3, P: PV } = AF;
 
 /**
  * Pinned parts that stay in a view's "tap to locate" list but carry no label pin there, so each view shows about ten
@@ -142,25 +141,18 @@ const QUIET: Partial<Record<SysId, string[]>> = {
     "GFC 700 pitch trim servo",
   ],
 };
-export const CAT = new Catalogue("c172s", { quiet: QUIET });
-const { part, surfacePivot } = CAT;
-export { part, surfacePivot };
-export const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) =>
-  CAT.shell(geo, name, note, skin ? paintSkin : undefined);
+export const CAT = new Catalogue("c172s", { quiet: QUIET }, paintSkin);
+export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */
 export const S = () => useC172.getState().s;
 /** The magneto is firing: engine turning, its key position on, and not failed. */
 export const fires = (mag: "R" | "L") => () => {
-  const e = S().eng,
-    k = e.mags;
-  return live.rpm > 150 && (k === "BOTH" || k === "START" || k === mag) && !(mag === "L" ? e.fail.magL : e.fail.magR);
+  const e = S().eng;
+  return live.rpm > 150 && magFires(mag, e.mags, mag === "L" ? e.fail.magL : e.fail.magR);
 };
 /** Toe brake (differential) or parking brake on one side, 0..1. */
-export const braking = (side: "R" | "L") => () => {
-  const g = S().gear;
-  return g.park ? 0.6 : side === "R" ? Math.max(0, g.diff) : Math.max(0, -g.diff);
-};
+export const braking = (side: "R" | "L") => () => brakeAmount(S().gear, side);
 export const altDoorAnim =
   (x0: number): PartAnim =>
   (m) => {
@@ -176,46 +168,3 @@ export const top = (fs: number, bl = 0) => {
   const z = Z(bl);
   return wingP(z, (wLE(z) - X(fs)) / wC(z), 1).y;
 };
-
-/* ---------- control surfaces and the parts that ride on them ---------- */
-/** Control surface pivoting on its hinge line from `a` to `b`. */
-export function surface(
-  key: string,
-  secs: () => THREE.Vector3[][],
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  sys: SysId[],
-  name: string,
-  note: string,
-) {
-  CAT.surface({
-    key,
-    pivot: PV(a),
-    axis: PV(b.clone().sub(a).normalize()),
-    sys,
-    name,
-    note,
-    geo: () => {
-      const g = loft(secs());
-      g.translate(-a.x, -a.y, -a.z);
-      return g;
-    },
-  });
-}
-
-/** Part riding on a control surface; `world` is converted to hinge-relative coordinates. */
-export function onSurf(
-  key: string,
-  world: THREE.Vector3 | Vec3,
-  geo: () => THREE.BufferGeometry,
-  o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] },
-) {
-  const pv = surfacePivot(key),
-    w = Array.isArray(world) ? V(...world) : world;
-  part(geo, o.sys || ["controls"], {
-    chan: chanOfKey(key),
-    ...o,
-    parent: "surf:" + key,
-    pos: [w.x - pv[0], w.y - pv[1], w.z - pv[2]],
-  });
-}

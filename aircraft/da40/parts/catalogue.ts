@@ -5,28 +5,21 @@
  * index.ts for what is where.
  */
 import * as THREE from "three";
-import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { Catalogue, type PartAnim, type PartSpec } from "@/lib/catalogue";
 import { mats } from "@/lib/materials";
-import { toVec3, type Vec3 } from "@/lib/math";
+import { type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { glowAnim } from "@/lib/anims";
-import { loft, paintSkin } from "../geometry";
+import { glowAnim, magFires } from "@/lib/anims";
+import { paintSkin } from "../geometry";
 import { live } from "../model";
 import { useDA40 } from "../store";
 
-export const CAT = new Catalogue("da40");
-export const { part, surfacePivot } = CAT;
-export const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) =>
-  CAT.shell(geo, name, note, skin ? paintSkin : undefined);
+export const CAT = new Catalogue("da40", {}, paintSkin);
+export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */
 export const sim = () => useDA40.getState();
-const firing = () => live.rpm > 100 && sim().s.eng.key !== "OFF";
-const keyFires = (mag: "R" | "L") => {
-  const k = sim().s.eng.key;
-  return k === "BOTH" || k === "START" || k === mag;
-};
-export const fires = (mag: "R" | "L") => () => firing() && keyFires(mag);
+export const fires = (mag: "R" | "L") => () => live.rpm > 100 && magFires(mag, sim().s.eng.key);
 /** Glows `lit` when cond() is true in the given systems' views. */
 export const glow = (base: string, lit: string, cond: () => boolean, sys: SysId[]) => glowAnim(base, cond, sys, lit);
 export const selPtrAnim: PartAnim = (m) => {
@@ -64,43 +57,3 @@ export const rel = (g: THREE.BufferGeometry, o: Vec3) => {
   return g;
 };
 export const relTo = (v: THREE.Vector3, o: Vec3): Vec3 => [v.x - o[0], v.y - o[1], v.z - o[2]];
-
-/* ---------- control surfaces (pivot on their hinge lines) ---------- */
-export function surface(
-  key: string,
-  secs: () => THREE.Vector3[][],
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  sys: SysId[],
-  name: string,
-  note: string,
-) {
-  CAT.surface({
-    key,
-    pivot: toVec3(a),
-    axis: toVec3(b.clone().sub(a).normalize()),
-    sys,
-    name,
-    note,
-    geo: () => {
-      const g = loft(secs());
-      g.translate(-a.x, -a.y, -a.z);
-      return g;
-    },
-  });
-}
-/** Part attached to a moving control surface; `world` is converted to hinge-relative coordinates. */
-export function onSurf(
-  key: string,
-  world: THREE.Vector3,
-  geo: () => THREE.BufferGeometry,
-  o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] },
-) {
-  const pv = surfacePivot(key);
-  part(geo, o.sys || ["controls"], {
-    chan: chanOfKey(key),
-    ...o,
-    parent: "surf:" + key,
-    pos: [world.x - pv[0], world.y - pv[1], world.z - pv[2]],
-  });
-}
