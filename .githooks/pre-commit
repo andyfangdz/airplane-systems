@@ -1,0 +1,12 @@
+#!/bin/sh
+# Formats staged files with Prettier and re-stages them, so every commit is formatted (CI checks it too).
+# Installed by `npm install` (the "prepare" script sets core.hooksPath). Skip once with `git commit --no-verify`.
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+prettier() { echo "$files" | xargs npx --no-install prettier --ignore-unknown --log-level warn "$@"; }
+if [ -n "$(git diff --name-only -- $files)" ]; then
+  # some staged files also have unstaged changes, which re-staging would sweep in: only check them
+  prettier --check || { echo "pre-commit: run 'npm run format' (or stage the whole files) and commit again" >&2; exit 1; }
+  exit 0
+fi
+prettier --write && echo "$files" | xargs git add
