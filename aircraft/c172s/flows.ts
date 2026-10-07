@@ -5,8 +5,7 @@ import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
 import { Z, wingP } from "./geometry";
 import { live, type Elec, type Sim } from "./model";
-import { CYLS, P3, PV } from "./parts";
-import { FSEL, PITOT, STALL_INLET, STATIC_PORT } from "./parts-systems";
+import { CYLS, FSEL, P3, PITOT, PV, STALL_INLET, STATIC_PORT } from "./parts";
 import { CABLES } from "./rig";
 
 const F: FlowSpec[] = [];
@@ -47,12 +46,12 @@ flow(
     r: 0.01,
   },
 );
-// pump on the accessory case (parts-systems.ts); both lines keep clear of the vacuum pump vent line (BL ≈ −5.5 to −6)
+// pump on the accessory case (parts/fuel.ts); both lines keep clear of the vacuum pump vent line (BL ≈ −5.5 to −6)
 flow("fuelEdp", [P3(-4, -4, 29), P3(-3.5, -6.5, 36), P3(-4.5, -9, 41), P3(-5.8, -9, 45)], ["fuel", "engine"], {
   name: "Strainer → engine-driven pump",
   r: 0.009,
 });
-// The fuel/air control unit (servo) is under the front of the engine at P3(−28.2, 0, 33.8) (parts.ts). Down aft of the block's rear
+// The fuel/air control unit (servo) is under the front of the engine at P3(−28.2, 0, 33.8) (parts/engine.ts). Down aft of the block's rear
 // face (FS −6.4), forward under the oil sump (bottom h 36.1) outboard of the muffler (BL ±6.7), and into the servo's left side
 flow(
   "fuelServo",
@@ -145,7 +144,7 @@ flow(
     note: "Sump pickup screen → engine-driven pump → full-flow filter → pressure relief valve → thermostatic remote oil cooler → galleries → back to the sump (POH 7-35).",
   },
 );
-// intake → filter → air box → servo; the alternate air door is on the air box's right side (parts.ts); man* follow the intake tubes
+// intake → filter → air box → servo; the alternate air door is on the air box's right side (parts/engine.ts); man* follow the intake tubes
 flow("intake", [P3(-38.5, 0, 37.8), P3(-29.5, 0, 37.9), P3(-27.6, 0, 36.8), P3(-28.2, 0, 33.8)], ["engine"], {
   tube: false,
   pcolor: "#8FD3E8",
@@ -345,7 +344,7 @@ flow("alt", [P3(-29.5, 8, 43.5), P3(-20, 4, 34), P3(-8, -8, 36), JB], ["electric
   name: "Alternator output",
   note: "Alternator B terminal → ACU → alternator relay → J-box main node.",
 });
-// from the main battery's bottom face (h 48.7, parts-systems.ts) down to the J-box (top h 46.15)
+// from the main battery's bottom face (h 48.7, parts/electrical.ts) down to the J-box (top h 46.15)
 flow("bat", [P3(-5, -15.9, 49), P3(-4.2, -15.5, 47.4), JB], ["electrical"], {
   r: 0.012,
   color: "#D9960F",

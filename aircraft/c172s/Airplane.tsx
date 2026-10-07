@@ -16,9 +16,8 @@ import { drawMfdScreen, drawOff, drawPfdScreen, drawStbyAtt, drawStbyAlt, drawSt
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
-import { CAT, NOSE, NOSE_CASTER, P3, PROP, YOKES, surfacePivot } from "./parts";
+import { CAT, LIGHTS, NOSE, NOSE_CASTER, P3, PROP, YOKES, surfacePivot } from "./parts";
 import { NAV3_BL } from "../cessna/faceplate";
-import { LIGHTS } from "./parts-systems";
 import { PULLEYS, RIG, RIG_SPEC } from "./rig";
 import { useC172 } from "./store";
 

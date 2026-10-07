@@ -11,7 +11,6 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
-import "./parts-systems";
 import { useC172 } from "./store";
 import { SYS } from "./systems";
 import { simTick } from "./tick";
