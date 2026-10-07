@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { cabinLit, casMessages, extLit, initialSim, solve, type Sim } from "@/aircraft/sr20/model";
 import * as THREE from "three";
-import { AB, FUSE, FW, WIN } from "@/aircraft/sr20/geometry";
+import { AB, DOOR, FUSE, FW, WIN } from "@/aircraft/sr20/geometry";
 import { HARNESS, fwdStrap } from "@/aircraft/sr20/parts/caps";
 import { patched, type Patch } from "./helpers";
 
@@ -182,6 +182,35 @@ describe("SR20 CAPS harness (POH 7-94)", () => {
         expect(Math.sign(p.z)).toBe(s);
       }
     }
+  });
+
+  it("forward straps run below the door, never across it (strap faired into the skin; AMM Fig 95-00-1)", () => {
+    const r = 0.012; // tube radius
+    const inside = ([x, y]: number[]) => {
+      let c = false;
+      for (let i = 0, j = DOOR.length - 1; i < DOOR.length; j = i++) {
+        const [xi, yi] = DOOR[i],
+          [xj, yj] = DOOR[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    };
+    const edgeDist = ([x, y]: number[]) =>
+      Math.min(
+        ...DOOR.map(([ax, ay], i) => {
+          const [bx, by] = DOOR[(i + 1) % DOOR.length],
+            t = Math.max(
+              0,
+              Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2)),
+            );
+          return Math.hypot(x - ax - t * (bx - ax), y - ay - t * (by - ay));
+        }),
+      );
+    for (const s of [-1, 1])
+      for (const p of fwdStrap(s)) {
+        expect(inside(p), `x ${p[0].toFixed(2)} y ${p[1].toFixed(2)}`).toBe(false);
+        expect(edgeDist(p), `x ${p[0].toFixed(2)} y ${p[1].toFixed(2)}`).toBeGreaterThan(r);
+      }
   });
 
   it("forward straps pass below the cabin windows", () => {

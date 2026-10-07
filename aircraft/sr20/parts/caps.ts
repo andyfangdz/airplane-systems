@@ -14,17 +14,19 @@ part(() => box(0.4, 0.18, 0.26), ["caps"], {
 });
 
 /**
- * Forward strap path (x, y), canister to firewall, down the side under the windows. The SR20 POH (7-94) says only that
- * the straps run just under the fuselage skin to firewall attach points; this side-path shape is illustrative, after the
- * SR22/SR22T AMM Figure 95-00-1. Fitting heights are not surveyed.
+ * Forward strap path (x, y), canister to firewall: down behind the rear window, then low along the side below the door
+ * and above the wing root, then up to the firewall fitting. The SR20 POH (7-94) says only that the straps run just under
+ * the fuselage skin to firewall attach points; this side-path shape is illustrative, after the SR22/SR22T AMM
+ * Figure 95-00-1. Fitting heights are not surveyed.
  */
 const FWD_PATH = [
   [-0.6, 0.3],
-  [-0.3, 0.17],
-  [0, 0.08],
-  [0.6, 0.06],
-  [1.2, 0.06],
-  [2.0, 0.06],
+  [-0.3, 0.18],
+  [0, 0.04],
+  [0.35, -0.2],
+  [0.7, -0.36],
+  [2.05, -0.36],
+  [2.3, -0.15],
   [FW, 0.1],
 ];
 /** Strap centre as a fraction of the skin half-width: just inside the skin. */
@@ -42,7 +44,7 @@ export const HARNESS: Record<"fwdL" | "fwdR" | "aft", Vec3> = {
 [-1, 1].forEach((s) =>
   part(() => tubeGeo(fwdStrap(s), 0.012), ["caps"], {
     name: "Forward harness strap",
-    note: "Runs from the canister just under the fuselage skin to a firewall attach point, and pulls through the skin covering when the parachute deploys (POH 7-94). The path along the side and the fitting height are illustrative.",
+    note: "Runs from the canister just under the fuselage skin to a firewall attach point, and pulls through the skin covering when the parachute deploys (POH 7-94). The path along the side, below the door, and the fitting height are illustrative.",
     pin: s > 0,
   }),
 );
