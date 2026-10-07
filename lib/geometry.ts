@@ -100,6 +100,28 @@ export function tubeGeo(points: (Vec3 | THREE.Vector3)[], r: number, tension = 0
   return new THREE.TubeGeometry(curve, Math.max(24, Math.round(curve.getLength() * 24)), r, 8, false);
 }
 
+/**
+ * Solid swept along a smooth path with an elliptical section that may change along it (grips, horns). `r(t)` gives the
+ * section's half sizes at t = 0…1 of the path's length: [toward `ref`, across]. `ref` is a direction the first half size is
+ * kept square to the path toward, e.g. fore-aft for a part drawn in a lateral plane. Bring r toward 0 at an end to round it.
+ */
+export function sweepGeo(points: (Vec3 | THREE.Vector3)[], r: (t: number) => [number, number], ref: Vec3 = [1, 0, 0], tension = 0.35, n = 48, seg = 16) {
+  const curve = curveOf(points, tension), W = toV(ref).normalize();
+  const rings: Ring[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, c = curve.getPointAt(t), T = curve.getTangentAt(t);
+    const A = W.clone().addScaledVector(T, -W.dot(T)).normalize(), B = new THREE.Vector3().crossVectors(A, T);
+    const [ra, rb] = r(t);
+    rings.push(Array.from({ length: seg }, (_, j) => { const a = (j / seg) * Math.PI * 2; return c.clone().addScaledVector(A, Math.cos(a) * ra).addScaledVector(B, Math.sin(a) * rb); }));
+  }
+  return loft(rings);
+}
+/** Rounded-end factor for `sweepGeo` radii: 1 along the path, falling like a quarter circle over fraction k at each end. */
+export const roundEnds = (t: number, k0: number, k1 = k0) => {
+  const e = (u: number, k: number) => (k > 0 ? Math.sqrt(Math.max(0.02, 1 - (1 - clamp(u / k, 0, 1)) ** 2)) : 1);
+  return e(t, k0) * e(1 - t, k1);
+};
+
 /** Teardrop wheel fairing: blunt nose, pointed tail, widest at the axle. */
 export function pantGeo(len: number, r: number) {
   const pts: THREE.Vector2[] = [];
