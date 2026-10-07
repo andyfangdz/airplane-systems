@@ -242,11 +242,15 @@ export function cessnaAirframe(S: CessnaSpec) {
     (W2: number, H2: number) =>
     ([fs, h]: number[]) => [((X(fs) - UV.x0) / (UV.x1 - UV.x0)) * W2, (1 - (Y(h) - UV.y0) / (UV.y1 - UV.y0)) * H2];
 
+  /** POH station → scene position: FS (in aft of datum), BL (in right), h (in above ground). */
+  const P3 = (fs: number, bl: number, h: number): Vec3 => [X(fs), Y(h), Z(bl)];
+
   return {
     S,
     X,
     Y,
     Z,
+    P3,
     FS,
     H,
     groundY,

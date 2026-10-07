@@ -32,6 +32,10 @@ export const pushPull =
     m.position.x = x0 - (1 - inFrac()) * travel;
   };
 
+/** The ignition switch position `key` fires magneto `mag` (BOTH, START or that magneto), and the magneto isn't `failed`. */
+export const magFires = (mag: "L" | "R", key: string, failed = false) =>
+  (key === "BOTH" || key === "START" || key === mag) && !failed;
+
 /** A stable phase (0–10) per plug id, so the spark plugs don't all flash together. */
 export const sparkPhase = (id: string) => {
   let h = 0;

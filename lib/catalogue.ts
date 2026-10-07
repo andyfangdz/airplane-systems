@@ -4,7 +4,8 @@
  * part has a `parent`, in which case they are relative to that moving group.
  */
 import type * as THREE from "three";
-import type { Vec3 } from "./math";
+import { loft, type Ring } from "./geometry";
+import { V, toVec3, type Vec3 } from "./math";
 import type { Chan, SysId } from "./systems";
 import { narrowLayout } from "./view";
 
@@ -116,9 +117,11 @@ export class Catalogue {
   private pins = new Map<SysId, PartSpec[]>();
   private pinIds = new Map<string, Set<string>>();
 
+  /** `paintSkin`: the airplane's painter for the solid-mode skin of shells added with `skin` true. */
   constructor(
     readonly prefix: string,
     readonly labels: LabelLists = {},
+    private readonly paintSkin?: () => THREE.Texture,
   ) {}
 
   uid = (s: string) => `${this.prefix}/${s}-${this.n++}`;
@@ -130,8 +133,20 @@ export class Catalogue {
     return spec;
   };
 
-  shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin?: () => THREE.Texture) => {
-    const spec: ShellSpec = { id: this.uid(name), geo, name, note, skin };
+  /** A skin shell; `skin` true paints it with the catalogue's `paintSkin` in solid mode (or pass a painter). */
+  shell = (
+    geo: () => THREE.BufferGeometry,
+    name: string,
+    note: string,
+    skin: boolean | (() => THREE.Texture) = false,
+  ) => {
+    const spec: ShellSpec = {
+      id: this.uid(name),
+      geo,
+      name,
+      note,
+      skin: skin === true ? this.paintSkin : skin || undefined,
+    };
     this.shells.push(spec);
     return spec;
   };
@@ -141,7 +156,51 @@ export class Catalogue {
     return spec;
   };
 
+  /**
+   * Control surface lofted through `secs` (airplane coordinates) and hinged on the line from `a` to `b`: the geometry is
+   * moved to be hinge-relative and the axis points from `a` to `b`.
+   */
+  loftSurface = (
+    key: string,
+    secs: () => Ring[],
+    a: THREE.Vector3,
+    b: THREE.Vector3,
+    sys: SysId[],
+    name: string,
+    note: string,
+  ) =>
+    this.surface({
+      key,
+      pivot: toVec3(a),
+      axis: toVec3(b.clone().sub(a).normalize()),
+      sys,
+      name,
+      note,
+      geo: () => {
+        const g = loft(secs());
+        g.translate(-a.x, -a.y, -a.z);
+        return g;
+      },
+    });
+
   surfacePivot = (key: string) => this.surfaces.find((s) => s.key === key)!.pivot;
+
+  /** A part riding on control surface `key`, placed at `world` (airplane coordinates); its channel follows the key. */
+  onSurface = (
+    key: string,
+    world: THREE.Vector3 | Vec3,
+    geo: () => THREE.BufferGeometry,
+    o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] },
+  ) => {
+    const pv = this.surfacePivot(key),
+      w = Array.isArray(world) ? V(...world) : world;
+    return this.part(geo, o.sys || ["controls"], {
+      chan: chanOfKey(key),
+      ...o,
+      parent: "surf:" + key,
+      pos: [w.x - pv[0], w.y - pv[1], w.z - pv[2]],
+    });
+  };
 
   /** Parts riding on a moving group (or the fixed airframe when parent is undefined). */
   partsFor = (parent?: string) => {

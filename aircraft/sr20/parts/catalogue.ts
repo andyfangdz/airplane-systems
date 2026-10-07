@@ -4,12 +4,11 @@
  * `index.ts` imports them in order.
  */
 import * as THREE from "three";
-import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { Catalogue, chanOfKey, type PartAnim } from "@/lib/catalogue";
 import { mats } from "@/lib/materials";
-import { clamp, toVec3 } from "@/lib/math";
-import type { SysId } from "@/lib/systems";
-import { sysNow } from "@/lib/anims";
-import { loft, paintSkin, wingP } from "../geometry";
+import { clamp } from "@/lib/math";
+import { magFires, sysNow } from "@/lib/anims";
+import { paintSkin, wingP } from "../geometry";
 import { live } from "../model";
 import { useSR20 } from "../store";
 
@@ -17,20 +16,17 @@ export { chanOfKey };
 
 // The ADAHRS and GIAs sit behind the displays, and the bezels frame them: listed under "tap to locate" but not labelled, so
 // their pins don't cover the screens (which carry their own labels on the top bezel edge, Airplane.tsx SCREENS).
-export const CAT = new Catalogue("sr20", {
-  quiet: { avionics: ["GSU 75 ADAHRS", "GIA 63W/64W ×2", "PFD bezel", "MFD bezel"] },
-});
-export const { part, surfacePivot } = CAT;
-export const shell = (geo: () => THREE.BufferGeometry, name: string, note: string, skin = false) =>
-  CAT.shell(geo, name, note, skin ? paintSkin : undefined);
+export const CAT = new Catalogue(
+  "sr20",
+  {
+    quiet: { avionics: ["GSU 75 ADAHRS", "GIA 63W/64W ×2", "PFD bezel", "MFD bezel"] },
+  },
+  paintSkin,
+);
+export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */
-const firing = () => live.rpm > 100 && useSR20.getState().s.eng.key !== "OFF";
-const keyFires = (mag: "R" | "L") => {
-  const k = useSR20.getState().s.eng.key;
-  return k === "BOTH" || k === "START" || k === mag;
-};
-export const fires = (mag: "R" | "L") => () => firing() && keyFires(mag);
+export const fires = (mag: "R" | "L") => () => live.rpm > 100 && magFires(mag, useSR20.getState().s.eng.key);
 export const altAnim =
   (which: "alt1" | "alt2"): PartAnim =>
   (m) => {
@@ -57,43 +53,6 @@ export const suctionAnim: PartAnim = (m) => {
   m.visible = sysNow() === "pitot";
 };
 
-/* ---------- shell and control-surface helpers ---------- */
+/* ---------- section helpers ---------- */
+/** Left-wing sections reversed, so a mirrored loft keeps its faces outward. */
 export const sided = (secs: THREE.Vector3[][], s: number) => (s < 0 ? secs.map((r) => r.reverse()) : secs);
-export function surface(
-  key: string,
-  secs: () => THREE.Vector3[][],
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  sys: SysId[],
-  name: string,
-  note: string,
-) {
-  CAT.surface({
-    key,
-    pivot: toVec3(a),
-    axis: toVec3(b.clone().sub(a).normalize()),
-    sys,
-    name,
-    note,
-    geo: () => {
-      const g = loft(secs());
-      g.translate(-a.x, -a.y, -a.z);
-      return g;
-    },
-  });
-}
-/** Part attached to a moving control surface; `world` is converted to hinge-relative coords. */
-export function onSurf(
-  key: string,
-  world: THREE.Vector3,
-  geo: () => THREE.BufferGeometry,
-  o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] },
-) {
-  const pv = surfacePivot(key);
-  part(geo, o.sys || ["controls"], {
-    chan: chanOfKey(key),
-    ...o,
-    parent: "surf:" + key,
-    pos: [world.x - pv[0], world.y - pv[1], world.z - pv[2]],
-  });
-}
