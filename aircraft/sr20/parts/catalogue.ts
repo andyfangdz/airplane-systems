@@ -4,10 +4,9 @@
  * `index.ts` imports them in order.
  */
 import * as THREE from "three";
-import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { Catalogue, chanOfKey, type PartAnim } from "@/lib/catalogue";
 import { mats } from "@/lib/materials";
 import { clamp } from "@/lib/math";
-import type { SysId } from "@/lib/systems";
 import { magFires, sysNow } from "@/lib/anims";
 import { paintSkin, wingP } from "../geometry";
 import { live } from "../model";

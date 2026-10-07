@@ -5,7 +5,7 @@
  * index.ts for what is where.
  */
 import * as THREE from "three";
-import { Catalogue, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { Catalogue, type PartAnim } from "@/lib/catalogue";
 import { mats } from "@/lib/materials";
 import { type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";

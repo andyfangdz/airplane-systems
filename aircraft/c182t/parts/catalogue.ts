@@ -5,8 +5,7 @@
  * place most items fore/aft; butt lines and heights are not in the POH and are placed from the descriptions ("left forward side
  * of the firewall", "tailcone", …), Figure 7-2 and photos.
  */
-import * as THREE from "three";
-import { Catalogue, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { Catalogue, type PartAnim } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { AF, X, Z, paintSkin, wC, wLE, wingP } from "../geometry";
