@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, showInUrl, sysOf, useAircraft } from "@/aircraft";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
-import { narrowLayout, useView } from "@/lib/view";
+import { revealStage, useView } from "@/lib/view";
 import { Tour, startTour } from "./Tour";
 
 // WebGL scene is client-only
@@ -56,11 +56,8 @@ function Panel() {
   const def = useAircraft();
   const sys = useView((x) => x.sys), theme = useView((x) => x.theme);
   const s = sysOf(def, sys), Body = def.panels[s.id];
-  // phones: the page scrolls, not the panel; after picking a system from far down the panel, bring the 3D view back up
-  useEffect(() => {
-    const stage = document.querySelector(".stage");
-    if (narrowLayout() && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
-  }, [sys, def]);
+  // phones: after picking a system from far down the panel, bring the 3D view back up
+  useEffect(revealStage, [sys, def]);
   return (
     <aside className="panel">
       <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
@@ -201,6 +198,8 @@ export default function App() {
         </div>
         <Tooltip />
       </main>
+      {/* phones: the HUD shows here, under the 3D view, instead (see globals.css) */}
+      <div className="stage-under"><Hud /></div>
       <Panel />
       <Tour />
     </div>

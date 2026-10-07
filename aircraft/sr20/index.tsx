@@ -23,7 +23,7 @@ function CapsHud() {
   const sys = useView((x) => x.sys);
   if (sys !== "caps") return null;
   const t = Math.max(0, live.capsT), [, title, sub] = live.capsT < 0 ? [0, "Ready", ""] : capsPhase(t);
-  return <div className="caps-hud"><span>T + {t.toFixed(1)} s</span><b>{title}</b><span>{sub}</span></div>;
+  return <div className="caps-hud"><span>T + {t.toFixed(1)} s</span><b>{title}</b><span className="sub">{sub}</span></div>;
 }
 
 function useAlerts() {

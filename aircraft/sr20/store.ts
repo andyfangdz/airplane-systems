@@ -1,6 +1,6 @@
 "use client";
 import { createSimStore } from "@/lib/simStore";
-import { useView } from "@/lib/view";
+import { revealStage, useView } from "@/lib/view";
 import { CAPS_CAM } from "./systems";
 import { initialSim, live, solve } from "./model";
 
@@ -11,6 +11,8 @@ export function startCaps() {
   live.capsT = 0; live.capsPlaying = true;
   useSR20.getState().update((d) => { d.capsOn = true; });
   useView.getState().flyTo(...CAPS_CAM);
+  // phones: the handle is in the panel below the 3D view, which is otherwise scrolled mostly out of sight
+  revealStage();
 }
 
 export function resetCaps() {
