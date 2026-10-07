@@ -6,7 +6,6 @@ import { V, toVec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import {
   EF,
-  HF,
   HH,
   HR,
   HZ,
@@ -69,16 +68,20 @@ const hp = (s: number, z: number, xc: number) => {
     "Aluminum, two hinge points. Driven by cable to a sector/crank arm in the wing." +
       (s > 0 ? " Right aileron carries the ground-adjustable trim tab." : ""),
   );
-  const ez = [0.1, 1.0, SSPAN];
+  // the hinge line is straight inboard of the rounded tip
+  const ez = [0.1, HZ];
   surface(
     "elev" + side,
     () =>
       sided(
-        [...[0.1, 1.0, HZ - 0.002].map((z) => stabSec(s * z, EF, 1)), ...[HZ, SSPAN].map((z) => stabSec(s * z, HF, 1))],
+        [
+          ...[0.1, 1.0, HZ - 0.002].map((z) => stabSec(s * z, EF, 1)),
+          ...[HZ, 1.87, 1.9, 1.925, 1.945, SSPAN].map((z) => stabSec(s * z, 0, 1)),
+        ],
         s,
       ),
     V(sLE(ez[0]) - EF * sC(ez[0]), SY, s * ez[0]),
-    V(sLE(ez[2]) - EF * sC(ez[2]), SY, s * ez[2]),
+    V(sLE(ez[1]) - EF * sC(ez[1]), SY, s * ez[1]),
     ["controls"],
     "Elevator (" + (s > 0 ? "right" : "left") + " half)",
     "Two-piece aluminum elevator, two hinges per half plus the control sector. Horn-balanced tip.",
@@ -106,13 +109,13 @@ const wickNote =
     ext: true,
     pin: s > 0,
   });
-  onSurf("elev" + side, V(sLE(1.88) - sC(1.88) - 0.05, SY, s * 1.88), () => cyl(0.004, 0.12, "x", 6), {
+  onSurf("elev" + side, V(sLE(1.85) - sC(1.85) - 0.05, SY, s * 1.85), () => cyl(0.004, 0.12, "x", 6), {
     color: "#2A2F33",
     name: "Static wick",
     note: wickNote,
     ext: true,
   });
-  onSurf("elev" + side, V(sLE(1.83) - (HF + 0.06) * sC(1.83), SY, s * 1.83), () => box(0.05, 0.03, 0.12), {
+  onSurf("elev" + side, V(sLE(1.9) - 0.25 * sC(1.9), SY, s * 1.9), () => box(0.05, 0.03, 0.12), {
     color: "#6E7A84",
     name: "Elevator horn balance + weight",
     pin: s > 0,

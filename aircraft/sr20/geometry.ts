@@ -70,15 +70,23 @@ const WING = liftingSurface({ le: wLE, chord: wC, y: wY, t: wT, m: 0.02 });
 export const wingP = WING.p;
 export const wingSec = WING.sec;
 
-/* ---------- horizontal tail: root from the G6 photo, tip from POH plan view (~3.9 m span) ---------- */
-export const sLE = (z: number) => -2.23 - Math.abs(z) * 0.215;
-export const sC = (z: number) => 0.9 - (Math.abs(z) / 1.95) * 0.35;
+/*
+ * ---------- horizontal tail: planform scaled from AMM 13773-002 Fig 6-00-2 (SR22/SR22T; the SR20 POH Fig 1-1 plan view
+ * shows the same shape): LE FS 294.5 at BL 10 to 301.3 at BL 70, TE FS 324.3 to 321.3, tip at BL 77.3 ----------
+ */
 export const SY = -0.02,
-  SSPAN = 1.95,
-  EF = 0.68;
-/** Elevator horn balance: outboard of HZ the elevator reaches forward to HF chord. */
-export const HZ = 1.72,
-  HF = 0.5;
+  SSPAN = 1.963,
+  /** Elevator chord fraction: a straight, unswept hinge line at FS 315.2 (AMM Fig 6-00-2). */
+  EF = 0.694;
+/** Elevator tip (horn balance): outboard of HZ (BL 72) the elevator is full chord with a rounded leading corner (AMM Fig 55-20-2). */
+export const HZ = 1.83;
+/** How far the rounded elevator tip cuts back the leading edge outboard of HZ (the trailing edge stays straight). */
+const hTip = (z: number) => {
+  const a = Math.abs(z);
+  return a > HZ ? 0.45 * (1 - Math.sqrt(Math.max(0, 1 - ((a - HZ) / (SSPAN - HZ)) ** 2))) : 0;
+};
+export const sLE = (z: number) => -2.302 - Math.abs(z) * 0.113 - hTip(z);
+export const sC = (z: number) => 0.798 - Math.abs(z) * 0.163 - hTip(z);
 /** Rudder horn balance: above HH the rudder reaches forward to HR chord. */
 export const HH = 1.36,
   HR = 0.45;
