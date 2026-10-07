@@ -35,10 +35,9 @@ button{font:inherit;color:inherit}
 /* ---------- rail ---------- */
 .rail{border-right:1px solid var(--rule);background:var(--panel);display:flex;flex-direction:column;min-height:0}
 .brand{padding:18px 18px 14px;border-bottom:1px solid var(--rule)}
-.brand .eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
 .brand h1{font-family:var(--f-disp);font-weight:700;font-size:30px;line-height:1;margin:6px 0 4px;letter-spacing:.01em}
 /* fleet picker: one button per airplane */
-.fleet{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin:10px 0 10px;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.fleet{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin:0 0 12px;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
 .fleet button{background:var(--panel2);border:0;border-right:1px solid var(--rule);padding:6px 2px;cursor:pointer;font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--muted)}
 .fleet button:last-child{border-right:0}
 .fleet button:hover{color:var(--ink)}
@@ -46,11 +45,11 @@ button{font:inherit;color:inherit}
 .brand p{margin:0;font-size:13px;color:var(--muted)}
 .syslist{list-style:none;margin:0;padding:8px 8px 16px;overflow:auto;flex:1}
 .syslist button{width:100%;display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;text-align:left;
-  background:none;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;color:var(--ink)}
+  background:none;border:0;border-radius:6px;padding:7px 10px;cursor:pointer;color:var(--ink)}
 .syslist button:hover{background:var(--panel2)}
-.syslist button[aria-current="true"]{background:var(--panel2);box-shadow:inset 3px 0 0 var(--c)}
+.syslist button[aria-current="true"]{background:var(--panel2);font-weight:600}
 .syslist .sw{width:10px;height:10px;border-radius:2px;background:var(--c)}
-.syslist .nm{font-family:var(--f-disp);font-weight:600;font-size:17px;letter-spacing:.02em;text-transform:uppercase}
+.syslist .nm{font-size:15px}
 .syslist .pg{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
 .rail .foot{padding:12px 18px;border-top:1px solid var(--rule);font-size:12px;color:var(--muted)}
 
@@ -58,24 +57,21 @@ button{font:inherit;color:inherit}
 .stage{position:relative;min-width:0;min-height:0;background:var(--scene);overflow:hidden;-webkit-tap-highlight-color:transparent}
 .stage > div:first-child{position:absolute!important;inset:0}
 .stage canvas{display:block;touch-action:none}
-.loading{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-mono);font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
-.pin{position:absolute;left:0;top:0;transform:translate(-50%,-100%);white-space:nowrap;font-family:var(--f-mono);font-size:11px;
-  padding:3px 6px;border-radius:3px;background:var(--panel);color:var(--ink);border:1px solid var(--c);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.loading{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;color:var(--muted)}
+.pin{position:absolute;left:0;top:0;transform:translate(-50%,-100%);white-space:nowrap;font-size:12px;line-height:1.3;
+  padding:2px 6px;border-radius:3px;background:var(--panel);color:var(--ink);border:1px solid var(--c)}
 .pin::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:10px;background:var(--c)}
 .pin b{font-weight:500;color:var(--c)}
 .pin{margin-top:-10px}
 .tip{position:absolute;pointer-events:none;max-width:260px;background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 10px;
   font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:30} /* above the label pins (drei Html zIndexRange [20,0]) */
-.tip h4{margin:0 0 2px;font-family:var(--f-disp);font-size:16px;letter-spacing:.02em;text-transform:uppercase}
+.tip h4{margin:0 0 2px;font-size:14px;font-weight:600}
 .tip p{margin:0;color:var(--muted)}
 .toolbar{position:absolute;top:12px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-.tb{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:5px 9px;font-family:var(--f-mono);font-size:11px;cursor:pointer;
-  text-transform:uppercase;letter-spacing:.04em}
+.tb{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:4px 10px;font-size:13px;cursor:pointer}
 .tb[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .tb-theme{display:inline-flex;align-items:center;gap:5px}
 .tb-theme .ico{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
-.hint{position:absolute;left:12px;top:12px;font-family:var(--f-mono);font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--panel) 80%,transparent);
-  padding:4px 8px;border-radius:4px}
 /* foot of the viewport: alert window left, airplane HUD (SR20 CAPS timeline) right; wraps when the view is narrow, stacked on phones */
 .stage-foot{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;pointer-events:none}
 .stage-foot > *{pointer-events:auto}
@@ -96,7 +92,7 @@ button{font:inherit;color:inherit}
 /* ---------- panel ---------- */
 .panel{border-left:1px solid var(--rule);background:var(--panel);overflow:auto;min-height:0}
 .panel-inner{padding:20px 22px 40px}
-.ref{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;display:flex;gap:8px;align-items:center}
+.ref{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
 .ref i{width:10px;height:10px;border-radius:2px;background:var(--c);display:inline-block}
 .panel h2{font-family:var(--f-disp);font-weight:700;font-size:34px;line-height:1;margin:8px 0 10px;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
 .lead{margin:0 0 16px;max-width:62ch}
@@ -104,7 +100,7 @@ button{font:inherit;color:inherit}
   padding-bottom:5px;border-bottom:1px solid var(--rule)}
 dl.facts{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:0;font-size:14px}
 dl.facts dt{color:var(--muted)}
-dl.facts dd{margin:0;font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums}
+dl.facts dd{margin:0;font-variant-numeric:tabular-nums}
 .notes{margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px}
 .notes li::marker{color:var(--c)}
 .caution{border-left:3px solid var(--caut);background:var(--panel2);padding:8px 10px;font-size:13.5px;margin:10px 0 0;border-radius:0 4px 4px 0}
@@ -112,7 +108,7 @@ dl.facts dd{margin:0;font-family:var(--f-mono);font-size:13px;font-variant-numer
 /* controls */
 .ctl{display:grid;gap:12px}
 .row{display:grid;gap:5px}
-.row > label,.lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.row > label,.lbl{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
 .row output{color:var(--ink);font-variant-numeric:tabular-nums}
 .seg{display:flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;flex-wrap:wrap}
 .seg button{flex:1;background:var(--panel2);border:0;border-right:1px solid var(--rule);padding:7px 6px;cursor:pointer;font-family:var(--f-mono);font-size:12px;min-width:44px}
@@ -133,7 +129,7 @@ input[type=range]{width:100%;accent-color:var(--c,var(--accent))}
 .btn.primary{background:var(--c,var(--accent));border-color:transparent;color:#fff}
 .readouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
 .ro{background:var(--panel2);padding:7px 9px}
-.ro span{display:block;font-family:var(--f-mono);font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.ro span{display:block;font-size:12px;color:var(--muted)}
 .ro b{font-family:var(--f-mono);font-weight:500;font-size:17px;font-variant-numeric:tabular-nums}
 .ro b.bad{color:var(--warn)} .ro b.warnc{color:#B98A00}
 .buses{display:grid;gap:6px}
@@ -149,9 +145,8 @@ input[type=range]{width:100%;accent-color:var(--c,var(--accent))}
 .bus.on .chip{color:var(--ink);text-decoration:none;opacity:1;border-color:color-mix(in srgb,var(--elec) 55%,var(--rule))}
 button.chip{font:inherit;font-family:var(--f-mono);font-size:10.5px;background:none;cursor:pointer}
 button.chip:hover{border-color:var(--elec)}
-.chip.pulled,.bus.on .chip.pulled{background:repeating-linear-gradient(90deg,#fff 0 3px,#d7dde1 3px 6px);color:#6b1f26;text-decoration:line-through;opacity:1;border-color:#c8313b}
-.chip.pulled::after{content:" ⏏";}
-.mcu{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.chip.pulled,.bus.on .chip.pulled{background:color-mix(in srgb,var(--warn) 10%,var(--panel2));color:var(--warn);text-decoration:line-through;opacity:1;border-color:var(--warn)}
+.mcu{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px}
 .mcu .bus .src{margin-left:0}
 .parts{list-style:none;padding:0;margin:0;display:grid;gap:4px}
 .parts button{width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:5px;padding:5px 8px;cursor:pointer;display:grid;gap:1px}
@@ -165,12 +160,11 @@ button.chip:hover{border-color:var(--elec)}
 .overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .overview-grid button{text-align:left;border:1px solid var(--rule);background:var(--panel2);border-radius:6px;padding:8px 10px;cursor:pointer;display:grid;gap:2px}
 .overview-grid button:hover{border-color:var(--c)}
-.overview-grid b{font-family:var(--f-disp);font-size:16px;text-transform:uppercase;letter-spacing:.03em;color:var(--c)}
-.overview-grid span{font-size:12.5px;color:var(--muted)}
+.overview-grid b{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px}
+.overview-grid b::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c);flex:none}
+.overview-grid span{font-size:13px;color:var(--muted);padding-left:18px}
 .disc{margin-top:26px;font-size:12px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
 
-/* the toolbar would run over the hint; the rail footer gives the same instructions */
-@media (max-width:1240px){ .hint{display:none} }
 @media (max-width:1100px){ .app{grid-template-columns:200px minmax(0,1fr) 340px} }
 @media (max-width:860px){
   html,body{height:auto}
@@ -183,7 +177,6 @@ button.chip:hover{border-color:var(--elec)}
   .syslist li{flex:none}
   .syslist button{grid-template-columns:10px auto;padding:6px 10px;border:1px solid var(--rule)}
   .syslist .pg{display:none}
-  .syslist .nm{font-size:15px}
   .rail .foot{display:none}
   .stage{height:58vh;min-height:340px}
   .panel{border-left:0;border-top:1px solid var(--rule);overflow:visible}
@@ -191,7 +184,6 @@ button.chip:hover{border-color:var(--elec)}
   .stage-foot{flex-direction:column-reverse;align-items:flex-start;gap:8px}
   .cas{width:200px;font-size:11px}
   .cas .hd{letter-spacing:.02em;gap:8px}
-  .hint{display:none}
   .caps-hud{min-width:0}
 }
 @media (prefers-reduced-motion: reduce){ .rock .body::after{transition:none} }

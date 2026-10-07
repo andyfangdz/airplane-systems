@@ -22,7 +22,7 @@ export function Overview() {
         </BtnRow>
         <Readouts items={[["Where", air ? "Airborne" : "On the ramp"], ["Engine", running ? "RUNNING" : ["STOPPED", "bad"]]]} />
       </Ctl>
-      <H3>At a glance</H3>
+      <H3>Key figures</H3>
       <Facts rows={[
         ["Engine", "Lycoming IO-360-M1A · 180 hp @ 2,700 RPM"],
         ["Propeller", "MT MTV-12-B/183-59b, 3 blades, Ø 1.83 m, constant speed"],

@@ -18,7 +18,7 @@
 /* tripped breaker (button out): amber stripes, mixed from the theme tokens so it reads in light and dark */
 .n3-buses .chip.tripped,.n3-buses .bus.on .chip.tripped{background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--elec) 18%,var(--panel2)) 0 3px,color-mix(in srgb,var(--elec) 40%,var(--panel2)) 3px 6px);
   color:color-mix(in srgb,var(--elec) 45%,var(--ink));text-decoration:line-through;opacity:1;border-color:var(--elec);cursor:pointer}
-.n3-buses .chip.tripped::after{content:" ⏏ reset";}
+.n3-buses .chip.tripped::after{content:" · reset"}
 .n3-buses .chip i{font-style:normal;opacity:.65}
 .n3-meter{display:block}
 .n3-dia{width:100%;max-width:440px;height:auto;display:block;margin:6px auto 2px;

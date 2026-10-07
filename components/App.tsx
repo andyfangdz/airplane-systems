@@ -33,7 +33,6 @@ function Rail() {
   return (
     <nav className="rail" aria-label="Systems">
       <div className="brand">
-        <div className="eyebrow">{def.doc} · Airplane &amp; Systems</div>
         <Fleet />
         <h1>{def.name}</h1>
         <p>{def.sub}</p>
@@ -193,7 +192,6 @@ export default function App() {
       <Rail />
       <main className="stage">
         <Scene />
-        <div className="hint">Hover parts · drag to orbit</div>
         <Toolbar />
         <div className="stage-foot">
           <Alerts key={def.id} />
