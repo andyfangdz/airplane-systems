@@ -12,26 +12,87 @@ const P = ({ parent }: { parent: string }) => <Parts cat={CAT} parent={parent} /
 
 /** Links whose end points move every frame. */
 const LINKS: Record<string, LinkSpec> = {
-  "drop-1": { name: "Elevator drop link", note: "Push-pull link from the yoke tube to the lever on the elevator torque tube (POH Fig. 7-1).", r: 0.007, chan: "elevator", sys: ["controls"] },
-  drop1: { name: "Elevator drop link", note: "Push-pull link from the yoke tube to the lever on the elevator torque tube (POH Fig. 7-1).", r: 0.007, chan: "elevator", sys: ["controls"] },
-  ailRod: { name: "Aileron push rod", note: "Links both pivoting yoke carriages to the central pulley sector (POH Fig. 7-2).", r: 0.006, chan: "aileron", sys: ["controls"] },
-  elevPush: { name: "Elevator push-pull tube", note: "From the aft sector pulley's crank pin to the elevator bellcrank.", r: 0.01, chan: "elevator", sys: ["controls"] },
-  rudPush: { name: "Rudder push-pull tube", note: "From the aft rudder sector to the rudder bellcrank.", r: 0.009, chan: "rudder", sys: ["controls"] },
-  "ped-1": { name: "Pedal link", note: "Connects the left pedal pair to its end of the rudder cable horn.", r: 0.006, chan: "rudder", sys: ["controls", "gear"] },
-  ped1: { name: "Pedal link", note: "Connects the right pedal pair to its end of the rudder cable horn.", r: 0.006, chan: "rudder", sys: ["controls", "gear"] },
-  "cone-1": { name: "Aileron drive link", note: "Right-angle drive: the wing sector's crank swings fore-aft and this link turns the aileron's drive arm about the hinge.", r: 0.006, chan: "aileron", sys: ["controls"] },
-  cone1: { name: "Aileron drive link", note: "Right-angle drive: the wing sector's crank swings fore-aft and this link turns the aileron's drive arm about the hinge.", r: 0.006, chan: "aileron", sys: ["controls"] },
+  "drop-1": {
+    name: "Elevator drop link",
+    note: "Push-pull link from the yoke tube to the lever on the elevator torque tube (POH Fig. 7-1).",
+    r: 0.007,
+    chan: "elevator",
+    sys: ["controls"],
+  },
+  drop1: {
+    name: "Elevator drop link",
+    note: "Push-pull link from the yoke tube to the lever on the elevator torque tube (POH Fig. 7-1).",
+    r: 0.007,
+    chan: "elevator",
+    sys: ["controls"],
+  },
+  ailRod: {
+    name: "Aileron push rod",
+    note: "Links both pivoting yoke carriages to the central pulley sector (POH Fig. 7-2).",
+    r: 0.006,
+    chan: "aileron",
+    sys: ["controls"],
+  },
+  elevPush: {
+    name: "Elevator push-pull tube",
+    note: "From the aft sector pulley's crank pin to the elevator bellcrank.",
+    r: 0.01,
+    chan: "elevator",
+    sys: ["controls"],
+  },
+  rudPush: {
+    name: "Rudder push-pull tube",
+    note: "From the aft rudder sector to the rudder bellcrank.",
+    r: 0.009,
+    chan: "rudder",
+    sys: ["controls"],
+  },
+  "ped-1": {
+    name: "Pedal link",
+    note: "Connects the left pedal pair to its end of the rudder cable horn.",
+    r: 0.006,
+    chan: "rudder",
+    sys: ["controls", "gear"],
+  },
+  ped1: {
+    name: "Pedal link",
+    note: "Connects the right pedal pair to its end of the rudder cable horn.",
+    r: 0.006,
+    chan: "rudder",
+    sys: ["controls", "gear"],
+  },
+  "cone-1": {
+    name: "Aileron drive link",
+    note: "Right-angle drive: the wing sector's crank swings fore-aft and this link turns the aileron's drive arm about the hinge.",
+    r: 0.006,
+    chan: "aileron",
+    sys: ["controls"],
+  },
+  cone1: {
+    name: "Aileron drive link",
+    note: "Right-angle drive: the wing sector's crank swings fore-aft and this link turns the aileron's drive arm about the hinge.",
+    r: 0.006,
+    chan: "aileron",
+    sys: ["controls"],
+  },
 };
 
-const points = () => { const s = useSR20.getState().s; return linkPoints(s, rigPose(s)); };
+const points = () => {
+  const s = useSR20.getState().s;
+  return linkPoints(s, rigPose(s));
+};
 
 /** Animated cable-control mechanisms from POH Figures 7-1 (elevator), 7-2 (aileron), 7-3 (rudder). */
 export function ControlRig() {
   const g = useRef<Record<string, THREE.Object3D | null>>({});
-  const set = (k: string) => (o: THREE.Object3D | null) => { g.current[k] = o; };
+  const set = (k: string) => (o: THREE.Object3D | null) => {
+    g.current[k] = o;
+  };
 
   useFrame(() => {
-    const s = useSR20.getState().s, p = rigPose(s), G = g.current;
+    const s = useSR20.getState().s,
+      p = rigPose(s),
+      G = g.current;
     if (G.ett) G.ett.rotation.z = p.ett;
     if (G.carrL) G.carrL.rotation.x = p.carr;
     if (G.carrR) G.carrR.rotation.x = p.carr;
@@ -47,15 +108,31 @@ export function ControlRig() {
 
   return (
     <>
-      <group ref={set("ett")} position={ETT.c}><P parent="rig:ett" /></group>
-      <group ref={set("carrL")} position={[CARR.x, CARR.y, -CARR.z]}><P parent="rig:carr:L" /></group>
-      <group ref={set("carrR")} position={[CARR.x, CARR.y, CARR.z]}><P parent="rig:carr:R" /></group>
-      <group ref={set("ailSector")} position={AIL_SECTOR.c}><P parent="rig:ailSector" /></group>
-      <group ref={set("rudHorn")} position={RUD_HORN.c}><P parent="rig:rudHorn" /></group>
-      <group ref={set("pedL")}><P parent="rig:pedL" /></group>
-      <group ref={set("pedR")}><P parent="rig:pedR" /></group>
+      <group ref={set("ett")} position={ETT.c}>
+        <P parent="rig:ett" />
+      </group>
+      <group ref={set("carrL")} position={[CARR.x, CARR.y, -CARR.z]}>
+        <P parent="rig:carr:L" />
+      </group>
+      <group ref={set("carrR")} position={[CARR.x, CARR.y, CARR.z]}>
+        <P parent="rig:carr:R" />
+      </group>
+      <group ref={set("ailSector")} position={AIL_SECTOR.c}>
+        <P parent="rig:ailSector" />
+      </group>
+      <group ref={set("rudHorn")} position={RUD_HORN.c}>
+        <P parent="rig:rudHorn" />
+      </group>
+      <group ref={set("pedL")}>
+        <P parent="rig:pedL" />
+      </group>
+      <group ref={set("pedR")}>
+        <P parent="rig:pedR" />
+      </group>
       {Object.entries(PULLEYS).map(([k, d]) => (
-        <group key={k} ref={set("pul:" + k)} position={d.c}><P parent={"rig:pul:" + k} /></group>
+        <group key={k} ref={set("pul:" + k)} position={d.c}>
+          <P parent={"rig:pul:" + k} />
+        </group>
       ))}
       <Links links={LINKS} points={points} />
     </>

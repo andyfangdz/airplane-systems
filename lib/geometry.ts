@@ -13,18 +13,24 @@ export type Ring = THREE.Vector3[];
 
 /** Skins a list of point rings into a mesh. Rings must all have the same point count. */
 export function loft(sections: Ring[], { closed = true, caps = true } = {}) {
-  const N = sections[0].length, M = sections.length;
-  const pos: number[] = [], idx: number[] = [];
+  const N = sections[0].length,
+    M = sections.length;
+  const pos: number[] = [],
+    idx: number[] = [];
   sections.forEach((r) => r.forEach((p) => pos.push(p.x, p.y, p.z)));
   const J = closed ? N : N - 1;
   for (let i = 0; i < M - 1; i++)
     for (let j = 0; j < J; j++) {
-      const a = i * N + j, b = i * N + ((j + 1) % N), c = (i + 1) * N + j, d = (i + 1) * N + ((j + 1) % N);
+      const a = i * N + j,
+        b = i * N + ((j + 1) % N),
+        c = (i + 1) * N + j,
+        d = (i + 1) * N + ((j + 1) % N);
       idx.push(a, c, b, b, c, d);
     }
   if (caps && closed) {
     [0, M - 1].forEach((i) => {
-      const r = sections[i], c = new THREE.Vector3();
+      const r = sections[i],
+        c = new THREE.Vector3();
       r.forEach((p) => c.add(p));
       c.multiplyScalar(1 / N);
       const ci = pos.length / 3;
@@ -44,7 +50,12 @@ export function af(x: number, t: number, m: number): [number, number] {
   x = clamp(x, 0, 1);
   const yt = 5 * t * (0.2969 * Math.sqrt(x) - 0.126 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
   const p = 0.4;
-  const yc = m === 0 ? 0 : x < p ? (m / (p * p)) * (2 * p * x - x * x) : (m / ((1 - p) * (1 - p))) * (1 - 2 * p + 2 * p * x - x * x);
+  const yc =
+    m === 0
+      ? 0
+      : x < p
+        ? (m / (p * p)) * (2 * p * x - x * x)
+        : (m / ((1 - p) * (1 - p))) * (1 - 2 * p + 2 * p * x - x * x);
   return [yc + yt, yc - yt];
 }
 
@@ -52,11 +63,13 @@ export function af(x: number, t: number, m: number): [number, number] {
 export function afRing(c0: number, c1: number, t: number, m: number, n = 16): [number, number][] {
   const pts: [number, number][] = [];
   for (let i = 0; i <= n; i++) {
-    const u = i / n, x = c0 + (c1 - c0) * (1 - Math.cos(((1 - u) * Math.PI) / 2));
+    const u = i / n,
+      x = c0 + (c1 - c0) * (1 - Math.cos(((1 - u) * Math.PI) / 2));
     pts.push([x, af(x, t, m)[0]]);
   }
   for (let i = 1; i <= n; i++) {
-    const u = i / n, x = c0 + (c1 - c0) * (1 - Math.cos((u * Math.PI) / 2));
+    const u = i / n,
+      x = c0 + (c1 - c0) * (1 - Math.cos((u * Math.PI) / 2));
     pts.push([x, af(x, t, m)[1]]);
   }
   return pts;
@@ -69,16 +82,23 @@ export function interp(tab: number[][], col: number, x: number) {
   if (x >= xs[0]) return tab[0][col];
   if (x <= xs[xs.length - 1]) return tab[tab.length - 1][col];
   while (i < xs.length - 1 && !(x <= xs[i] && x >= xs[i + 1])) i++;
-  const p0 = tab[Math.max(i - 1, 0)][col], p1 = tab[i][col], p2 = tab[i + 1][col], p3 = tab[Math.min(i + 2, tab.length - 1)][col];
+  const p0 = tab[Math.max(i - 1, 0)][col],
+    p1 = tab[i][col],
+    p2 = tab[i + 1][col],
+    p3 = tab[Math.min(i + 2, tab.length - 1)][col];
   const t = (xs[i] - x) / (xs[i] - xs[i + 1]);
-  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+  return (
+    0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t)
+  );
 }
 
 /** Piecewise-linear lookup in a table sorted by ascending first column (clamped). Returns [col1, col2, …]. */
 export function lin(tab: number[][], x: number) {
   let i = 0;
   while (i < tab.length - 2 && x > tab[i + 1][0]) i++;
-  const a = tab[i], b = tab[i + 1], t = clamp((x - a[0]) / (b[0] - a[0]), 0, 1);
+  const a = tab[i],
+    b = tab[i + 1],
+    t = clamp((x - a[0]) / (b[0] - a[0]), 0, 1);
   return a.slice(1).map((v, k) => lerp(v, b[k + 1], t));
 }
 
@@ -105,14 +125,33 @@ export function tubeGeo(points: (Vec3 | THREE.Vector3)[], r: number, tension = 0
  * section's half sizes at t = 0…1 of the path's length: [toward `ref`, across]. `ref` is a direction the first half size is
  * kept square to the path toward, e.g. fore-aft for a part drawn in a lateral plane. Bring r toward 0 at an end to round it.
  */
-export function sweepGeo(points: (Vec3 | THREE.Vector3)[], r: (t: number) => [number, number], ref: Vec3 = [1, 0, 0], tension = 0.35, n = 48, seg = 16) {
-  const curve = curveOf(points, tension), W = toV(ref).normalize();
+export function sweepGeo(
+  points: (Vec3 | THREE.Vector3)[],
+  r: (t: number) => [number, number],
+  ref: Vec3 = [1, 0, 0],
+  tension = 0.35,
+  n = 48,
+  seg = 16,
+) {
+  const curve = curveOf(points, tension),
+    W = toV(ref).normalize();
   const rings: Ring[] = [];
   for (let i = 0; i <= n; i++) {
-    const t = i / n, c = curve.getPointAt(t), T = curve.getTangentAt(t);
-    const A = W.clone().addScaledVector(T, -W.dot(T)).normalize(), B = new THREE.Vector3().crossVectors(A, T);
+    const t = i / n,
+      c = curve.getPointAt(t),
+      T = curve.getTangentAt(t);
+    const A = W.clone().addScaledVector(T, -W.dot(T)).normalize(),
+      B = new THREE.Vector3().crossVectors(A, T);
     const [ra, rb] = r(t);
-    rings.push(Array.from({ length: seg }, (_, j) => { const a = (j / seg) * Math.PI * 2; return c.clone().addScaledVector(A, Math.cos(a) * ra).addScaledVector(B, Math.sin(a) * rb); }));
+    rings.push(
+      Array.from({ length: seg }, (_, j) => {
+        const a = (j / seg) * Math.PI * 2;
+        return c
+          .clone()
+          .addScaledVector(A, Math.cos(a) * ra)
+          .addScaledVector(B, Math.sin(a) * rb);
+      }),
+    );
   }
   return loft(rings);
 }
@@ -126,7 +165,8 @@ export const roundEnds = (t: number, k0: number, k1 = k0) => {
 export function pantGeo(len: number, r: number) {
   const pts: THREE.Vector2[] = [];
   for (let i = 0; i <= 24; i++) {
-    const h = (i / 24) * len, u = 1 - h / len;
+    const h = (i / 24) * len,
+      u = 1 - h / len;
     pts.push(new THREE.Vector2(r * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.55)), 0.8) + 1e-4, h));
   }
   const g = new THREE.LatheGeometry(pts, 28);
@@ -137,7 +177,8 @@ export function pantGeo(len: number, r: number) {
 
 /** Merge geometries (positions + index only; normals recomputed). */
 export function mergeGeos(gs: THREE.BufferGeometry[]) {
-  const pos: number[] = [], idx: number[] = [];
+  const pos: number[] = [],
+    idx: number[] = [];
   let off = 0;
   gs.forEach((g) => {
     const p = g.attributes.position;
@@ -159,9 +200,23 @@ export type Axis = "x" | "y" | "z";
 /** Grooved pulley (or double pulley) oriented on the given axis, centred at the origin. */
 export function pulleyGeo(r: number, axis: Axis, double = false, gap = 0.03) {
   const w = 0.018;
-  const prof = [[0.003, -w / 2], [r, -w / 2], [r, -w / 4], [r * 0.78, 0], [r, w / 4], [r, w / 2], [0.003, w / 2]].map(([a, b]) => new THREE.Vector2(a, b));
+  const prof = [
+    [0.003, -w / 2],
+    [r, -w / 2],
+    [r, -w / 4],
+    [r * 0.78, 0],
+    [r, w / 4],
+    [r, w / 2],
+    [0.003, w / 2],
+  ].map(([a, b]) => new THREE.Vector2(a, b));
   const wheel = () => new THREE.LatheGeometry(prof, 28);
-  const g = double ? mergeGeos([wheel().translate(0, -gap / 2, 0), wheel().translate(0, gap / 2, 0), new THREE.CylinderGeometry(0.006, 0.006, gap + w, 8)]) : wheel();
+  const g = double
+    ? mergeGeos([
+        wheel().translate(0, -gap / 2, 0),
+        wheel().translate(0, gap / 2, 0),
+        new THREE.CylinderGeometry(0.006, 0.006, gap + w, 8),
+      ])
+    : wheel();
   if (axis === "z") g.rotateX(Math.PI / 2);
   if (axis === "x") g.rotateZ(Math.PI / 2);
   return g;
@@ -191,7 +246,10 @@ export function roundPoly(pts: number[][], cut = 0.14, it = 2) {
     const o: number[][] = [];
     p.forEach((a, i) => {
       const b = p[(i + 1) % p.length];
-      o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+      o.push(
+        [a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25],
+        [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75],
+      );
     });
     p = o;
   }
@@ -203,7 +261,9 @@ export const densify = (pts: number[][], step = 0.03, close = true) => {
   const o: number[][] = [];
   const N = close ? pts.length : pts.length - 1;
   for (let i = 0; i < N; i++) {
-    const a = pts[i], b = pts[(i + 1) % pts.length], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    const a = pts[i],
+      b = pts[(i + 1) % pts.length],
+      n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
     for (let k = 0; k < n; k++) o.push([lerp(a[0], b[0], k / n), lerp(a[1], b[1], k / n)]);
   }
   if (!close) o.push(pts[pts.length - 1]);
@@ -224,18 +284,24 @@ export interface FuselageOpts {
 
 /** Superellipse-section fuselage driven by a station table. */
 export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
-  const xNose = table[0][0], xTail = table[table.length - 1][0];
+  const xNose = table[0][0],
+    xTail = table[table.length - 1][0];
   const fus = (x: number) => ({ hw: interp(table, 1, x), hh: interp(table, 2, x), cy: interp(table, 3, x) });
   const topY = (x: number) => fus(x).cy + fus(x).hh;
   const botY = (x: number) => fus(x).cy - fus(x).hh;
 
   /** Ring of N points around the section at x, scaled by s; optionally an open arc th0..th1 (0 = right side, π/2 = top). */
   function ring(x: number, s = 1, N = 40, th0 = 0, th1 = Math.PI * 2, closed = true): Ring {
-    const { hw, hh, cy } = fus(x), pts: Ring = [], cnt = closed ? N : N + 1;
+    const { hw, hh, cy } = fus(x),
+      pts: Ring = [],
+      cnt = closed ? N : N + 1;
     for (let j = 0; j < cnt; j++) {
       const th = closed ? (j / N) * Math.PI * 2 : th0 + ((th1 - th0) * j) / N;
-      const c = Math.cos(th), sn = Math.sin(th), n = sn >= 0 ? nTop : nBot;
-      const py = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n), pz = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+      const c = Math.cos(th),
+        sn = Math.sin(th),
+        n = sn >= 0 ? nTop : nBot;
+      const py = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n),
+        pz = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
       pts.push(V(x, cy + s * hh * py, s * hw * (1 - tumble * Math.max(0, py)) * pz));
     }
     return pts;
@@ -247,29 +313,39 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
     const { hw, hh, cy } = fus(p.x);
     const py = (p.y - cy) / (hh - m);
     if (Math.abs(py) > 1) return false;
-    const n = py >= 0 ? nTop : nBot, w = (hw - m) * (1 - tumble * Math.max(0, py));
+    const n = py >= 0 ? nTop : nBot,
+      w = (hw - m) * (1 - tumble * Math.max(0, py));
     return Math.pow(Math.abs(p.z) / w, n) + Math.pow(Math.abs(py), n) <= 1;
   }
 
   /** Point on the outer skin at (x, y) on the given side (+1 right, -1 left). */
   function onSkin(x: number, y: number, side: number, push = 1.006) {
     const { hw, hh, cy } = fus(x);
-    const py = clamp((y - cy) / hh, -1, 1), n = py >= 0 ? nTop : nBot;
+    const py = clamp((y - cy) / hh, -1, 1),
+      n = py >= 0 ? nTop : nBot;
     const w = hw * (1 - tumble * Math.max(0, py));
     return V(x, y, side * w * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(py), n)), 1 / n) * push);
   }
 
   /** Ring angle (0 = side, π/2 = top) where the upper skin passes height y at station x. */
-  const thetaAt = (x: number, y: number) => { const { hh, cy } = fus(x); return Math.asin(Math.pow(clamp((y - cy) / hh, 0, 1), nTop / 2)); };
+  const thetaAt = (x: number, y: number) => {
+    const { hh, cy } = fus(x);
+    return Math.asin(Math.pow(clamp((y - cy) / hh, 0, 1), nTop / 2));
+  };
 
   /** Skin loft from nose to tail with side-projected UVs over the box `uv` (for a painted texture). */
-  function geo({ step = 0.06, N = 48, uv }: { step?: number; N?: number; uv?: { x0: number; x1: number; y0: number; y1: number } } = {}) {
+  function geo({
+    step = 0.06,
+    N = 48,
+    uv,
+  }: { step?: number; N?: number; uv?: { x0: number; x1: number; y0: number; y1: number } } = {}) {
     const secs: Ring[] = [];
     for (let x = xNose; x > xTail; x -= step) secs.push(ring(x, 1, N));
     secs.push(ring(xTail, 1, N));
     const g = loft(secs);
     if (uv) {
-      const pos = g.attributes.position, a = new Float32Array(pos.count * 2);
+      const pos = g.attributes.position,
+        a = new Float32Array(pos.count * 2);
       for (let i = 0; i < pos.count; i++) {
         a[2 * i] = (pos.getX(i) - uv.x0) / (uv.x1 - uv.x0);
         a[2 * i + 1] = (pos.getY(i) - uv.y0) / (uv.y1 - uv.y0);
@@ -293,14 +369,27 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
     const clipY = (poly: THREE.Vector2[], yc: number, keepAbove: boolean) => {
       const out: THREE.Vector2[] = [];
       for (let i = 0; i < poly.length; i++) {
-        const A = poly[i], B = poly[(i + 1) % poly.length];
-        const ina = keepAbove ? A.y >= yc : A.y <= yc, inb = keepAbove ? B.y >= yc : B.y <= yc;
+        const A = poly[i],
+          B = poly[(i + 1) % poly.length];
+        const ina = keepAbove ? A.y >= yc : A.y <= yc,
+          inb = keepAbove ? B.y >= yc : B.y <= yc;
         if (ina) out.push(A);
-        if (ina !== inb) { const t = (yc - A.y) / (B.y - A.y); out.push(new THREE.Vector2(A.x + (B.x - A.x) * t, yc)); }
+        if (ina !== inb) {
+          const t = (yc - A.y) / (B.y - A.y);
+          out.push(new THREE.Vector2(A.x + (B.x - A.x) * t, yc));
+        }
       }
       return out;
     };
-    const pts = clipY(clipY(ring(xr, s, 72).map((p) => new THREE.Vector2(p.z, p.y)), y0, true), y1, false);
+    const pts = clipY(
+      clipY(
+        ring(xr, s, 72).map((p) => new THREE.Vector2(p.z, p.y)),
+        y0,
+        true,
+      ),
+      y1,
+      false,
+    );
     const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth, bevelEnabled: false });
     g.rotateY(Math.PI / 2);
     g.translate(x - depth / 2, 0, 0);
@@ -326,7 +415,8 @@ export interface SurfaceOpts {
 export function liftingSurface({ le, chord, y, t, m }: SurfaceOpts) {
   /** Point at span z and chord fraction xc; up = +1 upper skin, -1 lower, 0 mean line. */
   const p = (z: number, xc: number, up = 0) => {
-    const c = chord(z), [u, l] = af(xc, t(z), m);
+    const c = chord(z),
+      [u, l] = af(xc, t(z), m);
     return V(le(z) - xc * c, y(z) + (up > 0 ? u : up < 0 ? l : (u + l) / 2) * c, z);
   };
   /** Airfoil ring between chord fractions c0..c1 (thickness scaled by `scale`). */
@@ -338,12 +428,24 @@ export function liftingSurface({ le, chord, y, t, m }: SurfaceOpts) {
 }
 
 /** Vertical fin: symmetric sections at height h (z is thickness). */
-export function finSurface({ le, chord, t }: { le: (h: number) => number; chord: (h: number) => number; t: (h: number) => number }) {
+export function finSurface({
+  le,
+  chord,
+  t,
+}: {
+  le: (h: number) => number;
+  chord: (h: number) => number;
+  t: (h: number) => number;
+}) {
   const sec = (h: number, c0: number, c1: number): Ring => {
     const c = chord(h);
     return afRing(c0, c1, t(h), 0).map(([x, y]) => V(le(h) - x * c, h, y * c));
   };
-  const p = (h: number, xc: number, side = 0) => { const c = chord(h), [u] = af(xc, t(h), 0); return V(le(h) - xc * c, h, side * u * c); };
+  const p = (h: number, xc: number, side = 0) => {
+    const c = chord(h),
+      [u] = af(xc, t(h), 0);
+    return V(le(h) - xc * c, h, side * u * c);
+  };
   return { le, chord, t, sec, p };
 }
 

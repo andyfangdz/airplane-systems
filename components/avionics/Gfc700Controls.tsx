@@ -13,8 +13,22 @@ import { AfcsStrip, FlyControls, HoldKey, Key, pad3, ToneLine } from "./parts";
 
 /** Bezel key arrangements: Cessna NAV III GDU 1040 (PFD and MFD) and DA40 MFD (no BC; YD slot empty unless installed). */
 const LAYOUTS: Record<"cessna" | "da40", (Gfc700Key | null)[][]> = {
-  cessna: [["AP", "FD"], ["HDG", "ALT"], ["NAV", "VNV"], ["APR", "BC"], ["VS", "FLC"], ["NOSE_UP", "NOSE_DN"]],
-  da40: [["AP", "YD"], ["FD", "HDG"], ["NAV", "APR"], ["ALT", "VNV"], ["VS", "NOSE_UP"], ["FLC", "NOSE_DN"]],
+  cessna: [
+    ["AP", "FD"],
+    ["HDG", "ALT"],
+    ["NAV", "VNV"],
+    ["APR", "BC"],
+    ["VS", "FLC"],
+    ["NOSE_UP", "NOSE_DN"],
+  ],
+  da40: [
+    ["AP", "YD"],
+    ["FD", "HDG"],
+    ["NAV", "APR"],
+    ["ALT", "VNV"],
+    ["VS", "NOSE_UP"],
+    ["FLC", "NOSE_DN"],
+  ],
 };
 const LABEL: Partial<Record<Gfc700Key, [string, string?]>> = { NOSE_UP: ["NOSE", "UP"], NOSE_DN: ["NOSE", "DN"] };
 
@@ -39,11 +53,23 @@ export interface Gfc700ControlsProps {
   loc?: [boolean, boolean];
 }
 
-export function Gfc700Controls({ st, fs, onKey, onSet, powered, cfg, layout = "cessna", where, yoke, loc }: Gfc700ControlsProps) {
+export function Gfc700Controls({
+  st,
+  fs,
+  onKey,
+  onSet,
+  powered,
+  cfg,
+  layout = "cessna",
+  where,
+  yoke,
+  loc,
+}: Gfc700ControlsProps) {
   const a = powered ? gfc700Annunc(st, fs, cfg) : null;
   const dots = navDots(fs);
   const grid = LAYOUTS[layout].flat().map((k, i) => {
-    if (!k || (k === "YD" && !cfg.hasYD) || (k === "BC" && !cfg.bcKey)) return <span key={i} className="avx-k blank" aria-hidden />;
+    if (!k || (k === "YD" && !cfg.hasYD) || (k === "BC" && !cfg.bcKey))
+      return <span key={i} className="avx-k blank" aria-hidden />;
     const [l, sub] = LABEL[k] ?? [k];
     return <Key key={k} label={l} sub={sub} onClick={() => onKey(k)} disabled={!powered} />;
   });
@@ -51,7 +77,14 @@ export function Gfc700Controls({ st, fs, onKey, onSet, powered, cfg, layout = "c
     <div className="avx">
       <div>
         <AfcsStrip a={a} />
-        <ToneLine on={!!a?.tone} text={st.apFlash?.kind === "abnormal" ? "Autopilot disconnect tone — continuous until AP DISC" : "Autopilot disconnect tone"} />
+        <ToneLine
+          on={!!a?.tone}
+          text={
+            st.apFlash?.kind === "abnormal"
+              ? "Autopilot disconnect tone — continuous until AP DISC"
+              : "Autopilot disconnect tone"
+          }
+        />
       </div>
       <div className="avx-row">
         <div className="avx-hw">
@@ -59,22 +92,77 @@ export function Gfc700Controls({ st, fs, onKey, onSet, powered, cfg, layout = "c
           <div className="avx-keys">{grid}</div>
         </div>
         <div className="avx-hw">
-          <div className="avx-cap">{yoke ?? (layout === "da40" ? "Control stick · throttle" : "Control wheel · panel")}</div>
+          <div className="avx-cap">
+            {yoke ?? (layout === "da40" ? "Control stick · throttle" : "Control wheel · panel")}
+          </div>
           <div className="avx-col">
-            <Key className="red wide" label={cfg.discLabel} onClick={() => onKey("AP_DISC")} disabled={!powered} title="Disconnects the AP, interrupts trim, acknowledges a disconnect" />
-            <HoldKey className="wide" label="CWS" sub="hold" onDown={() => onKey("CWS")} onUp={() => onKey("CWS_UP")} disabled={!powered} title="Control wheel steering: hold to hand-fly, release to resync" />
-            <HoldKey label="TRIM DN" sub={cfg.trimLabel} repeat={120} onDown={() => onKey("TRIM_DN")} onRepeat={() => onKey("TRIM_DN_HOLD")} disabled={!powered} title="Manual electric trim, nose down (disconnects the AP)" />
-            <HoldKey label="TRIM UP" sub={cfg.trimLabel} repeat={120} onDown={() => onKey("TRIM_UP")} onRepeat={() => onKey("TRIM_UP_HOLD")} disabled={!powered} title="Manual electric trim, nose up (disconnects the AP)" />
-            <Key className="wide" label="GA" sub={fs.onGround ? "TO" : "go-around"} onClick={() => onKey("GA")} disabled={!powered} />
+            <Key
+              className="red wide"
+              label={cfg.discLabel}
+              onClick={() => onKey("AP_DISC")}
+              disabled={!powered}
+              title="Disconnects the AP, interrupts trim, acknowledges a disconnect"
+            />
+            <HoldKey
+              className="wide"
+              label="CWS"
+              sub="hold"
+              onDown={() => onKey("CWS")}
+              onUp={() => onKey("CWS_UP")}
+              disabled={!powered}
+              title="Control wheel steering: hold to hand-fly, release to resync"
+            />
+            <HoldKey
+              label="TRIM DN"
+              sub={cfg.trimLabel}
+              repeat={120}
+              onDown={() => onKey("TRIM_DN")}
+              onRepeat={() => onKey("TRIM_DN_HOLD")}
+              disabled={!powered}
+              title="Manual electric trim, nose down (disconnects the AP)"
+            />
+            <HoldKey
+              label="TRIM UP"
+              sub={cfg.trimLabel}
+              repeat={120}
+              onDown={() => onKey("TRIM_UP")}
+              onRepeat={() => onKey("TRIM_UP_HOLD")}
+              disabled={!powered}
+              title="Manual electric trim, nose up (disconnects the AP)"
+            />
+            <Key
+              className="wide"
+              label="GA"
+              sub={fs.onGround ? "TO" : "go-around"}
+              onClick={() => onKey("GA")}
+              disabled={!powered}
+            />
           </div>
         </div>
       </div>
-      <Readouts items={[
-        ["HDG", pad3(fs.hdg) + "°"], ["Bank", `${Math.round(fs.roll)}°`], ["IAS", `${Math.round(fs.ias)} KT`],
-        ["ALT", `${Math.round(fs.alt)} FT`], ["VS", `${Math.round(fs.vs / 10) * 10} FPM`],
-        ["CDI dots", dots == null ? ["NO D-BAR", "bad"] : `${dots > 0.05 ? "▶" : dots < -0.05 ? "◀" : ""}${Math.abs(dots).toFixed(1)}`],
-        ["Trim", st.trim > 0.02 ? `NU ${Math.round(st.trim * 100)}%` : st.trim < -0.02 ? `ND ${Math.round(-st.trim * 100)}%` : "Neutral"],
-      ]} />
+      <Readouts
+        items={[
+          ["HDG", pad3(fs.hdg) + "°"],
+          ["Bank", `${Math.round(fs.roll)}°`],
+          ["IAS", `${Math.round(fs.ias)} KT`],
+          ["ALT", `${Math.round(fs.alt)} FT`],
+          ["VS", `${Math.round(fs.vs / 10) * 10} FPM`],
+          [
+            "CDI dots",
+            dots == null
+              ? ["NO D-BAR", "bad"]
+              : `${dots > 0.05 ? "▶" : dots < -0.05 ? "◀" : ""}${Math.abs(dots).toFixed(1)}`,
+          ],
+          [
+            "Trim",
+            st.trim > 0.02
+              ? `NU ${Math.round(st.trim * 100)}%`
+              : st.trim < -0.02
+                ? `ND ${Math.round(-st.trim * 100)}%`
+                : "Neutral",
+          ],
+        ]}
+      />
       {onSet && <FlyControls fs={fs} onSet={onSet} loc={loc} id="gfc" />}
     </div>
   );

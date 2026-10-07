@@ -1,7 +1,11 @@
 /** Shared materials. Everything is cached so hundreds of parts share a handful of materials. */
 import * as THREE from "three";
 
-export interface MatSet { on: THREE.MeshStandardMaterial; hi: THREE.MeshStandardMaterial; dim: THREE.MeshStandardMaterial }
+export interface MatSet {
+  on: THREE.MeshStandardMaterial;
+  hi: THREE.MeshStandardMaterial;
+  dim: THREE.MeshStandardMaterial;
+}
 const cache = new Map<string, MatSet>();
 
 /** Normal / highlighted / dimmed materials for a colour. */
@@ -10,9 +14,25 @@ export function mats(hex: string): MatSet {
   if (!m) {
     const c = new THREE.Color(hex);
     m = {
-      on: new THREE.MeshStandardMaterial({ color: c, roughness: 0.5, metalness: 0.1, emissive: c.clone().multiplyScalar(0.18) }),
-      hi: new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.1, emissive: c.clone().multiplyScalar(0.55) }),
-      dim: new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, transparent: true, opacity: 0.1, depthWrite: false }),
+      on: new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: 0.5,
+        metalness: 0.1,
+        emissive: c.clone().multiplyScalar(0.18),
+      }),
+      hi: new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: 0.4,
+        metalness: 0.1,
+        emissive: c.clone().multiplyScalar(0.55),
+      }),
+      dim: new THREE.MeshStandardMaterial({
+        color: c,
+        roughness: 0.6,
+        transparent: true,
+        opacity: 0.1,
+        depthWrite: false,
+      }),
     };
     cache.set(hex, m);
   }
@@ -57,18 +77,43 @@ export function seeMat(hex: string) {
   let m = sees.get(hex);
   if (!m) {
     const c = new THREE.Color(hex);
-    m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.1, emissive: c.clone().multiplyScalar(0.4), transparent: true, opacity: 0.65, depthWrite: false });
+    m = new THREE.MeshStandardMaterial({
+      color: c,
+      roughness: 0.4,
+      metalness: 0.1,
+      emissive: c.clone().multiplyScalar(0.4),
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false,
+    });
     m.userData.seeThrough = true;
     sees.set(hex, m);
   }
   return m;
 }
 
-export const solidMat = new THREE.MeshStandardMaterial({ color: "#F1F3F4", roughness: 0.42, metalness: 0.05, side: THREE.DoubleSide });
+export const solidMat = new THREE.MeshStandardMaterial({
+  color: "#F1F3F4",
+  roughness: 0.42,
+  metalness: 0.05,
+  side: THREE.DoubleSide,
+});
 
 export const plateMat = {
-  on: new THREE.MeshStandardMaterial({ color: "#6F8FAA", transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
-  dim: new THREE.MeshStandardMaterial({ color: "#6F8FAA", transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide }),
+  on: new THREE.MeshStandardMaterial({
+    color: "#6F8FAA",
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }),
+  dim: new THREE.MeshStandardMaterial({
+    color: "#6F8FAA",
+    transparent: true,
+    opacity: 0.06,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }),
 };
 
 export const outlineMat = new THREE.LineBasicMaterial({ color: "#10171C", transparent: true, opacity: 0.9 });
@@ -77,7 +122,10 @@ const skins = new Map<() => THREE.Texture, THREE.MeshStandardMaterial>();
 /** Painted skin (windows, door seams, stripes) for solid mode, one material per painter. */
 export function skinMat(paint: () => THREE.Texture) {
   let m = skins.get(paint);
-  if (!m) { m = new THREE.MeshStandardMaterial({ map: paint(), roughness: 0.36, metalness: 0.05, side: THREE.DoubleSide }); skins.set(paint, m); }
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ map: paint(), roughness: 0.36, metalness: 0.05, side: THREE.DoubleSide });
+    skins.set(paint, m);
+  }
   return m;
 }
 
@@ -89,8 +137,11 @@ export function dotTex() {
     c.width = c.height = 64;
     const g = c.getContext("2d")!;
     const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.35, "rgba(255,255,255,.7)"); r.addColorStop(1, "rgba(255,255,255,0)");
-    g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+    r.addColorStop(0, "rgba(255,255,255,1)");
+    r.addColorStop(0.35, "rgba(255,255,255,.7)");
+    r.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
     _dot = new THREE.CanvasTexture(c);
   }
   return _dot;

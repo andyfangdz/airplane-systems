@@ -1,77 +1,353 @@
 /* Shared avionics panel widgets (GFC 700 controls, KAP 140 faceplate). Hardware pieces stay dark in both themes. */
-.avx{display:grid;gap:12px;min-width:0}
-.avx-cap{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#9AA6AE;margin:0 0 6px}
+.avx {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.avx-cap {
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9aa6ae;
+  margin: 0 0 6px;
+}
 
 /* AFCS status strip — mirrors the PFD bar */
-.avx-strip{display:grid;grid-template-columns:.8fr 1fr 1fr 1fr 1.9fr 1.1fr;align-items:center;background:#000;border:1px solid #39424A;border-radius:4px;
-  font-family:var(--f-mono);font-weight:500;font-size:13px;min-height:32px;overflow:hidden}
-.avx-strip > span{padding:6px 3px;text-align:center;white-space:nowrap;overflow:hidden;min-width:0;border-left:1px solid #1E252B}
-.avx-strip > span:first-child{border-left:0}
-.avx-strip .avx-ref{font-size:12px;margin-left:5px}
-.avx-g{color:#2BFF2B} .avx-w{color:#FFFFFF} .avx-y{color:#FFE000} .avx-r{color:#FF3B30}
-.avx-boxed{outline:1.5px solid currentColor;outline-offset:2px;padding:0 3px}
-.avx-blink{animation:avx-blink 1s steps(1,end) infinite}
-@keyframes avx-blink{50%{opacity:0}}
-.avx-tone{display:inline-flex;gap:6px;align-items:center;font-family:var(--f-mono);font-size:11px;color:var(--muted);min-height:16px}
-.avx-tone b{color:var(--ink);font-weight:500}
-.avx-tone i{width:8px;height:8px;border-radius:50%;background:#E7B416;box-shadow:0 0 6px #E7B416;display:inline-block}
+.avx-strip {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1fr 1fr 1.9fr 1.1fr;
+  align-items: center;
+  background: #000;
+  border: 1px solid #39424a;
+  border-radius: 4px;
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 13px;
+  min-height: 32px;
+  overflow: hidden;
+}
+.avx-strip > span {
+  padding: 6px 3px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+  border-left: 1px solid #1e252b;
+}
+.avx-strip > span:first-child {
+  border-left: 0;
+}
+.avx-strip .avx-ref {
+  font-size: 12px;
+  margin-left: 5px;
+}
+.avx-g {
+  color: #2bff2b;
+}
+.avx-w {
+  color: #ffffff;
+}
+.avx-y {
+  color: #ffe000;
+}
+.avx-r {
+  color: #ff3b30;
+}
+.avx-boxed {
+  outline: 1.5px solid currentColor;
+  outline-offset: 2px;
+  padding: 0 3px;
+}
+.avx-blink {
+  animation: avx-blink 1s steps(1, end) infinite;
+}
+@keyframes avx-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.avx-tone {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--muted);
+  min-height: 16px;
+}
+.avx-tone b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.avx-tone i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e7b416;
+  box-shadow: 0 0 6px #e7b416;
+  display: inline-block;
+}
 
 /* bezel keys */
-.avx-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
-.avx-hw{background:linear-gradient(#24292E,#16191C);border:1px solid #0A0C0E;border-radius:8px;padding:8px 9px 9px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
-.avx-keys{display:grid;grid-template-columns:repeat(2,62px);gap:6px}
-.avx-col{display:grid;gap:6px;grid-template-columns:repeat(2,minmax(62px,auto))}
-.avx-k{appearance:none;background:linear-gradient(#3C434A,#272C31);color:#F2F4F5;border:1px solid #0E1215;border-radius:5px;min-height:34px;padding:0 6px;
-  font:600 12px/1.05 var(--f-body);letter-spacing:.03em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 2px 0 #090B0D;touch-action:manipulation;
-  -webkit-user-select:none;user-select:none}
-.avx-k:hover{background:linear-gradient(#454D55,#2D3338)}
-.avx-k:active,.avx-k[data-down="true"]{transform:translateY(1px);box-shadow:inset 0 1px 2px rgba(0,0,0,.5);background:#1F2428}
-.avx-k:disabled{opacity:.4;cursor:default}
-.avx-k.red{background:linear-gradient(#B8282E,#7A1418);border-color:#3A0A0C}
-.avx-k.red:hover{background:linear-gradient(#C93138,#86181D)}
-.avx-k.wide{grid-column:span 2}
-.avx-k.blank{visibility:hidden}
-.avx-k small{display:block;font-size:9.5px;font-weight:500;opacity:.8}
+.avx-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.avx-hw {
+  background: linear-gradient(#24292e, #16191c);
+  border: 1px solid #0a0c0e;
+  border-radius: 8px;
+  padding: 8px 9px 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.avx-keys {
+  display: grid;
+  grid-template-columns: repeat(2, 62px);
+  gap: 6px;
+}
+.avx-col {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(62px, auto));
+}
+.avx-k {
+  appearance: none;
+  background: linear-gradient(#3c434a, #272c31);
+  color: #f2f4f5;
+  border: 1px solid #0e1215;
+  border-radius: 5px;
+  min-height: 34px;
+  padding: 0 6px;
+  font: 600 12px/1.05 var(--f-body);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 2px 0 #090b0d;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.avx-k:hover {
+  background: linear-gradient(#454d55, #2d3338);
+}
+.avx-k:active,
+.avx-k[data-down="true"] {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  background: #1f2428;
+}
+.avx-k:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.avx-k.red {
+  background: linear-gradient(#b8282e, #7a1418);
+  border-color: #3a0a0c;
+}
+.avx-k.red:hover {
+  background: linear-gradient(#c93138, #86181d);
+}
+.avx-k.wide {
+  grid-column: span 2;
+}
+.avx-k.blank {
+  visibility: hidden;
+}
+.avx-k small {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 500;
+  opacity: 0.8;
+}
 
 /* fly controls */
-.avx-fly{display:grid;gap:8px}
-.avx-knob{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center}
-.avx-knob > span{font-size:13px;color:var(--muted);display:flex;flex-direction:column}
-.avx-knob > span b{font-family:var(--f-mono);font-weight:500;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
-.avx-knob .btnrow .btn{padding:5px 8px;min-width:40px;font-family:var(--f-mono);font-size:12px}
+.avx-fly {
+  display: grid;
+  gap: 8px;
+}
+.avx-knob {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.avx-knob > span {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+}
+.avx-knob > span b {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.avx-knob .btnrow .btn {
+  padding: 5px 8px;
+  min-width: 40px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+}
 
 /* KAP 140 faceplate */
-.avx-kap{background:linear-gradient(#2E3236,#17191B);border:1px solid #050606;border-radius:8px;padding:10px;display:grid;gap:10px;max-width:560px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 14px rgba(0,0,0,.25);container-type:inline-size}
-.avx-kap-top{display:flex;justify-content:space-between;align-items:baseline;font:600 11px var(--f-body);letter-spacing:.12em;color:#C9D0D5}
-.avx-kap-top em{font-style:normal;font-size:9px;letter-spacing:.08em;color:#8F999F}
-.avx-lcd{width:100%;aspect-ratio:4/1;display:block;border-radius:3px;border:2px solid #000;background:#050606}
-.avx-kap-keys{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) minmax(0,.9fr) minmax(0,.9fr) auto;gap:6px;align-items:center}
-.avx-kap-keys .avx-k{min-height:32px;padding:0 2px;font-size:11.5px}
-.avx-stack{display:grid;gap:4px}
-.avx-stack .avx-k{min-height:22px}
-.avx-dial{position:relative;width:76px;height:76px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#5A6168,#24282C 70%);border:1px solid #0A0B0C;
-  box-shadow:0 2px 4px rgba(0,0,0,.5)}
-.avx-dial::after{content:"";position:absolute;left:23px;top:23px;width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#6A7178,#2B3034 70%);
-  border:1px solid #0A0B0C;pointer-events:none}
-.avx-dial button{position:absolute;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.35);color:#E8ECEE;font:600 12px/22px var(--f-mono);
-  padding:0;cursor:pointer;z-index:1}
-.avx-dial button:hover{background:rgba(0,0,0,.6)}
-.avx-dial .o1{left:-2px;top:27px} .avx-dial .o2{right:-2px;top:27px}
-.avx-dial .i1{left:23px;top:27px;width:14px;height:22px;border-radius:4px 0 0 4px;background:transparent;font-size:10px}
-.avx-dial .i2{left:39px;top:27px;width:14px;height:22px;border-radius:0 4px 4px 0;background:transparent;font-size:10px}
-.avx-yoke{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.avx-kap {
+  background: linear-gradient(#2e3236, #17191b);
+  border: 1px solid #050606;
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 4px 14px rgba(0, 0, 0, 0.25);
+  container-type: inline-size;
+}
+.avx-kap-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font: 600 11px var(--f-body);
+  letter-spacing: 0.12em;
+  color: #c9d0d5;
+}
+.avx-kap-top em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #8f999f;
+}
+.avx-lcd {
+  width: 100%;
+  aspect-ratio: 4/1;
+  display: block;
+  border-radius: 3px;
+  border: 2px solid #000;
+  background: #050606;
+}
+.avx-kap-keys {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.avx-kap-keys .avx-k {
+  min-height: 32px;
+  padding: 0 2px;
+  font-size: 11.5px;
+}
+.avx-stack {
+  display: grid;
+  gap: 4px;
+}
+.avx-stack .avx-k {
+  min-height: 22px;
+}
+.avx-dial {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #5a6168, #24282c 70%);
+  border: 1px solid #0a0b0c;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.avx-dial::after {
+  content: "";
+  position: absolute;
+  left: 23px;
+  top: 23px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #6a7178, #2b3034 70%);
+  border: 1px solid #0a0b0c;
+  pointer-events: none;
+}
+.avx-dial button {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e8ecee;
+  font: 600 12px/22px var(--f-mono);
+  padding: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+.avx-dial button:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+.avx-dial .o1 {
+  left: -2px;
+  top: 27px;
+}
+.avx-dial .o2 {
+  right: -2px;
+  top: 27px;
+}
+.avx-dial .i1 {
+  left: 23px;
+  top: 27px;
+  width: 14px;
+  height: 22px;
+  border-radius: 4px 0 0 4px;
+  background: transparent;
+  font-size: 10px;
+}
+.avx-dial .i2 {
+  left: 39px;
+  top: 27px;
+  width: 14px;
+  height: 22px;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+  font-size: 10px;
+}
+.avx-yoke {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
 
-@media (max-width:520px){
-  .avx-strip{font-size:11.5px}
-  .avx-strip .avx-ref{font-size:10.5px;margin-left:3px}
-  .avx-knob{grid-template-columns:1fr}
+@media (max-width: 520px) {
+  .avx-strip {
+    font-size: 11.5px;
+  }
+  .avx-strip .avx-ref {
+    font-size: 10.5px;
+    margin-left: 3px;
+  }
+  .avx-knob {
+    grid-template-columns: 1fr;
+  }
 }
 /* KAP 140 keys: one row needs about 470 px (stacks of at least 37 px plus the 76 px dial); narrower faceplates (phones and the
    desktop side panel) put ARM / BARO and the dial on a second row so the dial never covers them */
-@container (max-width:470px){
-  .avx-kap-keys{grid-template-columns:repeat(6,minmax(0,1fr))}
-  .avx-kap-keys .avx-stack{grid-column:span 2;grid-template-columns:1fr 1fr}
-  .avx-kap-keys .avx-dial{grid-column:span 2;justify-self:center}
+@container (max-width:470px) {
+  .avx-kap-keys {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .avx-kap-keys .avx-stack {
+    grid-column: span 2;
+    grid-template-columns: 1fr 1fr;
+  }
+  .avx-kap-keys .avx-dial {
+    grid-column: span 2;
+    justify-self: center;
+  }
 }
-@media (prefers-reduced-motion: reduce){ .avx-blink{animation-duration:2s} }
+@media (prefers-reduced-motion: reduce) {
+  .avx-blink {
+    animation-duration: 2s;
+  }
+}

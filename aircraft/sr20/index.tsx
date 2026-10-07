@@ -22,12 +22,20 @@ function CapsHud() {
   useTicker(100);
   const sys = useView((x) => x.sys);
   if (sys !== "caps") return null;
-  const t = Math.max(0, live.capsT), [, title, sub] = live.capsT < 0 ? [0, "Ready", ""] : capsPhase(t);
-  return <div className="caps-hud"><span>T + {t.toFixed(1)} s</span><b>{title}</b><span className="sub">{sub}</span></div>;
+  const t = Math.max(0, live.capsT),
+    [, title, sub] = live.capsT < 0 ? [0, "Ready", ""] : capsPhase(t);
+  return (
+    <div className="caps-hud">
+      <span>T + {t.toFixed(1)} s</span>
+      <b>{title}</b>
+      <span className="sub">{sub}</span>
+    </div>
+  );
 }
 
 function useAlerts() {
-  const s = useSR20((x) => x.s), E = useSR20((x) => x.E);
+  const s = useSR20((x) => x.s),
+    E = useSR20((x) => x.E);
   const powered = E.pfd || E.mfd;
   return { powered, msgs: powered ? casMessages(s, E) : [] };
 }
@@ -44,14 +52,29 @@ export const SR20: AircraftDef = {
   Model,
   Overlay: Parachute,
   panels: {
-    overview: Overview, airframe: Airframe, controls: Controls, flaps: Flaps, gear: Gear, engine: Engine, propeller: Propeller,
-    fuel: Fuel, electrical: Electrical, lighting: Lighting, environment: Environment, pitot: Pitot, avionics: Avionics, cabin: Cabin, caps: Caps,
+    overview: Overview,
+    airframe: Airframe,
+    controls: Controls,
+    flaps: Flaps,
+    gear: Gear,
+    engine: Engine,
+    propeller: Propeller,
+    fuel: Fuel,
+    electrical: Electrical,
+    lighting: Lighting,
+    environment: Environment,
+    pitot: Pitot,
+    avionics: Avionics,
+    cabin: Cabin,
+    caps: Caps,
   },
   tick: simTick,
   useAlerts,
   alertTitle: "CAS",
   Hud: CapsHud,
-  onSelect: (to) => { if (to !== "caps" && useSR20.getState().s.capsOn) resetCaps(); },
+  onSelect: (to) => {
+    if (to !== "caps" && useSR20.getState().s.capsOn) resetCaps();
+  },
   labels: { cat: CAT, inside: inFus },
   resetCam: () => (useSR20.getState().s.capsOn ? CAPS_CAM : null),
 };

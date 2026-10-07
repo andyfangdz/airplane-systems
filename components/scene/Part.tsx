@@ -10,13 +10,22 @@ import { palette, sysColor, type SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
 
 /** What the hover tooltip needs to know about a mesh. */
-export interface PickInfo { name: string; note: string; color: string; sys: SysId[]; shell?: boolean }
+export interface PickInfo {
+  name: string;
+  note: string;
+  color: string;
+  sys: SysId[];
+  shell?: boolean;
+}
 
 /** Geometry is built once per spec and kept, so switching airplanes back and forth is cheap. */
 const geoCache = new WeakMap<object, THREE.BufferGeometry>();
 export function specGeo(spec: { geo: () => THREE.BufferGeometry }) {
   let g = geoCache.get(spec);
-  if (!g) { g = spec.geo(); geoCache.set(spec, g); }
+  if (!g) {
+    g = spec.geo();
+    geoCache.set(spec, g);
+  }
   return g;
 }
 
@@ -27,12 +36,17 @@ export function Pin({ at, label, color }: { at: THREE.Vector3; label: string; co
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   return (
     <Html position={at} portal={portal} zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
-      <div className="pin" style={{ "--c": color } as React.CSSProperties}>{label}</div>
+      <div className="pin" style={{ "--c": color } as React.CSSProperties}>
+        {label}
+      </div>
     </Html>
   );
 }
 
-const centerOf = (g: THREE.BufferGeometry) => { if (!g.boundingSphere) g.computeBoundingSphere(); return g.boundingSphere!.center.clone(); };
+const centerOf = (g: THREE.BufferGeometry) => {
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  return g.boundingSphere!.center.clone();
+};
 
 export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const geo = specGeo(spec);
@@ -52,33 +66,65 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const focused = !!focus && focus === spec.name;
   // fairings (wheel pants) ghost in X-ray like the skin, so what they cover stays visible
   const ghost = !!spec.fairing && xray && !focused && act;
-  const material = spec.plate ? (act ? plateMat.on : plateMat.dim)
-    : focused ? mats(color).hi
-    : ghost ? (all ? shellMat : ghostMat(sysColor(spec.sys[0], theme)))
-    : act || !xray ? mats(color).on : mats(color).dim;
+  const material = spec.plate
+    ? act
+      ? plateMat.on
+      : plateMat.dim
+    : focused
+      ? mats(color).hi
+      : ghost
+        ? all
+          ? shellMat
+          : ghostMat(sysColor(spec.sys[0], theme))
+        : act || !xray
+          ? mats(color).on
+          : mats(color).dim;
   // a ghosted fairing picks like the skin, so the wheel or brake seen through it gets the tooltip
-  const pick: PickInfo | undefined = spec.name ? { name: spec.name, note: spec.note ?? "", color, sys: spec.sys, shell: ghost || undefined } : undefined;
+  const pick: PickInfo | undefined = spec.name
+    ? { name: spec.name, note: spec.note ?? "", color, sys: spec.sys, shell: ghost || undefined }
+    : undefined;
   const showPin = labels && !all && !chanDim && cat.isPinned(spec, sys);
 
   useEffect(() => {
-    const name = spec.name, m = ref.current;
+    const name = spec.name,
+      m = ref.current;
     if (!name || partObjects.has(name)) return;
     partObjects.set(name, m);
-    return () => { if (partObjects.get(name) === m) partObjects.delete(name); };
+    return () => {
+      if (partObjects.get(name) === m) partObjects.delete(name);
+    };
   }, [spec.name]);
 
   // a part being flashed by "tap to locate" shows even if its animation hides it (e.g. a control lock not fitted)
-  useFrame(({ clock }) => { if (spec.anim) spec.anim(ref.current, clock.elapsedTime); if (focused) ref.current.visible = true; });
+  useFrame(({ clock }) => {
+    if (spec.anim) spec.anim(ref.current, clock.elapsedTime);
+    if (focused) ref.current.visible = true;
+  });
 
   return (
-    <mesh ref={ref} geometry={geo} material={material} renderOrder={ghost ? 2 : 0} position={spec.pos} rotation={spec.rot} scale={spec.scale} userData={{ pick }}>
+    <mesh
+      ref={ref}
+      geometry={geo}
+      material={material}
+      renderOrder={ghost ? 2 : 0}
+      position={spec.pos}
+      rotation={spec.rot}
+      scale={spec.scale}
+      userData={{ pick }}
+    >
       {showPin && spec.name && <Pin at={centerOf(geo)} label={spec.name} color={sysColor(sys, theme)} />}
     </mesh>
   );
 }
 
 /** All parts riding on one moving group (or the fixed airframe when parent is omitted). */
-export const Parts = ({ cat, parent }: { cat: Catalogue; parent?: string }) => <>{cat.partsFor(parent).map((p) => <Part key={p.id} spec={p} cat={cat} />)}</>;
+export const Parts = ({ cat, parent }: { cat: Catalogue; parent?: string }) => (
+  <>
+    {cat.partsFor(parent).map((p) => (
+      <Part key={p.id} spec={p} cat={cat} />
+    ))}
+  </>
+);
 
 /** Airframe skin: x-ray ghost, painted skin or plain white. */
 export function Shell({ spec }: { spec: ShellSpec }) {
@@ -86,8 +132,16 @@ export function Shell({ spec }: { spec: ShellSpec }) {
   const xray = useView((x) => x.xray);
   const theme = useView((x) => x.theme);
   const material = xray ? shellMat : spec.skin ? skinMat(spec.skin) : solidMat;
-  const pick: PickInfo | undefined = spec.name ? { name: spec.name, note: spec.note, color: palette(theme).frame, sys: ["airframe"], shell: true } : undefined;
+  const pick: PickInfo | undefined = spec.name
+    ? { name: spec.name, note: spec.note, color: palette(theme).frame, sys: ["airframe"], shell: true }
+    : undefined;
   return <mesh geometry={geo} material={material} renderOrder={xray ? 2 : 0} userData={{ pick }} />;
 }
 
-export const Shells = ({ cat }: { cat: Catalogue }) => <>{cat.shells.map((s) => <Shell key={s.id} spec={s} />)}</>;
+export const Shells = ({ cat }: { cat: Catalogue }) => (
+  <>
+    {cat.shells.map((s) => (
+      <Shell key={s.id} spec={s} />
+    ))}
+  </>
+);

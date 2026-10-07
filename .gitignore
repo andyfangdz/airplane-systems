@@ -6,4 +6,9 @@ next-env.d.ts
 .DS_Store
 .env*.local
 .vercel
-.claude/
+# Claude Code: share the project settings, hooks and skills; keep personal settings local
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+.shots/

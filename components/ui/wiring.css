@@ -1,21 +1,85 @@
 /* Live single-line electrical diagrams (components/ui/wiring.tsx): dead wires grey, live ones in the electrical colour. */
-.wiring{width:100%;max-width:440px;height:auto;display:block;margin:6px auto 2px;
-  --dead:color-mix(in srgb,var(--muted) 45%,var(--panel));--live:var(--elec)}
-.wiring text{font-family:var(--f-mono);font-size:11px;fill:var(--ink)}
-.wiring .d{fill:var(--muted);font-size:10px}
-.wiring .s{font-size:9px;letter-spacing:.04em}
-.wiring .x{fill:var(--elec)}
-.wiring .w{stroke:var(--dead);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.wiring .w.on{stroke:var(--live)}
-.wiring .w.out{stroke:var(--elec);stroke-dasharray:2 2}
-.wiring .t{fill:var(--panel);stroke:var(--dead);stroke-width:1.4}
-.wiring .t.on{stroke:var(--live)}
-.wiring .j{fill:var(--dead)}
-.wiring .j.on{fill:var(--live)}
-.wiring .dio{fill:var(--dead);stroke:var(--dead);stroke-width:1.6;stroke-linejoin:round}
-.wiring .dio.on{fill:var(--live);stroke:var(--live)}
-.wiring .fz{fill:var(--panel);stroke:var(--dead);stroke-width:1.4}
-.wiring .fz.on{stroke:var(--live)}
-.wiring rect.b{fill:var(--panel2);stroke:var(--dead)}
-.wiring rect.b.on{stroke:var(--live);fill:color-mix(in srgb,var(--elec) 14%,var(--panel2))}
-.wiring .area{fill:none;stroke:var(--rule);stroke-dasharray:4 3}
+.wiring {
+  width: 100%;
+  max-width: 440px;
+  height: auto;
+  display: block;
+  margin: 6px auto 2px;
+  --dead: color-mix(in srgb, var(--muted) 45%, var(--panel));
+  --live: var(--elec);
+}
+.wiring text {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  fill: var(--ink);
+}
+.wiring .d {
+  fill: var(--muted);
+  font-size: 10px;
+}
+.wiring .s {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.wiring .x {
+  fill: var(--elec);
+}
+.wiring .w {
+  stroke: var(--dead);
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.wiring .w.on {
+  stroke: var(--live);
+}
+.wiring .w.out {
+  stroke: var(--elec);
+  stroke-dasharray: 2 2;
+}
+.wiring .t {
+  fill: var(--panel);
+  stroke: var(--dead);
+  stroke-width: 1.4;
+}
+.wiring .t.on {
+  stroke: var(--live);
+}
+.wiring .j {
+  fill: var(--dead);
+}
+.wiring .j.on {
+  fill: var(--live);
+}
+.wiring .dio {
+  fill: var(--dead);
+  stroke: var(--dead);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.wiring .dio.on {
+  fill: var(--live);
+  stroke: var(--live);
+}
+.wiring .fz {
+  fill: var(--panel);
+  stroke: var(--dead);
+  stroke-width: 1.4;
+}
+.wiring .fz.on {
+  stroke: var(--live);
+}
+.wiring rect.b {
+  fill: var(--panel2);
+  stroke: var(--dead);
+}
+.wiring rect.b.on {
+  stroke: var(--live);
+  fill: color-mix(in srgb, var(--elec) 14%, var(--panel2));
+}
+.wiring .area {
+  fill: none;
+  stroke: var(--rule);
+  stroke-dasharray: 4 3;
+}

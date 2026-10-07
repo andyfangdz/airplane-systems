@@ -11,7 +11,6 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
-import "./parts-systems";
 import { useC182 } from "./store";
 import { SYS } from "./systems";
 import { simTick } from "./tick";
@@ -19,7 +18,8 @@ import { simTick } from "./tick";
 /** G1000 annunciation window (with the KAP 140 PITCH TRIM): shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
 function useAlerts() {
   useTicker(400);
-  const s = useC182((x) => x.s), E = useC182((x) => x.E);
+  const s = useC182((x) => x.s),
+    E = useC182((x) => x.E);
   const powered = E.pfd || E.mfd;
   return { powered, msgs: powered ? annunciations(s, E) : [] };
 }
@@ -35,8 +35,22 @@ export const C182T: AircraftDef = {
   pivotX: 0,
   Model,
   panels: {
-    overview: Overview, airframe: Airframe, controls: Controls, gear: Gear, flaps: Flaps, cabin: Cabin, engine: Engine, propeller: Propeller,
-    fuel: Fuel, electrical: Electrical, lighting: Lighting, environment: Environment, pitot: Pitot, vacuum: Vacuum, avionics: Avionics, autopilot: Autopilot,
+    overview: Overview,
+    airframe: Airframe,
+    controls: Controls,
+    gear: Gear,
+    flaps: Flaps,
+    cabin: Cabin,
+    engine: Engine,
+    propeller: Propeller,
+    fuel: Fuel,
+    electrical: Electrical,
+    lighting: Lighting,
+    environment: Environment,
+    pitot: Pitot,
+    vacuum: Vacuum,
+    avionics: Avionics,
+    autopilot: Autopilot,
   },
   tick: simTick,
   useAlerts,

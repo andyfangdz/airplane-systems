@@ -20,25 +20,35 @@
 
 export type Nav3Bus = "E1" | "E2" | "XF" | "ESS" | "AV1" | "AV2";
 export const NAV3_BUS_NAME: Record<Nav3Bus, string> = {
-  E1: "ELECTRICAL BUS 1", E2: "ELECTRICAL BUS 2", XF: "CROSSFEED BUS", ESS: "ESSENTIAL BUS", AV1: "AVIONICS BUS 1", AV2: "AVIONICS BUS 2",
+  E1: "ELECTRICAL BUS 1",
+  E2: "ELECTRICAL BUS 2",
+  XF: "CROSSFEED BUS",
+  ESS: "ESSENTIAL BUS",
+  AV1: "AVIONICS BUS 1",
+  AV2: "AVIONICS BUS 2",
 };
 /** Rows for the electrical panel: [bus, name, fed from] (POH Figure 7-7). */
-export const NAV3_BUSES: [Nav3Bus, string, string][] = ([
-  ["E1", "J-box feeder C/B “B”"],
-  ["E2", "J-box feeder C/B “A”"],
-  ["XF", "Bus 1 and Bus 2 through diodes"],
-  ["ESS", "Bus 1 and Bus 2 through diodes · standby battery (ARM)"],
-  ["AV1", "Bus 1 · AVN 1 breaker · AVIONICS (BUS 1)"],
-  ["AV2", "Bus 2 · AVN 2 breaker · AVIONICS (BUS 2)"],
-] as [Nav3Bus, string][]).map(([b, from]) => [b, NAV3_BUS_NAME[b], from]);
+export const NAV3_BUSES: [Nav3Bus, string, string][] = (
+  [
+    ["E1", "J-box feeder C/B “B”"],
+    ["E2", "J-box feeder C/B “A”"],
+    ["XF", "Bus 1 and Bus 2 through diodes"],
+    ["ESS", "Bus 1 and Bus 2 through diodes · standby battery (ARM)"],
+    ["AV1", "Bus 1 · AVN 1 breaker · AVIONICS (BUS 1)"],
+    ["AV2", "Bus 2 · AVN 2 breaker · AVIONICS (BUS 2)"],
+  ] as [Nav3Bus, string][]
+).map(([b, from]) => [b, NAV3_BUS_NAME[b], from]);
 /** "All circuit breakers on ESSENTIAL BUS, AVIONICS BUS 1 and AVIONICS BUS 2 are capable of being opened" (POH 7-57). */
 export const PULLABLE: Record<Nav3Bus, boolean> = { E1: false, E2: false, XF: false, ESS: true, AV1: true, AV2: true };
 
 /** One panel breaker. `key` = "BUS:LABEL" (labels repeat across buses, e.g. PFD on ESS and AVN 1). */
 export interface Breaker {
-  bus: Nav3Bus; label: string;
+  bus: Nav3Bus;
+  label: string;
   /** Rating (A) where a source gives it, and that source; `unverified` = not from the POH (shown as "5?"). */
-  amps?: number; src?: string; unverified?: boolean;
+  amps?: number;
+  src?: string;
+  unverified?: boolean;
   /** Load text from Fig 7-7 Sheet 2. */
   feeds: string;
 }
@@ -50,14 +60,18 @@ export const FEEDER = { E1: "PDM:FEEDER B", E2: "PDM:FEEDER A" } as const;
 export type StbySw = "ARM" | "OFF" | "TEST";
 export interface Nav3Elec {
   /** MASTER switch halves (ALT can't be ON without BAT: enforce in the UI) and AVIONICS BUS 1 / BUS 2. */
-  bat: boolean; alt: boolean; avn1: boolean; avn2: boolean;
+  bat: boolean;
+  alt: boolean;
+  avn1: boolean;
+  avn2: boolean;
   stby: StbySw;
   /** Ground power plugged in (28 V regulated). */
   ext: boolean;
   /** Breakers that are out (pulled or tripped), by key. */
   cb: Record<string, boolean>;
   /** State of charge 0..1 (updated by the airplane's tick). */
-  socMain: number; socStby: number;
+  socMain: number;
+  socStby: number;
   fail: {
     /** Alternator produces nothing (belt / brushes / diode). */
     alt: boolean;
@@ -76,28 +90,45 @@ export interface Nav3Elec {
 }
 
 export const nav3Init = (p: Partial<Nav3Elec> = {}): Nav3Elec => ({
-  bat: true, alt: true, avn1: true, avn2: true, stby: "ARM", ext: false, cb: {}, socMain: 0.92, socStby: 1,
-  fail: { alt: false, ov: false, ovSense: false, bat: false, stby: false }, ...p,
+  bat: true,
+  alt: true,
+  avn1: true,
+  avn2: true,
+  stby: "ARM",
+  ext: false,
+  cb: {},
+  socMain: 0.92,
+  socStby: 1,
+  fail: { alt: false, ov: false, ovSense: false, bat: false, stby: false },
+  ...p,
 });
 
 export interface Nav3Cfg {
   /** Alternator rating (A): 60 standard, 95 optional on the 182T. */
   altAmps: number;
   /** Main and standby battery capacity (Ah) used for the depletion clock. */
-  mainAh: number; stbyAh: number;
+  mainAh: number;
+  stbyAh: number;
   breakers: Breaker[];
 }
 
 export interface Nav3Solution {
   v: Record<Nav3Bus, number>;
   /** J-box main node (LOW VOLTS sensing point), and the EIS readouts. null = measuring breaker out (no reading). */
-  node: number; mBus: number | null; eBus: number | null;
+  node: number;
+  mBus: number | null;
+  eBus: number | null;
   /** Ammeters (A): main battery (+ charge), standby battery (+ charge), alternator output, total bus load. */
-  mBatt: number; sBatt: number; altAmps: number; load: number;
-  altOn: boolean; stbyOnline: boolean;
+  mBatt: number;
+  sBatt: number;
+  altAmps: number;
+  load: number;
+  altOn: boolean;
+  stbyOnline: boolean;
   /** STBY BATT TEST: green lamp stays lit (battery healthy). */
   testLamp: boolean;
-  lowVolts: boolean; highVolts: boolean;
+  lowVolts: boolean;
+  highVolts: boolean;
   /** ACU over-voltage sensor fires: the airplane's tick opens the ALT FIELD breaker. */
   acuTrip: boolean;
   /** Breaker key → breaker in and its bus powered. */
@@ -109,7 +140,8 @@ export interface Nav3Solution {
 const r1 = (v: number) => Math.round(v * 10) / 10;
 /** Main battery terminal voltage under light load vs state of charge (illustrative lead-acid curve): it collapses toward 0 V
  *  as the battery goes flat, so a dead battery drops the loads instead of holding the buses up forever. */
-export const vMain = (soc: number) => (soc > 0.1 ? 23.0 + 2.2 * ((soc - 0.1) / 0.9) : 23.0 * Math.sqrt(Math.max(0, soc) / 0.1));
+export const vMain = (soc: number) =>
+  soc > 0.1 ? 23.0 + 2.2 * ((soc - 0.1) / 0.9) : 23.0 * Math.sqrt(Math.max(0, soc) / 0.1);
 /** Standby battery voltage: ~25 V full, 20 V = "little or no capacity remaining" (POH 7-51). */
 export const vStby = (soc: number) => (soc <= 0.002 ? 0 : 20.4 + 4.7 * Math.pow(soc, 0.35));
 /** Usable standby-battery capacity (Ah): a weak / cold battery is modelled with a quarter of it (illustrative, not in the POH). */
@@ -123,7 +155,13 @@ const DIODE = 0.25;
  * `rpm` sets the alternator's capacity (it can't hold 28 V at low RPM with a high load — POH 3-19). `wasOn`: the alternator was
  * on line in the previous solution (it then feeds its own field, see below).
  */
-export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, number>, rpm: number, wasOn = false): Nav3Solution {
+export function solveNav3(
+  e: Nav3Elec,
+  cfg: Nav3Cfg,
+  loads: Record<string, number>,
+  rpm: number,
+  wasOn = false,
+): Nav3Solution {
   const out = (k: string) => !!e.cb[k];
   const batV = e.fail.bat ? 0 : vMain(e.socMain);
   // battery relay closes with MASTER BAT; ground power and the battery meet upstream of it
@@ -131,9 +169,11 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
   const source = Math.max(batV, e.ext ? 28.0 : 0);
   const altSet = e.fail.ov ? 33.6 : 28.0;
   const busesAt = (node: number) => {
-    const e1 = out(FEEDER.E1) ? 0 : node, e2 = out(FEEDER.E2) ? 0 : node;
+    const e1 = out(FEEDER.E1) ? 0 : node,
+      e2 = out(FEEDER.E2) ? 0 : node;
     const dor = Math.max(e1, e2) > 0 ? Math.max(e1, e2) - DIODE : 0;
-    const av1 = e.avn1 && !out("E1:AVN 1") ? e1 : 0, av2 = e.avn2 && !out("E2:AVN 2") ? e2 : 0;
+    const av1 = e.avn1 && !out("E1:AVN 1") ? e1 : 0,
+      av2 = e.avn2 && !out("E2:AVN 2") ? e2 : 0;
     return { E1: e1, E2: e2, XF: dor, ESS: dor, AV1: av1, AV2: av2 } as Record<Nav3Bus, number>;
   };
   // the field is powered through the ALT FIELD breaker on the CROSSFEED BUS: it needs that bus alive (battery or ground power
@@ -149,12 +189,14 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
   // weak / cold: 2 V lower (illustrative), so a full one gives about 23 V, below the 24 V the start checklist asks for
   const sV = Math.max(0, vStby(e.socStby) - (e.fail.stby ? 2 : 0));
   const sumLoads = (v: Record<Nav3Bus, number>) => {
-    let t = 0, ess = 0;
+    let t = 0,
+      ess = 0;
     for (const b of cfg.breakers) {
       const k = cbKey(b);
       if (out(k) || v[b.bus] < LIVE) continue;
       const a = loads[k] ?? 0;
-      t += a; if (b.bus === "ESS") ess += a;
+      t += a;
+      if (b.bus === "ESS") ess += a;
     }
     return { t, ess };
   };
@@ -178,7 +220,8 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
   const L = sumLoads(v);
   const essFromStby = stbyOnline ? L.ess : 0;
   const mainLoad = L.t - essFromStby;
-  let altAmps = 0, mBatt = 0;
+  let altAmps = 0,
+    mBatt = 0;
   if (altOn) {
     // a flat (but not failed) battery still takes a charge
     altAmps = Math.min(cfg.altAmps, mainLoad + chargeMain + (stbyArm && !stbyOnline ? chargeStby : 0));
@@ -189,31 +232,40 @@ export function solveNav3(e: Nav3Elec, cfg: Nav3Cfg, loads: Record<string, numbe
     mBatt = -(mainLoad + (stbyArm && !stbyOnline ? chargeStby : 0));
   }
   const sBatt = !stbyArm || sV <= 0 ? 0 : stbyOnline ? -L.ess : v.ESS > sV ? chargeStby : 0;
-  const on: Record<string, boolean> = {}, amps: Record<string, number> = {};
+  const on: Record<string, boolean> = {},
+    amps: Record<string, number> = {};
   for (const b of cfg.breakers) {
     const k = cbKey(b);
     on[k] = !out(k) && v[b.bus] >= LIVE;
-    amps[k] = on[k] ? loads[k] ?? 0 : 0;
+    amps[k] = on[k] ? (loads[k] ?? 0) : 0;
   }
   const mBus = out("XF:WARN") ? null : r1(v.XF);
   const eBus = out("ESS:NAV 1 ENG") ? null : r1(v.ESS);
   const hi = Math.max(v.E1, v.E2, v.ESS);
   return {
     v: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, r1(x)])) as Record<Nav3Bus, number>,
-    node: r1(node), mBus, eBus,
-    mBatt: Math.round(mBatt * 10) / 10, sBatt: Math.round(sBatt * 10) / 10, altAmps: Math.round(altAmps * 10) / 10, load: Math.round(L.t * 10) / 10,
-    altOn, stbyOnline,
+    node: r1(node),
+    mBus,
+    eBus,
+    mBatt: Math.round(mBatt * 10) / 10,
+    sBatt: Math.round(sBatt * 10) / 10,
+    altAmps: Math.round(altAmps * 10) / 10,
+    load: Math.round(L.t * 10) / 10,
+    altOn,
+    stbyOnline,
     testLamp: e.stby === "TEST" && !e.fail.stby && e.socStby > 0.55,
     lowVolts: node > 0 ? node < 24.5 : stbyOnline, // ACU signal; with the master off the ACU is unpowered but the PFD shows LOW VOLTS on the standby battery
     highVolts: hi > 32.0,
     acuTrip: altOn && altSet > 31.75 && !e.fail.ovSense,
-    on, amps,
+    on,
+    amps,
   };
 }
 
 /** Advance both batteries' state of charge by `dtMin` minutes using the solved ammeter readings. */
 export function stepNav3Soc(e: Nav3Elec, cfg: Nav3Cfg, E: Pick<Nav3Solution, "mBatt" | "sBatt">, dtMin: number) {
-  const dm = (E.mBatt / 60) * dtMin / cfg.mainAh, ds = (E.sBatt / 60) * dtMin / stbyAhOf(e, cfg);
+  const dm = ((E.mBatt / 60) * dtMin) / cfg.mainAh,
+    ds = ((E.sBatt / 60) * dtMin) / stbyAhOf(e, cfg);
   return {
     socMain: Math.max(0, Math.min(1, e.socMain + dm * (E.mBatt > 0 ? 0.85 : 1))),
     socStby: Math.max(0, Math.min(1, e.socStby + ds * (E.sBatt > 0 ? 0.85 : 1))),

@@ -33,27 +33,46 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
   const sys = useView((x) => x.sys);
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
-  const items = useMemo(() => screens.map((d) => {
-    const c = document.createElement("canvas");
-    c.width = d.px[0]; c.height = d.px[1];
-    const tx = new THREE.CanvasTexture(c);
-    tx.anisotropy = 4; tx.colorSpace = THREE.SRGBColorSpace;
-    return { d, ctx: c.getContext("2d")!, tx };
-  }), [screens]);
+  const items = useMemo(
+    () =>
+      screens.map((d) => {
+        const c = document.createElement("canvas");
+        c.width = d.px[0];
+        c.height = d.px[1];
+        const tx = new THREE.CanvasTexture(c);
+        tx.anisotropy = 4;
+        tx.colorSpace = THREE.SRGBColorSpace;
+        return { d, ctx: c.getContext("2d")!, tx };
+      }),
+    [screens],
+  );
   useEffect(() => () => items.forEach((it) => it.tx.dispose()), [items]);
   const acc = useRef(1);
   useFrame((_, dt) => {
     acc.current += dt;
     if (acc.current < every) return;
     acc.current = 0;
-    for (const it of items) { it.d.draw(it.ctx, it.d.px[0], it.d.px[1]); it.tx.needsUpdate = true; }
+    for (const it of items) {
+      it.d.draw(it.ctx, it.d.px[0], it.d.px[1]);
+      it.tx.needsUpdate = true;
+    }
   });
-  return <>{items.map(({ d, tx }) => (
-    <mesh key={d.key} position={d.pos} rotation={d.rot ?? [0, -Math.PI / 2, 0]}
-      userData={{ pick: { name: d.name, note: d.note, color: sysColor("avionics", theme), sys: d.sys } }}>
-      <planeGeometry args={d.size} />
-      <meshBasicMaterial map={tx} toneMapped={false} />
-      {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin() : d.pin ?? true) && <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />}
-    </mesh>
-  ))}</>;
+  return (
+    <>
+      {items.map(({ d, tx }) => (
+        <mesh
+          key={d.key}
+          position={d.pos}
+          rotation={d.rot ?? [0, -Math.PI / 2, 0]}
+          userData={{ pick: { name: d.name, note: d.note, color: sysColor("avionics", theme), sys: d.sys } }}
+        >
+          <planeGeometry args={d.size} />
+          <meshBasicMaterial map={tx} toneMapped={false} />
+          {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin() : (d.pin ?? true)) && (
+            <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />
+          )}
+        </mesh>
+      ))}
+    </>
+  );
 }

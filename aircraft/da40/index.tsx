@@ -19,8 +19,10 @@ import { simTick } from "./tick";
 /** G1000 annunciation window: shown only while a display has power (PFD, or the MFD in reversionary mode). */
 function useAlerts() {
   useTicker(250);
-  const s = useDA40((x) => x.s), E = useDA40((x) => x.E);
-  const d = displays(s, E), powered = d.pfd || d.mfd;
+  const s = useDA40((x) => x.s),
+    E = useDA40((x) => x.E);
+  const d = displays(s, E),
+    powered = d.pfd || d.mfd;
   return { powered, msgs: powered ? annunciations(s, E) : [] };
 }
 
@@ -35,9 +37,21 @@ export const DA40: AircraftDef = {
   pivotX: 0.3,
   Model,
   panels: {
-    overview: Overview, airframe: Airframe, controls: Controls, flaps: Flaps, gear: Gear, engine: Engine, propeller: Propeller,
-    fuel: Fuel, electrical: Electrical, lighting: Lighting, environment: Environment, pitot: Pitot, avionics: Avionics,
-    autopilot: Autopilot, cabin: Cabin,
+    overview: Overview,
+    airframe: Airframe,
+    controls: Controls,
+    flaps: Flaps,
+    gear: Gear,
+    engine: Engine,
+    propeller: Propeller,
+    fuel: Fuel,
+    electrical: Electrical,
+    lighting: Lighting,
+    environment: Environment,
+    pitot: Pitot,
+    avionics: Avionics,
+    autopilot: Autopilot,
+    cabin: Cabin,
   },
   tick: simTick,
   useAlerts,
