@@ -234,20 +234,38 @@ part(() => {
 /* ---------- cockpit / cabin ---------- */
 part(() => sectionSlab(2.3, -0.18, 0.3, 0.97, 0.04, 2.32), ["avionics", "cabin"], { color: "#2B3238", name: "Instrument panel", note: "All-metal sectional panel under a composite glareshield." });
 part(() => sectionSlab(2.24, 0.3, 0.35, 0.95, 0.2, 2.36), ["cabin"], { color: "#2B3238", name: "Glareshield", note: "Projects over the panel; windshield diffuser outlet runs along its base." });
-// POH Fig. 7-4: the bolster runs between the yokes directly under the displays (switch strip at the PFD's lower edge, MD302
-// below it), and the avionics stack of the centre console (item 15) rises in the middle to meet the displays.
-part(() => box(0.16, 0.14, 0.8), ["cabin", "lighting", "electrical"], { pos: [2.2, -0.08, 0], color: "#39424A", name: "Bolster switch panel",
+/** Prism: a profile in the x–y plane (side view) extruded across z0…z1. */
+function prism(pts: [number, number][], z0: number, z1: number) {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y))), { depth: z1 - z0, bevelEnabled: false });
+  g.translate(0, 0, z0);
+  return g;
+}
+/**
+ * Sloped face seen from the side, from its lower aft edge a up to its upper forward edge b. `at(t, out, z)` is the point t up
+ * the slope and `out` off it into the cabin; `rot` turns a part drawn facing aft (−x) to face out of the slope.
+ */
+function slope(a: [number, number], b: [number, number]) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / L, dy = (b[1] - a[1]) / L;
+  const tilt = Math.atan2(-dx, dy);
+  return { at: (t: number, out: number, z: number): Vec3 => [a[0] + dx * t - dy * out, a[1] + dy * t + dx * out, z], tilt, rot: [0, 0, tilt] as Vec3 };
+}
+// POH Fig. 7-4: the bolster runs between the yokes directly under the displays. Its top slopes up toward the panel and carries
+// the switch strip, facing up at the pilot; the MD302 is on its aft face. The avionics stack of the centre console (item 15)
+// leans back from the displays down to the console between the bolster halves.
+const BOLSTER_TOP = slope([2.12, -0.06], [2.28, -0.005]);
+part(() => prism([[2.12, -0.15], [2.28, -0.15], [2.28, -0.005], [2.12, -0.06]], -0.4, 0.4), ["cabin", "lighting", "electrical"], { color: "#39424A", name: "Bolster switch panel",
   note: "Below the PFD (POH Fig. 7-4 item 18, Fig. 7-12): a placard, then MASTER (BAT 2, BAT 1, ALT 1, ALT 2, AVIONICS) and EXTERIOR LIGHTS (NAV, STROBE, LAND), PITOT HEAT, the ICE PROTECT positions (blank without FIKI), and the PANEL and INSTRUMENT dimmers at the right end. The MD302 standby is below the switches, under the PFD." });
 /**
  * Bolster switch strip under the PFD, laid out from POH Fig. 7-12: the strip spans the PFD's width (z −0.385 … −0.10) and
  * `slot` maps the figure's horizontal position (its pixel column, strip 205–625) onto it. The rockers sit close together,
  * five MASTER then the EXTERIOR LIGHTS; PITOT HEAT and the ICE PROTECT positions follow after a gap. Up = ON.
  */
-const BOLSTER = { x: 2.12, y: -0.036 };
 const slot = (px: number) => -0.385 + (px - 205) * (0.285 / 420);
+/** Point on the bolster top at the strip's centre line (dt up the slope), `out` off its surface. */
+const onStrip = (z: number, out: number, dt = 0) => BOLSTER_TOP.at(0.085 + dt, out, z);
 const SR = () => useSR20.getState().s;
-part(() => box(0.004, 0.048, 0.285), ["cabin", "lighting", "electrical"], { pos: [BOLSTER.x - 0.001, BOLSTER.y, slot(415)], color: "#20262B" });
-part(() => box(0.003, 0.03, 0.06), ["cabin"], { pos: [BOLSTER.x - 0.004, BOLSTER.y, slot(255)], color: "#9AA3AA" });
+part(() => box(0.004, 0.048, 0.285), ["cabin", "lighting", "electrical"], { pos: onStrip(slot(415), 0.001), rot: BOLSTER_TOP.rot, color: "#20262B" });
+part(() => box(0.003, 0.03, 0.06), ["cabin"], { pos: onStrip(slot(255), 0.004), rot: BOLSTER_TOP.rot, color: "#9AA3AA" });
 ([[312, "BAT 2", "Battery 2 relay: BAT 2 feeds ESS BUS 1 and charges from it.", () => SR().elec.bat2],
   [329, "BAT 1", "Battery 1 relay: BAT 1 on the Main Dist Bus 1 side, for starting; ALT 1 needs it on.", () => SR().elec.bat1],
   [346, "ALT 1", "Alternator 1 field; needs BAT 1 on.", () => SR().elec.alt1],
@@ -259,23 +277,25 @@ part(() => box(0.003, 0.03, 0.06), ["cabin"], { pos: [BOLSTER.x - 0.004, BOLSTER
   [448, "ICE", "Wing ice inspection lights. Fig. 7-12 shows only NAV, STROBE and LAND (exterior lighting is in the Spectra wing tip light supplement): shown after LAND, position approximate.", () => SR().lights.ice],
   [470, "PITOT HEAT", "Heated pitot tube; a current sensor drives PITOT HEAT FAIL.", () => SR().pitot.heat],
 ] as [number, string, string, () => boolean][]).forEach(([px, label, note, on]) =>
-  part(() => box(0.01, 0.02, 0.0095), ["electrical", "lighting"], { pos: [BOLSTER.x - 0.007, BOLSTER.y, slot(px)], color: "#D8DDE0",
-    anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; }, name: label + " switch", note: note + " Bolster switch panel (POH Fig. 7-12), up = ON." }));
+  part(() => box(0.01, 0.02, 0.0095), ["electrical", "lighting"], { pos: onStrip(slot(px), 0.007), rot: BOLSTER_TOP.rot, color: "#D8DDE0",
+    anim: (m) => { m.rotation.z = BOLSTER_TOP.tilt + (on() ? -0.3 : 0.3); }, name: label + " switch", note: note + " Bolster switch panel (POH Fig. 7-12), up = ON." }));
 // ICE PROTECT positions (blank on a non-FIKI airplane) and the wider blank slot before the dimmers
 ([[495, 0.0095], [512, 0.0095], [537, 0.02]] as [number, number][]).forEach(([px, w]) =>
-  part(() => box(0.004, 0.02, w), ["cabin"], { pos: [BOLSTER.x - 0.004, BOLSTER.y, slot(px)], color: "#3A4148" }));
-([[0.012, "PANEL dimmer"], [-0.012, "INSTRUMENT dimmer"]] as [number, string][]).forEach(([dy, name]) =>
-  part(() => cyl(0.008, 0.014, "x", 16), ["lighting"], { pos: [BOLSTER.x - 0.008, BOLSTER.y + dy, slot(588)], color: "#20262B", name, note: "Right end of the bolster switch panel: PANEL above, INSTRUMENT below (POH Fig. 7-12)." }));
+  part(() => box(0.004, 0.02, w), ["cabin"], { pos: onStrip(slot(px), 0.004), rot: BOLSTER_TOP.rot, color: "#3A4148" }));
+([[0.012, "PANEL dimmer"], [-0.012, "INSTRUMENT dimmer"]] as [number, string][]).forEach(([dt, name]) =>
+  part(() => cyl(0.008, 0.014, "x", 16), ["lighting"], { pos: onStrip(slot(588), 0.008, dt), rot: BOLSTER_TOP.rot, color: "#20262B", name, note: "Right end of the bolster switch panel: PANEL above, INSTRUMENT below (POH Fig. 7-12)." }));
 // POH 7-13, Fig. 7-4 item 19: left side of the instrument panel, outboard of the PFD; above the yoke tube here (height approximate)
 part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: [2.276, 0.03, -0.47], color: "#3E4A52" });
 part(() => box(0.012, 0.03, 0.008), ["engine", "electrical"], { pos: [2.266, 0.03, -0.47], color: "#C9D0D5",
   anim: (m) => { m.rotation.x = ({ OFF: -1, R: -0.5, L: 0, BOTH: 0.5, START: 1 } as const)[SR().eng.key]; }, name: "Ignition key switch", pin: true, pinIn: ["engine"],
   note: "Keyed rotary switch on the left side of the instrument panel, outboard of the PFD: OFF – R – L – BOTH – START, spring-loaded from START to BOTH (POH 7-13, Fig. 7-4 item 19)." });
-part(() => box(0.9, 0.26, 0.26), ["cabin"], { pos: [1.63, -0.4, 0], color: "#39424A", name: "Center console", note: "Horizontal section between the seats: power and mixture levers, fuel selector, armrest; breakers, ALT AIR, ELT switch and alternate static on its left side. The avionics stack and flap switch are on its upright front section." });
-// upright front section of the console (Fig. 7-4 item 15, POH 7-13, 7-76), top to bottom: GCU 479 FMS keyboard, GMC 707 autopilot
-// mode controller, GMA 350 audio panel, then the flap control at its foot (order from Fig. 7-4; heights approximate)
-part(() => box(0.2, 0.52, 0.17), ["cabin", "avionics"], { pos: [2.18, -0.27, 0.005], color: "#39424A", name: "Avionics panel (centre console)",
-  note: "Upright front section of the centre console, rising between the bolster halves to meet the displays: FMS keyboard, autopilot mode controller and audio panel, with the flap control at its foot (POH 7-13, Fig. 7-4 items 10 and 15)." });
+part(() => box(0.9, 0.26, 0.26), ["cabin"], { pos: [1.63, -0.4, 0], color: "#39424A", name: "Center console", note: "Horizontal section between the seats: power and mixture levers, fuel selector, armrest; breakers, ALT AIR, ELT switch and alternate static on its left side. The avionics stack and flap switch are on its sloping front section." });
+// front section of the console (Fig. 7-4 item 15, POH 7-13, 7-76), leaning back from the displays down to the console top; top to
+// bottom: GCU 479 FMS keyboard, GMC 707 autopilot mode controller, GMA 350 audio panel, then the flap control at its foot (order
+// from Fig. 7-4; slope and heights approximate)
+const STACK = slope([2.0, -0.27], [2.22, -0.005]);
+part(() => prism([[2.0, -0.27], [2.22, -0.005], [2.28, -0.005], [2.28, -0.53], [2.0, -0.53]], -0.08, 0.09), ["cabin", "avionics"], { color: "#39424A", name: "Avionics panel (centre console)",
+  note: "Sloping front section of the centre console, rising between the bolster halves to meet the displays: FMS keyboard, autopilot mode controller and audio panel, with the flap control at its foot (POH 7-13, Fig. 7-4 items 10 and 15)." });
 part(() => box(0.4, 0.18, 0.02), ["electrical"], { pos: [1.78, -0.4, -0.14], color: "#5A4A1C", name: "Circuit breaker panel", note: "Left side of the center console. Holds ESS 1/2, MAIN 1/2/3, NON ESS, A/C 1/2 and AVIONICS bus breakers.", pin: true });
 ([[1.25, -0.33, "Pilot seat", 0.4], [1.25, 0.33, "Front passenger seat", 0.4], [0.35, -0.24, "Rear seat (2+1 bench)", 0.46], [0.35, 0.28, "Rear seat", 0.4]] as [number, number, string, number][]).forEach(([x, z, name, w], i) => {
   part(() => box(0.48, 0.1, w), ["cabin"], { pos: [x, -0.4, z], color: "#6B5A48", name, note: i < 2 ? "Adjusts fore/aft on an upward-angled track. Honeycomb core crushes to absorb vertical impact — never stand on it." : "Seat backs split 60/40 and fold forward for long cargo." });
@@ -322,7 +342,7 @@ part(() => cyl(0.02, 1.9, "z"), ["flaps"], { pos: [FT.x, FT.y, 0], color: "#9F85
 part(() => box(0.24, 0.07, 0.09), ["flaps"], { pos: [FT.x + 0.02, FT.y + 0.02, 0], color: "#7C57CF", name: "Flap actuator", note: "Motorized linear actuator; proximity switches stop travel and drive the position lights. 10 A FLAPS, NON ESS BUS.", pin: true });
 // POH 7-23: at the bottom of the console's vertical section. Fig. 7-4 (7-14/7-15) item 10 is the panel between the avionics panel
 // (15) and the engine controls (13), knob on its right: here at the foot of the upright avionics panel, right of centre.
-part(() => box(0.04, 0.04, 0.07), ["flaps"], { pos: [2.06, -0.235, 0.04], color: "#7C57CF", name: "FLAPS switch", pin: true,
+part(() => box(0.04, 0.04, 0.07), ["flaps"], { pos: STACK.at(0.08, 0.02, 0.04), rot: STACK.rot, color: "#7C57CF", name: "FLAPS switch", pin: true,
   note: "Airfoil-shaped knob at the bottom of the console's vertical section, with detents at UP (0%), 50% and 100%; VFE is marked at 50% and 100%. A light at each position comes on when the flaps reach it: UP green, 50% and 100% yellow (POH 7-23, Fig. 7-4 item 10). Position in the model is approximate." });
 part(() => cyl(0.045, 0.03, "y"), ["fuel"], { pos: [1.24, -0.25, 0], name: "Fuel selector valve", note: "LEFT / RIGHT / OFF at the rear of the console. Lift the release to select OFF.", pin: true });
 part(() => box(0.09, 0.02, 0.02), ["fuel"], { pos: [1.24, -0.23, 0], color: "#F2F5F7", anim: selPtrAnim });
@@ -364,9 +384,9 @@ for (const z0 of [BEZEL_Z.pfd, BEZEL_Z.mfd]) for (let i = 0; i < 12; i++)
 part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], { pos: [2.43, 0.1, -0.24], name: "GSU 75 ADAHRS", note: "Behind the PFD: attitude/heading reference plus air data computer. ADAHRS 1 on ESS BUS 1.", pin: true });
 part(() => box(0.12, 0.11, 0.15), ["avionics"], { pos: [2.44, 0.12, 0.2], name: "GIA 63W/64W ×2", note: "Integrated avionics units: WAAS GPS, VHF COM/NAV/GS, integration. GIA 1 on ESS BUS 1, GIA 2 on MAIN BUS 2.", pin: true });
 part(() => box(0.1, 0.07, 0.1), ["avionics", "engine"], { pos: [2.44, -0.04, 0.3], name: "GEA 71 Engine Airframe Unit", note: "Digitizes fuel, CHT, EGT, MAP, RPM and other sensors. 3 A ENGINE INSTR on ESS BUS 2." });
-part(() => box(0.012, 0.085, 0.15), ["avionics"], { pos: [2.074, -0.055, 0.005], color: "#15181B", name: "GCU 479 FMS keyboard", note: "Upper section of the centre console, just below the displays (POH 7-76). Data entry, tuning, course. KEYPADS / AP CTRL on MAIN BUS 1." });
-part(() => box(0.012, 0.04, 0.15), ["avionics", "controls"], { pos: [2.074, -0.125, 0.005], color: "#15181B", name: "GMC 707 autopilot mode controller", note: "GFC 700 mode controller, below the FMS keyboard in the centre console (POH 7-73; position from Fig. 7-4, approximate)." });
-part(() => box(0.012, 0.045, 0.15), ["avionics"], { pos: [2.074, -0.18, 0.005], color: "#15181B", name: "GMA 350 audio panel", note: "Audio panel with marker beacon receiver, below the autopilot controller in the centre console (POH 7-73; position from Fig. 7-4, approximate)." });
+part(() => box(0.012, 0.085, 0.15), ["avionics"], { pos: STACK.at(0.29, 0.006, 0.005), rot: STACK.rot, color: "#15181B", name: "GCU 479 FMS keyboard", note: "Upper section of the centre console, just below the displays (POH 7-76). Data entry, tuning, course. KEYPADS / AP CTRL on MAIN BUS 1." });
+part(() => box(0.012, 0.04, 0.15), ["avionics", "controls"], { pos: STACK.at(0.215, 0.006, 0.005), rot: STACK.rot, color: "#15181B", name: "GMC 707 autopilot mode controller", note: "GFC 700 mode controller, below the FMS keyboard in the centre console (POH 7-73; position from Fig. 7-4, approximate)." });
+part(() => box(0.012, 0.045, 0.15), ["avionics"], { pos: STACK.at(0.16, 0.006, 0.005), rot: STACK.rot, color: "#15181B", name: "GMA 350 audio panel", note: "Audio panel with marker beacon receiver, below the autopilot controller in the centre console (POH 7-73; position from Fig. 7-4, approximate)." });
 part(() => box(0.16, 0.09, 0.12), ["avionics"], { pos: [-1.15, -0.08, -0.1], name: "GTX 335/345 transponder", note: "In the empennage avionics bay. XPONDER breaker on the AVIONICS bus." });
 const ANT = "#C8399F";
 part(() => cyl(0.007, 0.3), ["avionics"], { pos: [0.45, 0.82, 0], rot: [0, 0, 0.45], color: ANT, name: "COM 1 antenna", note: "Rod on top above the passenger compartment.", ext: true });
