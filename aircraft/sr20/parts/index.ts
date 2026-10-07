@@ -9,11 +9,14 @@
  * - cowl.ts — cowl inlets
  * - gear.ts — main and nose gear, wheels, brakes, parking brake, rudder pedals / toe brakes
  * - engine.ts — propeller and engine: ignition, governor, oil, induction, exhaust, alternators, starter
- * - cabin.ts — structure (firewall, aft bulkhead, spar, roll cage) and the cockpit / cabin: panel, bolster switches,
- *   console, seats, side yokes and trim, flap drive and switch, fuel selector, CAPS handle, safety equipment
- * - avionics.ts — electrical hardware (MCU, batteries, ground power) and avionics, antennas, magnetometer
+ * - structure.ts — firewall, aft bulkhead, spar, roll cage, wing attach points
+ * - cabin.ts — cockpit / cabin: panel, bolster switches, console, seats, side yokes and trim, flap drive and switch, fuel
+ *   selector, CAPS handle, safety equipment
+ * - electrical.ts — electrical hardware: MCU, batteries, ground power
+ * - avionics.ts — avionics, antennas, magnetometer
  * - pitot.ts — pitot-static and stall warning
- * - fuel.ts — fuel system hardware, and the environmental system
+ * - fuel.ts — fuel system hardware
+ * - environment.ts — environmental system
  * - caps.ts — CAPS canister and harness
  * - lights.ts — interior and exterior lights
  * - controls.ts — flight-control mechanisms (POH Figures 7-1, 7-2, 7-3)
@@ -28,10 +31,13 @@ import "./surfaces";
 import "./cowl";
 export { MG, NOSE_CASTER, NOSE_GEAR } from "./gear";
 export { CYLS, PROP } from "./engine";
+import "./structure";
 export { FT, YOKES, YOKE_X, YOKE_Y } from "./cabin";
+import "./electrical";
 import "./avionics";
 export { PITOT_Z, SPX, pitotBase, statR } from "./pitot";
 import "./fuel";
+import "./environment";
 export { CAPS_BOX, HARNESS } from "./caps";
 export { LIGHTS } from "./lights";
 import "./controls";
