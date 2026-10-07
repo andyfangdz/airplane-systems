@@ -24,8 +24,20 @@ import {
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
-import { CAT, COWL_FLAP, NOSE, NOSE_CASTER, NOSE_RAKE, P3, PROP, YOKES, surfacePivot } from "./parts";
-import { KAP_LCD, LIGHTS, TANK_BL } from "./parts-systems";
+import {
+  CAT,
+  COWL_FLAP,
+  KAP_LCD,
+  LIGHTS,
+  NOSE,
+  NOSE_CASTER,
+  NOSE_RAKE,
+  P3,
+  PROP,
+  TANK_BL,
+  YOKES,
+  surfacePivot,
+} from "./parts";
 import { NAV3_BL } from "../cessna/faceplate";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM, aftCrankAngle, aftLinks, rudTrimLinks } from "./rig";
 import type { CtlIn } from "../cessna/rig";

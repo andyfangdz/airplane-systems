@@ -8,8 +8,7 @@ import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
 import { Z, wingP } from "./geometry";
 import { govRpm, live, rpmFine, type Elec, type Sim } from "./model";
-import { CYLS, P3, PV } from "./parts";
-import { DIVIDER, GOVERNOR, JBOX, KAP, MANIFOLD, PITOT, STALL_VANE, STATIC_PORTS } from "./parts-systems";
+import { CYLS, DIVIDER, GOVERNOR, JBOX, KAP, MANIFOLD, P3, PITOT, PV, STALL_VANE, STATIC_PORTS } from "./parts";
 import { CABLES, RIG_SPEC } from "./rig";
 import { NAV3_BL } from "../cessna/faceplate";
 
@@ -76,7 +75,7 @@ flow("fuelServo", [P3(-6, -6, 44), P3(-10, -5, 38), P3(-20, -1, 35.5), P3(-22, 0
   color: FUEL,
   name: "Engine-driven pump → fuel/air control unit",
 });
-// outside the crankcase box (parts.ts: FS −40.5…−6.7, BL ±8.7, h 42.7–54.5): aft under the oil sump (bottom h 35.1), up behind the
+// outside the crankcase box (parts/engine.ts: FS −40.5…−6.7, BL ±8.7, h 42.7–54.5): aft under the oil sump (bottom h 35.1), up behind the
 // block's aft face between the oil filter (BL ±1.6) and the vacuum pump / right magneto (BL ≥ 3.7), clear of the right heat duct,
 // then forward over the tach sensor into the transducer
 flow(
