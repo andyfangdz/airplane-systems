@@ -39,7 +39,7 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
   const group = useRef<THREE.Group>(null!);
   const lineGeo = useMemo(() => {
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(3 * 2 * (16 + 3)), 3));
+    g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(3 * 2 * (16 + 3 + 1)), 3));
     return g;
   }, []);
   const goreGeo = useMemo(
@@ -98,24 +98,29 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     canopy.current.visible = inf > 0.01;
     canopy.current.position.copy(packPos).add(V(0, -inf, 0));
     canopy.current.scale.set(0.15 + 0.85 * inf, 0.25 + 0.75 * inf, 0.15 + 0.85 * inf);
-    // suspension lines to the confluence, risers to the three harness points
+    // suspension lines to the confluence, a common riser down to the harness junction, three harness legs to the airplane.
+    // Illustrative: topology after the SR22/SR22T AMM Figure 95-00-1; the SR20 POH (7-94 – 7-95) gives the three
+    // attachment points and the aft snub, not these lengths.
     const hp = (["fwdL", "fwdR", "aft"] as const).map((k) => model.localToWorld(V(...HARNESS[k])));
     const pos = lineGeo.attributes.position as THREE.BufferAttribute;
     let i = 0;
     const rimR = 5.5 * Math.sin(Math.PI * 0.42) * (0.15 + 0.85 * inf),
       rimY = canopy.current.position.y + 5.5 * Math.cos(Math.PI * 0.42) * (0.25 + 0.75 * inf);
-    const conf = V(canopy.current.position.x, lerp(packPos.y - 1, (hp[0].y + hp[2].y) / 2 + 3.2, inf), 0);
+    const junction = V(canopy.current.position.x, lerp(packPos.y - 1, (hp[0].y + hp[1].y + hp[2].y) / 3 + 2, inf), 0),
+      conf = junction.clone().add(V(0, 1.2 * inf, 0));
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2;
       const rp = inf > 0.01 ? V(canopy.current.position.x + Math.cos(a) * rimR, rimY, Math.sin(a) * rimR) : packPos;
       pos.setXYZ(i++, rp.x, rp.y, rp.z);
       pos.setXYZ(i++, conf.x, conf.y, conf.z);
     }
-    const anchor = t < 1.6 ? packPos : conf;
+    const anchor = t < 1.6 ? packPos : junction;
     hp.forEach((p) => {
       pos.setXYZ(i++, p.x, p.y, p.z);
       pos.setXYZ(i++, anchor.x, anchor.y, anchor.z);
     });
+    pos.setXYZ(i++, junction.x, junction.y, junction.z);
+    pos.setXYZ(i++, conf.x, conf.y, conf.z);
     if (t < 0.3) for (let k = 0; k < i; k++) pos.setXYZ(k, can.x, can.y, can.z);
     pos.needsUpdate = true;
     lineGeo.computeBoundingSphere();

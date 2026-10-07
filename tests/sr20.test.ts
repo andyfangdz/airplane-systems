@@ -4,6 +4,9 @@
  */
 import { describe, expect, it } from "vitest";
 import { cabinLit, casMessages, extLit, initialSim, solve, type Sim } from "@/aircraft/sr20/model";
+import * as THREE from "three";
+import { AB, FUSE, FW, WIN } from "@/aircraft/sr20/geometry";
+import { HARNESS, fwdStrap } from "@/aircraft/sr20/parts/caps";
 import { patched, type Patch } from "./helpers";
 
 const sim = (p: Patch<Sim> = {}) => patched(initialSim, p);
@@ -155,5 +158,37 @@ describe("SR20 lights", () => {
     expect(lights({ lights: { cabin: "ON" } }).cabin).toMatchObject({ dome: true, foot: true, step: false });
     expect(lights({ lights: { cabin: "OFF", door: true } }).cabin.dome).toBe(false);
     expect(lights({ lights: { cabin: "ON" }, cb: { "CONV LIGHTS": true } }).cabin.dome).toBe(false);
+  });
+});
+
+describe("SR20 CAPS harness (POH 7-94)", () => {
+  it("is three-point: both forward straps end at the firewall, the aft strap at the aft baggage bulkhead", () => {
+    expect(HARNESS.fwdL[0]).toBe(FW);
+    expect(HARNESS.fwdR[0]).toBe(FW);
+    expect(HARNESS.aft[0]).toBe(AB);
+    expect(HARNESS.fwdL[2]).toBeCloseTo(-HARNESS.fwdR[2]);
+    expect(fwdStrap(1).at(-1)).toEqual(HARNESS.fwdR);
+  });
+
+  it("forward straps run just under the fuselage skin from the canister to the firewall", () => {
+    for (const s of [-1, 1]) {
+      // the first point is inside the canister; the rest follow the skin
+      const skin = fwdStrap(s)
+        .slice(1)
+        .map((p) => new THREE.Vector3(...p));
+      for (const p of skin) {
+        expect(FUSE.inside(p), `inside at x ${p.x.toFixed(2)}`).toBe(true);
+        expect(FUSE.inside(p, 0.03), `within 3 cm of the skin at x ${p.x.toFixed(2)}`).toBe(false);
+        expect(Math.sign(p.z)).toBe(s);
+      }
+    }
+  });
+
+  it("forward straps pass below the cabin windows", () => {
+    const win = [...WIN.front, ...WIN.rear],
+      xs = win.map(([x]) => x),
+      sill = Math.min(...win.map(([, y]) => y));
+    for (const [x, y] of fwdStrap(1))
+      if (x >= Math.min(...xs) && x <= Math.max(...xs)) expect(y + 0.012, `x ${x.toFixed(2)}`).toBeLessThan(sill);
   });
 });
