@@ -43,6 +43,7 @@ To add one:
   | --- | --- |
   | `airframe.ts` | Station-table airframe builder (`IN`, stations → scene coordinates, wing, strut, painted skin) |
   | `rig.ts` | Figure 7-1 flight-control rig builder; `RigSpec` names the autopilot servos and an optional aft elevator bellcrank |
+  | `yoke.ts` | NAV III control wheel ("ram's horn") geometry and the anchors for the switches on the pilot's left horn |
   | `electrical.ts` | NAV III buses, breaker board model, solver, EIS colour rules, `NAV3_BUSES` |
   | `annunciations.ts` | Annunciation window and EIS gauges (each airplane passes its own `Nav3AnnDef[]` list) |
   | `panels.tsx`, `cessna.css` | MASTER / AVIONICS / STBY BATT switches, bus diagram, breaker board, meters, annunciation table |

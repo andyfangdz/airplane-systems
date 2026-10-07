@@ -4,7 +4,9 @@
  * part has a `parent`, in which case they are relative to that moving group.
  */
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { Catalogue, chanOfKey, type PartAnim, type PartSpec } from "@/lib/catalogue";
+import { mergeGeos, roundEnds, sweepGeo } from "@/lib/geometry";
 import { mats } from "@/lib/materials";
 import { V, clamp, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
@@ -241,10 +243,36 @@ part(() => box(0.4, 0.18, 0.02), ["electrical"], { pos: [1.78, -0.4, -0.14], col
 });
 export const YOKES = [{ side: "L", z: -0.46 }, { side: "R", z: 0.46 }];
 export const YOKE_X = 2.02, YOKE_Y = -0.06;
+/**
+ * Side-yoke grip in its roll group's frame (origin where the yoke tube meets the grip; s −1 left, +1 right): a handle rising
+ * up and inboard from the tube end to a head that carries the trim switch (outboard) and the red A/P DISC button (inboard).
+ * The POH gives no dimensions: shape and proportions are from photos of the Perspective panel.
+ */
+const GRIP_LEAN = 37 * (Math.PI / 180);
+/** Point in side s's grip frame: xo fore-aft, d along the handle (+ up, toward the head), w across it (+ toward the right wing). */
+const onGrip = (s: number, xo: number, d: number, w: number): Vec3 =>
+  [xo, d * Math.cos(GRIP_LEAN) + w * s * Math.sin(GRIP_LEAN), -s * d * Math.sin(GRIP_LEAN) + w * Math.cos(GRIP_LEAN)];
+const gripRot = (s: number): Vec3 => [-s * GRIP_LEAN, 0, 0];
+const HEAD = { d: 0.114, x: -0.01, l: 0.04 };
+function sideYokeGeo(s: number) {
+  const handle = sweepGeo([onGrip(s, 0.002, -0.05, 0), onGrip(s, 0.006, 0, 0), onGrip(s, 0.003, 0.05, 0), onGrip(s, -0.006, HEAD.d - 0.01, 0)],
+    (t) => { const e = roundEnds(t, 0.14, 0); return [(0.019 + 0.002 * Math.sin(Math.PI * t)) * e, 0.017 * e]; });
+  const head = new RoundedBoxGeometry(0.054, HEAD.l, 0.048, 3, 0.013);
+  head.rotateX(gripRot(s)[0]);
+  head.translate(...onGrip(s, HEAD.x, HEAD.d, 0));
+  const boss = cyl(0.022, 0.036, "x");
+  boss.translate(0.016, 0, 0);
+  return mergeGeos([handle, head, boss]);
+}
 YOKES.forEach(({ side }) => {
+  const s = side === "L" ? -1 : 1, grip = "grip:" + side, top = HEAD.d + HEAD.l / 2;
   part(() => cyl(0.018, 0.5, "x"), ["controls"], { parent: "yoke:" + side, chan: ["elevator", "aileron"], pos: [0.27, 0, 0], color: "#555E66", name: "Yoke tube", note: "Slides fore/aft in its bearing carriage for pitch (driving the elevator drop link) and rotates the carriage for roll." });
-  part(() => box(0.05, 0.14, 0.045), ["controls"], { parent: "grip:" + side, chan: ["elevator", "aileron"], color: "#20262B", name: "Side yoke", note: "Conical trim button on top: fore/aft = pitch trim, left/right = roll trim. PTT switch for COM." });
-  part(() => box(0.045, 0.045, 0.17), ["controls"], { parent: "grip:" + side, chan: ["elevator", "aileron"], pos: [0, 0.05, 0], color: "#20262B" });
+  part(() => sideYokeGeo(s), ["controls"], { parent: grip, chan: ["elevator", "aileron"], color: "#20262B", name: "Side yoke",
+    note: "Single-handed grip on the end of each yoke tube, angled up and inboard. Push or pull to slide the tube for pitch; rotate the grip to turn the tube and its bearing carriage for roll. Conical trim switch and red A/P DISC button on the head; PTT switch for COM." });
+  part(() => { const g = new THREE.CylinderGeometry(0.004, 0.008, 0.012, 16); g.translate(0, 0.006, 0); return g; }, ["controls"], { parent: grip, chan: ["elevator", "aileron"],
+    pos: onGrip(s, HEAD.x - 0.004, top, s * 0.01), rot: gripRot(s), color: "#4A535B", name: "Trim switch", note: "Conical switch on the head of each yoke: fore/aft = pitch trim, left/right = roll trim. The trim motors move the spring cartridges' neutral point (PITCH TRIM and ROLL TRIM breakers, ESS BUS 2)." });
+  part(() => cyl(0.0065, 0.006), ["controls"], { parent: grip, chan: ["elevator", "aileron"], pos: onGrip(s, HEAD.x + 0.004, top + 0.002, -s * 0.011), rot: gripRot(s), color: "#C8313B",
+    name: "A/P DISC button", note: "Red autopilot disconnect button on the head of each yoke: disengages the GFC 700." });
 });
 part(() => box(0.08, 0.05, 0.05), ["controls"], { pos: [-2.66, 0.05, 0.04], color: "#9F85E6", chan: ["elevator"], name: "Pitch trim cartridge", note: "Electric motor shifts the spring cartridge's neutral point. 2 A PITCH TRIM breaker, ESS BUS 2." });
 part(() => box(0.08, 0.04, 0.06), ["controls"], { pos: P(wingP(-3.4, 0.66, 0)), color: "#9F85E6", chan: ["aileron"], name: "Roll trim cartridge", note: "Spring cartridge at the left actuation pulley. Autopilot also uses it. 2 A ROLL TRIM, ESS BUS 2." });
