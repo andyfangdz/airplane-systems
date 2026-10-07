@@ -10,6 +10,7 @@ import { live } from "./model";
 import { glowAnim as glow, pushPull, sysNow } from "../cessna/anims";
 import { CAT, P3, PV, onSurf } from "./parts";
 import { useC172 } from "./store";
+import { GDU_KEYS_Y, cbHeads, gduKeys, gduKnobs, gmaKeys, gmaKnob, GMA_KNOB_Y } from "../cessna/faceplate";
 
 const { part } = CAT;
 const S = () => useC172.getState().s, EL = () => useC172.getState().E;
@@ -75,6 +76,11 @@ part(() => box(0.012, 0.04, 0.04), ["electrical"], { pos: P3(18.1, -18.5, 61), c
 part(() => box(0.012, 0.04, 0.04), ["electrical", "avionics"], { pos: P3(18.1, -18.5, 57.5), color: "#E8ECEE", anim: (m) => { m.rotation.z = S().elec.avn1 ? 0.3 : -0.3; }, name: "AVIONICS switch (BUS 1 | BUS 2)", note: "Two-pole rocker for AVIONICS BUS 1 and BUS 2 — both OFF before MASTER on/off, starting, or external power (POH 7-52).", pin: true });
 part(() => box(0.012, 0.11, 0.2), ["electrical"], { pos: P3(17.8, -12.5, 46.3), color: "#3A3424", name: "Circuit breaker panel", note: "Lower edge of the pilot panel below the switch panel: CROSSFEED, BUS 1, BUS 2 on the left; ESS, AVN BUS 1, AVN BUS 2 on the right. Only ESS and AVN breakers can be pulled (POH 7-11, 7-57).", pin: true });
 part(() => box(0.012, 0.07, 0.22), ["electrical", "lighting"], { pos: P3(17.8, -12.5, 51.5), color: "#2F3A42", name: "Switch panel", note: "Below the lower left of the PFD: MAGNETOS, LIGHTS (BEACON, LAND, TAXI, NAV, STROBE), FUEL PUMP, PITOT HEAT, CABIN PWR 12V. Up = ON (POH 7-11, 7-59).", pin: true });
+// switch panel rockers, up = ON (POH 7-11): BEACON, LAND, TAXI, NAV, STROBE, FUEL PUMP, PITOT HEAT, CABIN PWR 12V
+([() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe, () => S().fuel.pump, () => S().pitot.heat, () => S().lights.cabinPwr] as (() => boolean)[])
+  .forEach((on, i) => part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.8) - 0.011, Y(51.5) + 0.006, Z(-12.5) - 0.0945 + i * 0.027], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
+// breaker heads: CROSSFEED, BUS 1 and BUS 2 on the left, ESS, AVN BUS 1 and AVN BUS 2 on the right
+part(() => cbHeads(11, 4), ["electrical", "avionics"], { pos: [X(17.8) - 0.009, Y(46.3), Z(-12.5)], color: "#1A1D20" });
 part(() => box(0.08, 0.06, 0.1), ["electrical", "cabin"], { pos: P3(12, 16, 50), color: "#8A7A3A", name: "12 V power converter", note: "Forward of the right panel: 28 → 12 V, up to 10 A to the POWER OUTLET 12V–10A on the pedestal. CABIN PWR 12V switch; not for flight-critical devices; off for takeoff and landing (POH 7-77, 2-19)." });
 part(() => cyl(0.012, 0.02, "x"), ["electrical", "cabin"], { pos: P3(25.9, -1, 33.5), color: "#20262B", name: "POWER OUTLET 12V–10A", note: "Center pedestal (POH 7-77). CABIN LTS/PWR breaker, ELECTRICAL BUS 1." });
 
@@ -84,6 +90,14 @@ part(() => box(0.03, 0.22, 0.285), ["avionics"], { pos: P3(17.9, -11.5, 61), col
 part(() => box(0.03, 0.22, 0.285), ["avionics"], { pos: P3(17.9, 10.5, 61), color: "#1A1F23", name: "MFD — GDU 1040", note: "Right of the audio panel. MFD breaker, AVIONICS BUS 2 (with its fan) (POH 7-49)." });
 part(() => box(0.03, 0.215, 0.05), ["avionics"], { pos: P3(17.9, -0.5, 61), color: "#24292E", name: "GMA 1347 audio panel", note: "Between the PFD and MFD: audio, intercom, marker beacon; the red DISPLAY BACKUP button at the bottom selects reversionary mode. AUDIO breaker, AVIONICS BUS 2. Split COM is not approved (POH 7-69, 2-21).", pin: true });
 part(() => box(0.012, 0.014, 0.03), ["avionics"], { pos: P3(18.6, -0.5, 57.4), color: "#D32626", anim: (m) => { m.material = S().avx.backup ? mats("#FF4040").hi : mats("#B32020").on; }, name: "DISPLAY BACKUP button", note: "Red button on the bottom of the GMA 1347: manual reversion — PFD instruments plus the EIS on both displays; press again to cancel (POH 7-11, CRG 109).", pin: true });
+// faceplate detail (POH Figure 7-2; CRG): GDU 1040 knobs and softkeys (the AFCS keys are in parts.ts), GMA 1347 keys and knob
+[-11.5, 10.5].forEach((bl) => {
+  const c = P3(17.9, bl, 61), x = c[0] - 0.015 - 0.006; // just aft of the bezel face
+  part(() => gduKnobs(true), ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
+  part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]], color: "#4A525A" });
+});
+part(gmaKeys, ["avionics"], { pos: [X(17.9) - 0.018, Y(61), Z(-0.5)], color: "#4A525A" });
+part(gmaKnob, ["avionics"], { pos: [X(17.9) - 0.02, Y(61) + GMA_KNOB_Y, Z(-0.5)], color: "#3A4046" });
 ([[113.3, -4, "GIA 63W #1", "Integrated avionics unit in the tailcone racks: GPS, VHF NAV/COM and main processor; hosts the GFC 700 flight director. COMM 1 and NAV 1 ENG breakers (ESS) (POH 7-69)."],
   [113.3, 4, "GIA 63W #2", "Second integrated avionics unit: COMM 2 and NAV 2 breakers, AVIONICS BUS 2. The first GIA to acquire a 3-D GPS fix is the active GPS source."]] as [number, number, string, string][]).forEach(([fs, bl, name, note]) =>
   part(() => box(0.24, 0.07, 0.13), ["avionics", "autopilot"], { pos: P3(fs, bl, 50), color: AVX, name, note, pin: true }));

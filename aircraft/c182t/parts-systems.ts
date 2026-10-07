@@ -17,6 +17,7 @@ import { CAT, KNOB, P3, PV } from "./parts";
 import { RIG_SPEC } from "./rig";
 import { useC182 } from "./store";
 import { IN } from "../cessna/airframe";
+import { GDU_KEYS_Y, cbHeads, gduKeys, gduKnobs, gmaKeys, gmaKnob, GMA_KNOB_Y } from "../cessna/faceplate";
 
 const { part } = CAT;
 const S = () => useC182.getState().s, EL = () => useC182.getState().E;
@@ -148,28 +149,16 @@ part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], { pos: P3(125.5, 0
 part(() => box(0.06, 0.06, 0.06), ["avionics", "autopilot"], { pos: P3(15.5, 4, 53), color: "#9C4C88", anim: glow("#9C4C88", () => S().avx.tcFail, ["avionics", "autopilot"], "#E0263B"),
   name: "DC turn coordinator (KAP 140)", note: "“A DC electric powered turn coordinator, installed forward of the instrument panel and not visible to the pilot, provides a roll rate signal to the KAP 140”, arm 15.5. Its loss disengages the autopilot (POH 7-12, 6-23).", pin: true });
 /* ---------- faceplate detail (POH Figure 7-2; CRG): GDU 1040 knobs and softkeys, GMA 1347 keys, switch rockers, breaker heads ---------- */
-const tr = (g: THREE.BufferGeometry, x: number, y: number, z: number) => { g.translate(x, y, z); return g; };
-/** GDU 1040 bezel: NAV, HDG and ALT knobs down the left, COM, CRS/BARO, the range joystick and FMS down the right (bezel-centre coordinates). */
-const gduKnobs = () => mergeGeos([
-  ...[0.075, 0.03, -0.02, -0.068].map((y) => tr(cyl(0.0095, 0.012, "x", 16), 0, y, -0.123)),
-  ...[0.075, 0.03, -0.015, -0.05, -0.083].map((y, i) => tr(cyl(i === 3 ? 0.006 : 0.0095, 0.012, "x", 16), 0, y, 0.123)),
-]);
-/** The 12 softkeys under the screen. */
-const gduKeys = () => mergeGeos(Array.from({ length: 12 }, (_, i) => tr(box(0.006, 0.008, 0.0125), 0, 0, -0.0935 + i * 0.017)));
 [-11.5, 10.5].forEach((bl) => {
   const c = P3(18.1, bl, 61.4), x = c[0] - 0.015 - 0.006; // just aft of the bezel face
-  part(gduKnobs, ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
-  part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] - 0.092, c[2]], color: "#4A525A" });
+  part(() => gduKnobs(), ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
+  part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]], color: "#4A525A" });
 });
-// GMA 1347: two columns of COM / NAV / speaker / intercom keys and the volume / squelch knob above DISPLAY BACKUP
-part(() => mergeGeos(Array.from({ length: 16 }, (_, i) => tr(box(0.006, 0.009, 0.016), 0, 0.085 - Math.floor(i / 2) * 0.017, (i % 2 ? 1 : -1) * 0.0125))), ["avionics"],
-  { pos: [X(18.1) - 0.018, Y(61.4), Z(-0.5)], color: "#4A525A" });
-part(() => mergeGeos([tr(cyl(0.011, 0.01, "x", 16), 0, 0, 0), tr(cyl(0.007, 0.016, "x", 12), 0, 0, 0)]), ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) - 0.064, Z(-0.5)], color: "#3A4046" });
+part(gmaKeys, ["avionics"], { pos: [X(18.1) - 0.018, Y(61.4), Z(-0.5)], color: "#4A525A" });
+part(gmaKnob, ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) + GMA_KNOB_Y, Z(-0.5)], color: "#3A4046" });
 // switch panel rockers, up = ON (POH 7-10): BEACON, LAND, TAXI, NAV, STROBE, PITOT HEAT, FUEL PUMP, CABIN PWR 12V
 ([() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe, () => S().pitot.heat, () => S().fuel.pump, () => S().lights.cabinPwr] as (() => boolean)[])
   .forEach((on, i) => part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.9) - 0.011, Y(52.3) + 0.006, Z(-12.4) - 0.0945 + i * 0.027], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
-/** Breaker heads in rows on the two breaker panels (not mapped one-to-one to the breakers). */
-const cbHeads = (cols: number) => mergeGeos(Array.from({ length: 3 * cols }, (_, i) => tr(cyl(0.0045, 0.008, "x", 10), 0, 0.02 - Math.floor(i / cols) * 0.02, (i % cols - (cols - 1) / 2) * 0.016)));
 part(() => cbHeads(4), ["electrical"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-18.6)], color: "#1A1D20" });
 part(() => cbHeads(8), ["electrical", "avionics"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-8.6)], color: "#1A1D20" });
 
@@ -192,6 +181,7 @@ part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], { pos: P3(19.5, 0, 68.
 part(() => box(0.065, 0.008, 0.035), ["avionics", "cabin"], { pos: P3(18.4, 0, 67.3), color: "#20262B" }); // compass bracket on the glareshield
 
 /* ---------- KAP 140 (POH 7-12, Supplement 3) ---------- */
+const tr = (g: THREE.BufferGeometry, x: number, y: number, z: number) => { g.translate(x, y, z); return g; };
 /** KAP 140 faceplate on the center panel below the standby instruments (Fig. 7-2 item 13); LCD drawn by Airplane.tsx. */
 export const KAP = { fs: 18.15, bl: 0.6, h: 49.4, w: 0.16, hgt: 0.034 };
 const kapOn = () => live.kap.powered;
