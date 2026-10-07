@@ -243,9 +243,9 @@ part(() => box(0.32, 0.02, 0.5), ["engine"], { pos: P3(-19, 0, 58.5), color: "#B
 // controls on the panel
 part(() => cyl(0.016, 0.03, "x"), ["engine"], { pos: P3(18.6, 1.8, 47.5), color: "#1A1F23", anim: pushPull(X(18.6), () => S().eng.throttle), name: "Throttle (with friction lock)", note: "Smooth black push-pull knob below the standby instruments: in = FULL, out = IDLE. Friction lock at its base (POH 7-29). With a fixed-pitch prop it sets RPM directly.", pin: true });
 part(() => cyl(0.016, 0.03, "x"), ["engine"], { pos: P3(18.6, 5.2, 47.5), color: "#C8313B", anim: pushPull(X(18.6), () => S().eng.mix), name: "Mixture (red, vernier)", note: "Red knob with raised points and a lock button: in = RICH, out = IDLE CUTOFF; rotate for fine adjustment (POH 7-29).", pin: true });
-// far lower left of the panel, at the outboard end of the breaker panel (Fig. 7-2 item 33)
-part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: P3(17.9, -18.4, 47), color: "#3E4A52" });
-part(() => box(0.012, 0.032, 0.009), ["engine", "electrical"], { pos: P3(18.2, -18.4, 47), color: "#C9D0D5", anim: (m) => { const k = S().eng.mags; m.rotation.x = ({ OFF: -1, R: -0.5, L: 0, BOTH: 0.5, START: 1 } as const)[k]; }, name: "MAGNETOS switch", note: "Rotary OFF – R – L – BOTH – START, spring-loaded from START back to BOTH (POH 7-36). The starter relay coil is fed through the WARN breaker.", pin: true });
+// far lower left of the panel, level with and outboard of the breaker panel (Fig. 7-2 item 33; photos)
+part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: P3(17.9, -18.4, 49.6), color: "#3E4A52" });
+part(() => box(0.012, 0.032, 0.009), ["engine", "electrical"], { pos: P3(18.2, -18.4, 49.6), color: "#C9D0D5", anim: (m) => { const k = S().eng.mags; m.rotation.x = ({ OFF: -1, R: -0.5, L: 0, BOTH: 0.5, START: 1 } as const)[k]; }, name: "MAGNETOS switch", note: "Rotary OFF – R – L – BOTH – START, spring-loaded from START back to BOTH (POH 7-36). The starter relay coil is fed through the WARN breaker.", pin: true });
 
 /* ---------- structure ---------- */
 part(() => planeRing(X(0)), ["airframe", "engine"], { plate: true, pin: true, name: "Firewall — FS 0 (datum)", note: "Reference datum: lower portion of the front face of the firewall (POH 2-9). Battery, J-box and external-power receptacle are on its left forward side." });

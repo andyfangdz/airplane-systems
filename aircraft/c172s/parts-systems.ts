@@ -75,14 +75,15 @@ part(() => sph(0.008), ["electrical"], { pos: P3(18.1, -17.2, 64.4), color: "#1E
 // MASTER and AVIONICS side by side below STBY BATT (POH 7-10, Fig. 7-2; photos)
 part(() => box(0.012, 0.04, 0.03), ["electrical"], { pos: P3(18.1, -18.4, 60.6), color: "#C8313B", anim: (m) => { m.rotation.z = S().elec.bat ? 0.3 : -0.3; }, name: "MASTER switch (ALT | BAT)", note: "Two-pole rocker: BAT controls the battery relay, ALT the alternator field. ALT can't be ON without BAT (POH 7-51).", pin: true });
 part(() => box(0.012, 0.04, 0.03), ["electrical", "avionics"], { pos: P3(18.1, -16.9, 60.6), color: "#E8ECEE", anim: (m) => { m.rotation.z = S().elec.avn1 ? 0.3 : -0.3; }, name: "AVIONICS switch (BUS 1 | BUS 2)", note: "Two-pole rocker for AVIONICS BUS 1 and BUS 2 — both OFF before MASTER on/off, starting, or external power (POH 7-52).", pin: true });
-part(() => box(0.012, 0.11, 0.2), ["electrical"], { pos: P3(17.8, -12.5, 46.3), color: "#3A3424", name: "Circuit breaker panel", note: "Lower edge of the pilot panel below the switch panel: CROSSFEED, BUS 1, BUS 2 on the left; ESS, AVN BUS 1, AVN BUS 2 on the right. Only ESS and AVN breakers can be pulled (POH 7-11, 7-57).", pin: true });
+// three rows just below the switch panel, under the control wheel, with panel below them to the lower edge (NAV III panel photos)
+part(() => box(0.012, 0.075, 0.25), ["electrical"], { pos: P3(17.8, -10.2, 49.6), color: "#3A3424", name: "Circuit breaker panel", note: "Below the switch panel, under the pilot's control wheel: CROSSFEED, BUS 1, BUS 2 on the left; ESS, AVN BUS 1, AVN BUS 2 on the right. Only ESS and AVN breakers can be pulled (POH 7-11, 7-57).", pin: true });
 part(() => box(0.012, 0.07, 0.12), ["electrical", "lighting"], { pos: P3(17.8, -13.3, 53.4), color: "#2F3A42", name: "Switch panel", note: "Below the lower left corner of the PFD: LIGHTS (BEACON, LAND, TAXI, NAV, STROBE) across the top, FUEL PUMP, PITOT HEAT and CABIN PWR 12V below. Up = ON (POH 7-11, 7-59). Where CABIN PWR 12V sits on the panel is approximate.", pin: true });
 // switch panel rockers, up = ON (POH 7-11): BEACON, LAND, TAXI, NAV, STROBE on top; FUEL PUMP, PITOT HEAT, CABIN PWR 12V below
 switchRows([[() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe],
   [() => S().fuel.pump, () => S().pitot.heat, () => S().lights.cabinPwr]]).forEach(([y, z, on]) =>
   part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.8) - 0.011, Y(53.4) + y, Z(-13.3) + z], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
 // breaker heads: CROSSFEED, BUS 1 and BUS 2 on the left, ESS, AVN BUS 1 and AVN BUS 2 on the right
-part(() => cbHeads(11, 4), ["electrical", "avionics"], { pos: [X(17.8) - 0.009, Y(46.3), Z(-12.5)], color: "#1A1D20" });
+part(() => cbHeads(13), ["electrical", "avionics"], { pos: [X(17.8) - 0.009, Y(49.6), Z(-10.2)], color: "#1A1D20" });
 part(() => box(0.08, 0.06, 0.1), ["electrical", "cabin"], { pos: P3(12, 16, 50), color: "#8A7A3A", name: "12 V power converter", note: "Forward of the right panel: 28 → 12 V, up to 10 A to the POWER OUTLET 12V–10A on the pedestal. CABIN PWR 12V switch; not for flight-critical devices; off for takeoff and landing (POH 7-77, 2-19)." });
 part(() => cyl(0.012, 0.02, "x"), ["electrical", "cabin"], { pos: P3(25.9, -1, 33.5), color: "#20262B", name: "POWER OUTLET 12V–10A", note: "Center pedestal (POH 7-77). CABIN LTS/PWR breaker, ELECTRICAL BUS 1." });
 

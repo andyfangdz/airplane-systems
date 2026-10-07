@@ -121,8 +121,9 @@ part(() => box(0.012, 0.04, 0.03), ["electrical"], { pos: P3(18.1, -18.4, 60.9),
   name: "MASTER switch (ALT | BAT)", note: "Red two-pole rocker below STBY BATT, AVIONICS to its right: BAT controls the battery relay, ALT the alternator field; ALT can't be ON without BAT (POH 7-51).", pin: true });
 part(() => box(0.012, 0.04, 0.03), ["electrical", "avionics"], { pos: P3(18.1, -16.9, 60.9), color: "#E8ECEE", anim: (m) => { m.rotation.z = S().elec.avn1 ? 0.3 : -0.3; },
   name: "AVIONICS switch (BUS 1 | BUS 2)", note: "Two-pole rocker for AVIONICS BUS 1 and BUS 2 — both OFF before the MASTER is turned on or off, for starting and for external power (POH 7-47).", pin: true });
-part(() => box(0.012, 0.07, 0.075), ["electrical"], { pos: P3(17.9, -18.6, 44.2), color: "#3A3424", name: "Circuit breaker panel (BUS 1 · BUS 2 · X-FEED)", note: "Lower edge of the pilot's panel, left of the control wheel (low-confidence position): ELECTRICAL BUS 1, BUS 2 and X-FEED breakers are non-pullable — they can only trip and be pushed back in (POH 7-11, 7-55).", pin: true });
-part(() => box(0.012, 0.07, 0.15), ["electrical", "avionics"], { pos: P3(17.9, -8.6, 44.2), color: "#3A3424", name: "Circuit breaker panel (ESS · AVN 1 · AVN 2)", note: "Inboard of the control wheel: ESSENTIAL BUS, AVN BUS 1 and AVN BUS 2 breakers, all pullable (POH 7-11, 7-55).", pin: true });
+// both just below the switch panel, under the control wheel, with panel below them to the lower edge (NAV III panel photos)
+part(() => box(0.012, 0.07, 0.075), ["electrical"], { pos: P3(17.9, -16.6, 50), color: "#3A3424", name: "Circuit breaker panel (BUS 1 · BUS 2 · X-FEED)", note: "Below the switch panel, outboard end (low-confidence position): ELECTRICAL BUS 1, BUS 2 and X-FEED breakers are non-pullable — they can only trip and be pushed back in (POH 7-11, 7-55).", pin: true });
+part(() => box(0.012, 0.07, 0.15), ["electrical", "avionics"], { pos: P3(17.9, -11.4, 50), color: "#3A3424", name: "Circuit breaker panel (ESS · AVN 1 · AVN 2)", note: "Below the switch panel, inboard of the other breaker panel: ESSENTIAL BUS, AVN BUS 1 and AVN BUS 2 breakers, all pullable (POH 7-11, 7-55).", pin: true });
 part(() => box(0.012, 0.07, 0.12), ["electrical", "lighting"], { pos: P3(17.9, -13.3, 53.8), color: "#2F3A42", name: "Switch panel", note: "Below the lower left corner of the PFD, internally lit: LIGHTS (BEACON, LAND, TAXI, NAV, STROBE) across the top, FUEL PUMP, PITOT HEAT and CABIN PWR 12V (if installed) below. Up = ON (POH 7-10, 7-57). Where CABIN PWR 12V sits on the panel is approximate.", pin: true });
 part(() => box(0.08, 0.06, 0.1), ["electrical", "cabin"], { pos: P3(12, 16, 50), color: "#8A7A3A", name: "12 V power converter", note: "Cabin side of the firewall, forward of the right panel: 28 → 12 V, up to 10 A to the POWER OUTLET 12V – 10A on the pedestal. CABIN LTS/PWR breaker; Fig. 7-7 marks the 12V CAB PWR switch “if installed” (POH 7-73, 7-49)." });
 part(() => cyl(0.012, 0.02, "x"), ["electrical", "cabin"], { pos: P3(27.3, 2, 36), color: "#20262B", name: "POWER OUTLET 12V–10A", note: "Center pedestal (Fig. 7-2 item 29). Not for flight-critical devices; off for takeoff and landing (POH 7-73, 2-19)." });
@@ -161,8 +162,8 @@ part(gmaKnob, ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) + GMA_KNOB_Y, Z(NAV3
 switchRows([[() => S().lights.beacon, () => S().lights.land, () => S().lights.taxi, () => S().lights.nav, () => S().lights.strobe],
   [() => S().fuel.pump, () => S().pitot.heat, () => S().lights.cabinPwr]]).forEach(([y, z, on]) =>
   part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], { pos: [X(17.9) - 0.011, Y(53.8) + y, Z(-13.3) + z], color: "#D8DDE0", anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; } }));
-part(() => cbHeads(4), ["electrical"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-18.6)], color: "#1A1D20" });
-part(() => cbHeads(8), ["electrical", "avionics"], { pos: [X(17.9) - 0.009, Y(44.2), Z(-8.6)], color: "#1A1D20" });
+part(() => cbHeads(4), ["electrical"], { pos: [X(17.9) - 0.009, Y(50), Z(-16.6)], color: "#1A1D20" });
+part(() => cbHeads(8), ["electrical", "avionics"], { pos: [X(17.9) - 0.009, Y(50), Z(-11.4)], color: "#1A1D20" });
 
 /** Top of the wing centre section over the cabin (antennas sit on it). */
 const ANT = "#C8399F", top = (fs: number, bl = 0) => wingP(Z(bl), cAt(fs, bl), 1).y;
