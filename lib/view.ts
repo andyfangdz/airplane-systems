@@ -38,6 +38,12 @@ interface ViewStore extends View {
 export const NARROW_PX = 860;
 export const narrowLayout = () => typeof window !== "undefined" && window.matchMedia(`(max-width:${NARROW_PX}px)`).matches;
 
+/** Phones: the page scrolls and the panel sits below the 3D view, so bring the view back up when it has scrolled away. */
+export function revealStage() {
+  const stage = document.querySelector(".stage");
+  if (narrowLayout() && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
+}
+
 let camId = 0;
 let focusTimer: ReturnType<typeof setTimeout> | undefined;
 

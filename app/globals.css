@@ -207,6 +207,11 @@ button.chip:hover{border-color:var(--elec)}
   .stage-foot{flex-direction:column-reverse;align-items:flex-start;gap:8px}
   .cas{width:200px;font-size:11px}
   .cas .hd{letter-spacing:.02em;gap:8px}
-  .caps-hud{min-width:0}
+  /* CAPS: the airplane hangs low in the short view, so keep the HUD to two lines beside the CAS window
+     (the panel's timeline below has the detail) */
+  .stage-foot:has(.caps-hud){flex-direction:row;flex-wrap:nowrap;align-items:flex-end}
+  .caps-hud{min-width:0;padding:6px 10px;font-size:11px}
+  .caps-hud b{font-size:18px}
+  .caps-hud .sub{display:none}
 }
 @media (prefers-reduced-motion: reduce){ .rock .body::after,.tour-spot,.tour-card{transition:none} }
