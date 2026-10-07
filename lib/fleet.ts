@@ -19,8 +19,8 @@ export const sysOf = (def: AircraftDef, id: SysId): SysDef => def.systems.find((
 export const hasSys = (def: AircraftDef, id: unknown): id is SysId => def.systems.some((s) => s.id === id);
 
 const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
-/** Keep the address bar on the view shown, so a reload or a copied link opens it (App listens for hash changes). */
-export const showInUrl = (ac: AircraftId, sys: SysId) => { try { history.replaceState(null, "", `#${ac}/${sys}`); } catch {} };
+/** Keep the address bar on the view shown (/c172s/electrical), so a reload or a copied link opens it. */
+export const showInUrl = (ac: AircraftId, sys: SysId) => { try { history.replaceState(null, "", `/${ac}/${sys}${location.search}`); } catch {} };
 
 /** Show a system of the current airplane, optionally flying the camera to it. */
 export function selectSys(id: SysId, fly = true) {
