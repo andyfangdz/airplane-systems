@@ -96,7 +96,7 @@ const SCREENS: ScreenSpec[] = [
   { key: "mfd", px: [640, 480], size: [0.211, 0.158], pos: [2.275, 0.1, 0.053], pinAt: [0, 0.085, 0], sys: ["avionics"], name: "MFD — GDU 1050A",
     note: "Engine Strip on the left, map on the right. MFD A (MAIN BUS 3) or MFD B (MAIN BUS 1). % power is estimated from RPM and manifold pressure and fuel flow is illustrative; GAL Used, oil, CHT and EGT aren't simulated.",
     draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.mfd) drawMfdScreen(ctx, W, H, s, E); else drawOff(ctx, W, H); } },
-  { key: "sby", px: [420, 180], size: [0.14, 0.06], pos: [2.115, -0.27, -0.3], pinAt: [0, 0.033, 0], sys: ["avionics", "pitot"], name: "Standby — MD302",
+  { key: "sby", px: [420, 180], size: [0.14, 0.06], pos: [2.115, -0.104, -0.245], pinAt: [0, 0.033, 0], sys: ["avionics", "pitot"], name: "Standby — MD302",
     note: "Attitude on the left screen, airspeed and altitude on the right. STDBY ATTD A (ESS BUS 1) + STDBY ATTD B (MAIN BUS 1) through diodes.",
     draw: (ctx, W, H) => { const { s, E } = useSR20.getState(); if (E.stby) drawStandby(ctx, W, H, s); else drawOff(ctx, W, H); } },
 ];

@@ -11,6 +11,7 @@ import { govRpm, live, rpmFine, type Elec, type Sim } from "./model";
 import { CYLS, P3, PV } from "./parts";
 import { DIVIDER, GOVERNOR, JBOX, KAP, MANIFOLD, PITOT, STALL_VANE, STATIC_PORTS } from "./parts-systems";
 import { CABLES, RIG_SPEC } from "./rig";
+import { NAV3_BL } from "../cessna/faceplate";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) => F.push({ key, pts, sys, ...o });
@@ -84,7 +85,7 @@ flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 
 });
 
 /* ---------- pitot-static, stall warning, vacuum ---------- */
-const PIT = "#3A9448", ADC = P3(11.4, 10.5, 61.5), SBY = P3(16.6, 0.6, 52.2);
+const PIT = "#3A9448", ADC = P3(11.4, NAV3_BL.mfd, 61.5), SBY = P3(16.6, 0.6, 52.2);
 flow("pitot", [[PITOT[0] - 0.05, PITOT[1] + 0.02, PITOT[2]], wp(-65, 0.2, -1, 0.04), wp(-45, 0.25, 0), wp(-17, 0.22, -1, 0.03), P3(31.6, -19.4, 76), P3(30.6, -19.6, 50), P3(16, -19.6, 50), P3(16, -8, 50), SBY], ["pitot"],
   { r: 0.006, color: PIT, name: "Pitot line", note: "Pitot head → left wing → forward door post → standby airspeed indicator and the GDC 74A (POH 7-62)." });
 flow("pitot2", [SBY, P3(14, 5, 57), ADC], ["pitot"], { r: 0.006, color: PIT, name: "Pitot line to the GDC 74A" });

@@ -11,6 +11,7 @@ import { AFCS_CFG, C172S_ANN, densityFactor, live } from "../model";
 import { CAT, P3 } from "../parts";
 import { useC172 } from "../store";
 import { SYS } from "../systems";
+import { NAV3_BL } from "../../cessna/faceplate";
 import { scenarioCruise } from "../store";
 
 const onOff = (b: boolean): [string, "" | "bad"] => (b ? ["ON", ""] : ["OFF", "bad"]);
@@ -32,7 +33,7 @@ export function Avionics() {
           <Check id="adcF" label="Air data computer fails" checked={a.adcFail} onChange={(v) => up((d) => { d.avx.adcFail = v; })} />
         </BtnRow>
         <BtnRow>
-          {([["Close-up: PFD", -11.5], ["Close-up: MFD", 10.5]] as [string, number][]).map(([label, bl]) => {
+          {([["Close-up: PFD", NAV3_BL.pfd], ["Close-up: MFD", NAV3_BL.mfd]] as [string, number][]).map(([label, bl]) => {
             const t = P3(18.62, bl, 60.6);
             // labels off for the close-up so they don't sit on the display
             return <button key={label} type="button" className="btn" onClick={() => { useView.getState().set({ labels: false }); useView.getState().flyTo([t[0] - 0.46, t[1] + 0.02, t[2]], t); }}>{label}</button>;

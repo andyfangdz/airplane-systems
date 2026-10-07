@@ -13,6 +13,7 @@ import { CAT, P3 } from "../parts";
 import { KAP_LCD } from "../parts-systems";
 import { useC182 } from "../store";
 import { SYS } from "../systems";
+import { NAV3_BL } from "../../cessna/faceplate";
 import { scenarioCruise } from "../store";
 import { kapView } from "../tick";
 
@@ -38,8 +39,8 @@ export function Avionics() {
           <Check id="adcF" label="Air data computer fails" checked={a.adcFail} onChange={(v) => up((d) => { d.avx.adcFail = v; })} />
         </BtnRow>
         <BtnRow>
-          <button type="button" className="btn" onClick={() => closeUp(P3(18.82, -11.5, 61.0))}>Close-up: PFD</button>
-          <button type="button" className="btn" onClick={() => closeUp(P3(18.82, 10.5, 61.0))}>Close-up: MFD</button>
+          <button type="button" className="btn" onClick={() => closeUp(P3(18.82, NAV3_BL.pfd, 61.0))}>Close-up: PFD</button>
+          <button type="button" className="btn" onClick={() => closeUp(P3(18.82, NAV3_BL.mfd, 61.0))}>Close-up: MFD</button>
           <button type="button" className="btn" onClick={() => closeUp([KAP_LCD.pos[0], KAP_LCD.pos[1] + 0.06, KAP_LCD.pos[2]], 0.34)}>Close-up: standby + KAP 140</button>
           <button type="button" className="btn" onClick={wholePanel}>Whole panel</button>
         </BtnRow>

@@ -20,6 +20,7 @@ import { useC172 } from "./store";
 import { IN } from "../cessna/airframe";
 import { brakeAnim, glowAnim, magAnim, plugAnim, pushPull, sparkPhase } from "../cessna/anims";
 import { pulleyGeo } from "../cessna/rig";
+import { NAV3_BL, afcsKeys } from "../cessna/faceplate";
 import { CAP_END, HUB_LOW, capRot, controlWheelGeo, gripAft, onCap, wheelEmblemGeo } from "../cessna/yoke";
 
 /** POH station → scene position: FS (in aft of datum), BL (in right), h (in above ground). */
@@ -175,7 +176,7 @@ part(() => tubeGeo([[0, -0.15, 0], [NA[0] * 0.5, -0.4, 0], [NA[0], NA[1] + 0.02,
 part(() => cyl(7.1 * IN, 4.6 * IN, "z", 24), ["gear"], { parent: "caster", pos: NA, color: "#2A2F33", name: "Nose wheel and tire", note: "5.00 × 5, 6-ply tube type, 45 PSI; nose wheel arm FS −6.8 (POH 6-21, 8-21). Never turn more than 30° when towing (POH 7-22).", ext: true, pin: true });
 part(() => wheelFairingGeo({ len: 32, height: 18, width: 9.5, axle: 0.47, lift: 1, cut: -4.5 }), ["gear"], { parent: "caster", pos: [NA[0], NA[1], 0], color: "#EEF1F3", fairing: true, name: "Nose wheel fairing", note: "Nose speed fairing, arm FS −3.5 (POH 6-21).", ext: true });
 part(() => box(0.06, 0.03, 0.16), ["gear", "controls"], { parent: "caster", pos: [0.0, -0.02, 0], color: "#7C57CF", name: "Steering arm", note: "The spring-loaded steering bungees from the rudder bars attach here (POH 7-22).", chan: ["rudder"] });
-part(() => box(0.06, 0.1, 0.03), ["gear"], { pos: P3(19, -12, 46), color: "#C8313B", name: "Parking brake handle", note: "Under the left side of the panel: set the brakes with the pedals, pull the handle aft and rotate it 90° down (POH 7-46). Don't set it in cold weather or with hot brakes (POH 8-9).", pin: true });
+part(() => box(0.06, 0.03, 0.1), ["gear"], { pos: P3(18.6, -13.5, 43), color: "#C8313B", name: "Parking brake handle", note: "Under the left side of the panel: set the brakes with the pedals, pull the handle aft and rotate it 90° down (POH 7-46). Don't set it in cold weather or with hot brakes (POH 8-9).", pin: true });
 part(() => box(0.5, 0.04, 0.04), ["gear", "cabin"], { pos: P3(121, 9.5, 36), color: "#8C959C", name: "Tow bar (stowed)", note: "Stowed on the side of the baggage area, arm 124.0 (POH 6-20, 8-9). Without it, push on the wing struts — never on the tail surfaces.", pin: true });
 
 /* ---------- propeller: McCauley 1A170E/JHA7660, 76 in, fixed pitch (POH 1-5) ---------- */
@@ -242,7 +243,9 @@ part(() => box(0.32, 0.02, 0.5), ["engine"], { pos: P3(-19, 0, 58.5), color: "#B
 // controls on the panel
 part(() => cyl(0.016, 0.03, "x"), ["engine"], { pos: P3(18.6, 1.8, 47.5), color: "#1A1F23", anim: pushPull(X(18.6), () => S().eng.throttle), name: "Throttle (with friction lock)", note: "Smooth black push-pull knob below the standby instruments: in = FULL, out = IDLE. Friction lock at its base (POH 7-29). With a fixed-pitch prop it sets RPM directly.", pin: true });
 part(() => cyl(0.016, 0.03, "x"), ["engine"], { pos: P3(18.6, 5.2, 47.5), color: "#C8313B", anim: pushPull(X(18.6), () => S().eng.mix), name: "Mixture (red, vernier)", note: "Red knob with raised points and a lock button: in = RICH, out = IDLE CUTOFF; rotate for fine adjustment (POH 7-29).", pin: true });
-part(() => cyl(0.012, 0.025, "z"), ["engine", "electrical"], { pos: P3(17.9, -16, 49), color: "#C9D0D5", anim: (m) => { const k = S().eng.mags; m.rotation.z = ({ OFF: -1, R: -0.5, L: 0, BOTH: 0.5, START: 1 } as const)[k]; }, name: "MAGNETOS switch", note: "Rotary OFF – R – L – BOTH – START, spring-loaded from START back to BOTH (POH 7-36). The starter relay coil is fed through the WARN breaker.", pin: true });
+// far lower left of the panel, level with and outboard of the breaker panel (Fig. 7-2 item 33; photos)
+part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: P3(17.9, -18.4, 49.6), color: "#3E4A52" });
+part(() => box(0.012, 0.032, 0.009), ["engine", "electrical"], { pos: P3(18.2, -18.4, 49.6), color: "#C9D0D5", anim: (m) => { const k = S().eng.mags; m.rotation.x = ({ OFF: -1, R: -0.5, L: 0, BOTH: 0.5, START: 1 } as const)[k]; }, name: "MAGNETOS switch", note: "Rotary OFF – R – L – BOTH – START, spring-loaded from START back to BOTH (POH 7-36). The starter relay coil is fed through the WARN breaker.", pin: true });
 
 /* ---------- structure ---------- */
 part(() => planeRing(X(0)), ["airframe", "engine"], { plate: true, pin: true, name: "Firewall — FS 0 (datum)", note: "Reference datum: lower portion of the front face of the firewall (POH 2-9). Battery, J-box and external-power receptacle are on its left forward side." });
@@ -343,6 +346,7 @@ part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], { pos: RIG.p3(RIG_SP
 part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], { pos: RIG.p3(RIG_SPEC.servo.pitch), color: "#C8399F", chan: ["elevator"], anim: glowAnim("#C8399F", apEngaged, ["autopilot", "controls"], "#FF7BE0"), name: "GFC 700 pitch servo", note: "In the tailcone at FS 180.7 (POH 6-19): bridle on the elevator cables.", pin: true });
 part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], { pos: RIG.p3(RIG_SPEC.servo.trim), color: "#C8399F", chan: ["elevator"], anim: glowAnim("#C8399F", () => live.afcs.powered && live.afcs.pft === "pass" && !live.afcs.fail.sys, ["autopilot"], "#FF7BE0"), name: "GFC 700 pitch trim servo", note: "FS 180.7: drives the elevator trim cable (MET and autotrim) — so the cockpit trim wheel turns too (POH Fig. 7-10).", pin: true });
 part(() => box(0.02, 0.022, 0.022), ["autopilot"], { pos: P3(18.3, -2.2, 48.8), color: "#20262B", name: "GA button", note: "Go-around button left of the throttle, below ALT STATIC AIR (Fig. 7-2 item 27): on the ground TO, in the air GA — disengages the AP, wings level and a fixed pitch-up (CRG 21–22).", pin: true });
-([[-11.5, "PFD bezel AFCS keys"], [10.5, "MFD bezel AFCS keys"]] as [number, string][]).forEach(([bl, name], i) => part(() => box(0.012, 0.11, 0.04), ["autopilot", "avionics"], { pos: P3(18.4, bl - 5.3, 59), color: "#2A2F33", name, note: "AP FD / HDG ALT / NAV VNV / APR BC / VS FLC / NOSE UP NOSE DN on the left bezel of both GDUs — “push AP button on either PFD or MFD bezel” (POH 4-16).", pin: i === 0 }));
+// left strip of each GDU 1040 bezel (FS 17.9, WL 61), between the HDG and ALT knobs (aircraft/cessna/faceplate.ts)
+([[NAV3_BL.pfd, "PFD bezel AFCS keys"], [NAV3_BL.mfd, "MFD bezel AFCS keys"]] as [number, string][]).forEach(([bl, name], i) => part(afcsKeys, ["autopilot", "avionics"], { pos: [X(17.9) - 0.018, Y(61), Z(bl)], color: "#4A525A", name, note: "AP FD / HDG ALT / NAV VNV / APR BC / VS FLC / NOSE UP NOSE DN on the left bezel of both GDUs — “push AP button on either PFD or MFD bezel” (POH 4-16).", pin: i === 0 }));
 
 export { onSurf, PV };
