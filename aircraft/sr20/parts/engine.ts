@@ -6,7 +6,7 @@ import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
 import { magAnim, plugAnim, sparkPhase } from "@/lib/anims";
 import { box, cyl } from "../geometry";
-import { part, fires, ENGINE, altAnim, altDoorAnim } from "./catalogue";
+import { part, fires, altAnim, altDoorAnim } from "./catalogue";
 
 /* ---------- propeller (74 in., 3 blade) ---------- */
 export const PROP: Vec3 = [3.8, -0.14, 0];
@@ -78,7 +78,7 @@ CYLS.forEach((c) => {
       parent,
       pos: [-0.12, dy, c.s * 0.13],
       color: "#DADFE2",
-      anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`), ENGINE, ["propeller"]),
+      anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
       note: `Fired by the ${mag === "R" ? "right" : "left"} magneto.`,
     });
@@ -87,7 +87,7 @@ CYLS.forEach((c) => {
 part(() => cyl(0.05, 0.13, "x"), ["engine"], {
   pos: [2.72, -0.04, 0.11],
   color: "#3E4A52",
-  anim: magAnim(fires("R"), ENGINE),
+  anim: magAnim(fires("R")),
   name: "Right magneto",
   note: "Fires lower-right and upper-left plugs. Also the tachometer's RPM pickup.",
   pin: true,
@@ -95,7 +95,7 @@ part(() => cyl(0.05, 0.13, "x"), ["engine"], {
 part(() => cyl(0.05, 0.13, "x"), ["engine"], {
   pos: [2.72, -0.04, -0.11],
   color: "#3E4A52",
-  anim: magAnim(fires("L"), ENGINE),
+  anim: magAnim(fires("L")),
   name: "Left magneto",
   note: "Fires lower-left and upper-right plugs.",
   pin: true,

@@ -27,8 +27,6 @@ const keyFires = (mag: "R" | "L") => {
   return k === "BOTH" || k === "START" || k === mag;
 };
 export const fires = (mag: "R" | "L") => () => firing() && keyFires(mag);
-/** Engine parts are live in the Overview and Engine views. */
-export const ENGINE: SysId[] = ["engine", "overview"];
 /** Glows `lit` when cond() is true in the given systems' views. */
 export const glow = (base: string, lit: string, cond: () => boolean, sys: SysId[]) => glowAnim(base, cond, sys, lit);
 export const selPtrAnim: PartAnim = (m) => {

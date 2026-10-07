@@ -3,7 +3,7 @@ import type { Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { magAnim, plugAnim, sparkPhase } from "@/lib/anims";
 import { PANEL_X, box, cyl, fs } from "../geometry";
-import { part, sim, fires, ENGINE, glow, leverAnim } from "./catalogue";
+import { part, sim, fires, glow, leverAnim } from "./catalogue";
 
 /* ---------- propeller: MT MTV-12-B/183-59b, 3 blades, Ø 1.83 m ---------- */
 export const PROP: Vec3 = [fs(0.38), 0, 0];
@@ -81,7 +81,7 @@ CYLS.forEach((c) => {
       parent,
       pos: [-0.1, dy, c.s * 0.115],
       color: "#DADFE2",
-      anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`), ENGINE),
+      anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
       note: `Fired by the ${mag === "R" ? "right" : "left"} magneto (plug assignment not in the AFM; conventional cross-firing assumed).`,
     });
@@ -90,7 +90,7 @@ CYLS.forEach((c) => {
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pos: [fs(1.27), 0.07, 0.1],
   color: "#3E4A52",
-  anim: magAnim(fires("R"), ENGINE),
+  anim: magAnim(fires("R")),
   name: "Right magneto",
   note: "Slick magneto at the rear of the engine; the G1000 tach sensor sits in its bleed port (SMM 2-19). SlickSTART boosts spark energy for starting (AFM 7-43).",
   pin: true,
@@ -98,7 +98,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pos: [fs(1.27), 0.07, -0.1],
   color: "#3E4A52",
-  anim: magAnim(fires("L"), ENGINE),
+  anim: magAnim(fires("L")),
   name: "Left magneto",
   note: "Second Slick magneto. Run-up check L–BOTH–R–BOTH: max drop 175 RPM, max difference 50 RPM (AFMS p. 47).",
   pin: true,

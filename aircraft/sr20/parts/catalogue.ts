@@ -31,8 +31,6 @@ const keyFires = (mag: "R" | "L") => {
   return k === "BOTH" || k === "START" || k === mag;
 };
 export const fires = (mag: "R" | "L") => () => firing() && keyFires(mag);
-/** Engine parts are live in the Overview and Engine views; the plugs also show (unlit) in the Propeller view. */
-export const ENGINE: SysId[] = ["engine", "overview"];
 export const altAnim =
   (which: "alt1" | "alt2"): PartAnim =>
   (m) => {

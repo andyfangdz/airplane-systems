@@ -10,8 +10,8 @@ import { useView } from "./view";
 export const sysNow = () => useView.getState().sys;
 const inView = (views: readonly SysId[]) => views.includes(sysNow());
 
-/** Views where engine parts are shown live (spark plugs flashing, magnetos lit). */
-export const ENGINE_VIEWS: readonly SysId[] = ["overview", "engine", "propeller"];
+/** Views where engine parts are shown live (spark plugs flashing, magnetos lit): the same in every airplane. */
+const ENGINE_VIEWS: readonly SysId[] = ["overview", "engine", "propeller"];
 
 /** Lit (`hot`) when `on()` in the given systems' views (and the Overview), otherwise the normal colour, dimmed elsewhere. */
 export const glowAnim =
@@ -39,23 +39,20 @@ export const sparkPhase = (id: string) => {
   return (h % 100) / 10;
 };
 
-/**
- * Spark plug: flashes while `firing()` (engine turning and its magneto on and working) in the `views`; shown undimmed in
- * the `views` and `litViews`, dimmed elsewhere.
- */
+/** Spark plug: flashes while `firing()` (engine turning and its magneto on and working) in the engine views; dimmed elsewhere. */
 export const plugAnim =
-  (firing: () => boolean, phase: number, views = ENGINE_VIEWS, litViews = views): PartAnim =>
+  (firing: () => boolean, phase: number): PartAnim =>
   (m, t) => {
-    const live = inView(views),
+    const live = inView(ENGINE_VIEWS),
       flash = live && firing() && Math.sin(t * 18 + phase) > 0.3;
-    m.material = flash ? mats("#6FD8FF").hi : live || inView(litViews) ? mats("#DADFE2").on : mats("#DADFE2").dim;
+    m.material = flash ? mats("#6FD8FF").hi : live ? mats("#DADFE2").on : mats("#DADFE2").dim;
   };
 
-/** Magneto: lit while `firing()`, in the `views`; dimmed elsewhere. */
+/** Magneto: lit while `firing()`, in the engine views; dimmed elsewhere. */
 export const magAnim =
-  (firing: () => boolean, views = ENGINE_VIEWS): PartAnim =>
+  (firing: () => boolean): PartAnim =>
   (m) => {
-    m.material = inView(views) ? (firing() ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
+    m.material = inView(ENGINE_VIEWS) ? (firing() ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
   };
 
 /** Brake disc: glows while `amount()` (0..1, toe brake or parking brake) is applied. */
