@@ -36,7 +36,7 @@ export const SR20: AircraftDef = {
   id: "sr20",
   short: "SR20",
   name: "SR20 G6",
-  sub: "Perspective+ · IO-390 · 3D study model",
+  sub: "Perspective+ · GFC 700 · IO-390",
   doc: "POH §7",
   systems: SYS,
   groundY: GROUND_Y,

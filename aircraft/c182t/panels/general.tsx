@@ -28,7 +28,7 @@ export function Overview() {
       <H3>Start from</H3>
       <Ctl><Scenarios /></Ctl>
       <Small>“Cold &amp; dark” sets everything off and the engine cold so you can follow the POH 4-13 start (prime with the FUEL PUMP — there is no primer) in the Engine panel.</Small>
-      <H3>At a glance</H3>
+      <H3>Key figures</H3>
       <Facts rows={[
         ["Engine", "Lycoming IO-540-AB1A5 · 230 BHP @ 2,400 RPM · six cylinders, fuel injected · cowl flaps"],
         ["Propeller", "McCauley B3D36C431/80VSA-1 · 3 blades · 79 in · constant speed (governor, blue knob)"],

@@ -14,7 +14,7 @@ export function Overview() {
   return (
     <>
       <p className="lead">A study model of POH Section 7 for the SR20 with Perspective+ avionics (G6). Pick a system to fly the camera to it, hover parts for their notes, and operate switches, levers and failures in the panel. Systems are linked: pull an alternator and watch buses, displays and the CAS window respond.</p>
-      <H3>At a glance</H3>
+      <H3>Key figures</H3>
       <Facts rows={[["Engine", "IO-390-C3B6 · 215 hp @ 2,700"], ["Propeller", "3-blade, 74 in., constant speed"], ["Fuel", "56 gal usable · 28 per wing"], ["Electrical", "28 V · ALT 100 A + 70 A · 2 batteries"], ["Flaps", "0 / 50% (16°) / 100% (32°)"], ["Avionics", "Garmin Perspective+, GFC 700 AP"], ["CAPS", "2,400 ft² canopy, rocket deployed"]]} />
       <H3>Systems</H3>
       <div className="overview-grid">

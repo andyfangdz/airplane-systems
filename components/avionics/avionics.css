@@ -36,8 +36,8 @@
 /* fly controls */
 .avx-fly{display:grid;gap:8px}
 .avx-knob{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center}
-.avx-knob > span{font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);display:flex;flex-direction:column}
-.avx-knob > span b{font-weight:500;font-size:15px;color:var(--ink);letter-spacing:0;font-variant-numeric:tabular-nums}
+.avx-knob > span{font-size:13px;color:var(--muted);display:flex;flex-direction:column}
+.avx-knob > span b{font-family:var(--f-mono);font-weight:500;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 .avx-knob .btnrow .btn{padding:5px 8px;min-width:40px;font-family:var(--f-mono);font-size:12px}
 
 /* KAP 140 faceplate */

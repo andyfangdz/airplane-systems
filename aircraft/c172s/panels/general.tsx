@@ -28,7 +28,7 @@ export function Overview() {
       <H3>Start from</H3>
       <Ctl><Scenarios /></Ctl>
       <Small>“Cold &amp; dark” sets everything off and the engine cold so you can follow the POH 4-11 start in the Engine panel.</Small>
-      <H3>At a glance</H3>
+      <H3>Key figures</H3>
       <Facts rows={[
         ["Engine", "Lycoming IO-360-L2A · 180 BHP @ 2,700 RPM · fuel injected"],
         ["Propeller", "McCauley 1A170E/JHA7660 · 2 blades · 76 in · fixed pitch"],
