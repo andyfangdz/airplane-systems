@@ -8,6 +8,7 @@
 import "./cessna.css";
 import type { ReactNode } from "react";
 import { Facts, HoldButton, Readouts, Rocker } from "@/components/ui/controls";
+import { Box, Cb, Diode, Dot, Key, Sw, W as Wire } from "@/components/ui/wiring";
 import type { Nav3AnnDef } from "./annunciations";
 import { FEEDER, PULLABLE, amp, cbKey, mBattAlert, sBattAlert, voltsAlert, type Breaker, type Nav3Bus, type Nav3Elec, type Nav3Solution } from "./electrical";
 
@@ -57,48 +58,6 @@ export function Nav3Meters({ E }: { E: Nav3Solution }) {
 }
 
 /* ---------- Figure 7-7 single-line diagram ---------- */
-// Symbols for the diagram below. Vertical breakers and switches sit on a wire at (x, y) with terminals 6–7 px above and below;
-// `top`/`bot` say whether the wire on each side is live.
-const wire = (lit: boolean) => "w" + (lit ? " on" : "");
-const Term = ({ x, y, lit }: { x: number; y: number; lit: boolean }) => <circle cx={x} cy={y} r={1.8} className={"t" + (lit ? " on" : "")} />;
-/** Breaker: an arc bridging two terminals; pulled or tripped, it lifts clear (amber). */
-function Cb({ x, y, open, top, bot, label, side = 1 }: { x: number; y: number; open: boolean; top: boolean; bot: boolean; label: string; side?: 1 | -1 }) {
-  return (
-    <g>
-      <Term x={x} y={y - 6} lit={top} /><Term x={x} y={y + 6} lit={bot} />
-      <path d={open ? `M${x + 4} ${y - 9} a6.5 6.5 0 0 1 0 13` : `M${x} ${y - 6} a6.5 6.5 0 0 1 0 12`} className={open ? "w out" : wire(top && bot)} />
-      <text x={x + side * 16} y={y + 4} textAnchor={side > 0 ? "start" : "end"}>{label}{open ? <tspan className="x"> ⏏ out</tspan> : null}</text>
-    </g>
-  );
-}
-/** Switch contact: a blade hinged on the lower terminal, closed onto the upper one or swung open. */
-function Sw({ x, y, closed, top, bot, label, sub, side = 1 }: { x: number; y: number; closed: boolean; top: boolean; bot: boolean; label: string; sub?: string; side?: 1 | -1 }) {
-  const tx = x + side * 16, anchor = side > 0 ? "start" : "end";
-  return (
-    <g>
-      <Term x={x} y={y - 7} lit={top} /><Term x={x} y={y + 7} lit={bot} />
-      <path d={closed ? `M${x} ${y + 7} V${y - 7}` : `M${x} ${y + 7} L${x + side * 9} ${y - 5}`} className={wire(closed ? top && bot : bot)} />
-      {sub ? <>
-        <text x={tx} y={y - 1} textAnchor={anchor} className="d s">{sub}</text>
-        <text x={tx} y={y + 10} textAnchor={anchor}>{label}</text>
-      </> : <text x={tx} y={y + 4} textAnchor={anchor}>{label}</text>}
-    </g>
-  );
-}
-/** Diode on a horizontal wire, pointing the way current can flow (`dir` 1 = right). */
-const Diode = ({ x, y, dir, lit }: { x: number; y: number; dir: 1 | -1; lit: boolean }) => (
-  <path d={`M${x - 5 * dir} ${y - 5} L${x + 5 * dir} ${y} L${x - 5 * dir} ${y + 5} Z M${x + 5 * dir} ${y - 5} V${y + 5}`} className={"dio" + (lit ? " on" : "")} />
-);
-function Box({ x, y, w, label, value, lit, h = 32 }: { x: number; y: number; w: number; label: string; value: string; lit: boolean; h?: number }) {
-  return (
-    <g>
-      <rect className={"b" + (lit ? " on" : "")} x={x} y={y} width={w} height={h} rx={4} />
-      <text x={x + w / 2} y={y + 14} textAnchor="middle">{label}</text>
-      <text x={x + w / 2} y={y + 26} textAnchor="middle" className="d">{value}</text>
-    </g>
-  );
-}
-
 /**
  * Live single-line diagram after Figure 7-7 Sheets 1–3: the alternator and main battery (external power joins the battery side
  * of the battery relay) → MASTER ALT / BAT → J-box main node → feeder breakers B and A → ELECTRICAL BUS 1 and 2; each bus feeds
@@ -115,16 +74,16 @@ export function Nav3Diagram({ e, E }: { e: Nav3Elec; E: Nav3Solution }) {
   const a1 = !!e.cb["E1:AVN 1"], a2 = !!e.cb["E2:AVN 2"];
   const sbIn = !e.cb["ESS:STDBY BATT"], arm = e.stby === "ARM";
   const sbMid = sbIn && (on("ESS") || (arm && stbyOk)), sbBat = stbyOk || (arm && sbIn && on("ESS"));
-  const W = (d: string, lit: boolean) => <path d={d} className={wire(lit)} />;
+  const W = (d: string, lit: boolean) => <Wire d={d} lit={lit} />;
   const stbyWord = E.stbyOnline ? "supplying" : E.sBatt > 0 ? "charging" : arm ? "armed" : e.stby === "TEST" ? "test" : "off";
   return (
-    <svg className="n3-dia" viewBox="0 0 340 394" role="img" aria-label="Electrical system single-line diagram after POH Figure 7-7">
+    <svg className="wiring" viewBox="0 0 340 394" role="img" aria-label="Electrical system single-line diagram after POH Figure 7-7">
       {/* sources */}
       <Box x={6} y={6} w={96} label="ALTERNATOR" value={E.altOn ? `${E.altAmps.toFixed(1)} A` : e.fail.alt ? "failed" : "off line"} lit={E.altOn} />
       <Box x={122} y={6} w={96} label="MAIN BATT" value={e.fail.bat ? "failed" : `${amp(E.mBatt)} A`} lit={battOk} />
       <Box x={238} y={6} w={96} label="EXT PWR" value={e.ext ? "28.0 V" : "unplugged"} lit={e.ext} />
       {W("M286 38 V48 H170", e.ext)}
-      <circle cx={170} cy={48} r={2.6} className={"j" + (batSide ? " on" : "")} />
+      <Dot x={170} y={48} lit={batSide} />
       {/* MASTER switch: ALT and BAT halves */}
       {W("M54 38 V59", E.altOn)}{W("M54 73 V86", node)}
       <Sw x={54} y={66} closed={e.alt} top={E.altOn} bot={node} label="ALT" side={-1} />
@@ -145,11 +104,11 @@ export function Nav3Diagram({ e, E }: { e: Nav3Elec; E: Nav3Solution }) {
       {/* diode-ORed CROSSFEED and ESSENTIAL buses */}
       {W("M98 178 V258 H108 M98 210 H108", on("E1"))}
       {W("M118 210 H128", on("XF"))}{W("M118 258 H128", on("ESS"))}
-      <circle cx={98} cy={210} r={2.6} className={"j" + (on("E1") ? " on" : "")} />
+      <Dot x={98} y={210} lit={on("E1")} />
       <Diode x={113} y={210} dir={1} lit={on("E1")} /><Diode x={113} y={258} dir={1} lit={on("E1")} />
       {W("M242 178 V258 H232 M242 210 H232", on("E2"))}
       {W("M222 210 H212", on("XF"))}{W("M222 258 H212", on("ESS"))}
-      <circle cx={242} cy={210} r={2.6} className={"j" + (on("E2") ? " on" : "")} />
+      <Dot x={242} y={210} lit={on("E2")} />
       <Diode x={227} y={210} dir={-1} lit={on("E2")} /><Diode x={227} y={258} dir={-1} lit={on("E2")} />
       <Box x={128} y={194} w={84} label="CROSSFEED" value={V("XF")} lit={on("XF")} />
       <Box x={128} y={242} w={84} label="ESSENTIAL" value={V("ESS")} lit={on("ESS")} />
@@ -167,13 +126,7 @@ export function Nav3Diagram({ e, E }: { e: Nav3Elec; E: Nav3Solution }) {
       <Cb x={170} y={306} open={!sbIn} top={on("ESS")} bot={sbMid} label="STDBY BATT" />
       <Sw x={170} y={336} closed={arm} top={sbMid} bot={sbBat} label={e.stby} sub="STBY BATT" />
       <Box x={110} y={356} w={120} label="STBY BATTERY" value={`${stbyWord} · ${amp(E.sBatt)} A`} lit={stbyOk} />
-      {/* key */}
-      <g className="key">
-        <Diode x={14} y={322} dir={1} lit={false} /><text x={28} y={326} className="d">diode</text>
-        <path d="M14 337 a6.5 6.5 0 0 1 0 12" className="w" /><Term x={14} y={337} lit={false} /><Term x={14} y={349} lit={false} /><text x={28} y={347} className="d">breaker</text>
-        <path d="M14 372 L23 362" className="w" /><Term x={14} y={360} lit={false} /><Term x={14} y={372} lit={false} /><text x={28} y={369} className="d">switch</text>
-        <path d="M8 386 H22" className="w on" /><text x={28} y={389} className="d">live</text>
-      </g>
+      <Key x={8} y={318} />
     </svg>
   );
 }

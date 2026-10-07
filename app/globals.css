@@ -148,8 +148,6 @@ input[type=range]{width:100%;accent-color:var(--c,var(--accent))}
 button.chip{font:inherit;font-family:var(--f-mono);font-size:10.5px;background:none;cursor:pointer}
 button.chip:hover{border-color:var(--elec)}
 .chip.pulled,.bus.on .chip.pulled{background:color-mix(in srgb,var(--warn) 10%,var(--panel2));color:var(--warn);text-decoration:line-through;opacity:1;border-color:var(--warn)}
-.mcu{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px}
-.mcu .bus .src{margin-left:0}
 .parts{list-style:none;padding:0;margin:0;display:grid;gap:4px}
 .parts button{width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:5px;padding:5px 8px;cursor:pointer;display:grid;gap:1px}
 .parts button:hover{border-color:var(--rule);background:var(--panel2)}

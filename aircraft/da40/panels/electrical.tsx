@@ -3,6 +3,7 @@ import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Roc
 import { BUSES, SPARE_CB, fuelAvail, initialSim, type BusId, type Sim } from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
+import { PowerDiagram } from "./distribution";
 
 function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; loads: [string, number?][] }) {
   const E = useDA40((x) => x.E), cb = useDA40((x) => x.s.cb), up = useDA40((x) => x.update);
@@ -92,6 +93,7 @@ export function Electrical() {
         <Caution title="ALTERNATOR (AFMS 3.7.2b)">1. Circuit breakers — check in. 2. ALT switch OFF, then ON. If it does not come back: 3. ESS BUS switch ON. 4. Switch off non-essential loads. 5. Land within 30 minutes. 6. If PFD attitude is lost: HORIZON EMERGENCY switch ON.</Caution>
       )}
       <H3>Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)</H3>
+      <PowerDiagram s={s} E={E} />
       <Notes items={[
         "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
         "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",

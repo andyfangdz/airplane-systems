@@ -1,25 +1,24 @@
 "use client";
 import { BUSES, fuelAvail, type BusId, type Sim } from "../model";
 import { useSR20 } from "../store";
+import { PowerDiagram } from "./distribution";
 import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, Readouts, Rocker, Slider, Small } from "@/components/ui/controls";
 
-function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; loads?: [string, number?][] }) {
+function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; loads: [string, number?][] }) {
   const E = useSR20((x) => x.E), cb = useSR20((x) => x.s.cb), up = useSR20((x) => x.update);
   const v = E[id], on = v > 0;
   return (
     <div className={"bus" + (on ? " on" : "")}>
       <div className="top"><span className="lamp" /><span className="nm">{name}</span><span className="v">{on ? v.toFixed(1) + " V" : "0 V"}</span></div>
       <div className="src">{src}</div>
-      {loads && (
-        <div className="loads">
-          {loads.map(([n, a]) => (
-            <button key={n} type="button" className={"chip" + (cb[n] ? " pulled" : "")} aria-pressed={!!cb[n]} title={`Pull / reset the ${n} breaker`}
-              onClick={() => up((d) => { if (d.cb[n]) delete d.cb[n]; else d.cb[n] = true; })}>
-              {n}{a ? ` ${a}A` : ""}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="loads">
+        {loads.map(([n, a]) => (
+          <button key={n} type="button" className={"chip" + (cb[n] ? " pulled" : "")} aria-pressed={!!cb[n]} title={`Pull / reset the ${n} breaker`}
+            onClick={() => up((d) => { if (d.cb[n]) delete d.cb[n]; else d.cb[n] = true; })}>
+            {n}{a ? ` ${a}A` : ""}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -79,14 +78,11 @@ export function Electrical() {
         ]} />
       </Ctl>
       <Small>Currents are illustrative, anchored to a normal G6 readout (ALT 1 +23 A, ALT 2 +13 A, BAT 1 +1 A, ESS 28.0 V, M1 27.7 V, M2 28.7 V). Battery times use the Costanzo training deck&apos;s rule of thumb — actual endurance depends on load shedding.</Small>
+      <H3>Power distribution</H3>
+      <PowerDiagram s={s} E={E} />
+      <Small>Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them are on the circuit-breaker panel, grouped here by the distribution bus that feeds them. Pull BAT 2 or AVIONICS below, or flip a switch, to watch it change.</Small>
       <H3>Battery endurance (rule of thumb)</H3>
       <Facts rows={[["ALT 2 fails", "ALT 1 powers Main Dist Bus 2 through the diode — no time limit"], ["ALT 1 fails", "BAT 1 carries Main Dist Bus 1 ≈ 30 min, then it drops off"], ["Both fail", "BAT 1 carries both main buses ≈ 15 min, then BAT 2 carries the essential buses ≈ 45 min"]]} />
-      <H3>MCU distribution buses</H3>
-      <div className="mcu">
-        <Bus id="mdb1" name="MAIN DIST 1" src="ALT 1 · BAT 1" />
-        <Bus id="mdb2" name="MAIN DIST 2" src="ALT 2 · MDB 1 via diode" />
-        <Bus id="edb" name="ESS DIST" src="MDB 1 + MDB 2" />
-      </div>
       <H3>Circuit-breaker buses</H3>
       <Small>Tap a breaker to pull it (white collar showing) or reset it. Pulled breakers remove that load everywhere in the model — try FLAPS, PFD A + PFD B, ALT 1, or STALL WARNING.</Small>
       <div className="buses">{BUSES.map(([id, name, src, loads]) => <Bus key={id} id={id} name={name} src={src} loads={loads} />)}</div>
