@@ -249,11 +249,11 @@ function slope(a: [number, number], b: [number, number]) {
   const tilt = Math.atan2(-dx, dy);
   return { at: (t: number, out: number, z: number): Vec3 => [a[0] + dx * t - dy * out, a[1] + dy * t + dx * out, z], tilt, rot: [0, 0, tilt] as Vec3 };
 }
-// POH Fig. 7-4: the bolster runs between the yokes directly under the displays. Its top slopes up toward the panel and carries
-// the switch strip, facing up at the pilot; the MD302 is on its aft face. The avionics stack of the centre console (item 15)
-// leans back from the displays down to the console between the bolster halves.
-const BOLSTER_TOP = slope([2.12, -0.06], [2.28, -0.005]);
-part(() => prism([[2.12, -0.15], [2.28, -0.15], [2.28, -0.005], [2.12, -0.06]], -0.4, 0.4), ["cabin", "lighting", "electrical"], { color: "#39424A", name: "Bolster switch panel",
+// POH Fig. 7-4: the bolster runs between the yokes directly under the displays, about 10 cm deep. Its flat top carries the switch
+// strip, facing up at the pilot; the MD302 is on its aft face. The avionics stack of the centre console (item 15) leans back from
+// the displays down to the console between the bolster halves.
+const BOLSTER_TOP = slope([2.18, -0.005], [2.28, -0.005]);
+part(() => box(0.1, 0.145, 0.8), ["cabin", "lighting", "electrical"], { pos: [2.23, -0.0775, 0], color: "#39424A", name: "Bolster switch panel",
   note: "Below the PFD (POH Fig. 7-4 item 18, Fig. 7-12): a placard, then MASTER (BAT 2, BAT 1, ALT 1, ALT 2, AVIONICS) and EXTERIOR LIGHTS (NAV, STROBE, LAND), PITOT HEAT, the ICE PROTECT positions (blank without FIKI), and the PANEL and INSTRUMENT dimmers at the right end. The MD302 standby is below the switches, under the PFD." });
 /**
  * Bolster switch strip under the PFD, laid out from POH Fig. 7-12: the strip spans the PFD's width (z −0.385 … −0.10) and
@@ -262,7 +262,7 @@ part(() => prism([[2.12, -0.15], [2.28, -0.15], [2.28, -0.005], [2.12, -0.06]], 
  */
 const slot = (px: number) => -0.385 + (px - 205) * (0.285 / 420);
 /** Point on the bolster top at the strip's centre line (dt up the slope), `out` off its surface. */
-const onStrip = (z: number, out: number, dt = 0) => BOLSTER_TOP.at(0.085 + dt, out, z);
+const onStrip = (z: number, out: number, dt = 0) => BOLSTER_TOP.at(0.05 + dt, out, z);
 const SR = () => useSR20.getState().s;
 part(() => box(0.004, 0.048, 0.285), ["cabin", "lighting", "electrical"], { pos: onStrip(slot(415), 0.001), rot: BOLSTER_TOP.rot, color: "#20262B" });
 part(() => box(0.003, 0.03, 0.06), ["cabin"], { pos: onStrip(slot(255), 0.004), rot: BOLSTER_TOP.rot, color: "#9AA3AA" });
@@ -283,7 +283,7 @@ part(() => box(0.003, 0.03, 0.06), ["cabin"], { pos: onStrip(slot(255), 0.004), 
 ([[495, 0.0095], [512, 0.0095], [537, 0.02]] as [number, number][]).forEach(([px, w]) =>
   part(() => box(0.004, 0.02, w), ["cabin"], { pos: onStrip(slot(px), 0.004), rot: BOLSTER_TOP.rot, color: "#3A4148" }));
 ([[0.012, "PANEL dimmer"], [-0.012, "INSTRUMENT dimmer"]] as [number, string][]).forEach(([dt, name]) =>
-  part(() => cyl(0.008, 0.014, "x", 16), ["lighting"], { pos: onStrip(slot(588), 0.008, dt), rot: BOLSTER_TOP.rot, color: "#20262B", name, note: "Right end of the bolster switch panel: PANEL above, INSTRUMENT below (POH Fig. 7-12)." }));
+  part(() => cyl(0.008, 0.014, "x", 16), ["lighting"], { pos: onStrip(slot(588), 0.008, dt), rot: BOLSTER_TOP.rot, color: "#20262B", name, note: "Right end of the bolster switch panel: PANEL forward, INSTRUMENT aft of it (POH Fig. 7-12)." }));
 // POH 7-13, Fig. 7-4 item 19: left side of the instrument panel, outboard of the PFD; above the yoke tube here (height approximate)
 part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: [2.276, 0.03, -0.47], color: "#3E4A52" });
 part(() => box(0.012, 0.03, 0.008), ["engine", "electrical"], { pos: [2.266, 0.03, -0.47], color: "#C9D0D5",
