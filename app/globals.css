@@ -89,6 +89,7 @@ button{font:inherit;color:inherit}
 .caps-hud{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:8px 12px;font-family:var(--f-mono);font-size:12px;min-width:200px}
 .caps-hud span{display:block}
 .caps-hud b{font-family:var(--f-disp);font-size:22px;color:var(--caps);display:block;line-height:1.1}
+.stage-under{display:none}
 
 /* ---------- panel ---------- */
 .panel{border-left:1px solid var(--rule);background:var(--panel);overflow:auto;min-height:0}
@@ -207,11 +208,12 @@ button.chip:hover{border-color:var(--elec)}
   .stage-foot{flex-direction:column-reverse;align-items:flex-start;gap:8px}
   .cas{width:200px;font-size:11px}
   .cas .hd{letter-spacing:.02em;gap:8px}
-  /* CAPS: the airplane hangs low in the short view, so keep the HUD to two lines beside the CAS window
-     (the panel's timeline below has the detail) */
-  .stage-foot:has(.caps-hud){flex-direction:row;flex-wrap:nowrap;align-items:flex-end}
-  .caps-hud{min-width:0;padding:6px 10px;font-size:11px}
-  .caps-hud b{font-size:18px}
-  .caps-hud .sub{display:none}
+  .caps-hud{min-width:0}
+  /* the short view has no room for the HUD clear of the airplane (CAPS: it hangs low under the canopy), so it goes under the view */
+  .stage-foot .caps-hud{display:none}
+  .stage-under:not(:empty){display:block;background:var(--panel);border-top:1px solid var(--rule);padding:10px 16px}
+  .stage-under .caps-hud{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;border:0;border-radius:0;padding:0;background:none}
+  .stage-under .caps-hud b{order:-1}
+  .stage-under .caps-hud .sub{flex-basis:100%}
 }
 @media (prefers-reduced-motion: reduce){ .rock .body::after,.tour-spot,.tour-card{transition:none} }

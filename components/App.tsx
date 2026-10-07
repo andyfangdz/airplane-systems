@@ -198,6 +198,8 @@ export default function App() {
         </div>
         <Tooltip />
       </main>
+      {/* phones: the HUD shows here, under the 3D view, instead (see globals.css) */}
+      <div className="stage-under"><Hud /></div>
       <Panel />
       <Tour />
     </div>
