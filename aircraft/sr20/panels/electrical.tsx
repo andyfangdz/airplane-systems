@@ -78,16 +78,16 @@ export function Electrical() {
         ]} />
       </Ctl>
       <Small>Currents are illustrative, anchored to a normal G6 readout (ALT 1 +23 A, ALT 2 +13 A, BAT 1 +1 A, ESS 28.0 V, M1 27.7 V, M2 28.7 V). Battery times use the Costanzo training deck&apos;s rule of thumb — actual endurance depends on load shedding.</Small>
-      <H3>Power distribution</H3>
+      <H3>Power distribution (Figure 7-10)</H3>
       <PowerDiagram s={s} E={E} />
-      <Small>Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them are on the circuit-breaker panel, grouped here by the distribution bus that feeds them. Pull BAT 2 or AVIONICS below, or flip a switch, to watch it change.</Small>
+      <Small>Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them are on the circuit-breaker panel, the main and A/C buses grouped by the distribution bus that feeds them. With both alternators failed BAT 1 feeds the Ess Dist Bus directly; with BAT 1 gone too, BAT 2 feeds ESS BUS 1, and ESS BUS 2 back through ESSENTIAL POWER (POH 7-52). Pull ESSENTIAL POWER, BAT 2 or AVIONICS below, or flip a switch, to watch it change.</Small>
       <H3>Battery endurance (rule of thumb)</H3>
       <Facts rows={[["ALT 2 fails", "ALT 1 powers Main Dist Bus 2 through the diode — no time limit"], ["ALT 1 fails", "BAT 1 carries Main Dist Bus 1 ≈ 30 min, then it drops off"], ["Both fail", "BAT 1 carries both main buses ≈ 15 min, then BAT 2 carries the essential buses ≈ 45 min"]]} />
       <H3>Circuit-breaker buses</H3>
       <Small>Tap a breaker to pull it (white collar showing) or reset it. Pulled breakers remove that load everywhere in the model — try FLAPS, PFD A + PFD B, ALT 1, or STALL WARNING.</Small>
       <div className="buses">{BUSES.map(([id, name, src, loads]) => <Bus key={id} id={id} name={name} src={src} loads={loads} />)}</div>
       <H3>Details</H3>
-      <Facts rows={[["ALT 1", "100 A, right front, 27.7 V"], ["ALT 2", "70 A, left front, 28.7 V"], ["BAT 1", "24 V, 10 Ah, right firewall"], ["BAT 2", "2 × 12 V, 7 Ah, aft of FS 222"], ["ALT 1 start", "Needs BAT 1 on"], ["ALT 2 start", "Needs BAT 1 or BAT 2 on"], ["External power", "28 V regulated; BAT 1 must be on"], ["Lightning", "TVS suppressors at bus entry points"]]} />
+      <Facts rows={[["ALT 1", "100 A, right front, 27.7 V"], ["ALT 2", "70 A, left front, 28.7 V"], ["BAT 1", "24 V, 11 Ah, right firewall"], ["BAT 2", "2 × 12 V, 7 Ah, aft of FS 222"], ["ALT 1 start", "Needs BAT 1 on"], ["ALT 2 start", "Needs BAT 1 or BAT 2 on"], ["External power", "28 V regulated; BAT 1 must be on"], ["Lightning", "TVS suppressors at bus entry points"]]} />
       <Caution title="Caution">Running with the alternators off drains the batteries until the battery relay opens, removing alternator field power and preventing a restart.</Caution>
       <H3>CAS by failure (G6)</H3>
       <Facts rows={[["ALT 2 fails", "ALT 2"], ["ALT 1 fails", "ALT 1 · M BUS 1"], ["Both fail", "ALT 1 · ALT 2 · M BUS 1 · M BUS 2 · ESS BUS (red)"], ["BATT 1", "Battery 1 discharging with ALT 1 working: an MCU fault, not an ALT 1 failure (not modelled)"]]} />

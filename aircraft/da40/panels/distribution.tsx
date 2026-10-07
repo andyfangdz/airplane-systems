@@ -5,7 +5,10 @@ import type { Elec, Sim } from "../model";
 const V = (v: number) => (v > 0 ? v.toFixed(1) + " V" : "0 V");
 
 /**
- * Live single-line diagram of the GFC 700 airplane's distribution as the solver models it (AMM-E 190-00545-01 Fig. 2-3):
+ * Live single-line diagram after the AFM's simplified wiring diagram for serial numbers with Essential Bus (7.11; Rev. 8 p. 7-41,
+ * Rev. 7 p. 7-38), with the G1000 / GFC 700 airplane's distribution the solver models (AMM-E 190-00545-01 Fig. 2-3): the AFM
+ * figure is drawn for conventional instruments, with an ESSENTIAL AVIONIC BUS behind a second avionics relay, which the G1000
+ * airplane does not have (those loads sit on ESSENTIAL), and without the optional tie relay bypass diode (OAM 40-126). Layout:
  * battery → battery relay (BAT) → relay-box bus bar (external power and the starter join here) → BATT 70 A → ESSENTIAL;
  * alternator → ALT 70 A → MAIN; ESSENTIAL → ESS TIE → tie relay ‖ bypass diode (MAIN → ESS only) → MAIN TIE → MAIN, the relay
  * opened by ESS. BUS ON; MAIN → AV BUSS → avionics master relay → MAIN AVIONICS; HORIZON (ESSENTIAL) or the emergency battery
@@ -50,7 +53,7 @@ export function PowerDiagram({ s, E }: { s: Sim; E: Elec }) {
       <Cb x={108} y={162} open={out("ESS TIE")} top={ess} bot={nodeA} label="ESS TIE" h />
       <Dot x={136} y={162} lit={nodeA} /><Dot x={204} y={162} lit={nodeB} />
       <Diode x={170} y={140} dir={-1} lit={nodeB} />
-      <text x={170} y={132} textAnchor="middle" className="d s">bypass diode</text>
+      <text x={170} y={122} textAnchor="middle" className="d s">bypass diode (OAM 40-126)</text>
       <Sw x={170} y={162} closed={E.tieClosed} top={nodeA} bot={nodeB} label="tie relay" sub={`ESS. BUS ${e.essBus ? "ON" : "OFF"}`} h />
       <Cb x={232} y={162} open={out("MAIN TIE")} top={nodeB} bot={main} label="MAIN TIE" h />
       {/* MAIN → AV BUSS → avionics master relay → MAIN AVIONICS */}

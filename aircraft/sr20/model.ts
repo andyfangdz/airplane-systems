@@ -70,7 +70,7 @@ export interface Elec extends Record<BusId, number> {
 }
 
 /**
- * Electrical solver (POH §7 Power Distribution).
+ * Electrical solver (POH 7-49 – 7-53, Figure 7-10 Electrical System Schematic).
  * Diode-ORed distribution buses in the MCU; CB-panel buses hang off them. Pulled breakers
  * remove individual loads. Battery endurance uses the Costanzo training deck's rule of thumb:
  * ALT 1 fail → BAT 1 carries MDB 1 ~30 min; dual ALT fail → BAT 1 ~15 min, then BAT 2 ~45 min.
@@ -89,11 +89,17 @@ export function solve(s: Sim): Elec {
   const D = 0.7; // diode drop
   const mdb1 = Math.max(alt1 ? 27.7 : 0, bat1ok ? 24.3 : 0);
   const mdb2 = Math.max(alt2 ? 28.7 : 0, mdb1 ? mdb1 - D : 0); // MDB1 → MDB2 only
-  const edb = Math.max(mdb1, mdb2) ? Math.max(mdb1, mdb2) - D : 0;
-  const ess = Math.max(edb, bat2ok ? 24.2 : 0);
+  // Ess Dist Bus: diode-fed from MDB 1, from BAT 1 ahead of its 125 A fuse (the same voltage as MDB 1 here) and from MDB 2.
+  // ESS BUS 2 hangs straight off it; ESS BUS 1 through the ESSENTIAL POWER breaker, and BAT 2 joins ESS BUS 1 through the
+  // BAT 2 breaker, so with the alternators and BAT 1 gone BAT 2 feeds the Ess Dist Bus and ESS BUS 2 back through
+  // ESSENTIAL POWER (POH 7-52, Fig 7-10)
+  const bat2v = bat2ok ? 24.2 : 0, essPwr = cb("ESSENTIAL POWER");
+  const edbIn = Math.max(mdb1, mdb2) ? Math.max(mdb1, mdb2) - D : 0;
+  const edb = Math.max(edbIn, essPwr ? bat2v : 0);
+  const ess1 = Math.max(essPwr ? edb : 0, bat2v), ess2 = edb;
   const r = (v: number) => Math.round(v * 10) / 10;
   const buses: Record<BusId, number> = {
-    mdb1: r(mdb1), mdb2: r(mdb2), edb: r(edb), ess1: r(ess), ess2: r(ess),
+    mdb1: r(mdb1), mdb2: r(mdb2), edb: r(edb), ess1: r(ess1), ess2: r(ess2),
     main1: r(mdb2), main2: r(mdb2), nonEss: r(mdb2), main3: r(mdb1), ac1: r(mdb1), ac2: r(mdb1),
     avx: e.avionics && mdb2 && cb("AVIONICS") ? r(mdb2) : 0,
     conv: bat1Dead ? 0 : 24.4,
@@ -103,8 +109,9 @@ export function solve(s: Sim): Elec {
     ...buses,
     alt1, alt2, bat1ok, bat2ok, bat1Dead, bat2Dead,
     bat1Charging: bat1ok && mdb1 > 26,
-    bat2Charging: bat2ok && edb > 26,
-    bat2Supplying: bat2ok && edb < 26,
+    // BAT 2 is charged from ESS BUS 1 (POH 7-49)
+    bat2Charging: bat2ok && ess1 > 26,
+    bat2Supplying: bat2ok && ess1 < 26,
     // illustrative currents (normal readout from the training deck: ALT1 +23, ALT2 +13, BAT1 +1)
     a1: alt1 ? (alt2 ? 23 : 36) : 0,
     a2: alt2 ? (alt1 ? 13 : 22) : 0,
@@ -176,8 +183,8 @@ export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
 
 /** Circuit-breaker buses as shown on the panel: [bus, label, source, loads]. */
 export const BUSES: [BusId, string, string, [string, number?][]][] = [
-  ["ess1", "ESS BUS 1", "Ess Dist Bus + BAT 2", [["PFD A", 5], ["ADAHRS 1", 5], ["COM 1", 7.5], ["GPS NAV GIA 1", 5], ["STDBY ATTD A", 5], ["BAT 2", 20]]],
-  ["ess2", "ESS BUS 2", "Ess Dist Bus + BAT 2", [["PITCH TRIM", 2], ["ROLL TRIM", 2], ["STALL WARNING", 2], ["ENGINE INSTR", 3], ["ALT 2", 5]]],
+  ["ess1", "ESS BUS 1", "Ess Dist Bus via ESSENTIAL POWER · BAT 2", [["ESSENTIAL POWER"], ["PFD A", 5], ["ADAHRS 1", 5], ["COM 1", 7.5], ["GPS NAV GIA 1", 5], ["STDBY ATTD A", 5], ["BAT 2", 20]]],
+  ["ess2", "ESS BUS 2", "Ess Dist Bus (BAT 2 through ESS BUS 1)", [["PITCH TRIM", 2], ["ROLL TRIM", 2], ["STALL WARNING", 2], ["ENGINE INSTR", 3], ["ALT 2", 5]]],
   ["main1", "MAIN BUS 1", "Main Dist Bus 2", [["ICE LIGHTS"], ["MFD B", 5], ["STDBY ATTD B", 5], ["KEYPADS / AP CTRL", 5], ["CABIN LIGHTS", 5], ["CABIN AIR CONTROL", 2], ["FUEL QTY", 5], ["AP SERVOS"], ["AVIONICS", 10]]],
   ["main2", "MAIN BUS 2", "Main Dist Bus 2", [["PFD B", 5], ["FUEL PUMP", 5], ["COM 2", 7.5], ["GPS NAV GIA 2", 5], ["ADAHRS 2", 5], ["AVIONICS FAN 2", 5]]],
   ["nonEss", "NON ESS BUS", "Main Dist Bus 2", [["FLAPS", 10], ["PITOT HEAT", 7.5], ["STARTER", 2], ["AVIONICS FAN 1", 5], ["NAV LIGHTS"], ["STROBE LIGHTS"]]],

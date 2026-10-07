@@ -21,9 +21,11 @@ const Turn = ({ x, y, h, children }: { x: number; y: number; h?: boolean; childr
 
 /**
  * Breaker: an arc bridging two terminals; pulled or tripped, it lifts clear (amber). The label goes beside a vertical breaker
- * (`side` 1 = right) or above a horizontal one, where "out" is written below the wire.
+ * (`side` 1 = right; a long name can start on a `sub` line above it) or above a horizontal one, where "out" is written below the wire.
  */
-export function Cb({ x, y, open, top, bot, label, side = 1, h }: { x: number; y: number; open: boolean; top: boolean; bot: boolean; label: string; side?: 1 | -1; h?: boolean }) {
+export function Cb({ x, y, open, top, bot, label, sub, side = 1, h }: { x: number; y: number; open: boolean; top: boolean; bot: boolean; label: string; sub?: string; side?: 1 | -1; h?: boolean }) {
+  const tx = x + side * 16, anchor = side > 0 ? "start" : "end";
+  const name = <>{label}{open ? <tspan className="x"> ⏏ out</tspan> : null}</>;
   return (
     <g>
       <Turn x={x} y={y} h={h}>
@@ -33,7 +35,10 @@ export function Cb({ x, y, open, top, bot, label, side = 1, h }: { x: number; y:
       {h ? <>
         <text x={x} y={y - 14} textAnchor="middle" className="d s">{label}</text>
         {open ? <text x={x} y={y + 14} textAnchor="middle" className="x s">⏏ out</text> : null}
-      </> : <text x={x + side * 16} y={y + 4} textAnchor={side > 0 ? "start" : "end"}>{label}{open ? <tspan className="x"> ⏏ out</tspan> : null}</text>}
+      </> : sub ? <>
+        <text x={tx} y={y - 1} textAnchor={anchor} className="d s">{sub}</text>
+        <text x={tx} y={y + 10} textAnchor={anchor}>{name}</text>
+      </> : <text x={tx} y={y + 4} textAnchor={anchor}>{name}</text>}
     </g>
   );
 }
@@ -61,10 +66,11 @@ export function Sw({ x, y, closed, top, bot, label, sub, side = 1, h }: { x: num
   );
 }
 
-/** Diode on a horizontal wire, pointing the way current can flow (`dir` 1 = right). */
-export const Diode = ({ x, y, dir, lit }: { x: number; y: number; dir: 1 | -1; lit: boolean }) => (
-  <path d={`M${x - 5 * dir} ${y - 5} L${x + 5 * dir} ${y} L${x - 5 * dir} ${y + 5} Z M${x + 5 * dir} ${y - 5} V${y + 5}`} className={"dio" + (lit ? " on" : "")} />
-);
+/** Diode pointing the way current can flow: on a horizontal wire `dir` 1 = right; with `v`, on a vertical one, 1 = down. */
+export const Diode = ({ x, y, dir, lit, v }: { x: number; y: number; dir: 1 | -1; lit: boolean; v?: boolean }) => {
+  const d = <path d={`M${x - 5 * dir} ${y - 5} L${x + 5 * dir} ${y} L${x - 5 * dir} ${y + 5} Z M${x + 5 * dir} ${y - 5} V${y + 5}`} className={"dio" + (lit ? " on" : "")} />;
+  return v ? <g transform={`rotate(90 ${x} ${y})`}>{d}</g> : d;
+};
 
 /** Fuse on a horizontal wire. */
 export const Fuse = ({ x, y, lit }: { x: number; y: number; lit: boolean }) => (

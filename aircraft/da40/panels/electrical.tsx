@@ -94,6 +94,7 @@ export function Electrical() {
       )}
       <H3>Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)</H3>
       <PowerDiagram s={s} E={E} />
+      <Small>Laid out after the AFM&apos;s simplified wiring diagram for serial numbers with Essential Bus (AFM 7.11, Rev. 8 p. 7-41). That figure is drawn for conventional instruments: it adds an ESSENTIAL AVIONIC BUS behind a second avionics relay, which the G1000 airplane doesn&apos;t have (those loads are on ESSENTIAL), and leaves out the tie relay bypass diode, an optional modification (OAM 40-126).</Small>
       <Notes items={[
         "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
         "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
