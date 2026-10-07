@@ -11,10 +11,11 @@ const tr = (g: THREE.BufferGeometry, x: number, y: number, z: number) => { g.tra
 /** GDU 1040 bezel, 11.80 × 7.70 in, and the GMA 1347 between the displays, 1.35 in wide (Garmin specifications). */
 export const GDU_W = 0.2997, GDU_H = 0.1956, GMA_W = 0.0343;
 /**
- * Butt lines (in) of the PFD, GMA 1347 and MFD centres: the three units side by side about 0.2 in apart, centred on the
- * GMA 1347 above the standby attitude indicator (POH Figure 7-2, photos of the NAV III panel).
+ * Butt lines (in) of the PFD, GMA 1347 and MFD centres, side by side about 0.3 in apart. As in photos of the NAV III panel,
+ * the PFD is in front of the pilot's seat (BL −10) with about 4 in of panel to its left for STBY BATT, MASTER and AVIONICS,
+ * and the standby airspeed sits under the GMA 1347, the attitude indicator under the MFD's left edge (POH Figure 7-2).
  */
-export const NAV3_BL = { pfd: -7.3, gma: -0.5, mfd: 6.3 };
+export const NAV3_BL = { pfd: -10, gma: -3.125, mfd: 3.75 };
 /** GDU 1040 control strips: left and right of the screen, centre to centre. */
 export const GDU_STRIP = 0.128;
 /** Softkey row below the screen, from the bezel centre. */
@@ -45,7 +46,7 @@ export const cbHeads = (cols: number, rows = 3) =>
 
 /**
  * Switch-panel rockers, POH Figure 7-2: the five LIGHTS switches across the top row, the rest below, left-aligned under them.
- * Returns each item with its offset [y, z] from the switch panel's centre (0.07 × 0.22 m).
+ * Returns each item with its offset [y, z] from the switch panel's centre (0.07 × 0.12 m).
  */
 export const switchRows = <T>(rows: T[][]): [number, number, T][] =>
-  rows.flatMap((row, r) => row.map((it, i): [number, number, T] => [r ? -0.017 : 0.016, (i - 2) * 0.027, it]));
+  rows.flatMap((row, r) => row.map((it, i): [number, number, T] => [r ? -0.017 : 0.016, (i - 2) * 0.021, it]));

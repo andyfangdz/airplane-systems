@@ -234,7 +234,38 @@ part(() => {
 /* ---------- cockpit / cabin ---------- */
 part(() => sectionSlab(2.3, -0.18, 0.3, 0.97, 0.04, 2.32), ["avionics", "cabin"], { color: "#2B3238", name: "Instrument panel", note: "All-metal sectional panel under a composite glareshield." });
 part(() => sectionSlab(2.24, 0.3, 0.35, 0.95, 0.2, 2.36), ["cabin"], { color: "#2B3238", name: "Glareshield", note: "Projects over the panel; windshield diffuser outlet runs along its base." });
-part(() => sectionSlab(2.18, -0.32, -0.19, 0.95, 0.12, 2.24), ["cabin", "lighting", "electrical"], { color: "#39424A", name: "Bolster switch panel", note: "BAT 2, BAT 1, ALT 1, ALT 2, AVIONICS, PITOT HEAT and lighting controls. Standby instrument below." });
+part(() => sectionSlab(2.18, -0.32, -0.19, 0.95, 0.12, 2.24), ["cabin", "lighting", "electrical"], { color: "#39424A", name: "Bolster switch panel",
+  note: "Below the PFD (POH Fig. 7-4 item 18, Fig. 7-12): left to right, MASTER (BAT 2, BAT 1, ALT 1, ALT 2, AVIONICS), EXTERIOR LIGHTS (NAV, STROBE, LAND, ICE), PITOT HEAT, two ICE PROTECT positions (blank without FIKI), then the PANEL and INSTRUMENT dimmers. The MD302 standby is below the switches." });
+/**
+ * Bolster switch strip under the PFD (POH Fig. 7-12): a placard, then twelve rocker positions, a blank slot and the two
+ * dimmer knobs at its right end, running from the PFD's left edge to under its right part. Rocker pitch and heights are
+ * approximate; up = ON.
+ */
+const BOLSTER = { x: 2.12, y: -0.212, z0: -0.342, dz: 0.0155 };
+const SR = () => useSR20.getState().s;
+([["BAT 2", "Battery 2 relay: BAT 2 feeds ESS BUS 1 and charges from it.", () => SR().elec.bat2],
+  ["BAT 1", "Battery 1 relay: BAT 1 on the Main Dist Bus 1 side, for starting; ALT 1 needs it on.", () => SR().elec.bat1],
+  ["ALT 1", "Alternator 1 field; needs BAT 1 on.", () => SR().elec.alt1],
+  ["ALT 2", "Alternator 2 field.", () => SR().elec.alt2],
+  ["AVIONICS", "AVIONICS bus.", () => SR().elec.avionics],
+  ["NAV", "Wingtip position and aft position lights.", () => SR().lights.nav],
+  ["STROBE", "Wingtip anti-collision strobes.", () => SR().lights.strobe],
+  ["LAND", "Both wingtip landing lights.", () => SR().lights.land],
+  ["ICE", "Wing ice inspection lights.", () => SR().lights.ice],
+  ["PITOT HEAT", "Heated pitot tube; a current sensor drives PITOT HEAT FAIL.", () => SR().pitot.heat],
+] as [string, string, () => boolean][]).forEach(([label, note, on], i) =>
+  part(() => box(0.01, 0.022, 0.011), ["electrical", "lighting"], { pos: [BOLSTER.x - 0.006, BOLSTER.y, BOLSTER.z0 + i * BOLSTER.dz], color: "#D8DDE0",
+    anim: (m) => { m.rotation.z = on() ? -0.3 : 0.3; }, name: label + " switch", note: note + " Bolster switch panel (POH Fig. 7-12), up = ON." }));
+// ICE PROTECT positions (blank on a non-FIKI airplane), the placard at the left end and the blank slot before the dimmers
+[10, 11].forEach((i) => part(() => box(0.004, 0.022, 0.011), ["cabin"], { pos: [BOLSTER.x - 0.002, BOLSTER.y, BOLSTER.z0 + i * BOLSTER.dz], color: "#2B3238" }));
+part(() => box(0.003, 0.026, 0.026), ["cabin"], { pos: [BOLSTER.x - 0.002, BOLSTER.y, BOLSTER.z0 - 0.025], color: "#9AA3AA" });
+([[0.01, "PANEL dimmer"], [-0.016, "INSTRUMENT dimmer"]] as [number, string][]).forEach(([dy, name]) =>
+  part(() => cyl(0.009, 0.014, "x", 16), ["lighting"], { pos: [BOLSTER.x - 0.007, BOLSTER.y + dy, BOLSTER.z0 + 13 * BOLSTER.dz], color: "#20262B", name, note: "Right end of the bolster switch panel: PANEL above, INSTRUMENT below (POH Fig. 7-12)." }));
+// POH 7-13, Fig. 7-4 item 19: left side of the instrument panel, outboard of the PFD; above the yoke tube here (height approximate)
+part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: [2.276, 0.03, -0.47], color: "#3E4A52" });
+part(() => box(0.012, 0.03, 0.008), ["engine", "electrical"], { pos: [2.266, 0.03, -0.47], color: "#C9D0D5",
+  anim: (m) => { m.rotation.x = ({ OFF: -1, R: -0.5, L: 0, BOTH: 0.5, START: 1 } as const)[SR().eng.key]; }, name: "Ignition key switch", pin: true, pinIn: ["engine"],
+  note: "Keyed rotary switch on the left side of the instrument panel, outboard of the PFD: OFF – R – L – BOTH – START, spring-loaded from START to BOTH (POH 7-13, Fig. 7-4 item 19)." });
 part(() => box(1.0, 0.26, 0.26), ["cabin"], { pos: [1.68, -0.4, 0], color: "#39424A", name: "Center console", note: "FMS keyboard, autopilot and audio controls, flap switch, fuel selector, power & mixture." });
 part(() => box(0.4, 0.18, 0.02), ["electrical"], { pos: [1.78, -0.4, -0.14], color: "#5A4A1C", name: "Circuit breaker panel", note: "Left side of the center console. Holds ESS 1/2, MAIN 1/2/3, NON ESS, A/C 1/2 and AVIONICS bus breakers.", pin: true });
 ([[1.25, -0.33, "Pilot seat", 0.4], [1.25, 0.33, "Front passenger seat", 0.4], [0.35, -0.24, "Rear seat (2+1 bench)", 0.46], [0.35, 0.28, "Rear seat", 0.4]] as [number, number, string, number][]).forEach(([x, z, name, w], i) => {
