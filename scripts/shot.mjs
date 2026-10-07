@@ -9,7 +9,9 @@
  *
  * Options: --out <dir> (default .shots), --theme light|dark, --phone (390×844, full page), --solid (X-ray off),
  * --no-labels, --url <base> (use a running server instead of starting `next dev`), --wait <ms> (settle time, default 2500),
- * --compare <dir> (diff against same-named PNGs there; exits 1 when any view differs by more than --tolerance percent, default 0.5).
+ * --compare <dir> (diff against same-named PNGs there; exits 1 when any view differs by more than --tolerance percent, default
+ * 0.5, and writes <view>.diff.png with the differing pixels in red). Views with the engine running differ a little between
+ * runs anyway: the propeller, strobes, spark plugs and flow particles keep moving.
  *
  * Console errors and warnings from the page are printed, so label-list mismatches and runtime errors show up here too.
  * Uses playwright-core with the Chromium from `npx playwright-core install chromium` (or PLAYWRIGHT_BROWSERS_PATH).
@@ -91,8 +93,11 @@ async function server() {
   throw new Error(`next dev did not start:\n${log}`);
 }
 
-/** Percentage of pixels that differ noticeably between two PNGs (compared in the browser, so no image library is needed). */
-async function diffPct(page, a, b) {
+/**
+ * Compare two PNGs in the browser (so no image library is needed): the percentage of pixels that differ noticeably, and
+ * a PNG of the second image with those pixels in red over a faded copy.
+ */
+async function diff(page, a, b) {
   return page.evaluate(
     async ([a, b]) => {
       const load = (src) =>
@@ -103,19 +108,27 @@ async function diffPct(page, a, b) {
           im.src = src;
         });
       const [ia, ib] = await Promise.all([load(a), load(b)]);
-      if (ia.width !== ib.width || ia.height !== ib.height) return 100;
+      if (ia.width !== ib.width || ia.height !== ib.height) return { pct: 100, png: b };
+      const c = document.createElement("canvas");
+      [c.width, c.height] = [ia.width, ia.height];
+      const g = c.getContext("2d", { willReadFrequently: true });
       const px = (im) => {
-        const c = new OffscreenCanvas(im.width, im.height),
-          g = c.getContext("2d");
         g.drawImage(im, 0, 0);
-        return g.getImageData(0, 0, im.width, im.height).data;
+        return g.getImageData(0, 0, c.width, c.height);
       };
-      const da = px(ia),
-        db = px(ib);
+      const da = px(ia).data,
+        img = px(ib),
+        db = img.data;
       let n = 0;
-      for (let i = 0; i < da.length; i += 4)
-        if (Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]) > 48) n++;
-      return (100 * n) / (da.length / 4);
+      for (let i = 0; i < da.length; i += 4) {
+        if (Math.abs(da[i] - db[i]) + Math.abs(da[i + 1] - db[i + 1]) + Math.abs(da[i + 2] - db[i + 2]) > 48) {
+          n++;
+          [db[i], db[i + 1], db[i + 2], db[i + 3]] = [255, 0, 0, 255];
+        } else db[i + 3] = 50;
+      }
+      g.clearRect(0, 0, c.width, c.height);
+      g.putImageData(img, 0, 0);
+      return { pct: (100 * n) / (da.length / 4), png: c.toDataURL() };
     },
     [a, b],
   );
@@ -173,10 +186,14 @@ try {
       const ref = join(resolve(compare), file.slice(out.length + 1));
       if (!existsSync(ref)) console.log(`  no reference ${ref}`);
       else {
-        const pct = await diffPct(page, png(ref), png(file));
+        const { pct, png: d } = await diff(page, png(ref), png(file));
         const bad = pct > tolerance;
-        if (bad) changed++;
-        console.log(`  ${bad ? "CHANGED" : "same"} (${pct.toFixed(2)}% of pixels differ)`);
+        const diffFile = file.replace(/\.png$/, ".diff.png");
+        if (bad) {
+          changed++;
+          writeFileSync(diffFile, Buffer.from(d.split(",")[1], "base64"));
+        }
+        console.log(`  ${bad ? `CHANGED, see ${diffFile}` : "same"} (${pct.toFixed(2)}% of pixels differ)`);
       }
     }
   }
