@@ -38,7 +38,7 @@ import "./avionics";
 export { PITOT_Z, SPX, pitotBase, statR } from "./pitot";
 import "./fuel";
 import "./environment";
-export { CAPS_BOX, HARNESS } from "./caps";
+export { CAPS_BOX, HARNESS, ROCKET_T, TAUT_T, strapOut, strapPeel } from "./caps";
 export { LIGHTS } from "./lights";
 import "./controls";
 
