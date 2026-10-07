@@ -2,6 +2,7 @@
   "name": "airplane-systems",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Interactive 3D study models of airplane systems (POH/AFM Section 7): Cirrus SR20 G6, Cessna 172S and 182T NAV III, Diamond DA40. Built with Next.js and React Three Fiber.",
   "scripts": {
     "dev": "next dev",

@@ -84,3 +84,7 @@ SR20 (each other airplane cites its POH/AFM, supplements and CRG in its files an
 - Costanzo Air Flight School, _Cirrus SR20 Systems_ deck — electrical readouts, battery-endurance rule of thumb, and photo detail (horn balances, static wicks, OAT probes, ECS knob). Where it differs from the POH, the POH wins and the page says so.
 
 Geometry is approximate. CAS and annunciation text follow the documents; the conditions that trigger them are simplified.
+
+## License
+
+The code is under the [MIT License](LICENSE). It doesn't cover the POH/AFM documents, Garmin pilot's guides or photos listed under Sources; those belong to their owners.
