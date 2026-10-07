@@ -27,11 +27,14 @@ To add one:
 | `Parachute.tsx` (SR20) | The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment) |
 | `displays.ts` | Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000.ts`; the SR20 calls it with `style: "perspective"` and draws its MD302 standby itself |
 | `panels/*.tsx` | Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH |
+| `panels/distribution.tsx` (SR20, DA40) | The electrical panel's live single-line power distribution diagram, drawn from the solution `E` with the symbols in `components/ui/wiring.tsx` (the Cessnas share theirs, `Nav3Diagram` in `cessna/panels.tsx`) |
 
 ## Shared code
 
 - `components/scene/` draws what the airplane declares. Parts, shells and control surfaces cache their geometry per spec and
   share materials, so switching airplanes is cheap; everything else a component builds is disposed when the airplane is switched away.
+- `components/ui/wiring.tsx` holds the symbols for the live electrical diagrams (breaker, switch or relay contact, diode, fuse, bus box, key),
+  drawn on a vertical or horizontal wire, dead or live.
 - `lib/avionics/` holds the G1000 / Perspective+ display drawing, the flight-state integrator, and the GFC 700 and KAP 140 logic (pure functions;
   every GFC 700 function takes the airplane's config, built from `GFC700_BASE`). `components/avionics/` holds their panel controls.
 - `aircraft/cessna/` is the Cessna NAV III base used by the C172S and C182T:

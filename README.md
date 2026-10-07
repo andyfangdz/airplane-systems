@@ -17,7 +17,7 @@ npm run typecheck
 
 ## What's modelled
 
-The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Section 7 the same way (see each airplane's rail), with a NAV III / DA40 electrical solver, live G1000 PFD/MFD textures and a working autopilot (GFC 700 or KAP 140) driving a simple flight-state model.
+The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Section 7 the same way (see each airplane's rail), with a NAV III / DA40 electrical solver and its live power distribution diagram, live G1000 PFD/MFD textures and a working autopilot (GFC 700 or KAP 140) driving a simple flight-state model.
 
 | SR20 system | Interactive |
 | --- | --- |
@@ -26,7 +26,7 @@ The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Se
 | Gear & brakes | Differential braking castering the nose wheel, parking brake |
 | Engine & propeller | Ignition key (magneto → plug mapping), power lever (governor schedule), mixture, alternate air |
 | Fuel | Selector, boost pump, tank quantities (clipped fuel level), starvation |
-| Electrical | Master switches, failures, battery endurance, **pullable circuit breakers**, G6 CAS names |
+| Electrical | Master switches, failures, battery endurance, live power distribution diagram, **pullable circuit breakers**, G6 CAS names |
 | Lighting | NAV / STROBE / LAND / ICE switches: wingtip nav, strobe, aft position and landing lights (no tail light, no cowl light), ice inspection lights; cabin and convenience lights |
 | Environmental | OFF–0–1–2–3 fan knob, temperature blend, vent modes, A/C, recirculation |
 | Pitot-static & stall | Pitot heat logic and annunciations, stall-warning suction peak and horn |
@@ -44,6 +44,7 @@ components/
                       ControlSurface, Flows, Links, Tanks, Screens, LightFX, WindowOutlines, PinDeclutter
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)
   ui/controls.tsx     Seg, Slider, Check, Rocker, Readouts, Facts, HoldButton, …
+  ui/wiring.tsx       Symbols for the live single-line electrical diagrams (breaker, switch, diode, bus box, key)
 aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) — see aircraft/README.md
 lib/
   view.ts             View state shared by every airplane (airplane, system, toggles, theme, camera); phone breakpoint
