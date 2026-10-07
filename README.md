@@ -39,6 +39,7 @@ The SR20 is described below. The Cessnas and the DA40 cover their own POH/AFM Se
 app/                  Next.js App Router entry (layout, page, icon, global CSS)
 components/
   App.tsx             Shell: fleet picker, system rail, toolbar, alert window, HUD, tooltip, panel; URL hash and tab title
+  Tour.tsx            Welcome tour shown on a first visit (skipping or finishing it is remembered; the toolbar's ? replays it)
   scene/              Shared React Three Fiber scene: Scene (canvas, camera flights, sim clock), Part / Shells,
                       ControlSurface, Flows, Links, Tanks, Screens, LightFX, WindowOutlines, PinDeclutter
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)

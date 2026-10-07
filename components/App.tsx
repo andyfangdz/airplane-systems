@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FLEET, aircraft, hasSys, resetCam, selectAircraft, selectSys, showInUrl, sysOf, useAircraft } from "@/aircraft";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
 import { narrowLayout, useView } from "@/lib/view";
+import { Tour, startTour } from "./Tour";
 
 // WebGL scene is client-only
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div className="loading">Loading 3D model…</div> });
@@ -87,6 +88,7 @@ function Toolbar() {
         <svg className="ico" viewBox="0 0 16 16" aria-hidden="true">{dark ? SUN : MOON}</svg><span>{dark ? "Light" : "Dark"}</span>
       </button>
       <button className="tb" onClick={() => { const [p, t] = resetCam(); flyTo([...p], [...t]); }}>Reset view</button>
+      <button className="tb tb-help" title="Show the welcome tour" aria-label="Show the welcome tour" onClick={startTour}>?</button>
     </div>
   );
 }
@@ -200,6 +202,7 @@ export default function App() {
         <Tooltip />
       </main>
       <Panel />
+      <Tour />
     </div>
   );
 }

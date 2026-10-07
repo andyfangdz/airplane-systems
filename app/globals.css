@@ -71,6 +71,7 @@ button{font:inherit;color:inherit}
 .tb{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:4px 10px;font-size:13px;cursor:pointer}
 .tb[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 .tb-theme{display:inline-flex;align-items:center;gap:5px}
+.tb-help{min-width:28px;font-weight:600}
 .tb-theme .ico{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
 /* foot of the viewport: alert window left, airplane HUD (SR20 CAPS timeline) right; wraps when the view is narrow, stacked on phones */
 .stage-foot{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;pointer-events:none}
@@ -165,6 +166,25 @@ button.chip:hover{border-color:var(--elec)}
 .overview-grid span{font-size:13px;color:var(--muted);padding-left:18px}
 .disc{margin-top:26px;font-size:12px;color:var(--muted);border-top:1px solid var(--rule);padding-top:10px}
 
+/* ---------- welcome tour ---------- */
+/* a full-page layer that blocks the app while open; the spotlight's huge shadow dims everything around its target */
+.tour{position:fixed;inset:0;z-index:100}
+.tour-dim{background:rgba(4,9,13,.55)}
+.tour-spot{position:fixed;border-radius:8px;box-shadow:0 0 0 2px var(--accent),0 0 0 100vmax rgba(4,9,13,.55);pointer-events:none;
+  transition:left .25s,top .25s,width .25s,height .25s}
+.tour-card{position:fixed;width:min(330px,calc(100vw - 24px));background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+  padding:14px 16px 12px;box-shadow:0 12px 32px rgba(0,0,0,.3);transition:left .25s,top .25s}
+.tour-count{font-size:12px;color:var(--muted)}
+.tour-card h2{font-family:var(--f-disp);font-weight:700;font-size:24px;line-height:1.05;margin:4px 0 6px}
+.tour-card p{margin:0;font-size:14px}
+.tour-dots{display:flex;gap:5px;margin:12px 0 10px}
+.tour-dots i{width:6px;height:6px;border-radius:50%;background:var(--rule)}
+.tour-dots i.on{background:var(--accent)}
+.tour-card .btn.primary{background:var(--accent);color:var(--on-accent)}
+.tour-actions{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.tour-skip{margin-right:auto;background:none;border:0;padding:6px 0;cursor:pointer;font-size:13px;color:var(--muted)}
+.tour-skip:hover{color:var(--ink);text-decoration:underline}
+
 @media (max-width:1100px){ .app{grid-template-columns:200px minmax(0,1fr) 340px} }
 @media (max-width:860px){
   html,body{height:auto}
@@ -179,6 +199,8 @@ button.chip:hover{border-color:var(--elec)}
   .syslist .pg{display:none}
   .rail .foot{display:none}
   .stage{height:58vh;min-height:340px}
+  .toolbar{gap:4px}
+  .tb{padding:4px 8px}
   .panel{border-left:0;border-top:1px solid var(--rule);overflow:visible}
   .panel-inner{padding:18px 16px 40px}
   .stage-foot{flex-direction:column-reverse;align-items:flex-start;gap:8px}
@@ -186,4 +208,4 @@ button.chip:hover{border-color:var(--elec)}
   .cas .hd{letter-spacing:.02em;gap:8px}
   .caps-hud{min-width:0}
 }
-@media (prefers-reduced-motion: reduce){ .rock .body::after{transition:none} }
+@media (prefers-reduced-motion: reduce){ .rock .body::after,.tour-spot,.tour-card{transition:none} }
