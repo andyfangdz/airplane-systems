@@ -6,14 +6,14 @@ import { dotTex } from "@/lib/materials";
 import { D2R, V, clamp, ease, lerp } from "@/lib/math";
 import type { ModelRefs } from "../types";
 import { live } from "./model";
-import { CAPS_BOX, HARNESS } from "./parts";
+import { CAPS_BOX, HARNESS, ROCKET_T, TAUT_T, strapOut, strapPeel } from "./parts";
 import { useSR20 } from "./store";
 
 /** CAPS phases shown in the HUD: [start time s, title, detail]. */
 export const CAPS_PHASES: [number, string, string][] = [
   [0, "Handle pulled", "Igniter fires the rocket"],
-  [0.3, "Rocket extraction", "Deployment bag pulled up and aft; harness strips out of the skin"],
-  [1.6, "Lines taut", "Risers and suspension lines stretched; bag releases canopy"],
+  [ROCKET_T, "Rocket extraction", "Deployment bag pulled up and aft; harness strips out of the skin"],
+  [TAUT_T, "Lines taut", "Risers and suspension lines stretched; bag releases canopy"],
   [2, "Inflation", "Orange slider rides down the lines to meter opening; < 3 g"],
   [3.6, "Nose-low hang", "Rear riser snubbed short"],
   [8, "Snub line cut", "Tail drops to ~level"],
@@ -87,12 +87,10 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     const top = V(-0.3, 11.5, 0),
       mid = V(-2.4, 9.5, 0);
     const packPos =
-      t < 1.6
-        ? can.clone().lerp(mid, ease(clamp((t - 0.3) / 1.3, 0, 1)))
-        : mid.clone().lerp(top, clamp((t - 1.6) / 1.2, 0, 1));
+      t < TAUT_T ? can.clone().lerp(mid, strapOut(t)) : mid.clone().lerp(top, clamp((t - TAUT_T) / 1.2, 0, 1));
     pack.current.position.copy(packPos);
     pack.current.visible = t < 2.4;
-    flame.current.visible = t >= 0.3 && t < 1.5;
+    flame.current.visible = t >= ROCKET_T && t < 1.5;
     flame.current.position.copy(packPos).add(V(0.3, -0.6, 0));
     const inf = t < 2 ? 0 : clamp(ease((t - 2) / 1.8), 0, 1);
     canopy.current.visible = inf > 0.01;
@@ -101,7 +99,9 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     // suspension lines to the confluence, a common riser down to the harness junction, three harness legs to the airplane.
     // Illustrative: topology after the SR22/SR22T AMM Figure 95-00-1; the SR20 POH (7-94 – 7-95) gives the three
     // attachment points and the aft snub, not these lengths.
-    const hp = (["fwdL", "fwdR", "aft"] as const).map((k) => model.localToWorld(V(...HARNESS[k])));
+    // the forward legs leave the skin where the strap is pulled out to, reaching the firewall fittings when the lines are taut
+    const out = strapOut(t);
+    const hp = [strapPeel(-1, out), strapPeel(1, out), V(...HARNESS.aft)].map((p) => model.localToWorld(p));
     const pos = lineGeo.attributes.position as THREE.BufferAttribute;
     let i = 0;
     const rimR = 5.5 * Math.sin(Math.PI * 0.42) * (0.15 + 0.85 * inf),
@@ -114,14 +114,14 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
       pos.setXYZ(i++, rp.x, rp.y, rp.z);
       pos.setXYZ(i++, conf.x, conf.y, conf.z);
     }
-    const anchor = t < 1.6 ? packPos : junction;
+    const anchor = t < TAUT_T ? packPos : junction;
     hp.forEach((p) => {
       pos.setXYZ(i++, p.x, p.y, p.z);
       pos.setXYZ(i++, anchor.x, anchor.y, anchor.z);
     });
     pos.setXYZ(i++, junction.x, junction.y, junction.z);
     pos.setXYZ(i++, conf.x, conf.y, conf.z);
-    if (t < 0.3) for (let k = 0; k < i; k++) pos.setXYZ(k, can.x, can.y, can.z);
+    if (t < ROCKET_T) for (let k = 0; k < i; k++) pos.setXYZ(k, can.x, can.y, can.z);
     pos.needsUpdate = true;
     lineGeo.computeBoundingSphere();
     // slider rides down the suspension lines from the skirt toward the confluence

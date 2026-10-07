@@ -1,7 +1,10 @@
 /** CAPS: parachute canister and harness straps. */
-import { densify } from "@/lib/geometry";
-import type { Vec3 } from "@/lib/math";
+import type * as THREE from "three";
+import { curveOf, densify } from "@/lib/geometry";
+import type { PartAnim } from "@/lib/catalogue";
+import { clamp, ease, type Vec3 } from "@/lib/math";
 import { AB, FW, box, onSkin, tubeGeo } from "../geometry";
+import { live } from "../model";
 import { part } from "./catalogue";
 
 /* ---------- CAPS ---------- */
@@ -36,6 +39,30 @@ export const fwdStrap = (s: number): Vec3[] => [
   [-0.6, 0.3, s * 0.12],
   ...densify(FWD_PATH, 0.03, false).map(([x, y]) => onSkin(x, y, s, UNDER_SKIN).toArray() as Vec3),
 ];
+/** Deployment times (s): the rocket fires and starts pulling the bag out, and the lines come taut (`CAPS_PHASES`). */
+export const ROCKET_T = 0.3,
+  TAUT_T = 1.6;
+/**
+ * Fraction of each forward strap pulled out through the skin covering at deployment time t, from the canister end toward
+ * the firewall (POH 7-94): 0 stowed, 1 fully out when the lines are taut. The POH gives the order, not a rate; this follows
+ * the bag's rise, before the canopy starts to inflate at about two seconds (POH 7-95).
+ */
+export const strapOut = (t: number) => (t < ROCKET_T ? 0 : ease(clamp((t - ROCKET_T) / (TAUT_T - ROCKET_T), 0, 1)));
+const strapCurves = new Map<number, THREE.Curve<THREE.Vector3>>();
+/** Point (airplane coordinates) where the forward strap on side s leaves the skin when a fraction `out` is pulled out. */
+export const strapPeel = (s: number, out: number) => {
+  let c = strapCurves.get(s);
+  if (!c) strapCurves.set(s, (c = curveOf(fwdStrap(s))));
+  return c.getPointAt(out);
+};
+/** Stowed forward strap: the part still under the skin, ahead of the peel point; gone once the lines are taut. */
+const tearOut: PartAnim = (m) => {
+  const out = strapOut(live.capsT),
+    g = m.geometry as THREE.TubeGeometry,
+    { tubularSegments, radialSegments } = g.parameters;
+  m.visible = out < 1;
+  g.setDrawRange(Math.round(out * tubularSegments) * radialSegments * 6, Infinity);
+};
 export const HARNESS: Record<"fwdL" | "fwdR" | "aft", Vec3> = {
   fwdL: fwdStrap(-1).at(-1)!,
   fwdR: fwdStrap(1).at(-1)!,
@@ -43,6 +70,7 @@ export const HARNESS: Record<"fwdL" | "fwdR" | "aft", Vec3> = {
 };
 [-1, 1].forEach((s) =>
   part(() => tubeGeo(fwdStrap(s), 0.012), ["caps"], {
+    anim: tearOut,
     name: "Forward harness strap",
     note: "Runs from the canister just under the fuselage skin to a firewall attach point, and pulls through the skin covering when the parachute deploys (POH 7-94). The path along the side, below the door, and the fitting height are illustrative.",
     pin: s > 0,
@@ -59,6 +87,10 @@ part(
     ),
   ["caps"],
   {
+    // stowed in the canister, so it leaves with the bag
+    anim: (m) => {
+      m.visible = live.capsT < ROCKET_T;
+    },
     name: "Aft harness strap",
     note: "Stowed in the parachute canister; attached to structure at the aft baggage compartment bulkhead (POH 7-94). Snubbed short at first; the snub line is cut eight seconds after deployment (POH 7-95).",
   },

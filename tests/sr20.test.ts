@@ -2,11 +2,12 @@
  * SR20 G6 electrical system (POH 7-49 – 7-53, Figure 7-10) and its CAS / lighting logic (`aircraft/sr20/model.ts`).
  * Two alternators and two batteries feed diode-ORed distribution buses in the MCU; the CB-panel buses hang off those.
  */
-import { describe, expect, it } from "vitest";
-import { cabinLit, casMessages, extLit, initialSim, solve, type Sim } from "@/aircraft/sr20/model";
+import { afterEach, describe, expect, it } from "vitest";
+import { cabinLit, casMessages, extLit, initialSim, live, solve, type Sim } from "@/aircraft/sr20/model";
 import * as THREE from "three";
 import { AB, DOOR, FUSE, FW, WIN } from "@/aircraft/sr20/geometry";
-import { HARNESS, fwdStrap } from "@/aircraft/sr20/parts/caps";
+import { CAT } from "@/aircraft/sr20/parts/catalogue";
+import { HARNESS, ROCKET_T, TAUT_T, fwdStrap, strapPeel } from "@/aircraft/sr20/parts/caps";
 import { patched, type Patch } from "./helpers";
 
 const sim = (p: Patch<Sim> = {}) => patched(initialSim, p);
@@ -219,5 +220,56 @@ describe("SR20 CAPS harness (POH 7-94)", () => {
       sill = Math.min(...win.map(([, y]) => y));
     for (const [x, y] of fwdStrap(1))
       if (x >= Math.min(...xs) && x <= Math.max(...xs)) expect(y + 0.012, `x ${x.toFixed(2)}`).toBeLessThan(sill);
+  });
+});
+
+describe("SR20 CAPS stowed straps (POH 7-94, 7-95)", () => {
+  afterEach(() => {
+    live.capsT = -1;
+  });
+  /** The strap parts named `name` as drawn at deployment time t (-1: not deployed). */
+  const drawn = (name: string, t: number) => {
+    live.capsT = t;
+    return CAT.parts
+      .filter((p) => p.name === name)
+      .map((spec) => {
+        const m = new THREE.Mesh(spec.geo());
+        spec.anim!(m, 0);
+        return m;
+      });
+  };
+  const fwd = "Forward harness strap",
+    aft = "Aft harness strap";
+
+  it("are drawn in full before deployment", () => {
+    for (const m of [...drawn(fwd, -1), ...drawn(aft, -1)]) {
+      expect(m.visible).toBe(true);
+      expect(m.geometry.drawRange.start).toBe(0);
+    }
+  });
+
+  it("forward straps pull out through the skin from the canister end toward the firewall", () => {
+    const straps = drawn(fwd, 1.0);
+    expect(straps).toHaveLength(2);
+    for (const m of straps) {
+      const n = m.geometry.index!.count;
+      expect(m.visible).toBe(true);
+      expect(m.geometry.drawRange.start).toBeGreaterThan(0);
+      expect(m.geometry.drawRange.start).toBeLessThan(n);
+    }
+    // and the deployed legs leave the skin at that point, reaching the firewall fittings when the lines are taut
+    expect(strapPeel(1, 0).toArray()).toEqual(fwdStrap(1)[0]);
+    expect(strapPeel(-1, 1).x).toBeCloseTo(HARNESS.fwdL[0]);
+    expect(strapPeel(1, 1).distanceTo(new THREE.Vector3(...HARNESS.fwdR))).toBeLessThan(1e-6);
+  });
+
+  it("aft strap, stowed in the canister, leaves with the bag when the rocket fires", () => {
+    expect(drawn(aft, ROCKET_T - 0.01)[0].visible).toBe(true);
+    for (const t of [ROCKET_T, 1.0, 3.0]) expect(drawn(aft, t)[0].visible, `T+${t}`).toBe(false);
+  });
+
+  it("no stowed strap is drawn once the lines are taut and the harness legs take over", () => {
+    for (const t of [TAUT_T, 1.8, 3.0, 6.0, 12.0])
+      for (const m of [...drawn(fwd, t), ...drawn(aft, t)]) expect(m.visible, `T+${t}`).toBe(false);
   });
 });
