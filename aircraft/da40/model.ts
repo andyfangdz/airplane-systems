@@ -266,13 +266,6 @@ const BAT_AH = 7.7,
   EMERG_MIN = 90;
 
 /**
- * Alternator excitation memory: the field is fed from MAIN (MAIN → ALT CONT → ALT switch → regulator), so a stopped
- * or switched-off alternator can only come online while MAIN is live from the battery; once online it keeps its own
- * field alive through MAIN. Updated after every solve (the store solves on every state change).
- */
-let altExcited = true;
-
-/**
  * Electrical solver (AMM-E Fig. 2-3, GFC 700 configuration).
  * Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. Alternator → ALT 70 A → MAIN.
  * ESSENTIAL ↔ ESS TIE 25 A ↔ tie relay (opened by ESS. BUS ON) ‖ bypass diode (MAIN → ESS only) ↔ MAIN TIE 25 A ↔ MAIN.
@@ -281,15 +274,19 @@ let altExcited = true;
  * relay coils lose power, but the approved AFMS (p. 30) says this "restores power to the main and avionics busses". The model
  * follows the AFMS: the avionics relay needs the AVIONIC MASTER switch and the MSTR CNTRL breaker, not a live ESSENTIAL bus.
  * HORIZON 3 A (ESSENTIAL) or the emergency battery (HORIZON EMERGENCY switch) feeds the standby attitude and the flood light.
+ *
+ * Alternator excitation: the field is fed from MAIN (MAIN → ALT CONT → ALT switch → regulator), so a stopped or
+ * switched-off alternator can only come online while MAIN is live from the battery; once online it keeps its own field
+ * alive through MAIN. `prev` is the last solution (the store passes it) and says whether it was online; without one
+ * (the initial state, in cruise) it is.
  */
-export function solve(s: Sim): Elec {
-  const first = solveWith(s, true);
-  const E = first.batFrac < 1 ? first : solveWith(s, false);
-  altExcited = E.altOn;
-  return E;
+export function solve(s: Sim, prev?: Elec): Elec {
+  const excited = prev ? prev.altOn : true;
+  const first = solveWith(s, true, excited);
+  return first.batFrac < 1 ? first : solveWith(s, false, excited);
 }
 
-function solveWith(s: Sim, batCharge: boolean): Elec {
+function solveWith(s: Sim, batCharge: boolean, excited: boolean): Elec {
   const e = s.elec,
     cb = (n: string) => !s.cb[n];
   const batOk = e.bat && !e.fail.bat && batCharge;
@@ -300,7 +297,7 @@ function solveWith(s: Sim, batCharge: boolean): Elec {
   // MAIN from the battery alone (tie relay closed unless ESS BUS ON has power to open it)
   const mainBat = essBat && tie && !(e.essBus && mstrCb);
   // field supply: MAIN live from the battery, or the alternator already online and feeding MAIN (self-excited)
-  const field = mainBat || (altExcited && cb("ALT"));
+  const field = mainBat || (excited && cb("ALT"));
   const altOn = s.eng.running && e.alt && !e.fail.alt && cb("ALT CONT") && cb("ALT PROT") && field;
   const altFeed = altOn && cb("ALT");
   const essAlt = altFeed && tie; // through the tie relay or the bypass diode

@@ -3,16 +3,16 @@
  * G1000 annunciations (`aircraft/da40/model.ts`). Battery → BATT 70 A → ESSENTIAL; alternator → ALT 70 A → MAIN; the two
  * are joined by the tie relay (opened by ESS. BUS ON) and a MAIN → ESS bypass diode; MAIN → AV BUSS → MAIN AVIONICS.
  *
- * `solve` keeps module-level state between calls: whether the alternator is excited (it can only come on line while MAIN is
- * live from the battery, then keeps its own field). Solving the initial state always leaves it excited, so `E()` solves
- * `initialSim` first and every test starts from "alternator on line" regardless of test order.
+ * Whether the alternator is excited (it can only come on line while MAIN is live from the battery, then keeps its own
+ * field) comes from the previous solution, as the store passes it; `E()` solves after the initial state, alternator on line.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { annunciations, initialSim, live, solve, type Sim } from "@/aircraft/da40/model";
 import { patched, type Patch } from "./helpers";
 
 const sim = (p: Patch<Sim> = {}) => patched(initialSim, p);
-const E = (p: Patch<Sim> = {}) => (solve(initialSim), solve(sim(p)));
+const E0 = solve(initialSim);
+const E = (p: Patch<Sim> = {}) => solve(sim(p), E0);
 const ann = (p: Patch<Sim> = {}) => annunciations(sim(p), E(p)).map(([, t]) => t);
 const ALT_FAIL: Patch<Sim> = { elec: { fail: { alt: true } } };
 
@@ -35,10 +35,16 @@ describe("DA40 electrical solve", () => {
   });
 
   it("a stopped alternator cannot come on line without the battery: its field is fed from MAIN", () => {
-    solve(initialSim);
-    solve(sim({ eng: { running: false }, elec: { bat: false } })); // shut down: the field collapses
-    expect(solve(sim({ elec: { bat: false } })).altOn).toBe(false); // restarted (e.g. hand-propped) with BAT off
-    expect(solve(sim()).altOn).toBe(true); // BAT on: MAIN is live, the field is excited
+    const off = solve(sim({ eng: { running: false }, elec: { bat: false } }), E0); // shut down: the field collapses
+    expect(solve(sim({ elec: { bat: false } }), off).altOn).toBe(false); // restarted (e.g. hand-propped) with BAT off
+    expect(solve(sim(), off).altOn).toBe(true); // BAT on: MAIN is live, the field is excited
+  });
+
+  it("is pure: the same state and previous solution always give the same result", () => {
+    const s = sim({ elec: { bat: false } });
+    const before = solve(s, E0);
+    solve(sim({ eng: { running: false }, elec: { bat: false } }), E0); // an unrelated solve in between
+    expect(solve(s, E0)).toEqual(before);
   });
 
   it("alternator failure: ALTERNATOR warning, the battery carries ESSENTIAL and MAIN through the tie relay", () => {
