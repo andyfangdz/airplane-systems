@@ -83,4 +83,17 @@ describe("SR20 rudder horn (AMM Fig 6-00-2, Fig 55-40-1)", () => {
     });
     for (const d of top) expect(Math.abs(d)).toBeLessThan(0.01);
   });
+
+  it("NAV antenna sits on the fixed fin below the horn joint (AMM Fig 34-50-4, PDF p. 1739; SR20 POH p. 7-87)", () => {
+    const nav = CAT.parts.find((p) => p.name === "NAV antenna")!;
+    expect(nav.parent, "not on the moving rudder").toBeUndefined();
+    const geo = nav.geo();
+    geo.computeBoundingBox();
+    const { min, max } = geo.boundingBox!.clone().translate(new THREE.Vector3(...nav.pos!));
+    expect(max.y, "below the rudder horn cap").toBeLessThanOrEqual(HH);
+    for (const hh of [min.y, max.y]) {
+      expect(max.x, `h ${hh.toFixed(3)}: behind the fin LE`).toBeLessThanOrEqual(fLE(hh));
+      expect(min.x, `h ${hh.toFixed(3)}: ahead of the rudder hinge`).toBeGreaterThanOrEqual(hingeX(hh));
+    }
+  });
 });
