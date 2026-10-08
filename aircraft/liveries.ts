@@ -9,7 +9,11 @@ export const LIVERY_REGISTRATION: Record<AircraftId, string> = {
   c172s: "N6189Q",
   c182t: "N8050J",
   da40: "N949KC",
+  m20c: "N6947N",
 };
+
+/** The M20C currently uses its own schematic painter in m20c/geometry.ts. */
+type AtlasAircraftId = Exclude<AircraftId, "m20c">;
 
 type Section = "fuselage" | "tail";
 const INK = "#172029",
@@ -18,7 +22,7 @@ const INK = "#172029",
   RED = "#8b1234",
   SILVER = "#8d929a";
 
-export function liveryLabels(id: AircraftId, section: Section): PaintText[] {
+export function liveryLabels(id: AtlasAircraftId, section: Section): PaintText[] {
   if (section === "tail") {
     if (id === "da40")
       return [
@@ -55,7 +59,12 @@ export function liveryLabels(id: AircraftId, section: Section): PaintText[] {
 }
 
 /** Paint the observed stripes; points are silhouettes traced from side photographs, not engineering dimensions. */
-export function drawLivery(id: AircraftId, g: CanvasRenderingContext2D, P: PaintPoint, section: Section = "fuselage") {
+export function drawLivery(
+  id: AtlasAircraftId,
+  g: CanvasRenderingContext2D,
+  P: PaintPoint,
+  section: Section = "fuselage",
+) {
   const polygon = (color: string, points: number[][]) => {
     g.beginPath();
     points.forEach((p, i) => {
@@ -401,7 +410,7 @@ export function drawLivery(id: AircraftId, g: CanvasRenderingContext2D, P: Paint
   }
 }
 
-export function tailTexture(id: AircraftId, box: PaintBox, toWorld: PaintPoint = (p) => p) {
+export function tailTexture(id: AtlasAircraftId, box: PaintBox, toWorld: PaintPoint = (p) => p) {
   const c = document.createElement("canvas");
   c.width = 1024;
   c.height = 1024;

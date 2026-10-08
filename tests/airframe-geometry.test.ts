@@ -4,6 +4,7 @@ import { loft } from "@/lib/geometry";
 import { sidePaintUV } from "@/lib/livery";
 import { FLEET } from "@/aircraft";
 import { LIVERY_REGISTRATION } from "@/aircraft/liveries";
+import { TAIL_SHELLS } from "@/aircraft/m20c/parts";
 import { initialSim as skylane } from "@/aircraft/c182t/model";
 
 const box = { x0: -5, x1: 5, y0: -2, y1: 3 };
@@ -59,8 +60,10 @@ it("unwraps lettering in opposite directions on port/starboard without blending 
 });
 
 describe.each(FLEET)("$id exterior geometry", (def) => {
+  // The Mooney carries these shells in its moving empennage group, outside CAT.shells.
+  const shells = [...def.labels!.cat.shells, ...(def.id === "m20c" ? TAIL_SHELLS : [])];
   it("has finite positions, normals and UVs on painted shells and moving surfaces", () => {
-    for (const spec of [...def.labels!.cat.shells, ...def.labels!.cat.surfaces]) {
+    for (const spec of [...shells, ...def.labels!.cat.surfaces]) {
       const g = spec.geo();
       for (const name of ["position", "normal", ...(spec.skin ? ["uv"] : [])]) {
         const a = g.getAttribute(name);
@@ -70,15 +73,24 @@ describe.each(FLEET)("$id exterior geometry", (def) => {
       g.dispose();
     }
   });
-  it("keeps the fin's paint on its hinged rudder", () => {
-    const fin = def.labels!.cat.shells.find((s) => s.name === "Vertical stabilizer")!;
+  it("keeps the aircraft's paint on its fin and hinged rudder", () => {
+    const fin = shells.find((s) => s.name === "Vertical stabilizer" || s.name === "Vertical fin")!;
     const rudder = def.labels!.cat.surfaces.find((s) => s.key === "rudder")!;
     expect(fin.skin).toBeTypeOf("function");
-    expect(rudder.skin).toBe(fin.skin);
+    expect(rudder.skin).toBeTypeOf("function");
+    // N6947N has a navy rudder and light-blue fin, painted separately.
+    if (def.id === "m20c") expect(rudder.skin).not.toBe(fin.skin);
+    else expect(rudder.skin).toBe(fin.skin);
   });
 });
 
 it("uses the requested registrations and the photographed N8050J wheel configuration", () => {
-  expect(LIVERY_REGISTRATION).toEqual({ sr20: "N800KP", c172s: "N6189Q", c182t: "N8050J", da40: "N949KC" });
+  expect(LIVERY_REGISTRATION).toEqual({
+    sr20: "N800KP",
+    c172s: "N6189Q",
+    c182t: "N8050J",
+    da40: "N949KC",
+    m20c: "N6947N",
+  });
   expect(skylane.gear.fairings).toBe(false);
 });

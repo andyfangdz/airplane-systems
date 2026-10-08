@@ -24,3 +24,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Install browser for interaction tests
+        run: npx playwright-core install --with-deps chromium
+      - run: npm run test:ui:m20c
