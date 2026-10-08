@@ -107,7 +107,7 @@ export const SYS: SysDef[] = [
       [4.2, 2.6, 5.0],
       [1.6, -0.2, 0],
     ],
-    blurb: "12 V, generator, switch-breakers",
+    blurb: "12 V, alternator, switch-breakers",
   },
   {
     id: "lighting",
@@ -127,7 +127,7 @@ export const SYS: SysDef[] = [
       [1.2, 0.6, 1.6],
       [2.0, -0.05, -0.2],
     ],
-    blurb: "Pump, gyros, PC, vacuum step",
+    blurb: "Pump, gyros, PC servos",
   },
   {
     id: "pitot",
