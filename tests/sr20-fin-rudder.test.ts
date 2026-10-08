@@ -45,15 +45,6 @@ describe("SR20 fin height and retained longitudinal rudder proportions", () => {
     within(FS(Math.min(...FIN.map((r) => r[2]))), 350.2, 0.5);
   });
 
-  it("keeps the NAV antenna at the resized fin top", () => {
-    const antenna = CAT.parts.find((p) => p.name === "NAV antenna")!;
-    const geo = antenna.geo().translate(...antenna.pos!);
-    geo.computeBoundingBox();
-    expect(geo.boundingBox!.min.y - FIN_TOP).toBeGreaterThanOrEqual(-0.005);
-    expect(geo.boundingBox!.max.y - FIN_TOP).toBeLessThan(0.025);
-    geo.dispose();
-  });
-
   it("rudder hinges on the split line, FS 320.7 at WL 98 to 339.3 at WL 155, giving a 12.3 in chord at WL 126", () => {
     within(hinge(98), 320.7, 1);
     within(hinge(155), 339.3, 1);
@@ -92,5 +83,19 @@ describe("SR20 rudder horn (AMM Fig 6-00-2, Fig 55-40-1)", () => {
       return fwd - fLE(hh);
     });
     for (const d of top) expect(Math.abs(d)).toBeLessThan(0.01);
+  });
+
+  it("NAV antenna sits on the fixed fin below the horn joint (AMM Fig 34-50-4, PDF p. 1739; SR20 POH p. 7-87)", () => {
+    const nav = CAT.parts.find((p) => p.name === "NAV antenna")!;
+    expect(nav.parent, "not on the moving rudder").toBeUndefined();
+    const geo = nav.geo();
+    geo.computeBoundingBox();
+    const { min, max } = geo.boundingBox!.clone().translate(new THREE.Vector3(...nav.pos!));
+    expect(max.y, "below the rudder horn cap").toBeLessThanOrEqual(HH);
+    for (const hh of [min.y, max.y]) {
+      expect(max.x, `h ${hh.toFixed(3)}: behind the fin LE`).toBeLessThanOrEqual(fLE(hh));
+      expect(min.x, `h ${hh.toFixed(3)}: ahead of the rudder hinge`).toBeGreaterThanOrEqual(hingeX(hh));
+    }
+    geo.dispose();
   });
 });
