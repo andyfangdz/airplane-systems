@@ -1,6 +1,6 @@
 /** Avionics: display bezels, ADAHRS, GIAs, GEA, the centre console stack, transponder, antennas and magnetometer. */
 import { toVec3 } from "@/lib/math";
-import { box, botY, cyl, topY, wingP } from "../geometry";
+import { HH, box, botY, cyl, fLE, hingeX, topY, wingP } from "../geometry";
 import { part } from "./catalogue";
 import { STACK } from "./cabin";
 
@@ -121,11 +121,15 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
   note: "Just forward of the baggage-compartment window.",
   ext: true,
 });
-part(() => box(0.2, 0.015, 0.015), ["avionics"], {
-  pos: [-3.67, 1.545, 0],
+// On a plate in a recess at the top of the fixed fin, ahead of the upper rudder hinge (AMM 13773-002 Fig 34-50-4, PDF p. 1739,
+// SR22/SR22T; SR20 POH 11934-005 p. 7-87 says "top of the vertical fin"). Above HH the fin top is the moving rudder horn cap,
+// so the antenna sits just below the joint, midway between the fin LE and the hinge; the station is approximate.
+const NAV_H = HH - 0.01;
+part(() => box(0.16, 0.015, 0.015), ["avionics"], {
+  pos: [(fLE(NAV_H) + hingeX(NAV_H)) / 2, NAV_H, 0],
   color: ANT,
   name: "NAV antenna",
-  note: "Top of the fin: VOR/LOC and glideslope for both GIAs.",
+  note: "Top of the fixed fin, just below the rudder horn cap: VOR/LOC and glideslope for both GIAs. (AMM Fig 34-50-4; position approximate)",
   ext: true,
 });
 part(() => box(0.08, 0.08, 0.01), ["avionics"], {
