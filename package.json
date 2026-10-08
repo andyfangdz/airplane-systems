@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run typecheck && npm test",
     "shot": "node scripts/shot.mjs",
+    "trace": "node scripts/trace-airframes.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {

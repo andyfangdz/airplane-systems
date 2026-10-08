@@ -87,7 +87,7 @@ export const SPEC: CessnaSpec = {
     m: 0.02,
   },
   // Tapered planform from the POH Figure 1-1 top view: root ≈ FS 201–251 (50 in), tip ≈ 215–241, span 136 in
-  stab: { le: 201, leSweep: 0.22, te: 251, teSweep: -0.15, halfSpan: 68, tipStart: 58, h: 43, t: 0.1 },
+  stab: { le: 201, leSweep: 0.22, te: 251, teSweep: -0.15, halfSpan: 68, tipStart: 65, h: 43, t: 0.1 },
   // Raked fin and rudder (POH Figure 1-1 side view, D-EDDH photo): the hinge leans ≈ 27 in aft over the rudder's height and the
   // trailing edge ≈ 21 in, so the rudder is ≈ 20 in chord at the bottom and ≈ 14 in at the top
   fin: [

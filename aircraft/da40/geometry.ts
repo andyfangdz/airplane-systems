@@ -185,9 +185,10 @@ export const wingCut = (z: number) =>
 /* ---------- T-tail horizontal stabilizer (span ≈ 3.25 m, AFM area 2.34 m²) ---------- */
 export const SSPAN = 1.625,
   SY = 0.7;
-/** Root LE FS 7.15, root chord 0.90, swept LE, straight TE at FS 8.05. */
-export const sLE = (z: number) => fs(7.15 + (Math.abs(z) / SSPAN) * 0.35);
-export const sC = (z: number) => 0.9 - (Math.abs(z) / SSPAN) * 0.35;
+/** AFM §1.7 plan view: swept LE with a chamfer at the horn tip; straight TE at FS 8.05. */
+const tailTipCut = (z: number) => 0.3 * Math.pow(clamp((Math.abs(z) - (SSPAN - 0.1)) / 0.1, 0, 1), 2);
+export const sLE = (z: number) => fs(7.15 + (Math.abs(z) / SSPAN) * 0.35) - tailTipCut(z);
+export const sC = (z: number) => 0.9 - (Math.abs(z) / SSPAN) * 0.35 - tailTipCut(z);
 /** Elevator hinge line FS 7.83 (elevator ≈ 0.665 m², AFM 1.4); horn balance outboard of HZ reaching forward to HF chord. */
 export const ELEV_HINGE_X = fs(7.83);
 export const EF = (z: number) => clamp((sLE(z) - ELEV_HINGE_X) / sC(z), 0.3, 0.9);

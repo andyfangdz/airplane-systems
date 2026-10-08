@@ -1,6 +1,6 @@
 /** Avionics: display bezels, ADAHRS, GIAs, GEA, the centre console stack, transponder, antennas and magnetometer. */
 import { toVec3 } from "@/lib/math";
-import { box, botY, cyl, topY, wingP } from "../geometry";
+import { box, botY, cyl, finHeight, topY, wingP } from "../geometry";
 import { part } from "./catalogue";
 import { STACK } from "./cabin";
 
@@ -126,7 +126,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
   ext: true,
 });
 part(() => box(0.2, 0.015, 0.015), ["avionics"], {
-  pos: [-3.67, 1.545, 0],
+  pos: [-3.67, finHeight(1.545), 0],
   color: ANT,
   solidColor: "#E3E6E8",
   name: "NAV antenna",

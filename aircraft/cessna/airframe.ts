@@ -112,15 +112,15 @@ export function cessnaAirframe(S: CessnaSpec) {
     kinkZ = Z(W.kinkBL),
     tipZ = Z(W.tipBL);
   const out = (z: number) => clamp((Math.abs(z) - kinkZ) / (tipZ - kinkZ), 0, 1);
-  // conical-camber tip: the last ~4 in round off from both edges
+  // POH Fig 1-1: broad conical-camber tips, with only the corners rounded.
   const tipRound = (z: number) => {
     const a = Math.abs(z),
       r = tipZ - Z(4);
     return a > r ? Math.pow((a - r) / (tipZ - r), 2) : 0;
   };
   const wC0 = (z: number) => lerp(W.rootChord, W.tipChord, out(z)) * IN;
-  const wLE = (z: number) => X(W.le + W.leAft * out(z)) - wC0(z) * 0.18 * tipRound(z);
-  const wC = (z: number) => wC0(z) * (1 - 0.55 * tipRound(z));
+  const wLE = (z: number) => X(W.le + W.leAft * out(z)) - wC0(z) * 0.065 * tipRound(z);
+  const wC = (z: number) => wC0(z) * (1 - 0.15 * tipRound(z));
   const tanD = Math.tan((W.dihedral * Math.PI) / 180);
   const wY = (z: number) => Y(W.rootH) + (Math.abs(z) - rootZ) * tanD;
   const wT = (z: number) =>
@@ -137,9 +137,9 @@ export function cessnaAirframe(S: CessnaSpec) {
   };
   const sLE0 = (z: number) => X(T.le + (T.leSweep * Math.abs(z)) / IN);
   const sTE0 = (z: number) => X(T.te + ((T.teSweep ?? 0) * Math.abs(z)) / IN);
-  // rounded/raked tip: the LE comes aft faster than the TE comes forward
-  const sLE = (z: number) => sLE0(z) - (sLE0(z) - sTE0(z)) * 0.42 * sRound(z);
-  const sC = (z: number) => (sLE0(z) - sTE0(z)) * (1 - 0.62 * sRound(z));
+  // Broad stabilizer/elevator end cap: the previous 62% chord loss pinched it to a point.
+  const sLE = (z: number) => sLE0(z) - (sLE0(z) - sTE0(z)) * 0.065 * sRound(z);
+  const sC = (z: number) => (sLE0(z) - sTE0(z)) * (1 - 0.1 * sRound(z));
   const SY = Y(T.h);
   const STAB = liftingSurface({ le: sLE, chord: sC, y: () => SY, t: () => T.t, m: 0 });
 

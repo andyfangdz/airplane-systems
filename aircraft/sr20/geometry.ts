@@ -62,9 +62,11 @@ export const WR = 0.35,
   WSPAN = WTIP - WR;
 const tipCut = (z: number) => {
   const a = Math.abs(z);
-  return a > 5.2 ? 0.28 * Math.pow((a - 5.2) / 0.64, 2) : 0;
+  // POH Fig 1-1: nearly straight LE until the last 0.29 m, then a rounded end cap.
+  const u = clamp((a - 5.55) / (WTIP - 5.55), 0, 1);
+  return 0.76 * (1 - Math.sqrt(Math.max(0, 1 - u * u)));
 };
-export const wLE = (z: number) => 1.75 - (Math.abs(z) - WR) * 0.04 - tipCut(z);
+export const wLE = (z: number) => 1.75 - (Math.abs(z) - WR) * 0.025 - tipCut(z);
 export const wC = (z: number) => 1.5 - ((Math.abs(z) - WR) / WSPAN) * 0.7 - tipCut(z);
 export const wY = (z: number) => -0.6 + (Math.abs(z) - WR) * 0.09;
 export const wT = (z: number) => 0.15 - ((Math.abs(z) - WR) / WSPAN) * 0.04;
@@ -91,13 +93,18 @@ const hTip = (z: number) => {
 };
 export const sLE = (z: number) => -2.302 - Math.abs(z) * 0.113 - hTip(z);
 export const sC = (z: number) => 0.798 - Math.abs(z) * 0.163 - hTip(z);
-/** Rudder horn (balance): above HH (WL 160.2) the rudder is a full-chord cap (AMM Fig 6-00-2, Fig 55-40-1 Detail B). */
-export const HH = 1.4;
+/** Fin height calibrated to the SR20 G6's 8.9 ft overall height (POH Fig 1-1).
+ * The old vertical stations came from an SR22/SR22T AMM and made this SR20 0.21 m too tall.
+ * Retain the photo-fitted x stations; map all fin/rudder attachments with the same vertical scale. */
+export const FIN_TOP = GROUND_Y + 8.9 * 0.3048;
+export const finHeight = (oldY: number) => -0.18 + ((oldY + 0.18) * (FIN_TOP + 0.18)) / (1.534 + 0.18);
+/** Full-chord rudder horn starts above the fixed fin. */
+export const HH = finHeight(1.4);
 export const stabSec = liftingSurface({ le: sLE, chord: sC, y: () => SY, t: () => 0.1, m: 0 }).sec;
 
 /* ---------- fin: dorsal fillet from x -1.95, swept LE, flat top ---------- */
 // [height, leading edge x, trailing edge x]: leading edge traced from the G6 side photo; trailing edge and top scaled from
-// AMM 13773-002 Fig 6-00-2 (SR22/SR22T): top WL 165.5, aft-most point FS 350.2 (SR20 POH Fig 1-1: length 26.0 ft)
+// the SR22/SR22T AMM for longitudinal proportions only; vertical stations are calibrated by finHeight to SR20 POH Fig 1-1.
 export const FIN = [
   [-0.25, -2.95, -3.2],
   [-0.1, -2.7, -3.4],
@@ -115,7 +122,7 @@ export const FIN = [
   [1.47, -3.29, -3.715],
   [1.51, -3.45, -3.73],
   [1.534, -3.62, -3.745],
-];
+].map(([h, le, te]) => [finHeight(h), le, te]);
 const finAt = (h: number) => {
   let i = 0;
   while (i < FIN.length - 2 && h > FIN[i + 1][0]) i++;
@@ -128,8 +135,8 @@ export const fLE = (h: number) => finAt(h)[0];
 export const fC = (h: number) => finAt(h)[0] - finAt(h)[1];
 // rudder hinge line (height, x): the rudder/fin split line, FS 320.7 at WL 98 to FS 339.3 at WL 155 (AMM Fig 6-00-2)
 const RH = [
-  [-0.18, -3.0],
-  [1.44, -3.52],
+  [finHeight(-0.18), -3.0],
+  [finHeight(1.44), -3.52],
 ];
 export const hingeX = (h: number) => lerp(RH[0][1], RH[1][1], (h - RH[0][0]) / (RH[1][0] - RH[0][0]));
 /** Chord fraction of the rudder hinge below the horn. */

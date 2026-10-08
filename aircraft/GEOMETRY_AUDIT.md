@@ -15,9 +15,9 @@ The underside/side comparison also explains the apparent “stair steps” acros
 
 ## What the photos do and do not establish
 
-- Span, length, tail dimensions, wheelbase, gear track, thrust line, control pivots and control travel retain their existing POH/AFM-based values. The SR20 tail planform and horn-balance regression checks remain in place.
+- The subsequent [three-view trace audit](reference-traces/README.md) corrects the SR20 fin height, wing outlines and tail-tip shapes. Span, length, wheelbase, gear track and control travel are unchanged. The SR20 rudder and its attached details follow the corrected fin height.
 - Local cross-section exponents, inlet outline sizes, propeller chord profiles, bracket dimensions and fairing contours are **visual approximations**. They are not measurements from calibrated orthographic photographs or engineering drawings. Perspective, camera height and in-flight attitude prevent treating pixel ratios as exact dimensions.
-- The DA40 canopy/roof and T-tail silhouette, the Cessna wing taper and strut arrangement, and the SR20 cabin/tail profile were compared without finding enough evidence to replace their existing sourced station tables. This does not certify those shapes as exact. Airfoil sections, window glazing and small fittings remain simplified study-model representations.
+- Photo review alone did not justify replacing the fuselage station tables. The later calibrated handbook traces identify additional planform and fin-height corrections, documented with before/after overlays. Airfoil sections, window glazing and small fittings remain simplified study-model representations; neither audit certifies the models as exact.
 - Solid-mode livery artwork and registrations are unchanged. Historical paint, equipment on other registrations, and photographic propeller position are not copied into the aircraft's system configuration.
 
 ## Verification
