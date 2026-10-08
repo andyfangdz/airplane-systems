@@ -37,7 +37,7 @@ export const MG = { fs: 58.2, bl: 50, h: 8.6 };
     ext: true,
     pin: s > 0,
   });
-  part(() => wheelFairingGeo({ len: 36, height: 20, width: 11, axle: 0.47, lift: 1, cut: 3 - MG.h }), ["gear"], {
+  part(() => wheelFairingGeo({ len: 36, height: 17, width: 11, axle: 0.47, lift: 1.7, cut: 4 - MG.h }), ["gear"], {
     pos: P3(MG.fs, s * (MG.bl - 0.7), MG.h),
     fairing: true,
     name: "Wheel fairing",

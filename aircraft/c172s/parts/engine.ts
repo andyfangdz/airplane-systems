@@ -1,3 +1,5 @@
+import { cowlOpeningGeo } from "@/lib/geometry";
+import { FUSE, Y } from "../geometry";
 /** C172S catalogue: propeller and engine — cylinders and ignition, oil, induction, exhaust, cooling, mount and engine controls. */
 import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
@@ -234,13 +236,10 @@ part(() => cyl(0.078, 0.26, "z"), ["environment", "engine"], {
 [1, -1].forEach((s) => {
   part(
     () => {
-      const g = new THREE.TorusGeometry(0.056, 0.011, 8, 22);
-      g.rotateY(Math.PI / 2);
-      return g;
+      return cowlOpeningGeo(FUSE.frontX, Y(53.3), s * 10.4 * IN, 0.245, 0.185, 3.2, true);
     },
     ["engine", "airframe"],
     {
-      pos: P3(-37.25, s * 10.2, 53.3),
       color: "#1E2A33",
       ext: true,
       pin: s > 0,
@@ -250,12 +249,10 @@ part(() => cyl(0.078, 0.26, "z"), ["environment", "engine"], {
   );
   part(
     () => {
-      const g = new THREE.CircleGeometry(0.056, 20);
-      g.rotateY(Math.PI / 2);
-      return g;
+      return cowlOpeningGeo(FUSE.frontX, Y(53.3), s * 10.4 * IN, 0.245, 0.185, 3.2);
     },
     ["engine", "airframe"],
-    { pos: P3(-37.55, s * 10.2, 53.3), color: "#0B1014", ext: true },
+    { color: "#0B1014", ext: true },
   );
 });
 part(() => box(0.05, 0.03, 0.42), ["engine"], {

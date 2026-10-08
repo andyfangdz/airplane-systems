@@ -13,7 +13,7 @@ shell(
       h.absarc(-cz, cy, r, 0, Math.PI * 2, true);
       return h;
     };
-    shape.holes.push(hole(0, 0, 0.168), hole(0.235, 0, 0.058), hole(-0.235, 0, 0.058));
+    shape.holes.push(hole(0, 0, 0.168), hole(0.26, 0, 0.076), hole(-0.26, 0, 0.076));
     const g = new THREE.ShapeGeometry(shape, 24);
     g.rotateY(Math.PI / 2);
     g.translate(x0, 0, 0);
@@ -25,9 +25,9 @@ shell(
 [1, -1].forEach((s) => {
   part(
     () => {
-      const g = new THREE.TorusGeometry(0.06, 0.016, 8, 20);
+      const g = new THREE.TorusGeometry(0.078, 0.01, 12, 32);
       g.rotateY(Math.PI / 2);
-      g.translate(fs(0.47), 0.0, s * 0.235);
+      g.translate(fs(0.47), 0.0, s * 0.26);
       return g;
     },
     ["engine", "airframe"],
@@ -44,9 +44,9 @@ shell(
   );
   part(
     () => {
-      const g = new THREE.CircleGeometry(0.06, 20);
+      const g = new THREE.CircleGeometry(0.078, 32);
       g.rotateY(Math.PI / 2);
-      g.translate(fs(0.475), 0.0, s * 0.235);
+      g.translate(fs(0.475), 0.0, s * 0.26);
       return g;
     },
     ["engine", "airframe"],

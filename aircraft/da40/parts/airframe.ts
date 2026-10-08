@@ -16,6 +16,7 @@ import {
   WJ,
   WR,
   WTIP,
+  wingCut,
   canopyGeo,
   doorGeo,
   finCut,
@@ -61,7 +62,7 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
     () =>
       loft(
         sided(
-          wingSt.map((z) => wingSec(s * z, 0, FLAP.hinge)),
+          wingSt.map((z) => wingSec(s * z, 0, wingCut(z))),
           s,
         ),
       ),
@@ -87,7 +88,7 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
       () =>
         loft(
           sided(
-            st.map((z) => wingSec(s * z, FLAP.hinge, 1)),
+            st.map((z) => wingSec(s * z, wingCut(z), 1)),
             s,
           ),
         ),

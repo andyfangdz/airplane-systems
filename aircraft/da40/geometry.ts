@@ -176,6 +176,9 @@ export const wingSec = WING.sec;
 /** Flap and aileron spans (top view): flap z 1.20–3.92, aileron 3.92–5.53; hinge at 78 % chord. */
 export const FLAP = { z0: 1.2, z1: 3.9, hinge: 0.78 },
   AIL = { z0: 3.94, z1: 5.53, hinge: 0.8 };
+/** Fixed skin must reach the actual hinge: using the flap cut outboard left a 2%-chord hole ahead of each aileron. */
+export const wingCut = (z: number) =>
+  lerp(FLAP.hinge, AIL.hinge, clamp((Math.abs(z) - FLAP.z1) / (AIL.z0 - FLAP.z1), 0, 1));
 
 /* ---------- T-tail horizontal stabilizer (span ≈ 3.25 m, AFM area 2.34 m²) ---------- */
 export const SSPAN = 1.625,

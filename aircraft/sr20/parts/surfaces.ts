@@ -1,3 +1,4 @@
+import { hingeFairingGeo } from "@/lib/geometry";
 import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /**
  * Control surfaces (flaps, ailerons, elevator, rudder; pivot on their hinge lines) and the details on them: static
@@ -139,7 +140,7 @@ const wickNote =
       [4.85, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
     ] as [number, string, string, SysId[]][]
   ).forEach(([z, name, note, sys], i) =>
-    part(() => box(0.34, 0.05, 0.025), sys, {
+    part(() => (i < 3 ? box(0.14, 0.04, 0.025) : hingeFairingGeo(0.22, 0.045, 0.045)), sys, {
       pos: toVec3(wingP(s * z, 0.74, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name,

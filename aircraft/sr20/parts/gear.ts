@@ -1,3 +1,4 @@
+import { gearLegGeo } from "@/lib/geometry";
 /** Landing gear: main and nose gear, wheels and pants, brakes and brake lines, parking brake, rudder pedals / toe brakes. */
 import { V, type Vec3 } from "@/lib/math";
 import { brakeAmount, brakeAnim } from "@/lib/anims";
@@ -11,13 +12,14 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
   const top = wingP(s * 1.0, 0.28, -1);
   part(
     () =>
-      tubeGeo(
+      gearLegGeo(
         [
           [top.x, top.y + 0.02, s * 1.0],
           [1.14, -0.9, s * 1.22],
           [MG.x, -1.1, s * 1.36],
         ],
-        0.04,
+        0.26,
+        0.055,
       ),
     ["gear"],
     {

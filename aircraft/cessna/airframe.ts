@@ -89,7 +89,20 @@ export function cessnaAirframe(S: CessnaSpec) {
 
   /* ---------- fuselage ---------- */
   const table = S.fuselage.map(([fs, hw, top, bot]) => [X(fs), hw * IN, ((top - bot) / 2) * IN, Y((top + bot) / 2)]);
-  const FUSE = fuselage({ table, nTop: S.nTop, nBot: S.nBot, tumble: S.tumble });
+  // Photos show a rounded nose bowl and tailcone, not the cabin's slab section
+  // extruded over the entire fuselage. Keep all POH station extrema unchanged.
+  const FUSE = fuselage({
+    table,
+    nTop: S.nTop,
+    nBot: S.nBot,
+    tumble: S.tumble,
+    section: (x) => {
+      const fs = FS(x);
+      const cabin = Math.min(clamp((fs + 6) / 34, 0, 1), clamp((155 - fs) / 55, 0, 1));
+      const blend = cabin * cabin * (3 - 2 * cabin);
+      return { nTop: lerp(3.5, S.nTop, blend), nBot: lerp(3.0, S.nBot, blend), tumble: S.tumble };
+    },
+  });
 
   /* ---------- wing ---------- */
   const W = S.wing;

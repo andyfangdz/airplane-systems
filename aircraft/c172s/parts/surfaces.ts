@@ -142,7 +142,7 @@ const WICK =
     }),
   );
   [118, 165, 200].forEach((b) =>
-    part(() => box(0.2, 0.035, 0.022), ["controls"], {
+    part(() => box(0.1, 0.03, 0.022), ["controls"], {
       pos: PV(wingP(s * Z(b), 0.78, -1).add(V(-0.01, -0.012, 0))),
       color: "#C9D0D5",
       name: "Aileron hinge",

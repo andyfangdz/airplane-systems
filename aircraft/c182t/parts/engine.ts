@@ -1,3 +1,5 @@
+import { cowlOpeningGeo } from "@/lib/geometry";
+import { FUSE, Y } from "../geometry";
 /**
  * C182T catalogue: propeller and engine: IO-540, cylinders and plugs, magnetos, oil, induction, exhaust and heater shrouds,
  * cooling and cowl flaps, engine mount and engine controls.
@@ -16,9 +18,9 @@ const bladeGeo = () => {
   const R = 39.5 * IN,
     sh = new THREE.Shape();
   sh.moveTo(-0.05, 0.13);
-  sh.quadraticCurveTo(-0.08, R * 0.5, -0.045, R * 0.96);
-  sh.quadraticCurveTo(-0.01, R * 1.005, 0.03, R * 0.965);
-  sh.quadraticCurveTo(0.065, R * 0.5, 0.045, 0.13);
+  sh.quadraticCurveTo(-0.14, R * 0.48, -0.065, R * 0.96);
+  sh.quadraticCurveTo(-0.015, R * 1.005, 0.045, R * 0.965);
+  sh.quadraticCurveTo(0.14, R * 0.48, 0.045, 0.13);
   sh.lineTo(-0.05, 0.13);
   const g = new THREE.ExtrudeGeometry(sh, { depth: 0.016, bevelEnabled: false });
   g.translate(0, 0, -0.008);
@@ -82,7 +84,7 @@ CYLS.forEach((c) => {
       color: "#8C959C",
     });
   part(() => box(0.14, 0.15, 0.07), ["engine"], {
-    pos: [base[0], base[1] + 0.01, base[2] + c.s * 0.12],
+    pos: [base[0], base[1] + 0.01, base[2] + c.s * 0.075],
     color: "#6A737A",
     name: "Cylinder head " + c.n,
     note: "Two spark plugs; CHT thermocouple in the head and EGT thermocouple in the exhaust pipe (POH 7-33). Engine page shows the hottest; the LEAN page shows all six.",
@@ -99,7 +101,7 @@ CYLS.forEach((c) => {
     // POH 7-35 (KAP 140 edition, image-verified): right magneto fires lower right + upper left; left magneto lower left + upper right
     const mag = c.s > 0 === (pos === "L") ? "R" : "L";
     part(() => cyl(0.013, 0.05, "y", 10), ["engine"], {
-      pos: [base[0] - 0.03, base[1] + dy, base[2] + c.s * 0.12],
+      pos: [base[0] - 0.03, base[1] + dy, base[2] + c.s * 0.075],
       color: "#DADFE2",
       anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
@@ -244,13 +246,10 @@ CYLS.forEach((c) =>
 [1, -1].forEach((s) => {
   part(
     () => {
-      const g = new THREE.TorusGeometry(0.06, 0.012, 8, 22);
-      g.rotateY(Math.PI / 2);
-      return g;
+      return cowlOpeningGeo(FUSE.frontX, Y(53.0), s * 11.2 * IN, 0.27, 0.19, 3.2, true);
     },
     ["engine", "airframe"],
     {
-      pos: P3(-43.75, s * 10.8, 53.8),
       color: "#1E2A33",
       ext: true,
       pin: s > 0,
@@ -260,16 +259,14 @@ CYLS.forEach((c) =>
   );
   part(
     () => {
-      const g = new THREE.CircleGeometry(0.06, 20);
-      g.rotateY(Math.PI / 2);
-      return g;
+      return cowlOpeningGeo(FUSE.frontX, Y(53.0), s * 11.2 * IN, 0.27, 0.19, 3.2);
     },
     ["engine", "airframe"],
-    { pos: P3(-44.0, s * 10.8, 53.8), color: "#0B1014", ext: true },
+    { color: "#0B1014", ext: true },
   );
 });
 part(() => box(0.36, 0.02, 0.56), ["engine"], {
-  pos: P3(-26, 0, 59.2),
+  pos: P3(-26, 0, 56.5),
   color: "#B8BEC4",
   name: "Cylinder baffles",
   note: "Direct ram air from above the engine down around the cylinders (POH 7-37; GFC 7-40).",
