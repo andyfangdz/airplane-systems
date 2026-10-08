@@ -22,6 +22,13 @@ export function Overview() {
         linked: pull the throttle with the gear up and the horn sounds; let the vacuum drop and the gyros, the PC and
         the red lights respond.
       </p>
+      <Small>
+        <b>About the year.</b> The FAA registry lists N6947N as a 1968 M20C, serial 680194 (airworthiness date 25
+        September 1968). That fits the photos — one-piece windshield, no dorsal fin — and the name: Mooney sold the 1967
+        airplane as the Mark 21 and introduced the Ranger for 1968. The model follows the 1968 configuration (fixed cowl
+        flaps, fixed entry step, alternator, V<sub>FE</sub> 125 mph) and says where a 1967 Mark 21 differs (adjustable
+        cowl flaps, vacuum step, dorsal fin, two-piece windshield, generator, V<sub>FE</sub> 100 mph).
+      </Small>
       <H3>Start from</H3>
       <Ctl>
         <BtnRow>
