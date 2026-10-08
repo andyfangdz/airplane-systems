@@ -1,3 +1,5 @@
+import { drawLivery, liveryLabels, tailTexture } from "../liveries";
+import { paintAtlas } from "@/lib/livery";
 /**
  * Airframe geometry for the Cessna 172S NAV III (N6189Q, s/n 172S10738), built with the shared
  * Cessna high-wing builder (aircraft/cessna/airframe.ts).
@@ -290,7 +292,7 @@ export function rearRoofGeo() {
   return loft(secs.reverse(), { closed: false, caps: false }); // aft → forward: faces outward
 }
 
-/** Neutral livery: white with a slate stripe sweeping up the cowl; glass painted where the windows are. No markings. */
+/** Paints N6189Q’s burgundy/gold livery and tinted windows (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
   const p = skinPainter(AF, 2048, 512),
     { g, path } = p;
@@ -314,45 +316,7 @@ export function paintSkin(): THREE.CanvasTexture {
     [-30, 52],
   ]);
   g.stroke();
-  // stripe: slate band with a thin accent, sweeping up toward the spinner
-  path([
-    [-36, 47.5],
-    [-20, 46.5],
-    [0, 45.2],
-    [30, 44.6],
-    [70, 45.2],
-    [120, 47.6],
-    [180, 51.0],
-    [230, 54.0],
-    [258, 55.4],
-    [258, 52.4],
-    [230, 51.2],
-    [180, 48.0],
-    [120, 44.6],
-    [70, 42.0],
-    [30, 41.4],
-    [0, 42.0],
-    [-20, 43.4],
-    [-36, 44.6],
-  ]);
-  g.fillStyle = "#3E5468";
-  g.fill();
-  path(
-    [
-      [-34, 41.6],
-      [0, 39.6],
-      [30, 39.0],
-      [70, 39.6],
-      [120, 42.2],
-      [180, 45.8],
-      [230, 49.2],
-      [258, 50.6],
-    ],
-    false,
-  );
-  g.strokeStyle = "#8EA2B2";
-  g.lineWidth = 5;
-  g.stroke();
+  drawLivery("c172s", g, p.P);
   // windshield (wraps over the deck) and rear window (wraps over the roof behind the wing)
   // windshield: everything above the deck line between its base (FS 13) and the forward door posts
   path([...WIN.windSide, [31.5, 86], [13, 86]]);
@@ -379,5 +343,8 @@ export function paintSkin(): THREE.CanvasTexture {
   ]);
   g.fillStyle = "#5C666E";
   g.fill();
-  return p.done();
+  return paintAtlas(p.c, p.P, liveryLabels("c172s", "fuselage"));
 }
+
+export const TAIL_PAINT_BOX = { x0: X(285), x1: X(190), y0: Y(40), y1: Y(112) };
+export const paintTail = () => tailTexture("c172s", TAIL_PAINT_BOX, ([fs, h]) => [X(fs), Y(h)]);

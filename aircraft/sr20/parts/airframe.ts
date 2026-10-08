@@ -1,3 +1,5 @@
+import { sidePaintUV } from "@/lib/livery";
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /** Airframe shells: fuselage, spinner, wings, trailing edges, stabilizers and fin. */
 import * as THREE from "three";
 import { EF, HZ, WR, finCut, finHs, finSec, fuselageGeo, loft, stabSec, wingSec } from "../geometry";
@@ -15,7 +17,7 @@ shell(
     const pts: THREE.Vector2[] = [];
     for (let i = 0; i <= 16; i++) {
       const t = i / 16;
-      pts.push(new THREE.Vector2(0.155 * Math.sqrt(1 - t * t * 0.97), t * 0.42));
+      pts.push(new THREE.Vector2(0.155 * Math.sqrt(Math.max(0, 1 - t * t)), t * 0.42));
     }
     const g = new THREE.LatheGeometry(pts, 32);
     g.rotateZ(-Math.PI / 2);
@@ -68,7 +70,8 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.65, 5.78, 5.8
   );
 });
 shell(
-  () => loft(finHs.map((h) => finSec(h, 0, finCut(h)))),
+  () => sidePaintUV(loft(finHs.map((h) => finSec(h, 0, finCut(h)))), TAIL_PAINT_BOX),
   "Vertical stabilizer",
   "Composite, integral with the fuselage shell; swept leading edge blends into a dorsal fillet.",
+  paintTail,
 );

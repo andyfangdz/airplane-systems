@@ -95,6 +95,7 @@ part(() => cyl(0.007, 0.3), ["avionics"], {
   pos: [0.45, 0.82, 0],
   rot: [0, 0, 0.45],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "COM 1 antenna",
   note: "Rod on top above the passenger compartment.",
   ext: true,
@@ -103,6 +104,7 @@ part(() => cyl(0.007, 0.26), ["avionics"], {
   pos: [-0.35, -0.7, 0],
   rot: [0, 0, -0.45],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "COM 2 antenna",
   note: "Rod below the baggage compartment.",
   ext: true,
@@ -110,6 +112,7 @@ part(() => cyl(0.007, 0.26), ["avionics"], {
 part(() => cyl(0.05, 0.015), ["avionics"], {
   pos: [1.0, 0.72, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "GPS 1 antenna",
   note: "Above the passenger compartment (GPS/XM combo if XM installed).",
   ext: true,
@@ -117,6 +120,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
 part(() => cyl(0.05, 0.015), ["avionics"], {
   pos: [-0.28, 0.54, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "GPS 2 / Iridium antenna",
   note: "Just forward of the baggage-compartment window.",
   ext: true,
@@ -124,6 +128,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
 part(() => box(0.2, 0.015, 0.015), ["avionics"], {
   pos: [-3.67, 1.545, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "NAV antenna",
   note: "Top of the fin: VOR/LOC and glideslope for both GIAs.",
   ext: true,
@@ -131,6 +136,7 @@ part(() => box(0.2, 0.015, 0.015), ["avionics"], {
 part(() => box(0.08, 0.08, 0.01), ["avionics"], {
   pos: [-0.72, -0.57, 0.12],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Transponder antenna",
   note: "Belly, just aft of the baggage bulkhead, right side.",
   ext: true,
@@ -138,6 +144,7 @@ part(() => box(0.08, 0.08, 0.01), ["avionics"], {
 part(() => box(0.2, 0.012, 0.08), ["avionics"], {
   pos: [0.25, topY(0.25) + 0.004, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Stormscope antenna (optional)",
   note: "Lightning-detection antenna directly above the passenger compartment.",
   ext: true,
@@ -145,6 +152,7 @@ part(() => box(0.2, 0.012, 0.08), ["avionics"], {
 part(() => box(0.14, 0.06, 0.012), ["avionics"], {
   pos: [1.45, topY(1.45) + 0.03, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Traffic antenna, top (optional)",
   note: "Just above the pilot/copilot compartment; a second traffic antenna sits under the belly.",
   ext: true,
@@ -152,6 +160,7 @@ part(() => box(0.14, 0.06, 0.012), ["avionics"], {
 part(() => box(0.3, 0.012, 0.1), ["avionics"], {
   pos: [-0.25, botY(-0.25) - 0.004, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Marker beacon antenna",
   note: "Sled type, below the baggage compartment floor.",
   ext: true,
@@ -159,6 +168,7 @@ part(() => box(0.3, 0.012, 0.1), ["avionics"], {
 part(() => box(0.1, 0.06, 0.012), ["avionics"], {
   pos: [2.3, botY(2.3) - 0.03, 0.1],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "DME antenna (optional)",
   note: "Blade on the belly just aft and right of the firewall.",
   ext: true,
@@ -166,6 +176,7 @@ part(() => box(0.1, 0.06, 0.012), ["avionics"], {
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
   pos: toVec3(wingP(-4.9, 0.45, 0)),
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Magnetometer (MAG 1)",
   note: "Senses the local magnetic field for AHRS heading. Mounted out near a wing tip, away from ferrous masses. Exact location approximate.",
   pin: true,

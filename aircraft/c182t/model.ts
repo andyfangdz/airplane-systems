@@ -135,7 +135,7 @@ export const initialSim: Sim = {
   fuel: { sel: "BOTH", pump: false, qL: 34, qR: 33, slip: false },
   flaps: { cmd: 0, moving: false },
   ctrl: { pitch: 0, roll: 0, yaw: 0, rudTrim: 0 },
-  gear: { diff: 0, park: false, fairings: true },
+  gear: { diff: 0, park: false, fairings: false },
   lights: {
     beacon: true,
     land: false,

@@ -1,3 +1,5 @@
+import { drawLivery, liveryLabels, tailTexture } from "../liveries";
+import { paintAtlas } from "@/lib/livery";
 /**
  * Airframe geometry for the Cessna 182T Skylane NAV III (Paramus Flying Club N8050J, s/n 18281633, and N21200,
  * s/n 18281732), built with the shared Cessna high-wing builder (aircraft/cessna/airframe.ts).
@@ -298,7 +300,7 @@ export function rearRoofGeo() {
   return loft(secs.reverse(), { closed: false, caps: false }); // aft → forward: faces outward
 }
 
-/** Neutral livery: white with a navy band and a thin warm-grey accent sweeping up from the cowl chin; glass painted on. No markings. */
+/** Paints N8050J’s new red/white livery from the supplied photo, with tinted windows (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
   const p = skinPainter(AF, 2048, 512),
     { g, path } = p;
@@ -330,45 +332,7 @@ export function paintSkin(): THREE.CanvasTexture {
     [-30, 53.5],
   ]);
   g.stroke();
-  // band: navy, sweeping up from under the spinner to the tailcone
-  path([
-    [-43, 43.5],
-    [-30, 41.0],
-    [-10, 40.0],
-    [20, 40.0],
-    [60, 41.0],
-    [110, 44.0],
-    [170, 48.2],
-    [220, 51.0],
-    [258, 52.6],
-    [258, 49.4],
-    [220, 47.8],
-    [170, 44.8],
-    [110, 40.4],
-    [60, 37.2],
-    [20, 36.0],
-    [-10, 36.2],
-    [-30, 37.2],
-    [-43, 39.6],
-  ]);
-  g.fillStyle = "#2E4766";
-  g.fill();
-  path(
-    [
-      [-40, 34.0],
-      [-10, 32.6],
-      [20, 32.4],
-      [60, 33.6],
-      [110, 37.0],
-      [170, 41.6],
-      [220, 45.0],
-      [258, 46.6],
-    ],
-    false,
-  );
-  g.strokeStyle = "#A8A196";
-  g.lineWidth = 5;
-  g.stroke();
+  drawLivery("c182t", g, p.P);
   // windshield: everything above the deck line between its base and the forward door posts
   path([...WIN.windSide, [28.6, 86], [4, 86]]);
   g.fillStyle = p.glass(80, 63);
@@ -394,5 +358,8 @@ export function paintSkin(): THREE.CanvasTexture {
   ]);
   g.fillStyle = "#5C666E";
   g.fill();
-  return p.done();
+  return paintAtlas(p.c, p.P, liveryLabels("c182t", "fuselage"));
 }
+
+export const TAIL_PAINT_BOX = { x0: X(285), x1: X(190), y0: Y(40), y1: Y(112) };
+export const paintTail = () => tailTexture("c182t", TAIL_PAINT_BOX, ([fs, h]) => [X(fs), Y(h)]);

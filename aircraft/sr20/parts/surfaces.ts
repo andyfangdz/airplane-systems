@@ -1,3 +1,4 @@
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /**
  * Control surfaces (flaps, ailerons, elevator, rudder; pivot on their hinge lines) and the details on them: static
  * wicks, horn balances, hinge brackets and fairings, ground-adjustable trim tabs.
@@ -97,6 +98,7 @@ surface(
   ["controls"],
   "Rudder",
   "Aluminum, three hinge points on the fin rear shear web. Extends below the stabilizer to the tailcone tip.",
+  { box: TAIL_PAINT_BOX, skin: paintTail },
 );
 
 /* ---------- control-surface details (Costanzo deck photos) ---------- */

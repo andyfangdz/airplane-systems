@@ -20,7 +20,12 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
         0.04,
       ),
     ["gear"],
-    { name: "Main gear strut", note: "Composite strut bolted to the wing between spar and shear web.", ext: true },
+    {
+      color: "#F3F5F6",
+      name: "Main gear strut",
+      note: "Composite strut bolted to the wing between spar and shear web.",
+      ext: true,
+    },
   );
   part(() => cyl(0.19, 0.15, "z", 28), ["gear"], {
     pos: [MG.x, MG.y, s * MG.z],
@@ -33,6 +38,7 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
     pos: [MG.x, -1.17, s * MG.z],
     scale: [1, 1, 0.75],
     fairing: true,
+    color: "#F3F5F6",
     name: "Wheel pant",
     note: "Removable; access plugs allow tire inflation checks.",
     ext: true,
@@ -110,6 +116,7 @@ part(() => pantGeo(0.7, 0.17), ["gear"], {
   pos: [0.02, 0.02, 0],
   scale: [1, 1, 0.7],
   fairing: true,
+  color: "#F3F5F6",
   name: "Nose wheel pant",
   note: "",
   ext: true,

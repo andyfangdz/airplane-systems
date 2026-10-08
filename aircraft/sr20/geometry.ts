@@ -1,3 +1,5 @@
+import { drawLivery, liveryLabels, tailTexture } from "../liveries";
+import { paintAtlas, sidePaintUV } from "@/lib/livery";
 /**
  * Airframe geometry for the SR20 G6 model.
  *
@@ -204,9 +206,9 @@ export function windowOutlines(): THREE.Vector3[][] {
 }
 
 /** Fuselage loft with side-projected UVs for the painted skin texture. */
-export const fuselageGeo = () => FUSE.geo({ step: 0.06, N: 48, uv: SK });
+export const fuselageGeo = () => sidePaintUV(FUSE.geo({ step: 0.06, N: 48 }), SK);
 
-/** Paints window shapes, door seam and G6 pinstripes (browser only). */
+/** Paints N800KP’s photo-referenced stripes, window shapes and door seams (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = SK.W;
@@ -228,38 +230,7 @@ export function paintSkin(): THREE.CanvasTexture {
   g.strokeStyle = "#A9B2B9";
   g.lineWidth = 2;
   g.stroke();
-  path(
-    [
-      [3.25, -0.37],
-      [2.42, -0.25],
-      [1.66, -0.15],
-      [0.9, -0.03],
-      [0.14, 0.12],
-      [-0.75, 0.1],
-      [-1.77, 0.15],
-      [-2.79, 0.2],
-      [-3.45, 0.23],
-    ],
-    false,
-  );
-  g.strokeStyle = "#C8313B";
-  g.lineWidth = 4;
-  g.stroke();
-  path(
-    [
-      [3.2, -0.4],
-      [2.16, -0.28],
-      [1.4, -0.2],
-      [0.64, -0.05],
-      [-0.5, 0.04],
-      [-1.77, 0.1],
-      [-3.45, 0.18],
-    ],
-    false,
-  );
-  g.strokeStyle = "#20262B";
-  g.lineWidth = 6;
-  g.stroke();
+  drawLivery("sr20", g, P);
   const glass = () => {
     const gr = g.createLinearGradient(0, P([0, 0.7])[1], 0, P([0, 0.1])[1]);
     gr.addColorStop(0, "#3A4C5A");
@@ -283,8 +254,8 @@ export function paintSkin(): THREE.CanvasTexture {
     g.lineWidth = 3;
     g.stroke();
   });
-  const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 8;
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  return paintAtlas(c, P, liveryLabels("sr20", "fuselage"));
 }
+
+export const TAIL_PAINT_BOX = { x0: -3.9, x1: -1.8, y0: -0.3, y1: 1.6 };
+export const paintTail = () => tailTexture("sr20", TAIL_PAINT_BOX);

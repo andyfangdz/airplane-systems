@@ -1,3 +1,5 @@
+import { sidePaintUV } from "@/lib/livery";
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /** C172S catalogue: airframe shells — fuselage, spinner, wings, wing tips, horizontal and vertical stabilizers. */
 import * as THREE from "three";
 import {
@@ -33,7 +35,7 @@ shell(
     const pts: THREE.Vector2[] = [];
     for (let i = 0; i <= 18; i++) {
       const t = i / 18;
-      pts.push(new THREE.Vector2(Math.max(1e-4, 7.6 * IN * Math.sqrt(1 - t * t * 0.985)), t * 9.6 * IN));
+      pts.push(new THREE.Vector2(Math.max(1e-4, 7.6 * IN * Math.sqrt(Math.max(0, 1 - t * t))), t * 9.6 * IN));
     }
     const g = new THREE.LatheGeometry(pts, 32);
     g.rotateZ(-Math.PI / 2);
@@ -42,7 +44,7 @@ shell(
   },
   "Spinner",
   "Spinner dome FS −42.6, forward bulkhead −40.8, aft bulkhead −37.3 (POH 6-23). Covers the McCauley fixed-pitch propeller hub.",
-);
+).finish = "polished";
 
 const tipS = [BL.ail1, 209, 211, 212.5, 213.5];
 [1, -1].forEach((s) => {
@@ -120,7 +122,8 @@ const tipS = [BL.ail1, 209, 211, 212.5, 213.5];
 });
 const finHs = [44.5, 52, 59, 60, 61.5, 64, 70, 78, 85, 92, 100, 103, 104.4].map(Y);
 shell(
-  () => loft(finHs.map((h) => finSec(h, 0, finCut(h)))),
+  () => sidePaintUV(loft(finHs.map((h) => finSec(h, 0, finCut(h)))), TAIL_PAINT_BOX),
   "Vertical stabilizer",
   "Spar, ribs, wraparound skin and a dorsal fin (POH 7-5). The rudder hinges on its rear spar.",
+  paintTail,
 );

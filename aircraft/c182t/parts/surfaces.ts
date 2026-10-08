@@ -1,3 +1,4 @@
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /**
  * C182T catalogue: control surfaces (flaps, ailerons, elevator, rudder) and the details riding on them: static dischargers,
  * balance weights, flap tracks, aileron hinges and the elevator trim tab.
@@ -99,6 +100,7 @@ surface(
   ["controls"],
   "Rudder",
   "Forward and aft spar, formed ribs, a wraparound skin; the top has a leading-edge extension with a balance weight (POH 7-6). Travel 24° each way measured parallel to WL 0 (TCDS 3A13). Rudder trim acts through a bungee on the rudder bars, not a tab.",
+  { box: TAIL_PAINT_BOX, skin: paintTail },
 );
 
 /* ---------- surface details ---------- */

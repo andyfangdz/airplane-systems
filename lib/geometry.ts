@@ -33,10 +33,31 @@ export function loft(sections: Ring[], { closed = true, caps = true } = {}) {
         c = new THREE.Vector3();
       r.forEach((p) => c.add(p));
       c.multiplyScalar(1 / N);
+      // Separate cap vertices keep the end face flat instead of rounding its rim normals.
+      const start = pos.length / 3;
+      r.forEach((p) => pos.push(p.x, p.y, p.z));
       const ci = pos.length / 3;
       pos.push(c.x, c.y, c.z);
-      for (let j = 0; j < N; j++) idx.push(ci, i * N + j, i * N + ((j + 1) % N));
+      for (let j = 0; j < N; j++) {
+        const a = start + j,
+          b = start + ((j + 1) % N);
+        if (i === 0) idx.push(ci, a, b);
+        else idx.push(ci, b, a);
+      }
     });
+    // Callers loft along different axes and in either direction. A closed skin must
+    // enclose positive signed volume; otherwise both its lighting and culling invert.
+    let volume = 0;
+    const a = V(0, 0, 0),
+      b = V(0, 0, 0),
+      c = V(0, 0, 0);
+    for (let k = 0; k < idx.length; k += 3) {
+      a.fromArray(pos, idx[k] * 3);
+      b.fromArray(pos, idx[k + 1] * 3);
+      c.fromArray(pos, idx[k + 2] * 3);
+      volume += a.dot(b.cross(c));
+    }
+    if (volume < 0) for (let k = 0; k < idx.length; k += 3) [idx[k + 1], idx[k + 2]] = [idx[k + 2], idx[k + 1]];
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -172,6 +193,27 @@ export function pantGeo(len: number, r: number) {
   const g = new THREE.LatheGeometry(pts, 28);
   g.rotateZ(-Math.PI / 2);
   g.translate(-len * 0.72, 0, 0);
+  return g;
+}
+
+/** Rounded tire with an open wheel centre, axle along z. Radius/width are the
+ * existing aircraft dimensions; the sidewall profile is a visual approximation. */
+export function tireGeo(radius: number, width: number) {
+  const profile = [
+    [0.46, -0.38],
+    [0.58, -0.48],
+    [0.78, -0.5],
+    [0.93, -0.36],
+    [1, -0.18],
+    [1, 0.18],
+    [0.93, 0.36],
+    [0.78, 0.5],
+    [0.58, 0.48],
+    [0.46, 0.38],
+    [0.46, -0.38],
+  ].map(([r, z]) => new THREE.Vector2(r * radius, z * width));
+  const g = new THREE.LatheGeometry(profile, 48);
+  g.rotateX(Math.PI / 2);
   return g;
 }
 

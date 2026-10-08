@@ -7,7 +7,7 @@ export const SYS: SysDef[] = [
     name: "Overview",
     pg: "7-5",
     cam: [
-      [7.5, 4.2, 9.5],
+      [9.4, 5.4, 12],
       [0.5, -0.2, 0],
     ],
     blurb: "",

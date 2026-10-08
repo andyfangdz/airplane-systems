@@ -120,6 +120,7 @@ part(() => box(0.06, 0.03, 0.06), ["avionics"], {
 part(() => box(0.12, 0.05, 0.1), ["avionics"], {
   pos: P3(11.4, NAV3_BL.mfd, 55),
   color: "#9C4C88",
+  solidColor: "#E3E6E8",
   name: "GDL 69A data link",
   note: "XM weather and radio, behind the panel just forward of the MFD, arm 11.4; FIS breaker, AVIONICS BUS 1 (if installed) (POH 7-68, 6-23).",
 });
@@ -142,6 +143,7 @@ part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], {
 part(() => box(0.06, 0.06, 0.06), ["avionics", "autopilot"], {
   pos: P3(15.5, 4, 53),
   color: "#9C4C88",
+  solidColor: "#E3E6E8",
   anim: glow("#9C4C88", () => S().avx.tcFail, ["avionics", "autopilot"], "#E0263B"),
   name: "DC turn coordinator (KAP 140)",
   note: "“A DC electric powered turn coordinator, installed forward of the instrument panel and not visible to the pilot, provides a roll rate signal to the KAP 140”, arm 15.5. Its loss disengages the autopilot (POH 7-12, 6-23).",
@@ -194,6 +196,7 @@ const bladeAnt = () => {
 part(bladeAnt, ["avionics"], {
   pos: [X(61.2), top(61.2, 7) - 0.005, Z(7)],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "COM 1 / GPS 1 antenna",
   note: "Top of the cabin, right side, arm 61.2 (POH 7-69).",
   ext: true,
@@ -202,6 +205,7 @@ part(bladeAnt, ["avionics"], {
 part(bladeAnt, ["avionics"], {
   pos: [X(61.2), top(61.2, -7) - 0.005, Z(-7)],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "COM 2 / GPS 2 / XM antenna",
   note: "Top of the cabin, left side, arm 61.2 (POH 7-69).",
   ext: true,
@@ -212,6 +216,7 @@ part(bladeAnt, ["avionics"], {
     pos: [fLE(Y(88)) - 0.12, Y(88), s * 0.06],
     rot: [s * 0.5, 0, -0.1],
     color: ANT,
+    solidColor: "#E3E6E8",
     name: "VOR/GS navigation antenna",
     note: "Blade-type element on either side of the vertical stabilizer (POH 7-69).",
     ext: true,
@@ -221,6 +226,7 @@ part(bladeAnt, ["avionics"], {
 part(() => box(0.28, 0.012, 0.08), ["avionics"], {
   pos: [X(131.5), botY(X(131.5)) - 0.006, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Marker beacon antenna",
   note: "Bottom of the tailcone, arm 131.5 (POH 7-70).",
   ext: true,
@@ -229,6 +235,7 @@ part(() => box(0.28, 0.012, 0.08), ["avionics"], {
 part(() => cyl(0.006, 0.08), ["avionics"], {
   pos: [X(86.5), botY(X(86.5)) - 0.04, Z(2)],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Transponder antenna",
   note: "Bottom of the cabin, arm 86.5 (POH 7-70).",
   ext: true,
@@ -237,6 +244,7 @@ part(() => cyl(0.006, 0.08), ["avionics"], {
 part(() => box(0.08, 0.05, 0.008), ["avionics"], {
   pos: [X(114.5), botY(X(114.5)) - 0.026, Z(-2)],
   color: "#9C4C88",
+  solidColor: "#E3E6E8",
   name: "DME antenna (if installed)",
   note: "Bottom of the tailcone, arm 114.5 (KN 63 option, POH 6-23).",
   ext: true,

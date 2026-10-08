@@ -99,6 +99,11 @@ export const solidMat = new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide,
 });
 
+export const finishMat = {
+  polished: new THREE.MeshStandardMaterial({ color: "#C9D2DC", metalness: 0.72, roughness: 0.16 }),
+  red: new THREE.MeshStandardMaterial({ color: "#8B1234", metalness: 0.15, roughness: 0.3 }),
+};
+
 export const plateMat = {
   on: new THREE.MeshStandardMaterial({
     color: "#6F8FAA",

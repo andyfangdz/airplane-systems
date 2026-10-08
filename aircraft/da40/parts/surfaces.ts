@@ -1,3 +1,4 @@
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 import { sided } from "@/lib/geometry";
 import { D2R, V, toVec3 } from "@/lib/math";
 import {
@@ -98,6 +99,7 @@ surface(
   ["controls"],
   "Rudder",
   "GFRP sandwich. Upper hinge is one bolt; the lower bearing bracket holds the rudder stops. Left 24°, right 26° with long-range tanks (TCDS). Cable-driven.",
+  { box: TAIL_PAINT_BOX, skin: paintTail },
 );
 
 /* ---------- control-surface details ---------- */

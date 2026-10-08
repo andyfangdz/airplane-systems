@@ -1,3 +1,4 @@
+import { tireGeo } from "@/lib/geometry";
 /** C182T catalogue: landing gear — main legs, wheels, fairings, brakes, nose strut and steering, parking brake, tow bar. */
 import { V, type Vec3 } from "@/lib/math";
 import { brakeAnim } from "@/lib/anims";
@@ -28,13 +29,23 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
       pin: s > 0,
     });
   }
-  part(() => cyl(8.75 * IN, 6 * IN, "z", 28), ["gear"], {
+  part(() => tireGeo(8.75 * IN, 6 * IN), ["gear"], {
     pos: P3(MG.fs, s * MG.bl, MG.h),
     color: "#2A2F33",
     name: "Main wheel and tire",
     note: "6.00-6, 6-ply rated, 42 PSI, with tube; Cleveland 40-75B wheel, arm 58.9 (POH 8-21, 6-22).",
     ext: true,
     pin: s > 0,
+  });
+  part(() => cyl(4.05 * IN, 4.7 * IN, "z", 32), ["gear"], {
+    pos: P3(MG.fs, s * MG.bl, MG.h),
+    color: "#D6DADD",
+    ext: true,
+  });
+  part(() => cyl(1.35 * IN, 4.9 * IN, "z", 24), ["gear"], {
+    pos: P3(MG.fs, s * MG.bl, MG.h),
+    color: "#7C858B",
+    ext: true,
   });
   part(
     () => wheelFairingGeo({ len: 38, height: 20, width: 11, axle: 0.42, lift: 0.6, cut: 3.2 - MG.h, tail: 1.1 }),
@@ -45,7 +56,7 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
       anim: fairingAnim,
       fairing: true,
       name: "Wheel fairing",
-      note: "Main fairings, set of 2, arm 60.6 (equipment item 32-03-A). Optional in the 2005 POH (standard in 2007); worth ≈ 3 knots (POH v, 7-21). Whether N8050J and N21200 carry them: check the airplanes — toggle them in the Gear panel.",
+      note: "Main fairings, set of 2, arm 60.6 (equipment item 32-03-A). Optional in the 2005 POH (standard in 2007); worth ≈ 3 knots (POH v, 7-21). N8050J is shown without fairings in the current flyingclub.org photo; toggle the optional fairings in the Gear panel.",
       ext: true,
       pin: s > 0,
     },
@@ -141,7 +152,7 @@ part(
     pin: true,
   },
 );
-part(() => cyl(7.1 * IN, 5 * IN, "z", 24), ["gear"], {
+part(() => tireGeo(7.1 * IN, 5 * IN), ["gear"], {
   parent: "caster",
   pos: NA,
   color: "#2A2F33",
@@ -149,6 +160,18 @@ part(() => cyl(7.1 * IN, 5 * IN, "z", 24), ["gear"], {
   note: "5.00-5, 6-ply rated, 49 PSI, with tube; Cleveland 40-77 wheel, arm −7.1 (POH 8-21, 6-22). Never turn it more than 29° either side when towing (POH 7-19).",
   ext: true,
   pin: true,
+});
+part(() => cyl(3.3 * IN, 3.9 * IN, "z", 32), ["gear"], {
+  parent: "caster",
+  pos: NA,
+  color: "#D6DADD",
+  ext: true,
+});
+part(() => cyl(1.1 * IN, 4.1 * IN, "z", 24), ["gear"], {
+  parent: "caster",
+  pos: NA,
+  color: "#7C858B",
+  ext: true,
 });
 part(
   () => wheelFairingGeo({ len: 32, height: 16, width: 8.5, axle: 0.42, lift: 0.6, cut: -4.6, tail: 1.1 }),

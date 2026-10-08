@@ -1,3 +1,5 @@
+import { sidePaintUV } from "@/lib/livery";
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 import * as THREE from "three";
 import type { ShellSpec } from "@/lib/catalogue";
 import { sided } from "@/lib/geometry";
@@ -51,7 +53,7 @@ shell(
   },
   "Spinner",
   "Polished spinner over the MT propeller hub (XLS package).",
-);
+).finish = "polished";
 const wingSt = [WR, 0.58, 0.8, WJ, FLAP.z0, 1.8, 2.6, 3.4, FLAP.z1, AIL.z0, 4.6, 5.2, AIL.z1];
 const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
 [1, -1].forEach((s) => {
@@ -109,9 +111,10 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
   );
 });
 shell(
-  () => loft(finHs.map((h) => finSec(h, 0, finCut(h)))),
+  () => sidePaintUV(loft(finHs.map((h) => finSec(h, 0, finCut(h)))), TAIL_PAINT_BOX),
   "Vertical stabilizer",
   "GFRP twin-spar fin carrying the T-tail. The levelling wedge (600:31) sits on the tail boom just ahead of it (AFM 6-3).",
+  paintTail,
 );
 
 /* ---------- moving shells: front canopy and rear passenger door ---------- */

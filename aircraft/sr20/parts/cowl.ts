@@ -8,7 +8,7 @@ import { part } from "./catalogue";
     () => {
       const g = new THREE.TorusGeometry(0.075, 0.018, 8, 20);
       g.rotateY(Math.PI / 2);
-      g.translate(3.7, -0.13, s * 0.22);
+      g.translate(3.748, -0.13, s * 0.22);
       return g;
     },
     ["engine", "airframe"],
@@ -27,7 +27,7 @@ import { part } from "./catalogue";
     () => {
       const g = new THREE.CircleGeometry(0.075, 20);
       g.rotateY(Math.PI / 2);
-      g.translate(3.695, -0.13, s * 0.22);
+      g.translate(3.746, -0.13, s * 0.22);
       return g;
     },
     ["engine", "airframe"],

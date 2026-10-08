@@ -1,3 +1,5 @@
+import { drawLivery, liveryLabels, tailTexture } from "../liveries";
+import { paintAtlas, sidePaintUV } from "@/lib/livery";
 /**
  * Airframe geometry for the DA40 XLS model.
  *
@@ -106,14 +108,15 @@ function arcLoft(x0: number, x1: number, th: (x: number) => [number, number], st
     secs.push(fRing(x, 1, N, a, b, false));
   }
   const g = loft(secs, { closed: false, caps: false });
-  const pos = g.attributes.position,
-    uv = new Float32Array(pos.count * 2);
-  for (let i = 0; i < pos.count; i++) {
-    uv[2 * i] = (pos.getX(i) - SK.x0) / (SK.x1 - SK.x0);
-    uv[2 * i + 1] = (pos.getY(i) - SK.y0) / (SK.y1 - SK.y0);
+  // Ring arcs run nose to tail: reverse the inward winding before lighting.
+  const ix = g.index!;
+  for (let i = 0; i < ix.count; i += 3) {
+    const b = ix.getX(i + 1);
+    ix.setX(i + 1, ix.getX(i + 2));
+    ix.setX(i + 2, b);
   }
-  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-  return g;
+  g.computeVertexNormals();
+  return sidePaintUV(g, SK);
 }
 
 const PI = Math.PI;
@@ -288,6 +291,7 @@ export const canopyOutlines = (): THREE.Vector3[][] => [densify(WIN.vent).map(([
 export const fixedFuselageGeo = () => {
   const gs = fuselageGeos();
   const pos: number[] = [],
+    normals: number[] = [],
     uv: number[] = [],
     idx: number[] = [];
   let off = 0;
@@ -297,20 +301,23 @@ export const fixedFuselageGeo = () => {
     for (let i = 0; i < p.count; i++) {
       pos.push(p.getX(i), p.getY(i), p.getZ(i));
       uv.push(u.getX(i), u.getY(i));
+      const n = g.attributes.normal;
+      normals.push(n.getX(i), n.getY(i), n.getZ(i));
     }
     const ix = g.index!;
     for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + off);
     off += p.count;
   });
+  gs.forEach((g) => g.dispose());
   const out = new THREE.BufferGeometry();
   out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   out.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
   out.setIndex(idx);
-  out.computeVertexNormals();
+  out.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   return out;
 };
 
-/** Paints a neutral white livery: tinted canopy, rear windows, a grey cheat line (browser only). */
+/** Paints N949KC’s gray sweeping graphics, canopy and rear windows (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = SK.W;
@@ -328,39 +335,7 @@ export function paintSkin(): THREE.CanvasTexture {
   };
   g.fillStyle = "#F4F6F7";
   g.fillRect(0, 0, SK.W, SK.H);
-  // cheat line: two grey sweeps from the cowl to the tail boom
-  path(
-    [
-      [2.5, -0.18],
-      [1.6, -0.2],
-      [0.6, -0.22],
-      [-0.6, -0.24],
-      [-1.6, -0.3],
-      [-2.6, -0.4],
-      [-3.6, -0.43],
-      [-4.4, -0.44],
-    ],
-    false,
-  );
-  g.strokeStyle = "#5E6B75";
-  g.lineWidth = 5;
-  g.stroke();
-  path(
-    [
-      [2.4, -0.24],
-      [1.5, -0.27],
-      [0.5, -0.3],
-      [-0.6, -0.33],
-      [-1.6, -0.38],
-      [-2.6, -0.45],
-      [-3.6, -0.47],
-      [-4.4, -0.475],
-    ],
-    false,
-  );
-  g.strokeStyle = "#9AA6AE";
-  g.lineWidth = 3;
-  g.stroke();
+  drawLivery("da40", g, P);
   const glass = () => {
     const gr = g.createLinearGradient(0, P([0, 0.6])[1], 0, P([0, 0])[1]);
     gr.addColorStop(0, "#2E4252");
@@ -381,10 +356,10 @@ export function paintSkin(): THREE.CanvasTexture {
   g.strokeStyle = "#0B1014";
   g.lineWidth = 3;
   g.stroke();
-  const t = new THREE.CanvasTexture(c);
-  t.anisotropy = 8;
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+  return paintAtlas(c, P, liveryLabels("da40", "fuselage"));
 }
 
 export { V };
+
+export const TAIL_PAINT_BOX = { x0: -4.9, x1: -3.0, y0: -0.6, y1: 0.75 };
+export const paintTail = () => tailTexture("da40", TAIL_PAINT_BOX);

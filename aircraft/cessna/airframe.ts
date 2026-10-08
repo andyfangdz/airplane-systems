@@ -14,6 +14,7 @@
  * spring-steel gear leg, window projection and a skin painter).
  */
 import * as THREE from "three";
+import { sidePaintUV } from "@/lib/livery";
 import {
   densify,
   finSurface,
@@ -235,7 +236,7 @@ export function cessnaAirframe(S: CessnaSpec) {
     h1: Math.max(...S.fuselage.map((r) => r[2])) + 4,
   };
   const UV = { x0: X(SK.fs1), x1: X(SK.fs0), y0: Y(SK.h0), y1: Y(SK.h1) };
-  const fuselageGeo = () => FUSE.geo({ step: 0.05, N: 56, uv: UV });
+  const fuselageGeo = () => sidePaintUV(FUSE.geo({ step: 0.05, N: 56 }), UV);
 
   /** Canvas painter helper: maps [FS, h] (in) to texture pixels for a W×H canvas. */
   const texP =
