@@ -33,10 +33,31 @@ export function loft(sections: Ring[], { closed = true, caps = true } = {}) {
         c = new THREE.Vector3();
       r.forEach((p) => c.add(p));
       c.multiplyScalar(1 / N);
+      // Separate cap vertices keep the end face flat instead of rounding its rim normals.
+      const start = pos.length / 3;
+      r.forEach((p) => pos.push(p.x, p.y, p.z));
       const ci = pos.length / 3;
       pos.push(c.x, c.y, c.z);
-      for (let j = 0; j < N; j++) idx.push(ci, i * N + j, i * N + ((j + 1) % N));
+      for (let j = 0; j < N; j++) {
+        const a = start + j,
+          b = start + ((j + 1) % N);
+        if (i === 0) idx.push(ci, a, b);
+        else idx.push(ci, b, a);
+      }
     });
+    // Callers loft along different axes and in either direction. A closed skin must
+    // enclose positive signed volume; otherwise both its lighting and culling invert.
+    let volume = 0;
+    const a = V(0, 0, 0),
+      b = V(0, 0, 0),
+      c = V(0, 0, 0);
+    for (let k = 0; k < idx.length; k += 3) {
+      a.fromArray(pos, idx[k] * 3);
+      b.fromArray(pos, idx[k + 1] * 3);
+      c.fromArray(pos, idx[k + 2] * 3);
+      volume += a.dot(b.cross(c));
+    }
+    if (volume < 0) for (let k = 0; k < idx.length; k += 3) [idx[k + 1], idx[k + 2]] = [idx[k + 2], idx[k + 1]];
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -161,17 +182,103 @@ export const roundEnds = (t: number, k0: number, k1 = k0) => {
   return e(t, k0) * e(1 - t, k1);
 };
 
-/** Teardrop wheel fairing: blunt nose, pointed tail, widest at the axle. */
+/** Composite wheel fairing, axle at the origin. Photo-fit profile: rounded nose,
+ * truncated tail and a flat lower edge that leaves the tire exposed. */
 export function pantGeo(len: number, r: number) {
-  const pts: THREE.Vector2[] = [];
-  for (let i = 0; i <= 24; i++) {
-    const h = (i / 24) * len,
-      u = 1 - h / len;
-    pts.push(new THREE.Vector2(r * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.55)), 0.8) + 1e-4, h));
+  const stations: Ring[] = [];
+  for (let i = 0; i <= 40; i++) {
+    const u = i / 40,
+      f = u < 0.32 ? Math.sqrt(Math.max(0.002, 1 - ((0.32 - u) / 0.32) ** 2)) : 1 - 0.84 * ((u - 0.32) / 0.68) ** 1.25;
+    stations.push(
+      Array.from({ length: 40 }, (_, j) => {
+        const a = (j / 40) * Math.PI * 2;
+        return V((0.32 - u) * len, Math.max(-0.65 * r, r * f * Math.sin(a)), r * f * Math.cos(a));
+      }),
+    );
   }
-  const g = new THREE.LatheGeometry(pts, 28);
-  g.rotateZ(-Math.PI / 2);
-  g.translate(-len * 0.72, 0, 0);
+  return loft(stations);
+}
+
+/** Streamlined gear-leg section along a curved path, chord along x. */
+export function gearLegGeo(points: Vec3[], chord: number, thickness: number) {
+  return loft(
+    points.map((p, i) => {
+      const tangent = toV(points[Math.min(i + 1, points.length - 1)])
+        .sub(toV(points[Math.max(0, i - 1)]))
+        .normalize();
+      const width = V(1, 0, 0).cross(tangent).normalize();
+      return afRing(0, 1, thickness / chord, 0, 20).map(([u, h]) =>
+        toV(p)
+          .add(V((0.3 - u) * chord, 0, 0))
+          .addScaledVector(width, h * chord),
+      );
+    }),
+  );
+}
+
+/** Small streamlined fairing under a wing; flat attachment face at y=0. */
+export function hingeFairingGeo(length: number, depth: number, width: number) {
+  return loft(
+    Array.from({ length: 17 }, (_, i) => {
+      const u = i / 16,
+        f = Math.max(0.01, Math.sin(Math.PI * u) * (1.2 - 0.4 * u));
+      return Array.from({ length: 17 }, (_, j) => {
+        const a = (j / 16) * Math.PI;
+        return V((0.5 - u) * length, -depth * f * Math.sin(a), (width / 2) * f * Math.cos(a));
+      });
+    }),
+  );
+}
+
+/** A conformal open inlet throat or its narrow lip on the front of a cowling.
+ * Shape dimensions are photo fits, not duct/engineering dimensions. */
+export function cowlOpeningGeo(
+  frontX: (y: number, z: number) => number,
+  y: number,
+  z: number,
+  width: number,
+  height: number,
+  exponent = 3,
+  lip = false,
+) {
+  const radii = lip ? [0.9, 1] : [0.9, 0.9];
+  const rings = radii.map((r, row) =>
+    Array.from({ length: 48 }, (_, i) => {
+      const a = (i / 48) * Math.PI * 2,
+        yy = y + ((r * height) / 2) * Math.sign(Math.sin(a)) * Math.abs(Math.sin(a)) ** (2 / exponent),
+        zz = z + ((r * width) / 2) * Math.sign(Math.cos(a)) * Math.abs(Math.cos(a)) ** (2 / exponent);
+      return V(frontX(yy, zz) + (lip ? 0.006 : 0.003 - row * 0.08), yy, zz);
+    }),
+  );
+  const g = loft(rings, { caps: false });
+  const idx = g.index!;
+  for (let i = 0; lip && i < idx.count; i += 3) {
+    const b = idx.getX(i + 1);
+    idx.setX(i + 1, idx.getX(i + 2));
+    idx.setX(i + 2, b);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Rounded tire with an open wheel centre, axle along z. Radius/width are the
+ * existing aircraft dimensions; the sidewall profile is a visual approximation. */
+export function tireGeo(radius: number, width: number) {
+  const profile = [
+    [0.46, -0.38],
+    [0.58, -0.48],
+    [0.78, -0.5],
+    [0.93, -0.36],
+    [1, -0.18],
+    [1, 0.18],
+    [0.93, 0.36],
+    [0.78, 0.5],
+    [0.58, 0.48],
+    [0.46, 0.38],
+    [0.46, -0.38],
+  ].map(([r, z]) => new THREE.Vector2(r * radius, z * width));
+  const g = new THREE.LatheGeometry(profile, 48);
+  g.rotateX(Math.PI / 2);
   return g;
 }
 
@@ -280,10 +387,13 @@ export interface FuselageOpts {
   nBot: number;
   /** Narrowing of the upper half toward the roof (0 = none). */
   tumble: number;
+  /** Optional local cross-section, e.g. a rounded cowl transitioning to a slab-sided cabin. */
+  section?: (x: number) => { nTop: number; nBot: number; tumble: number };
 }
 
 /** Superellipse-section fuselage driven by a station table. */
-export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
+export function fuselage({ table, nTop, nBot, tumble, section }: FuselageOpts) {
+  const shapeAt = section ?? (() => ({ nTop, nBot, tumble }));
   const xNose = table[0][0],
     xTail = table[table.length - 1][0];
   const fus = (x: number) => ({ hw: interp(table, 1, x), hh: interp(table, 2, x), cy: interp(table, 3, x) });
@@ -292,6 +402,7 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
 
   /** Ring of N points around the section at x, scaled by s; optionally an open arc th0..th1 (0 = right side, π/2 = top). */
   function ring(x: number, s = 1, N = 40, th0 = 0, th1 = Math.PI * 2, closed = true): Ring {
+    const { nTop, nBot, tumble } = shapeAt(x);
     const { hw, hh, cy } = fus(x),
       pts: Ring = [],
       cnt = closed ? N : N + 1;
@@ -309,6 +420,7 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
 
   /** Is a point inside the skin (with margin m, metres)? */
   function inside(p: THREE.Vector3, m = 0) {
+    const { nTop, nBot, tumble } = shapeAt(p.x);
     if (p.x > xNose || p.x < xTail) return false;
     const { hw, hh, cy } = fus(p.x);
     const py = (p.y - cy) / (hh - m);
@@ -320,6 +432,7 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
 
   /** Point on the outer skin at (x, y) on the given side (+1 right, -1 left). */
   function onSkin(x: number, y: number, side: number, push = 1.006) {
+    const { nTop, nBot, tumble } = shapeAt(x);
     const { hw, hh, cy } = fus(x);
     const py = clamp((y - cy) / hh, -1, 1),
       n = py >= 0 ? nTop : nBot;
@@ -329,9 +442,28 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
 
   /** Ring angle (0 = side, π/2 = top) where the upper skin passes height y at station x. */
   const thetaAt = (x: number, y: number) => {
+    const { nTop } = shapeAt(x);
     const { hh, cy } = fus(x);
     return Math.asin(Math.pow(clamp((y - cy) / hh, 0, 1), nTop / 2));
   };
+
+  /** Foremost skin intersection of a ray travelling aft, for conformal nose details. */
+  function frontX(y: number, z: number) {
+    const p = V(xNose, y, z);
+    if (inside(p)) return xNose;
+    for (let x = xNose - 0.01; x >= xTail; x -= 0.01) {
+      if (!inside(p.set(x, y, z))) continue;
+      let lo = x,
+        hi = Math.min(xNose, x + 0.01);
+      for (let i = 0; i < 16; i++) {
+        const mid = (lo + hi) / 2;
+        if (inside(p.set(mid, y, z))) lo = mid;
+        else hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+    throw new Error(`No fuselage intersection at y=${y}, z=${z}`);
+  }
 
   /** Skin loft from nose to tail with side-projected UVs over the box `uv` (for a painted texture). */
   function geo({
@@ -396,7 +528,7 @@ export function fuselage({ table, nTop, nBot, tumble }: FuselageOpts) {
     return g;
   }
 
-  return { xNose, xTail, nTop, nBot, tumble, fus, topY, botY, ring, inside, onSkin, thetaAt, geo, plate, slab };
+  return { xNose, xTail, nTop, nBot, tumble, fus, topY, botY, ring, inside, onSkin, thetaAt, frontX, geo, plate, slab };
 }
 
 /* ---------- lifting-surface factory (wings, stabilizers) ---------- */

@@ -1,3 +1,4 @@
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 import { sided } from "@/lib/geometry";
 import { D2R, V, toVec3 } from "@/lib/math";
 import {
@@ -98,6 +99,7 @@ surface(
   ["controls"],
   "Rudder",
   "GFRP sandwich. Upper hinge is one bolt; the lower bearing bracket holds the rudder stops. Left 24°, right 26° with long-range tanks (TCDS). Cable-driven.",
+  { box: TAIL_PAINT_BOX, skin: paintTail },
 );
 
 /* ---------- control-surface details ---------- */
@@ -127,7 +129,7 @@ const WICK = "#2A2F33";
     ext: true,
   });
   [1.6, 2.6, 3.6].forEach((z, i) =>
-    part(() => box(0.3, 0.04, 0.02), ["flaps"], {
+    part(() => box(0.11, 0.035, 0.02), ["flaps"], {
       pos: toVec3(wingP(s * z, 0.77, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name: "Flap hinge bracket",
@@ -136,8 +138,8 @@ const WICK = "#2A2F33";
       pin: s > 0 && i === 0,
     }),
   );
-  [4.2, 5.1].forEach((z, i) =>
-    part(() => box(0.28, 0.04, 0.02), ["controls"], {
+  [4.1, 4.5, 4.95, 5.35].forEach((z, i) =>
+    part(() => box(0.09, 0.03, 0.02), ["controls"], {
       chan: ["aileron"],
       pos: toVec3(wingP(s * z, 0.79, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",

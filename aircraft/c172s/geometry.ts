@@ -1,3 +1,6 @@
+import { COWL_INLETS } from "../cowl-inlets";
+import { drawLivery, liveryLabels, tailTexture } from "../liveries";
+import { paintAtlas } from "@/lib/livery";
 /**
  * Airframe geometry for the Cessna 172S NAV III (N6189Q, s/n 172S10738), built with the shared
  * Cessna high-wing builder (aircraft/cessna/airframe.ts).
@@ -14,8 +17,9 @@
  * (BL ±68), wheelbase 65.0 in (nose axle FS −6.8, main axles FS 58.2 — POH 6-21), prop 76 in.
  * Wing: 64 in constant chord to BL 100, tapering to 44.5 in at the tip (Jane's, via the research sheet),
  * LE at FS 25 (LEMAC FS 25.90, MAC 58.8 in — POH 6-5), dihedral 1°44', NACA 2412.
- * Fuselage heights come from POH Figure 6-6 cabin heights and a side photo of a 172S
- * (N793SP, Wikimedia Commons); the POH side view is not to scale vertically (research note).
+ * Fuselage heights are approximate photo fits (N793SP, Wikimedia Commons), not a calibrated reconstruction.
+ * POH internal cabin dimensions do not independently verify this exterior loft. See reference-traces/RESOLUTION.md
+ * for the side drawing calibration limits.
  */
 import * as THREE from "three";
 import { cessnaAirframe, skinPainter, type CessnaSpec } from "../cessna/airframe";
@@ -25,6 +29,7 @@ export { box, cyl, sph, tubeGeo, loft, sided } from "@/lib/geometry";
 export { taperTubeGeo, wheelFairingGeo } from "../cessna/airframe";
 
 export const SPEC: CessnaSpec = {
+  cowlInlets: COWL_INLETS.c172s,
   fsRef: 100,
   hRef: 49.25,
   // [FS, halfWidth, top h, bottom h] (in)
@@ -83,7 +88,7 @@ export const SPEC: CessnaSpec = {
     m: 0.02,
   },
   // Tapered planform from the POH Figure 1-1 top view: root ≈ FS 201–251 (50 in), tip ≈ 215–241, span 136 in
-  stab: { le: 201, leSweep: 0.22, te: 251, teSweep: -0.15, halfSpan: 68, tipStart: 58, h: 43, t: 0.1 },
+  stab: { le: 201, leSweep: 0.22, te: 251, teSweep: -0.15, halfSpan: 68, tipStart: 65, h: 43, t: 0.1 },
   // Raked fin and rudder (POH Figure 1-1 side view, D-EDDH photo): the hinge leans ≈ 27 in aft over the rudder's height and the
   // trailing edge ≈ 21 in, so the rudder is ≈ 20 in chord at the bottom and ≈ 14 in at the top
   fin: [
@@ -290,7 +295,7 @@ export function rearRoofGeo() {
   return loft(secs.reverse(), { closed: false, caps: false }); // aft → forward: faces outward
 }
 
-/** Neutral livery: white with a slate stripe sweeping up the cowl; glass painted where the windows are. No markings. */
+/** Paints N6189Q’s burgundy/gold livery and tinted windows (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
   const p = skinPainter(AF, 2048, 512),
     { g, path } = p;
@@ -314,45 +319,7 @@ export function paintSkin(): THREE.CanvasTexture {
     [-30, 52],
   ]);
   g.stroke();
-  // stripe: slate band with a thin accent, sweeping up toward the spinner
-  path([
-    [-36, 47.5],
-    [-20, 46.5],
-    [0, 45.2],
-    [30, 44.6],
-    [70, 45.2],
-    [120, 47.6],
-    [180, 51.0],
-    [230, 54.0],
-    [258, 55.4],
-    [258, 52.4],
-    [230, 51.2],
-    [180, 48.0],
-    [120, 44.6],
-    [70, 42.0],
-    [30, 41.4],
-    [0, 42.0],
-    [-20, 43.4],
-    [-36, 44.6],
-  ]);
-  g.fillStyle = "#3E5468";
-  g.fill();
-  path(
-    [
-      [-34, 41.6],
-      [0, 39.6],
-      [30, 39.0],
-      [70, 39.6],
-      [120, 42.2],
-      [180, 45.8],
-      [230, 49.2],
-      [258, 50.6],
-    ],
-    false,
-  );
-  g.strokeStyle = "#8EA2B2";
-  g.lineWidth = 5;
-  g.stroke();
+  drawLivery("c172s", g, p.P);
   // windshield (wraps over the deck) and rear window (wraps over the roof behind the wing)
   // windshield: everything above the deck line between its base (FS 13) and the forward door posts
   path([...WIN.windSide, [31.5, 86], [13, 86]]);
@@ -379,5 +346,8 @@ export function paintSkin(): THREE.CanvasTexture {
   ]);
   g.fillStyle = "#5C666E";
   g.fill();
-  return p.done();
+  return paintAtlas(p.c, p.P, liveryLabels("c172s", "fuselage"));
 }
+
+export const TAIL_PAINT_BOX = { x0: X(285), x1: X(190), y0: Y(40), y1: Y(112) };
+export const paintTail = () => tailTexture("c172s", TAIL_PAINT_BOX, ([fs, h]) => [X(fs), Y(h)]);

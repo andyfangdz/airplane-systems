@@ -1,12 +1,11 @@
 /**
  * Per-frame simulation: engine start (OM p. 15–16: boost pump, pump the throttle twice, START and push), carburetor ice
- * and heat, governor and RPM/MAP, oil, fuel pressure, temperatures, the vacuum pump with the PC system and the vacuum
- * step, the Johnson-bar gear, hand-pumped flaps, and the flight state. Continuous values go to `live`; only discrete
- * changes go through the store.
+ * and heat, governor and RPM/MAP, oil, fuel pressure, temperatures, the vacuum pump with the PC system, the Johnson-bar
+ * gear, hand-pumped flaps, and the flight state. Continuous values go to `live`; only discrete changes go through the store.
  */
 import { stepFlight, yokeCmd, type FlightCmd } from "@/lib/avionics/flight";
 import { clamp, lerp } from "@/lib/math";
-import { FLAP_MAX, M20C_FLIGHT, VAC, fuelAvail, govRpm, live, pcEngaged } from "./model";
+import { ALT_MIN_RPM, FLAP_MAX, M20C_FLIGHT, VAC, fuelAvail, govRpm, live, pcEngaged } from "./model";
 import { useM20C } from "./store";
 
 /** START push hold (s): released when the engine fires, or after this. */
@@ -15,11 +14,6 @@ export const START_HOLD = 6;
 export const trimPitch = (trim: number) => 1.5 + trim * 4;
 /** Engine power fraction 0..1 from MAP and RPM (illustrative). */
 export const powerFrac = (map: number, rpm: number) => clamp(((map - 10) / 18.5) * (rpm / 2700), 0, 1);
-
-let trimPrev = initialTrim();
-function initialTrim() {
-  return useM20C.getState().s.ctrl.trim;
-}
 
 export function simTick(dt: number) {
   const store = useM20C.getState(),
@@ -120,6 +114,13 @@ export function simTick(dt: number) {
   else target = windmill;
   live.rpm = lerp(live.rpm, target, clamp(dt * (target > live.rpm ? 2.0 : 1.2), 0, 1));
   if (live.rpm < 3) live.rpm = 0;
+  const altSpinning = live.rpm >= ALT_MIN_RPM;
+  if (s.eng.altSpinning !== altSpinning) {
+    up((d) => {
+      d.eng.altSpinning = altSpinning;
+    });
+    ({ s, E } = useM20C.getState());
+  }
 
   // ---------- manifold pressure, power, fuel flow ----------
   const ambient = 29.92 - (s.air ? fs.alt / 1000 : 0.4);
@@ -133,10 +134,9 @@ export function simTick(dt: number) {
   const ffT = run ? (2.0 + 12.5 * pwr) * (0.75 + 0.35 * s.eng.mix) : 0;
   live.ff = lerp(live.ff, ffT, clamp(dt * 2, 0, 1));
 
-  // ---------- oil and temperatures (cowl flaps and carb heat matter) ----------
+  // ---------- oil and temperatures (fixed cowl flaps on the 1968 airplane) ----------
   const oatF = s.pitot.oat * 1.8 + 32;
-  const cowl = s.eng.cowlFlaps ? -18 : 0,
-    ground = !s.air && run ? 35 : 0;
+  const ground = !s.air && run ? 35 : 0;
   live.oilT = lerp(
     live.oilT,
     run ? 165 + 50 * pwr + (s.pitot.oat - 15) * 0.8 + ground * 0.5 : oatF,
@@ -148,7 +148,7 @@ export function simTick(dt: number) {
       ? (35 + 45 * clamp((live.rpm - 600) / 2100, 0, 1) + clamp((180 - live.oilT) * 0.2, 0, 15)) * (1 - live.oilLoss)
       : 0;
   live.oilP = lerp(live.oilP, oilPT, clamp(dt * 2, 0, 1));
-  live.cht = lerp(live.cht, run ? 250 + 190 * pwr + 40 * (1 - s.eng.mix) + cowl + ground : oatF, clamp(dt / 25, 0, 1));
+  live.cht = lerp(live.cht, run ? 250 + 190 * pwr + 40 * (1 - s.eng.mix) + ground : oatF, clamp(dt / 25, 0, 1));
   live.egt = lerp(
     live.egt,
     run ? 1150 + 260 * pwr + 220 * Math.exp(-(((s.eng.mix - 0.55) / 0.2) ** 2)) : oatF,
@@ -164,8 +164,6 @@ export function simTick(dt: number) {
         ? ((live.rpm - 400) / 600) * VAC.reg
         : VAC.reg + (live.rpm > 2600 ? 0.1 : 0);
   live.vac = lerp(live.vac, vacT, clamp(dt * 1.5, 0, 1));
-  // vacuum-operated entry step: a servo raises it once vacuum is up; a spring pulls it down when vacuum is gone (OM p. 10)
-  live.stepFrac = clamp(live.stepFrac + (live.vac > 3.5 ? dt / 3 : -dt / 2), 0, 1);
 
   // ---------- landing gear: the bar swings in about a second; the gear follows the linkage ----------
   const gearT = s.gear.lever === "UP" ? 1 : 0;
@@ -204,6 +202,6 @@ export function simTick(dt: number) {
     roll: lerp(live.eff.roll, roll, k),
     yaw: lerp(live.eff.yaw, clamp(s.ctrl.yaw + live.pcYaw, -1, 1), k),
   };
-  live.trimRate = (s.ctrl.trim - trimPrev) / Math.max(dt, 1e-3);
-  trimPrev = s.ctrl.trim;
+  live.trimRate = (s.ctrl.trim - live.trimPrev) / Math.max(dt, 1e-3);
+  live.trimPrev = s.ctrl.trim;
 }

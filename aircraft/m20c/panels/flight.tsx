@@ -349,8 +349,8 @@ export function Flaps() {
         />
       </Ctl>
       <Small>
-        Each stroke is a quarter of take-off flap plus a bit (33° ÷ 4½ strokes, OM p. 9). The pointer on the aft side of
-        the nose-wheel well shows the position; the middle mark is take-off.
+        Each stroke is about half of take-off flap (33° ÷ 4½ strokes, OM p. 9). The pointer on the aft side of the
+        nose-wheel well shows the position; the middle mark is take-off.
       </Small>
       {s.air && a > 1 && ias > vfe && (
         <Caution title="Above VFE">
@@ -423,6 +423,8 @@ export function Gear() {
                 d.gear.latch = true;
               })
             }
+            onHold={() => setLever("UP")}
+            disabled={g.lever === "UP" || moving}
             onUp={() =>
               up((d) => {
                 d.gear.latch = false;
@@ -430,11 +432,8 @@ export function Gear() {
             }
             pressed={g.latch}
           >
-            Hold the thumb latch
+            Hold to unlatch and retract — GEAR UP
           </HoldButton>
-          <button type="button" className="btn" disabled={g.lever === "UP" || !g.latch} onClick={() => setLever("UP")}>
-            Swing to the floor — GEAR UP
-          </button>
           <button type="button" className="btn" disabled={g.lever === "DOWN"} onClick={() => setLever("DOWN")}>
             Swing to the panel — GEAR DOWN
           </button>
@@ -474,9 +473,10 @@ export function Gear() {
         />
       </Ctl>
       <Small>
-        Retraction needs the latch pressed first (OM p. 6). The handle swings in about a second; the real bar is easiest
-        at low airspeed and in one quick motion — never slow down or pitch up to make it easier. The horn sounds
-        whenever the throttle is retarded to about 10 in Hg with the gear not down and locked (OM p. 27).
+        Hold the GEAR UP button to press the latch and swing the handle in one action (OM p. 6). The handle swings in
+        about a second; the real bar is easiest at low airspeed and in one quick motion — never slow down or pitch up to
+        make it easier. The horn sounds whenever the throttle is retarded to about 10 in Hg with the gear not down and
+        locked (OM p. 27).
       </Small>
       {s.air && ias > 120 && (moving || g.lever === "DOWN") && (
         <Caution title="Above 120 mph">

@@ -1,3 +1,5 @@
+import { sidePaintUV } from "@/lib/livery";
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /** C182T catalogue: airframe shells — fuselage, spinner, wings and tips, horizontal and vertical stabilizers. */
 import * as THREE from "three";
 import { AF, AIL_C, BL, EF, FLAP_C, HF, HZ, X, Y, Z, finCut, finSec, loft, sided, stabSec, wingSec } from "../geometry";
@@ -31,7 +33,7 @@ shell(
   },
   "Spinner",
   "D-7261-2 spinner, arm −49.9 (POH 6-24), over the oil-filled hub of the McCauley constant-speed propeller. Preflight: “Propeller and Spinner — CHECK (for nicks, security and no red oil leaks)” (POH 4-10).",
-);
+).finish = "polished";
 
 const ailS = [BL.ail0, 125, 150, 175, 195, BL.ail1];
 const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
@@ -92,7 +94,7 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     "Wing tip",
     "Slightly down-turned fiberglass tip carrying the position light and the strobe (POH 7-57, Fig 1-1).",
-  );
+  ).finish = "red";
   shell(
     () =>
       loft(
@@ -108,9 +110,11 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
     "Forward and aft spar, ribs and stiffeners, centre upper and lower skins and two left and two right wraparound skins that form the leading edges. It also contains the elevator trim tab actuator (POH 7-6). Span 11'-8\" (POH 1-3).",
   );
 });
-const finHs = [46.5, 54, 61.8, 63, 64.3, 66, 69.5, 74.2, 80, 85, 92, 100, 106, 108.4, 109.6].map(Y);
+// Include every profile break; skipping a shallow dorsal station clips the fairing off.
+const finHs = [...new Set([...AF.FIN.map(([h]) => h), ...[54, 80, 92].map(Y)])].sort((a, b) => a - b);
 shell(
-  () => loft(finHs.map((h) => finSec(h, 0, finCut(h)))),
+  () => sidePaintUV(loft(finHs.map((h) => finSec(h, 0, finCut(h)))), TAIL_PAINT_BOX),
   "Vertical stabilizer",
   "Forward and aft spar, formed ribs and reinforcements, four skin panels, formed leading-edge skins and a dorsal fin (POH 7-5). The rudder hinges on its aft spar.",
+  paintTail,
 );

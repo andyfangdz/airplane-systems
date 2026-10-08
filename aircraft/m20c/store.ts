@@ -5,7 +5,8 @@ import {
   FLAP_MAX,
   FLAP_STROKE,
   TO_TRIM,
-  cruiseFlight,
+  fuelAvail,
+  initialLive,
   groundFlight,
   initialSim,
   live,
@@ -20,25 +21,7 @@ const fresh = (): Sim => structuredClone(initialSim);
 
 /** Cruise at 5,500 ft, gear and flaps up, PC engaged (the initial state). */
 export function scenarioCruise() {
-  live.fs = cruiseFlight();
-  Object.assign(live, {
-    rpm: 2450,
-    map: 23.0,
-    ff: 9.6,
-    fuelP: 3.0,
-    oilP: 78,
-    oilT: 185,
-    cht: 390,
-    egt: 1350,
-    vac: 4.8,
-    flapAng: 0,
-    gearFrac: 1,
-    stepFrac: 1,
-    prime: 0,
-    fireT: -1,
-    carbIce: 0,
-    oilLoss: 0,
-  });
+  Object.assign(live, initialLive());
   useM20C.getState().update((d) => {
     const f = fresh();
     Object.assign(d, {
@@ -51,11 +34,12 @@ export function scenarioCruise() {
 
 /**
  * Cold and dark on the ramp, set for the Owner's Manual's "Starting the engine" (OM p. 15): fullest tank, all switches off,
- * brakes on, carb heat off, cowl flaps open, mixture rich, prop high RPM, gear handle down and locked, flaps up.
+ * brakes on, carb heat off, mixture rich, prop high RPM, gear handle down and locked, flaps up.
  */
 export function scenarioRamp() {
-  live.fs = groundFlight();
-  Object.assign(live, {
+  Object.assign(live, initialLive(), {
+    fs: groundFlight(),
+    trimPrev: TO_TRIM,
     rpm: 0,
     map: 29.5,
     ff: 0,
@@ -67,7 +51,6 @@ export function scenarioRamp() {
     vac: 0,
     flapAng: 0,
     gearFrac: 0,
-    stepFrac: 0,
     prime: 0,
     fireT: -1,
     carbIce: 0,
@@ -76,12 +59,22 @@ export function scenarioRamp() {
   });
   useM20C.getState().update((d) => {
     const f = fresh();
+    const fuel = d.fuel;
     Object.assign(d, f);
     d.air = false;
-    d.eng = { ...f.eng, running: false, key: "OFF", throttle: 0, prop: 1, mix: 1, carbHeat: 0, cowlFlaps: true };
+    d.eng = {
+      ...f.eng,
+      running: false,
+      altSpinning: false,
+      key: "OFF",
+      throttle: 0,
+      prop: 1,
+      mix: 1,
+      carbHeat: 0,
+    };
     d.elec = { ...f.elec, master: false, radios: false };
     d.sw = { fuelPump: false, pitotHeat: false, beacon: false, nav: false, landing: false };
-    d.fuel = { ...d.fuel, sel: d.fuel.qL >= d.fuel.qR ? "L" : "R" };
+    d.fuel = { ...fuel, sel: fuel.qL >= fuel.qR ? "L" : "R" };
     d.flaps.valve = "UP";
     d.gear = { lever: "DOWN", latch: false, diff: 0, park: true };
     d.ctrl = { pitch: 0, roll: 0, yaw: 0, trim: TO_TRIM };
@@ -92,7 +85,7 @@ export function scenarioRamp() {
   });
 }
 
-/** One stroke of the flap pump handle: with the control in DOWN it adds about a quarter of take-off flap (OM p. 9: 2 strokes take-off, 4½ full). */
+/** One stroke of the flap pump handle: with the control in DOWN it adds about half of take-off flap (OM p. 9: 2 strokes take-off, 4½ full). */
 export function pumpFlaps() {
   const { s } = useM20C.getState();
   if (s.flaps.valve !== "DOWN") return;
@@ -107,6 +100,6 @@ export function pumpFlaps() {
  */
 export function primeThrottle() {
   const { s, E } = useM20C.getState();
-  if (s.eng.running || !(E.fuelPump || live.fuelP > 0.5) || s.eng.mix < 0.5) return;
+  if (!fuelAvail(s) || s.eng.running || !(E.fuelPump || live.fuelP > 0.5) || s.eng.mix < 0.5) return;
   live.prime = Math.min(8, live.prime + 1);
 }

@@ -12,6 +12,7 @@ Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zu
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # production build
+npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
 npm run check      # formatting, typecheck and tests (what CI runs, plus the build)
 npm run format     # format everything with Prettier
 npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all") into .shots/

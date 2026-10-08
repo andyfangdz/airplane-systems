@@ -14,6 +14,8 @@
  * spring-steel gear leg, window projection and a skin painter).
  */
 import * as THREE from "three";
+import { cutCowlInlets, type CowlInlet } from "@/lib/cowl";
+import { sidePaintUV } from "@/lib/livery";
 import {
   densify,
   finSurface,
@@ -30,6 +32,7 @@ import { V, clamp, lerp, toVec3, type Vec3 } from "@/lib/math";
 export const IN = 0.0254;
 
 export interface CessnaSpec {
+  cowlInlets: CowlInlet[];
   /** FS (in) placed at x = 0, and the height (in, above ground) of y = 0 (thrust line). */
   fsRef: number;
   hRef: number;
@@ -88,7 +91,20 @@ export function cessnaAirframe(S: CessnaSpec) {
 
   /* ---------- fuselage ---------- */
   const table = S.fuselage.map(([fs, hw, top, bot]) => [X(fs), hw * IN, ((top - bot) / 2) * IN, Y((top + bot) / 2)]);
-  const FUSE = fuselage({ table, nTop: S.nTop, nBot: S.nBot, tumble: S.tumble });
+  // Photos show a rounded nose bowl and tailcone, not the cabin's slab section
+  // extruded over the entire fuselage. Keep all POH station extrema unchanged.
+  const FUSE = fuselage({
+    table,
+    nTop: S.nTop,
+    nBot: S.nBot,
+    tumble: S.tumble,
+    section: (x) => {
+      const fs = FS(x);
+      const cabin = Math.min(clamp((fs + 6) / 34, 0, 1), clamp((155 - fs) / 55, 0, 1));
+      const blend = cabin * cabin * (3 - 2 * cabin);
+      return { nTop: lerp(3.5, S.nTop, blend), nBot: lerp(3.0, S.nBot, blend), tumble: S.tumble };
+    },
+  });
 
   /* ---------- wing ---------- */
   const W = S.wing;
@@ -96,15 +112,15 @@ export function cessnaAirframe(S: CessnaSpec) {
     kinkZ = Z(W.kinkBL),
     tipZ = Z(W.tipBL);
   const out = (z: number) => clamp((Math.abs(z) - kinkZ) / (tipZ - kinkZ), 0, 1);
-  // conical-camber tip: the last ~4 in round off from both edges
+  // POH Fig 1-1: broad conical-camber tips, with only the corners rounded.
   const tipRound = (z: number) => {
     const a = Math.abs(z),
       r = tipZ - Z(4);
     return a > r ? Math.pow((a - r) / (tipZ - r), 2) : 0;
   };
   const wC0 = (z: number) => lerp(W.rootChord, W.tipChord, out(z)) * IN;
-  const wLE = (z: number) => X(W.le + W.leAft * out(z)) - wC0(z) * 0.18 * tipRound(z);
-  const wC = (z: number) => wC0(z) * (1 - 0.55 * tipRound(z));
+  const wLE = (z: number) => X(W.le + W.leAft * out(z)) - wC0(z) * 0.065 * tipRound(z);
+  const wC = (z: number) => wC0(z) * (1 - 0.15 * tipRound(z));
   const tanD = Math.tan((W.dihedral * Math.PI) / 180);
   const wY = (z: number) => Y(W.rootH) + (Math.abs(z) - rootZ) * tanD;
   const wT = (z: number) =>
@@ -121,9 +137,9 @@ export function cessnaAirframe(S: CessnaSpec) {
   };
   const sLE0 = (z: number) => X(T.le + (T.leSweep * Math.abs(z)) / IN);
   const sTE0 = (z: number) => X(T.te + ((T.teSweep ?? 0) * Math.abs(z)) / IN);
-  // rounded/raked tip: the LE comes aft faster than the TE comes forward
-  const sLE = (z: number) => sLE0(z) - (sLE0(z) - sTE0(z)) * 0.42 * sRound(z);
-  const sC = (z: number) => (sLE0(z) - sTE0(z)) * (1 - 0.62 * sRound(z));
+  // Broad stabilizer/elevator end cap: the previous 62% chord loss pinched it to a point.
+  const sLE = (z: number) => sLE0(z) - (sLE0(z) - sTE0(z)) * 0.065 * sRound(z);
+  const sC = (z: number) => (sLE0(z) - sTE0(z)) * (1 - 0.1 * sRound(z));
   const SY = Y(T.h);
   const STAB = liftingSurface({ le: sLE, chord: sC, y: () => SY, t: () => T.t, m: 0 });
 
@@ -235,7 +251,7 @@ export function cessnaAirframe(S: CessnaSpec) {
     h1: Math.max(...S.fuselage.map((r) => r[2])) + 4,
   };
   const UV = { x0: X(SK.fs1), x1: X(SK.fs0), y0: Y(SK.h0), y1: Y(SK.h1) };
-  const fuselageGeo = () => FUSE.geo({ step: 0.05, N: 56, uv: UV });
+  const fuselageGeo = () => sidePaintUV(cutCowlInlets(FUSE.geo({ step: 0.05, N: 56 }), S.cowlInlets), UV);
 
   /** Canvas painter helper: maps [FS, h] (in) to texture pixels for a W×H canvas. */
   const texP =

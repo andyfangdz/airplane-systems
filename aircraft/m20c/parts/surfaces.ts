@@ -53,7 +53,7 @@ const hp = (s: number, z: number, xc: number) => {
     hp(s, fz[4], FLAP.hinge),
     ["flaps", "controls"],
     nm + " flap",
-    "Wide-span flap, hydraulically lowered by the hand pump: two strokes for take-off (15°), four and a half for full deflection (33°) (OM p. 9). Max flap speed 100 mph (white arc 63–100).",
+    "Wide-span flap, hydraulically lowered by the hand pump: two strokes for take-off (15°), four and a half for full deflection (33°) (OM p. 9). Max flap speed 125 mph (white arc 63–125) for this 1968 airplane; 100 mph on 1967 and earlier models (TCDS 2A3).",
   );
   surface(
     "ail" + side,

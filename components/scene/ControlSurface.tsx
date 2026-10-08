@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Catalogue, SurfaceSpec } from "@/lib/catalogue";
-import { mats, seeMat, shellMat, skinMat, solidMat } from "@/lib/materials";
+import { seeMat, shellMat, skinMat, solidMat } from "@/lib/materials";
 import { V } from "@/lib/math";
 import { sysColor } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -48,15 +48,7 @@ export function ControlSurface({
   const active = sys !== "overview" && spec.sys.includes(sys) && !chanDim;
   const color = sysColor(spec.sys[0], theme);
   // highlighted in its own view; in X-ray the highlight is translucent so the balance weights inside show
-  const material = active
-    ? xray
-      ? seeMat(color)
-      : mats(color).hi
-    : xray
-      ? shellMat
-      : spec.skin
-        ? skinMat(spec.skin)
-        : solidMat;
+  const material = xray ? (active ? seeMat(color) : shellMat) : spec.skin ? skinMat(spec.skin) : solidMat;
   useFrame(() => {
     ref.current.quaternion.setFromAxisAngle(axis, angle(spec.key));
   });

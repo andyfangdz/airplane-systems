@@ -594,15 +594,15 @@ export function drawPanel(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
   ctx.fillStyle = "#121416";
   ctx.fillRect(868, 20, 140, 150);
   txt(ctx, "NAV / COM", 938, 32, "#B8BEC4", 8);
-  [0, 1, 2].forEach((i) => {
+  [E.com1, E.com2, E.xpdr].forEach((powered, i) => {
     ctx.fillStyle = "#0A0B0C";
     ctx.fillRect(876, 42 + i * 40, 124, 32);
     txt(
       ctx,
-      E.radios ? ["121.90  110.30", "119.10  115.70", "1200  ALT"][i] : "",
+      powered ? ["121.90  110.30", "119.10  115.70", "1200  ALT"][i] : "",
       938,
       58 + i * 40,
-      E.radios ? "#FFB347" : "#333",
+      powered ? "#FFB347" : "#333",
       11,
       "center",
       true,

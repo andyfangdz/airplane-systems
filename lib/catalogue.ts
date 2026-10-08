@@ -5,6 +5,7 @@
  */
 import type * as THREE from "three";
 import { loft, type Ring } from "./geometry";
+import { sidePaintUV, type PaintBox } from "./livery";
 import { V, toVec3, type Vec3 } from "./math";
 import type { Chan, SysId } from "./systems";
 import { narrowLayout } from "./view";
@@ -25,6 +26,8 @@ export interface PartSpec {
   /** Intentionally outside the skin (gear, antennas, probes…). */
   ext?: boolean;
   color?: string;
+  /** Physical finish in solid mode, keeping the study colour for x-ray. */
+  solidColor?: string;
   pos?: Vec3;
   rot?: Vec3;
   scale?: Vec3;
@@ -50,9 +53,10 @@ export interface ShellSpec {
   note: string;
   /** Painter for the solid-mode skin texture (needs UVs on the geometry). */
   skin?: () => THREE.Texture;
+  finish?: "polished" | "red";
 }
 
-/** Control surface hinged at `pivot` about `axis`; its geometry is already hinge-relative. `skin` paints it in solid mode (needs UVs). */
+/** Control surface hinged at `pivot` about `axis`; its geometry is already hinge-relative. */
 export interface SurfaceSpec {
   key: string;
   geo: () => THREE.BufferGeometry;
@@ -62,6 +66,7 @@ export interface SurfaceSpec {
   name: string;
   note: string;
   chan?: Chan[];
+  /** Paint stays attached to the moving geometry in solid mode. */
   skin?: () => THREE.Texture;
 }
 
@@ -169,6 +174,7 @@ export class Catalogue {
     sys: SysId[],
     name: string,
     note: string,
+    paint?: { box: PaintBox; skin: () => THREE.Texture },
   ) =>
     this.surface({
       key,
@@ -177,8 +183,10 @@ export class Catalogue {
       sys,
       name,
       note,
+      skin: paint?.skin,
       geo: () => {
-        const g = loft(secs());
+        const raw = loft(secs());
+        const g = paint ? sidePaintUV(raw, paint.box) : raw;
         g.translate(-a.x, -a.y, -a.z);
         return g;
       },

@@ -1,3 +1,4 @@
+import { gearLegGeo } from "@/lib/geometry";
 /** Landing gear: main and nose gear, wheels and pants, brakes and brake lines, parking brake, rudder pedals / toe brakes. */
 import { V, type Vec3 } from "@/lib/math";
 import { brakeAmount, brakeAnim } from "@/lib/anims";
@@ -11,16 +12,22 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
   const top = wingP(s * 1.0, 0.28, -1);
   part(
     () =>
-      tubeGeo(
+      gearLegGeo(
         [
           [top.x, top.y + 0.02, s * 1.0],
           [1.14, -0.9, s * 1.22],
           [MG.x, -1.1, s * 1.36],
         ],
-        0.04,
+        0.26,
+        0.055,
       ),
     ["gear"],
-    { name: "Main gear strut", note: "Composite strut bolted to the wing between spar and shear web.", ext: true },
+    {
+      color: "#F3F5F6",
+      name: "Main gear strut",
+      note: "Composite strut bolted to the wing between spar and shear web.",
+      ext: true,
+    },
   );
   part(() => cyl(0.19, 0.15, "z", 28), ["gear"], {
     pos: [MG.x, MG.y, s * MG.z],
@@ -33,6 +40,7 @@ export const MG = { x: 1.12, y: -1.2, z: 1.42 };
     pos: [MG.x, -1.17, s * MG.z],
     scale: [1, 1, 0.75],
     fairing: true,
+    color: "#F3F5F6",
     name: "Wheel pant",
     note: "Removable; access plugs allow tire inflation checks.",
     ext: true,
@@ -110,6 +118,7 @@ part(() => pantGeo(0.7, 0.17), ["gear"], {
   pos: [0.02, 0.02, 0],
   scale: [1, 1, 0.7],
   fairing: true,
+  color: "#F3F5F6",
   name: "Nose wheel pant",
   note: "",
   ext: true,

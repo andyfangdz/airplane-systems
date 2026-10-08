@@ -1,8 +1,8 @@
 /**
- * 1967 Mooney M20C simulation model: discrete state, the pure electrical solver, engine / fuel / vacuum helpers and the
+ * 1968 Mooney M20C simulation model: discrete state, the pure electrical solver, engine / fuel / vacuum helpers and the
  * warning-light and horn list. Sources: the Mark 21 (M20C) Owner's Manual, 1965 edition with the 1962–64 supplement
- * ("OM p. n" — the closest available edition to the 1967 book, same systems: manual gear, hydraulic flaps, generator,
- * vacuum step, PC), the M20C Ranger Operator's Manual of Dec 1974 ("Ranger 2-n", used where the older book is silent),
+ * ("OM p. n" — the closest available edition to the 1968 book for manual gear, hydraulic flaps and PC), the M20C Ranger
+ * Operator's Manual of Dec 1974 ("Ranger 2-n", used where the older book is silent),
  * the 1963 FAA Approved Flight Manual for s/n 2394, and TCDS 2A3. Where this model makes an assumption it says so.
  */
 import { initFlight, type FlightCfg, type FlightState } from "@/lib/avionics/flight";
@@ -21,14 +21,15 @@ export interface Sim {
   air: boolean;
   eng: {
     running: boolean;
+    /** Discrete crossing of the illustrative alternator cut-in speed; continuous RPM stays in live. */
+    altSpinning: boolean;
     key: Key;
     /** Throttle, propeller (governor) and mixture 0..1: closed/low RPM/idle cut-off … full/high RPM/rich. */
     throttle: number;
     prop: number;
     mix: number;
-    /** Carburetor heat 0 (cold, filtered) … 1 (full hot, unfiltered). Cowl flaps open or closed (push-pull control). */
+    /** Carburetor heat 0 (cold, filtered) … 1 (full hot, unfiltered). */
     carbHeat: number;
-    cowlFlaps: boolean;
     fail: {
       governor: boolean;
       oilLeak: boolean;
@@ -71,12 +72,12 @@ export const initialSim: Sim = {
   air: true,
   eng: {
     running: true,
+    altSpinning: true,
     key: "BOTH",
     throttle: 0.7,
     prop: 0.78,
     mix: 0.8,
     carbHeat: 0,
-    cowlFlaps: false,
     fail: { governor: false, oilLeak: false, mechPump: false, carbIce: false, vacPump: false, starterStuck: false },
   },
   elec: { master: true, radios: true, fail: { gen: false, bat: false }, tBat: 0 },
@@ -137,7 +138,7 @@ export const TO_TRIM = 0.15;
 export const CRUISE_TRIM = 0.2;
 
 /** Fast-changing values advanced every frame (outside React state). */
-export const live = {
+export const initialLive = () => ({
   rpm: 2450,
   map: 23.0,
   ff: 9.6,
@@ -150,9 +151,8 @@ export const live = {
   /** Flap angle (deg, 0…33), pump-handle stroke animation 0..1. */
   flapAng: 0,
   pumpAnim: 0,
-  /** Gear 0 = down and locked … 1 = up and locked; the bar follows it. Entry step 0 = extended … 1 = retracted. */
+  /** Gear 0 = down and locked … 1 = up and locked; the bar follows it. */
   gearFrac: 1,
-  stepFrac: 1,
   /** START push hold, cranking time, starvation timer, priming shots in the induction (decays), time since firing, carb ice 0..1. */
   startTimer: 0,
   crankT: 0,
@@ -162,13 +162,15 @@ export const live = {
   carbIce: 0,
   oilLoss: 0,
   trimRate: 0,
+  trimPrev: initialSim.ctrl.trim,
   /** Effective control positions shown on the wheel and surfaces (pilot plus the PC servos). */
   eff: { pitch: 0, roll: 0, yaw: 0 },
   /** PC servo contribution to roll and yaw (−1..1), for the servo-bladder animation. */
   pcRoll: 0,
   pcYaw: 0,
   fs: cruiseFlight(),
-};
+});
+export const live = initialLive();
 
 /* ---------- electrical ---------- */
 
@@ -227,6 +229,8 @@ export interface Elec {
   vacWarn: boolean;
   instLts: boolean;
   radios: boolean;
+  com1: boolean;
+  com2: boolean;
   xpdr: boolean;
 }
 
@@ -250,11 +254,8 @@ const LOAD = {
 /** 35 Ah battery (OM p. 3), 70 % usable. */
 const BAT_AH = 24.5;
 
-/**
- * Alternator excitation memory: the field is fed from the bus through ALT FIELD, so with a dead battery the alternator can
- * only come on line if it was already excited. Updated after every solve.
- */
-let altExcited = true;
+/** Illustrative cut-in threshold; the manual does not specify an RPM. */
+export const ALT_MIN_RPM = 700;
 
 /**
  * Electrical solver. One bus: battery → master relay at the battery (master switch) → bus; 60 A 12 V alternator → ALT 60 A
@@ -262,19 +263,19 @@ let altExcited = true;
  * Mark 21 had a 50 A Delco-Remy generator and a load meter instead (OM p. 3; TCDS 2A3); the 1968 Ranger's Prestolite
  * alternator carries the loads from idle up. The engine's ignition is independent of all of this (OM p. 3 note).
  */
-export function solve(s: Sim): Elec {
-  const first = solveWith(s, true);
-  const E = first.batFrac < 1 ? first : solveWith(s, false);
-  altExcited = E.genOn;
-  return E;
+export function solve(s: Sim, prev?: Elec): Elec {
+  // An alternator already on line sustains its field after battery loss (Ranger 2-13).
+  const excited = prev?.genOn ?? false;
+  const first = solveWith(s, true, excited);
+  return first.batFrac < 1 ? first : solveWith(s, false, excited);
 }
 
-function solveWith(s: Sim, batCharge: boolean): Elec {
+function solveWith(s: Sim, batCharge: boolean, excited: boolean): Elec {
   const e = s.elec,
     cb = (n: string) => !s.cb[n];
   const batOk = e.master && !e.fail.bat && batCharge;
-  const field = (batOk || altExcited) && cb("ALT FIELD");
-  const genOn = s.eng.running && live.rpm >= 700 && !e.fail.gen && cb("ALT") && field && e.master;
+  const field = (batOk || excited) && cb("ALT FIELD");
+  const genOn = s.eng.running && s.eng.altSpinning && !e.fail.gen && cb("ALT") && field && e.master;
   const bus = batOk || genOn;
   const pw = (name: string) => bus && cb(name);
   const sw = (k: keyof Sim["sw"], name: string) => pw(name) && s.sw[k];
@@ -290,6 +291,8 @@ function solveWith(s: Sim, batCharge: boolean): Elec {
     vacWarn = pw("VAC WARN");
   const instLts = pw("INST LTS"),
     radios = pw("RADIO MASTER") && e.radios,
+    com1 = radios && cb("NAV/COM 1"),
+    com2 = radios && cb("NAV/COM 2"),
     xpdr = radios && cb("XPDR");
   const starterPwr = bus && cb("IGN / VIBRATOR");
   const starterOn = starterPwr && (s.eng.key === "START" || (s.eng.fail.starterStuck && s.eng.running));
@@ -298,7 +301,8 @@ function solveWith(s: Sim, batCharge: boolean): Elec {
   const add = (on: boolean, a: number) => {
     if (on) load += a;
   };
-  add(radios, LOAD.radios);
+  add(com1, LOAD.radios / 2);
+  add(com2, LOAD.radios / 2);
   add(xpdr, LOAD.xpdr);
   add(nav, LOAD.nav);
   add(beacon, LOAD.beacon);
@@ -346,6 +350,8 @@ function solveWith(s: Sim, batCharge: boolean): Elec {
     vacWarn,
     instLts,
     radios,
+    com1,
+    com2,
     xpdr,
   };
 }
@@ -415,7 +421,7 @@ export function extLit(s: Sim, E: Elec) {
 /* ---------- warning lights and horns ---------- */
 export type { CasLevel };
 /**
- * What the 1967 panel can tell you: the two gear lights, the low/high vacuum lights on the artificial horizon, the gear horn
+ * What the 1968 panel can tell you: the two gear lights, the low/high vacuum lights on the artificial horizon, the gear horn
  * and the stall horn. All need the master switch (Ranger 4-9: "All warning devices are inoperative when the master switch is off").
  */
 export function warnings(s: Sim, E: Elec): [CasLevel, string][] {

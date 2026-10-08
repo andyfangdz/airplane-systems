@@ -260,6 +260,8 @@ export function Electrical() {
             ["Alternator", E.genOn ? "ON LINE" : s.eng.running ? ["OFF LINE", "bad"] : "—"],
             ["Ammeter", [(E.amps > 0 ? "+" : "") + E.amps + " A", E.amps < 0 ? "bad" : ""]],
             ["Load", E.load.toFixed(1) + " A"],
+            ["NAV/COM 1 · 2", `${E.com1 ? "ON" : "OFF"} · ${E.com2 ? "ON" : "OFF"}`],
+            ["Transponder", E.xpdr ? "ON" : "OFF"],
             ["Battery", batt],
             ["Battery endurance", E.batLoad > 0 ? `≈ ${E.endurance} min at ${E.batLoad.toFixed(1)} A` : "—"],
             ["Starter / vibrator", E.starterOn ? ["ENGAGED", "warnc"] : E.starterPwr ? "Ready" : ["NO PWR", "bad"]],

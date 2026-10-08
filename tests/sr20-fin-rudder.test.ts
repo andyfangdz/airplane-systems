@@ -1,17 +1,18 @@
 /**
- * SR20 fin and rudder against the drawing: AMM 13773-002 Rev 7 Fig 6-00-2 Airplane Principal Dimensions (PDF p. 119;
- * SR22/SR22T, printed and scaled from its FS/WL ticks) and Fig 55-40-1 Detail B (PDF p. 2262, the full-chord rudder horn).
- * SR20 POH 11934-005 Fig 1-1 (p. 1-4): length 26.0 ft. Stations in inches.
+ * SR20 POH 11934-005 Fig 1-1 (p. 1-4): length 26.0 ft, height 8.9 ft.
+ * Longitudinal proportions retain the previous SR22/SR22T AMM 13773-002 Fig 6-00-2 fit.
+ * Its WL values are only normalized sampling stations here, NOT SR20 vertical dimensions.
+ * Vertical calibration and every moving attachment now use the SR20 height.
  */
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { FIN, HH, fC, fLE, hingeX } from "@/aircraft/sr20/geometry";
+import { FIN, FIN_TOP, GROUND_Y, HH, fC, fLE, hingeX, finHeight } from "@/aircraft/sr20/geometry";
 import { CAT } from "@/aircraft/sr20/parts/catalogue";
 import "@/aircraft/sr20/parts";
 
 const FS = (x: number) => (5.15 - x) / 0.0254;
-const WL = (h: number) => 100 + (h + 0.13) / 0.0254;
-const h = (wl: number) => (wl - 100) * 0.0254 - 0.13;
+const WL = (h: number) => 100 + (((h + 0.18) * (1.534 + 0.18)) / (FIN_TOP + 0.18) - 0.18 + 0.13) / 0.0254;
+const h = (wl: number) => finHeight((wl - 100) * 0.0254 - 0.13);
 const te = (wl: number) => FS(fLE(h(wl)) - fC(h(wl)));
 const hinge = (wl: number) => FS(hingeX(h(wl)));
 const within = (v: number, want: number, tol: number) =>
@@ -29,7 +30,7 @@ const distToTE = (fs: number, wl: number) => {
   return d;
 };
 
-describe("SR20 fin and rudder outline (AMM Fig 6-00-2)", () => {
+describe("SR20 fin height and retained longitudinal rudder proportions", () => {
   it("rudder trailing edge runs FS 339.3 at WL 110 to 348.4 at WL 162", () => {
     within(te(110), 339.3, 1);
     within(te(130), 342.8, 1);
@@ -39,8 +40,8 @@ describe("SR20 fin and rudder outline (AMM Fig 6-00-2)", () => {
     expect(distToTE(334.2, 98)).toBeLessThanOrEqual(1.5);
   });
 
-  it("top at WL 165.5 and aft-most point at FS 350.2 (26.0 ft overall, SR20 POH Fig 1-1)", () => {
-    within(WL(Math.max(...FIN.map((r) => r[0]))), 165.5, 0.5);
+  it("height 8.9 ft and retained aft station (SR20 POH Fig 1-1)", () => {
+    expect(Math.max(...FIN.map((r) => r[0])) - GROUND_Y).toBeCloseTo(8.9 * 0.3048, 5);
     within(FS(Math.min(...FIN.map((r) => r[2]))), 350.2, 0.5);
   });
 
@@ -52,8 +53,8 @@ describe("SR20 fin and rudder outline (AMM Fig 6-00-2)", () => {
 });
 
 describe("SR20 rudder horn (AMM Fig 6-00-2, Fig 55-40-1)", () => {
-  it("the fin ends at the horn joint, WL 160.2", () => {
-    within(WL(HH), 160.2, 0.5);
+  it("the fixed fin ends at the remapped horn joint", () => {
+    expect(HH).toBeLessThan(FIN_TOP);
     const fin = CAT.shells.find((s) => s.name === "Vertical stabilizer")!.geo();
     fin.computeBoundingBox();
     expect(fin.boundingBox!.max.y).toBeLessThanOrEqual(HH + 1e-6);
@@ -73,7 +74,7 @@ describe("SR20 rudder horn (AMM Fig 6-00-2, Fig 55-40-1)", () => {
     }
     expect(n).toBeGreaterThan(0);
     // the forward-most point of each section above the joint is the fin's leading edge, not a step at part chord
-    const top = [1.42, 1.47].map((hh) => {
+    const top = [1.42, 1.47].map(finHeight).map((hh) => {
       let fwd = -Infinity;
       for (let i = 0; i < pos.count; i++) {
         p.fromBufferAttribute(pos, i).add(new THREE.Vector3(...spec.pivot));
@@ -82,5 +83,19 @@ describe("SR20 rudder horn (AMM Fig 6-00-2, Fig 55-40-1)", () => {
       return fwd - fLE(hh);
     });
     for (const d of top) expect(Math.abs(d)).toBeLessThan(0.01);
+  });
+
+  it("NAV antenna sits on the fixed fin below the horn joint (AMM Fig 34-50-4, PDF p. 1739; SR20 POH p. 7-87)", () => {
+    const nav = CAT.parts.find((p) => p.name === "NAV antenna")!;
+    expect(nav.parent, "not on the moving rudder").toBeUndefined();
+    const geo = nav.geo();
+    geo.computeBoundingBox();
+    const { min, max } = geo.boundingBox!.clone().translate(new THREE.Vector3(...nav.pos!));
+    expect(max.y, "below the rudder horn cap").toBeLessThanOrEqual(HH);
+    for (const hh of [min.y, max.y]) {
+      expect(max.x, `h ${hh.toFixed(3)}: behind the fin LE`).toBeLessThanOrEqual(fLE(hh));
+      expect(min.x, `h ${hh.toFixed(3)}: ahead of the rudder hinge`).toBeGreaterThanOrEqual(hingeX(hh));
+    }
+    geo.dispose();
   });
 });

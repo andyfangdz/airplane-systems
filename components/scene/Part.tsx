@@ -4,7 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Catalogue, PartSpec, ShellSpec } from "@/lib/catalogue";
-import { ghostMat, mats, plateMat, shellMat, skinMat, solidMat } from "@/lib/materials";
+import { finishMat, ghostMat, mats, plateMat, shellMat, skinMat, solidMat } from "@/lib/materials";
 import { partObjects } from "@/lib/registry";
 import { palette, sysColor, type SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -58,7 +58,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const theme = useView((x) => x.theme);
   const cf = useView((x) => x.ctrlFocus);
 
-  const color = spec.color ?? sysColor(spec.sys[0], theme);
+  const color = (!xray && spec.solidColor) || spec.color || sysColor(spec.sys[0], theme);
   const all = sys === "overview";
   // Flight-controls channel focus: parts outside the chosen channel fade out
   const chanDim = sys === "controls" && cf !== "all" && !spec.chan?.includes(cf);
@@ -131,7 +131,7 @@ export function Shell({ spec }: { spec: ShellSpec }) {
   const geo = specGeo(spec);
   const xray = useView((x) => x.xray);
   const theme = useView((x) => x.theme);
-  const material = xray ? shellMat : spec.skin ? skinMat(spec.skin) : solidMat;
+  const material = xray ? shellMat : spec.skin ? skinMat(spec.skin) : spec.finish ? finishMat[spec.finish] : solidMat;
   const pick: PickInfo | undefined = spec.name
     ? { name: spec.name, note: spec.note, color: palette(theme).frame, sys: ["airframe"], shell: true }
     : undefined;

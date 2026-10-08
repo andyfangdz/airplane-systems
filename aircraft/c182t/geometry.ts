@@ -1,3 +1,6 @@
+import { COWL_INLETS } from "../cowl-inlets";
+import { drawLivery, liveryLabels, tailTexture } from "../liveries";
+import { paintAtlas } from "@/lib/livery";
 /**
  * Airframe geometry for the Cessna 182T Skylane NAV III (Paramus Flying Club N8050J, s/n 18281633, and N21200,
  * s/n 18281732), built with the shared Cessna high-wing builder (aircraft/cessna/airframe.ts).
@@ -17,9 +20,9 @@
  * from the Fig 1-1 top view), tapering to 41.5 in at the tip with the leading edge 8.5 in aft; LE at FS 24 gives the POH LEMAC.
  * Dihedral (1°44′) and airfoil (NACA 2412) are web values, NOT IN the POH. Horizontal tail planform scaled from the Fig 1-1 top view
  * (root chord 48 in, LE FS 207 — the stabilizer abrasion boots are at arm 206.0, POH 6-24; straight hinge line; horn-balanced tips).
- * Fuselage heights, fin and window outlines are scaled from a side photo of N775CP (182T s/n 18281779, Wikimedia Commons), corrected
- * for the camera's view from below, and fitted to POH Fig 6-6 cabin heights (48 in floor to headliner); the POH side view is
- * schematic vertically. Cabin landmarks: panel face ≈ FS 17, forward doorpost ≈ FS 28, rear doorpost bulkhead FS 65.30 (POH 6-15).
+ * Fuselage heights and window outlines are approximate fits to the oblique N775CP photograph; they are not a
+ * calibrated reconstruction or verified internal cabin dimensions. The dorsal fairing starts near FS 140 in the
+ * maintenance manual 6-15-00 station drawing (see reference-traces/RESOLUTION.md). Cabin landmarks: panel face ≈ FS 17, forward doorpost ≈ FS 28, rear doorpost bulkhead FS 65.30 (POH 6-15).
  */
 import * as THREE from "three";
 import { cessnaAirframe, skinPainter, type CessnaSpec } from "../cessna/airframe";
@@ -29,6 +32,7 @@ export { box, cyl, sph, tubeGeo, loft, sided } from "@/lib/geometry";
 export { taperTubeGeo, wheelFairingGeo } from "../cessna/airframe";
 
 export const SPEC: CessnaSpec = {
+  cowlInlets: COWL_INLETS.c182t,
   fsRef: 100,
   hRef: 50.375,
   // [FS, halfWidth, top h, bottom h] (in). A deep cowl with a pronounced chin (induction filter below the spinner), a slab-sided
@@ -89,15 +93,17 @@ export const SPEC: CessnaSpec = {
   },
   // Fig 1-1 top view: straight leading edge swept ≈ 7 in over the half span, trailing edge coming forward ≈ 8 in, squared tips
   stab: { le: 207, leSweep: 0.097, te: 255.4, teSweep: -0.12, halfSpan: 70, tipStart: 66.5, h: 46, t: 0.1 },
-  // Tall swept fin with a long dorsal fillet from FS ≈ 188 (N775CP photo): LE ≈ 39° from vertical above h 74
+  // Maintenance manual 6-15-00 Fig 1: dorsal fillet begins near FS 140, confirmed by
+  // N775CP and PH-PBW side photos. Heights below h 85 are an approximate blend
+  // into the existing fin, not dimensioned manufacturer waterlines.
   fin: [
     [46.5, 239.5, 253.6],
     [61.8, 239.5, 261.1],
-    [63.0, 182, 261.8],
-    [64.3, 188, 262.4],
-    [66.0, 206.6, 263.3],
-    [69.5, 219, 265.0],
-    [74.2, 228.3, 267.3],
+    [65.3, 140, 262.9294],
+    [67.0, 156, 263.7857],
+    [69.8, 185.5, 265.1468],
+    [72.8, 209, 266.6149],
+    [77.5, 223, 268.9194],
     [85, 236.7, 272.6],
     [100, 248.4, 280.0],
     [106, 253.1, 283.0],
@@ -298,7 +304,7 @@ export function rearRoofGeo() {
   return loft(secs.reverse(), { closed: false, caps: false }); // aft → forward: faces outward
 }
 
-/** Neutral livery: white with a navy band and a thin warm-grey accent sweeping up from the cowl chin; glass painted on. No markings. */
+/** Paints N8050J’s new red/white livery from the supplied photo, with tinted windows (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
   const p = skinPainter(AF, 2048, 512),
     { g, path } = p;
@@ -330,45 +336,7 @@ export function paintSkin(): THREE.CanvasTexture {
     [-30, 53.5],
   ]);
   g.stroke();
-  // band: navy, sweeping up from under the spinner to the tailcone
-  path([
-    [-43, 43.5],
-    [-30, 41.0],
-    [-10, 40.0],
-    [20, 40.0],
-    [60, 41.0],
-    [110, 44.0],
-    [170, 48.2],
-    [220, 51.0],
-    [258, 52.6],
-    [258, 49.4],
-    [220, 47.8],
-    [170, 44.8],
-    [110, 40.4],
-    [60, 37.2],
-    [20, 36.0],
-    [-10, 36.2],
-    [-30, 37.2],
-    [-43, 39.6],
-  ]);
-  g.fillStyle = "#2E4766";
-  g.fill();
-  path(
-    [
-      [-40, 34.0],
-      [-10, 32.6],
-      [20, 32.4],
-      [60, 33.6],
-      [110, 37.0],
-      [170, 41.6],
-      [220, 45.0],
-      [258, 46.6],
-    ],
-    false,
-  );
-  g.strokeStyle = "#A8A196";
-  g.lineWidth = 5;
-  g.stroke();
+  drawLivery("c182t", g, p.P);
   // windshield: everything above the deck line between its base and the forward door posts
   path([...WIN.windSide, [28.6, 86], [4, 86]]);
   g.fillStyle = p.glass(80, 63);
@@ -394,5 +362,8 @@ export function paintSkin(): THREE.CanvasTexture {
   ]);
   g.fillStyle = "#5C666E";
   g.fill();
-  return p.done();
+  return paintAtlas(p.c, p.P, liveryLabels("c182t", "fuselage"));
 }
+
+export const TAIL_PAINT_BOX = { x0: X(285), x1: X(190), y0: Y(40), y1: Y(112) };
+export const paintTail = () => tailTexture("c182t", TAIL_PAINT_BOX, ([fs, h]) => [X(fs), Y(h)]);

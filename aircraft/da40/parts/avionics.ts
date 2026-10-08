@@ -198,6 +198,7 @@ part(
   {
     pos: [fs(4.55), topY(fs(4.55)) + 0.18, 0],
     color: ANT,
+    solidColor: "#E3E6E8",
     name: "COM 1 antenna",
     note: "Whip on top of the fuselage behind the cabin. Antenna locations are not in the documents — placed from photos of DA40 XLS airplanes.",
     ext: true,
@@ -220,6 +221,7 @@ part(
   {
     pos: [fs(4.25), botY(fs(4.25)), 0],
     color: ANT,
+    solidColor: "#E3E6E8",
     name: "COM 2 antenna",
     note: "Bent whip under the fuselage (placed from photos).",
     ext: true,
@@ -233,6 +235,7 @@ part(
   part(() => cyl(0.045, 0.02), ["avionics"], {
     pos: [x as number, topY(x as number) + 0.01, 0],
     color: ANT,
+    solidColor: "#E3E6E8",
     name: name as string,
     note: "Garmin GA 56 (AFM 6-28), on top of the fuselage behind the cabin (placed from photos).",
     ext: true,
@@ -242,6 +245,7 @@ part(
 part(() => box(0.08, 0.06, 0.012), ["avionics"], {
   pos: [fs(3.55), botY(fs(3.55)) - 0.03, 0.08],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Transponder antenna",
   note: "Blade on the belly (KA 60/61, AFM 6-26; location assumed).",
   ext: true,
@@ -250,6 +254,7 @@ part(() => box(0.08, 0.06, 0.012), ["avionics"], {
 part(() => box(0.24, 0.012, 0.08), ["avionics"], {
   pos: [fs(4.85), botY(fs(4.85)) - 0.006, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Marker beacon antenna",
   note: "Comant CI 102 (AFM 6-26); belly location assumed.",
   ext: true,
@@ -257,12 +262,14 @@ part(() => box(0.24, 0.012, 0.08), ["avionics"], {
 part(() => box(0.3, 0.01, 0.02), ["avionics"], {
   pos: [fs(7.3), 0.25, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "NAV (VOR/LOC/GS) antenna",
   note: "Comant CI 157P (AFM 6-27), through the CI-1125 diplexer to both GIAs. Shown inside the composite fin — location not in the documents.",
 });
 part(() => cyl(0.004, 0.3), ["avionics", "cabin"], {
   pos: [fs(4.9), topY(fs(4.9)) + 0.15, 0.06],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "ELT antenna",
   note: "ELT whip (location assumed).",
   ext: true,
