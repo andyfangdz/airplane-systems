@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { type Vec3 } from "@/lib/math";
 
 import { PANEL_X, box, botY, cyl, sph, wingP } from "../geometry";
+import { OVERHEAD } from "../placement";
 
 import { P, glow, part, relTv, sim } from "./catalogue";
 
@@ -15,9 +16,9 @@ export const LIGHTS = {
   tail: [-3.74, -0.5, 0] as Vec3,
   beacon: [-0.9, botY(-0.9) - 0.035, 0] as Vec3,
   landing: [2.96, -0.12, -0.13] as Vec3,
-  spotL: [0.9, 0.58, -0.25] as Vec3,
-  spotR: [0.9, 0.58, 0.25] as Vec3,
-  dome: [0.4, 0.5, 0] as Vec3,
+  spotL: OVERHEAD.spotL,
+  spotR: OVERHEAD.spotR,
+  dome: OVERHEAD.dome,
   instr: [PANEL_X - 0.05, 0.05, -0.2] as Vec3,
 };
 (

@@ -236,9 +236,10 @@ const GLOWS: GlowSpec[] = [
   { key: "navT", pos: LIGHTS.tail, color: "#FFFFFF", size: 0.22, on: extOn("nav") },
   { key: "beacon", pos: LIGHTS.beacon, color: "#FF3A2A", size: 0.42, on: beacon },
   { key: "land", pos: LIGHTS.landing, color: "#FFF6DD", size: 0.45, on: extOn("landing") },
-  { key: "spotL", pos: LIGHTS.spotL, color: "#FFE7B0", size: 0.35, on: inside("spot") },
-  { key: "spotR", pos: LIGHTS.spotR, color: "#FFE7B0", size: 0.35, on: inside("spot") },
-  { key: "dome", pos: LIGHTS.dome, color: "#FFE7B0", size: 0.4, on: inside("dome") },
+  // Keep the camera-facing halos inside the headliner housings; large sprites protrude through the roof.
+  { key: "spotL", pos: LIGHTS.spotL, color: "#FFE7B0", size: 0.03, on: inside("spot") },
+  { key: "spotR", pos: LIGHTS.spotR, color: "#FFE7B0", size: 0.03, on: inside("spot") },
+  { key: "dome", pos: LIGHTS.dome, color: "#FFE7B0", size: 0.04, on: inside("dome") },
   { key: "instr", pos: LIGHTS.instr, color: "#FFD8A0", size: 0.3, on: inside("instr") },
 ];
 const BEAMS: BeamSpec[] = [

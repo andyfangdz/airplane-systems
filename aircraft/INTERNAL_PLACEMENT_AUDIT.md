@@ -24,6 +24,18 @@ Intentional attachment and enclosure relationships are excluded from collision f
 
 The C172S, C182T, and DA40 elevators now have actual trim-tab apertures. Tab geometry, hinge axes, horns, and rod endpoints share their definitions, including compounded elevator/trim motion. The M20C elevator uses one straight hinge axis; its fixed-wing/aileron seam and stabilizer winding are corrected. Its nose-gear doors follow the curved belly and the actual well opening; closed coverage and clearance during their swing are checked against the surrounding geometry.
 
+The M20C overhead follow-up places both spotlights, the dome light (OM p. 3), the stall-warning horn (Ranger 2-7),
+and the four ceiling outlets (OM p. 11) just inside the curved roof, accounting for its lateral curvature. The former
+lamp and horn coordinates were above the skin; the vents hung below the headliner and their ducts began outside it.
+Shared anchors now join the ducts and horn circuit to their relocated equipment, including the lamp glow positions.
+The headliner glow sprites fit the lamp housings so they cannot spill through the solid roof when switched on.
+The retractable roof scoop stays attached at its aft edge throughout its travel instead of lifting the whole box
+clear of the roof. Housing depths, hinge placement and travel remain schematic. `tests/m20c-overhead.test.ts`
+checks containment, proximity to the rendered roof, flow endpoints and the full scoop animation. Windshield and
+door outline corners also follow the roof instead of projecting above it; the painted glass and seams share those
+coordinates. Their contours remain a visual approximation. Inspect cabin,
+lighting, pitot/electrical and ventilation views in solid and x-ray modes, with the scoop closed and fully open.
+
 ## Reuse and verification
 
 `aircraft/cessna/accessories.ts` shares the alternator body/shaft/pulley/belt construction. `lib/trimTab.ts` shares trim-tab geometry and matching cutouts. Aircraft-specific placement constants are reused by geometry and connected flows; M20C gear kinematics live in `placement.ts`. Geometry tests use `tests/placement-helpers.ts` for the same part transforms as the scene.

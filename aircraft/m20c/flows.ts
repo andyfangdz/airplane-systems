@@ -3,11 +3,11 @@ import * as THREE from "three";
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { FW, PANEL_X, botY, onSkin, topY, wingP } from "./geometry";
+import { FW, PANEL_X, botY, onSkin, wingP } from "./geometry";
 import { fuelAvail, hornLevel, live, pcEngaged, type Elec, type Sim } from "./model";
 import { CYLS, PITOT_Z, SEL, STAT_X, pitotBase } from "./parts";
 import { FLAP_PUMP, SERVO } from "./rig";
-import { EQUIPMENT } from "./placement";
+import { EQUIPMENT, OVERHEAD, headlinerPoint } from "./placement";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) =>
@@ -189,14 +189,8 @@ flow("radioGrill", [P(onSkin(1.85, -0.1, 1, 0.96)), [FW - 0.05, 0.05, 0.3], [FW 
   name: "Radio vent grill feed",
   note: "Right scoop → firewall grill ahead of the centre radio panel (OM p. 11).",
 });
-const SCOOP: Vec3 = [0.2, topY(0.2) + 0.02, 0];
-[
-  [0.3, -0.2],
-  [0.3, 0.2],
-  [0.95, -0.25],
-  [0.95, 0.25],
-].forEach(([x, z], i) =>
-  flow("ceil" + i, [SCOOP, [x, topY(x) - 0.12, z * 0.5], [x, topY(x) - 0.18, z]], ["environment"], {
+OVERHEAD.outlets.forEach((outlet, i) =>
+  flow("ceil" + i, [OVERHEAD.inlet, headlinerPoint(outlet[0], outlet[2] * 0.5, 0.04), outlet], ["environment"], {
     r: 0.012,
     color: AIR,
     pcolor: "#5FC8F0",
@@ -271,7 +265,7 @@ flow(
 );
 flow(
   "stall",
-  [P(wingP(-1.9, 0.02, 0)), P(wingP(-1.0, 0.25, 0)), [1.0, -0.55, -0.5], [1.0, 0.4, -0.45], [1.0, 0.55, 0]],
+  [P(wingP(-1.9, 0.02, 0)), P(wingP(-1.0, 0.25, 0)), [1.0, -0.55, -0.5], headlinerPoint(1, -0.4, 0.045), OVERHEAD.horn],
   ["pitot"],
   { tube: false, pcolor: "#FF6A6A", size: 0.04, name: "Stall warning circuit" },
 );

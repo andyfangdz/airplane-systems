@@ -1,6 +1,7 @@
 /** M20C heating and ventilation: junction box, scoops, overhead scoop and ceiling outlets, defroster, foot outlets, radio grill, controls. */
 
-import { FW, PANEL_X, box, cyl, onSkin, sph, topY } from "../geometry";
+import { FW, PANEL_X, box, cyl, onSkin, sph } from "../geometry";
+import { OVERHEAD, ROOF_SCOOP, scoopAngle } from "../placement";
 
 import { P, knobAnim, part, sim } from "./catalogue";
 
@@ -28,25 +29,25 @@ part(() => box(0.12, 0.04, 0.014), ["environment"], {
   ext: true,
   pin: true,
 });
-part(() => box(0.14, 0.025, 0.1), ["environment"], {
-  pos: [0.2, topY(0.2) - 0.005, 0],
-  color: "#149C94",
-  anim: (m) => {
-    m.position.y = topY(0.2) - 0.012 + sim().s.env.scoop * 0.035;
+part(
+  () => box(ROOF_SCOOP.length, ROOF_SCOOP.thickness, ROOF_SCOOP.width).translate(ROOF_SCOOP.length / 2, 0, 0),
+  ["environment"],
+  {
+    pos: ROOF_SCOOP.hinge,
+    rot: [0, 0, scoopAngle(0)],
+    color: "#149C94",
+    anim: (m) => {
+      m.rotation.z = scoopAngle(sim().s.env.scoop);
+    },
+    name: "Overhead ram-air scoop (retractable)",
+    note: "Retractable scoop on top of the cabin feeding four individually controlled ceiling outlets; the knob above the pilot turns counter-clockwise to extend it — only as far as needed, for drag (OM p. 11). Hinge position and opening travel are schematic.",
+    ext: true,
+    pin: true,
   },
-  name: "Overhead ram-air scoop (retractable)",
-  note: "Retractable scoop on top of the cabin feeding four individually controlled ceiling outlets; the knob above the pilot turns counter-clockwise to extend it — only as far as needed, for drag (OM p. 11).",
-  ext: true,
-  pin: true,
-});
-[
-  [0.3, 0.3, -0.2],
-  [0.3, 0.3, 0.2],
-  [0.95, 0.3, -0.25],
-  [0.95, 0.3, 0.25],
-].forEach(([x, dy, z], i) =>
+);
+OVERHEAD.outlets.forEach((pos, i) =>
   part(() => sph(0.022), ["environment"], {
-    pos: [x, topY(x) - dy + 0.12, z],
+    pos,
     color: "#149C94",
     name: "Ceiling outlet",
     note: "Four individually controlled ceiling outlets: inner knob for volume, rotate to aim (OM p. 11).",

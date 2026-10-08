@@ -157,7 +157,7 @@ export const WIN = {
   windLower: [
     [1.68, 0.28],
     [1.5, 0.22],
-    [1.38, 0.6],
+    [1.38, 0.46],
   ],
   /** Door / pilot's window: forward edge parallel to the windshield post, flat top under the roofline, vertical aft edge (N6947N photo). */
   front: roundPoly(
@@ -185,8 +185,9 @@ export const WIN = {
   door: roundPoly(
     [
       [1.52, -0.3],
-      [1.5, 0.5],
-      [0.72, 0.5],
+      [1.5, 0.22],
+      [1.38, 0.48],
+      [0.72, 0.48],
       [0.7, -0.3],
     ],
     0.08,
@@ -211,13 +212,15 @@ export function windowOutlines(): THREE.Vector3[][] {
   loops.push(densify(WIN.door).map(([x, y]) => onSkin(x, y, 1, 1.008)));
   loops.push(densify(WIN.bag).map(([x, y]) => onSkin(x, y, 1, 1.008)));
   const side = (s: number) => densify(WIN.windLower, 0.03, false).map(([x, y]) => onSkin(x, y, s));
-  const ta = FUSE.thetaAt(1.38, 0.6),
-    tb = FUSE.thetaAt(1.68, 0.28);
+  const [topX, topHeight] = WIN.windLower.at(-1)!,
+    [bottomX, bottomHeight] = WIN.windLower[0];
+  const ta = FUSE.thetaAt(topX, topHeight),
+    tb = FUSE.thetaAt(bottomX, bottomHeight);
   loops.push([
     ...side(1),
-    ...fRing(1.38, 1.006, 40, ta, Math.PI - ta, false),
+    ...fRing(topX, 1.006, 40, ta, Math.PI - ta, false),
     ...side(-1).reverse(),
-    ...fRing(1.68, 1.006, 40, Math.PI - tb, tb, false),
+    ...fRing(bottomX, 1.006, 40, Math.PI - tb, tb, false),
   ] as Ring);
   loops.push(fRing(FW + 0.02, 1.004, 48));
   return loops;
@@ -319,13 +322,7 @@ export function paintSkin(): THREE.CanvasTexture {
     gr.addColorStop(1, "#131C24");
     return gr;
   };
-  path([
-    [1.68, 0.28],
-    [1.5, 0.22],
-    [1.38, 0.6],
-    [1.37, 1.0],
-    [1.7, 1.0],
-  ]);
+  path([...WIN.windLower, [1.37, 1.0], [1.7, 1.0]]);
   g.fillStyle = glass();
   g.fill();
   [WIN.front, WIN.rear].forEach((w) => {

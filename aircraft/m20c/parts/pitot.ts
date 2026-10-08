@@ -6,6 +6,7 @@ import { V } from "@/lib/math";
 
 import { PANEL_X, box, botY, cyl, onSkin, sph, tubeGeo, wingP } from "../geometry";
 import { hornLevel } from "../model";
+import { OVERHEAD } from "../placement";
 
 import { P, glow, part, sim, sysNow } from "./catalogue";
 
@@ -100,7 +101,7 @@ part(() => box(0.02, 0.012, 0.03), ["pitot"], {
   pin: true,
 });
 part(() => cyl(0.025, 0.03, "y", 16), ["pitot", "electrical"], {
-  pos: [1.0, 0.56, 0.0],
+  pos: OVERHEAD.horn,
   color: "#3A9448",
   anim: glow("#2A6A34", "#FF4A4A", () => hornLevel(sim().s, sim().E) > 0, ["pitot"]),
   name: "Stall warning horn",

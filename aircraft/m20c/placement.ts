@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { cutCowlInlets, inletContour, inletSkins, type CowlInlet } from "@/lib/cowl";
 import { loft, mergeGeos, sided } from "@/lib/geometry";
 import { D2R, V, clamp, type Vec3 } from "@/lib/math";
-import { FUSE, GROUND_Y, IN, MAIN_SPAR, PANEL_X, fs, fuselageGeo, onSkin, wingP, wingSec } from "./geometry";
+import { FUSE, GROUND_Y, IN, MAIN_SPAR, PANEL_X, fs, fuselageGeo, onSkin, topY, wingP, wingSec } from "./geometry";
 
 export const NG = { top: [2.3, -0.5, 0] as Vec3, wheel: [-0.12, -0.57, 0] as Vec3, r: 0.18, width: 0.11 };
 const track = (9 * 12 + 0.75) * IN;
@@ -82,6 +82,44 @@ export const CABIN = {
   baggageX: fs(93 * IN),
   shelfX: fs(114 * IN),
 };
+/** Point below the curved cabin roof, including its lateral tumblehome.
+ * Headliner depths are schematic fits to the skin, not measured installation dimensions. */
+export function headlinerPoint(x: number, z: number, depth: number): Vec3 {
+  let lo = FUSE.fus(x).cy,
+    hi = topY(x);
+  const point = V(x, lo, z);
+  for (let i = 0; i < 24; i++) {
+    const y = (lo + hi) / 2;
+    if (FUSE.inside(point.set(x, y, z))) lo = y;
+    else hi = y;
+  }
+  return [x, lo - depth, z];
+}
+/** OM p. 3: headliner lamps; p. 11: four ceiling outlets; Ranger 2-7: stall horn.
+ * Preserve the approximate fore/aft locations; place the full housings below the roof. */
+export const OVERHEAD = {
+  spotL: headlinerPoint(0.9, -0.25, 0.025),
+  spotR: headlinerPoint(0.9, 0.25, 0.025),
+  dome: headlinerPoint(0.4, 0, 0.03),
+  horn: headlinerPoint(1, 0, 0.02),
+  inlet: headlinerPoint(0.2, 0, 0.035),
+  outlets: [
+    [0.3, -0.2],
+    [0.3, 0.2],
+    [0.95, -0.25],
+    [0.95, 0.25],
+  ].map(([x, z]) => headlinerPoint(x, z, 0.027)),
+};
+/** Approximate aft-hinged roof scoop. Its opening edge rises while the rear stays on the skin. */
+export const ROOF_SCOOP = {
+  hinge: [0.13, topY(0.13) - 0.009, 0] as Vec3,
+  length: 0.14,
+  width: 0.1,
+  thickness: 0.025,
+};
+export const scoopAngle = (fraction: number) =>
+  Math.atan2(topY(ROOF_SCOOP.hinge[0] + ROOF_SCOOP.length) - topY(ROOF_SCOOP.hinge[0]), ROOF_SCOOP.length) +
+  clamp(fraction, 0, 1) * Math.asin(0.035 / ROOF_SCOOP.length);
 /** Schematic bungee package beneath the panel floor; its full animated envelope
  * stays between the floor underside and the traced belly. */
 export const GEAR_BUNGEE: Vec3 = [PANEL_X, CABIN.floor - 0.07, 0];
