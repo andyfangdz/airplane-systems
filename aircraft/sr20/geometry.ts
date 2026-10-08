@@ -1,3 +1,5 @@
+import { cutCowlInlets } from "@/lib/cowl";
+import { COWL_INLETS } from "../cowl-inlets";
 import { drawLivery, liveryLabels, tailTexture } from "../liveries";
 import { paintAtlas, sidePaintUV } from "@/lib/livery";
 /**
@@ -206,7 +208,7 @@ export function windowOutlines(): THREE.Vector3[][] {
 }
 
 /** Fuselage loft with side-projected UVs for the painted skin texture. */
-export const fuselageGeo = () => sidePaintUV(FUSE.geo({ step: 0.06, N: 48 }), SK);
+export const fuselageGeo = () => sidePaintUV(cutCowlInlets(FUSE.geo({ step: 0.06, N: 48 }), COWL_INLETS.sr20), SK);
 
 /** Paints N800KP’s photo-referenced stripes, window shapes and door seams (browser only). */
 export function paintSkin(): THREE.CanvasTexture {

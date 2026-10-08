@@ -1,5 +1,6 @@
-import { cowlOpeningGeo } from "@/lib/geometry";
-import { FUSE, Y } from "../geometry";
+import { COWL_INLETS } from "../../cowl-inlets";
+import { cowlOpeningGeo, mergeGeos } from "@/lib/geometry";
+import { FUSE } from "../geometry";
 /** C172S catalogue: propeller and engine — cylinders and ignition, oil, induction, exhaust, cooling, mount and engine controls. */
 import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
@@ -168,14 +169,20 @@ part(() => box(0.08, 0.06, 0.08), ["engine"], {
   note: "Speed sensor on the engine tachometer drive accessory pad, arm −8.0 → digital RPM to the GEA 71 (POH 7-31, 6-24). Shown on top of the rear accessory case between the magnetos; the pad's exact position is approximate (not in the POH).",
 });
 // induction
-part(() => box(0.06, 0.08, 0.2), ["engine"], {
-  pos: P3(-36.5, 0, 37.8),
-  color: "#1E2A33",
-  name: "Induction air intake",
-  note: "Ram air enters through an intake on the lower front of the cowl, through the air filter into the air box (POH 7-36).",
-  ext: true,
-  pin: true,
-});
+part(
+  () => {
+    const { y, z, width, height, exponent } = COWL_INLETS.c172s[2];
+    return mergeGeos([true, false].map((lip) => cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent, lip)));
+  },
+  ["engine"],
+  {
+    color: "#1E2A33",
+    name: "Induction air intake",
+    note: "Ram air enters through an intake on the lower front of the cowl, through the air filter into the air box (POH 7-36).",
+    ext: true,
+    pin: true,
+  },
+);
 part(() => box(0.08, 0.1, 0.16), ["engine"], {
   pos: P3(-27.5, 0, 38),
   color: "#C9B98F",
@@ -233,10 +240,12 @@ part(() => cyl(0.078, 0.26, "z"), ["environment", "engine"], {
   pin: true,
 });
 // cooling
-[1, -1].forEach((s) => {
+COWL_INLETS.c172s.slice(0, 2).forEach((inlet) => {
+  const { y, z, width, height, exponent } = inlet;
+  const s = Math.sign(z);
   part(
     () => {
-      return cowlOpeningGeo(FUSE.frontX, Y(53.3), s * 10.4 * IN, 0.245, 0.185, 3.2, true);
+      return cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent, true);
     },
     ["engine", "airframe"],
     {
@@ -249,7 +258,7 @@ part(() => cyl(0.078, 0.26, "z"), ["environment", "engine"], {
   );
   part(
     () => {
-      return cowlOpeningGeo(FUSE.frontX, Y(53.3), s * 10.4 * IN, 0.245, 0.185, 3.2);
+      return cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent);
     },
     ["engine", "airframe"],
     { color: "#0B1014", ext: true },

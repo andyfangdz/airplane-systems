@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { box, fRing, fs } from "../geometry";
+import { cowlOpeningGeo, mergeGeos } from "@/lib/geometry";
+import { COWL_INLETS } from "../../cowl-inlets";
+import { FUSE, fRing, fs } from "../geometry";
 import { part, shell } from "./catalogue";
 
 /* ---------- cowling inlets, exhaust ---------- */
@@ -22,12 +24,13 @@ shell(
   "Cowling nose",
   "Front face of the cowling around the spinner, with the two round cooling-air inlets (AFM 4A-9).",
 );
-[1, -1].forEach((s) => {
+COWL_INLETS.da40.slice(0, 2).forEach(({ y, z, width, height, exponent }) => {
+  const s = Math.sign(z);
   part(
     () => {
       const g = new THREE.TorusGeometry(0.078, 0.01, 12, 32);
       g.rotateY(Math.PI / 2);
-      g.translate(fs(0.47), 0.0, s * 0.26);
+      g.translate(fs(0.47), y, z);
       return g;
     },
     ["engine", "airframe"],
@@ -44,19 +47,22 @@ shell(
   );
   part(
     () => {
-      const g = new THREE.CircleGeometry(0.078, 32);
-      g.rotateY(Math.PI / 2);
-      g.translate(fs(0.475), 0.0, s * 0.26);
-      return g;
+      return cowlOpeningGeo(() => fs(0.478), y, z, width, height, exponent);
     },
     ["engine", "airframe"],
     { color: "#0B1014", ext: true },
   );
 });
-part(() => box(0.04, 0.05, 0.16), ["engine", "airframe"], {
-  pos: [fs(0.6), -0.27, 0],
-  color: "#1E2A33",
-  ext: true,
-  name: "Lower cowl inlet",
-  note: "Third cowling intake (AFM 4A-9 lists 3). Its position is not given in the documents and is assumed here.",
-});
+part(
+  () => {
+    const { y, z, width, height, exponent } = COWL_INLETS.da40[2];
+    return mergeGeos([true, false].map((lip) => cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent, lip)));
+  },
+  ["engine", "airframe"],
+  {
+    color: "#1E2A33",
+    ext: true,
+    name: "Lower cowl inlet",
+    note: "Third cowling intake (AFM 4A-9 lists 3). Its position is not given in the documents and is assumed here.",
+  },
+);

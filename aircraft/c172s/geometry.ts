@@ -1,3 +1,4 @@
+import { COWL_INLETS } from "../cowl-inlets";
 import { drawLivery, liveryLabels, tailTexture } from "../liveries";
 import { paintAtlas } from "@/lib/livery";
 /**
@@ -27,6 +28,7 @@ export { box, cyl, sph, tubeGeo, loft, sided } from "@/lib/geometry";
 export { taperTubeGeo, wheelFairingGeo } from "../cessna/airframe";
 
 export const SPEC: CessnaSpec = {
+  cowlInlets: COWL_INLETS.c172s,
   fsRef: 100,
   hRef: 49.25,
   // [FS, halfWidth, top h, bottom h] (in)

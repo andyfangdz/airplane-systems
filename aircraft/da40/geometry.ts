@@ -1,3 +1,5 @@
+import { cutCowlInlets } from "@/lib/cowl";
+import { COWL_INLETS } from "../cowl-inlets";
 import { drawLivery, liveryLabels, tailTexture } from "../liveries";
 import { paintAtlas, sidePaintUV } from "@/lib/livery";
 /**
@@ -317,7 +319,7 @@ export const fixedFuselageGeo = () => {
   out.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
   out.setIndex(idx);
   out.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
-  return out;
+  return cutCowlInlets(out, COWL_INLETS.da40);
 };
 
 /** Paints N949KC’s gray sweeping graphics, canopy and rear windows (browser only). */

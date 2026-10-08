@@ -230,7 +230,7 @@ export function hingeFairingGeo(length: number, depth: number, width: number) {
   );
 }
 
-/** A conformal dark inlet or its narrow lip on the front of a cowling.
+/** A conformal open inlet throat or its narrow lip on the front of a cowling.
  * Shape dimensions are photo fits, not duct/engineering dimensions. */
 export function cowlOpeningGeo(
   frontX: (y: number, z: number) => number,
@@ -241,18 +241,18 @@ export function cowlOpeningGeo(
   exponent = 3,
   lip = false,
 ) {
-  const radii = lip ? [0.9, 1] : [0, 0.25, 0.5, 0.75, 0.9];
-  const rings = radii.map((r) =>
+  const radii = lip ? [0.9, 1] : [0.9, 0.9];
+  const rings = radii.map((r, row) =>
     Array.from({ length: 48 }, (_, i) => {
       const a = (i / 48) * Math.PI * 2,
         yy = y + ((r * height) / 2) * Math.sign(Math.sin(a)) * Math.abs(Math.sin(a)) ** (2 / exponent),
         zz = z + ((r * width) / 2) * Math.sign(Math.cos(a)) * Math.abs(Math.cos(a)) ** (2 / exponent);
-      return V(frontX(yy, zz) + (lip ? 0.006 : 0.003), yy, zz);
+      return V(frontX(yy, zz) + (lip ? 0.006 : 0.003 - row * 0.08), yy, zz);
     }),
   );
   const g = loft(rings, { caps: false });
   const idx = g.index!;
-  for (let i = 0; i < idx.count; i += 3) {
+  for (let i = 0; lip && i < idx.count; i += 3) {
     const b = idx.getX(i + 1);
     idx.setX(i + 1, idx.getX(i + 2));
     idx.setX(i + 2, b);

@@ -1,3 +1,4 @@
+import { COWL_INLETS } from "../cowl-inlets";
 import { drawLivery, liveryLabels, tailTexture } from "../liveries";
 import { paintAtlas } from "@/lib/livery";
 /**
@@ -31,6 +32,7 @@ export { box, cyl, sph, tubeGeo, loft, sided } from "@/lib/geometry";
 export { taperTubeGeo, wheelFairingGeo } from "../cessna/airframe";
 
 export const SPEC: CessnaSpec = {
+  cowlInlets: COWL_INLETS.c182t,
   fsRef: 100,
   hRef: 50.375,
   // [FS, halfWidth, top h, bottom h] (in). A deep cowl with a pronounced chin (induction filter below the spinner), a slab-sided

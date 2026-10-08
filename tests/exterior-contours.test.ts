@@ -22,7 +22,7 @@ describe.each([skyhawk, skylane])("Cessna local cross sections", (af) => {
       }
     }
   });
-  it("projects cooling openings onto the nose with forward-facing normals", () => {
+  it("projects inlet lips onto the nose and leaves their throats open", () => {
     const f = af.FUSE;
     for (const side of [-1, 1]) {
       for (const lip of [false, true]) {
@@ -31,8 +31,12 @@ describe.each([skyhawk, skylane])("Cessna local cross sections", (af) => {
           n = g.attributes.normal;
         for (let i = 0; i < p.count; i++) {
           const x = f.frontX(p.getY(i), p.getZ(i));
-          expect(p.getX(i)).toBeCloseTo(x + (lip ? 0.006 : 0.003), 5);
-          expect(n.getX(i)).toBeGreaterThanOrEqual(0);
+          if (lip) {
+            expect(p.getX(i)).toBeCloseTo(x + 0.006, 5);
+            expect(n.getX(i)).toBeGreaterThanOrEqual(0);
+          } else {
+            expect(Math.min(Math.abs(p.getX(i) - x - 0.003), Math.abs(p.getX(i) - x + 0.077))).toBeLessThan(1e-5);
+          }
           expect(f.inside(new THREE.Vector3(x - 0.002, p.getY(i), p.getZ(i)))).toBe(true);
           expect(f.inside(new THREE.Vector3(x + 0.002, p.getY(i), p.getZ(i)))).toBe(false);
         }

@@ -1,5 +1,6 @@
-import { cowlOpeningGeo } from "@/lib/geometry";
-import { FUSE, Y } from "../geometry";
+import { COWL_INLETS } from "../../cowl-inlets";
+import { cowlOpeningGeo, mergeGeos } from "@/lib/geometry";
+import { FUSE } from "../geometry";
 /**
  * C182T catalogue: propeller and engine: IO-540, cylinders and plugs, magnetos, oil, induction, exhaust and heater shrouds,
  * cooling and cowl flaps, engine mount and engine controls.
@@ -187,14 +188,20 @@ part(() => box(0.04, 0.04, 0.03), ["engine"], {
   pin: true,
 });
 // induction (POH 7-35)
-part(() => box(0.05, 0.1, 0.24), ["engine"], {
-  pos: P3(-43.6, 0, 39),
-  color: "#1E2A33",
-  name: "Induction air intake",
-  note: "Ram air through an intake on the lower front of the cowling, covered by the air filter (POH 7-35).",
-  ext: true,
-  pin: true,
-});
+part(
+  () => {
+    const { y, z, width, height, exponent } = COWL_INLETS.c182t[2];
+    return mergeGeos([true, false].map((lip) => cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent, lip)));
+  },
+  ["engine"],
+  {
+    color: "#1E2A33",
+    name: "Induction air intake",
+    note: "Ram air through an intake on the lower front of the cowling, covered by the air filter (POH 7-35).",
+    ext: true,
+    pin: true,
+  },
+);
 part(() => box(0.08, 0.1, 0.2), ["engine"], {
   pos: P3(-35.2, 0, 39),
   color: "#C9B98F",
@@ -243,10 +250,12 @@ CYLS.forEach((c) =>
   });
 });
 // cooling and cowl flaps (POH 7-37)
-[1, -1].forEach((s) => {
+COWL_INLETS.c182t.slice(0, 2).forEach((inlet) => {
+  const { y, z, width, height, exponent } = inlet;
+  const s = Math.sign(z);
   part(
     () => {
-      return cowlOpeningGeo(FUSE.frontX, Y(53.0), s * 11.2 * IN, 0.27, 0.19, 3.2, true);
+      return cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent, true);
     },
     ["engine", "airframe"],
     {
@@ -259,7 +268,7 @@ CYLS.forEach((c) =>
   );
   part(
     () => {
-      return cowlOpeningGeo(FUSE.frontX, Y(53.0), s * 11.2 * IN, 0.27, 0.19, 3.2);
+      return cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent);
     },
     ["engine", "airframe"],
     { color: "#0B1014", ext: true },

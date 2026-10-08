@@ -1,14 +1,17 @@
 /** Cowl inlets: induction (right) and cooling (left). */
 import * as THREE from "three";
+import { cowlOpeningGeo } from "@/lib/geometry";
+import { COWL_INLETS } from "../../cowl-inlets";
 import { part } from "./catalogue";
 
 /* ---------- cowl inlets ---------- */
-[1, -1].forEach((s) => {
+COWL_INLETS.sr20.forEach(({ y, z, width, height, exponent }) => {
+  const s = Math.sign(z);
   part(
     () => {
       const g = new THREE.TorusGeometry(0.075, 0.018, 8, 20);
       g.rotateY(Math.PI / 2);
-      g.translate(3.748, -0.13, s * 0.22);
+      g.translate(3.748, y, z);
       return g;
     },
     ["engine", "airframe"],
@@ -25,10 +28,7 @@ import { part } from "./catalogue";
   );
   part(
     () => {
-      const g = new THREE.CircleGeometry(0.075, 20);
-      g.rotateY(Math.PI / 2);
-      g.translate(3.746, -0.13, s * 0.22);
-      return g;
+      return cowlOpeningGeo(() => 3.743, y, z, width, height, exponent);
     },
     ["engine", "airframe"],
     { color: "#0B1014", ext: true },
