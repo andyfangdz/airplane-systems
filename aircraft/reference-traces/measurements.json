@@ -58,27 +58,27 @@
   "c172s": {
     "fuselageUpper": {
       "samples": 16,
-      "beforeMean": 0.119,
-      "afterMean": 0.119,
-      "afterMax": 0.267
+      "beforeMean": 0.249,
+      "afterMean": 0.249,
+      "afterMax": 0.405
     },
     "fuselageLower": {
       "samples": 11,
-      "beforeMean": 0.173,
-      "afterMean": 0.173,
-      "afterMax": 0.351
+      "beforeMean": 0.265,
+      "afterMean": 0.265,
+      "afterMax": 0.542
     },
     "finLE": {
       "samples": 7,
-      "beforeMean": 0.032,
-      "afterMean": 0.032,
-      "afterMax": 0.074
+      "beforeMean": 0.201,
+      "afterMean": 0.201,
+      "afterMax": 0.348
     },
     "finTE": {
       "samples": 4,
-      "beforeMean": 0.186,
-      "afterMean": 0.186,
-      "afterMax": 0.424
+      "beforeMean": 0.354,
+      "afterMean": 0.354,
+      "afterMax": 0.615
     },
     "wingLE": {
       "samples": 5,
@@ -114,27 +114,27 @@
   "c182t": {
     "fuselageUpper": {
       "samples": 13,
-      "beforeMean": 0.252,
-      "afterMean": 0.252,
-      "afterMax": 0.415
+      "beforeMean": 0.093,
+      "afterMean": 0.093,
+      "afterMax": 0.186
     },
     "fuselageLower": {
       "samples": 12,
-      "beforeMean": 0.137,
-      "afterMean": 0.137,
-      "afterMax": 0.258
+      "beforeMean": 0.197,
+      "afterMean": 0.197,
+      "afterMax": 0.485
     },
     "finLE": {
       "samples": 9,
-      "beforeMean": 0.197,
-      "afterMean": 0.197,
-      "afterMax": 1.092
+      "beforeMean": 0.523,
+      "afterMean": 0.363,
+      "afterMax": 0.53
     },
     "finTE": {
       "samples": 5,
-      "beforeMean": 0.037,
-      "afterMean": 0.037,
-      "afterMax": 0.074
+      "beforeMean": 0.229,
+      "afterMean": 0.229,
+      "afterMax": 0.447
     },
     "wingLE": {
       "samples": 5,

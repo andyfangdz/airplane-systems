@@ -158,7 +158,7 @@ for (const id of Object.keys(refs)) {
 <path class="before" d="M280,730 h35"/><text x="325" y="735" font-size="14">Before this audit</text>
 <path class="after" d="M525,730 h35"/><text x="570" y="735" font-size="14">Current geometry</text>
 <text x="40" y="775" font-size="13">Component curves include hidden portions. Reference line thickness and registration limit precision; these are not engineering tolerances.</text>
-<text x="40" y="798" font-size="13">Cessna side/front drawings are schematic: retain photo-checked contours where projections disagree. See README.md.</text>
+<text x="40" y="798" font-size="13">Cessna side views use uniform length scale and hub registration; schematic residuals are not measured aircraft errors. See RESOLUTION.md.</text>
 </svg>`;
   writeFileSync(path.join(folder, `${id}.svg`), svg);
 }
@@ -169,5 +169,46 @@ if (revision) {
   writeFileSync(path.join(folder, "measurements.json"), JSON.stringify(metrics, null, 2) + "\n");
   mkdirSync(path.join(root, ".shots"), { recursive: true });
   writeFileSync(path.join(root, ".shots/trace-after.json"), JSON.stringify(models));
-  console.log("Updated four comparison SVGs and measurements.json");
+  // Close-up of the resolved feature. Station x is independently cross-checked;
+  // heights remain the model's approximate blend, not a manufacturer loft.
+  const dorsalPoint = ([x, y]) => [70 + (100 - x / 0.0254 - 120) * 5, 105 + (112 - (y / 0.0254 + 50.375)) * 6];
+  const dorsalPath = (points) =>
+    points
+      .map(
+        (p, i) =>
+          (i ? "L" : "M") +
+          dorsalPoint(p)
+            .map((v) => v.toFixed(2))
+            .join(","),
+      )
+      .join(" ");
+  const ticks = [140, 160, 180, 200, 220, 240, 260, 280]
+    .map((fs) => {
+      const x = 70 + (fs - 120) * 5;
+      return `<path d="M${x},100 V485" stroke="#e3e8ee"/><text x="${x}" y="508" text-anchor="middle">${fs}</text>`;
+    })
+    .join("");
+  writeFileSync(
+    path.join(folder, "resolution-dorsal.svg"),
+    `<svg xmlns="http://www.w3.org/2000/svg" width="980" height="620" viewBox="0 0 980 620">
+<rect width="980" height="620" fill="white"/><style>text{font:16px system-ui,sans-serif;fill:#243340}path{fill:none;stroke-linejoin:round;stroke-linecap:round}</style>
+<text x="35" y="38" style="font-size:25px;font-weight:700">C182T: extend the dorsal fairing forward</text>
+<text x="35" y="68">Maintenance station drawing and side photographs agree on the long transition.</text>
+${ticks}
+<path d="M170,105 V485" stroke="#21855a" stroke-width="2" stroke-dasharray="4 4"/>
+<text x="185" y="135" fill="#21855a">Approximate onset near FS 140</text>
+<text x="185" y="158">MM 6-15-00, Fig 1 (PDF 121)</text>
+<g stroke-width="3" clip-path="url(#plot)">
+<path stroke="#d98235" stroke-dasharray="7 5" d="${dorsalPath(baseline.c182t.finLE)}"/>
+<path stroke="#0089ae" d="${dorsalPath(models.c182t.finLE)}"/>
+<path stroke="#4b5965" d="${dorsalPath(models.c182t.fuselageUpper)}"/>
+</g><defs><clipPath id="plot"><rect x="70" y="100" width="830" height="385"/></clipPath></defs>
+<text x="300" y="537">Fuselage station (inches aft of firewall) →</text>
+<path stroke="#d98235" stroke-width="3" stroke-dasharray="7 5" d="M40,565 h35"/><text x="85" y="570">Previous fin</text>
+<path stroke="#0089ae" stroke-width="3" d="M265,565 h35"/><text x="310" y="570">Corrected fin</text>
+<path stroke="#4b5965" stroke-width="3" d="M500,565 h35"/><text x="545" y="570">Fuselage crown</text>
+<text x="35" y="603" style="font-size:14px">Component outlines include buried roots. Heights are an approximate blend; this is not a dimensioned loft.</text>
+</svg>`,
+  );
+  console.log("Updated four comparison SVGs, dorsal close-up and measurements.json");
 }

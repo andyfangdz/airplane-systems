@@ -69,3 +69,46 @@ it("DA40 horizontal tail retains the AFM §1.4 total area after clipping its lea
   for (let i = 0; i < n; i++) area += (da40.sC(i * dz) + da40.sC((i + 1) * dz)) * dz;
   expect(Math.abs(area - 2.34)).toBeLessThan(0.02);
 });
+
+it("C182 maintenance station drawing's dorsal fairing remains visible ahead of FS 185", () => {
+  // 182/T182 MM 6-15-00 Fig 1 (PDF 121): the fillet starts near FS 140.
+  // A shell that skips the shallow profile breaks used to clip this region off.
+  const cat = FLEET.find((d) => d.id === "c182t")!.labels!.cat;
+  const geo = cat.shells.find((s) => s.name === "Vertical stabilizer")!.geo();
+  try {
+    const p = geo.attributes.position;
+    const visible: number[] = [];
+    for (let i = 0; i < p.count; i++) {
+      const fs = c182.FS(p.getX(i));
+      if (p.getY(i) > c182.topY(p.getX(i)) + 0.005) visible.push(fs);
+    }
+    // Broad allowance for the junction hidden by the rounded tailcone, not a
+    // manufacturer tolerance. The old assembled shell began aft of FS 200.
+    expect(Math.min(...visible)).toBeGreaterThan(135);
+    expect(Math.min(...visible)).toBeLessThan(165);
+  } finally {
+    geo.dispose();
+  }
+});
+
+it("stored reference points reproduce their declared pixel calibration", () => {
+  for (const reference of Object.values(traces)) {
+    for (const trace of Object.values(reference.traces)) {
+      const c = reference.calibrations[trace.view as keyof typeof reference.calibrations];
+      trace.pixels.forEach(([x, y], i) => {
+        for (const axis of [0, 1]) {
+          const world = c.worldOrigin[axis] + c.u[axis] * (x - c.pixelOrigin[0]) + c.v[axis] * (y - c.pixelOrigin[1]);
+          expect(Math.abs(trace.points[i][axis] - world)).toBeLessThan(0.00006);
+        }
+      });
+    }
+  }
+});
+
+it("Cessna side comparisons register the hub without stretching the drawing", () => {
+  for (const id of ["c172s", "c182t"] as const) {
+    const c = traces[id].calibrations.side;
+    expect(c.worldOrigin[1]).toBe(0);
+    expect(Math.abs(c.u[0])).toBe(Math.abs(c.v[1]));
+  }
+});

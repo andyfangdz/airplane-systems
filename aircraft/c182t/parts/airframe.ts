@@ -110,7 +110,8 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
     "Forward and aft spar, ribs and stiffeners, centre upper and lower skins and two left and two right wraparound skins that form the leading edges. It also contains the elevator trim tab actuator (POH 7-6). Span 11'-8\" (POH 1-3).",
   );
 });
-const finHs = [46.5, 54, 61.8, 63, 64.3, 66, 69.5, 74.2, 80, 85, 92, 100, 106, 108.4, 109.6].map(Y);
+// Include every profile break; skipping a shallow dorsal station clips the fairing off.
+const finHs = [...new Set([...AF.FIN.map(([h]) => h), ...[54, 80, 92].map(Y)])].sort((a, b) => a - b);
 shell(
   () => sidePaintUV(loft(finHs.map((h) => finSec(h, 0, finCut(h)))), TAIL_PAINT_BOX),
   "Vertical stabilizer",

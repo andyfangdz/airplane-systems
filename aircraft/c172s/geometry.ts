@@ -17,8 +17,9 @@ import { paintAtlas } from "@/lib/livery";
  * (BL ±68), wheelbase 65.0 in (nose axle FS −6.8, main axles FS 58.2 — POH 6-21), prop 76 in.
  * Wing: 64 in constant chord to BL 100, tapering to 44.5 in at the tip (Jane's, via the research sheet),
  * LE at FS 25 (LEMAC FS 25.90, MAC 58.8 in — POH 6-5), dihedral 1°44', NACA 2412.
- * Fuselage heights come from POH Figure 6-6 cabin heights and a side photo of a 172S
- * (N793SP, Wikimedia Commons); the POH side view is not to scale vertically (research note).
+ * Fuselage heights are approximate photo fits (N793SP, Wikimedia Commons), not a calibrated reconstruction.
+ * POH internal cabin dimensions do not independently verify this exterior loft. See reference-traces/RESOLUTION.md
+ * for the side drawing calibration limits.
  */
 import * as THREE from "three";
 import { cessnaAirframe, skinPainter, type CessnaSpec } from "../cessna/airframe";
