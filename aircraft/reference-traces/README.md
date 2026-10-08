@@ -1,6 +1,6 @@
 # Handbook outline traces
 
-Detailed follow-up to the [photo audit](../GEOMETRY_AUDIT.md), October 8, 2026. These comparisons identify and correct specific outline errors in all four study models. They **do not establish that every surface is dimensionally exact**. The remaining discrepancies are shown, including ones that did not improve.
+Detailed follow-up to the [photo audit](../GEOMETRY_AUDIT.md), October 8, 2026. These comparisons identify and correct specific outline errors in all four study models. They **do not establish that every surface is dimensionally exact**. The remaining discrepancies are shown, including ones that did not improve. **The numeric comparisons establish drawing–model discrepancies, not proven drawing–photo contradictions.** The photographs were reviewed qualitatively and are not calibrated well enough to determine which source or model is wrong in the disputed regions.
 
 ## References
 
@@ -28,7 +28,7 @@ Black: manually digitized handbook outlines. Orange dashed: model at `3c6bd83dfa
 - The fin previously used SR22/SR22T vertical stations, giving a fin-top height of 2.924 m above the modeled ground. The SR20 G6 POH specifies 8.9 ft (2.713 m). Rescale the fin, rudder, horn joint, hinge and attached trim/weight/wick details together; lower the NAV antenna to the new fin top, retaining longitudinal proportions. This is a height correction, not a claim that the older SR22 station table is an SR20 manufacturing drawing.
 - The leading edge swept aft too much, and wingtip rounding began 0.64 m inboard. The drawing has an almost straight leading edge followed by a short curved end. Reduce the sweep and confine the tip curvature to the last 0.29 m; add mesh stations near its steep end.
 - The mean reference-to-outline distances for the sampled wing leading/trailing edges improve from 0.076/0.043 m to 0.030/0.021 m under the recorded calibration. These are drawing-fit diagnostics, not real-aircraft tolerances.
-- Retain the cabin and horizontal-tail tables: their general contours agree, but the cabin roof is still higher than the schematic trace. The side photo supports retaining its rounded crown. The fin root/tailcone junction and glazing remain approximations.
+- Retain the cabin and horizontal-tail tables: their general contours agree, but the cabin roof is still higher than the schematic trace. The side photo shows a rounded crown but does not establish that the model’s roof height is more accurate than the drawing. The fin root/tailcone junction and glazing remain approximations.
 
 ### C172S
 
@@ -37,15 +37,15 @@ Black: manually digitized handbook outlines. Orange dashed: model at `3c6bd83dfa
 - The previous rounded wing end retained only 45% of the nominal tip chord; the drawing shows a broad conical-camber cap. Preserve 85% at the end, with small corner rounding.
 - The stabilizer/elevator tips also narrowed excessively (38% remaining chord). Preserve 90% and restrict the C172 corner rounding to the outer 3 inches. Both the fixed stabilizer and moving elevator use the shared corrected section functions.
 - The traced final wing/tail chords are approximately 0.97/0.55 m; the corrected model sections are approximately 0.96/0.57 m. Comparing chord width removes the fore-aft registration offset that affects absolute edge residuals.
-- Do not force the side-view fuselage or wing height to match this diagram: its cabin crown, belly and front-view wing height disagree with the photo-based station tables. The handbook also specifies a particular ground attitude/strut extension and includes tip lights in the span. Those differences remain visible and unresolved in the plots.
+- The model’s cabin crown, belly and front-view wing height differ from the drawing trace. The station tables were previously fitted to photos, but that history is not independent evidence that they are correct. The available oblique photos partly obscure the cabin roof and do not resolve these discrepancies. The handbook also specifies a particular ground attitude/strut extension and includes tip lights in the span. Those differences remain visible and unresolved in the plots.
 
 ### C182T
 
 ![C182T outline comparison](c182t.svg)
 
 - Apply the same broad Cessna wing and tail end caps using the 182's own dimensions. The final wing/tail chords change from approximately 0.47/0.32 m to 0.90/0.76 m, compared with about 0.80/0.71 m in the digitized drawing.
-- Keep the source-backed straight/tapered wing panels and swept fin. The source shows a longer dorsal transition than the current model, and the side/front drawings disagree with the photo fit in cabin height and ground attitude. The horizontal tail also has a fore-aft registration discrepancy. These have **not** been resolved by this audit.
-- The supplied N8050J front-quarter photograph and N775CP side photo support the existing rounded cowl, cabin shoulder and rising tailcone belly. Changing these to follow the schematic side projection would discard the prior photo fit without an adequately calibrated replacement.
+- Keep the source-backed straight/tapered wing panels and swept fin. The source shows a longer dorsal transition than the current model, and the side/front drawing traces differ from the model in cabin/wing height; ground attitude also affects the comparison. This is not a demonstrated contradiction between the drawing and photographs. The horizontal tail also has a fore-aft registration discrepancy. These have **not** been resolved by this audit.
+- The supplied N8050J front-quarter photograph and N775CP side photo show a rounded cowl and a belly rising toward the tail; the drawing also shows those features. They do not prove the model’s exact cabin height, belly slope or dorsal-fairing length. In particular, the gradual dorsal fairing in the photo does not disprove the longer fairing in the drawing. These retained model contours need further calibrated comparison.
 
 ### DA40
 
