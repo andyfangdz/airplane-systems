@@ -1480,8 +1480,13 @@ export function drawStandbyAirspeed(ctx: Ctx, W: number, H: number, ias: number,
 
 /** Round standby altimeter: 100 ft, 1,000 ft and 10,000 ft hands, Kollsman window (inHg). */
 export function drawStandbyAltimeter(ctx: Ctx, W: number, H: number, alt: number, baro: number) {
-  const [cx, cy, r] = dialFrame(ctx, W, H),
-    u = r / 100;
+  const [cx, cy, r] = dialFrame(ctx, W, H);
+  drawAltimeterDial(ctx, cx, cy, r, alt, baro);
+}
+
+/** Three-hand sensitive-altimeter face, reusable inside an aircraft-specific bezel. `r` is the face radius. */
+export function drawAltimeterDial(ctx: Ctx, cx: number, cy: number, r: number, alt: number, baro: number) {
+  const u = r / 100;
   for (let i = 0; i < 50; i++) {
     const a = (i / 50) * Math.PI * 2,
       big = i % 5 === 0;

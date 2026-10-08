@@ -5,7 +5,7 @@
  * the shared flight-state integrator. Continuous values go to `live`; discrete changes go through the store.
  */
 import { clamp, lerp } from "@/lib/math";
-import { pitchFor, stepFlight, yokeCmd, type FlightState, type NavSrc } from "@/lib/avionics/flight";
+import { navReceiverValid, pitchFor, stepFlight, yokeCmd, type FlightState } from "@/lib/avionics/flight";
 import { gfc700Command, gfc700Engaged, gfc700Fail, gfc700Power, gfc700Tick } from "@/lib/avionics/gfc700";
 import { stepNav3Soc } from "../cessna/electrical";
 import { vacuumInHg } from "../cessna/tick";
@@ -40,7 +40,6 @@ const magLive = (s: Sim) => {
         ? ok("R")
         : false;
 };
-const navValid = (src: NavSrc, E: Elec) => (src === "GPS" ? E.gia1 || E.gia2 : src.endsWith("1") ? E.gia1 : E.gia2);
 /** Trim position → pitch attitude the airplane settles at hands-off (teaching model). */
 export const trimPitch = (trim: number) => 2.8 + trim * 5;
 
@@ -252,7 +251,7 @@ function stepAir(s: Sim, E: Elec, P: number, dt: number) {
     power: P,
     oat: s.pitot.oat,
     fail: { att: !E.ahrs, hdg: !E.ahrs, air: !E.adc },
-    navValid: navValid(live.fs.navSrc, E),
+    navValid: navReceiverValid(live.fs.navSrc, E.gia1, E.gia2),
   };
   // the flight director runs in GIA 1 and shows on the PFD; the AUTO PILOT breaker (AVIONICS BUS 2) powers only the servos, so
   // losing it leaves the FD with AFCS shown (AP and MET unavailable — CRG 117) and disconnects an engaged AP

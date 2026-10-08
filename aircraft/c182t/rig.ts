@@ -67,11 +67,14 @@ export const RIG_SPEC: RigSpec = {
     ],
     actuator: [233, 10, 46.4],
     tabBl: 16,
+    tabChord: 0.12,
+    tabSpan: 0.62,
   },
   steer: { fs: -3, h: 30.5, half: 3 },
   // the tail servos sit on the cables above the tailcone floor, near the centreline (the rounded belly is narrow there)
   servo: {
-    roll: [52, 4, 79.2],
+    // Approximate BL clears the console and front shoulder-harness reels; source arm is unchanged.
+    roll: [52, 7.2, 79.2],
     pitch: [158.8, 2.5, 37.5],
     trim: [176.4, -2.5, 40.5],
     names: {
@@ -110,12 +113,15 @@ export function aftLinks(pitch: number, elevAngle: number, elevPivot: Vec3, elev
 }
 
 /* ---------- rudder trim: horizontal wheel on the pedestal, shaft down to the rudder-bar bungee ---------- */
-/** Horizontal rudder trim wheel low on the pedestal, its rim through the aft face (Fig 7-2 item 25); the shaft runs down from it. */
+/** Horizontal wheel low on the pedestal, reached through the aft face (Fig 7-2 item 25).
+ * Mounting dimensions are illustrative: keep the vertical shaft ahead of the separate floor fuel selector,
+ * and the wheel above its handle throughout selector travel. */
+const rudTrimWheel: Vec3 = [X(24), Y(29.4), Z(0)];
 export const RUD_TRIM = {
-  wheel: [X(25.6), Y(28.8), Z(0)] as Vec3,
+  wheel: rudTrimWheel,
+  indicator: [X(27.6), rudTrimWheel[1] + 0.02, rudTrimWheel[2]] as Vec3,
   r: 2.6 * IN,
   bias: 0.22,
-  shaftTop: 28.8,
   shaftBot: 25.5,
 };
 /** Rudder trim bungee: from the base of the trim shaft to the rudder bar arm (moves with the pedals and the trim setting). */

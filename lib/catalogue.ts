@@ -8,7 +8,6 @@ import { loft, type Ring } from "./geometry";
 import { sidePaintUV, type PaintBox } from "./livery";
 import { V, toVec3, type Vec3 } from "./math";
 import type { Chan, SysId } from "./systems";
-import { narrowLayout } from "./view";
 
 /** Per-frame hook for parts that animate or change material with the sim (t = clock seconds). */
 export type PartAnim = (mesh: THREE.Mesh, t: number) => void;
@@ -136,6 +135,8 @@ export class Catalogue {
     const spec: PartSpec = { id: this.uid(o.name || "part"), geo, sys, ...o };
     this.parts.push(spec);
     this.byParent.clear();
+    this.pins.clear();
+    this.pinIds.clear();
     return spec;
   };
 
@@ -236,8 +237,8 @@ export class Catalogue {
   };
 
   /** Does this part carry the label pin in the given system view? (`pin`, `pinIn`, then the airplane's label lists.) */
-  isPinned = (spec: PartSpec, sys: SysId) => {
-    const nar = !!this.labels.narrow && narrowLayout(),
+  isPinned = (spec: PartSpec, sys: SysId, narrow = false) => {
+    const nar = !!this.labels.narrow && narrow,
       key = nar ? sys + ":narrow" : sys;
     let s = this.pinIds.get(key);
     if (!s) {

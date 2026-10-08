@@ -9,6 +9,7 @@ import { FW, PANEL_X, box, botY, cyl } from "../geometry";
 import { live } from "../model";
 
 import { fires, glow, knobAnim, part, sim } from "./catalogue";
+import { EQUIPMENT } from "../placement";
 
 /* ---------- propeller: Hartzell HC-C2YK-1B / 7666A-2, 74 in ---------- */
 export const PROP: Vec3 = [3.07, 0, 0];
@@ -124,7 +125,7 @@ part(() => box(0.06, 0.08, 0.1), ["engine", "electrical"], {
   pin: true,
 });
 part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
-  pos: [2.78, -0.24, 0.18],
+  pos: EQUIPMENT.starter,
   color: "#4B5860",
   anim: glow("#4B5860", "#E7B416", () => sim().E.starterOn, ["engine", "electrical"]),
   name: "Starter",
@@ -132,14 +133,14 @@ part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
   pin: true,
 });
 part(() => box(0.1, 0.12, 0.1), ["engine", "fuel"], {
-  pos: [2.58, -0.33, 0],
+  pos: EQUIPMENT.carburetor,
   color: "#7E8A93",
   name: "Carburetor (Marvel-Schebler MA-4-5)",
   note: "Updraft float carburetor under the sump (Ranger 1-3). Its accelerator pump is the only primer: pump the throttle twice with the boost pump on (OM p. 15). Mixture to idle cut-off stops the engine (OM p. 24).",
   pin: true,
 });
 part(() => box(0.14, 0.1, 0.16), ["engine"], {
-  pos: [2.7, -0.32, 0],
+  pos: EQUIPMENT.airbox,
   color: "#C9B98F",
   anim: (m) => {
     m.material = sim().s.eng.carbHeat > 0.5 ? mats("#E0B040").on : mats("#C9B98F").on;
@@ -149,7 +150,7 @@ part(() => box(0.14, 0.1, 0.16), ["engine"], {
   pin: true,
 });
 part(() => box(0.03, 0.08, 0.1), ["engine"], {
-  pos: [2.6, -0.37, 0.09],
+  pos: EQUIPMENT.carbHeatValve,
   color: "#E0B040",
   anim: (m) => {
     m.rotation.z = sim().s.eng.carbHeat * 1.1;
@@ -160,10 +161,10 @@ part(() => box(0.03, 0.08, 0.1), ["engine"], {
   pinIn: [],
 });
 part(() => cyl(0.055, 0.28, "z"), ["engine", "environment"], {
-  pos: [2.45, -0.36, 0.05],
+  pos: EQUIPMENT.exhaust,
   color: "#8A5A3C",
   name: "Exhaust manifold & muffler",
-  note: "Crossover exhaust under the engine; the cabin heat muff surrounds it (OM p. 10). A cracked muff lets exhaust into the cabin heat — the classic Mooney CO hazard.",
+  note: "Crossover exhaust under the engine; the cabin heat muff surrounds it (OM p. 10). The schematic housing is aft of the carburetor, with separate occupied space; exact mounting coordinates are not dimensioned in the manual. A cracked muff lets exhaust into the cabin heat — the classic Mooney CO hazard.",
   pin: true,
 });
 part(
@@ -182,7 +183,7 @@ part(
   },
   ["environment", "engine"],
   {
-    pos: [2.45, -0.36, 0.05],
+    pos: EQUIPMENT.exhaust,
     color: "#E0522B",
     fairing: true,
     name: "Heat muff",

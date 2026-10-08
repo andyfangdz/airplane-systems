@@ -120,11 +120,12 @@ part(() => box(0.1, 0.12, 0.14), ["engine"], {
   note: "Paper filter screen just inside the right cowl inlet. (Costanzo deck)",
   pin: true,
 });
+export const OIL_FILTER: Vec3 = [2.83, -0.02, 0.21];
 part(() => cyl(0.045, 0.11, "x"), ["engine"], {
-  pos: [2.8, -0.02, 0.18],
+  pos: OIL_FILTER,
   color: "#1F3A5A",
   name: "Oil filter (full-flow)",
-  note: "Spin-on filter at the accessory case, next to the magnetos. (Costanzo deck)",
+  note: "Spin-on filter at the accessory case, next to the magnetos. (Costanzo deck) Case dimensions and mounting coordinates are approximate.",
   pin: true,
 });
 // under the front of the engine, just forward of the oil sump (x ≤ 3.355) and above the cowl bottom; clear of ALT 1 / ALT 2 (|z| ≥ 0.15)
@@ -142,14 +143,16 @@ part(() => box(0.03, 0.08, 0.1), ["engine"], {
   name: "Alternate air door",
   note: "On the engine induction air manifold (POH Section 7, Alternate Air Control); shown on its face just aft of the filter, above ALT 1 — the exact position is approximate. The ALT AIR – PULL knob opens it: bypasses the filter with warm, unfiltered air.",
 });
+/** Representative exhaust assembly, outboard of the sump; exact mounting coordinates are not documented. */
+export const MUFFLER: Vec3 = [3.04, -0.44, 0.285];
 part(() => cyl(0.06, 0.28, "z"), ["engine", "environment"], {
-  pos: [3.04, -0.44, 0.22],
+  pos: MUFFLER,
   color: "#8A5A3C",
   name: "Muffler",
-  note: "Single muffler; exhaust exits through the lower cowl. Placed on the right with the heat muff and mixing chamber per the POH environmental section and the Costanzo deck photo (the POH engine paragraph says left).",
+  note: "Single muffler; exhaust exits through the lower cowl. Placed on the right with the heat muff and mixing chamber per the POH environmental section and the Costanzo deck photo (the POH engine paragraph says left). Size and mounting coordinates are approximate.",
 });
 part(() => cyl(0.08, 0.2, "z"), ["environment", "engine"], {
-  pos: [3.04, -0.44, 0.22],
+  pos: MUFFLER,
   color: "#E0522B",
   fairing: true,
   name: "Heat exchanger (muff)",

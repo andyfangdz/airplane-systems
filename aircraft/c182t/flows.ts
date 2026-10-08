@@ -8,7 +8,23 @@ import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
 import { Z, wingP } from "./geometry";
 import { govRpm, live, rpmFine, type Elec, type Sim } from "./model";
-import { CYLS, DIVIDER, GOVERNOR, JBOX, KAP, MANIFOLD, P3, PITOT, PV, STALL_VANE, STATIC_PORTS } from "./parts";
+import {
+  CYLS,
+  DIVIDER,
+  GOVERNOR,
+  INTAKES,
+  JBOX,
+  KAP,
+  MANIFOLD,
+  NOZZLES,
+  P3,
+  PITOT,
+  PV,
+  STALL_HORN,
+  STALL_VANE,
+  STATIC_PORTS,
+  fuelManifoldPath,
+} from "./parts";
 import { CABLES, RIG_SPEC } from "./rig";
 import { NAV3_BL } from "../cessna/faceplate";
 
@@ -24,18 +40,12 @@ const FUEL = "#2F7FE6",
 [1, -1].forEach((s) => {
   const sd = s > 0 ? "R" : "L";
   // particles only: the manifold tube itself is a catalogue part
-  flow(
-    "fuel" + sd,
-    [
-      wp(s * 24.5, 0.62, -1, 0.02),
-      P3(65, s * 19.4, 78),
-      P3(65, s * 19.4, 30),
-      P3(40, s * 8, 26.8),
-      P3(27.5, s * 2.5, 25.4),
-    ],
-    ["fuel"],
-    { tube: false, pcolor: "#5FA0FF", size: 0.05, name: (s > 0 ? "Right" : "Left") + " tank supply" },
-  );
+  flow("fuel" + sd, fuelManifoldPath(s), ["fuel"], {
+    tube: false,
+    pcolor: "#5FA0FF",
+    size: 0.05,
+    name: (s > 0 ? "Right" : "Left") + " tank supply",
+  });
   flow(
     "ret" + sd,
     [
@@ -75,7 +85,7 @@ flow("fuelServo", [P3(-6, -6, 44), P3(-10, -5, 38), P3(-20, -1, 35.5), P3(-22, 0
   color: FUEL,
   name: "Engine-driven pump → fuel/air control unit",
 });
-// outside the crankcase box (parts/engine.ts: FS −40.5…−6.7, BL ±8.7, h 42.7–54.5): aft under the oil sump (bottom h 35.1), up behind the
+// outside the crankcase box (parts/engine.ts: FS −40.5…−6.7, BL ±8.7, h 42.7–54.5): aft under the oil sump (bottom h 37.9), up behind the
 // block's aft face between the oil filter (BL ±1.6) and the vacuum pump / right magneto (BL ≥ 3.7), clear of the right heat duct,
 // then forward over the tach sensor into the transducer
 flow(
@@ -101,18 +111,13 @@ flow(
     note: "From the servo under the engine, through the flow transducer on the engine centerline, to the flow divider on top (POH 7-40, 7-41). The routing is approximate.",
   },
 );
-/** Injector nozzle positions (match the catalogue's nozzle parts). */
-export const NOZZLES = CYLS.map((c) => {
-  const b = P3(c.fs, c.s * 12, 50);
-  return [b[0] - 0.02, b[1] - 0.11, b[2] + c.s * 0.07] as Vec3;
-});
 CYLS.forEach((c, i) =>
-  flow("inj" + c.n, [DIVIDER, P3(c.fs, c.s * 7, 59), P3(c.fs - 0.8, c.s * 18.4, 51), NOZZLES[i]], ["fuel", "engine"], {
+  flow("inj" + c.n, [DIVIDER, P3(c.fs, c.s * 7, 59), P3(c.fs - 0.8, c.s * 17, 51), NOZZLES[i]], ["fuel", "engine"], {
     r: 0.004,
     color: FUEL,
     count: 5,
     name: "Injector line, cylinder " + c.n,
-    note: "Flow divider → air-bleed nozzle in the cylinder's intake (POH 7-36).",
+    note: "Flow divider → air-bleed nozzle in the cylinder's intake (POH 7-36). Routing around the cylinder heads is approximate.",
   }),
 );
 flow(
@@ -152,11 +157,11 @@ flow(
 flow(
   "oil",
   [
-    P3(-24, 0, 38.5),
+    P3(-24, 0, 40.25),
     P3(-8, -2, 42),
     P3(-4.5, 0, 47.5),
     P3(-14, 8, 53),
-    P3(-11.4, -13, 56),
+    P3(-11.4, -12.6, 54.9),
     P3(-22, -7, 54.5),
     P3(-32, -7, 54),
   ],
@@ -185,7 +190,7 @@ flow(
     note: "The governing pump boosts engine oil to the hub piston: pressure in = higher pitch (lower RPM); relieved = lower pitch (POH 7-37).",
   },
 );
-flow("intake", [P3(-43.6, 0, 39), P3(-35.2, 0, 39), P3(-29, 0, 38), P3(-22, 0, 35)], ["engine"], {
+flow("intake", [P3(-43.6, 0, 39), P3(-35.2, 0, 39), P3(-32, 0, 36), P3(-29, 0, 36), P3(-22, 0, 35)], ["engine"], {
   tube: false,
   pcolor: "#8FD3E8",
   size: 0.06,
@@ -198,8 +203,8 @@ flow("altAir", [P3(-29, -12, 33), P3(-29, -5, 33), P3(-22, 0, 35)], ["engine"], 
   name: "Alternate air (unfiltered)",
 });
 const MUF = (s: number, fs: number) => P3(clamp(fs, -30, -18.5), s * 9.5, 33.5);
-CYLS.forEach((c) => {
-  flow("man" + c.n, [P3(-22, 0, 36.5), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 12, 45.5)], ["engine"], {
+CYLS.forEach((c, i) => {
+  flow("man" + c.n, INTAKES[i], ["engine"], {
     tube: false,
     pcolor: "#8FD3E8",
     count: 4,
@@ -385,7 +390,7 @@ flow(
     wp(-92, 0.12, 0),
     wp(-30, 0.16, 0),
     wp(-19, 0.14, 0, -0.04),
-    P3(40, -19, 78),
+    STALL_HORN,
   ],
   ["pitot"],
   {

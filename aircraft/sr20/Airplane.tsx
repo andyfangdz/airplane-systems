@@ -235,7 +235,8 @@ const rates = () => {
 };
 const flowColor = (k: string, out: THREE.Color) => {
   if (!isCabinAir(k)) return false;
-  cabinAirColor(useSR20.getState().s, out);
+  const { s, E } = useSR20.getState();
+  cabinAirColor(s, E, out);
   return true;
 };
 

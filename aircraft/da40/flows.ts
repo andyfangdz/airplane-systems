@@ -5,7 +5,19 @@ import { V, toVec3, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { FW, PANEL_X, ROLLBAR_X, botY, fs, wingP } from "./geometry";
 import { fuelAvail, hornLevel, live, type Elec, type Sim } from "./model";
-import { CBP_Z, CYLS, DEFROST_X, ENCL, PITOT_Z, RB_NOZZLE, SEL, STALL_HOSE, pitotBase } from "./parts";
+import {
+  ALTERNATOR,
+  CBP_Z,
+  CYLS,
+  DEFROST_X,
+  ENCL,
+  PITOT_Z,
+  RB_NOZZLE,
+  SEL,
+  STALL_HOSE,
+  STARTER,
+  pitotBase,
+} from "./parts";
 import { CABLES } from "./rig";
 
 const F: FlowSpec[] = [];
@@ -408,14 +420,14 @@ flow("batEss", [RELAY, [FW + 0.02, 0.0, 0.34], [PANEL_X + 0.1, -0.05, 0.4], CBP]
 // down from the relay box, under the main battery, outboard of the alternate air door, into the starter
 flow(
   "start",
-  [RELAY, [fs(1.29), -0.27, 0.3], [fs(1.2), -0.26, 0.25], [fs(0.8), -0.21, 0.27], [fs(0.64), -0.22, 0.16]],
+  [RELAY, [fs(1.29), -0.27, 0.3], [fs(1.2), -0.26, 0.25], [fs(0.8), -0.21, 0.27], STARTER],
   ["electrical", "engine"],
   { r: 0.016, color: "#B0761A", name: "Starter cable", note: "START relay → starter (~160 A, AFM 7-41 figure)." },
 );
 flow(
   "alt",
   [
-    [fs(0.64), -0.18, -0.17],
+    ALTERNATOR,
     [fs(1.0), -0.3, -0.3],
     [FW + 0.02, -0.1, -0.2],
     [PANEL_X + 0.1, -0.08, 0.2],

@@ -31,6 +31,7 @@ const TONE = {
 
 export function Kap140Unit({ st, fs, onKey, onSet, loc }: Kap140UnitProps) {
   const lcd = useRef<HTMLCanvasElement>(null);
+  const engagePress = useRef(false);
   useEffect(() => {
     const c = lcd.current,
       ctx = c?.getContext("2d");
@@ -53,7 +54,23 @@ export function Kap140Unit({ st, fs, onKey, onSet, loc }: Kap140UnitProps) {
         </div>
         <canvas ref={lcd} width={800} height={200} className="avx-lcd" role="img" aria-label={summary} />
         <div className="avx-kap-keys">
-          {(["AP", "HDG", "NAV", "APR", "REV", "ALT"] as const).map((k) => (
+          <HoldKey
+            label="AP"
+            disabled={!live}
+            holdMs={250}
+            onDown={() => {
+              engagePress.current = !st.ap;
+              if (st.ap) onKey("AP");
+            }}
+            onHold={() => {
+              if (engagePress.current) onKey("AP");
+            }}
+            onUp={() => {
+              engagePress.current = false;
+            }}
+            title="Hold 0.25 s to engage; press to disengage (S3-8)"
+          />
+          {(["HDG", "NAV", "APR", "REV", "ALT"] as const).map((k) => (
             <Key key={k} label={k} onClick={() => onKey(k)} disabled={!live} />
           ))}
           <div className="avx-stack">

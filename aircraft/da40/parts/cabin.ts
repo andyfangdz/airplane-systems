@@ -25,7 +25,7 @@ part(() => box(0.38, 0.14, 0.12), ["cabin", "environment", "gear"], {
   name: "Small centre console",
   note: "Under the panel: CABIN HEAT lever (left), DEFROST/FLOOR lever (centre) and PARKING BRAKE lever (AFM 7-13, 7-18; SMM Fig. 2-1).",
 });
-part(() => box(0.7, 0.16, 0.18), ["cabin"], {
+part(() => box(0.7, 0.16, 0.14), ["cabin"], {
   pos: [fs(2.25), -0.42, 0],
   color: "#39424A",
   name: "Large centre console",

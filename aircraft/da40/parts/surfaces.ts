@@ -79,11 +79,7 @@ const hp = (s: number, z: number, xc: number) => {
     eo = [HZ + 0.002, 1.56, SSPAN];
   surface(
     "elev",
-    () => [
-      ...ez.map((z) => stabSec(z, HF, 1)),
-      ...eh.map((z) => stabSec(z, EF(z), 1)),
-      ...eo.map((z) => stabSec(z, HF, 1)),
-    ],
+    () => [...ez.map((z) => stabSec(z, HF, 1)), ...TAB.notch(eh, EF), ...eo.map((z) => stabSec(z, HF, 1))],
     V(ELEV_HINGE_X, SY, -SSPAN),
     V(ELEV_HINGE_X, SY, SSPAN),
     ["controls"],
@@ -128,12 +124,12 @@ const WICK = "#2A2F33";
     note: wickNote,
     ext: true,
   });
-  [1.6, 2.6, 3.6].forEach((z, i) =>
+  [1.6, 2.0, 2.4, 2.8, 3.2, 3.6].forEach((z, i) =>
     part(() => box(0.11, 0.035, 0.02), ["flaps"], {
-      pos: toVec3(wingP(s * z, 0.77, -1).add(V(-0.02, -0.02, 0))),
+      pos: toVec3(wingP(s * z, FLAP.hinge, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name: "Flap hinge bracket",
-      note: "Aluminium hinge bracket; the hinge pin is held by a roll pin — a lost roll pin can let the hinge pin walk out (AFM 7-5). Six hinges per flap.",
+      note: "Aluminium hinge bracket; the hinge pin is held by a roll pin — a lost roll pin can let the hinge pin walk out (AFM 7-5). Six hinges per flap; span positions are illustrative (stations not supplied in the AFM).",
       ext: true,
       pin: s > 0 && i === 0,
     }),
@@ -176,12 +172,6 @@ const WICK = "#2A2F33";
     ext: true,
   });
 });
-onSurf("elev", V(ELEV_HINGE_X - 0.27, SY, 0.0), () => cyl(0.004, 0.1, "x", 6), {
-  color: WICK,
-  name: "Static discharger",
-  note: wickNote,
-  ext: true,
-});
 onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x", 6), {
   color: WICK,
   name: "Static discharger",
@@ -206,29 +196,20 @@ onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.0
 // elevator trim tab rides on the elevator and turns about its own hinge with the trim position
 {
   const pv = surfacePivot("elev"),
-    xh = ELEV_HINGE_X - 0.22 + TAB.chord,
-    zc = (TAB.z0 + TAB.z1) / 2;
-  part(
-    () => {
-      const g = box(TAB.chord, 0.008, Math.abs(TAB.z1 - TAB.z0));
-      g.translate(-TAB.chord / 2, 0, 0);
-      return g;
+    axis = V(...TAB.axis);
+  part(TAB.geo, ["controls"], {
+    parent: "surf:elev",
+    chan: ["elevator"],
+    pos: [TAB.pivot[0] - pv[0], TAB.pivot[1] - pv[1], TAB.pivot[2] - pv[2]],
+    color: "#9F85E6",
+    ext: true,
+    pin: true,
+    // nose-up trim puts the tab trailing edge down, so the air load holds the elevator trailing edge up (+ rotation = TE down)
+    anim: (m) => {
+      const t = live.afcs.trim;
+      m.quaternion.setFromAxisAngle(axis, (t > 0 ? t * 12 : t * 39) * D2R);
     },
-    ["controls"],
-    {
-      parent: "surf:elev",
-      chan: ["elevator"],
-      pos: [xh - pv[0], SY - pv[1], zc - pv[2]],
-      color: "#9F85E6",
-      ext: true,
-      pin: true,
-      // nose-up trim puts the tab trailing edge down, so the air load holds the elevator trailing edge up (+ rotation = TE down)
-      anim: (m) => {
-        const t = live.afcs.trim;
-        m.rotation.z = t > 0 ? t * 12 * D2R : t * 39 * D2R;
-      },
-      name: "Elevator trim tab",
-      note: "One GFRP tab in the middle of the elevator trailing edge, behind the top of the fin. Walk-around: visual inspection, check the locking wire (AFM 4A-7). Two cranked levers from the actuator bracket at the fin top drive it: the left one by the Bowden cable from the trim wheel (also moved by the GFC 700 trim servo), the right one through a friction damper that stops the tab fluttering if the cable fails (AMM 27-38-00). Tab travel with the elevator neutral: nose up 12° trailing edge down, nose down 39° trailing edge up (TCDS +12° / −39°). Span approximate.",
-    },
-  );
+    name: "Elevator trim tab",
+    note: "One GFRP tab in the middle of the elevator trailing edge, behind the top of the fin. Walk-around: visual inspection, check the locking wire (AFM 4A-7). Two cranked levers from the actuator bracket at the fin top drive it: the left one by the Bowden cable from the trim wheel (also moved by the GFC 700 trim servo), the right one through a friction damper that stops the tab fluttering if the cable fails (AMM 27-38-00). Tab travel with the elevator neutral: nose up 12° trailing edge down, nose down 39° trailing edge up (TCDS +12° / −39°). Span, chord and clearances are illustrative.",
+  });
 }

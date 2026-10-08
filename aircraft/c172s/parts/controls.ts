@@ -249,14 +249,14 @@ part(() => box(0.06, 0.035, 0.05), ["controls"], {
     pin: i === 0,
   });
 });
-part(() => cyl(0.006, 0.22, "x"), ["controls", "cabin"], {
-  pos: P3(18.5, -13.5, 59),
+part(() => cyl(0.006, 0.05), ["controls", "cabin"], {
+  pos: P3(19, -RIG_SPEC.yoke.bl, RIG_SPEC.yoke.h),
   color: "#C8313B",
   anim: (m) => {
     m.visible = S().cabin.lock;
   },
   name: "Control lock",
-  note: "Steel rod and flag through the pilot's column shaft and collar: ailerons neutral, elevator slightly TE down; the flag covers the ignition switch. “CAUTION! CONTROL LOCK REMOVE BEFORE STARTING ENGINE” (POH 7-28, 2-23).",
+  note: "Steel rod and flag through the pilot's column shaft and collar: ailerons neutral, elevator slightly TE down; the flag covers the ignition switch. “CAUTION! CONTROL LOCK REMOVE BEFORE STARTING ENGINE” (POH 7-28, 2-23). Only the locking pin is shown; its size and mounting position are illustrative.",
   pin: true,
 });
 

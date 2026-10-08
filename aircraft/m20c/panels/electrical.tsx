@@ -20,9 +20,10 @@ import { CAT } from "../parts";
 import { useM20C } from "../store";
 import { PowerDiagram } from "./distribution";
 
-const SWK: (keyof Sim["sw"])[] = ["fuelPump", "pitotHeat", "beacon", "nav", "landing"];
+type Breaker = { label: string; amps?: number; key?: keyof Sim["sw"] };
+const PUSH_BREAKERS: Breaker[] = PUSH_CB.map(([label, amps]) => ({ label, amps }));
 
-function Chips({ items, kind }: { items: [string, number?][]; kind: "switch" | "push" }) {
+function Chips({ items, kind }: { items: readonly Breaker[]; kind: "switch" | "push" }) {
   const E = useM20C((x) => x.E),
     cb = useM20C((x) => x.s.cb),
     up = useM20C((x) => x.update);
@@ -40,7 +41,7 @@ function Chips({ items, kind }: { items: [string, number?][]; kind: "switch" | "
           : "Lower right of the co-pilot's panel, under the breaker cover (OM p. 4); names inferred from the Ranger schematic"}
       </div>
       <div className="loads">
-        {items.map(([n, a]) => (
+        {items.map(({ label: n, amps: a, key }) => (
           <button
             key={n}
             type="button"
@@ -56,7 +57,7 @@ function Chips({ items, kind }: { items: [string, number?][]; kind: "switch" | "
                 if (d.cb[n]) delete d.cb[n];
                 else {
                   d.cb[n] = true;
-                  if (kind === "switch") d.sw[SWK[SWITCH_CB.findIndex(([m]) => m === n)]] = false;
+                  if (key) d.sw[key] = false;
                 }
               })
             }
@@ -295,7 +296,7 @@ export function Electrical() {
       <H3>Breakers — tap to trip or reset</H3>
       <div className="buses">
         <Chips items={SWITCH_CB} kind="switch" />
-        <Chips items={PUSH_CB} kind="push" />
+        <Chips items={PUSH_BREAKERS} kind="push" />
       </div>
       <H3>What the bus feeds (OM p. 3)</H3>
       <Facts

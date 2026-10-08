@@ -1,46 +1,33 @@
 /** M20C landing gear: manual Johnson bar and its sockets, torque tube, mains and nose gear with rubber discs, brakes, lights and horn. */
 
-import { type Vec3 } from "@/lib/math";
+import { V, type Vec3 } from "@/lib/math";
 
-import { FW, PANEL_X, box, botY, cyl, sph, tubeGeo, wY } from "../geometry";
+import { FW, PANEL_X, box, cyl, sph, tubeGeo } from "../geometry";
 import { gearHorn, gearLights, live } from "../model";
-import { JBAR, PEDALS } from "../rig";
+import { JBAR, PEDALS, johnsonTip } from "../rig";
+import { GEAR_BUNGEE, MG, NG, NOSE_WELL, mainAxle, mainWellGeo, noseDoorGeo } from "../placement";
+export { MG, NG } from "../placement";
 import { brake, glow, knobAnim, part, sim } from "./catalogue";
 
 /* ---------- landing gear: manual Johnson bar, rubber shock discs ---------- */
-/** Main gear: trunnion on the main spar at the wing root; the leg reaches outboard and down to the axle (track 9 ft 0¾ in). */
-export const MG = { x: 0.6, y: -1.03, z: 1.38, r: 0.22, trunnion: [0.62, -0.5, 0.95] as Vec3 };
-export const NG = { top: [2.3, -0.5, 0] as Vec3, wheel: [0.0, -0.57, 0] as Vec3, r: 0.18 };
 [1, -1].forEach((s) => {
   const parent = s > 0 ? "mainR" : "mainL",
-    nm = s > 0 ? "Right" : "Left";
-  // leg from the trunnion (group origin) outboard and down to the axle
-  part(
-    () =>
-      tubeGeo(
-        [
-          [0, 0, 0],
-          [0.0, -0.14, s * 0.18],
-          [-0.02, -0.53, s * 0.43],
-        ],
-        0.03,
-        0.2,
-      ),
-    ["gear"],
-    {
-      parent,
-      color: "#6E7A84",
-      name: nm + " main gear leg",
-      note: "Welded steel-tube gear structure on a trunnion at the main spar; retracts inboard into the wing well by direct mechanical linkage from the cabin lever (OM p. 6).",
-      ext: true,
-      pin: s > 0,
-    },
-  );
-  [0.16, 0.2, 0.24, 0.28].forEach((h, i) =>
+    nm = s > 0 ? "Right" : "Left",
+    axle = mainAxle(s);
+  // Near-vertical leg from the spar trunnion to the dimensioned ground axle.
+  part(() => tubeGeo([[0, 0, 0], [axle[0] * 0.35, axle[1] * 0.35, axle[2] * 0.35], axle], 0.03, 0.2), ["gear"], {
+    parent,
+    color: "#6E7A84",
+    name: nm + " main gear leg",
+    note: "Welded steel-tube gear structure on a trunnion immediately aft of the main spar; retracts inboard into the wing well by direct mechanical linkage from the cabin lever (OM p. 6). Track and wheelbase follow the three-view; the trunnion mounting offset, leg recess and folding linkage are schematic fits, not maintenance rigging dimensions.",
+    ext: true,
+    pin: s > 0,
+  });
+  [0.32, 0.4, 0.48, 0.56].forEach((t, i) =>
     part(() => cyl(0.05, 0.03, "y", 16), ["gear"], {
       parent,
-      pos: [0, -h, s * (0.06 + h * 0.85)],
-      rot: [0.5 * s, 0, 0],
+      pos: [axle[0] * t, axle[1] * t, axle[2] * t],
+      rot: [0, 0, -Math.atan2(axle[0], -axle[1])],
       color: "#1E2226",
       name: "Rubber shock discs",
       note: "Stacks of rubber discs are the only shock absorption — no oleos (OM p. 6). Aged discs sag and let the airplane sit low; check them on every walk-around (Ranger 3-3).",
@@ -48,9 +35,9 @@ export const NG = { top: [2.3, -0.5, 0] as Vec3, wheel: [0.0, -0.57, 0] as Vec3,
       pin: s > 0 && i === 0,
     }),
   );
-  part(() => cyl(MG.r, 0.15, "z", 28), ["gear"], {
+  part(() => cyl(MG.r, MG.width, "z", 28), ["gear"], {
     parent,
-    pos: [-0.02, -0.53, s * 0.43],
+    pos: axle,
     color: "#2A2F33",
     name: nm + " main wheel",
     note: "6.00 × 6 tyre, 30 psi (Ranger 1-4; OM p. 27).",
@@ -59,7 +46,7 @@ export const NG = { top: [2.3, -0.5, 0] as Vec3, wheel: [0.0, -0.57, 0] as Vec3,
   });
   part(() => cyl(0.12, 0.03, "z", 20), ["gear"], {
     parent,
-    pos: [-0.02, -0.53, s * 0.34],
+    pos: [axle[0], axle[1], axle[2] - s * (MG.width / 2 + 0.02)],
     color: "#9AA3AA",
     anim: brake(s > 0 ? "R" : "L"),
     name: "Disc brake",
@@ -67,22 +54,41 @@ export const NG = { top: [2.3, -0.5, 0] as Vec3, wheel: [0.0, -0.57, 0] as Vec3,
     ext: true,
     pin: s > 0,
   });
-  part(() => box(0.5, 0.02, 0.3), ["gear"], {
-    pos: [MG.trunnion[0] - 0.05, wY(s * 0.75) - 0.12, s * 0.7],
+  part(() => box(0.5, 0.48, 0.012), ["gear"], {
+    parent,
+    pos: [axle[0], axle[1] + 0.035, s * 0.065],
     color: "#C9D0D5",
     fairing: true,
     name: "Main gear door",
-    note: "Clamshell doors at the wing root close the wheel well as the gear comes up; the wheel swings inboard and up to lie in the well beside the fuselage (OM p. 6; TCDS: mains retract inward).",
+    note: "Gear door shown with the folding leg; it lies below the stowed tire in the wing well (OM p. 6; TCDS: mains retract inward). Door outline and attachment are schematic; the wheel and door remain outside the cabin throughout retraction.",
     ext: true,
     pin: s > 0,
   });
-  part(() => tubeGeo([[1.3, -0.6, s * 0.25], [0.9, -0.66, s * 0.45], MG.trunnion], 0.008), ["gear"], {
-    name: "Brake line (" + (s > 0 ? "R" : "L") + ")",
-    note: "Master cylinder → wheel brake cylinder; fluid from the reservoir on the top aft side of the firewall, shared with the flap system (OM p. 10).",
+  part(() => mainWellGeo(s), ["gear", "airframe"], {
+    name: nm + " main wheel well",
+    note: "Wheel well behind the main spar and fuel bay, outside the cabin floor, with a narrow recess for the folded leg, shock discs and assist spring. Its walls follow the wing skins; the exact well outline is a schematic clearance envelope.",
+    color: "#8C959C",
+    fairing: true,
   });
-  part(() => cyl(0.01, 0.25, "z"), ["gear"], {
+  part(
+    () =>
+      tubeGeo(
+        [
+          [1.3, -0.6, s * 0.25],
+          [0.9, -0.66, s * 0.45],
+          [MG.trunnion[0], MG.trunnion[1], s * MG.trunnion[2]],
+        ],
+        0.008,
+      ),
+    ["gear"],
+    {
+      name: "Brake line (" + (s > 0 ? "R" : "L") + ")",
+      note: "Master cylinder → wheel brake cylinder; fluid from the reservoir on the top aft side of the firewall, shared with the flap system (OM p. 10).",
+    },
+  );
+  part(() => cyl(0.01, 0.16, "y"), ["gear"], {
     parent,
-    pos: [0.1, -0.05, s * 0.12],
+    pos: [axle[0] * 0.3 + 0.03, axle[1] * 0.3, axle[2] * 0.3],
     color: "#E0B040",
     name: "Gear assist spring",
     note: "Assist springs in the wing and bungee springs in the fuselage balance the weight of the gear so the bar can be swung by hand (OM p. 6).",
@@ -120,9 +126,9 @@ part(
     pin: i === 0,
   }),
 );
-part(() => cyl(NG.r, 0.11, "z", 24), ["gear"], {
+part(() => cyl(NG.r, NG.width, "z", 24), ["gear"], {
   parent: "nose",
-  pos: [-0.12, -0.57, 0],
+  pos: NG.wheel,
   color: "#2A2F33",
   name: "Nose wheel",
   note: "5.00 × 5 tyre, 30 psi (Ranger 1-4; OM p. 27). Linked directly to the rudder pedals for steering (OM p. 15).",
@@ -138,14 +144,32 @@ part(() => box(0.06, 0.03, 0.2), ["gear", "controls"], {
   note: "Steering rods from the rudder pedals turn the strut; retraction disconnects the steering and centres the wheel (Ranger 2-12).",
   pin: true,
 });
-part(() => box(0.24, 0.012, 0.26), ["gear"], {
-  pos: [2.15, botY(2.15) + 0.04, 0.14],
-  color: "#C9D0D5",
+// Raised housing ahead of the panel, between the two footwells (OM p. 9).
+part(() => box(0.5, 0.014, NOSE_WELL.halfWidth * 2), ["gear", "cabin"], {
+  pos: [1.79, NOSE_WELL.roof, 0],
+  color: "#8C959C",
   fairing: true,
-  name: "Nose gear doors",
-  note: "Two doors close the nose wheel well.",
-  ext: true,
+  name: "Nose wheel well",
+  note: "Raised wheel-well housing ahead of the panel, between the pilot's and co-pilot's footwells. Roof and wall dimensions are schematic clearance envelopes; the retracted tire stays below the roof.",
 });
+[-1, 1].forEach((s) =>
+  part(() => box(0.5, 0.43, 0.012), ["gear", "cabin"], {
+    pos: [1.79, NOSE_WELL.roof - 0.215, s * NOSE_WELL.halfWidth],
+    color: "#8C959C",
+    fairing: true,
+    name: "Nose wheel well side wall",
+  }),
+);
+[-1, 1].forEach((s) =>
+  part(() => noseDoorGeo(s), ["gear"], {
+    parent: "noseDoor" + (s > 0 ? "R" : "L"),
+    color: "#C9D0D5",
+    fairing: true,
+    ext: true,
+    name: "Nose gear door",
+    note: "One of two curved nose wheel-well doors, fitted to the actual lower-cowl aperture. The schematic inclined hinges and 4 mm panel thickness are approximate; the linkage holds the doors open while the tire passes, then closes them over the retracted gear.",
+  }),
+);
 // Johnson bar and its sockets
 part(
   () => {
@@ -171,14 +195,18 @@ part(() => sph(0.03), ["gear"], {
   pin: true,
 });
 part(() => box(0.05, 0.06, 0.05), ["gear"], {
-  pos: [JBAR.pivot[0] + JBAR.len * Math.sin(JBAR.downAng), JBAR.pivot[1] + JBAR.len * Math.cos(JBAR.downAng) + 0.02, 0],
+  pos: johnsonTip(0)
+    .add(V(0, 0.02, 0))
+    .toArray() as Vec3,
   color: "#3F4B54",
   name: "Down-lock socket",
   note: "Under the instrument panel between the seats; the handle locks in here with the gear down. The red light means the handle is not sufficiently engaged (OM p. 6).",
   pin: true,
 });
 part(() => box(0.06, 0.03, 0.05), ["gear"], {
-  pos: [JBAR.pivot[0] - JBAR.len * 0.96, JBAR.pivot[1] + 0.02, 0],
+  pos: johnsonTip(1)
+    .add(V(0, 0.02, 0))
+    .toArray() as Vec3,
   color: "#3F4B54",
   name: "Up-lock socket",
   note: "In the floor between the seats, aft of the pivot: the handle latches here with the gear up (OM p. 6). 'Clear floor for retraction handle clearance' is a pre-take-off item (OM p. 18).",
@@ -192,13 +220,13 @@ part(() => cyl(0.02, 1.0, "z"), ["gear"], {
   pin: true,
 });
 part(() => box(0.03, 0.1, 0.03), ["gear"], {
-  pos: [JBAR.pivot[0] + 0.25, JBAR.pivot[1] - 0.01, 0],
+  pos: GEAR_BUNGEE,
   color: "#E0B040",
   anim: (m) => {
     m.rotation.z = (1 - live.gearFrac) * 0.8 - 0.4;
   },
   name: "Gear bungee springs",
-  note: "Bungee-type springs in the fuselage balance the gear weight through the retraction (OM p. 6).",
+  note: "Bungee-type springs in the fuselage balance the gear weight through the retraction (OM p. 6). The package dimensions and mounting below the panel floor are schematic; its full travel stays inside the belly and clear of the floor.",
   pin: true,
 });
 // gear lights, horn and the throttle switch

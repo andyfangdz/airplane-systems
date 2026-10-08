@@ -6,6 +6,7 @@ import { V, type Vec3 } from "@/lib/math";
 import { PANEL_X, box, cyl, sph, wingP } from "../geometry";
 
 import { P, glow, part, sim } from "./catalogue";
+import { EQUIPMENT } from "../placement";
 
 /* ---------- fuel system ---------- */
 [1, -1].forEach((s) => {
@@ -73,7 +74,7 @@ part(
   },
 );
 part(() => box(0.08, 0.07, 0.07), ["fuel", "electrical"], {
-  pos: [1.82, -0.62, -0.2],
+  pos: EQUIPMENT.boost,
   color: "#2F7FE6",
   anim: glow("#245C9E", "#7FB8FF", () => sim().E.fuelPump, ["fuel", "electrical"]),
   name: "Electric boost pump",

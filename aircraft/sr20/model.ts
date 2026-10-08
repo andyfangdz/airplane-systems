@@ -133,7 +133,7 @@ export function solve(s: Sim): Elec {
   const alt2 = run && e.alt2 && !e.fail.alt2 && (e.bat1 || e.bat2) && cb("ALT 2"); // ALT 2 field from ESS BUS 2
   const bat1Life = alt2 ? 30 : 15;
   // time on batteries counts whether or not the engine turns (stopping it must not bring a flat battery back)
-  const bat1Dead = e.fail.bat1 || (!alt1 && e.bat1 && t >= bat1Life);
+  const bat1Dead = e.fail.bat1 || (!alt1 && t >= bat1Life);
   const bat2Dead = !alt1 && !alt2 && t >= 60;
   const bat1ok = e.bat1 && !bat1Dead;
   const bat2ok = e.bat2 && !bat2Dead && cb("BAT 2");

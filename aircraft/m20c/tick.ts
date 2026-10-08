@@ -46,14 +46,22 @@ export function simTick(dt: number) {
       ign = s.eng.key !== "OFF";
     // windmilling relight: fuel back at the carburetor with the ignition on and the mixture rich (OM p. 21: throttle back first)
     const relight =
-      s.air && !cranking && live.rpm > 500 && avail && ign && s.eng.mix > 0.3 && live.fuelP >= 0.5 && !flooded;
+      s.air &&
+      !cranking &&
+      live.rpm > 500 &&
+      avail &&
+      ign &&
+      s.eng.mix > 0.3 &&
+      live.fuelP >= 0.5 &&
+      !flooded &&
+      live.carbIce < 1;
     if (relight) {
       live.prime = 0;
       live.fireT = -1;
       up((d) => {
         d.eng.running = true;
       });
-    } else if (cranking && avail && ign && E.vibrator) {
+    } else if (cranking && avail && ign && E.vibrator && live.carbIce < 1) {
       const primed = live.prime >= 1 && !flooded;
       const fires = (primed && live.crankT > 1.2) || (!flooded && live.prime < 1 && s.eng.mix > 0.3 && live.crankT > 5);
       // it fires: "hold start switch on for another second then allow the spring loaded switch to return to BOTH"
@@ -79,9 +87,11 @@ export function simTick(dt: number) {
   if (s.eng.running) {
     if (live.fireT >= 0) {
       live.fireT += dt;
-      if (live.fireT > 3) live.fireT = -1;
+      if (s.eng.mix > 0.05) live.fireT = -1;
     }
-    const cutoff = s.eng.mix <= 0.05;
+    // A flooded start initially burns the fuel already in the induction: allow the pilot to advance the mixture.
+    // The three-second allowance is illustrative, as in the other primed-engine models.
+    const cutoff = s.eng.mix <= 0.05 && (live.fireT < 0 || live.fireT > 3);
     const starved = !avail || live.fuelP < 0.5;
     live.starve = starved ? live.starve + dt : 0;
     if (s.eng.key === "OFF" || cutoff || live.starve > 3 || live.carbIce >= 1) {
@@ -96,8 +106,10 @@ export function simTick(dt: number) {
   const run = s.eng.running;
 
   // ---------- carburetor ice (failure switch): builds with the heat off, melts with full heat (OM p. 22: use full heat) ----------
-  const icing = s.eng.fail.carbIce && run && s.eng.carbHeat < 0.9;
-  live.carbIce = clamp(live.carbIce + (icing ? dt / 45 : -dt / 12), 0, 1);
+  const melting = s.eng.carbHeat >= 0.9 || !s.eng.fail.carbIce;
+  const icing = !melting && (run || live.rpm > 100);
+  // Stopping combustion does not clear an iced carburetor; a windmilling engine still draws air through it.
+  live.carbIce = clamp(live.carbIce + (icing ? dt / 45 : melting ? -dt / 12 : 0), 0, 1);
 
   // ---------- RPM: governor (propeller control) or fine-pitch stop (throttle) ----------
   const gov = govRpm(s),

@@ -9,8 +9,9 @@
  * cone, aileron tubes spanwise behind the main spar, rudder tube down the right side) and are approximate.
  */
 import * as THREE from "three";
-import { D2R, V, type Vec3 } from "@/lib/math";
-import { AIL, EF, PANEL_X, SY, TAIL_PIVOT, hingeX, sC, sLE, wingP } from "./geometry";
+import { D2R, V, clamp, lerp, type Vec3 } from "@/lib/math";
+import { AIL, ELEV_HINGE_X, FIN_TOP, PANEL_X, RUD_BOT, SY, TAIL_PIVOT, hingeX, wingP } from "./geometry";
+export { ELEV_HINGE_X } from "./geometry";
 
 /* ---------- control wheels (dual) ---------- */
 /** Wheel hub just aft of the panel, shaft running forward through it. */
@@ -33,7 +34,6 @@ const E_IDLE: Vec3 = [-0.45, -0.64, 0]; // idler under the rear seat / baggage f
 export const E_TAIL: Vec3 = [-2.4, -0.33, 0]; // bellcrank at the tail-cone bulkhead, ahead of the empennage pivot
 const E_ARM = 0.09;
 /** Elevator horn at the hinge line (root), reaching down into the tail cone. */
-export const ELEV_HINGE_X = sLE() - EF * sC(0);
 export const ELEV_HORN = { c: [ELEV_HINGE_X, SY, 0] as Vec3, len: 0.11 };
 
 /* ---------- aileron chain ---------- */
@@ -68,9 +68,14 @@ export const SERVO = {
 
 /* ---------- gear ---------- */
 /** Johnson bar pivot on the floor between the seats: handle up and forward in the down-lock socket under the panel; swung down and aft to the floor socket. */
-export const JBAR = { pivot: [1.25, -0.66, 0.0] as Vec3, len: 0.62, downAng: 15 * D2R, upAng: 92 * D2R };
+export const JBAR = { pivot: [1.25, -0.66, 0.0] as Vec3, len: 0.62, downAng: 15 * D2R, upAng: 90 * D2R };
+export const johnsonAngle = (fraction: number) => lerp(-JBAR.downAng, JBAR.upAng, clamp(fraction, 0, 1));
+export const johnsonTip = (fraction: number) =>
+  V(0, JBAR.len, 0)
+    .applyAxisAngle(V(0, 0, 1), johnsonAngle(fraction))
+    .add(V(...JBAR.pivot));
 /** Flap pump handle: pivoted under the panel, lying aft at about seat-cushion height just right of the Johnson bar (which lies on the floor with the gear up); pumped up and down. */
-export const FLAP_PUMP = { pivot: [1.5, -0.44, 0.16] as Vec3, len: 0.46 };
+export const FLAP_PUMP = { pivot: [1.5, -0.44, 0.075] as Vec3, len: 0.46 };
 
 /** Surface deflections (deg) from normalised inputs — TCDS 2A3 (M20C to s/n 690001): ailerons up 12½–17° / down 8°, elevator up 24° / down 10½°, rudder 23–24° each way. */
 export function deflections(pitch: number, roll: number, yaw: number) {
@@ -97,7 +102,7 @@ export interface RigPose {
 export function rigPose(c: { pitch: number; roll: number; yaw: number }, trim: number): RigPose {
   const d = deflections(c.pitch, c.roll, c.yaw);
   return {
-    a: c.pitch * WHEEL.pitchTravel,
+    a: -c.pitch * WHEEL.pitchTravel,
     b: c.roll * WHEEL.rollMax,
     pedal: c.yaw * PEDALS.travel,
     elev: d.elev * D2R,
@@ -109,6 +114,9 @@ export function rigPose(c: { pitch: number; roll: number; yaw: number }, trim: n
 }
 
 const add = (p: Vec3, x: number, y: number, z: number) => V(p[0] + x, p[1] + y, p[2] + z);
+export const pitchCrankAngle = (p: RigPose) => (p.a / WHEEL.pitchTravel) * 0.5;
+const rotate = (point: THREE.Vector3, pivot: THREE.Vector3, axis: THREE.Vector3, angle: number) =>
+  point.clone().sub(pivot).applyAxisAngle(axis, angle).add(pivot);
 /** A point in tail-group coordinates turned about the empennage pivot into airplane coordinates. */
 export function tailPoint(p: Vec3, tail: number) {
   const dx = p[0] - TAIL_PIVOT[0],
@@ -122,19 +130,16 @@ export function tailPoint(p: Vec3, tail: number) {
 export function linkPoints(p: RigPose) {
   const out: Record<string, [THREE.Vector3, THREE.Vector3]> = {};
   // elevator: both wheel shafts slide fore-aft (a) → torque-tube lever → long tube under the floor → idler → tail bellcrank → horn
-  const lev = add(
-    E_TT,
-    -E_ARM * Math.sin((p.a / WHEEL.pitchTravel) * 0.5),
-    -E_ARM * Math.cos((p.a / WHEEL.pitchTravel) * 0.5),
-    0,
-  );
-  const k = -p.a * 1.2;
-  const idl = add(E_IDLE, k, 0, 0);
-  const tIn = add(E_TAIL, k, 0, 0);
-  const tOut = add(E_TAIL, 0, -E_ARM + k * 0.3, 0);
+  const crank = pitchCrankAngle(p);
+  const arm = (center: Vec3, x: number, y: number) =>
+    add(center, x * Math.cos(crank) - y * Math.sin(crank), x * Math.sin(crank) + y * Math.cos(crank), 0);
+  const lev = arm(E_TT, 0, -E_ARM);
+  const idl = arm(E_IDLE, 0, -E_ARM);
+  const tIn = arm(E_TAIL, 0, -E_ARM);
+  const tOut = arm(E_TAIL, -E_ARM * 0.6, -E_ARM * 0.3);
   const e = -p.elev,
     h = ELEV_HORN;
-  const horn = tailPoint([h.c[0] - h.len * Math.sin(e), h.c[1] - h.len * Math.cos(e), 0], p.tail);
+  const horn = tailPoint([h.c[0] + h.len * Math.sin(e), h.c[1] - h.len * Math.cos(e), 0], p.tail);
   out.elev1 = [lev, idl];
   out.elev2 = [idl, tIn];
   out.elev3 = [tOut, horn];
@@ -163,7 +168,11 @@ export function linkPoints(p: RigPose) {
     out["ailW" + key] = [ctrOut, inTip];
     const up = s > 0 ? p.ailR : p.ailL,
       hz = wingP(s * A_HORN, AIL.hinge, -1);
-    out["ailH" + key] = [outTip, V(hz.x - 0.05 * Math.sin(up), hz.y - 0.05 * Math.cos(up), hz.z)];
+    const pivot = wingP(s * AIL.z0, AIL.hinge, 0);
+    const axis = wingP(s * AIL.z1, AIL.hinge, 0)
+      .sub(pivot)
+      .normalize();
+    out["ailH" + key] = [outTip, rotate(hz.clone().add(V(0, -0.05, 0)), pivot, axis, s > 0 ? -up : up)];
   });
   // PC roll servo pushes on the left wing tube
   out.pcRoll = [V(SERVO.roll[0] - 0.05, SERVO.roll[1], SERVO.roll[2]), out.ailWL[0].clone().lerp(out.ailWL[1], 0.92)];
@@ -176,10 +185,10 @@ export function linkPoints(p: RigPose) {
   out.rud1 = [rLev, rIn];
   const rOut = V(R_TAIL[0] - 0.02, R_TAIL[1] - 0.02, R_TAIL[2] + RUD_HORN.len * Math.sin(p.rud) * 0.3 - p.pedal * 0.5);
   const rh = rudPivot();
-  const hornR = tailPoint(
-    [rh[0] - RUD_HORN.len * Math.cos(p.rud), rh[1] - 0.03, RUD_HORN.len * Math.sin(p.rud) * -1],
-    p.tail,
-  );
+  const rudOrigin = V(hingeX(RUD_BOT), RUD_BOT, 0);
+  const rudAxis = V(hingeX(FIN_TOP), FIN_TOP, 0).sub(rudOrigin).normalize();
+  const rudEnd = rotate(V(rh[0] - RUD_HORN.len, rh[1] - 0.03, 0), rudOrigin, rudAxis, p.rud);
+  const hornR = tailPoint([rudEnd.x, rudEnd.y, rudEnd.z], p.tail);
   out.rud2 = [rOut, hornR];
   out.steer = [
     V(R_FWD[0] - p.pedal, R_FWD[1] - 0.02, R_FWD[2] + 0.1),

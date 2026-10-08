@@ -8,6 +8,14 @@ import { EL, P3, S, cAt, part, wp } from "./catalogue";
 const FUEL = "#2F7FE6";
 /** Integral tank span (BL, in) used by the tank volumes in Airplane.tsx: between the spars of the constant-chord inboard panel. */
 export const TANK_BL = [24, 100] as const;
+/** Schematic aft-doorpost route, shared by the pipe and its fuel particles; the upper elbow enters under the wing root. */
+export const fuelManifoldPath = (s: number): Vec3[] => [
+  wp(s * 24.5, 0.62, -1, 0.02),
+  P3(65, s * 18, 78),
+  P3(65, s * 19.4, 30),
+  P3(40, s * 8, 26.8),
+  P3(27.5, s * 2.5, 25.4),
+];
 [1, -1].forEach((s) => {
   part(() => cyl(0.04, 0.012), ["fuel"], {
     pos: wp(s * 92, 0.2, 1, 0.006),
@@ -56,26 +64,12 @@ export const TANK_BL = [24, 100] as const;
     pin: s > 0,
   });
   // fuel manifold down each aft door post (FS 65.30) to the selector, with the return line beside it
-  part(
-    () =>
-      tubeGeo(
-        [
-          wp(s * 24.5, 0.62, -1, 0.02),
-          P3(65, s * 19.4, 78),
-          P3(65, s * 19.4, 30),
-          P3(40, s * 8, 26.8),
-          P3(27.5, s * 2.5, 25.4),
-        ],
-        0.008,
-      ),
-    ["fuel"],
-    {
-      color: FUEL,
-      name: "Fuel manifold (aft door post)",
-      note: "“Two fuel manifolds (one in each aft doorpost)”: gravity feed from each tank outlet down the door post and under the floor to the selector (POH 7-38, Fig. 7-6).",
-      pin: s > 0,
-    },
-  );
+  part(() => tubeGeo(fuelManifoldPath(s), 0.008), ["fuel"], {
+    color: FUEL,
+    name: "Fuel manifold (aft door post)",
+    note: "“Two fuel manifolds (one in each aft doorpost)”: gravity feed from each tank outlet down the door post and under the floor to the selector (POH 7-38, Fig. 7-6). The bends are schematic, entering the cabin under the wing root.",
+    pin: s > 0,
+  });
 });
 part(
   () =>
@@ -180,8 +174,8 @@ part(() => box(0.06, 0.04, 0.06), ["fuel", "engine"], {
   pin: true,
 });
 part(() => box(0.03, 0.04, 0.03), ["fuel", "cabin"], {
-  pos: P3(49.5, -11, 42),
+  pos: P3(49.5, -11, 44),
   color: "#7EB3F5",
   name: "Fuel sampler cup",
-  note: "Stowed in the pilot's seat back, arm 49.5 (POH 6-21). Sample every drain point before each flight and after refueling, airplane in the normal ground attitude (POH 4-6, 7-45).",
+  note: "Stowed in the pilot's seat back, arm 49.5 (POH 6-21). Sample every drain point before each flight and after refueling, airplane in the normal ground attitude (POH 4-6, 7-45). Cup size, lateral position and height are approximate, clear of the seat-back cushion.",
 });

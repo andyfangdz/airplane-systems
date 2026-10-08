@@ -49,11 +49,11 @@ part(() => box(0.62, 0.3, 0.42), ["engine"], {
   note: "Four-cylinder, horizontally opposed, fuel-injected, direct drive, air cooled, 360 cu in; 180 BHP at 2,700 RPM; wet sump (POH 1-5, 7-29). Engine CG FS −18.6 (POH 6-23).",
   pin: true,
 });
-part(() => box(0.5, 0.12, 0.34), ["engine"], {
-  pos: P3(-18, 0, 38.5),
+part(() => box(0.38, 0.12, 0.34), ["engine"], {
+  pos: P3(-18, 0, 39.4),
   color: "#B85A2A",
   name: "Oil sump",
-  note: "Wet sump on the bottom of the engine: 8 qt capacity (9 total with the filter); never operate below 5 qt (POH 7-35, 1-7).",
+  note: "Wet sump on the bottom of the engine: 8 qt capacity (9 total with the filter); never operate below 5 qt (POH 7-35, 1-7). The case outline is approximate, attached under the crankcase and aft of the induction filter.",
 });
 /** Cylinder positions (Lycoming numbering: 1 & 3 right, 2 & 4 left; the POH does not map numbers to positions). */
 export const CYLS = [
@@ -62,7 +62,19 @@ export const CYLS = [
   { n: 3, fs: -15.5, s: 1 },
   { n: 4, fs: -12, s: -1 },
 ];
-CYLS.forEach((c) => {
+/** Schematic intake-chamber fittings, separate from the spark plugs; shared with the fuel-line endpoints. */
+export const NOZZLES: Vec3[] = CYLS.map((c) => {
+  const b = P3(c.fs, c.s * 11, 49.5);
+  return [b[0] + 0.04, b[1] - 0.075, b[2] + c.s * 0.12];
+});
+/** Approximate induction runners: below the sump, then up outside its sides to the cylinder intake chambers. */
+export const INTAKES: Vec3[][] = CYLS.map((c) => [
+  P3(-26.6, 0, 35.2),
+  P3(-26.6, c.s * 13, 35.2),
+  P3(c.fs, c.s * 13, 40),
+  P3(c.fs - 1.5, c.s * 14.9, 46.6),
+]);
+CYLS.forEach((c, i) => {
   const base = P3(c.fs, c.s * 11, 49.5);
   part(() => cyl(0.06, 0.2, "z", 18), ["engine"], {
     pos: base,
@@ -100,10 +112,10 @@ CYLS.forEach((c) => {
     });
   });
   part(() => box(0.03, 0.03, 0.03), ["engine"], {
-    pos: [base[0] - 0.02, base[1] - 0.12, base[2] + c.s * 0.08],
+    pos: NOZZLES[i],
     color: "#C9B98F",
     name: "Fuel injector nozzle",
-    note: "Air-bleed nozzle in the intake valve chamber of each cylinder (POH 7-37).",
+    note: "Air-bleed nozzle in the intake valve chamber of each cylinder (POH 7-37). Fitting size and position on the chamber are schematic, not dimensioned in the POH.",
   });
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
@@ -136,11 +148,11 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
   note: "Rear of the accessory case; its adapter has a bypass valve for a plugged filter or very cold oil, and carries the oil temperature sensor (POH 7-35, 7-33).",
   pin: true,
 });
-part(() => box(0.06, 0.14, 0.18), ["engine"], {
-  pos: P3(-11, 11, 54),
+part(() => box(0.06, 0.12, 0.16), ["engine"], {
+  pos: P3(-11, 12.6, 55),
   color: "#9A6A48",
   name: "Oil cooler",
-  note: "Thermostatically controlled remote cooler (POH 7-35); arm −11.0 (POH 6-24). The KAP 140 POH puts it on the right rear baffle.",
+  note: "Thermostatically controlled remote cooler (POH 7-35); arm −11.0 (POH 6-24). The KAP 140 POH puts it on the right rear baffle. Width, height and lateral position are approximate; shown outside the crankcase within the cowl.",
 });
 part(() => cyl(0.012, 0.18, "y"), ["engine"], {
   pos: P3(-8, 9, 52),
@@ -191,7 +203,7 @@ part(() => box(0.08, 0.1, 0.16), ["engine"], {
   pin: true,
 });
 // The air box and servo sit below the filter, under the front of the engine: the servo (FS −30.6…−25.8, h 31.8–35.8) is below the
-// oil sump (bottom h 36.1) and the filter (bottom h 36.0) and just forward of the muffler shroud (FS −25.8); the door is on the air
+// oil sump (bottom h 37.0) and the filter (bottom h 36.0) and just forward of the muffler shroud (FS −25.8); the door is on the air
 // box's right side, clear of the filter (BL ≤ 3.15) and the servo. The servo's lines in flows.ts (fuelServo, fuelMetered, fuelReturn,
 // intake, altAir, man*) start or end at these positions.
 part(() => box(0.1, 0.07, 0.03), ["engine"], {
@@ -209,20 +221,12 @@ part(() => cyl(0.05, 0.12, "x"), ["engine", "fuel"], {
   note: "Under the engine, after the air box (POH 7-36): meters fuel in proportion to induction air flow; throttle and mixture act here. An orifice in its top feeds the fuel return line (POH 7-39, 7-44). Shown under the front of the engine; its exact position is approximate (not in the POH).",
   pin: true,
 });
-CYLS.forEach((c) =>
-  part(
-    () =>
-      tubeGeo(
-        [P3(-26.2, 0, 35.2), P3(-23.8, c.s * 2.5, 37.2), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 11, 45.5)],
-        0.016,
-      ),
-    ["engine"],
-    {
-      color: "#8A969E",
-      name: "Intake tube",
-      note: "Intake manifold tube from the fuel/air control unit to each cylinder's intake port (POH 7-36). Routing approximate.",
-    },
-  ),
+INTAKES.forEach((points) =>
+  part(() => tubeGeo(points, 0.016), ["engine"], {
+    color: "#8A969E",
+    name: "Intake tube",
+    note: "Intake manifold tube from the fuel/air control unit to each cylinder's intake port (POH 7-36). Routing approximate.",
+  }),
 );
 // exhaust and cabin heat
 part(() => cyl(0.06, 0.34, "z"), ["engine", "environment"], {
@@ -271,11 +275,11 @@ part(() => box(0.05, 0.03, 0.42), ["engine"], {
   note: "Opening at the bottom aft edge of the cowl (POH 7-37). Point the airplane into the wind for long ground runs (POH 4-30).",
   ext: true,
 });
-part(() => box(0.32, 0.02, 0.5), ["engine"], {
+part(() => mergeGeos([-1, 1].map((s) => box(0.32, 0.02, 0.18).translate(0, 0, s * 0.16))), ["engine"], {
   pos: P3(-19, 0, 58.5),
   color: "#B8BEC4",
   name: "Cylinder baffles",
-  note: "Direct ram air from above the engine down around the cylinders (POH 7-37).",
+  note: "Direct ram air from above the engine down around the cylinders (POH 7-37). The two bank-top plates are schematic; their central opening leaves the flow divider accessible.",
 });
 // engine mount
 [1, -1].forEach((s) =>

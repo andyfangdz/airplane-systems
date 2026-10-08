@@ -125,11 +125,11 @@ part(() => box(0.12, 0.05, 0.1), ["avionics"], {
   note: "XM weather and radio, behind the panel just forward of the MFD, arm 11.4; FIS breaker, AVIONICS BUS 1 (if installed) (POH 7-68, 6-23).",
 });
 part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], {
-  pos: P3(12.7, 0, 63),
+  pos: P3(12.7, -1, 63),
   color: "#5A6168",
   anim: glow("#5A6168", () => EL().fwdFan, ["avionics", "electrical"], "#9FE3FF"),
   name: "Forward avionics cooling fan",
-  note: "Forward of the panel, arm 12.7: draws air from between the firewall and the panel and blows it up the inside of the windshield; on the AVN BUS 1 PFD breaker. Preflight: AVIONICS BUS 1 on — verify the fan is heard (POH 7-69, 4-7).",
+  note: "Forward of the panel, arm 12.7: draws air from between the firewall and the panel and blows it up the inside of the windshield; on the AVN BUS 1 PFD breaker. Preflight: AVIONICS BUS 1 on — verify the fan is heard (POH 7-69, 4-7). Lateral position, height and housing size are approximate.",
   pin: true,
 });
 part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], {
@@ -321,7 +321,7 @@ part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], {
   chan: ["aileron"],
   anim: servo(() => live.kap.ap),
   name: "KS 271C roll servo",
-  note: "Arm 52.0, on the aileron cables across the cabin top. Drives the ailerons — and so the control wheels — while the autopilot is engaged; easily overpowered (S3-7, POH 6-20).",
+  note: "Arm 52.0, on the aileron cables across the cabin top. Drives the ailerons — and so the control wheels — while the autopilot is engaged; easily overpowered (S3-7, POH 6-20). Lateral position, height and case size are approximate.",
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], {

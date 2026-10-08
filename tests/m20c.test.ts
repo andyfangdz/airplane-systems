@@ -21,6 +21,7 @@ import {
 } from "@/aircraft/m20c/model";
 import { pumpFlaps, primeThrottle, scenarioCruise, scenarioRamp, useM20C } from "@/aircraft/m20c/store";
 import { simTick, START_HOLD } from "@/aircraft/m20c/tick";
+import { fires } from "@/aircraft/m20c/parts/catalogue";
 import { patched, type Patch } from "./helpers";
 
 const sim = (p: Patch<Sim> = {}) => patched(initialSim, p);
@@ -48,6 +49,16 @@ describe("M20C alternator and single bus (Ranger 2-13, Fig. 2-4)", () => {
     const off = E({ elec: { master: false } });
     expect(solve(sim({ elec: { fail: { bat: true } } }), off).genOn).toBe(false);
     expect(solve(sim(), off).genOn).toBe(true);
+  });
+
+  it("resetting ALT after battery exhaustion cannot excite it from a dead bus (Ranger 2-13)", () => {
+    const s = sim({ elec: { tBat: 120, fail: { gen: true } } });
+    const exhausted = solve(s, E0);
+    expect(exhausted).toMatchObject({ batDead: true, bus: 0, genOn: false });
+    s.elec.fail.gen = false;
+    const reset = solve(s, exhausted);
+    expect(reset).toMatchObject({ batDead: true, bus: 0, genOn: false });
+    expect(solve(sim(), reset).genOn).toBe(true);
   });
 
   it("is pure and ignores unrelated solves and live RPM", () => {
@@ -157,6 +168,17 @@ describe("M20C manual gear and hydraulic flaps (OM pp. 6, 9, 27)", () => {
 });
 
 describe("M20C engine, propeller and PC (OM pp. 2–3, 8, 15–16, 21–22)", () => {
+  it("START grounds the right magneto and powers only the left retard points through the vibrator (OM p. 2)", () => {
+    update({ eng: { running: false, key: "START" } });
+    live.rpm = 250;
+    expect(fires("R")()).toBe(false);
+    expect(fires("L")()).toBe(true);
+    update({ cb: { "IGN / VIBRATOR": true } });
+    expect(fires("L")()).toBe(false);
+    update({ eng: { key: "BOTH" } });
+    expect(fires("R")()).toBe(true);
+    expect(fires("L")()).toBe(true);
+  });
   it("starts from the ramp after boost pressure, two priming strokes and START", () => {
     scenarioRamp();
     update({ elec: { master: true }, sw: { fuelPump: true }, eng: { throttle: 0.1 } });

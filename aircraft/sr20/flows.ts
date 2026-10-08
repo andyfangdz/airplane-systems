@@ -4,8 +4,9 @@ import { chanOfKey, type FlowSpec } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { wingP } from "./geometry";
+import { cabinOperation } from "./environment";
 import { fuelAvail, live, type Elec, type Sim } from "./model";
-import { CYLS, FT, PITOT_Z, SPX, STALL_Z, pitotBase, statR } from "./parts";
+import { CYLS, FT, MUFFLER, OIL_FILTER, PITOT_Z, SPX, STALL_Z, pitotBase, statR } from "./parts";
 import { CABLES } from "./rig";
 
 const F: FlowSpec[] = [];
@@ -156,16 +157,30 @@ CYLS.forEach((c) =>
     [
       [c.x, -0.2, c.s * 0.36],
       [c.x, -0.4, c.s * 0.3],
-      [3.04, -0.44, 0.1],
+      // The left-bank crossover passes below the oil sump; the source does not give its exact routing.
+      ...(c.s < 0
+        ? ([
+            [MUFFLER[0], -0.51, -0.2],
+            [MUFFLER[0], -0.51, 0.1],
+          ] as Vec3[])
+        : []),
+      [MUFFLER[0], MUFFLER[1], MUFFLER[2] - 0.12],
     ],
     ["engine"],
-    { r: 0.016, color: "#8A5A3C", pcolor: "#FF8A4A", count: 4, name: "Exhaust riser", note: "To the muffler." },
+    {
+      r: 0.016,
+      color: "#8A5A3C",
+      pcolor: "#FF8A4A",
+      count: 4,
+      name: "Exhaust riser",
+      note: "To the muffler; pipe routing is approximate.",
+    },
   ),
 );
 flow(
   "tailpipe",
   [
-    [3.04, -0.44, 0.36],
+    [MUFFLER[0], MUFFLER[1], MUFFLER[2] + 0.14],
     [2.95, -0.56, 0.3],
     [2.85, -0.68, 0.22],
   ],
@@ -185,10 +200,11 @@ flow(
     [3.08, -0.38, 0],
     [3.28, -0.32, -0.3],
     [3.36, -0.1, -0.35],
-    [3.45, -0.02, -0.2],
-    [3.55, -0.06, 0],
+    [3.15, 0.04, -0.3],
+    [2.83, 0.08, 0],
+    OIL_FILTER,
     [3.25, -0.02, 0],
-    [2.95, -0.1, 0],
+    [3.55, -0.06, 0],
   ],
   ["engine", "propeller"],
   {
@@ -218,24 +234,13 @@ flow(
     note: "NACA inlet → fresh-air valve on the forward firewall.",
   },
 );
-flow(
-  "hot",
-  [
-    [3.62, -0.06, 0.28],
-    [3.3, -0.3, 0.34],
-    [3.04, -0.44, 0.22],
-    [2.8, -0.5, 0.3],
-    [2.56, -0.46, 0.3],
-  ],
-  ["environment"],
-  {
-    r: 0.025,
-    color: "#E0522B",
-    pcolor: "#FF7A3D",
-    name: "Heat duct",
-    note: "Ram air → heat muff → hot-air valve → mixing chamber.",
-  },
-);
+flow("hot", [[3.62, -0.06, 0.28], [3.3, -0.3, 0.34], MUFFLER, [2.8, -0.5, 0.3], [2.56, -0.46, 0.3]], ["environment"], {
+  r: 0.025,
+  color: "#E0522B",
+  pcolor: "#FF7A3D",
+  name: "Heat duct",
+  note: "Ram air → heat muff → hot-air valve → mixing chamber.",
+});
 /** Distribution manifold (parts.ts), above the aileron push rod and sector. */
 const E0: Vec3 = [2.52, -0.1, 0];
 // up the right side, aft of the aileron push rod (x 2.54, y −0.2), into the manifold's right end
@@ -378,7 +383,7 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.alt2 = E.alt2 ? 1 : 0;
   R.bat1 = !E.bat1ok ? 0 : E.bat1Charging ? -0.6 : 1;
   R.cb = E.mdb1 || E.mdb2 ? 1 : 0;
-  R.bat2 = !s.elec.bat2 ? 0 : E.bat2Charging ? -0.6 : 1;
+  R.bat2 = !E.bat2ok ? 0 : E.bat2Charging ? -0.6 : E.bat2Supplying ? 1 : 0;
   const feed = run || (s.fuel.boost && E.boostPwr),
     ok = fuelAvail(s);
   R.fuelL = feed && ok && s.fuel.sel === "L" ? 1 : 0;
@@ -392,10 +397,10 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.intake = run && !s.eng.altAir ? 1 : 0;
   R.tailpipe = run ? 1.2 : 0;
   R.oil = run ? 0.7 : 0;
-  const fan = s.env.fan,
-    air = fan < 0 ? 0 : fan === 0 ? 0.45 : 0.6 + fan * 0.4;
-  R.fresh = air && !s.env.recirc ? air * (1 - s.env.temp * 0.8) : 0;
-  R.hot = air && !s.env.ac && run ? air * s.env.temp : 0;
+  const cabin = cabinOperation(s, E),
+    air = cabin.air;
+  R.fresh = cabin.fresh;
+  R.hot = cabin.hot;
   R.toMan = air;
   ["panelL", "panelR", "armL", "armR"].forEach((k) => (R[k] = air));
   const floor = s.env.vent === "PF" || s.env.vent === "PFW",
@@ -419,7 +424,8 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
 }
 
 /** Cabin-air particle colour follows the temperature knob (or A/C). */
-export function cabinAirColor(s: Sim, out: THREE.Color) {
-  if (s.env.ac) return out.set("#6EC9E6");
-  return out.set("#5FC8F0").lerp(new THREE.Color("#FF7A3D"), s.env.temp);
+export function cabinAirColor(s: Sim, E: Elec, out: THREE.Color) {
+  const cabin = cabinOperation(s, E);
+  if (cabin.ac) return out.set("#6EC9E6");
+  return out.set("#5FC8F0").lerp(new THREE.Color("#FF7A3D"), s.eng.running ? cabin.hotValve : 0);
 }

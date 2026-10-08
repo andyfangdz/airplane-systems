@@ -32,12 +32,16 @@ const FWD_PATH = [
   [2.3, -0.15],
   [FW, 0.1],
 ];
-/** Strap centre as a fraction of the skin half-width: just inside the skin. */
-const UNDER_SKIN = 0.97;
+/** Lateral inset for the 12 mm model radius and curved shoulder; keep the strap near the skin on the wider cabin too. */
+const STRAP_INSET = 0.025;
 /** Forward strap centreline on side s (-1 left, +1 right): out of the canister, then under the skin to the firewall. */
 export const fwdStrap = (s: number): Vec3[] => [
   [-0.6, 0.3, s * 0.12],
-  ...densify(FWD_PATH, 0.03, false).map(([x, y]) => onSkin(x, y, s, UNDER_SKIN).toArray() as Vec3),
+  ...densify(FWD_PATH, 0.03, false).map(([x, y]) => {
+    const p = onSkin(x, y, s, 1);
+    p.z -= s * STRAP_INSET;
+    return p.toArray() as Vec3;
+  }),
 ];
 /** Deployment times (s): the rocket fires and starts pulling the bag out, and the lines come taut (`CAPS_PHASES`). */
 export const ROCKET_T = 0.3,

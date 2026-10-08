@@ -170,7 +170,7 @@ part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {
   color: "#C8399F",
   anim: glow("#7A3866", "#C8399F", () => live.afcs.ap && !live.afcs.cws, ["autopilot", "controls"]),
   name: "Pitch servo (GSA)",
-  note: "Moves the elevator push rod when the AP is engaged; a slip clutch lets the pilot overpower it in an emergency (CRG 6-21). Location not documented — KAP 140 pitch-servo arm 3.93 m.",
+  note: "Moves the elevator push rod when the AP is engaged; a slip clutch lets the pilot overpower it in an emergency (CRG 6-21). Location not documented — KAP 140 pitch-servo arm 3.93 m, with approximate lateral/height placement beside the avionics enclosure.",
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {

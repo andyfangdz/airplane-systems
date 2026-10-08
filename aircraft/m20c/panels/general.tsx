@@ -122,7 +122,7 @@ export function Airframe() {
           ["Empennage", "Pivots as one for trim; vertical leading edge, rudder trailing edge raked forward going up"],
           ["Span / length / height", "35 ft 0 in / 23 ft 2 in / 8 ft 4 in (Ranger Fig. 1-1)"],
           ["Stabilizer span", "11 ft 9 in"],
-          ["Wing area / loading", "167 ft² · 15.1 lb/ft² at gross"],
+          ["Wing area / loading", "167 ft² · 15.42 lb/ft² at gross (2,575 lb ÷ 167 ft²)"],
           ["Track / wheelbase", "9 ft 0¾ in / 5 ft 6-9/16 in"],
           ["Gross weight", "2,575 lb (M20C from 1962; the M20B was 2,450)"],
           ["CG limits", "+46.5 to +49.0 in at 2,575 lb; +42.0 to +49.0 at 2,100 lb or less (TCDS 2A3)"],

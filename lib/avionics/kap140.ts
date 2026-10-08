@@ -190,6 +190,16 @@ function disengage(s: Kap140State, now: number) {
   s.toneKind = "disc";
 }
 
+/** Leaving approach guidance also releases an active glideslope (S3-9: REV locks GS out). */
+function leaveGlideslope(s: Kap140State, fs: FlightState) {
+  s.gsArm = false;
+  s.lostGs = false;
+  if (s.vert === "GS") {
+    s.vert = "VS";
+    s.vsRef = clamp(r100(fs.vs), VS_MIN, VS_MAX);
+  }
+}
+
 /** Set or clear failures; any of them with the AP engaged disengages it. */
 export function kap140Fail(st: Kap140State, f: Kap140Fail, now: number): Kap140State {
   const s: Kap140State = { ...st, fail: { ...st.fail, ...f } };
@@ -202,7 +212,7 @@ function navSelect(s: Kap140State, m: "NAV" | "APR" | "REV", fs: FlightState, no
   if (s.lat === m || s.latArm === m) {
     if (s.lat === m) s.lat = "ROL";
     s.latArm = null;
-    s.gsArm = false;
+    leaveGlideslope(s, fs);
     return true;
   }
   if (m === "REV" && !isLoc(fs.navSrc)) return false; // REV is active only with a LOC/ILS tuned (S3-9 item 7)
@@ -211,12 +221,12 @@ function navSelect(s: Kap140State, m: "NAV" | "APR" | "REV", fs: FlightState, no
     s.lostLat = m;
     s.lat = "ROL";
     s.latArm = null;
-    s.gsArm = false;
+    leaveGlideslope(s, fs);
     return true;
   }
   s.src = fs.navSrc;
   s.lostLat = null;
-  s.gsArm = false;
+  leaveGlideslope(s, fs);
   s.hdgFlash = now + 5;
   const d = navDots(fs) ?? 9;
   if (Math.abs(d) < 2.5) {
@@ -225,7 +235,7 @@ function navSelect(s: Kap140State, m: "NAV" | "APR" | "REV", fs: FlightState, no
     if (m === "APR" && isLoc(fs.navSrc) && fs.gsErr != null) s.gsArm = true;
   } else {
     s.latArm = m;
-    if (s.lat === "ROL") s.lat = "HDG";
+    s.lat = "HDG";
   } // armed: the heading bug is the datum (S3-11 item 15)
   return true;
 }
@@ -261,6 +271,7 @@ export function kap140Key(st: Kap140State, key: Kap140Key, fs: FlightState): Kap
       if (!s.ap) return st;
       s.lat = s.lat === "HDG" ? "ROL" : "HDG";
       s.lostLat = null;
+      leaveGlideslope(s, fs);
       break;
     case "NAV":
     case "APR":

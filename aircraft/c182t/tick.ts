@@ -5,7 +5,7 @@
  * KAP 140 and the shared flight-state integrator. Continuous values go to `live`; discrete changes go through the store.
  */
 import { clamp, lerp } from "@/lib/math";
-import { pitchFor, stepFlight, yokeCmd, type FlightState, type NavSrc } from "@/lib/avionics/flight";
+import { navReceiverValid, pitchFor, stepFlight, yokeCmd, type FlightState } from "@/lib/avionics/flight";
 import { kap140Command, kap140Power, kap140Tick } from "@/lib/avionics/kap140";
 import { stepNav3Soc } from "../cessna/electrical";
 import { vacuumInHg } from "../cessna/tick";
@@ -34,7 +34,6 @@ export const FLAP_RATE = 3.2;
 /** A quarter tank of usable fuel (43.5 gal per tank): below it, prolonged uncoordinated flight on that tank is prohibited (POH 2-14). */
 export const QUARTER_TANK = 43.5 / 4;
 
-const navValid = (src: NavSrc, E: Elec) => (src === "GPS" ? E.gia1 || E.gia2 : src.endsWith("1") ? E.gia1 : E.gia2);
 /** Trim position → pitch attitude the airplane settles at hands-off (teaching model). */
 export const trimPitch = (trim: number) => 2.5 + trim * 5;
 
@@ -307,7 +306,7 @@ function stepAir(s: Sim, E: Elec, P: number, dt: number) {
     power: P,
     oat: s.pitot.oat,
     fail: { att: !E.ahrs, hdg: !E.ahrs, air: !E.adc },
-    navValid: navValid(live.fs.navSrc, E),
+    navValid: navReceiverValid(live.fs.navSrc, E.gia1, E.gia2),
   };
   const kfs = (f: FlightState) => kapView(s, E, f);
   // engaged when the AUTO PILOT breaker or AVIONICS BUS 2 drops: the computer goes dark, but the disconnect horn is on WARN (S3-10)

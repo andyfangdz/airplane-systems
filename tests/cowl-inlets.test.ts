@@ -11,32 +11,37 @@ const hits = (g: THREE.BufferGeometry, y: number, z: number, far: number, start 
   return ray.intersectObject(new THREE.Mesh(g, material));
 };
 
-it.each(FLEET)("$id nose skin and inlet throats admit rays through every aperture", (aircraft) => {
-  const cat = aircraft.labels!.cat;
-  const skins = cat.shells.filter((s) => s.name === "Fuselage" || s.name === "Cowling nose").map((s) => s.geo());
-  expect(skins.length).toBeGreaterThan(0);
-  for (const inlet of COWL_INLETS[aircraft.id]) {
-    for (const fy of [-0.4, 0, 0.4]) {
-      for (const fz of [-0.4, 0, 0.4]) {
-        const y = inlet.y + (fy * inlet.height) / 2,
-          z = inlet.z + (fz * inlet.width) / 2;
-        for (const skin of skins) expect(hits(skin, y, z, 5 - inlet.minX)).toHaveLength(0);
-        const throat = cowlOpeningGeo(() => 4, inlet.y, inlet.z, inlet.width, inlet.height, inlet.exponent);
-        expect(hits(throat, y, z, 2)).toHaveLength(0);
-        throat.dispose();
+// Mesh construction and repeated raycasts can exceed 5 s on shared CI workers.
+it.each(FLEET)(
+  "$id nose skin and inlet throats admit rays through every aperture",
+  (aircraft) => {
+    const cat = aircraft.labels!.cat;
+    const skins = cat.shells.filter((s) => s.name === "Fuselage" || s.name === "Cowling nose").map((s) => s.geo());
+    expect(skins.length).toBeGreaterThan(0);
+    for (const inlet of COWL_INLETS[aircraft.id]) {
+      for (const fy of [-0.4, 0, 0.4]) {
+        for (const fz of [-0.4, 0, 0.4]) {
+          const y = inlet.y + (fy * inlet.height) / 2,
+            z = inlet.z + (fz * inlet.width) / 2;
+          for (const skin of skins) expect(hits(skin, y, z, 5 - inlet.minX)).toHaveLength(0);
+          const throat = cowlOpeningGeo(() => 4, inlet.y, inlet.z, inlet.width, inlet.height, inlet.exponent);
+          expect(hits(throat, y, z, 2)).toHaveLength(0);
+          throat.dispose();
+        }
       }
+      // The surrounding skin must remain opaque just outside the lip.
+      expect(skins.some((skin) => hits(skin, inlet.y + inlet.height * 0.6, inlet.z, 5 - inlet.minX).length > 0)).toBe(
+        true,
+      );
     }
-    // The surrounding skin must remain opaque just outside the lip.
-    expect(skins.some((skin) => hits(skin, inlet.y + inlet.height * 0.6, inlet.z, 5 - inlet.minX).length > 0)).toBe(
-      true,
-    );
-  }
-  for (const skin of skins) {
-    expect(Array.from(skin.attributes.normal.array).every(Number.isFinite)).toBe(true);
-    expect(Array.from(skin.attributes.uv.array).every(Number.isFinite)).toBe(true);
-    skin.dispose();
-  }
-});
+    for (const skin of skins) {
+      expect(Array.from(skin.attributes.normal.array).every(Number.isFinite)).toBe(true);
+      expect(Array.from(skin.attributes.uv.array).every(Number.isFinite)).toBe(true);
+      skin.dispose();
+    }
+  },
+  30_000,
+);
 
 it("cuts the front cap without punching the back or changing interpolated UVs", () => {
   const source = new THREE.BoxGeometry(2, 2, 2);

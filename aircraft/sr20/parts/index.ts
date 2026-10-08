@@ -30,7 +30,7 @@ import "./airframe";
 import "./surfaces";
 import "./cowl";
 export { MG, NOSE_CASTER, NOSE_GEAR } from "./gear";
-export { CYLS, PROP } from "./engine";
+export { CYLS, PROP, MUFFLER, OIL_FILTER } from "./engine";
 import "./structure";
 export { FT, YOKES, YOKE_X, YOKE_Y } from "./cabin";
 import "./electrical";

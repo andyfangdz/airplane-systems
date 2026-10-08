@@ -30,7 +30,7 @@ part(() => box(0.08, 0.07, 0.02), ["electrical"], {
   pin: true,
 });
 part(() => box(0.1, 0.06, 0.08), ["electrical"], {
-  pos: [fs(0.58), -0.06, -0.16],
+  pos: [fs(0.58), -0.06, -0.22],
   color: "#5A5040",
   name: "Voltage regulator (VR2000)",
   note: "Regulates the alternator field; its over-voltage protection opens the field (AFM 6-20, 7-41 figure). Location not in the documents.",

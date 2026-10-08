@@ -6,6 +6,7 @@ import { V } from "@/lib/math";
 import { PANEL_X, SY, box, cyl, onSkin, sectionSlab } from "../geometry";
 
 import { ELEV_HORN, JACK, TRIM_WHEEL, WHEEL } from "../rig";
+import { CABIN, cabinFloorGeo } from "../placement";
 import { P, onSurf, part, sim, trimWheelAnim } from "./catalogue";
 
 /* ---------- cabin ---------- */
@@ -29,12 +30,31 @@ part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
   pin: true,
   pinIn: ["cabin"],
 });
+[-1, 0, 1].forEach((side) =>
+  part(() => cabinFloorGeo(side), ["cabin", "airframe"], {
+    color: "#4A4F55",
+    fairing: true,
+    name: side ? "Cabin floor" : "Gear-lever floor recess",
+    note: "Schematic cabin floor: separate footwells beside the nose-wheel housing, with a centre recess for the retracted Johnson bar. Equipment envelopes and floor heights are approximate; the main wheel wells are outside the cabin.",
+  }),
+);
+[
+  [1.3, 1.52],
+  [-0.45, 0.58],
+].forEach(([x0, x1]) =>
+  part(() => box(x1 - x0, 0.015, 0.22), ["cabin", "airframe"], {
+    pos: [(x0 + x1) / 2, CABIN.floor - 0.0075, 0],
+    color: "#4A4F55",
+    fairing: true,
+    name: "Cabin floor",
+  }),
+);
 (
   [
-    [1.0, -0.32, "Pilot seat"],
-    [1.0, 0.32, "Co-pilot seat"],
-    [0.45, -0.3, "Rear seat (L)"],
-    [0.45, 0.3, "Rear seat (R)"],
+    [CABIN.frontSeatX, -0.295, "Pilot seat"],
+    [CABIN.frontSeatX, 0.295, "Co-pilot seat"],
+    [CABIN.rearSeatX, -0.3, "Rear seat (L)"],
+    [CABIN.rearSeatX, 0.3, "Rear seat (R)"],
   ] as [number, number, string][]
 ).forEach(([x, z, name], i) => {
   part(() => box(0.44, 0.08, 0.4), ["cabin"], {
@@ -56,14 +76,14 @@ part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
   });
 });
 part(() => box(0.5, 0.05, 0.8), ["cabin"], {
-  pos: [-0.05, -0.5, 0],
+  pos: [CABIN.baggageX, -0.5, 0],
   color: "#4A4F55",
   name: "Baggage compartment",
   note: "Behind the rear seats, 120 lb max at arm +93 (OM p. 14; TCDS); loaded from the ground through the door above the wing trailing edge (Ranger 1-2). 15 cu ft; tie-down straps.",
   pin: true,
 });
 part(() => box(0.3, 0.04, 0.6), ["cabin"], {
-  pos: [-0.6, -0.3, 0],
+  pos: [CABIN.shelfX, -0.3, 0],
   color: "#4A4F55",
   name: "Hat rack (utility shelf)",
   note: "Aft of the baggage compartment (arm +114): light objects only, 10 lb max for balance (OM p. 14; TCDS).",

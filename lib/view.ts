@@ -5,6 +5,7 @@
  * its own store (see lib/simStore.ts), so switching airplanes keeps each one's switches as left.
  */
 import { create } from "zustand";
+import { useSyncExternalStore } from "react";
 import type { Vec3 } from "./math";
 import type { AircraftId, Chan, SysId, Theme } from "./systems";
 
@@ -47,7 +48,28 @@ interface ViewStore extends View {
 /** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */
 export const NARROW_PX = 860;
 export const narrowLayout = () =>
-  typeof window !== "undefined" && window.matchMedia(`(max-width:${NARROW_PX}px)`).matches;
+  typeof window !== "undefined" && (layoutQuery ?? window.matchMedia(`(max-width:${NARROW_PX}px)`)).matches;
+
+// Parts and screens share one media-query listener, including when there are hundreds of label candidates.
+const layoutListeners = new Set<() => void>();
+let layoutQuery: MediaQueryList | undefined;
+const notifyLayout = () => layoutListeners.forEach((notify) => notify());
+const subscribeLayout = (notify: () => void) => {
+  if (!layoutQuery) {
+    layoutQuery = window.matchMedia(`(max-width:${NARROW_PX}px)`);
+    layoutQuery.addEventListener("change", notifyLayout);
+  }
+  layoutListeners.add(notify);
+  return () => {
+    layoutListeners.delete(notify);
+    if (!layoutListeners.size) {
+      layoutQuery?.removeEventListener("change", notifyLayout);
+      layoutQuery = undefined;
+    }
+  };
+};
+const desktopLayout = () => false;
+export const useNarrowLayout = () => useSyncExternalStore(subscribeLayout, narrowLayout, desktopLayout);
 
 /** Phones: the page scrolls and the panel sits below the 3D view, so bring the view back up when it has scrolled away. */
 export function revealStage() {

@@ -13,14 +13,18 @@ import { TAIL_PIVOT, loft, paintSkin, withUv } from "../geometry";
 import { live } from "../model";
 import { useM20C } from "../store";
 
-export const CAT = new Catalogue("m20c", {}, paintSkin);
+// The live screen owns the panel label; retain the housing in the equipment/tap-to-locate list.
+export const CAT = new Catalogue("m20c", { quiet: { cabin: ["Instrument panel"] } }, paintSkin);
 export const { part, surfacePivot, shell } = CAT;
 export { sysNow };
 
 export const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 export const sim = () => useM20C.getState();
-/** Magneto `mag` is firing: the engine turns and the switch feeds it (OM p. 2). */
-export const fires = (mag: "R" | "L") => () => live.rpm > 100 && magFires(mag, sim().s.eng.key);
+/** START grounds the right magneto; the left retard points need the powered vibrator (OM p. 2). */
+export const fires = (mag: "R" | "L") => () => {
+  const { s, E } = sim();
+  return live.rpm > 100 && (s.eng.key === "START" ? mag === "L" && E.vibrator : magFires(mag, s.eng.key));
+};
 /** Glows `lit` when cond() is true in the given systems' views. */
 export const glow = (base: string, lit: string, cond: () => boolean, sys: SysId[]) => glowAnim(base, cond, sys, lit);
 export const brake = (side: "R" | "L") => brakeAnim(() => brakeAmount(sim().s.gear, side));

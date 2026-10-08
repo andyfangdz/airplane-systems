@@ -19,6 +19,7 @@ import { bladeAngle, fuelAvail, govRpm, govRpmFor, live, type Key, type Sim } fr
 import { CAT } from "../parts";
 import { scenarioRamp, useDA40 } from "../store";
 import { START_HOLD } from "../tick";
+import { fuelPressureState } from "../limits";
 
 const pct = (v: number) => Math.round(v * 100) + "%";
 const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
@@ -230,7 +231,7 @@ export function Engine() {
             ["Oil press PSI", [live.oilP.toFixed(0), live.oilP < 25 ? "bad" : live.oilP < 56 ? "warnc" : ""]],
             ["Oil temp °F", live.oilT.toFixed(0)],
             ["CHT °F", live.cht.toFixed(0)],
-            ["Fuel press PSI", [live.fuelP.toFixed(0), live.fuelP < 14 ? "bad" : ""]],
+            ["Fuel press PSI", [live.fuelP.toFixed(0), fuelPressureState(live.fuelP) !== "normal" ? "bad" : ""]],
             ["Priming", flooded ? ["FLOODED", "bad"] : live.prime > 0.2 ? live.prime.toFixed(1) + " s" : "—"],
             [
               "Starter",
@@ -530,7 +531,10 @@ export function Fuel() {
                   : ["EMPTY TANK", "bad"],
             ],
             ["Electric pump", f.pump ? (E.pumpPwr ? "ON" : ["NO PWR", "bad"]) : "OFF"],
-            ["Fuel pressure", [live.fuelP.toFixed(0) + " psi", live.fuelP < 14 ? "bad" : ""]],
+            [
+              "Fuel pressure",
+              [live.fuelP.toFixed(0) + " psi", fuelPressureState(live.fuelP) !== "normal" ? "bad" : ""],
+            ],
             ["Imbalance", [imb.toFixed(1) + " gal", imb > 8 ? "bad" : ""]],
           ]}
         />

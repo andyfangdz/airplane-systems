@@ -121,6 +121,30 @@ describe("altitude capture", () => {
   });
 });
 
+describe("VNAV profile loss", () => {
+  it("loss of an active path reverts to PIT with the lost VPTH flashing yellow (CRG §6)", () => {
+    const fs = fsAt({ alt: 6500, selAlt: 3000, vs: -500, vpath: { err: 0, vs: -500 } });
+    const active = gfc700Tick(press(ready(fs), fs, "AP", "VNV"), fs, cfg);
+    expect(active.vert).toBe("VPTH");
+    const lost = gfc700Tick(active, { ...fs, vpath: null }, cfg);
+    expect(lost).toMatchObject({
+      vert: "PIT",
+      vertArm: ["ALTS"],
+      vertFlash: { text: "VPTH", c: "y" },
+    });
+    expect(gfc700Command(lost, fs, cfg)?.pitch).toBe(fs.pitch);
+  });
+
+  it("an unavailable flight plan cannot remain armed or retain a VPTH recapture guard (CRG p. 6-13)", () => {
+    const fs = fsAt({ alt: 6500, selAlt: 3000, vpath: { err: -150, vs: -500 } });
+    const armed = { ...press(ready(fs), fs, "AP", "VNV"), vpthRe: { until: fs.t + 10, away: false } };
+    const lost = gfc700Tick(armed, { ...fs, vpath: null }, cfg);
+    expect(lost.vertArm).toEqual(["ALTS"]);
+    expect(lost.vpthRe).toBeNull();
+    expect(lost.vertFlash).toBeNull();
+  });
+});
+
 describe("disconnects", () => {
   const fs = fsAt();
   const engaged = () => press(ready(fs), fs, "AP");

@@ -68,12 +68,14 @@ part(() => box(0.03, 0.006, 0.03), ["pitot"], {
   ext: true,
   pin: true,
 });
+/** Source arm retained; approximate BL/height keep the horn inside the headliner above the left door. */
+export const STALL_HORN: Vec3 = P3(40, -18, 77);
 part(() => cyl(0.025, 0.05, "x"), ["pitot", "cabin"], {
-  pos: P3(40, -19, 78),
+  pos: STALL_HORN,
   color: PIT,
   anim: glow(PIT, () => live.horn, ["pitot", "cabin"], "#FF5050"),
   name: "Stall warning horn",
-  note: "Electric horn in the headliner above the left cabin door, arm 40.0; powered through the WARN breaker on the CROSSFEED BUS (Fig. 7-7; the text calls it a 5 A STALL WARN breaker) (POH 7-65, 6-22).",
+  note: "Electric horn in the headliner above the left cabin door, arm 40.0; powered through the WARN breaker on the CROSSFEED BUS (Fig. 7-7; the text calls it a 5 A STALL WARN breaker) (POH 7-65, 6-22). Lateral position, height and case size are approximate.",
   pin: true,
 });
 part(() => sph(0.035), ["pitot"], {

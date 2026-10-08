@@ -150,7 +150,7 @@ export const AFCS_CFG: Gfc700Cfg = {
 };
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
-export const live = {
+export const initialLive = () => ({
   rpm: 2400,
   oilP: 74,
   oilT: 186,
@@ -192,7 +192,8 @@ export const live = {
   staticAlt: null as number | null,
   /** STBY BATT TEST held (s). */
   testHeld: 0,
-};
+});
+export const live = initialLive();
 
 /* ---------- breakers: POH Figure 7-7 Sheet 2 (rev -04), N6189Q configuration (no STBY ADI: s/n 12701+) ---------- */
 /** Ratings read off a photo of another 172S NAV III breaker panel (Wikimedia Commons, “C172S G1000 in flight”): not in the POH and not verified for N6189Q. */

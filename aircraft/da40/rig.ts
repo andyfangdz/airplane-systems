@@ -13,7 +13,8 @@
  */
 import * as THREE from "three";
 import { D2R, V, type Vec3 } from "@/lib/math";
-import { ELEV_HINGE_X, FLAP, SY, fs, hingeX, wingP } from "./geometry";
+import { trailingEdgeTab } from "@/lib/trimTab";
+import { ELEV_HINGE_X, FLAP, SY, fs, hingeX, sC, sLE, stabSec, wingP } from "./geometry";
 
 /* ---------- control sticks (one in front of each seat) ---------- */
 /** Pivot just under the cabin floor; the grip sits between the pilot's knees, below the panel's lower edge. */
@@ -48,7 +49,15 @@ export const TRIM_WHEEL = { c: [fs(2.18), -0.36, 0.07] as Vec3, r: 0.07 };
  * Elevator trim tab: one GFRP tab in the middle of the elevator trailing edge, behind the fin top, where the trim
  * actuator bracket sits (AMM 27-38-00 Fig. 2); span approximate. Nose up +12° / nose down −39° (TCDS).
  */
-export const TAB = { z0: -0.22, z1: 0.22, chord: 0.07 };
+export const TAB = trailingEdgeTab({
+  z0: -0.22,
+  z1: 0.22,
+  chord: 0.07,
+  y: SY,
+  leadingEdge: sLE,
+  sectionChord: sC,
+  section: stabSec,
+});
 
 /* ---------- flaps ---------- */
 /** Flap torsion tube across the fuselage, its ends and arms inside the stub-wing trailing edge. */
@@ -64,7 +73,7 @@ export const FLAP_HORN = 0.03;
 
 /* ---------- servos (GFC 700 GSA; positions approximate) ---------- */
 export const SERVO = {
-  pitch: [fs(3.93), -0.56, 0.1] as Vec3,
+  pitch: [fs(3.93), -0.53, -0.225] as Vec3, // beside the avionics enclosure; lateral/height approximate
   roll: [fs(3.06), -0.6, 0.18] as Vec3,
   trim: [fs(2.21), -0.6, 0.15] as Vec3,
 };

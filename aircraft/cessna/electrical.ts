@@ -204,10 +204,12 @@ export function solveNav3(
   const L1 = sumLoads(v);
   // charging current into the batteries (tapering with state of charge)
   const chargeMain0 = relay && !e.fail.bat ? Math.min(14, 0.4 + 26 * Math.pow(1 - e.socMain, 1.6)) : 0;
-  const chargeStby = stbyArm && sV > 0 ? Math.min(1.2, 0.08 + 3 * Math.pow(1 - e.socStby, 1.5)) : 0;
-  // alternator holds regulation only if it can carry the loads (low RPM sag → battery voltage → LOW VOLTS)
-  const altOn = altCan && altCap >= L1.t + 2;
-  // a runaway regulator forces a heavy charge into the battery (M BATT > 40 A — the HIGH VOLTS checklist's second trigger, POH 3-17)
+  // A depleted battery cannot supply the bus, but still accepts a charge when the bus is powered.
+  const chargeStby0 = stbyArm ? Math.min(1.2, 0.08 + 3 * Math.pow(1 - e.socStby, 1.5)) : 0;
+  // Bus loads have priority; limited spare capacity reduces battery charging rather than dropping the alternator.
+  const altOn = altCan && altCap >= L1.t;
+  // A runaway regulator demands a heavy battery charge; available alternator capacity limits it below.
+  // M BATT > 40 A is the HIGH VOLTS checklist's second trigger (POH 3-17).
   const chargeMain = chargeMain0 + (altOn && chargeMain0 > 0 ? Math.max(0, altSet - 28.5) * 8.5 : 0);
   // battery terminal voltage sags under load (≈ 0.12 Ω battery + contactor + wiring, illustrative): MASTER ON with the
   // engine stopped shows LOW VOLTS (POH 4-6) and the bus recovers once the alternator comes on line
@@ -220,18 +222,22 @@ export function solveNav3(
   const L = sumLoads(v);
   const essFromStby = stbyOnline ? L.ess : 0;
   const mainLoad = L.t - essFromStby;
+  let chargeStby = stbyArm && !stbyOnline && v.ESS > sV ? chargeStby0 : 0;
   let altAmps = 0,
     mBatt = 0;
   if (altOn) {
-    // a flat (but not failed) battery still takes a charge
-    altAmps = Math.min(cfg.altAmps, mainLoad + chargeMain + (stbyArm && !stbyOnline ? chargeStby : 0));
-    mBatt = chargeMain;
+    // Even a runaway regulator cannot supply unlimited charge current. Reserve standby charging first, then limit
+    // main-battery charging to the remaining capacity so the ammeters and SOC integrator conserve current.
+    const spare = Math.max(0, altCap - mainLoad);
+    chargeStby = Math.min(chargeStby, spare);
+    mBatt = Math.min(chargeMain, spare - chargeStby);
+    altAmps = mainLoad + mBatt + chargeStby;
   } else if (relay && e.ext) {
     mBatt = chargeMain;
   } else if (relay && batV > 0) {
-    mBatt = -(mainLoad + (stbyArm && !stbyOnline ? chargeStby : 0));
+    mBatt = -(mainLoad + chargeStby);
   }
-  const sBatt = !stbyArm || sV <= 0 ? 0 : stbyOnline ? -L.ess : v.ESS > sV ? chargeStby : 0;
+  const sBatt = stbyOnline ? -L.ess : chargeStby;
   const on: Record<string, boolean> = {},
     amps: Record<string, number> = {};
   for (const b of cfg.breakers) {

@@ -10,6 +10,7 @@ import { outlineMat, shellUniforms } from "@/lib/materials";
 import { V, clamp, ease } from "@/lib/math";
 import { view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
+import { advanceSimulation } from "@/lib/simulationClock";
 import { useView } from "@/lib/view";
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
@@ -34,14 +35,20 @@ function CameraRig() {
     t0: number;
   } | null>(null);
 
-  // the starting view, fitted once to the viewport
+  const fit = fitDist(size.width / size.height);
+  const previousFit = useRef(1);
+  // Fit the starting view and preserve the user's orbit/zoom when the viewport changes shape.
   useEffect(() => {
     if (!controls) return;
-    camera.position
-      .sub(controls.target)
-      .multiplyScalar(fitDist(size.width / size.height))
-      .add(controls.target);
-  }, [controls, camera]);
+    const ratio = fit / previousFit.current;
+    previousFit.current = fit;
+    camera.position.sub(controls.target).multiplyScalar(ratio).add(controls.target);
+    const f = flight.current;
+    if (f) {
+      f.fp.sub(f.ft).multiplyScalar(ratio).add(f.ft);
+      f.tp.sub(f.tt).multiplyScalar(ratio).add(f.tt);
+    }
+  }, [controls, camera, fit]);
 
   useEffect(() => {
     if (!cam || !controls) return;
@@ -60,6 +67,7 @@ function CameraRig() {
         .multiplyScalar(fitDist(size.width / size.height))
         .add(tt);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      flight.current = null;
       camera.position.copy(tp);
       controls.target.copy(tt);
       return;
@@ -94,7 +102,7 @@ function CameraRig() {
 }
 
 function SimClock({ tick }: { tick: (dt: number) => void }) {
-  useFrame((_, dt) => tick(Math.min(dt, 0.05)));
+  useFrame((_, dt) => advanceSimulation(dt, tick));
   return null;
 }
 

@@ -6,6 +6,8 @@ import { part, sim } from "./catalogue";
 
 /* ---------- landing gear (track 2.97 m, AFM 1-7) ---------- */
 export const MG = { x: fs(2.73), y: -1.045, z: 1.485, r: 0.19 };
+/** Approximate valve location under the console, beside the centreline gascolator. */
+const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
 [1, -1].forEach((s) => {
   const top: Vec3 = [fs(2.62), -0.6, s * 0.62],
     mid: Vec3 = [fs(2.66), -0.66, s * 0.92];
@@ -47,6 +49,7 @@ export const MG = { x: fs(2.73), y: -1.045, z: 1.485, r: 0.19 };
     () =>
       tubeGeo(
         [
+          PARK_VALVE,
           [fs(1.6), -0.55, s * 0.25],
           [fs(2.3), -0.58, s * 0.3],
           [fs(2.55), -0.56, s * 0.5],
@@ -126,7 +129,7 @@ part(() => box(0.06, 0.12, 0.03), ["gear", "environment"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.06), ["gear"], {
-  pos: [fs(1.9), -0.58, 0.05],
+  pos: PARK_VALVE,
   color: "#7E8A93",
   name: "Parking brake valve (Cleveland 60-59)",
   note: "Between the master cylinders and the wheel brake cylinders; traps pressure while set (AFM 7-14, 6-23). Location assumed.",

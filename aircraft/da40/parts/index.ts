@@ -29,7 +29,7 @@ export { CANOPY_HINGE, DOOR_HINGE, CANOPY_SHELL, DOOR_SHELL } from "./airframe";
 import "./surfaces";
 import "./cowling";
 export { MG, NOSE_GEAR, NOSE_CASTER } from "./gear";
-export { PROP, CYLS } from "./engine";
+export { PROP, CYLS, STARTER, ALTERNATOR } from "./engine";
 import "./structure";
 export { GMA_Z, CBP_Z, DEFROST_X, RB_NOZZLE } from "./cabin";
 import "./controls";

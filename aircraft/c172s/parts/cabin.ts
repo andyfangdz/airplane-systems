@@ -1,11 +1,14 @@
 /** C172S catalogue: cabin heat and ventilation (POH 7-62, Figure 7-8) and cabin and safety equipment (POH 7-24 – 7-28, 7-79 – 7-80). */
 import { glowAnim as glow, pushPull } from "@/lib/anims";
+import type { Vec3 } from "@/lib/math";
 import { X, Y, box, cyl, onSkin, sph, topY } from "../geometry";
 import { live } from "../model";
 import { P3, PV, part, S, EL, wp } from "./catalogue";
 
 /* ---------- cabin heat and ventilation (POH 7-62, Figure 7-8) ---------- */
 const AIR = "#149C94";
+/** Approximate height above the rudder bars; the POH locates the manifold just aft of the firewall. */
+export const MANIFOLD: Vec3 = P3(5, 0, 33);
 part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pos: P3(0.6, 5, 37.5),
   color: "#E0522B",
@@ -27,7 +30,7 @@ part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.08, 0.06, 0.6), ["environment"], {
-  pos: P3(5, 0, 31),
+  pos: MANIFOLD,
   color: AIR,
   name: "Cabin manifold",
   note: "Behind the firewall: outlet holes across it just forward of the front occupants' feet; two ducts to the defroster outlets; one duct down each side to the rear cabin floor (POH 7-62).",
@@ -127,10 +130,10 @@ part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.06, 0.06, 0.04), ["cabin"], {
-    pos: P3(54, s * 3, 76.5),
+    pos: P3(54, s * 3, 74.5),
     color: CAB,
     name: "Inertia reel (front seat)",
-    note: "Integrated belt/harness: overhead inertia reels on the cabin centerline for the front seats, outboard for the rear (POH 7-25).",
+    note: "Integrated belt/harness: overhead inertia reels on the cabin centerline for the front seats, outboard for the rear (POH 7-25). Reel size and mounting positions are approximate, below the overhead console.",
     pin: s > 0,
   }),
 );
@@ -142,10 +145,10 @@ part(() => box(0.4, 0.008, 0.6), ["cabin"], {
   pin: true,
 });
 part(() => box(0.5, 0.008, 0.4), ["cabin"], {
-  pos: P3(124, 0, 33),
+  pos: P3(124, 0, 33.5),
   color: "#B7A27E",
   name: "Baggage area B (FS 108–142)",
-  note: "50 lb, aft of the baggage door latch (placard, POH 2-25).",
+  note: "50 lb, aft of the baggage door latch (placard, POH 2-25). Floor height is approximate, above the control cables.",
 });
 // the door outline is drawn on the skin (windowOutlines); this is its key lock and handle at the aft edge
 part(() => box(0.07, 0.025, 0.012), ["cabin"], {

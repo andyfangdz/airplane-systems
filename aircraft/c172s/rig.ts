@@ -56,10 +56,13 @@ export const RIG_SPEC: RigSpec = {
     ],
     actuator: [229, 9, 43.2],
     tabBl: 14,
+    tabChord: 0.11,
+    tabSpan: 0.6,
   },
   steer: { fs: -10, h: 30.2, half: 3 },
   servo: {
-    roll: [59.5, 4, 76],
+    // Approximate BL clears the console and front shoulder-harness reels; source arm is unchanged.
+    roll: [59.5, 7.2, 76],
     pitch: [180.7, 2.5, 37.8],
     trim: [180.7, -2.5, 37.8],
     names: {

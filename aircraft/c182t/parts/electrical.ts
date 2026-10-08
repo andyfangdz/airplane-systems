@@ -1,9 +1,8 @@
 /** C182T catalogue: electrical system (POH 7-46 – 7-57, Figure 7-7). */
-import { mergeGeos } from "@/lib/geometry";
 import type { Vec3 } from "@/lib/math";
 import { glowAnim as glow } from "@/lib/anims";
-import { X, Y, box, cyl, onSkin, sph, tubeGeo } from "../geometry";
-import { IN } from "../../cessna/airframe";
+import { X, Y, box, cyl, onSkin, sph } from "../geometry";
+import { alternatorDrive } from "../../cessna/accessories";
 import { EL, P3, PV, S, part } from "./catalogue";
 
 /* ---------- electrical (POH 7-46 – 7-57, Figure 7-7) ---------- */
@@ -14,25 +13,26 @@ part(() => box(0.2, 0.18, 0.17), ["electrical"], {
   color: ELEC,
   anim: glow(ELEC, () => EL().mBatt < -0.5, ["electrical"], "#FF8A3D"),
   name: "Main battery — 24 V",
-  note: "In the tailcone, arm 132.1: 24 V, 12.75 Ah (POH 6-20; the 2007 edition lists 8 Ah). Its cable runs forward to the battery relay in the J-box; the starter draws upstream of the M BATT shunt (POH 7-46, Fig. 7-7 Sheet 1).",
+  note: "In the tailcone, arm 132.1: 24 V, 12.75 Ah (POH 6-20; the 2007 edition lists 8 Ah). Its cable runs forward to the battery relay in the J-box; the starter draws upstream of the M BATT shunt (POH 7-46, Fig. 7-7 Sheet 1). Case dimensions and lateral/vertical position are schematic.",
   pin: true,
 });
 part(() => box(0.1, 0.16, 0.14), ["electrical"], {
   pos: JBOX,
   color: "#8A7A3A",
+  fairing: true,
   name: "Power distribution module (J-box)",
-  note: "Left forward side of the firewall, arm −2.5: battery relay (MASTER BAT), starter relay, alternator relay, the Alternator Control Unit, the M BATT current shunt, the external power relay and three push-to-reset feeder breakers — “A” for BUS 2, “B” for BUS 1, one spare (POH 7-46, 6-20).",
+  note: "Left forward side of the firewall, arm −2.5: battery relay (MASTER BAT), starter relay, alternator relay, the Alternator Control Unit, the M BATT current shunt, the external power relay and three push-to-reset feeder breakers — “A” for BUS 2, “B” for BUS 1, one spare (POH 7-46, 6-20). Case dimensions and internal mounting positions are schematic.",
   pin: true,
 });
 part(() => box(0.05, 0.05, 0.04), ["electrical"], {
-  pos: P3(-1.5, -12.5, 46),
+  pos: P3(-1.75, -14, 44.5),
   color: "#C9B98F",
   name: "Alternator Control Unit (ACU)",
   note: "Inside the J-box: regulates the alternator field, opens the ALT FIELD breaker above about 31.75 V and sends LOW VOLTS below 24.5 V. It can nuisance-trip during a start — reset once (POH 7-55, 3-34).",
   pin: true,
 });
 part(() => box(0.03, 0.03, 0.05), ["electrical"], {
-  pos: P3(-2, -16.5, 47),
+  pos: P3(-2, -16.5, 41.5),
   color: "#8C959C",
   name: "Main battery current shunt",
   note: "Ammeter transducer, arm −2.0 → M BATT AMPS (+ charging, − discharging) (POH 6-20, 7-53).",
@@ -45,39 +45,22 @@ part(() => box(0.07, 0.08, 0.015), ["electrical"], {
   ext: true,
   pin: true,
 });
-/** Belt plane just ahead of the engine block's front face (FS −40.5): crankshaft pulley on the thrust line, alternator pulley on its shaft. */
-const BELT = { fs: -41.2, crank: { bl: 0, h: 50.4, r: 2.6 }, alt: { bl: 9, h: 41.5, r: 1.4 } };
-/** Closed belt path round two pulleys in a plane of constant FS: the long arc of the crank pulley, then the far arc of the alternator's. */
-const beltPath = (): Vec3[] => {
-  const { fs, crank: a, alt: b } = BELT,
-    th = Math.atan2(b.h - a.h, b.bl - a.bl),
-    ph = Math.acos((a.r - b.r) / Math.hypot(b.bl - a.bl, b.h - a.h));
-  const arc = (c: typeof a, from: number, span: number, n: number) =>
-    Array.from({ length: n + 1 }, (_, i) => {
-      const t = from + (span * i) / n;
-      return P3(fs, c.bl + c.r * Math.cos(t), c.h + c.r * Math.sin(t));
-    });
-  const pts = [...arc(a, th + ph, 2 * Math.PI - 2 * ph, 14), ...arc(b, th - ph, 2 * ph, 6)];
-  return [...pts, pts[0]];
-};
-/** Alternator body at its equipment-list arm, plus a short shaft carrying its pulley forward into the belt plane. */
-const alternatorGeo = () => {
-  const reach = X(BELT.fs) - X(-33.4),
-    shaft = cyl(0.008, reach - 0.06, "x"),
-    pulley = cyl(BELT.alt.r * IN - 0.004, 0.014, "x");
-  shaft.translate((reach + 0.06) / 2, 0, 0);
-  pulley.translate(reach, 0, 0);
-  return mergeGeos([cyl(0.06, 0.12, "x"), shaft, pulley]);
-};
-part(alternatorGeo, ["electrical", "engine"], {
-  pos: P3(-33.4, 9, 41.5),
+/** Belt plane just ahead of the crankcase; documented alternator arm, schematic shaft/pulleys. */
+const DRIVE = alternatorDrive(P3, {
+  bodyFs: -33.4,
+  beltFs: -41.2,
+  crank: { bl: 0, h: 50.4, r: 2.6 },
+  alt: { bl: 9, h: 41.5, r: 1.4 },
+});
+part(DRIVE.bodyGeo, ["electrical", "engine"], {
+  pos: DRIVE.position,
   color: ELEC,
   anim: glow(ELEC, () => EL().altOn, ["electrical", "engine", "overview"], "#FFD34D"),
   name: "Alternator — 28 V, 60 A",
-  note: "Belt driven, front of the engine, arm −33.4. 60 A standard (24-01-R) or 95 A optional (24-02-O) — which N8050J and N21200 have is not in the POH. Field through the ALT FIELD breaker (CROSSFEED BUS) and MASTER (ALT) (POH 7-46, 6-20). The pulley and shaft are drawn to line up with the belt; their sizes are approximate.",
+  note: "Belt driven, front of the engine, arm −33.4. 60 A standard (24-01-R) or 95 A optional (24-02-O) — which N8050J and N21200 have is not in the POH. Field through the ALT FIELD breaker (CROSSFEED BUS) and MASTER (ALT) (POH 7-46, 6-20). Case dimensions and internal mounting positions are schematic. The pulley and shaft are drawn to line up with the belt; their sizes are approximate.",
   pin: true,
 });
-part(() => tubeGeo(beltPath(), 0.006), ["electrical", "engine"], {
+part(DRIVE.beltGeo, ["electrical", "engine"], {
   color: "#20262B",
   name: "Alternator belt",
   note: "Crankshaft pulley to the alternator pulley at the front of the engine (layout approximate). A broken belt is one of the alternator failures behind the LOW VOLTS procedure (POH 3-33).",

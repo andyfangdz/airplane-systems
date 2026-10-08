@@ -7,6 +7,7 @@ import { V } from "@/lib/math";
 import {
   AIL,
   EF,
+  ELEV_HINGE_X,
   FIN_TOP,
   FLAP,
   RUD_BOT,
@@ -19,8 +20,6 @@ import {
   NAVY,
   hingeX,
   rudHs,
-  sC,
-  sLE,
   stabSec,
   wC,
   wLE,
@@ -74,9 +73,9 @@ export const TAIL_SURFACE_KEYS = ["elev", "rudder"];
   const ez = [-SSPAN, -1.2, -0.6, 0, 0.6, 1.2, SSPAN];
   surface(
     "elev",
-    () => ez.map((z) => stabSec(z, EF, 1)),
-    V(sLE() - EF * sC(-SSPAN), SY, -SSPAN),
-    V(sLE() - EF * sC(SSPAN), SY, SSPAN),
+    () => ez.map((z) => stabSec(z, EF(z), 1)),
+    V(ELEV_HINGE_X, SY, -SSPAN),
+    V(ELEV_HINGE_X, SY, SSPAN),
     ["controls"],
     "Elevator",
     "One-piece elevator on the trailing edge of the pivoting stabilizer; push-pull tube driven. Trim bungees on the elevator horns give trim assist as the stabilizer moves (OM p. 9).",

@@ -18,6 +18,7 @@ import { CAT } from "../parts";
 import { useM20C } from "../store";
 
 export function Environment() {
+  useTicker(200);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
   const env = s.env,

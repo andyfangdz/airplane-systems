@@ -5,6 +5,9 @@ import * as THREE from "three";
 import { cowlOpeningGeo, pantGeo } from "@/lib/geometry";
 import { AF as skyhawk } from "@/aircraft/c172s/geometry";
 import { AF as skylane } from "@/aircraft/c182t/geometry";
+import { AIL } from "@/aircraft/da40/geometry";
+import { CAT as diamondParts } from "@/aircraft/da40/parts";
+import { CAT as skylaneParts } from "@/aircraft/c182t/parts";
 
 describe.each([skyhawk, skylane])("Cessna local cross sections", (af) => {
   it("keeps skin queries and section rings consistent through cowl/cabin/tail transitions", () => {
@@ -63,10 +66,8 @@ it("leaves the lower tire visible under composite fairings", () => {
   }
 });
 
-it("closes the DA40 fixed-skin/aileron seam on both wings", async () => {
-  const { FLEET } = await import("@/aircraft");
-  const { AIL } = await import("@/aircraft/da40/geometry");
-  const cat = FLEET.find((d) => d.id === "da40")!.labels!.cat;
+it("closes the DA40 fixed-skin/aileron seam on both wings", () => {
+  const cat = diamondParts;
   for (const [side, label, key] of [
     [1, "Right", "ailR"],
     [-1, "Left", "ailL"],
@@ -88,9 +89,8 @@ it("closes the DA40 fixed-skin/aileron seam on both wings", async () => {
   }
 });
 
-it("keeps C182 engine heads and upper baffles inside the solid cowl", async () => {
-  const { FLEET } = await import("@/aircraft");
-  const cat = FLEET.find((d) => d.id === "c182t")!.labels!.cat;
+it("keeps C182 engine heads and upper baffles inside the solid cowl", () => {
+  const cat = skylaneParts;
   const parts = cat.parts.filter(
     (p) => p.name?.startsWith("Cylinder head") || p.name === "Cylinder baffles" || p.name?.startsWith("Spark plug"),
   );

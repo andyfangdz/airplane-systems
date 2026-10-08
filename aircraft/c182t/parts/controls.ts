@@ -264,7 +264,7 @@ part(
     chan: ["rudder"],
     name: "Rudder trim wheel",
     pin: true,
-    note: "Horizontally mounted wheel on the pedestal (Fig 7-2 item 25): rotate right for nose right, left for nose left. “The rudder is trimmed through a bungee connected to the rudder control system” (POH 7-7). Before start and takeoff: TAKEOFF position (POH 4-8, 4-17).",
+    note: "Horizontally mounted wheel on the pedestal (Fig 7-2 item 25): rotate right for nose right, left for nose left. “The rudder is trimmed through a bungee connected to the rudder control system” (POH 7-7). Before start and takeoff: TAKEOFF position (POH 4-8, 4-17). Mounting dimensions are illustrative.",
   },
 );
 part(() => box(0.03, 0.012, 0.012), ["controls"], {
@@ -274,22 +274,22 @@ part(() => box(0.03, 0.012, 0.012), ["controls"], {
   chan: ["rudder"],
 });
 part(() => box(0.012, 0.006, 0.02), ["controls"], {
-  pos: [RUD_TRIM.wheel[0] - 0.05, RUD_TRIM.wheel[1] + 0.02, RUD_TRIM.wheel[2]],
+  pos: RUD_TRIM.indicator,
   color: "#FFFFFF",
   chan: ["rudder"],
   anim: (m) => {
-    m.position.z = RUD_TRIM.wheel[2] + S().ctrl.rudTrim * 0.03;
+    m.position.z = RUD_TRIM.indicator[2] + S().ctrl.rudTrim * 0.03;
   },
   name: "Rudder trim indicator",
   note: "Rudder trim position indicator beside the wheel; the KOEL requires it for every kind of operation (POH 2-11).",
   pin: true,
 });
-part(() => cyl(0.006, Y(RUD_TRIM.shaftTop) - Y(RUD_TRIM.shaftBot), "y"), ["controls"], {
-  pos: [RUD_TRIM.wheel[0], (Y(RUD_TRIM.shaftTop) + Y(RUD_TRIM.shaftBot)) / 2, RUD_TRIM.wheel[2]],
+part(() => cyl(0.006, RUD_TRIM.wheel[1] - Y(RUD_TRIM.shaftBot), "y"), ["controls"], {
+  pos: [RUD_TRIM.wheel[0], (RUD_TRIM.wheel[1] + Y(RUD_TRIM.shaftBot)) / 2, RUD_TRIM.wheel[2]],
   color: STEEL,
   chan: ["rudder"],
   name: "Rudder trim shaft",
-  note: "Vertical shaft from the rudder-bar linkage up to the horizontal rudder trim wheel (Fig 7-1 Sheet 1).",
+  note: "Vertical shaft from the rudder-bar linkage up to the horizontal rudder trim wheel (Fig 7-1 Sheet 1). Mounting position and dimensions are illustrative.",
 });
 (["elUp", "elDn", "rudL", "rudR", "trim"] as const).forEach((k, i) => {
   const c = RIG.cable(k).pts,
@@ -304,14 +304,14 @@ part(() => cyl(0.006, Y(RUD_TRIM.shaftTop) - Y(RUD_TRIM.shaftBot), "y"), ["contr
     pin: i === 0,
   });
 });
-part(() => cyl(0.006, 0.22, "x"), ["controls", "cabin"], {
-  pos: P3(18.5, -14, 58.5),
+part(() => cyl(0.006, 0.05), ["controls", "cabin"], {
+  pos: P3(19, -RIG_SPEC.yoke.bl, RIG_SPEC.yoke.h),
   color: "#C8313B",
   anim: (m) => {
     m.visible = S().cabin.lock;
   },
   name: "Control lock",
-  note: "Shaped steel rod and flag through the pilot's control-wheel shaft and the panel collar: ailerons neutral, elevators slightly trailing edge down, flag over the ignition switch. Placard: CAUTION! CONTROL LOCK REMOVE BEFORE STARTING ENGINE (POH 7-27, 2-18). In gusty winds also fit a lock over the fin and rudder.",
+  note: "Shaped steel rod and flag through the pilot's control-wheel shaft and the panel collar: ailerons neutral, elevators slightly trailing edge down, flag over the ignition switch. Placard: CAUTION! CONTROL LOCK REMOVE BEFORE STARTING ENGINE (POH 7-27, 2-18). In gusty winds also fit a lock over the fin and rudder. Only the locking pin is shown; its size and mounting position are illustrative.",
   pin: true,
 });
 

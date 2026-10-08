@@ -6,7 +6,7 @@ import { Links, type LinkSpec } from "@/components/scene/Links";
 import { Parts } from "@/components/scene/Part";
 import { live } from "./model";
 import { CAT } from "./parts";
-import { ARMS, PIVOTS, WHEEL, linkPoints, rigPose } from "./rig";
+import { ARMS, PIVOTS, WHEEL, linkPoints, pitchCrankAngle, rigPose } from "./rig";
 import { useM20C } from "./store";
 
 const P = ({ parent }: { parent: string }) => <Parts cat={CAT} parent={parent} />;
@@ -163,7 +163,7 @@ export function ControlRig() {
       if (G[k]) G[k]!.rotation.x = p.b;
     });
     ["eIdle", "eTail"].forEach((k) => {
-      if (G[k]) G[k]!.rotation.z = (p.a / WHEEL.pitchTravel) * 0.5;
+      if (G[k]) G[k]!.rotation.z = pitchCrankAngle(p);
     });
     ["aFwd", "aCtr"].forEach((k) => {
       if (G[k]) G[k]!.rotation.y = p.b * 0.35;

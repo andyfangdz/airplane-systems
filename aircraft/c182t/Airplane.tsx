@@ -11,7 +11,7 @@ import { Screens, type ScreenSpec } from "@/components/scene/Screens";
 import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, clamp, type Vec3 } from "@/lib/math";
-import { narrowLayout, useView } from "@/lib/view";
+import { useView } from "@/lib/view";
 import {
   drawKapScreen,
   drawMfdScreen,
@@ -434,7 +434,7 @@ const SCREENS: ScreenSpec[] = [
 ];
 
 // on the phone layout the standby instruments and the KAP 140 LCD carry no label pin (they stay hoverable)
-for (const d of SCREENS) if (["asi", "ai", "alt", "kap"].includes(d.key)) d.pin = () => !narrowLayout();
+for (const d of SCREENS) if (["asi", "ai", "alt", "kap"].includes(d.key)) d.pin = (narrow) => !narrow;
 
 /* ---------- lights ---------- */
 const extOn = (k: "nav" | "strobe" | "land" | "taxi" | "beacon") => () => {

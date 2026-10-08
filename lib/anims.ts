@@ -2,7 +2,8 @@
  * Per-frame part animations shared by every airplane (`PartAnim`s for the parts catalogue). Each takes getters into the
  * airplane's own store or `live` values, so the same kind of part behaves the same way in every airplane.
  */
-import type { PartAnim } from "./catalogue";
+import type * as THREE from "three";
+import type { PartAnim, PartSpec } from "./catalogue";
 import { mats } from "./materials";
 import type { SysId } from "./systems";
 import { useView } from "./view";
@@ -10,16 +11,31 @@ import { useView } from "./view";
 export const sysNow = () => useView.getState().sys;
 const inView = (views: readonly SysId[]) => views.includes(sysNow());
 
+/** Apply live motion/colour, then enforce the scene's focus, visibility and material policy. */
+export function animatePart(
+  mesh: THREE.Mesh,
+  t: number,
+  spec: Pick<PartSpec, "anim" | "plate">,
+  appearance: { material: THREE.Material; active: boolean; focused: boolean; ghost: boolean },
+) {
+  // Start from the current view, not last frame's animation material. Motion-only animations leave this alone.
+  mesh.material = appearance.material;
+  spec.anim?.(mesh, t);
+  if (appearance.focused || !appearance.active || appearance.ghost || spec.plate) mesh.material = appearance.material;
+  // A locator must also reveal parts whose animation hides them, such as an unfitted control lock.
+  if (appearance.focused) mesh.visible = true;
+}
+
 /** Views where engine parts are shown live (spark plugs flashing, magnetos lit): the same in every airplane. */
 const ENGINE_VIEWS: readonly SysId[] = ["overview", "engine", "propeller"];
 
-/** Lit (`hot`) when `on()` in the given systems' views (and the Overview), otherwise the normal colour, dimmed elsewhere. */
+/** Lit (`hot`) when `on()` in the given systems' views (and the Overview); Part owns dimming and focus. */
 export const glowAnim =
   (color: string, on: () => boolean, sys: SysId[], hot = "#FFD34D"): PartAnim =>
   (m) => {
     const v = sysNow(),
       show = v === "overview" || sys.includes(v);
-    m.material = !show ? mats(color).dim : on() ? mats(hot).hi : mats(color).on;
+    m.material = show && on() ? mats(hot).hi : mats(color).on;
   };
 
 /**
@@ -43,20 +59,20 @@ export const sparkPhase = (id: string) => {
   return (h % 100) / 10;
 };
 
-/** Spark plug: flashes while `firing()` (engine turning and its magneto on and working) in the engine views; dimmed elsewhere. */
+/** Spark plug: flashes while `firing()` in the engine views; Part owns dimming and focus. */
 export const plugAnim =
   (firing: () => boolean, phase: number): PartAnim =>
   (m, t) => {
     const live = inView(ENGINE_VIEWS),
       flash = live && firing() && Math.sin(t * 18 + phase) > 0.3;
-    m.material = flash ? mats("#6FD8FF").hi : live ? mats("#DADFE2").on : mats("#DADFE2").dim;
+    m.material = flash ? mats("#6FD8FF").hi : mats("#DADFE2").on;
   };
 
-/** Magneto: lit while `firing()`, in the engine views; dimmed elsewhere. */
+/** Magneto: lit while `firing()` in the engine views; Part owns dimming and focus. */
 export const magAnim =
   (firing: () => boolean): PartAnim =>
   (m) => {
-    m.material = inView(ENGINE_VIEWS) ? (firing() ? mats("#6FD8FF").on : mats("#3E4A52").on) : mats("#3E4A52").dim;
+    m.material = inView(ENGINE_VIEWS) && firing() ? mats("#6FD8FF").on : mats("#3E4A52").on;
   };
 
 /** Brake disc: glows while `amount()` (0..1, toe brake or parking brake) is applied. */

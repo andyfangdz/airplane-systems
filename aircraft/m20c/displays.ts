@@ -6,6 +6,8 @@
  * flaps 63–125 white for the 1968 airplane per TCDS 2A3). Layout is approximate.
  */
 import { D2R, clamp } from "@/lib/math";
+import { turnRate } from "@/lib/avionics/flight";
+import { drawAltimeterDial } from "@/lib/avionics/g1000";
 import { PUSH_CB, SWITCH_CB, VAC, gearLights, mph, type Elec, type Sim } from "./model";
 import { live } from "./model";
 
@@ -263,34 +265,7 @@ function attitude(
 }
 
 function altimeter(ctx: Ctx, cx: number, cy: number, r: number, alt: number, baro: number) {
-  const R = dial(ctx, cx, cy, r),
-    u = R / 100;
-  for (let i = 0; i < 50; i++) {
-    const a = (i / 50) * Math.PI * 2,
-      big = i % 5 === 0;
-    line(
-      ctx,
-      cx + Math.sin(a) * 92 * u,
-      cy - Math.cos(a) * 92 * u,
-      cx + Math.sin(a) * (big ? 80 : 86) * u,
-      cy - Math.cos(a) * (big ? 80 : 86) * u,
-      WHITE,
-      (big ? 2 : 1) * u,
-    );
-    if (big) txt(ctx, String(i / 5), cx + Math.sin(a) * 68 * u, cy - Math.cos(a) * 68 * u, WHITE, 14 * u);
-  }
-  ctx.fillStyle = "#000";
-  ctx.fillRect(cx + 30 * u, cy - 8 * u, 36 * u, 16 * u);
-  ctx.strokeStyle = "#777";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(cx + 30 * u, cy - 8 * u, 36 * u, 16 * u);
-  txt(ctx, baro.toFixed(2), cx + 48 * u, cy, WHITE, 9 * u);
-  txt(ctx, "ALT", cx, cy - 32 * u, WHITE, 9 * u);
-  const a100 = ((alt % 1000) / 1000) * Math.PI * 2,
-    a1k = ((alt % 10000) / 10000) * Math.PI * 2;
-  needle(ctx, cx, cy, a1k, 52 * u, 6 * u);
-  needle(ctx, cx, cy, a100, 84 * u, 3.5 * u);
-  hub(ctx, cx, cy, 6 * u);
+  drawAltimeterDial(ctx, cx, cy, dial(ctx, cx, cy, r), alt, baro);
 }
 
 function turnCoordinator(
@@ -435,7 +410,7 @@ export function drawPanel(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
     live.vac >= 3.0,
   );
   altimeter(ctx, 322, 84, 56, fs.alt + (s.pitot.altStatic ? 40 : 0), fs.baro);
-  const rate = gnd ? 0 : (1091 * Math.tan(fs.roll * D2R)) / Math.max(fs.ias * 1.15, 40);
+  const rate = gnd ? 0 : turnRate(fs);
   turnCoordinator(ctx, 78, 212, 56, rate, gnd ? 0 : fs.slip, E.turnBank || live.vac >= 3.0, s.pc.rollTrim);
   headingGyro(ctx, 200, 212, 56, fs.hdg, live.vac >= 3.0);
   gauge(
@@ -495,7 +470,6 @@ export function drawPanel(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
     100,
     "IN HG",
   );
-  gauge(ctx, 600, 90, 58, "", 0, 8, null, [], [], String);
   // small fuel-pressure gauge in the lower half of the MP instrument face
   gauge(
     ctx,
@@ -625,10 +599,9 @@ export function drawPanel(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
     txt(ctx, k, 90 + Math.sin(a) * 30, 330 - Math.cos(a) * 30, s.eng.key === k ? WHITE : "#8A9299", 6);
   });
   txt(ctx, "MAGNETO / START", 90, 364, "#B8BEC4", 7);
-  const SWK: (keyof Sim["sw"])[] = ["fuelPump", "pitotHeat", "beacon", "nav", "landing"];
-  SWITCH_CB.forEach(([name], i) => {
+  SWITCH_CB.forEach(({ key, label: name }, i) => {
     const x = 160 + i * 64,
-      on = s.sw[SWK[i]] && !s.cb[name];
+      on = s.sw[key] && !s.cb[name];
     ctx.fillStyle = "#1A2127";
     ctx.fillRect(x - 10, 310, 20, 34);
     ctx.fillStyle = on ? "#C9D2D8" : "#56626B";

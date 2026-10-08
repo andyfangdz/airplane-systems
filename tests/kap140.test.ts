@@ -103,6 +103,27 @@ describe("modes", () => {
     const lost = kap140Tick(nav, { ...fs, navSrc: "VOR1" }, 0.1);
     expect(lost).toMatchObject({ lat: "ROL", lostLat: "NAV", tone: nav.tone });
   });
+
+  it.each(["REV", "HDG", "APR", "NAV"] as const)(
+    "%s releases a captured glideslope and holds the current VS (S3-8–S3-9)",
+    (key) => {
+      const loc = fsAt({ navSrc: "LOC1", gsErr: 0, vs: -500 });
+      const approach = kap140Tick(press(engaged(loc), loc, "APR"), loc, 0.1);
+      expect(approach.vert).toBe("GS");
+      const left = kap140Tick(press(approach, loc, key), loc, 0.1);
+      expect(left).toMatchObject({ vert: "VS", gsArm: false, vsRef: -500 });
+      expect(kap140Command(left, { ...loc, gsErr: 200 })?.vs).toBe(-500);
+    },
+  );
+
+  it("APR ARM flies the intercept heading even when selected from NAV (S3-11 item 15)", () => {
+    const on = fsAt({ hdg: 90, hdgBug: 270, crs: 90 });
+    const nav = press(engaged(on), on, "NAV");
+    const far = { ...on, xtk: 1.5 };
+    const armed = press(nav, far, "APR");
+    expect(armed).toMatchObject({ lat: "HDG", latArm: "APR" });
+    expect(kap140Command(armed, far)?.bank).toBeGreaterThan(0);
+  });
 });
 
 describe("altitude preselect", () => {

@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import type { Axis } from "@/lib/geometry";
 import { D2R, V, type Vec3 } from "@/lib/math";
+import { trailingEdgeTab } from "@/lib/trimTab";
 import { IN, type CessnaAirframe } from "./airframe";
 
 export { pulleyGeo } from "@/lib/geometry";
@@ -52,8 +53,9 @@ export interface RigSpec {
     hornH: number;
     pedalTravel: number;
   };
-  /** Trim wheel (pedestal), its radius; cable pulley stations; actuator in the stabilizer; tab horn station. */
-  trim: { wheel: Pt; r: number; pulleys: Pt[]; actuator: Pt; tabBl: number };
+  /** Trim wheel (pedestal), its radius; cable pulley stations; actuator and tab horn station (inches).
+   * `tabChord` and `tabSpan` are the illustrative tab dimensions in scene metres. */
+  trim: { wheel: Pt; r: number; pulleys: Pt[]; actuator: Pt; tabBl: number; tabChord: number; tabSpan: number };
   /** Nose-gear steering arm (FS, h) for the steering bungees. */
   steer: { fs: number; h: number; half: number };
   /** Autopilot servo stations, and their names for the cable notes (e.g. "GFC 700 roll servo (FS 59.5)"). */
@@ -105,6 +107,16 @@ export function cessnaRig(af: CessnaAirframe, R: RigSpec, T: Travel) {
     const v = wingP(Z(bl), c, 0);
     return [v.x, v.y, v.z];
   };
+  // Span/chord are illustrative; using one definition keeps the skin cutout, hinge, horn and rod aligned.
+  const trimTab = trailingEdgeTab({
+    z0: Z(R.trim.tabBl) - R.trim.tabSpan / 2,
+    z1: Z(R.trim.tabBl) + R.trim.tabSpan / 2,
+    chord: R.trim.tabChord,
+    y: af.SY,
+    leadingEdge: af.sLE,
+    sectionChord: af.sC,
+    section: af.stabSec,
+  });
 
   /* ---------- surface angles (radians, in the sign convention of the hinge axes) ---------- */
   const deg = (v: number, pos: number, neg: number) => (v >= 0 ? v * pos : v * neg);
@@ -268,7 +280,7 @@ export function cessnaRig(af: CessnaAirframe, R: RigSpec, T: Travel) {
       [P.awL.c[0] - 0.06, P.awL.c[1], P.awL.c[2]],
       bal(-1, 80),
       bal(-1, 30),
-      [X(R.servo.roll[0]), Y(R.servo.roll[2]) + 0.03, 0],
+      [X(R.servo.roll[0]), Y(R.servo.roll[2]) + 0.03, Z(R.servo.roll[1])],
       bal(1, 30),
       bal(1, 80),
       [P.awR.c[0] - 0.06, P.awR.c[1], P.awR.c[2]],
@@ -359,8 +371,7 @@ export function cessnaRig(af: CessnaAirframe, R: RigSpec, T: Travel) {
     const act = V(...p3(TR.actuator)),
       ep = V(...pivots.elevR),
       eax = V(...pivots.axE);
-    const tabHinge = V(af.sLE(Z(TR.tabBl)) - af.sC(Z(TR.tabBl)) + 0.11, af.SY, Z(TR.tabBl));
-    const tabHorn = rot(V(tabHinge.x - 0.02, tabHinge.y + 0.045, tabHinge.z), tabHinge, V(0, 0, 1), p.sa.tab);
+    const tabHorn = trimTab.point(V(-0.02, 0.045, 0), p.sa.tab);
     out.tabRod = [V(act.x - 0.06 - c.trim * 0.012, act.y + 0.01, act.z), rot(tabHorn, ep, eax, p.sa.elevR)];
     // steering bungees: rudder bar arms → nose gear steering arm (turns with the nosewheel)
     const sr = steerDeg * D2R;
@@ -373,5 +384,5 @@ export function cessnaRig(af: CessnaAirframe, R: RigSpec, T: Travel) {
     return out;
   }
 
-  return { P, C, pose, links, surfaceAngles, p3, cable: (k: string) => C.find((c) => c.key === k)! };
+  return { P, C, pose, links, surfaceAngles, trimTab, p3, cable: (k: string) => C.find((c) => c.key === k)! };
 }

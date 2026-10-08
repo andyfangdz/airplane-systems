@@ -31,7 +31,10 @@ To add one:
 - `components/scene/` draws what the airplane declares. Parts, shells and control surfaces cache their geometry per spec and
   share materials, so switching airplanes is cheap; everything else a component builds is disposed when the airplane is switched away.
 - `lib/anims.ts` holds the part animations every airplane uses (spark plugs, magnetos, brakes, glow, push-pull knobs); each takes
-  getters into the airplane's own store or `live` values.
+  getters into the airplane's own store or `live` values. `Part` applies the live animation, then enforces focus, dimming and
+  ghost materials so an animation cannot override the selected view's presentation.
+- `lib/trimTab.ts` builds matching elevator cutouts and trailing-edge trim tabs. Its shared hinge also places moving tab
+  horns and rod attachment points; span/chord and visual clearances remain approximate unless documented for the airplane.
 - `components/ui/wiring.tsx` holds the symbols for the live electrical diagrams (breaker, switch or relay contact, diode, fuse, bus box, key),
   drawn on a vertical or horizontal wire, dead or live.
 - `lib/avionics/` holds the G1000 / Perspective+ display drawing, the flight-state integrator, and the GFC 700 and KAP 140 logic (pure functions;

@@ -521,7 +521,12 @@ export function gfc700Tick(st: Gfc700State, fs: FlightState, cfg: Gfc700Cfg): Gf
   if (!c.fd) return s ?? st;
 
   // sensor and navigation losses
-  if (fs.fail.air && ["ALT", "ALTS", "VS", "FLC", "VPTH"].includes(c.vert)) loseVert(w(), fs, now, cfg);
+  if (!fs.vpath) {
+    if (c.vert === "VPTH") loseVert(w(), fs, now, cfg);
+    if ((s ?? st).vertArm.includes("VPTH")) w().vertArm = (s ?? st).vertArm.filter((m) => m !== "VPTH");
+    if ((s ?? st).vpthRe) w().vpthRe = null;
+  }
+  if (fs.fail.air && ["ALT", "ALTS", "VS", "FLC", "VPTH"].includes((s ?? st).vert)) loseVert(w(), fs, now, cfg);
   if (fs.fail.hdg && c.lat === "HDG") loseLat(w(), now, "hdg");
   const navLost = !fs.navValid || fs.navSrc !== c.src;
   if ((isNav(c.lat) || isNav(c.latArm)) && navLost) loseLat(w(), now, "nav");

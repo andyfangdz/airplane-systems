@@ -2,6 +2,7 @@
 import { bladeAngle, fuelAvail, live, mapInHg } from "../model";
 import { CAT } from "../parts";
 import { useSR20 } from "../store";
+import { engineOperation } from "../operation";
 import {
   BtnRow,
   Caution,
@@ -24,8 +25,10 @@ const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
 export function Engine() {
   useTicker(200);
   const s = useSR20((x) => x.s),
+    E = useSR20((x) => x.E),
     up = useSR20((x) => x.update);
-  const g = s.eng;
+  const g = s.eng,
+    operation = engineOperation(s, E, live.rpm);
   return (
     <>
       <p className="lead">
@@ -95,12 +98,27 @@ export function Engine() {
         />
         <Readouts
           items={[
-            ["Engine", g.running ? "RUNNING" : g.key === "START" ? ["CRANKING", "warnc"] : ["STOPPED", "bad"]],
+            [
+              "Engine",
+              g.running
+                ? "RUNNING"
+                : operation.cranking
+                  ? ["CRANKING", "warnc"]
+                  : g.key === "START"
+                    ? ["START — NO STARTER POWER", "bad"]
+                    : ["STOPPED", "bad"],
+            ],
             ["RPM", rpm10()],
             ["MAP in", mapInHg(s, live.rpm).toFixed(1)],
             [
               "Plugs firing",
-              live.rpm < 100 ? "—" : g.key === "R" ? "R mag · 4" : g.key === "L" ? "L mag · 4" : "Both · 8",
+              operation.leftMag && operation.rightMag
+                ? "Both · 8"
+                : operation.leftMag
+                  ? "L mag · 4"
+                  : operation.rightMag
+                    ? "R mag · 4"
+                    : "—",
             ],
           ]}
         />

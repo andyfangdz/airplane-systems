@@ -110,20 +110,23 @@ part(() => box(0.1, 0.09, 0.1), ["engine", "propeller"], {
   note: "Flanged onto the front of the engine (arm 0.747 m). Meters engine oil to the hub to hold the RPM set by the blue lever; if the governor or oil supply fails the blades go to fine pitch (max RPM) (AFM 7-22).",
   pin: true,
 });
+export const ALTERNATOR: Vec3 = [fs(0.64), -0.18, -0.2];
 part(() => cyl(0.065, 0.12, "x"), ["electrical", "engine"], {
-  pos: [fs(0.64), -0.18, -0.17],
+  pos: ALTERNATOR,
   color: "#D9960F",
   anim: glow("#5A5040", "#D9960F", () => sim().E.altFeed, ["electrical", "engine"]),
   name: "Alternator — 28 V, 70 A",
-  note: "Front of the engine, V-belt driven (AFM 7-42). Regulated by the VR2000 regulator with over-voltage protection; output through the ALT 70 A breaker to the MAIN bus.",
+  note: "Front of the engine, V-belt driven (AFM 7-42). Regulated by the VR2000 regulator with over-voltage protection; output through the ALT 70 A breaker to the MAIN bus. Case dimensions and mounting coordinates are approximate.",
   pin: true,
 });
+/** Representative starter envelope, beside the sump and inside the lower cowl; height/lateral position approximate. */
+export const STARTER: Vec3 = [fs(0.64), -0.18, 0.2];
 part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
-  pos: [fs(0.64), -0.2, 0.16],
+  pos: STARTER,
   color: "#4B5860",
   anim: glow("#4B5860", "#E7B416", () => sim().E.starterOn, ["engine", "electrical"]),
   name: "Starter (Skytec 149-24LS)",
-  note: "Front of the engine, fed from the relay box through the START relay (~160 A). Max 10 s cranking, then 20 s cooling; after 6 attempts let it cool 30 min (AFMS p. 39).",
+  note: "Front of the engine, fed from the relay box through the START relay (~160 A). Max 10 s cranking, then 20 s cooling; after 6 attempts let it cool 30 min (AFMS p. 39). Envelope and mounting coordinates are approximate.",
   pin: true,
 });
 part(() => box(0.08, 0.08, 0.1), ["engine", "fuel"], {

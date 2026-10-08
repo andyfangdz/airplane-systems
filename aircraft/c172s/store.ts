@@ -2,7 +2,7 @@
 import { initFlight, type FlightState } from "@/lib/avionics/flight";
 import { gfc700Init } from "@/lib/avionics/gfc700";
 import { createSimStore } from "@/lib/simStore";
-import { initialSim, live, solve, type Sim } from "./model";
+import { initialLive, initialSim, live, solve, type Sim } from "./model";
 
 /** C172S systems state (switches, levers, failures, quantities) and its solved electrical/fuel picture. */
 export const useC172 = createSimStore(initialSim, solve);
@@ -23,6 +23,17 @@ const afcsReset = (tested: boolean) => ({
   ...(tested ? { powered: true, pft: "pass" as const } : {}),
 });
 
+/** Reset coupled sensor, engine and timer state together; retain the flight clock, trim and lifetime hour counters. */
+function resetLive(tested: boolean) {
+  const fresh = initialLive();
+  Object.assign(live, fresh, {
+    fs: { ...fresh.fs, t: live.fs.t },
+    afcs: afcsReset(tested),
+    hobbs: live.hobbs,
+    engHrs: live.engHrs,
+  });
+}
+
 /** Scenarios keep the flight clock running so AFCS timers (preflight test, disconnect tone) stay consistent. */
 const ground = (p: Partial<FlightState> = {}) =>
   initFlight({
@@ -42,9 +53,10 @@ const ground = (p: Partial<FlightState> = {}) =>
 
 /** Cold and dark on the ramp: everything off, engine cold, ready for the POH 4-11 start. */
 export function scenarioColdDark() {
-  live.afcs = afcsReset(false);
+  resetLive(false);
   live.fs = ground();
   live.rpm = 0;
+  live.ff = 0;
   live.oilP = 0;
   live.oilT = 60;
   live.cht = 60;
@@ -84,7 +96,7 @@ export function scenarioColdDark() {
 /** Engine running at 1,000 RPM on the ramp, avionics on (after the POH start checklist). */
 export function scenarioRunUp() {
   // AVIONICS has just come on after the start: the GFC 700 powers up and runs its preflight test
-  live.afcs = afcsReset(false);
+  resetLive(false);
   live.fs = ground();
   live.rpm = 1050;
   live.oilP = 60;
@@ -121,7 +133,7 @@ export function scenarioRunUp() {
 
 /** Cruise at 4,500 ft, 110 KIAS, AP off (GFC 700 already tested). */
 export function scenarioCruise() {
-  live.afcs = afcsReset(true);
+  resetLive(true);
   live.fs = initFlight({
     t: live.fs.t,
     ias: 110,

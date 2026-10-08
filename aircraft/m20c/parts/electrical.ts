@@ -3,13 +3,14 @@
 import { FW, PANEL_X, box, botY, cyl, topY } from "../geometry";
 
 import { glow, part, sim } from "./catalogue";
+import { EQUIPMENT } from "../placement";
 
 /* ---------- electrical ---------- */
 part(() => box(0.18, 0.18, 0.14), ["electrical"], {
-  pos: [FW + 0.25, -0.2, -0.36],
+  pos: EQUIPMENT.battery,
   color: "#D9960F",
   name: "Battery — 12 V, 35 Ah",
-  note: "On the forward left side of the firewall (TCDS arm +2.5 in), reached through the access panel in the left cowling (OM p. 3, 26). Check fluid every 25 h or 30 days.",
+  note: "On the forward left side of the firewall (TCDS arm +2.5 in), reached through the access panel in the left cowling (OM p. 3, 26). Case dimensions are schematic; the installed battery model is not identified. Check fluid every 25 h or 30 days.",
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.06), ["electrical"], {
@@ -51,11 +52,11 @@ part(() => box(0.02, 0.1, 0.12), ["electrical"], {
   note: "Lower right of the co-pilot's panel, under a special cover: push-to-reset breakers for the radios, instruments and warning circuits (OM p. 4). Names in the Electrical panel are inferred from the Ranger schematic.",
   pin: true,
 });
-part(() => box(0.1, 0.08, 0.3), ["electrical", "cabin"], {
-  pos: [PANEL_X - 0.04, -0.03, 0.05],
+part(() => box(0.28, 0.08, 0.3), ["electrical", "cabin"], {
+  pos: EQUIPMENT.radios,
   color: "#1B1F23",
   name: "Radios (centre stack)",
-  note: "Nav/com radios in the centre panel, cooled by the firewall grill and the left-scoop tubes (OM p. 11). Not original to 1967 — whatever N6947N carries today.",
+  note: "Nav/com radios in the centre panel, with their cases extending forward behind the panel; cooled by the firewall grill and the left-scoop tubes (OM p. 11). Installed models and case dimensions are unknown, so the housing is schematic.",
   pin: true,
   pinIn: ["electrical"],
 });

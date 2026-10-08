@@ -96,6 +96,9 @@ export const wingSec = WING.sec;
 /** Flaps WS 0.6–2.95 ("wide span"), ailerons 3.0–5.1; hinges at 74 % and 76 % chord. Main spar ≈ 33 %, aux spar ≈ 68 %. */
 export const FLAP = { z0: 0.62, z1: 2.95, hinge: 0.74 },
   AIL = { z0: 3.02, z1: 5.1, hinge: 0.76 };
+/** Fixed skin and moving surfaces share their actual chord boundary. */
+export const wingCut = (z: number) =>
+  lerp(FLAP.hinge, AIL.hinge, clamp((Math.abs(z) - FLAP.z1) / (AIL.z0 - FLAP.z1), 0, 1));
 export const MAIN_SPAR = 0.33,
   AUX_SPAR = 0.68;
 
@@ -107,8 +110,11 @@ export const SSPAN = 1.79,
   SY = -0.1;
 export const sLE = () => -2.58;
 export const sC = (z: number) => 1.15 - (Math.abs(z) / SSPAN) * 0.55;
-/** Elevator hinge at 55 % of the stabilizer chord. */
-export const EF = 0.55;
+/** A one-piece elevator needs one straight hinge. Preserve the previous approximate
+ * elevator area (45% of the trapezoid), rather than sweeping its split at 55% of each chord.
+ * The manual does not dimension the hinge; this is a consistent schematic fit. */
+export const ELEV_HINGE_X = sLE() - (0.55 * (sC(0) + sC(SSPAN))) / 2;
+export const EF = (z: number) => (sLE() - ELEV_HINGE_X) / sC(z);
 export const stab = liftingSurface({ le: sLE, chord: sC, y: () => SY, t: () => 0.1, m: 0 });
 export const stabSec = stab.sec;
 

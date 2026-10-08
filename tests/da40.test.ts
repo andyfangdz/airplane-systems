@@ -40,6 +40,18 @@ describe("DA40 electrical solve", () => {
     expect(solve(sim(), off).altOn).toBe(true); // BAT on: MAIN is live, the field is excited
   });
 
+  it("resetting ALT after battery exhaustion cannot excite it from a dead MAIN bus (AMM-E Fig. 2-3)", () => {
+    const s = sim({ elec: { tBat: 120, fail: { alt: true } } });
+    const exhausted = solve(s, E0);
+    expect(exhausted).toMatchObject({ batDead: true, main: 0, altOn: false });
+    s.elec.fail.alt = false;
+    const reset = solve(s, exhausted);
+    expect(reset).toMatchObject({ batDead: true, main: 0, altOn: false });
+    // External power can supply the field; resetting the time slider also restores a charged-battery scenario.
+    expect(solve(sim({ elec: { tBat: 120, ext: true } }), reset).altOn).toBe(true);
+    expect(solve(sim(), reset).altOn).toBe(true);
+  });
+
   it("is pure: the same state and previous solution always give the same result", () => {
     const s = sim({ elec: { bat: false } });
     const before = solve(s, E0);

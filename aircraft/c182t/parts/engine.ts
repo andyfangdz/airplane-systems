@@ -53,11 +53,11 @@ part(() => box(0.86, 0.3, 0.44), ["engine"], {
   note: "Normally aspirated, direct drive, air-cooled, horizontally opposed, fuel injected, six cylinders, 541 cu in; 230 BHP at 2,400 RPM; wet sump; 400.4 lb at arm −23.6 (POH 1-5, 7-27, 6-24).",
   pin: true,
 });
-part(() => box(0.62, 0.12, 0.36), ["engine"], {
-  pos: P3(-24, 0, 37.5),
+part(() => box(0.46, 0.12, 0.36), ["engine"], {
+  pos: P3(-24, 0, 40.25),
   color: "#B85A2A",
   name: "Oil sump",
-  note: "Wet sump on the bottom of the engine: 8 qt sump, 9 qt total (POH 1-7, 8-14; placard “OIL 9 QTS”) — never operate on less than 4 qt; fill to 8 qt for flights under 3 hours, 9 qt for extended flight (POH 7-34). Section 7 (p. 7-34) states the sump as 9 qt plus 1 qt in the filter; Sections 1 and 8 and the 9-qt placard govern.",
+  note: "Wet sump on the bottom of the engine: 8 qt sump, 9 qt total (POH 1-7, 8-14; placard “OIL 9 QTS”) — never operate on less than 4 qt; fill to 8 qt for flights under 3 hours, 9 qt for extended flight (POH 7-34). Section 7 (p. 7-34) states the sump as 9 qt plus 1 qt in the filter; Sections 1 and 8 and the 9-qt placard govern. Case dimensions and height are approximate, attached under the crankcase above the servo.",
 });
 /** Cylinder positions: 1, 3, 5 right bank, 2, 4, 6 left (Lycoming numbering — the POH does not map numbers to positions). */
 export const CYLS = [
@@ -68,7 +68,20 @@ export const CYLS = [
   { n: 5, fs: -23.5, s: 1 },
   { n: 6, fs: -20.5, s: -1 },
 ];
-CYLS.forEach((c) => {
+/** Schematic intake-chamber fittings, separate from the lower plugs; shared with the fuel-line endpoints. */
+export const NOZZLES: Vec3[] = CYLS.map((c) => {
+  const b = P3(c.fs, c.s * 12, 50);
+  return [b[0] + 0.04, b[1] - 0.07, b[2] + c.s * 0.075];
+});
+/** Approximate induction runners, below the sump before rising outside its sides. */
+export const INTAKES: Vec3[][] = CYLS.map((c) => [
+  P3(-22, 0, 36.5),
+  P3(-22, c.s * 8.5, 37.1),
+  P3(-22, c.s * 13, 38),
+  P3(c.fs, c.s * 13, 40),
+  P3(c.fs - 1.5, c.s * 14.2, 47.2),
+]);
+CYLS.forEach((c, i) => {
   const base = P3(c.fs, c.s * 12, 50);
   part(() => cyl(0.058, 0.2, "z", 18), ["engine"], {
     pos: base,
@@ -110,10 +123,10 @@ CYLS.forEach((c) => {
     });
   });
   part(() => box(0.03, 0.03, 0.03), ["engine", "fuel"], {
-    pos: [base[0] - 0.02, base[1] - 0.11, base[2] + c.s * 0.07],
+    pos: NOZZLES[i],
     color: "#C9B98F",
     name: "Fuel injector nozzle",
-    note: "Air-bleed type nozzle in the intake chamber of each cylinder, fed by the fuel distribution unit (POH 7-36, 7-40).",
+    note: "Air-bleed type nozzle in the intake chamber of each cylinder, fed by the fuel distribution unit (POH 7-36, 7-40). Fitting size and position on the chamber are schematic, not dimensioned in the POH.",
   });
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
@@ -133,10 +146,10 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => box(0.12, 0.1, 0.11), ["engine", "electrical"], {
-  pos: P3(-39, -8, 42.5),
+  pos: P3(-39, -11, 42.5),
   color: "#4B5860",
   name: "Starter",
-  note: "Front of the engine (POH 7-27). MAGNETOS to START with the MASTER on closes the starter contactor in the J-box. 10 s cranking, 20 s cool; three cycles then 10 minutes (POH 4-28).",
+  note: "Front of the engine (POH 7-27). MAGNETOS to START with the MASTER on closes the starter contactor in the J-box. 10 s cranking, 20 s cool; three cycles then 10 minutes (POH 4-28). Size and lateral placement are approximate, alongside the lower crankcase.",
   pin: true,
 });
 part(() => cyl(0.04, 0.1, "x"), ["engine"], {
@@ -146,11 +159,11 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
   note: "Rear of the accessory case; its adapter has a bypass valve for a plugged filter or very cold oil and carries the oil temperature sensor (POH 7-34, 7-32).",
   pin: true,
 });
-part(() => box(0.06, 0.15, 0.2), ["engine"], {
-  pos: P3(-11.4, -13, 56),
+part(() => box(0.06, 0.12, 0.16), ["engine"], {
+  pos: P3(-11.4, -12.6, 54.9),
   color: "#9A6A48",
   name: "Oil cooler",
-  note: "Thermostatically controlled remote cooler, arm −11.4 (POH 7-34, 6-25). In extreme cold the oil congeals in it — preheat (POH 4-49). Lateral position assumed.",
+  note: "Thermostatically controlled remote cooler, arm −11.4 (POH 7-34, 6-25). In extreme cold the oil congeals in it — preheat (POH 4-49). Dimensions, lateral position and height are approximate; the core is outside the crankcase and inside the cowl.",
 });
 part(() => cyl(0.012, 0.18, "y"), ["engine"], {
   pos: P3(-14, -9, 57),
@@ -209,7 +222,7 @@ part(() => box(0.08, 0.1, 0.2), ["engine"], {
   note: "P106150, arm −35.2 (POH 6-24). Check for dust preflight (POH 4-10); replace as condition warrants, 500 h maximum (POH 8-23). Ice on the filter shows as an unexplained MAP loss (POH 3-29).",
   pin: true,
 });
-// the air box lies between the filter and the servo, under the oil sump (bottom h 35.1): the door hangs below the sump
+// the air box lies between the filter and the servo, under the oil sump (bottom h 37.9): the door hangs below the sump
 part(() => box(0.1, 0.07, 0.03), ["engine"], {
   pos: P3(-29, -5, 33),
   color: "#E0B040",
@@ -225,11 +238,11 @@ part(() => cyl(0.05, 0.12, "x"), ["engine", "fuel"], {
   note: "Under the engine: meters fuel in proportion to induction air flow; throttle and mixture act here. An orificed fitting in its top feeds the fuel return line (POH 7-35, 7-40, 7-43).",
   pin: true,
 });
-CYLS.forEach((c) =>
-  part(() => tubeGeo([P3(-22, 0, 36.5), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 12, 45.5)], 0.015), ["engine"], {
+INTAKES.forEach((points) =>
+  part(() => tubeGeo(points, 0.015), ["engine"], {
     color: "#8A969E",
     name: "Intake manifold tube",
-    note: "From the fuel/air control unit to each cylinder's intake port (POH 7-35).",
+    note: "From the fuel/air control unit to each cylinder's intake port (POH 7-35). Routing and port positions are approximate.",
   }),
 );
 // exhaust and cabin heat (POH 7-36)

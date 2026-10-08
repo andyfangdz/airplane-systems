@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import { V } from "@/lib/math";
+import { mergeGeos } from "@/lib/geometry";
 import {
   X,
   Y,
@@ -20,6 +21,7 @@ import {
   wingP,
 } from "../geometry";
 import { P3, PV, part } from "./catalogue";
+import { RUD_TRIM } from "../rig";
 
 /* ---------- structure ---------- */
 part(() => planeRing(X(0)), ["airframe", "engine"], {
@@ -217,13 +219,30 @@ part(() => sectionSlab(X(16.6), Y(66.4), Y(67.8), 0.97, 0.06, X(15.4)), ["cabin"
   name: "Glareshield",
   note: "Placard above the PFD: MANEUVERING SPEED – 110 KIAS (POH 2-20). The forward avionics fan blows warm air up the windshield through a screen in it (POH 7-69, 3-20).",
 });
-part(() => box(0.28, 0.38, 0.15), ["cabin", "fuel"], {
-  pos: P3(21.5, 0, 33.5),
-  color: "#39424A",
-  fairing: true,
-  name: "Center pedestal",
-  note: "Elevator and rudder trim wheels and indicators, cowl flap lever, 12V outlet, AUX AUDIO IN jack and microphone bracket; the fuel selector handle is at its base (POH 7-12).",
-});
+part(
+  () => {
+    // The housing needs an opening around the horizontal wheel; a solid box would bury its rim.
+    // Keep the existing pedestal envelope, with an illustrative access slot derived from the wheel mount.
+    const center = P3(21.5, 0, 33.5);
+    const slotY = RUD_TRIM.wheel[1] - center[1],
+      lo = slotY - 0.017,
+      hi = slotY + 0.017,
+      back = RUD_TRIM.wheel[0] - RUD_TRIM.r + 0.012 - center[0];
+    return mergeGeos([
+      box(0.28, 0.19 - hi, 0.15).translate(0, (hi + 0.19) / 2, 0),
+      box(0.28, lo + 0.19, 0.15).translate(0, (lo - 0.19) / 2, 0),
+      box(0.14 - back, hi - lo, 0.15).translate((back + 0.14) / 2, slotY, 0),
+    ]);
+  },
+  ["cabin", "fuel"],
+  {
+    pos: P3(21.5, 0, 33.5),
+    color: "#39424A",
+    fairing: true,
+    name: "Center pedestal",
+    note: "Elevator and rudder trim wheels and indicators, cowl flap lever, 12V outlet, AUX AUDIO IN jack and microphone bracket; the fuel selector handle is at its base (POH 7-12). Housing and wheel-access opening dimensions are illustrative.",
+  },
+);
 (
   [
     [

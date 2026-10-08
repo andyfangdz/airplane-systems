@@ -1,11 +1,14 @@
 "use client";
 import { useSR20 } from "../store";
+import { cabinOperation } from "../environment";
 import { Caution, Check, Ctl, Facts, H3, Notes, Readouts, Seg, Slider, Small } from "@/components/ui/controls";
 
 export function Environment() {
   const s = useSR20((x) => x.s),
+    E = useSR20((x) => x.E),
     up = useSR20((x) => x.update);
-  const env = s.env;
+  const env = s.env,
+    cabin = cabinOperation(s, E);
   return (
     <>
       <p className="lead">
@@ -89,8 +92,11 @@ export function Environment() {
         />
         <Readouts
           items={[
-            ["Hot-air valve", env.ac || env.fan < 0 ? "Closed" : Math.round(env.temp * 100) + "%"],
-            ["Fresh-air valve", env.recirc || env.fan < 0 ? "Closed" : Math.round((1 - env.temp) * 100) + "%"],
+            ["Blower", cabin.blower ? "Running" : env.fan > 0 ? ["NO PWR", "bad"] : "Off"],
+            ["A/C", cabin.ac ? "Cooling" : env.ac ? [s.eng.running ? "NO PWR" : "ENGINE STOPPED", "warnc"] : "Off"],
+            ["Recirculation", cabin.recirc ? "Active" : "Off"],
+            ["Hot-air valve", cabin.hotValve === 0 ? "Closed" : Math.round(cabin.hotValve * 100) + "%"],
+            ["Fresh-air valve", cabin.freshValve === 0 ? "Closed" : Math.round(cabin.freshValve * 100) + "%"],
             [
               "Outlets",
               { P: "Panel", PF: "Panel · floor", PFW: "Panel · floor · wind", W: "Panel · windshield" }[env.vent],
@@ -105,8 +111,9 @@ export function Environment() {
           "Panel and armrest eyeball outlets are always fed; each occupant twists the nozzle to shut it off.",
           "Floor butterfly opens for Panel-Foot; the windshield butterfly adds defrost for Panel-Foot-Windshield; Windshield alone closes the floor valve for maximum defog.",
           "A/C (optional): R134a, engine-driven compressor, evaporator under the front passenger seat. Engine must be running; the snowflake closes the hot-air valve.",
-          "A/C and recirculation are unavailable with the fan at 0; recirculation needs the A/C running.",
+          "A/C and recirculation are unavailable with the fan at 0. Recirculation needs A/C selected and a powered blower; in this model, loss of refrigeration retains the selected valve positions.",
           "The G6 control panel knob reads OFF – 0 – 1 – 2 – 3: OFF shuts cabin airflow, 0 is ram air only, 1–3 add blower speed (Costanzo deck photo).",
+          "Airflow rates are illustrative. This SR20 model assumes ram air while the engine runs and the fresh-air valve is open; loss of blower power leaves only that airflow. Valve positions retain the selected settings when control power is lost.",
         ]}
       />
       <Facts

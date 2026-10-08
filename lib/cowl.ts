@@ -24,6 +24,21 @@ export function inletContour(inlet: CowlInlet) {
 /** Subtract convex inlet prisms from triangles. Interpolate all attributes at cut edges,
  * preserving smooth normals, paint UVs and winding. No opacity/sorting or picking workaround. */
 export function cutCowlInlets(source: THREE.BufferGeometry, inlets: CowlInlet[]) {
+  return inletGeometry(source, inlets, false);
+}
+
+/** Retain the exact skin removed by an aperture, e.g. for a conformal moving door.
+ * Additional planes keep their negative half-space. The source is disposed as with the cutter. */
+export function inletSkins(source: THREE.BufferGeometry, inlets: CowlInlet[], planes: THREE.Plane[] = []) {
+  return inletGeometry(source, inlets, true, planes);
+}
+
+function inletGeometry(
+  source: THREE.BufferGeometry,
+  inlets: CowlInlet[],
+  retain: boolean,
+  extraPlanes: THREE.Plane[] = [],
+) {
   const attrs = Object.entries(source.attributes);
   const sizes = attrs.map(([, attr]) => attr.itemSize);
   const offsets = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
@@ -40,6 +55,15 @@ export function cutCowlInlets(source: THREE.BufferGeometry, inlets: CowlInlet[])
       // The contour is clockwise in y/z; interior lies to the right of each edge.
       planes.push((v) => (yy - y) * (v[pOffset + 2] - z) - (zz - z) * (v[pOffset + 1] - y));
     });
+    planes.push(
+      ...extraPlanes.map(
+        (plane) => (v: Vertex) =>
+          plane.normal.x * v[pOffset] +
+          plane.normal.y * v[pOffset + 1] +
+          plane.normal.z * v[pOffset + 2] +
+          plane.constant,
+      ),
+    );
     return { inlet, planes };
   });
   const emit = (poly: Vertex[]) => {
@@ -90,11 +114,12 @@ export function cutCowlInlets(source: THREE.BufferGeometry, inlets: CowlInlet[])
           if (outside.length >= 3) remaining.push(outside);
           inside = next;
         }
-        // The remaining interior is the aperture: intentionally emit no cap.
+        // Retained skin uses the same triangle intersections as the surrounding aperture.
+        if (retain && inside.length >= 3) emit(inside);
       }
       polygons = remaining;
     }
-    polygons.forEach(emit);
+    if (!retain) polygons.forEach(emit);
   }
   const g = new THREE.BufferGeometry();
   attrs.forEach(([name], i) => g.setAttribute(name, new THREE.Float32BufferAttribute(output[i], sizes[i])));

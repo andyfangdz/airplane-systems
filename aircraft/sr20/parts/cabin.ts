@@ -51,12 +51,17 @@ function slope(a: [number, number], b: [number, number]) {
 // strip, facing up at the pilot; the MD302 is on its aft face. The avionics stack of the centre console (item 15) leans back from
 // the displays down to the console between the bolster halves.
 const BOLSTER_TOP = slope([2.18, -0.005], [2.28, -0.005]);
-part(() => box(0.1, 0.145, 0.8), ["cabin", "lighting", "electrical"], {
-  pos: [2.23, -0.0775, 0],
-  color: "#39424A",
-  name: "Bolster switch panel",
-  note: "Below the PFD (POH Fig. 7-4 item 18, Fig. 7-12): a placard, then MASTER (BAT 2, BAT 1, ALT 1, ALT 2, AVIONICS) and EXTERIOR LIGHTS (NAV, STROBE, LAND), PITOT HEAT, the ICE PROTECT positions (blank without FIKI), and the PANEL and INSTRUMENT dimmers at the right end. The MD302 standby is below the switches, under the PFD.",
-});
+// Separate bolster halves leave the centre-console avionics stack unobstructed (POH Fig. 7-4).
+part(
+  () => mergeGeos([-1, 1].map((s) => box(0.1, 0.145, 0.305).translate(0, 0, s * 0.2475))),
+  ["cabin", "lighting", "electrical"],
+  {
+    pos: [2.23, -0.0775, 0],
+    color: "#39424A",
+    name: "Bolster switch panel",
+    note: "Below the PFD (POH Fig. 7-4 item 18, Fig. 7-12): a placard, then MASTER (BAT 2, BAT 1, ALT 1, ALT 2, AVIONICS) and EXTERIOR LIGHTS (NAV, STROBE, LAND), PITOT HEAT, the ICE PROTECT positions (blank without FIKI), and the PANEL and INSTRUMENT dimmers at the right end. The MD302 standby is below the switches, under the PFD.",
+  },
+);
 /**
  * Bolster switch strip under the PFD, laid out from POH Fig. 7-12: the strip spans the PFD's width (z −0.385 … −0.10) and
  * `slot` maps the figure's horizontal position (its pixel column, strip 205–625) onto it. The rockers sit close together,
@@ -365,10 +370,10 @@ part(() => new THREE.CylinderGeometry(0.012, 0.012, 0.1, 8), ["caps", "cabin"], 
 });
 part(() => box(0.03, 0.02, 0.15), ["caps", "cabin"], { pos: [1.3, 0.58, -0.02], color: "#D32640" });
 part(() => cyl(0.04, 0.24), ["cabin"], {
-  pos: [2.18, -0.45, -0.5],
+  pos: [2.18, -0.45, -0.44],
   color: "#D32640",
   name: "Fire extinguisher",
-  note: "Halon 1211, class B & C. Forward outboard in the pilot footwell. About 2.5 lb; check gauge/pin preflight.",
+  note: "Halon 1211, class B & C. Forward outboard in the pilot footwell. About 2.5 lb; check gauge/pin preflight. Case dimensions and mounting coordinates are approximate.",
   pin: true,
 });
 part(() => box(0.22, 0.05, 0.12), ["cabin"], {

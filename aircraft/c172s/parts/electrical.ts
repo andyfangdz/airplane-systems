@@ -1,37 +1,43 @@
 /** C172S catalogue: electrical system (POH 7-47, Figure 7-7) — batteries, J-box, alternator, switch and breaker panels. */
 import { glowAnim as glow } from "@/lib/anims";
-import { X, Y, Z, box, cyl, onSkin, sph, tubeGeo } from "../geometry";
+import type { Vec3 } from "@/lib/math";
+import { X, Y, Z, box, cyl, onSkin, sph } from "../geometry";
+import { alternatorDrive } from "../../cessna/accessories";
 import { cbHeads, switchRows } from "../../cessna/faceplate";
 import { P3, PV, part, S, EL } from "./catalogue";
 
 /* ---------- electrical (POH 7-47, Figure 7-7) ---------- */
 const ELEC = "#D9960F";
-// outboard of the upper-left engine mount tube (BL −12 at the battery's aft face) and inside the cowl side; 2.5 in above the
-// J-box (h 48.7–56.5) so the battery cable shows. The "bat" flow in flows.ts starts at its bottom face.
+// Retain the equipment-list arm. Approximate BL/height put the complete case inside the rounded cowl,
+// below the upper-left mount tube and above the J-box. Share the bottom terminal with its cable.
+export const MAIN_BATTERY: Vec3 = P3(-5, -15.5, 50.5);
+export const BATTERY_TERMINAL: Vec3 = [MAIN_BATTERY[0], MAIN_BATTERY[1] - 0.1, MAIN_BATTERY[2]];
+export const JBOX: Vec3 = P3(-2.5, -15, 43);
 part(() => box(0.12, 0.2, 0.18), ["electrical"], {
-  pos: P3(-5, -15.9, 52.6),
+  pos: MAIN_BATTERY,
   color: ELEC,
   anim: glow(ELEC, () => EL().mBatt < -0.5, ["electrical"], "#FF8A3D"),
   name: "Main battery — 24 V",
-  note: "Inside the engine cowling on the left firewall (POH 7-47), arm −5.0; its height and distance from the centreline are approximate. Equipment list: 24 V, 8.0 Ah (POH 6-19; the KAP 140 edition lists 12.75 Ah).",
+  note: "Inside the engine cowling on the left firewall (POH 7-47), arm −5.0; case dimensions, height and distance from the centreline are approximate. Equipment list: 24 V, 8.0 Ah (POH 6-19; the KAP 140 edition lists 12.75 Ah).",
   pin: true,
 });
 part(() => box(0.1, 0.16, 0.14), ["electrical"], {
-  pos: P3(-2.5, -15, 43),
+  pos: JBOX,
   color: "#8A7A3A",
+  fairing: true,
   name: "Power distribution module (J-box)",
-  note: "Left forward firewall: battery relay (master contactor), starter contactor, alternator relay, the Alternator Control Unit, main battery current shunt, external power relay and three push-to-reset bus feeder breakers (POH 7-47, 7-57).",
+  note: "Left forward firewall: battery relay (master contactor), starter contactor, alternator relay, the Alternator Control Unit, main battery current shunt, external power relay and three push-to-reset bus feeder breakers (POH 7-47, 7-57). Case dimensions and internal mounting positions are schematic.",
   pin: true,
 });
 part(() => box(0.05, 0.05, 0.04), ["electrical"], {
-  pos: P3(-1.5, -12.5, 46),
+  pos: P3(-1.75, -14, 44.5),
   color: "#C9B98F",
   name: "Alternator Control Unit (ACU)",
   note: "Inside the J-box: regulates the alternator and opens the ALT FIELD breaker if voltage passes about 31.75 V; signals LOW VOLTS below 24.5 V (POH 3-36, 7-55).",
   pin: true,
 });
 part(() => box(0.03, 0.03, 0.05), ["electrical"], {
-  pos: P3(-2, -16.5, 47),
+  pos: P3(-2, -16.5, 41.5),
   color: "#8C959C",
   name: "Main battery current shunt",
   note: "Ammeter transducer → M BATT AMPS. The starter draws upstream of it, so cranking current doesn't show (Fig. 7-7 Sheet 1).",
@@ -44,23 +50,26 @@ part(() => box(0.07, 0.08, 0.015), ["electrical"], {
   ext: true,
   pin: true,
 });
-part(() => cyl(0.06, 0.12, "x"), ["electrical", "engine"], {
-  pos: P3(-29.5, 8, 43.5),
+const DRIVE = alternatorDrive(P3, {
+  bodyFs: -29,
+  beltFs: -33.4,
+  crank: { bl: 0, h: 50.375, r: 2.6 },
+  alt: { bl: 9.5, h: 39.1, r: 1.4 },
+});
+export const ALTERNATOR = DRIVE.position;
+part(DRIVE.bodyGeo, ["electrical", "engine"], {
+  pos: ALTERNATOR,
   color: ELEC,
   anim: glow(ELEC, () => EL().altOn, ["electrical", "engine", "overview"], "#FFD34D"),
   name: "Alternator — 28 V, 60 A",
-  note: "Belt driven, front of the engine (POH 7-29, 7-47), arm −29.0. Field through the ALT FIELD breaker and MASTER (ALT).",
+  note: "Belt driven, front of the engine (POH 7-29, 7-47), arm −29.0. Field through the ALT FIELD breaker and MASTER (ALT). Lateral/vertical position, shaft and pulley dimensions are schematic: the body sits clear of the crankcase and sump, with both pulleys in one plane.",
   pin: true,
 });
-part(
-  () => tubeGeo([P3(-35, 4, 46), P3(-31, 8, 47.5), P3(-29.5, 8, 46), P3(-35, 4, 46)], 0.006),
-  ["electrical", "engine"],
-  {
-    color: "#20262B",
-    name: "Alternator belt",
-    note: "A broken belt is a common cause of alternator failure (POH 3-36).",
-  },
-);
+part(DRIVE.beltGeo, ["electrical", "engine"], {
+  color: "#20262B",
+  name: "Alternator belt",
+  note: "A broken belt is a common cause of alternator failure (POH 3-36).",
+});
 part(() => box(0.14, 0.12, 0.16), ["electrical"], {
   pos: P3(11.2, -14, 51),
   color: ELEC,
@@ -70,7 +79,7 @@ part(() => box(0.14, 0.12, 0.16), ["electrical"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.08), ["electrical"], {
-  pos: P3(12, -9.5, 54),
+  pos: P3(12, -9.5, 54.7),
   color: "#8A7A3A",
   name: "Standby battery controller",
   note: "On/off control, test load and overheat switch, current shunt with two 5 A fuses; senses main bus voltage through the WARN breaker. 25 A fuse at the battery (Fig. 7-7 Sheet 3).",

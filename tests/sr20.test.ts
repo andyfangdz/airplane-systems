@@ -94,6 +94,16 @@ describe("SR20 electrical solve", () => {
     expect(E({ eng: { running: false }, elec: { tBat: 15 } }).bat1Dead).toBe(true);
   });
 
+  it("BAT 1 OFF cannot restore a depleted direct convenience feed (POH Fig. 7-10)", () => {
+    const p = DUAL_ALT_FAIL(20);
+    expect(E(p)).toMatchObject({ bat1Dead: true, conv: 0, convPwr: false });
+    const off = { ...p, elec: { ...p.elec, bat1: false }, lights: { cabin: "ON" as const } };
+    expect(E(off)).toMatchObject({ bat1Dead: true, conv: 0, convPwr: false });
+    expect(lights(off).cabin).toEqual({ dome: false, foot: false, step: false, bag: false });
+    // A charged battery still supplies CONV directly with its master contactor open.
+    expect(E({ elec: { bat1: false } }).convPwr).toBe(true);
+  });
+
   it("with ESSENTIAL POWER pulled, BAT 2 still feeds ESS BUS 1 but no longer ESS BUS 2", () => {
     const e = E({ ...DUAL_ALT_FAIL(20), cb: { "ESSENTIAL POWER": true } });
     expect(e.ess1).toBeGreaterThan(0);

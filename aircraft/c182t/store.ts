@@ -2,7 +2,8 @@
 import { initFlight, type FlightState } from "@/lib/avionics/flight";
 import { kap140Power, type Kap140State } from "@/lib/avionics/kap140";
 import { createSimStore } from "@/lib/simStore";
-import { initialSim, kapReady, live, solve, type Sim } from "./model";
+import { initialLive, initialSim, kapReady, live, solve, type Sim } from "./model";
+import { cancelPropCycle } from "./propCycle";
 
 /** C182T systems state (switches, levers, failures, quantities) and its solved electrical/fuel picture. */
 export const useC182 = createSimStore(initialSim, solve);
@@ -23,9 +24,18 @@ function fresh(d: Sim) {
     gear: { ...f.gear, fairings: d.gear.fairings },
   });
 }
-function clearLiveFailures() {
-  live.kap = { ...live.kap, fail: {} };
-  live.coPpm = 0;
+/** Reset coupled sensors, engine transients and timers; retain the clock, KAP selections and accumulated counters. */
+function resetLive() {
+  cancelPropCycle();
+  const fresh = initialLive();
+  Object.assign(live, fresh, {
+    fs: { ...fresh.fs, t: live.fs.t },
+    kap: { ...live.kap, fail: {} },
+    hobbs: live.hobbs,
+    engHrs: live.engHrs,
+    galUsed: live.galUsed,
+    galStart: live.galStart,
+  });
 }
 
 /** Scenarios keep the flight clock running so KAP 140 timers (self-test, tones) stay consistent. */
@@ -47,9 +57,11 @@ const ground = (p: Partial<FlightState> = {}) =>
 
 /** Cold and dark on the ramp: everything off, engine cold, ready for the POH 4-13 start. */
 export function scenarioColdDark() {
-  clearLiveFailures();
+  resetLive();
+  live.kap = kap140Power(live.kap, false, live.fs.t);
   live.fs = ground();
   live.rpm = 0;
+  live.ff = 0;
   live.map = 29.9;
   live.oilP = 0;
   live.oilT = 60;
@@ -110,7 +122,7 @@ const kapOff = (k: Kap140State): Kap140State => ({
 
 /** Engine running at 1,000 RPM on the ramp, avionics on (after the POH start checklist): the KAP 140 runs its self-test. */
 export function scenarioRunUp() {
-  clearLiveFailures();
+  resetLive();
   // AVIONICS BUS 2 has just come on after the start: power-cycle the computer so the next tick starts the preflight test (S3-20)
   live.kap = kap140Power(live.kap, false, live.fs.t);
   live.discTone = -99;
@@ -151,7 +163,7 @@ export function scenarioRunUp() {
 
 /** Cruise at 6,000 ft, 2,300 RPM / 21 in, leaned, cowl flaps closed, autopilot off (KAP 140 already tested). */
 export function scenarioCruise() {
-  clearLiveFailures();
+  resetLive();
   live.fs = initFlight({
     t: live.fs.t,
     ias: 113,

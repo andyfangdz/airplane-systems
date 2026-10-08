@@ -118,13 +118,13 @@ part(() => box(0.32, 0.12, 0.34), ["avionics"], {
   color: "#5A3550",
   fairing: true,
   name: "Remote avionics enclosure",
-  note: "Under the baggage floor (FS 3832): GIA 63W ×2, GTX 33, GDL 69A, the CI-1125 NAV diplexer and lightning-protection fuses; cooled by a ducted blower (SMM 2-3, 2-9).",
+  note: "Under the baggage floor (FS 3832): GIA 63W ×2, GTX 33, GDL 69A, the CI-1125 NAV diplexer and lightning-protection fuses; cooled by a ducted blower (SMM 2-3, 2-9). The enclosure dimensions and LRU arrangement are representative, not a measured installation drawing.",
   pin: true,
 });
 (
   [
     [
-      -0.1,
+      -0.11,
       "GIA 63W #1",
       "WAAS GPS 1, COM 1, NAV 1/GS 1 and integration; flight-director logic. COM 1 + GPS/NAV 1 on ESSENTIAL (SMM 2-3).",
     ],
@@ -134,14 +134,15 @@ part(() => box(0.32, 0.12, 0.34), ["avionics"], {
       "GPS 2, COM 2, NAV 2/GS 2. On the MAIN AVIONICS bus — its loss stops the autopilot and electric trim (AFMS p. 10).",
     ],
     [
-      0.1,
+      0.11,
       "GTX 33 transponder",
       "Mode S, remote-mounted in the enclosure; XPDR 5 A on ESSENTIAL. (N949KC is reported as later upgraded to a GTX 345R.)",
     ],
   ] as [number, string, string][]
 ).forEach(([z, name, note]) =>
-  part(() => box(0.28, 0.1, 0.07), ["avionics"], {
-    pos: [ENCL[0], ENCL[1] + 0.04, z],
+  // Low-profile envelopes fit below the baggage floor and above the elevator push rod.
+  part(() => box(0.28, 0.07, 0.1), ["avionics"], {
+    pos: [ENCL[0], ENCL[1] + 0.02, z],
     color: "#C8399F",
     name,
     note,
@@ -156,10 +157,10 @@ part(() => box(0.1, 0.06, 0.08), ["avionics"], {
   note: "Remote avionics blower with an air duct to the enclosure; AV FAN 3 A, MAIN. Failure → white GIA FAN FAIL (SMM 2-9, 5-9).",
 });
 part(() => box(0.12, 0.07, 0.1), ["avionics"], {
-  pos: [fs(3.83), -0.44, 0.2],
+  pos: [fs(3.83), -0.39, 0.174],
   color: "#C8399F",
   name: "GRS 77 AHRS",
-  note: "In the baggage compartment, starboard of the remote avionics enclosure (RBL 174). AHRS 5 A, ESSENTIAL; also powers the GMU 44 (SMM 2-6).",
+  note: "In the baggage compartment, starboard of the remote avionics enclosure (RBL 174). AHRS 5 A, ESSENTIAL; also powers the GMU 44 (SMM 2-6). Shown above the baggage floor; mounting height and case dimensions are approximate.",
   pin: true,
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {

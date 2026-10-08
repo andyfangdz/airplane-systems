@@ -5,7 +5,21 @@ import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
 import { Z, wingP } from "./geometry";
 import { live, type Elec, type Sim } from "./model";
-import { CYLS, FSEL, P3, PITOT, PV, STALL_INLET, STATIC_PORT } from "./parts";
+import {
+  ALTERNATOR,
+  BATTERY_TERMINAL,
+  CYLS,
+  FSEL,
+  INTAKES,
+  JBOX,
+  MANIFOLD,
+  NOZZLES,
+  P3,
+  PITOT,
+  PV,
+  STALL_INLET,
+  STATIC_PORT,
+} from "./parts";
 import { CABLES } from "./rig";
 
 const F: FlowSpec[] = [];
@@ -52,7 +66,7 @@ flow("fuelEdp", [P3(-4, -4, 29), P3(-3.5, -6.5, 36), P3(-4.5, -9, 41), P3(-5.8, 
   r: 0.009,
 });
 // The fuel/air control unit (servo) is under the front of the engine at P3(−28.2, 0, 33.8) (parts/engine.ts). Down aft of the block's rear
-// face (FS −6.4), forward under the oil sump (bottom h 36.1) outboard of the muffler (BL ±6.7), and into the servo's left side
+// face (FS −6.4), forward under the oil sump (bottom h 37.0) outboard of the muffler (BL ±6.7), and into the servo's left side
 flow(
   "fuelServo",
   [
@@ -87,8 +101,8 @@ flow(
     r: 0.008,
   },
 );
-CYLS.forEach((c) =>
-  flow("inj" + c.n, [P3(-18, 0, 58.5), P3(c.fs + 1, c.s * 6, 57), P3(c.fs - 0.5, c.s * 9.5, 46)], ["fuel", "engine"], {
+CYLS.forEach((c, i) =>
+  flow("inj" + c.n, [P3(-18, 0, 58.5), P3(c.fs + 1, c.s * 6, 57), NOZZLES[i]], ["fuel", "engine"], {
     name: "Injector line, cylinder " + c.n,
     note: "To the air-bleed nozzle at the intake port.",
     r: 0.005,
@@ -127,11 +141,11 @@ flow(
 flow(
   "oil",
   [
-    P3(-18, 0, 38.5),
+    P3(-18, 0, 39.4),
     P3(-8, -3, 42),
     P3(-5, 0, 47.5),
     P3(-8, 9, 52),
-    P3(-11, 14, 56),
+    P3(-11, 12.6, 55),
     P3(-16, 6, 55),
     P3(-22, -6, 54),
     P3(-18, 0, 47),
@@ -157,13 +171,8 @@ flow("altAir", [P3(-29.4, 10, 33), P3(-29.4, 3.8, 34.6), P3(-28.2, 0, 33.8)], ["
   size: 0.06,
   name: "Alternate air (unfiltered)",
 });
-CYLS.forEach((c) => {
-  flow(
-    "man" + c.n,
-    [P3(-26.2, 0, 35.2), P3(-23.8, c.s * 2.5, 37.2), P3(c.fs, c.s * 6, 40), P3(c.fs + 1, c.s * 11, 45.5)],
-    ["engine"],
-    { tube: false, pcolor: "#8FD3E8", count: 4, size: 0.04 },
-  );
+CYLS.forEach((c, i) => {
+  flow("man" + c.n, INTAKES[i], ["engine"], { tube: false, pcolor: "#8FD3E8", count: 4, size: 0.04 });
   flow(
     "exh" + c.n,
     [P3(c.fs, c.s * 15, 46), P3(c.fs - 1, c.s * 12, 38), P3(-22.7, c.s * 3, 34.5)],
@@ -197,7 +206,7 @@ flow("tailpipe", [P3(-22.7, 4, 33.5), P3(-16, 6, 29), P3(-12, 7, 24)], ["engine"
 
 /* ---------- cabin heat and ventilation (Figure 7-8) ---------- */
 const AIR = "#149C94",
-  MAN = P3(5, 0, 31);
+  MAN = MANIFOLD;
 flow("ram", [P3(-38.5, 6, 49), P3(-30, 5, 40), P3(-22.7, 2, 34)], ["environment"], {
   tube: false,
   pcolor: "#8FD3E8",
@@ -336,16 +345,16 @@ flow("vacOut", [P3(-5, -5.5, 44), P3(-6, -6, 32), P3(-6, -8, 24.8)], ["vacuum"],
 });
 
 /* ---------- electrical feeders (Figure 7-7) ---------- */
-const JB = P3(-2.5, -15, 43),
+const JB = JBOX,
   CB = P3(16.8, -12.5, 46.3);
-flow("alt", [P3(-29.5, 8, 43.5), P3(-20, 4, 34), P3(-8, -8, 36), JB], ["electrical"], {
+flow("alt", [ALTERNATOR, P3(-20, 4, 34), P3(-8, -8, 36), JB], ["electrical"], {
   r: 0.01,
   color: "#D9960F",
   name: "Alternator output",
   note: "Alternator B terminal → ACU → alternator relay → J-box main node.",
 });
-// from the main battery's bottom face (h 48.7, parts/electrical.ts) down to the J-box (top h 46.15)
-flow("bat", [P3(-5, -15.9, 49), P3(-4.2, -15.5, 47.4), JB], ["electrical"], {
+// The terminal follows the battery case; the short lead enters the J-box below it.
+flow("bat", [BATTERY_TERMINAL, JB], ["electrical"], {
   r: 0.012,
   color: "#D9960F",
   name: "Battery cable",

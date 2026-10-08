@@ -7,6 +7,7 @@ import { FW, PANEL_X, botY, onSkin, topY, wingP } from "./geometry";
 import { fuelAvail, hornLevel, live, pcEngaged, type Elec, type Sim } from "./model";
 import { CYLS, PITOT_Z, SEL, STAT_X, pitotBase } from "./parts";
 import { FLAP_PUMP, SERVO } from "./rig";
+import { EQUIPMENT } from "./placement";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) =>
@@ -23,9 +24,9 @@ flow("fuelR", [tankOut(1), [1.1, -0.66, 0.4], [1.2, -0.66, 0.0], SEL], ["fuel"],
   name: "Right tank feed line",
   note: "Right bay → selector valve. One tank at a time — no BOTH.",
 });
-const BOOST: Vec3 = [1.82, -0.62, -0.2],
+const BOOST: Vec3 = EQUIPMENT.boost,
   MECH: Vec3 = [2.3, -0.2, -0.16],
-  CARB: Vec3 = [2.58, -0.33, 0];
+  CARB: Vec3 = EQUIPMENT.carburetor;
 flow("fuelSel", [SEL, [1.55, -0.66, -0.25], BOOST], ["fuel"], {
   name: "Selector → boost pump",
   note: "Through the electric boost pump (it passes fuel when off).",
@@ -57,8 +58,8 @@ flow("fuelCarb", [MECH, [2.42, -0.3, -0.12], CARB], ["fuel", "engine"], {
 );
 
 /* ---------- induction, exhaust, oil ---------- */
-const AIRBOX: Vec3 = [2.7, -0.32, 0],
-  MUFF: Vec3 = [2.45, -0.36, 0.05];
+const AIRBOX: Vec3 = EQUIPMENT.airbox,
+  MUFF: Vec3 = EQUIPMENT.exhaust;
 flow("intake", [[2.98, -0.2, 0.12], AIRBOX, CARB], ["engine"], {
   tube: false,
   pcolor: "#8FD3E8",
@@ -380,7 +381,7 @@ flow("hydBrake", [RES, [FW - 0.1, -0.3, -0.1], [PANEL_X + 0.25, -0.5, -0.3]], ["
 });
 
 /* ---------- electrical (OM p. 3–4) ---------- */
-const BAT: Vec3 = [FW + 0.25, -0.1, -0.36],
+const BAT: Vec3 = [EQUIPMENT.battery[0], EQUIPMENT.battery[1] + 0.1, EQUIPMENT.battery[2]],
   RELAY: Vec3 = [FW + 0.25, -0.08, -0.3],
   GEN: Vec3 = [2.8, -0.18, -0.2],
   REGU: Vec3 = [FW + 0.12, 0.15, -0.3],
@@ -401,7 +402,7 @@ flow("busCb", [SWP, [PANEL_X + 0.08, -0.25, 0.0], CBP], ["electrical"], {
   name: "Bus → push-to-reset breakers",
   note: "Radios, instruments and warning circuits on the co-pilot's side (OM p. 4).",
 });
-flow("start", [RELAY, [2.3, -0.3, -0.2], [2.6, -0.35, 0.1], [2.78, -0.24, 0.18]], ["electrical", "engine"], {
+flow("start", [RELAY, [2.3, -0.3, -0.2], [2.6, -0.35, 0.1], EQUIPMENT.starter], ["electrical", "engine"], {
   r: 0.016,
   color: "#B0761A",
   name: "Starter cable",

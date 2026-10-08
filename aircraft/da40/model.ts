@@ -6,7 +6,9 @@
  */
 import { initFlight, type FlightCfg, type FlightState } from "@/lib/avionics/flight";
 import { GFC700_BASE, gfc700Init, type Gfc700Cfg, type Gfc700Fail } from "@/lib/avionics/gfc700";
+import { solveBatteryExcitation } from "@/lib/electrical";
 import type { CasLevel } from "../types";
+import { fuelPressureState } from "./limits";
 
 /** Ignition key, in AFM order OFF – L – R – BOTH – START (AFM 7.9.1). */
 export type Key = "OFF" | "L" | "R" | "BOTH" | "START";
@@ -282,11 +284,12 @@ const BAT_AH = 7.7,
  */
 export function solve(s: Sim, prev?: Elec): Elec {
   const excited = prev ? prev.altOn : true;
-  const first = solveWith(s, true, excited);
-  return first.batFrac < 1 ? first : solveWith(s, false, excited);
+  return solveBatteryExcitation((batteryAvailable, allowBatteryExcitation) =>
+    solveWith(s, batteryAvailable, excited, allowBatteryExcitation),
+  );
 }
 
-function solveWith(s: Sim, batCharge: boolean, excited: boolean): Elec {
+function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExcitation: boolean): Elec {
   const e = s.elec,
     cb = (n: string) => !s.cb[n];
   const batOk = e.bat && !e.fail.bat && batCharge;
@@ -297,7 +300,7 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean): Elec {
   // MAIN from the battery alone (tie relay closed unless ESS BUS ON has power to open it)
   const mainBat = essBat && tie && !(e.essBus && mstrCb);
   // field supply: MAIN live from the battery, or the alternator already online and feeding MAIN (self-excited)
-  const field = mainBat || (excited && cb("ALT"));
+  const field = (allowBatteryExcitation && mainBat) || (excited && cb("ALT"));
   const altOn = s.eng.running && e.alt && !e.fail.alt && cb("ALT CONT") && cb("ALT PROT") && field;
   const altFeed = altOn && cb("ALT");
   const essAlt = altFeed && tie; // through the tie relay or the bypass diode
@@ -508,9 +511,10 @@ export function annunciations(s: Sim, E: Elec): [CasLevel, string][] {
   const m: [CasLevel, string][] = [];
   const sensed = E.gea && (E.gia1 || E.gia2);
   if (sensed) {
+    const fuelPressure = fuelPressureState(live.fuelP);
     if (live.oilP < 25) m.push(["w", "OIL PRES LO"]);
-    if (live.fuelP < 14) m.push(["w", "FUEL PRES LO"]);
-    if (live.fuelP > 35) m.push(["w", "FUEL PRES HI"]);
+    if (fuelPressure === "low") m.push(["w", "FUEL PRES LO"]);
+    if (fuelPressure === "high") m.push(["w", "FUEL PRES HI"]);
     if (s.eng.running && !E.altFeed) m.push(["w", "ALTERNATOR"]);
     if (E.starterOn) m.push(["w", "STARTER ENGD"]);
     if (s.doors.canopy !== "CLOSED" || !s.doors.rear) m.push(["w", "DOOR OPEN"]);

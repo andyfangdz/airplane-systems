@@ -155,6 +155,8 @@ try {
   }, theme);
   mkdirSync(out, { recursive: true });
   const page = await ctx.newPage();
+  // Deployment analytics are unrelated to rendering a local study view.
+  await page.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
   page.on("console", (m) => {
     if (
       (m.type() === "error" || m.type() === "warning") &&
@@ -165,7 +167,7 @@ try {
   page.on("pageerror", (e) => console.log(`  [pageerror] ${e.message}`));
   for (const v of views) {
     console.log(v);
-    await page.goto(`${base}/${v}`);
+    await page.goto(`${base}/${v}`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("canvas", { timeout: 60000 });
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" }); // the dev-mode badge
     await page.evaluate(

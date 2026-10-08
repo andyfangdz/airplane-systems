@@ -1,12 +1,10 @@
 import type { SysDef } from "@/lib/systems";
 
 /**
- * Rail entries in the order of the 1965–67 Mark 21 / M20C Owner's Manual, Part I "Description and Operation of
- * Components" (table of contents, 1965 edition p. 1): general, propeller, engine and ignition, fuel system, electrical
- * system, airframe, landing gear, flight controls, Mooney Positive Control, trim system, flaps, vacuum system, brakes,
- * heating and ventilation. The 1967 edition (POH-001186) is not available online; page numbers are the 1965 manual's,
- * which covers the same airplane with the same chapter order, with the later M20C Ranger Operator's Manual (1974,
- * Section II) used where the older book is silent (pitot-static, instruments, circuit breakers).
+ * Rail entries use the other airplanes' study grouping (airframe and controls first), rather than the Owner's Manual
+ * chapter order. Page references are from Part I "Description and Operation of Components" of the 1965 Mark 21 / M20C
+ * Owner's Manual. The 1967 edition (POH-001186) is not available online; the later M20C Ranger Operator's Manual (1974,
+ * Section II) is used where the older book is silent (pitot-static, instruments, circuit breakers).
  */
 export const SYS: SysDef[] = [
   {
@@ -154,9 +152,10 @@ export const SYS: SysDef[] = [
     id: "cabin",
     name: "Cabin & panel",
     pg: "12",
+    // Frame both seat rows and the baggage/shelf; the vacuum view keeps the close instrument view.
     cam: [
-      [1.0, 0.9, 2.6],
-      [1.4, -0.1, 0.0],
+      [-1.2, 2.1, 4.2],
+      [0.45, -0.1, 0.0],
     ],
     blurb: "Door, seats, baggage, instrument panel",
   },

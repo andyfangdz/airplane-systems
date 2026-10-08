@@ -56,6 +56,43 @@ describe("NAV III electrical network (solveNav3)", () => {
     expect(nav3({}, 600).lowVolts).toBe(true);
   });
 
+  it("low-RPM capacity carries the bus loads and limits recharge of a depleted main battery (POH 3-19; illustrative currents)", () => {
+    const idle = nav3({ socMain: 0.1 }, 1000);
+    const capacity = c172.ELEC_CFG.altAmps * ((1000 - 550) / 1100);
+    expect(idle.altOn).toBe(true);
+    expect(idle.lowVolts).toBe(false);
+    expect(idle.mBatt).toBeGreaterThan(0);
+    expect(idle.altAmps).toBeLessThanOrEqual(capacity + 0.05);
+    expect(Math.abs(idle.altAmps - idle.load - idle.mBatt - idle.sBatt)).toBeLessThan(0.2);
+    const fast = nav3({ socMain: 0.1 }, 2400);
+    expect(fast.altOn).toBe(true);
+    expect(fast.mBatt).toBeGreaterThan(idle.mBatt);
+    expect(fast.altAmps).toBeCloseTo(fast.load + fast.mBatt + fast.sBatt, 1);
+  });
+
+  it("over-voltage charging respects RPM capacity and the ammeters balance (POH 7-56; illustrative currents)", () => {
+    for (const rpm of [1000, 1300, 2400]) {
+      const N = nav3({ fail: { ov: true } }, rpm);
+      const capacity = c172.ELEC_CFG.altAmps * Math.max(0, Math.min(1, (rpm - 550) / 1100));
+      expect(N.altOn).toBe(true);
+      expect(N.acuTrip).toBe(true);
+      expect(N.altAmps).toBeLessThanOrEqual(capacity + 0.05); // readouts round to 0.1 A
+      // Each displayed current is independently rounded to 0.1 A.
+      expect(Math.abs(N.altAmps - N.load - N.mBatt - N.sBatt)).toBeLessThan(0.2);
+    }
+  });
+
+  it("an exhausted standby battery can recharge through ARM, but OFF or an open breaker isolates it (POH Fig. 7-7)", () => {
+    const empty = nav3Init({ socStby: 0 });
+    const N = nav3({ socStby: 0 });
+    expect(N.sBatt).toBeGreaterThan(0);
+    expect(N.stbyOnline).toBe(false);
+    expect(stepNav3Soc(empty, c172.ELEC_CFG, N, 10).socStby).toBeGreaterThan(0);
+    expect(nav3({ socStby: 0, stby: "OFF" }).sBatt).toBe(0);
+    expect(nav3({ socStby: 0, cb: { "ESS:STDBY BATT": true } }).sBatt).toBe(0);
+    expect(nav3({ socStby: 0, socMain: 0, fail: { alt: true } }).sBatt).toBe(0);
+  });
+
   it("standby battery: with M BUS below 20 V it takes the essential bus only (POH 3-17)", () => {
     const N = nav3({ socMain: 0, fail: { alt: true } });
     expect(N.stbyOnline).toBe(true);

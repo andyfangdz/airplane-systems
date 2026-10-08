@@ -20,13 +20,15 @@ import {
   loft,
   stabSec,
   wingSec,
+  wingCut,
 } from "../geometry";
 
 import { shell } from "./catalogue";
+import { cutMainWell, cutNoseWell } from "../placement";
 
 /* ---------- airframe shells ---------- */
 shell(
-  fuselageGeo,
+  () => cutNoseWell(fuselageGeo()),
   "Fuselage",
   "Cabin: welded 4130 steel-tube truss covered with aluminium skins; stainless-steel firewall. Tail cone: conventional aluminium monocoque (OM p. 5–6; Ranger 1-2). Short-body M20C fuselage, unchanged 1962–77.",
   true,
@@ -52,11 +54,14 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
 [1, -1].forEach((s) => {
   shell(
     () =>
-      loft(
-        sided(
-          wingSt.map((z) => wingSec(s * z, 0, FLAP.hinge)),
-          s,
+      cutMainWell(
+        loft(
+          sided(
+            wingSt.map((z) => wingSec(s * z, 0, wingCut(z))),
+            s,
+          ),
         ),
+        s,
       ),
     s > 0 ? "Right wing" : "Left wing",
     "One-piece laminar-flow wing (NACA 63-215 root / 64-412 tip): main spar and auxiliary spar with stressed skins, full wrap-around skins flush-riveted over the forward top two-thirds (Ranger 1-2; OM p. 5). Integral fuel bay in the forward inboard section. Dihedral 5.5°.",
@@ -76,7 +81,7 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
     () =>
       loft(
         sided(
-          [WR, 0.6].map((z) => wingSec(s * z, FLAP.hinge, 1)),
+          [WR, FLAP.z0].map((z) => wingSec(s * z, wingCut(z), 1)),
           s,
         ),
       ),
@@ -87,7 +92,7 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
     () =>
       loft(
         sided(
-          [2.96, 3.0].map((z) => wingSec(s * z, FLAP.hinge, 1)),
+          [FLAP.z1, 3.02].map((z) => wingSec(s * z, wingCut(z), 1)),
           s,
         ),
       ),
@@ -101,15 +106,7 @@ import { relT } from "./catalogue";
 export const TAIL_SHELLS: ShellSpec[] = [
   {
     id: "m20c/stab",
-    geo: () =>
-      relT(
-        loft(
-          [
-            ...[-SSPAN, -1.2, -0.6, -0.001].map((z) => stabSec(z, 0, EF)),
-            ...[0.001, 0.6, 1.2, SSPAN].map((z) => stabSec(z, 0, EF)),
-          ].map((r, i) => (i < 4 ? r.reverse() : r)),
-        ),
-      ),
+    geo: () => relT(loft([-SSPAN, -1.2, -0.6, 0, 0.6, 1.2, SSPAN].map((z) => stabSec(z, 0, EF(z))))),
     name: "Horizontal stabilizer",
     note: "Main and auxiliary spar with stressed skin (OM p. 5). Span 11 ft 9 in. The whole empennage pivots for trim, so the stabilizer has no separate trim tab (OM p. 6).",
   },

@@ -151,6 +151,10 @@ export function trackHdg(fs: FlightState, back = false): number {
 export const nextCdi = (s: NavSrc, loc1 = false, loc2 = false): NavSrc =>
   s === "GPS" ? (loc1 ? "LOC1" : "VOR1") : s === "VOR1" || s === "LOC1" ? (loc2 ? "LOC2" : "VOR2") : "GPS";
 
+/** Either GIA can supply GPS; VOR/LOC signals require the selected NAV receiver. */
+export const navReceiverValid = (src: NavSrc, gia1: boolean, gia2: boolean) =>
+  src === "GPS" ? gia1 || gia2 : src.endsWith("1") ? gia1 : gia2;
+
 export function initFlight(p: Partial<FlightState> = {}): FlightState {
   const fs: FlightState = {
     t: 0,

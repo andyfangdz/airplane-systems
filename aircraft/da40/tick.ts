@@ -3,7 +3,7 @@
  * pressures, temperatures, fuel starvation, flap motor, long-range fuel-gauge behaviour, and the GFC 700 +
  * flight-state stepping. Continuous values go to `live`; only discrete changes go through the store.
  */
-import { pitchFor, stepFlight, yokeCmd, type FlightCmd } from "@/lib/avionics/flight";
+import { navReceiverValid, pitchFor, stepFlight, yokeCmd, type FlightCmd } from "@/lib/avionics/flight";
 import {
   gfc700Command,
   gfc700Engaged,
@@ -193,9 +193,14 @@ export function simTick(dt: number) {
   live.gaugeR = gauge(live.gaugeR, s.fuel.qR);
 
   // ---------- GFC 700 and flight state ----------
-  if (fs.onGround === s.air) live.fs = { ...fs, onGround: !s.air };
   const fail = { att: !E.ahrs, hdg: !E.ahrs, air: !E.adc };
-  if (!!live.fs.fail.att !== fail.att || !!live.fs.fail.air !== fail.air) live.fs = { ...live.fs, fail };
+  live.fs = {
+    ...fs,
+    onGround: !s.air,
+    oat: s.pitot.oat,
+    fail,
+    navValid: navReceiverValid(fs.navSrc, E.gia1, E.gia2),
+  };
   // AFMS p. 10: GIA 1 lost → AP, FD and MET inoperative; GIA 2 lost → AP & MET lost, FD available (red AFCS);
   // PFD lost → AP disconnects, AP and FD inoperative, MET available
   live.afcs = gfc700Power(live.afcs, E.afcsPwr && E.gia1, live.fs.t, AFCS_CFG);

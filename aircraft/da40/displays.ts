@@ -2,7 +2,7 @@
  * Live G1000 displays for the DA40: PFD, MFD with the DA40 EIS strip (CRG 190-00324-07 Fig. 3-1, markings from
  * AFMS 190-00492-10 §2.4–2.5) and the standby airspeed / attitude / altimeter. Drawing is the shared lib/avionics.
  */
-import { flightData } from "@/lib/avionics/flight";
+import { flightData, type FlightState } from "@/lib/avionics/flight";
 import {
   drawMFD,
   drawPFD,
@@ -17,6 +17,7 @@ import {
 import { gfc700Annunc } from "@/lib/avionics/gfc700";
 import { drawOff } from "@/lib/canvas";
 import { AFCS_CFG, BUSES, SPARE_CB, annunciations, displays, live, type Elec, type Sim } from "./model";
+import { FUEL_PRESSURE, fuelPressureState } from "./limits";
 
 export { drawOff };
 
@@ -125,13 +126,13 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
       0,
       40,
       [
-        [0, 14, "red"],
-        [14, 35, "green"],
-        [35, 40, "red"],
+        [0, FUEL_PRESSURE.low, "red"],
+        [FUEL_PRESSURE.low, FUEL_PRESSURE.high, "green"],
+        [FUEL_PRESSURE.high, 40, "red"],
       ],
       v(live.fuelP),
       f0,
-      undefined,
+      ok && fuelPressureState(live.fuelP) !== "normal" ? "warning" : null,
       "PSI",
     ),
     g(
@@ -232,10 +233,16 @@ const clock = () => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
+/** Shared pneumatic indications; the alternate-static error is illustrative on both the G1000 and standby instruments. */
+export function indicated(s: Sim, fs: FlightState) {
+  return { ias: fs.onGround ? 0 : fs.ias + (s.pitot.altStatic ? 3 : 0), alt: fs.alt + (s.pitot.altStatic ? 40 : 0) };
+}
+
 /** PFD data from the flight state, annunciations and AFCS status. */
 export function pfdData(s: Sim, E: Elec): PfdData {
   const fs = live.fs;
   const f = flightData(fs, {
+    ...indicated(s, fs),
     time: clock(),
     xpdr: "1200",
     xpdrMode: !E.xpdr ? "FAIL" : fs.onGround ? "GND" : "ALT",
@@ -265,11 +272,10 @@ export function drawMfdScreen(ctx: CanvasRenderingContext2D, W: number, H: numbe
 }
 
 /** Standby instruments: airspeed and altimeter are pneumatic; the attitude indicator is electric (OFF flag unpowered). */
-const altStaticErr = (s: Sim) => (s.pitot.altStatic ? { kt: 3, ft: 40 } : { kt: 0, ft: 0 });
 export const drawStbyAsi = (ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) =>
-  drawStandbyAirspeed(ctx, W, H, live.fs.onGround ? 0 : live.fs.ias + altStaticErr(s).kt, STBY_SPEEDS, 200);
+  drawStandbyAirspeed(ctx, W, H, indicated(s, live.fs).ias, STBY_SPEEDS, 200);
 export const drawStbyAlt = (ctx: CanvasRenderingContext2D, W: number, H: number, s: Sim) =>
-  drawStandbyAltimeter(ctx, W, H, live.fs.alt + altStaticErr(s).ft, live.fs.baro);
+  drawStandbyAltimeter(ctx, W, H, indicated(s, live.fs).alt, live.fs.baro);
 let lastAtt = { p: 0, r: 0 };
 export function drawStbyAtt(ctx: CanvasRenderingContext2D, W: number, H: number, E: Elec) {
   if (E.stbyAtt) lastAtt = { p: live.fs.pitch, r: live.fs.roll };

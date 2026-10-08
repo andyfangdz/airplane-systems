@@ -6,6 +6,7 @@
  * the 1963 FAA Approved Flight Manual for s/n 2394, and TCDS 2A3. Where this model makes an assumption it says so.
  */
 import { initFlight, type FlightCfg, type FlightState } from "@/lib/avionics/flight";
+import { solveBatteryExcitation } from "@/lib/electrical";
 import type { CasLevel } from "../types";
 
 /** Ignition / starter switch: OFF – R – L – BOTH – START (push in to crank), spring return to BOTH (OM p. 2, 16). */
@@ -180,12 +181,12 @@ export const live = initialLive();
  * panel. The 1965 book names the switches but not the push-to-reset circuits; the list of those follows the Ranger
  * schematic (Ranger Fig. 2-4) with the electric-gear and alternator circuits left out, and is therefore an inference.
  */
-export const SWITCH_CB: [string, number][] = [
-  ["FUEL PUMP", 5],
-  ["PITOT HEAT", 10],
-  ["BEACON", 5],
-  ["NAV LTS", 5],
-  ["LDG LT", 10],
+export const SWITCH_CB: { key: keyof Sim["sw"]; label: string; amps: number }[] = [
+  { key: "fuelPump", label: "FUEL PUMP", amps: 5 },
+  { key: "pitotHeat", label: "PITOT HEAT", amps: 10 },
+  { key: "beacon", label: "BEACON", amps: 5 },
+  { key: "nav", label: "NAV LTS", amps: 5 },
+  { key: "landing", label: "LDG LT", amps: 10 },
 ];
 export const PUSH_CB: [string, number][] = [
   ["ALT", 60],
@@ -266,15 +267,16 @@ export const ALT_MIN_RPM = 700;
 export function solve(s: Sim, prev?: Elec): Elec {
   // An alternator already on line sustains its field after battery loss (Ranger 2-13).
   const excited = prev?.genOn ?? false;
-  const first = solveWith(s, true, excited);
-  return first.batFrac < 1 ? first : solveWith(s, false, excited);
+  return solveBatteryExcitation((batteryAvailable, allowBatteryExcitation) =>
+    solveWith(s, batteryAvailable, excited, allowBatteryExcitation),
+  );
 }
 
-function solveWith(s: Sim, batCharge: boolean, excited: boolean): Elec {
+function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExcitation: boolean): Elec {
   const e = s.elec,
     cb = (n: string) => !s.cb[n];
   const batOk = e.master && !e.fail.bat && batCharge;
-  const field = (batOk || excited) && cb("ALT FIELD");
+  const field = ((allowBatteryExcitation && batOk) || excited) && cb("ALT FIELD");
   const genOn = s.eng.running && s.eng.altSpinning && !e.fail.gen && cb("ALT") && field && e.master;
   const bus = batOk || genOn;
   const pw = (name: string) => bus && cb(name);

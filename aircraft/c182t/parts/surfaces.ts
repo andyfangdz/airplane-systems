@@ -32,7 +32,7 @@ import {
   wY,
 } from "../geometry";
 import { live } from "../model";
-import { RIG, RIG_SPEC } from "../rig";
+import { RIG } from "../rig";
 import { PV, onSurf, part, surface } from "./catalogue";
 
 /* ---------- control surfaces (pivot on their hinge lines) ---------- */
@@ -79,7 +79,7 @@ const hp = (s: number, bl: number, c: number, drop = 0) => {
     () =>
       sided(
         [
-          ...ez.map((z) => stabSec(s * z, EF, 1)),
+          ...(s > 0 ? RIG.trimTab.notch(ez, () => EF) : ez.map((z) => stabSec(-z, EF, 1))),
           ...[HZ, 64.5, 66.8, 68.4, 69.4, 70].map((b) => stabSec(s * Z(b), HF, 1)),
         ],
         s,
@@ -105,22 +105,26 @@ surface(
 
 /* ---------- surface details ---------- */
 const WICK =
-  "Static discharger: bleeds static charge off the trailing edges to cut radio noise. Set of 10, arm 152.9 (POH 6-20); check them at every annual (POH 7-73).";
+  "Static discharger: bleeds static charge off the trailing edges to cut radio noise. Set of 10, arm 152.9 (POH 6-20); check them at every annual (POH 7-73). Distribution and stations shown are illustrative, not a maintenance drawing.";
 [1, -1].forEach((s) => {
   const side = s > 0 ? "R" : "L";
-  onSurf("ail" + side, wingP(s * Z(195), 1.0, 0).add(V(-0.05, 0, 0)), () => cyl(0.004, 0.12, "x", 6), {
-    color: "#2A2F33",
-    name: "Static discharger",
-    note: WICK,
-    ext: true,
-    pin: s > 0,
-  });
-  onSurf("elev" + side, V(sLE(Z(52)) - sC(Z(52)) - 0.05, SY, s * Z(52)), () => cyl(0.004, 0.11, "x", 6), {
-    color: "#2A2F33",
-    name: "Static discharger",
-    note: WICK,
-    ext: true,
-  });
+  [195, 175].forEach((bl, i) =>
+    onSurf("ail" + side, wingP(s * Z(bl), 1.0, 0).add(V(-0.05, 0, 0)), () => cyl(0.004, 0.12, "x", 6), {
+      color: "#2A2F33",
+      name: "Static discharger",
+      note: WICK,
+      ext: true,
+      pin: s > 0 && i === 0,
+    }),
+  );
+  [52, 40].forEach((bl) =>
+    onSurf("elev" + side, V(sLE(Z(bl)) - sC(Z(bl)) - 0.05, SY, s * Z(bl)), () => cyl(0.004, 0.11, "x", 6), {
+      color: "#2A2F33",
+      name: "Static discharger",
+      note: WICK,
+      ext: true,
+    }),
+  );
   onSurf("elev" + side, V(sLE(Z(66)) - 0.05, SY, s * Z(66)), () => box(0.08, 0.03, 0.12), {
     color: "#6E7A84",
     name: "Elevator balance weight",
@@ -156,30 +160,24 @@ const WICK =
 });
 // elevator trim tab on the right elevator (deflects with trim: tab UP for nose-down trim, DOWN for nose-up — S3-22, S3-23)
 {
-  const tz = Z(RIG_SPEC.trim.tabBl),
-    hx = sLE(tz) - sC(tz) + 0.12;
-  onSurf(
-    "elevR",
-    V(hx, SY, tz),
-    () => {
-      const g = box(0.12, 0.008, 0.62);
-      g.translate(-0.06, 0, 0);
-      return g;
-    },
-    {
-      color: "#9F85E6",
-      name: "Elevator trim tab",
-      pin: true,
-      sys: ["controls", "autopilot"],
-      note: "In the trailing-edge cutout of the RIGHT elevator: spar, rib and “V” corrugated skins (POH 7-6). Driven by the actuator in the stabilizer through a push-pull rod. Moves UP with nose-down trim and DOWN with nose-up trim (S3-22). Travel 24° up / 15° down (TCDS).",
-      anim: (m) => {
-        m.rotation.z = RIG.surfaceAngles({ ...live.ctl, trim: live.kap.trim }, 0).tab;
-      },
-    },
-  );
-  onSurf("elevR", V(hx - 0.02, SY + 0.025, tz), () => box(0.02, 0.05, 0.01), {
+  const tab = RIG.trimTab,
+    axis = V(...tab.axis);
+  const animate = (m: import("three").Mesh) => {
+    m.quaternion.setFromAxisAngle(axis, RIG.surfaceAngles({ ...live.ctl, trim: live.kap.trim }, 0).tab);
+  };
+  onSurf("elevR", V(...tab.pivot), tab.geo, {
+    color: "#9F85E6",
+    name: "Elevator trim tab",
+    pin: true,
+    ext: true,
+    sys: ["controls", "autopilot"],
+    note: "In the trailing-edge cutout of the RIGHT elevator: spar, rib and “V” corrugated skins (POH 7-6). Driven by the actuator in the stabilizer through a push-pull rod. Moves UP with nose-down trim and DOWN with nose-up trim (S3-22). Travel 24° up / 15° down (TCDS). Tab span/chord and clearances are illustrative.",
+    anim: animate,
+  });
+  onSurf("elevR", V(...tab.pivot), () => box(0.02, 0.05, 0.01).translate(-0.02, 0.025, 0), {
     color: "#7C57CF",
     name: "Trim tab horn",
+    anim: animate,
   });
 }
 onSurf("rudder", V(fLE(Y(108)) - 0.1, Y(108), 0), () => box(0.12, 0.035, 0.03), {
@@ -188,9 +186,11 @@ onSurf("rudder", V(fLE(Y(108)) - 0.1, Y(108), 0), () => box(0.12, 0.035, 0.03), 
   note: "In the leading-edge extension at the top of the rudder (horn balance, POH 7-6).",
   pin: true,
 });
-onSurf("rudder", V(fLE(Y(98)) - fC(Y(98)) - 0.04, Y(98), 0), () => cyl(0.004, 0.11, "x", 6), {
-  color: "#2A2F33",
-  name: "Static discharger",
-  note: WICK,
-  ext: true,
-});
+[98, 80].forEach((h) =>
+  onSurf("rudder", V(fLE(Y(h)) - fC(Y(h)) - 0.04, Y(h), 0), () => cyl(0.004, 0.11, "x", 6), {
+    color: "#2A2F33",
+    name: "Static discharger",
+    note: WICK,
+    ext: true,
+  }),
+);

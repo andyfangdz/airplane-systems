@@ -10,7 +10,8 @@ import { P3, PV, S, part, wp } from "./catalogue";
 
 /* ---------- cabin heat and ventilation (POH 7-60, Figure 7-8) ---------- */
 const AIR = "#149C94";
-export const MANIFOLD: Vec3 = P3(4.5, 0, 30);
+/** Approximate height above the rudder bars; the POH locates the manifold just aft of the firewall. */
+export const MANIFOLD: Vec3 = P3(4.5, 0, 32);
 part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pos: P3(0.6, -5, 39),
   color: "#E0522B",
@@ -163,10 +164,10 @@ part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.06, 0.06, 0.04), ["cabin"], {
-    pos: P3(50.3, s * 3, 78),
+    pos: P3(50.3, s * 3, 76),
     color: CAB,
     name: "Inertia reel (front seat)",
-    note: "Integrated belt/shoulder harness: front inertia reels on the centerline of the upper cabin (arm 50.3), rear reels outboard of each passenger (arm 87.8). No more than one extra inch should pull out once the lap belt is fitted (POH 7-22, 6-21).",
+    note: "Integrated belt/shoulder harness: front inertia reels on the centerline of the upper cabin (arm 50.3), rear reels outboard of each passenger (arm 87.8). No more than one extra inch should pull out once the lap belt is fitted (POH 7-22, 6-21). Reel size, lateral position and height are approximate, below the overhead console.",
     pin: s > 0,
   }),
 );

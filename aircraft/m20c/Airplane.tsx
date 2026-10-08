@@ -9,16 +9,16 @@ import { Parts, Shell, Shells } from "@/components/scene/Part";
 import { Screens, type ScreenSpec } from "@/components/scene/Screens";
 import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
-import { sided } from "@/lib/geometry";
 import { D2R, lerp, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawBreakerCover, drawPanel } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { MAIN_SPAR, PANEL_X, TAIL_PIVOT, loft, windowOutlines, wingSec } from "./geometry";
+import { PANEL_X, TAIL_PIVOT, windowOutlines } from "./geometry";
 import { bladeAngle, extLit, live } from "./model";
 import { CAT, CYLS, LIGHTS, MG, NG, PROP, TAIL_SHELLS, TAIL_SURFACE_KEYS } from "./parts";
-import { FLAP_PUMP, JBAR, deflections, tailAngle } from "./rig";
+import { FLAP_PUMP, JBAR, deflections, johnsonAngle, tailAngle } from "./rig";
+import { fuelBayGeo, mainAngle, noseAngle, noseDoorAngle, noseDoorAxis, noseDoorHinge } from "./placement";
 import { useM20C } from "./store";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
@@ -65,18 +65,23 @@ function Tail() {
 
 /** Manual gear: the mains swing inboard about fore-aft trunnions, the nose gear aft; the Johnson bar follows. */
 function Gear() {
+  const doorAxis = useMemo(noseDoorAxis, []);
   const mL = useRef<THREE.Group>(null!),
     mR = useRef<THREE.Group>(null!),
     nose = useRef<THREE.Group>(null!),
     bar = useRef<THREE.Group>(null!),
-    steer = useRef<THREE.Group>(null!);
+    steer = useRef<THREE.Group>(null!),
+    doorL = useRef<THREE.Group>(null!),
+    doorR = useRef<THREE.Group>(null!);
   useFrame(() => {
     const f = live.gearFrac;
     // mains swing inboard and up about their fore-aft trunnions until the wheel lies in the root well beside the fuselage
-    mR.current.rotation.x = f * 136 * D2R;
-    mL.current.rotation.x = -f * 136 * D2R;
-    nose.current.rotation.z = -f * 95 * D2R;
-    bar.current.rotation.z = lerp(JBAR.downAng, -JBAR.upAng, f);
+    mR.current.rotation.x = mainAngle(f, 1);
+    mL.current.rotation.x = mainAngle(f, -1);
+    nose.current.rotation.z = noseAngle(f);
+    bar.current.rotation.z = johnsonAngle(f);
+    doorL.current.quaternion.setFromAxisAngle(doorAxis, noseDoorAngle(f, -1));
+    doorR.current.quaternion.setFromAxisAngle(doorAxis, noseDoorAngle(f, 1));
     // nose-wheel steering follows the pedals while the gear is down
     steer.current.rotation.y = lerp(steer.current.rotation.y, (1 - f) * -live.eff.yaw * 20 * D2R, 0.15);
   });
@@ -95,6 +100,12 @@ function Gear() {
       </group>
       <group ref={bar} position={JBAR.pivot}>
         <P parent="jbar" />
+      </group>
+      <group ref={doorL} position={noseDoorHinge(-1)}>
+        <P parent="noseDoorL" />
+      </group>
+      <group ref={doorR} position={noseDoorHinge(1)}>
+        <P parent="noseDoorR" />
       </group>
     </>
   );
@@ -161,16 +172,13 @@ const TANKS: TankSpec[] = (
   ] as const
 ).map(([k, s]) => ({
   key: k,
-  geo: () => {
-    const secs = [0.62, 1.0, 1.4, 1.8, 2.2, 2.5].map((z) => wingSec(s * z, 0.06, MAIN_SPAR - 0.02, 0.85));
-    return loft(sided(secs, s));
-  },
+  geo: () => fuelBayGeo(s),
   level: () => {
     const f = useM20C.getState().s.fuel;
     return (k === "L" ? f.qL : f.qR) / 26;
   },
   name: (s > 0 ? "Right" : "Left") + " fuel tank (integral)",
-  note: "Integral sealed bay in the front of the wing root ahead of the main spar: 26 gal, all usable per the performance charts (OM p. 3, 30). Sealant ages — weeping tanks are the classic Mooney reseal job.",
+  note: "Integral sealed bay ahead of the main spar: 26 gal, all usable per the performance charts (OM p. 3, 30). The displayed fluid envelope is calibrated to that usable volume; detailed bay shape and internal structure are approximate. Sealant ages — weeping tanks are the classic Mooney reseal job.",
 }));
 
 /* ---------- the instrument panel, drawn live on a canvas ---------- */

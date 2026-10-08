@@ -182,7 +182,7 @@ export const kapReady = (): Kap140State => ({
 });
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
-export const live = {
+export const initialLive = () => ({
   rpm: 2300,
   map: 21.0,
   oilP: 72,
@@ -237,7 +237,8 @@ export const live = {
   discTone: -99,
   /** An EIS exceedance was present last frame (the SYSTEM page returns to ENGINE when one starts). */
   eisEx: false,
-};
+});
+export const live = initialLive();
 
 /* ---------- breakers: POH Figure 7-7 Sheet 2 (182TPHAUS-04), labels and order as drawn ---------- */
 /**

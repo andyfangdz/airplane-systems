@@ -5,7 +5,7 @@ import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
 import { V } from "@/lib/math";
 import { sysColor, type SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
+import { useNarrowLayout, useView } from "@/lib/view";
 import { Pin } from "./Part";
 
 export interface ScreenSpec {
@@ -21,7 +21,7 @@ export interface ScreenSpec {
   /** Label pin anchor in the screen's own plane (metres; default the centre) — e.g. its top edge, so the label doesn't cover the display. */
   pinAt?: Vec3;
   /** Label pin in its systems' views (default true); a function is read on render (e.g. no pin on the phone layout). */
-  pin?: boolean | (() => boolean);
+  pin?: boolean | ((narrow: boolean) => boolean);
   name: string;
   note: string;
   /** Redraws the whole canvas (called a few times a second). */
@@ -33,6 +33,7 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
   const sys = useView((x) => x.sys);
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
+  const narrow = useNarrowLayout();
   const items = useMemo(
     () =>
       screens.map((d) => {
@@ -68,7 +69,7 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
         >
           <planeGeometry args={d.size} />
           <meshBasicMaterial map={tx} toneMapped={false} />
-          {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin() : (d.pin ?? true)) && (
+          {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin(narrow) : (d.pin ?? true)) && (
             <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />
           )}
         </mesh>

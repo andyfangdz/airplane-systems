@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import {
   BtnRow,
   Caution,
@@ -20,6 +21,7 @@ import { CAT } from "../parts";
 import { useC182 } from "../store";
 import { QUARTER_TANK } from "../tick";
 import { Scenarios } from "./general";
+import { cancelPropCycle, startPropCycle } from "../propCycle";
 
 const pct = (v: number) => Math.round(v * 100) + "%";
 const thr = (v: number) => (v < 0.02 ? "IDLE (full out)" : v > 0.98 ? "FULL (full in)" : `${pct(v)} in`);
@@ -81,11 +83,12 @@ function EngineKnobs({ id = "" }: { id?: string }) {
         max={1}
         step={0.005}
         value={g.prop}
-        onChange={(v) =>
+        onChange={(v) => {
+          cancelPropCycle();
           up((d) => {
             d.eng.prop = v;
-          })
-        }
+          });
+        }}
         fmt={propFmt}
       />
       <Slider
@@ -416,6 +419,7 @@ export function Engine() {
 
 export function Propeller() {
   useTicker(150);
+  useEffect(() => cancelPropCycle, []);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update);
   const g = s.eng,
@@ -424,16 +428,13 @@ export function Propeller() {
   const governing = g.running && !g.fail.gov && live.blade > 15.2;
   const P = g.running ? powerFrac(s, live.map, live.rpm, live.fs.alt) : 0;
   const cycle = () => {
-    const p0 = g.prop;
     up((d) => {
       d.eng.prop = 0;
     });
-    setTimeout(
-      () =>
-        useC182.getState().update((d) => {
-          d.eng.prop = Math.max(p0, 0.98);
-        }),
-      2500,
+    startPropCycle(() =>
+      useC182.getState().update((d) => {
+        d.eng.prop = 1;
+      }),
     );
   };
   return (
