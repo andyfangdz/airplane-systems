@@ -152,7 +152,9 @@ part(() => box(0.08, 0.06, 0.1), ["airframe", "controls"], {
   note: "The entire empennage — stabilizer, fin, rudder and elevator — pivots around two attachment points on the tail cone for trim (OM p. 6).",
   pin: true,
 });
-// entry step (right side, under the wing trailing edge by the door): fixed on the 1968 airplane
+// Fixed on the 1968 M20C, s/n 680001–680198 (Mooney model chronology:
+// https://www.mooneyevents.com/chrono.htm). Project the mount into the skin rather
+// than ending a vertical post outside the rounded belly. Positions are approximate.
 part(() => box(0.1, 0.03, 0.14), ["airframe", "cabin"], {
   pos: [-0.35, -0.88, 0.52],
   color: "#8C959C",
@@ -161,4 +163,13 @@ part(() => box(0.1, 0.03, 0.14), ["airframe", "cabin"], {
   ext: true,
   pin: true,
 });
-part(() => cyl(0.012, 0.22), ["airframe"], { pos: [-0.35, -0.78, 0.5], color: "#8C959C", ext: true });
+part(
+  () => tubeGeo([onSkin(-0.35, -0.58, 1, 0.98), [-0.35, -0.74, 0.5], [-0.35, -0.88, 0.5]], 0.014),
+  ["airframe", "cabin"],
+  {
+    color: "#8C959C",
+    name: "Entry step",
+    note: "Fixed support joins the right fuselage to the tread. It stays extended on this 1968 Ranger; it is not linked to the gear or vacuum system. Mount and tube shape are approximate.",
+    ext: true,
+  },
+);

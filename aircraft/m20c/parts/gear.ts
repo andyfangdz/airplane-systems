@@ -54,13 +54,16 @@ import { brake, glow, knobAnim, part, sim } from "./catalogue";
     ext: true,
     pin: s > 0,
   });
-  part(() => box(0.5, 0.48, 0.012), ["gear"], {
+  // Keep the upper edge and linkage placement; shorten the lower edge so the
+  // door leaves the lower tyre exposed instead of nearly touching the ground.
+  // Outline/clearance are visual approximations (GEOMETRY_AUDIT.md).
+  part(() => box(0.5, 0.36, 0.012), ["gear"], {
     parent,
-    pos: [axle[0], axle[1] + 0.035, s * 0.065],
+    pos: [axle[0], axle[1] + 0.095, s * 0.065],
     color: "#C9D0D5",
     fairing: true,
     name: "Main gear door",
-    note: "Gear door shown with the folding leg; it lies below the stowed tire in the wing well (OM p. 6; TCDS: mains retract inward). Door outline and attachment are schematic; the wheel and door remain outside the cabin throughout retraction.",
+    note: "Gear door shown with the folding leg; it lies below the stowed tire in the wing well (OM p. 6; TCDS: mains retract inward). The lower tyre remains exposed with the gear down. Door outline, attachment and ground clearance are schematic; the wheel and door remain outside the cabin throughout retraction.",
     ext: true,
     pin: s > 0,
   });
