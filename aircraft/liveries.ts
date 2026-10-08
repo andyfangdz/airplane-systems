@@ -20,15 +20,38 @@ const INK = "#172029",
 
 export function liveryLabels(id: AircraftId, section: Section): PaintText[] {
   if (section === "tail") {
-    if (id === "da40") return [{ text: "N949KC", a: [-4.77, -0.13], b: [-3.73, 0.12], color: "#85837e" }];
-    if (id === "c172s") return [{ text: "SKYHAWK SP", a: [241, 84], b: [267, 87], color: SILVER, italic: false }];
+    if (id === "da40")
+      return [
+        {
+          text: "N949KC",
+          a: [-4.86, -0.205],
+          b: [-3.72, 0.055],
+          color: "#85837e",
+          style: "rounded-oblique",
+          tracking: 3,
+        },
+      ];
+    if (id === "c172s")
+      return [
+        { text: "SKYHAWK", a: [242, 84], b: [263, 86.6], color: SILVER, style: "wordmark", tracking: 4 },
+        { text: "SP", a: [249, 81], b: [257, 83], color: SILVER, style: "wordmark" },
+        { text: "Cessna", a: [255, 95], b: [267, 96.5], color: BURGUNDY, style: "wordmark" },
+      ];
     if (id === "c182t") return [];
-    return [{ text: "SR20", a: [-3.13, 0.18], b: [-2.78, 0.24], color: SILVER }];
+    return [{ text: "#JUMPSTART", a: [-3.12, 0.2], b: [-2.61, 0.24], color: INK, style: "wordmark", tracking: 5 }];
   }
-  if (id === "sr20") return [{ text: "N800KP", a: [-2.08, -0.27], b: [-0.54, 0.055], color: INK }];
-  if (id === "c172s") return [{ text: "N6189Q", a: [133, 39], b: [204, 52], color: BURGUNDY }];
-  if (id === "c182t") return [{ text: "N8050J", a: [147, 40], b: [209, 55], color: RED, italic: false }];
-  return [{ text: "DIAMOND STAR", a: [-1.03, 0.08], b: [-0.48, 0.115], color: SILVER, italic: false }];
+  if (id === "sr20")
+    return [
+      { text: "N800KP", a: [-2.2, -0.31], b: [-0.67, -0.005], color: INK, style: "rounded-oblique", tracking: 3 },
+      { text: "20", a: [-0.2, 0.29], b: [-0.1, 0.35], color: INK, style: "wordmark" },
+      { text: "#FLYCIRRUS", a: [1.99, -0.035], b: [2.49, 0.005], color: INK, style: "wordmark", tracking: 5 },
+    ];
+  if (id === "c172s") return [{ text: "N6189Q", a: [133, 39], b: [204, 54], color: BURGUNDY, style: "block-oblique" }];
+  if (id === "c182t") return [{ text: "N8050J", a: [150, 40], b: [206, 54], color: RED, style: "block-upright" }];
+  return [
+    { text: "DIAMOND STAR", a: [-1.4, 0.05], b: [-0.8, 0.083], color: SILVER, style: "wordmark", tracking: 4 },
+    { text: "XLS", a: [-1.4, 0.01], b: [-1.25, 0.042], color: SILVER, style: "wordmark", tracking: 3 },
+  ];
 }
 
 /** Paint the observed stripes; points are silhouettes traced from side photographs, not engineering dimensions. */
@@ -95,6 +118,13 @@ export function drawLivery(id: AircraftId, g: CanvasRenderingContext2D, P: Paint
     ]);
   } else if (id === "c172s") {
     if (section === "tail") {
+      // The SKYHAWK / SP badge has a thin rule between its two lines.
+      polygon(SILVER, [
+        [242, 83.65],
+        [263, 83.65],
+        [263, 83.85],
+        [242, 83.85],
+      ]);
       curve(
         BURGUNDY,
         [203, 61],

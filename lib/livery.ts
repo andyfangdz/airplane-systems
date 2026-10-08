@@ -1,5 +1,6 @@
 /** Side-projected paint atlas: independent, readable port and starboard markings. */
 import * as THREE from "three";
+import { drawLettering, layoutLettering, type LetteringStyle } from "./lettering";
 
 export interface PaintBox {
   x0: number;
@@ -14,7 +15,9 @@ export interface PaintText {
   a: number[];
   b: number[];
   color: string;
-  italic?: boolean;
+  style: LetteringStyle;
+  /** Additional inter-letter space in units of a 100-unit cap height. */
+  tracking?: number;
 }
 
 /** Assign UVs before moving geometry into a hinge's local coordinates. Each triangle
@@ -60,15 +63,10 @@ export function paintAtlas(base: HTMLCanvasElement, P: PaintPoint, labels: Paint
       y = Math.min(a[1], b[1]);
     const w = Math.abs(a[0] - b[0]),
       h = Math.abs(a[1] - b[1]);
+    const layout = layoutLettering(label.text, label.style, label.tracking);
     for (const left of [false, true]) {
-      g.save();
-      g.font = `${label.italic === false ? "" : "italic "}600 100px Arial, sans-serif`;
-      const m = g.measureText(label.text);
-      g.translate(left ? 2 * W - x - w : x, y);
-      g.scale(w / m.width, h / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent));
       g.fillStyle = label.color;
-      g.fillText(label.text, 0, m.actualBoundingBoxAscent);
-      g.restore();
+      drawLettering(g, layout, left ? 2 * W - x - w : x, y, w, h);
     }
   }
   const texture = new THREE.CanvasTexture(c);
