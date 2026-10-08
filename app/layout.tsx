@@ -1,10 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Saira_Condensed, Source_Sans_3 } from "next/font/google";
+import { IBM_Plex_Mono, Saira_Condensed } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const disp = Saira_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-disp" });
-const body = Source_Sans_3({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-body" });
+// Keep Source Sans local: Google's generated URLs can break Turbopack's font query parser in clean CI builds.
+const body = localFont({
+  src: [
+    { path: "./fonts/SourceSans3VF-Upright.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/SourceSans3VF-Upright.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/SourceSans3VF-Upright.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-body",
+  display: "swap",
+});
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
 // The tab title is rendered by App (<title> in components/App.tsx): neutral in the static HTML, which is the same page
