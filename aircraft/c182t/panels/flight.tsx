@@ -442,8 +442,8 @@ export function Gear() {
       </Ctl>
       <Small>
         Pedals alone turn the nosewheel about 11° each side; adding brake takes it up to 29°. Minimum turning radius
-        about 27 ft (POH 7-19). Whether N8050J and N21200 carry the optional fairings (item 32-03-A, ≈ 3 knots) is not
-        in the POH — toggle them here.
+        about 27 ft (POH 7-19). N8050J is shown without the optional fairings in the current flyingclub.org photo.
+        Toggle them here to study the optional installation (item 32-03-A, ≈ 3 knots).
       </Small>
       <H3>Gear — tap to locate</H3>
       <PartsList parts={CAT.pinned("gear")} />

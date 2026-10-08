@@ -1,0 +1,226 @@
+{
+  "sr20": {
+    "fuselageUpper": {
+      "samples": 11,
+      "beforeMean": 0.1,
+      "afterMean": 0.1,
+      "afterMax": 0.156
+    },
+    "fuselageLower": {
+      "samples": 12,
+      "beforeMean": 0.045,
+      "afterMean": 0.045,
+      "afterMax": 0.08
+    },
+    "finLE": {
+      "samples": 7,
+      "beforeMean": 0.065,
+      "afterMean": 0.066,
+      "afterMax": 0.116
+    },
+    "finTE": {
+      "samples": 4,
+      "beforeMean": 0.1,
+      "afterMean": 0.085,
+      "afterMax": 0.139
+    },
+    "wingLE": {
+      "samples": 7,
+      "beforeMean": 0.076,
+      "afterMean": 0.03,
+      "afterMax": 0.061
+    },
+    "wingTE": {
+      "samples": 5,
+      "beforeMean": 0.043,
+      "afterMean": 0.021,
+      "afterMax": 0.036
+    },
+    "tailLE": {
+      "samples": 4,
+      "beforeMean": 0.031,
+      "afterMean": 0.031,
+      "afterMax": 0.05
+    },
+    "tailTE": {
+      "samples": 3,
+      "beforeMean": 0.05,
+      "afterMean": 0.05,
+      "afterMax": 0.071
+    },
+    "wingFront": {
+      "samples": 4,
+      "beforeMean": 0.023,
+      "afterMean": 0.023,
+      "afterMax": 0.04
+    }
+  },
+  "c172s": {
+    "fuselageUpper": {
+      "samples": 16,
+      "beforeMean": 0.249,
+      "afterMean": 0.249,
+      "afterMax": 0.405
+    },
+    "fuselageLower": {
+      "samples": 11,
+      "beforeMean": 0.265,
+      "afterMean": 0.265,
+      "afterMax": 0.542
+    },
+    "finLE": {
+      "samples": 7,
+      "beforeMean": 0.201,
+      "afterMean": 0.201,
+      "afterMax": 0.348
+    },
+    "finTE": {
+      "samples": 4,
+      "beforeMean": 0.354,
+      "afterMean": 0.354,
+      "afterMax": 0.615
+    },
+    "wingLE": {
+      "samples": 5,
+      "beforeMean": 0.067,
+      "afterMean": 0.07,
+      "afterMax": 0.128
+    },
+    "wingTE": {
+      "samples": 4,
+      "beforeMean": 0.095,
+      "afterMean": 0.092,
+      "afterMax": 0.146
+    },
+    "tailLE": {
+      "samples": 4,
+      "beforeMean": 0.071,
+      "afterMean": 0.022,
+      "afterMax": 0.045
+    },
+    "tailTE": {
+      "samples": 3,
+      "beforeMean": 0.041,
+      "afterMean": 0.018,
+      "afterMax": 0.031
+    },
+    "wingFront": {
+      "samples": 4,
+      "beforeMean": 0.326,
+      "afterMean": 0.336,
+      "afterMax": 0.386
+    }
+  },
+  "c182t": {
+    "fuselageUpper": {
+      "samples": 13,
+      "beforeMean": 0.093,
+      "afterMean": 0.093,
+      "afterMax": 0.186
+    },
+    "fuselageLower": {
+      "samples": 12,
+      "beforeMean": 0.197,
+      "afterMean": 0.197,
+      "afterMax": 0.485
+    },
+    "finLE": {
+      "samples": 9,
+      "beforeMean": 0.523,
+      "afterMean": 0.363,
+      "afterMax": 0.53
+    },
+    "finTE": {
+      "samples": 5,
+      "beforeMean": 0.229,
+      "afterMean": 0.229,
+      "afterMax": 0.447
+    },
+    "wingLE": {
+      "samples": 5,
+      "beforeMean": 0.059,
+      "afterMean": 0.055,
+      "afterMax": 0.076
+    },
+    "wingTE": {
+      "samples": 4,
+      "beforeMean": 0.056,
+      "afterMean": 0.043,
+      "afterMax": 0.078
+    },
+    "tailLE": {
+      "samples": 3,
+      "beforeMean": 0.162,
+      "afterMean": 0.159,
+      "afterMax": 0.2
+    },
+    "tailTE": {
+      "samples": 3,
+      "beforeMean": 0.08,
+      "afterMean": 0.081,
+      "afterMax": 0.118
+    },
+    "wingFront": {
+      "samples": 4,
+      "beforeMean": 0.178,
+      "afterMean": 0.183,
+      "afterMax": 0.227
+    }
+  },
+  "da40": {
+    "fuselageUpper": {
+      "samples": 17,
+      "beforeMean": 0.023,
+      "afterMean": 0.023,
+      "afterMax": 0.042
+    },
+    "fuselageLower": {
+      "samples": 15,
+      "beforeMean": 0.044,
+      "afterMean": 0.044,
+      "afterMax": 0.138
+    },
+    "finLE": {
+      "samples": 8,
+      "beforeMean": 0.04,
+      "afterMean": 0.04,
+      "afterMax": 0.077
+    },
+    "finTE": {
+      "samples": 4,
+      "beforeMean": 0.097,
+      "afterMean": 0.097,
+      "afterMax": 0.172
+    },
+    "wingLE": {
+      "samples": 6,
+      "beforeMean": 0.029,
+      "afterMean": 0.029,
+      "afterMax": 0.059
+    },
+    "wingTE": {
+      "samples": 5,
+      "beforeMean": 0.042,
+      "afterMean": 0.042,
+      "afterMax": 0.059
+    },
+    "tailLE": {
+      "samples": 4,
+      "beforeMean": 0.05,
+      "afterMean": 0.05,
+      "afterMax": 0.109
+    },
+    "tailTE": {
+      "samples": 2,
+      "beforeMean": 0.006,
+      "afterMean": 0.006,
+      "afterMax": 0.012
+    },
+    "wingFront": {
+      "samples": 5,
+      "beforeMean": 0.054,
+      "afterMean": 0.054,
+      "afterMax": 0.101
+    }
+  }
+}

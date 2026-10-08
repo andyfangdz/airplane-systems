@@ -11,9 +11,9 @@ const bladeGeo = () => {
   // scimitar planform: tip swept back, root under the spinner
   const sh = new THREE.Shape();
   sh.moveTo(-0.055, 0.14);
-  sh.quadraticCurveTo(-0.085, 0.5, -0.02, 0.915);
-  sh.lineTo(0.025, 0.9);
-  sh.quadraticCurveTo(0.08, 0.5, 0.06, 0.14);
+  sh.quadraticCurveTo(-0.12, 0.5, -0.045, 0.915);
+  sh.lineTo(0.055, 0.905);
+  sh.quadraticCurveTo(0.115, 0.5, 0.06, 0.14);
   sh.lineTo(-0.055, 0.14);
   const g = new THREE.ExtrudeGeometry(sh, { depth: 0.022, bevelEnabled: false });
   g.translate(0, 0, -0.011);

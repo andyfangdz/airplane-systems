@@ -118,6 +118,7 @@ part(() => box(0.06, 0.03, 0.06), ["avionics"], {
 part(() => box(0.12, 0.05, 0.1), ["avionics"], {
   pos: P3(112, -2, 60),
   color: "#9C4C88",
+  solidColor: "#E3E6E8",
   name: "GDL 69A data link (optional)",
   note: "XM weather and radio in the tailcone (POH 7-70). FIS breaker, AVIONICS BUS 1 (if installed).",
 });
@@ -142,6 +143,7 @@ part(() => box(0.03, 0.2, 0.006), ["avionics"], {
   pos: [X(61.2), top(61.2, 7) + 0.095, Z(7)],
   rot: [0, 0, 0.35],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "COM 1 / GPS 1 antenna",
   note: "Top of the cabin, right side, arm 61.2 (POH 7-74).",
   ext: true,
@@ -151,6 +153,7 @@ part(() => box(0.03, 0.2, 0.006), ["avionics"], {
   pos: [X(61.2), top(61.2, -7) + 0.095, Z(-7)],
   rot: [0, 0, 0.35],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "COM 2 / GPS 2 antenna",
   note: "Top of the cabin, left side (POH 7-74).",
   ext: true,
@@ -159,6 +162,7 @@ part(() => box(0.03, 0.2, 0.006), ["avionics"], {
 part(() => cyl(0.04, 0.015), ["avionics"], {
   pos: [X(43.5), top(43.5) + 0.008, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "GDL (XM) antenna",
   note: "Top of the cabin, arm 43.5 (POH 7-74).",
   ext: true,
@@ -168,6 +172,7 @@ part(() => cyl(0.04, 0.015), ["avionics"], {
     pos: [fLE(Y(88)) - 0.12, Y(88), s * 0.06],
     rot: [s * 0.5, 0, -0.1],
     color: ANT,
+    solidColor: "#E3E6E8",
     name: "VOR/GS navigation antenna",
     note: "Blade-type antenna on either side of the vertical stabilizer (POH 7-74).",
     ext: true,
@@ -177,6 +182,7 @@ part(() => cyl(0.04, 0.015), ["avionics"], {
 part(() => box(0.28, 0.012, 0.08), ["avionics"], {
   pos: [X(129), botY(X(129)) - 0.006, 0],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Marker beacon antenna",
   note: "Bottom of the tailcone, arm 129.0 (POH 7-74).",
   ext: true,
@@ -185,6 +191,7 @@ part(() => box(0.28, 0.012, 0.08), ["avionics"], {
 part(() => cyl(0.006, 0.08), ["avionics"], {
   pos: [X(86.3), botY(X(86.3)) - 0.04, Z(2)],
   color: ANT,
+  solidColor: "#E3E6E8",
   name: "Transponder antenna",
   note: "Bottom of the cabin, arm 86.3 (POH 7-74).",
   ext: true,
@@ -193,6 +200,7 @@ part(() => cyl(0.006, 0.08), ["avionics"], {
 part(() => box(0.08, 0.05, 0.008), ["avionics"], {
   pos: [X(114.5), botY(X(114.5)) - 0.026, Z(-2)],
   color: "#9C4C88",
+  solidColor: "#E3E6E8",
   name: "DME antenna (if installed)",
   note: "Bottom of the tailcone, arm 114.5 (POH 7-74).",
   ext: true,
