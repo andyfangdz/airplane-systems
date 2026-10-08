@@ -1,0 +1,36 @@
+{
+  "supersededAt": "afc046151136955d58e6b15c69941986a1dfa3d8",
+  "reason": "Cessna side height scaling and ground anchors misregistered the hubs; SR20 top and DA40 side metadata had reversed basis signs despite correctly oriented stored points. History only; not used in current plots.",
+  "calibrations": {
+    "c172s": {
+      "pixelOrigin": [123, 545],
+      "worldOrigin": [3.7338, -1.25095],
+      "u": [-0.011114630872483221, 0],
+      "v": [0, -0.0127],
+      "basis": "27 ft 2 in length / 8 ft 11 in height; independently scaled axes"
+    },
+    "c182t": {
+      "pixelOrigin": [269, 405],
+      "worldOrigin": [4.1656, -1.279525],
+      "u": [-0.014562108731466227, 0],
+      "v": [0, -0.01335586854460094],
+      "basis": "29 ft length / 9 ft 4 in height; independently scaled axes"
+    },
+    "sr20": {
+      "view": "top",
+      "pixelOrigin": [383, 414],
+      "worldOrigin": [4.16, 0],
+      "u": [0, -0.0204020979020979],
+      "v": [0.0204020979020979, 0],
+      "basis": "11.67 m span, spinner-tip anchor"
+    },
+    "da40": {
+      "view": "side",
+      "pixelOrigin": [635, 934],
+      "worldOrigin": [2.94, 0],
+      "u": [0.000809041877739394, 0.013207062004178215],
+      "v": [-0.013207062004178215, 0.000809041877739394],
+      "basis": "8.007 m length, de-rotated by dimension-line angle; spinner-tip anchor"
+    }
+  }
+}

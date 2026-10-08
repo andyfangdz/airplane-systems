@@ -1,3 +1,4 @@
+import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /** C172S catalogue: control surfaces (flaps, ailerons, elevator, rudder) and the details that ride on them. */
 import { V } from "@/lib/math";
 import {
@@ -96,6 +97,7 @@ surface(
   ["controls"],
   "Rudder",
   "Formed leading edge, spar, hinge brackets, wraparound skin; the top has a leading-edge extension with a balance weight; ground-adjustable trim tab at the base of the trailing edge (POH 7-6). Travel ±16°10′ (TCDS 3A12).",
+  { box: TAIL_PAINT_BOX, skin: paintTail },
 );
 
 /* ---------- surface details ---------- */
@@ -140,7 +142,7 @@ const WICK =
     }),
   );
   [118, 165, 200].forEach((b) =>
-    part(() => box(0.2, 0.035, 0.022), ["controls"], {
+    part(() => box(0.1, 0.03, 0.022), ["controls"], {
       pos: PV(wingP(s * Z(b), 0.78, -1).add(V(-0.01, -0.012, 0))),
       color: "#C9D0D5",
       name: "Aileron hinge",
