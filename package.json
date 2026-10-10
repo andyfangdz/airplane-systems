@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Interactive 3D study models of airplane systems (POH/AFM Section 7): Cirrus SR20 G6, Cessna 172S and 182T NAV III, Diamond DA40, Mooney M20C Ranger. Built with Next.js and React Three Fiber.",
+  "description": "Interactive 3D study models of airplane systems (POH/AFM Section 7): Cirrus SR20 G6 and SR22T G6, Cessna 172S and 182T NAV III, Diamond DA40, Mooney M20C Ranger. Built with Next.js and React Three Fiber.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -16,6 +16,9 @@
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run typecheck && npm test",
     "shot": "node scripts/shot.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "test:deploy": "vitest run --config vitest.deploy.config.mts",
+    "deploy:aws": "bash scripts/deploy-aws.sh",
     "trace": "node scripts/trace-airframes.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
   },
@@ -36,6 +39,7 @@
     "@types/three": "0.186.0",
     "playwright-core": "1.56.1",
     "prettier": "3.9.9",
+    "three-mesh-bvh": "0.8.3",
     "typescript": "5.9.3",
     "vitest": "5.0.3"
   }
