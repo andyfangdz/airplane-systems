@@ -1,7 +1,7 @@
 import type { Vec3 } from "./math";
 
 /** Every airplane in the fleet. Each one lives in aircraft/<id>/. */
-export const AIRCRAFT_IDS = ["sr20", "c172s", "c182t", "da40", "m20c"] as const;
+export const AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"] as const;
 export type AircraftId = (typeof AIRCRAFT_IDS)[number];
 export const isAircraftId = (v: unknown): v is AircraftId =>
   typeof v === "string" && (AIRCRAFT_IDS as readonly string[]).includes(v);
@@ -10,6 +10,7 @@ export const isAircraftId = (v: unknown): v is AircraftId =>
 export type SysId =
   | "overview"
   | "airframe"
+  | "doors"
   | "controls"
   | "flaps"
   | "gear"
@@ -20,10 +21,12 @@ export type SysId =
   | "lighting"
   | "environment"
   | "pitot"
+  | "ice"
   | "vacuum"
   | "avionics"
   | "autopilot"
   | "cabin"
+  | "oxygen"
   | "caps";
 
 /** Flight-control channels (for the channel-focus view in Flight controls). */
@@ -50,6 +53,7 @@ export interface SysDef {
 const SYS_COLOR: Record<SysId, ColorKey> = {
   overview: "accent",
   airframe: "frame",
+  doors: "frame",
   controls: "ctrl",
   flaps: "ctrl",
   gear: "gear",
@@ -60,10 +64,12 @@ const SYS_COLOR: Record<SysId, ColorKey> = {
   lighting: "elec",
   environment: "air",
   pitot: "pitot",
+  ice: "pitot",
   vacuum: "pitot",
   avionics: "avx",
   autopilot: "avx",
   cabin: "cabin",
+  oxygen: "cabin",
   caps: "caps",
 };
 
