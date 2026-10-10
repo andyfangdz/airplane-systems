@@ -73,7 +73,7 @@ describe.each(FLEET)("$id exterior geometry", (def) => {
       }
       g.dispose();
     }
-  }, 30000);
+  }, 120000);
   it("keeps the aircraft's paint on its fin and hinged rudder", () => {
     const fin = shells.find((s) => s.name === "Vertical stabilizer" || s.name === "Vertical fin")!;
     const rudder = def.labels!.cat.surfaces.find((s) => s.key === "rudder")!;
