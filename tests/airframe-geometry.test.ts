@@ -62,6 +62,7 @@ it("unwraps lettering in opposite directions on port/starboard without blending 
 describe.each(FLEET)("$id exterior geometry", (def) => {
   // The Mooney carries these shells in its moving empennage group, outside CAT.shells.
   const shells = [...def.labels!.cat.shells, ...(def.id === "m20c" ? TAIL_SHELLS : [])];
+  // The SR22T hull (door cut-outs, exhaust exits) takes several seconds to build, as in the SR22T door and NACA-inlet tests.
   it("has finite positions, normals and UVs on painted shells and moving surfaces", () => {
     for (const spec of [...shells, ...def.labels!.cat.surfaces]) {
       const g = spec.geo();
@@ -72,10 +73,16 @@ describe.each(FLEET)("$id exterior geometry", (def) => {
       }
       g.dispose();
     }
-  });
+  }, 30000);
   it("keeps the aircraft's paint on its fin and hinged rudder", () => {
     const fin = shells.find((s) => s.name === "Vertical stabilizer" || s.name === "Vertical fin")!;
     const rudder = def.labels!.cat.surfaces.find((s) => s.key === "rudder")!;
+    // The SR22T has no photo-traced livery (no LIVERY_REGISTRATION entry): neither surface is painted.
+    if (def.id === "sr22t") {
+      expect(fin.skin).toBeUndefined();
+      expect(rudder.skin).toBeUndefined();
+      return;
+    }
     expect(fin.skin).toBeTypeOf("function");
     expect(rudder.skin).toBeTypeOf("function");
     // N6947N has a navy rudder and light-blue fin, painted separately.
