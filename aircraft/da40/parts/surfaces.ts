@@ -182,6 +182,7 @@ onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x
   onSurf("elev", V(sLE(1.58) - 0.3 * sC(1.58), SY, s * 1.58), () => box(0.05, 0.03, 0.08), {
     color: "#6E7A84",
     name: "Elevator horn balance",
+    ext: true,
     note: "The elevator tips reach forward of the hinge line (horn balance), reducing stick forces and helping prevent flutter.",
     pin: s > 0,
   }),

@@ -147,7 +147,7 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   if (bl < 0)
     part(() => cyl(0.014, 0.1), ["gear"], {
       parent,
-      pos: P3(5.5, bl, 29),
+      pos: P3(5.5, bl * 0.9, 30.2),
       color: STEEL,
       name: "Brake master cylinder",
       note: "One on each of the pilot's pedals; the copilot pedals act through the interconnect (POH 7-46).",
@@ -163,7 +163,8 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
     color: CTL,
     chan: ["elevator"],
     name: "Elevator bellcrank (tail)",
-    note: "On the elevator torque tube: the up and down cables pull its upper and lower arms (POH 7-6, Fig. 7-1).",
+    ext: true,
+    note: "Exposed arm at the elevator torque tube: up/down cables pull its upper/lower arms (POH7-6,Fig7-1;172RPC24 27-30). The lower horn and short cable terminal can extend outside the tailcone fairing; size/position schematic.",
     pin: true,
   });
   part(() => cyl(0.012, Z(4) * 2, "z"), ["controls"], {
@@ -192,7 +193,8 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   onSurf("ail" + sd, [aw[0] - 0.16, aw[1] - 0.035, aw[2]], () => box(0.03, 0.04, 0.012), {
     color: CTL,
     name: "Aileron horn",
-    note: "The push-pull rod from the bellcrank drives the aileron here.",
+    ext: true,
+    note: "Exposed aileron control horn at the lower surface receives the bellcrank push-pull rod (POHFig7-1;172RPC24 27-10). Horn shape and protrusion are schematic.",
   });
 });
 // trim wheel and indicator, trim actuator

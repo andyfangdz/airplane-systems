@@ -16,6 +16,8 @@ import { Vacuum } from "./panels/vacuum";
 import { useM20C } from "./store";
 import { SYS } from "./systems";
 import { simTick } from "./tick";
+import { WalkPanel, WalkMarker } from "./walk-panel";
+import { walkController } from "./walk-store";
 
 /** Warning lights and horns: all dead with the master switch off (Ranger 4-9). */
 function useAlerts() {
@@ -42,6 +44,7 @@ export const M20C: AircraftDef = {
   groundY: GROUND_Y,
   pivotX: 1.0,
   Model,
+  Overlay: WalkMarker,
   panels: {
     overview: Overview,
     airframe: Airframe,
@@ -63,4 +66,5 @@ export const M20C: AircraftDef = {
   useAlerts,
   alertTitle: "WARNING LIGHTS & HORNS",
   labels: { cat: CAT, inside: inFus },
+  walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
 };

@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import { selectSys } from "@/lib/fleet";
 import { sysColor } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -26,8 +27,9 @@ export function Overview() {
         <b>About the year.</b> The FAA registry lists N6947N as a 1968 M20C, serial 680194 (airworthiness date 25
         September 1968). That fits the photos — one-piece windshield, no dorsal fin — and the name: Mooney sold the 1967
         airplane as the Mark 21 and introduced the Ranger for 1968. The model follows the 1968 configuration (fixed cowl
-        flaps, fixed entry step, alternator, V<sub>FE</sub> 125 mph) and says where a 1967 Mark 21 differs (adjustable
-        cowl flaps, vacuum step, dorsal fin, two-piece windshield, generator, V<sub>FE</sub> 100 mph).
+        flaps, fixed entry step, the selected alternator option, V<sub>FE</sub> 125 mph) and says where a 1967 Mark 21
+        differs (adjustable cowl flaps, vacuum step, dorsal fin, two-piece windshield, generator, V<sub>FE</sub> 100
+        mph).
       </Small>
       <H3>Start from</H3>
       <Ctl>
@@ -57,8 +59,11 @@ export function Overview() {
       <Facts
         rows={[
           ["Engine", "Lycoming O-360-A1D · 180 hp @ 2,700 RPM · carbureted (MA-4-5)"],
-          ["Propeller", "Hartzell HC-C2YK-1B / 7666A-2, 2 blades, 74 in, constant speed"],
-          ["Fuel", "2 × 26 US gal integral wing tanks, 52 total · 100LL (91/98 min as built)"],
+          ["Propeller", "Hartzell HC-C2YK-1B / 7666 A-2, 2 blades, 74 in, constant speed"],
+          [
+            "Fuel",
+            "2 × 26 US gal integral wing tanks, 52 total · 91/96 minimum in the 1968 manual; approved current engine fuel required",
+          ],
           ["Electrical", "12 V · 60 A alternator · 35 Ah battery · one bus"],
           ["Gear", "Manual (Johnson bar) · rubber shock discs · 120 mph"],
           ["Flaps", "Hydraulic hand pump: 2 strokes T/O 15° · 4½ strokes full 33°"],
@@ -84,15 +89,13 @@ export function Overview() {
         ))}
       </div>
       <p className="disc">
-        Unofficial study aid. Built from the 1965 Mark 21 (M20C) Owner's Manual with its 1962–64 supplement (the closest
-        available edition to the 1967–68 books; same systems), the M20C Ranger Operator's Manual of December 1974
-        (Sections I–II, IV, V and VII, used where the older book is silent), the 1963 FAA Approved Flight Manual for
-        M20C s/n 2394, FAA Type Certificate Data Sheet 2A3 (limits, control travels, stations, equipment), the Lycoming
-        O-360 operator's manual, Hartzell manual 115N and its ADs, Mooney's serial-number chronology, and owner and
-        type-club material where marked. The 1968 Ranger owner's manual (Mooney 68-20C-OM-B) could not be found online;
-        its dimensioned three-view was. Where the sources are silent (control routing, servo and antenna locations,
-        panel layout) the model says so and is approximate. Geometry is approximate. Always use the manual, placards and
-        equipment list carried in N6947N.
+        Unofficial study aid. Primary systems sources are the actual 1968 Ranger Owner's Manual POH 1187,
+        serial-applicable Mooney Service and Maintenance Manual106 and Parts Catalog205, Lycoming 60297-12, Hartzell
+        115N and Brittain 11968. Earlier Mark21 and later Ranger references are retained only where applicable. The
+        model selects manual gear, hydraulic flaps, fixed step/cowl openings and a 60 A alternator; the 1968 book also
+        permits a 50 A generator. N6947N's exact installed charging equipment, radio models, optional filter and other
+        modifications require aircraft records. Geometry, component dimensions and route locations are illustrative.
+        Always use the flight manual, placards and equipment list carried in the aircraft.
       </p>
     </>
   );
@@ -138,11 +141,15 @@ export function Airframe() {
           ["Dorsal fin", "small factory fin → removed"],
           ["Cowl flaps", "adjustable (pull to open, not above 150 mph) → fixed"],
           ["Entry step", "vacuum-retracted → fixed"],
-          ["Electrical", "50 A generator → 60 A alternator (no serial break found; check the equipment list)"],
+          [
+            "Electrical",
+            "1968 manual permits 50 A generator or 60 A alternator; this study selects alternator, installed equipment unverified",
+          ],
           ["VFE", "100 mph → 125 mph (TCDS)"],
           ["Unchanged", "Johnson bar, hand-pump flaps, PC, two side windows, 52 gal"],
         ]}
       />
+      <DepthDetail system="airframe" />
       <H3>Structure — tap to locate</H3>
       <PartsList parts={CAT.pinned("airframe")} />
       <H3>Notes</H3>
@@ -242,6 +249,7 @@ export function Lighting() {
         Exterior glows show in the Overview and Lighting views. A switch-breaker that trips flips itself to OFF (OM p.
         4) — try it in the Electrical panel.
       </Small>
+      <DepthDetail system="lighting" />
       <H3>Lights — tap to locate</H3>
       <PartsList parts={CAT.pinned("lighting")} />
       <H3>Details</H3>

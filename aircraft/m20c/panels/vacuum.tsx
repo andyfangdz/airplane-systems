@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import {
   Caution,
   Check,
@@ -78,8 +79,9 @@ export function Vacuum() {
       {!ok && s.eng.running && v < VAC.lo && (
         <Caution title="Low vacuum">
           The artificial horizon and directional gyro are unreliable and the PC system has dropped out (OM p. 8, 10).
-          Fly the electric turn coordinator and the pitot-static instruments: needle, ball and airspeed. Dry pumps fail
-          without warning around 700–800 hours.
+          Fly the electric turn coordinator and the pitot-static instruments: needle, ball and airspeed. Pump or drive
+          failure can remove all three functions; a fixed failure-hour prediction is not established by the inspected
+          manuals.
         </Caution>
       )}
       <H3>Details (OM p. 10; TCDS 2A3)</H3>
@@ -87,7 +89,7 @@ export function Vacuum() {
         rows={[
           [
             "Pump",
-            "Airborne dry carbon-vane pump on the accessory case (113A / 200CC / 211CC approved); required for IFR, optional VFR",
+            "Airborne dry carbon-vane pump on the accessory case (113 A / 200CC / 211CC approved); required for IFR, optional VFR",
           ],
           ["Regulator", "4.50–5.00 in Hg (3.5–5.0 on 1962–64 airplanes)"],
           [
@@ -117,6 +119,7 @@ export function Vacuum() {
           "1962–64 airplanes without PC and with the hand-cranked step have the same gyro system at a lower regulated vacuum.",
         ]}
       />
+      <DepthDetail system="vacuum" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("vacuum")} />
     </>

@@ -128,7 +128,7 @@ const FSPAR = 0.25,
     },
   );
   part(() => box(0.1, 0.05, 0.16), ["airframe", "gear"], {
-    pos: P3(65, s * 14, 24.5),
+    pos: P3(65, s * 13, 28),
     color: "#E0522B",
     name: "Main gear bulkhead / forging",
     note: "Takes the spring-steel main gear leg at the base of the rear door post (POH 7-5).",

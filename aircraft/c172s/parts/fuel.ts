@@ -60,7 +60,7 @@ part(
 part(() => tubeGeo([wp(-92, 0.3, -1, 0.01), wp(-92, 0.3, -1, -0.08)], 0.008), ["fuel"], {
   color: FUEL,
   name: "Overboard fuel vent (check valve)",
-  note: "Protrudes from the bottom of the LEFT wing just inboard of the strut fitting. A blocked vent starves the engine — check it on preflight (POH 7-44, 4-10).",
+  note: "Protrudes from the bottom of the LEFT wing just inboard of the strut fitting. Vacuum-vented caps provide backup if this overboard vent blocks; complete vent-system blockage can eventually stop the engine. Check this outlet on preflight (POH 7-44, 4-10).",
   ext: true,
   pin: true,
 });

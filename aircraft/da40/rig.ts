@@ -29,7 +29,8 @@ const E_IDLE: Vec3 = [fs(3.55), -0.52, 0]; // idler bellcrank under the baggage 
 const E_FIN: Vec3 = [fs(7.2), -0.34, 0]; // bellcrank at the fin base, next to the lower rudder hinge (AFM 7.3)
 const E_ARM = 0.09;
 /** Elevator horn on the hinge line at the top of the rudder; arm points forward-down into the fin. */
-export const ELEV_HORN = { c: [ELEV_HINGE_X, SY, 0] as Vec3, dir: [0.6, -0.8], len: 0.12 };
+/** Undimensioned compact horn in the elevator root skin; linkage attachment follows this same arm. */
+export const ELEV_HORN = { c: [ELEV_HINGE_X, SY, 0] as Vec3, dir: [0.6, -0.8], len: 0.018 };
 
 /* ---------- aileron chain ---------- */
 const A_FWD: Vec3 = [fs(2.1), -0.58, 0]; // central bellcrank under the stick bases (vertical pivot)
@@ -66,7 +67,7 @@ export const FLAP_TUBE = { x: fs(3.17), y: -0.5, half: 0.45, arm: 0.04 };
  * Flap actuator (0.24 m long, parts.ts; location not in the documents): its aft face (FS 2.98) is ahead of the torsion tube (FS 3.17),
  * the rear seat pans (FS 3.02) and the roll servo (FS 3.00); the rod runs from it to the tube, under the seat pan and above the servo.
  */
-export const FLAP_ACT: Vec3 = [fs(2.86), -0.53, 0.14];
+export const FLAP_ACT: Vec3 = [fs(2.86), -0.53, -0.14];
 const flapHornZ = 1.28;
 /** Flap horn: hangs from the hinge line (mid-thickness) inside the wing. */
 export const FLAP_HORN = 0.03;
@@ -216,7 +217,9 @@ export const CABLES: CableDef[] = [
       [fs(3.0), -0.62, -0.1],
       [fs(4.4), -0.55, -0.1],
       [fs(5.6), -0.47, -0.09],
-      [fs(6.9), -0.45, -0.085],
+      [fs(6.9), -0.45, -0.052],
+      [hp[0] + 0.12, hp[1], -0.025],
+      [hp[0] + 0.045, hp[1], -0.025],
       [hp[0] + 0.02, hp[1], -RUD_HORN.half],
     ],
   },
@@ -230,7 +233,9 @@ export const CABLES: CableDef[] = [
       [fs(3.0), -0.62, 0.1],
       [fs(4.4), -0.55, 0.1],
       [fs(5.6), -0.47, 0.09],
-      [fs(6.9), -0.45, 0.085],
+      [fs(6.9), -0.45, 0.052],
+      [hp[0] + 0.12, hp[1], 0.025],
+      [hp[0] + 0.045, hp[1], 0.025],
       [hp[0] + 0.02, hp[1], RUD_HORN.half],
     ],
   },
@@ -246,7 +251,9 @@ export const CABLES: CableDef[] = [
       [fs(5.9), -0.34, 0.03],
       [fs(6.9), -0.3, 0.03],
       [fs(7.1), 0.2, 0.02],
-      [fs(7.45), 0.66, -0.04],
+      [fs(7.45), 0.62, 0],
+      [fs(7.5), 0.674, 0],
+      [fs(7.55), 0.69, 0],
       [ELEV_HINGE_X + 0.06, SY - 0.01, (TAB.z0 + TAB.z1) / 2],
     ],
   },

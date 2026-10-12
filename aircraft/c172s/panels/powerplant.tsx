@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/controls";
 import { densityFactor, enginePower, fuelInd, lambda, live, type FuelSel, type Mags } from "../model";
 import { Nav3MagSwitch } from "../../cessna/panels";
+import { ENGINE_GROUPS } from "../engine-groups";
+import { useEngineGroups } from "../engine-group-store";
 import { CAT } from "../parts";
 import { useC172 } from "../store";
 import { Scenarios } from "./general";
@@ -54,6 +56,7 @@ export function Engine() {
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update);
+  const { shown, set } = useEngineGroups();
   const g = s.eng,
     alt = live.fs.alt;
   const lam = lambda(g.mix, alt),
@@ -97,6 +100,22 @@ export function Engine() {
         magnetos fire two plugs per cylinder. There is no carburetor heat — the injection system is considered non-icing
         — and the alternate air door opens by itself (POH 7-29 – 7-37, 4-35).
       </p>
+      <H3>Show engine subsystems</H3>
+      <Ctl>
+        {ENGINE_GROUPS.map((group) => (
+          <Check
+            key={group}
+            id={"eng-group-" + group}
+            label={group[0].toUpperCase() + group.slice(1)}
+            checked={shown[group]}
+            onChange={(v) => set(group, v)}
+          />
+        ))}
+      </Ctl>
+      <Small>
+        These viewing controls leave the crankcase, cylinders, mount and cooling structure visible. Component dimensions
+        and passage locations are schematic; documented topology and fault effects are kept separate.
+      </Small>
       <H3>Scenarios</H3>
       <Ctl>
         <Scenarios />

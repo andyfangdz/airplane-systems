@@ -104,6 +104,41 @@ export function Avionics() {
             }
           />
         </BtnRow>
+        <Check
+          id="geaF"
+          label="GEA 71 engine-data unit fails"
+          checked={a.geaFail}
+          onChange={(v) =>
+            up((d) => {
+              d.avx.geaFail = v;
+            })
+          }
+        />
+        <Check
+          id="fwdFanF"
+          label="Forward avionics cooling fan fails"
+          checked={a.fwdFanFail}
+          onChange={(v) =>
+            up((d) => {
+              d.avx.fwdFanFail = v;
+            })
+          }
+        />
+        <Check
+          id="aftFanF"
+          label="Aft avionics cooling fan fails"
+          checked={a.aftFanFail}
+          onChange={(v) =>
+            up((d) => {
+              d.avx.aftFanFail = v;
+            })
+          }
+        />
+        <Small>
+          GEA 71 failure removes engine sensor data while the engine and magnetos continue running. Fan failure is
+          separate from display power: no invented thermal shutdown timer is applied (POH 7-30,7-73;Garmin
+          190-00352-00Rev K1-3).
+        </Small>
         <BtnRow>
           {(
             [

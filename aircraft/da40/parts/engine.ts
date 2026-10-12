@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { magAnim, plugAnim, sparkPhase } from "@/lib/anims";
+import { AIR_FILTER, ALTERNATE_AIR } from "../depth-anchors";
 import { PANEL_X, box, cyl, fs } from "../geometry";
 import { part, sim, fires, glow, leverAnim } from "./catalogue";
 
@@ -41,13 +42,15 @@ part(() => box(0.7, 0.24, 0.3), ["engine"], {
   pos: [fs(0.92), -0.02, 0],
   color: "#7C858C",
   name: "Lycoming IO-360-M1A",
-  note: "Air-cooled, four-cylinder, horizontally opposed, direct drive, fuel injected, underslung exhaust. 5,916 cm³ (361 in³), 180 hp at 2,700 RPM (AFM 7-20).",
+  fairing: true,
+  note: "Air-cooled, four-cylinder, horizontally opposed, direct drive, fuel injected, underslung exhaust. 5,916 cm³ (361 in³), 180 hp at 2,700 RPM (AFM 7-20). Enclosing case is a schematic cutaway in X-ray so its crank/cam mechanism remains visible.",
   pin: true,
 });
 part(() => box(0.48, 0.1, 0.26), ["engine"], {
   pos: [fs(0.9), -0.2, 0],
   color: "#6A737A",
   name: "Oil sump",
+  fairing: true,
   note: "Wet sump, 4–8 qt (VFR min 4, IFR min 6). Filler neck and dipstick behind a door in the cowling (AFM 2-5, 2-28). The fuel-pressure and fuel-flow sensors are mounted at the sump (SMM 2-18).",
   pin: true,
 });
@@ -57,18 +60,25 @@ CYLS.forEach((c) => {
     parent,
     color: "#7C858C",
     name: "Cylinder " + c.n,
+    fairing: true,
     note:
       (c.s > 0 ? "Right" : "Left") +
       " bank (Lycoming numbering assumed: 1-3 right, 2-4 left). CHT probe in each head, EGT probe in each exhaust header (SMM 2-21).",
   });
   for (let k = -2; k <= 2; k++)
-    part(() => cyl(0.085, 0.008, "z", 18), ["engine"], { parent, pos: [0, 0, k * 0.032], color: "#8C959C" });
+    part(() => cyl(0.085, 0.008, "z", 18), ["engine"], {
+      parent,
+      pos: [0, 0, k * 0.032],
+      color: "#8C959C",
+      fairing: true,
+    });
   part(() => box(0.16, 0.16, 0.06), ["engine"], {
     parent,
     pos: [0, 0, c.s * 0.115],
     color: "#6A737A",
     name: "Cylinder head " + c.n,
-    note: "Two spark plugs, CHT probe; fuel-injection nozzle at the intake port.",
+    fairing: true,
+    note: "Two spark plugs, CHT probe; fuel-injection nozzle at the intake port. X-ray ghosts the enclosing head/barrel/fins to expose schematic piston and valve detail.",
   });
   (
     [
@@ -76,14 +86,14 @@ CYLS.forEach((c) => {
       ["L", -0.055],
     ] as const
   ).forEach(([pos, dy]) => {
-    const mag = c.s > 0 === (pos === "L") ? "R" : "L";
+    const mag = c.s > 0 === (pos === "U") ? "R" : "L";
     part(() => cyl(0.014, 0.05, "x", 10), ["engine"], {
       parent,
       pos: [-0.1, dy, c.s * 0.115],
       color: "#DADFE2",
       anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
-      note: `Fired by the ${mag === "R" ? "right" : "left"} magneto (plug assignment not in the AFM; conventional cross-firing assumed).`,
+      note: `Fired by the ${mag === "R" ? "right" : "left"} magneto (AMM 74-00-00 p. 6: left magneto fires upper left/lower right; right fires upper right/lower left).`,
     });
   });
 });
@@ -160,23 +170,23 @@ part(() => box(0.08, 0.14, 0.1), ["engine"], {
   pos: [fs(0.6), -0.06, 0.32],
   color: "#9A6A48",
   name: "Oil cooler",
-  note: "Exists (pre-heat thaws congealed oil in it, AFM 4A-14); location not in the documents — shown behind the right inlet, which also feeds it per an unofficial technical description.",
+  note: "Oil cooler attached to brackets on the engine-mounting frame; cold oil bypasses it through the thermostatic valve (AMM 79-00-00 p. 1). Right-side position approximate.",
 });
 part(() => box(0.09, 0.1, 0.11), ["engine"], {
-  pos: [fs(0.62), 0.0, 0.2],
+  pos: AIR_FILTER,
   color: "#C9B98F",
   name: "Induction air filter",
-  note: "Normal induction air passes an air filter. Location not in the AFM; shown behind the right inlet.",
+  note: "Paper-type filter at the lower-cowl duct, clamped to its housing at the fuel injector. Housing flexible seal joins the molded bottom-cowling intake (AMM 6.02.01 Rev 7, 71-60-00 pp. 1–2). Position and envelope approximate.",
   pin: true,
 });
 part(() => box(0.03, 0.08, 0.1), ["engine"], {
-  pos: [fs(0.82), -0.18, 0.2],
+  pos: ALTERNATE_AIR,
   color: "#E0B040",
   anim: (m) => {
-    m.position.y = -0.18 - (sim().s.eng.altAir ? 0.05 : 0);
+    m.rotation.x = sim().s.eng.altAir ? Math.PI / 6 : 0;
   },
   name: "Alternate air door",
-  note: "Opened by the ALTERNATE AIR lever: takes warm air from the engine compartment if MP drops from icing or a blocked filter (AFM 7-23).",
+  note: "Rotary alternate-air sleeve at the fuel injector: Bowden cable aligns six body/flange holes to admit engine-compartment air; o-rings seal each end. Pilot-controlled, not an automatic door (AFM 7-23; AMM 71-60-00 pp. 1–2). Schematic sleeve position.",
 });
 part(() => cyl(0.06, 0.3, "z"), ["engine", "environment"], {
   pos: [fs(0.95), -0.36, 0.06],
@@ -208,7 +218,7 @@ part(
     color: "#E0522B",
     fairing: true,
     name: "Muffler heat shroud",
-    note: "Cabin heat source: 'a shroud round the exhaust muffler and the outside wall of the muffler make the heat exchanger'. Ram air from the right cowl intake flows through it to the heat valve on the firewall (unofficial DA40 technical description and its heating schematic; the AFM, AFMS and AMM give no heat source). Which part of the muffler it covers is approximate.",
+    note: "Right-front cowl intake feeds the exhaust heat-exchanger shroud, then the firewall heat valve (AMM 21-00-00 pp. 1–3). Power Flow installation is modelled; exact shroud geometry is illustrative and differs from the standard exhaust drawing.",
   },
 );
 

@@ -1,7 +1,7 @@
 /**
  * Identical-scene guard: every catalogue entry of every airplane — part, skin shell and control surface: its id,
  * placement, systems, optional-equipment state and built geometry — plus the SR22T flow paths, against a baseline taken
- * from main a1d3cdf0 before the load work, with intentional model updates (SR20 G6 systems depth included).
+ * from main a1d3cdf0 before the load work, with intentional systems-depth updates for SR20 G6, C172S, C182T, DA40 and M20C.
  * Speeding up geometry or mounting it progressively must not change the reviewed scene.
  * The SR22T is checked with TKS (FIKI) fitted and not fitted.
  *

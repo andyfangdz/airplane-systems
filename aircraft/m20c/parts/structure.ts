@@ -42,7 +42,7 @@ part(() => planeRing(TAIL_BH, 0.95), ["airframe", "controls"], {
 {
   const tube = (pts: Vec3[], r = 0.016) => tubeGeo(pts, r, 0.05);
   const IN_SKIN = 0.9;
-  const upper = (x: number, s: number): Vec3 => P(onSkin(x, topY(x) - 0.1, s, IN_SKIN));
+  const upper = (x: number, s: number): Vec3 => P(onSkin(x, topY(x) - 0.15, s, IN_SKIN));
   const lower = (x: number, s: number): Vec3 => P(onSkin(x, botY(x) + 0.1, s, IN_SKIN));
   const xs = [FW, 1.65, 1.38, 1.0, 0.6, 0.25, CABIN_AFT];
   [1, -1].forEach((s) => {
@@ -60,7 +60,7 @@ part(() => planeRing(TAIL_BH, 0.95), ["airframe", "controls"], {
     );
   });
   [1.38, 0.6, CABIN_AFT].forEach((x) =>
-    part(() => tube([upper(x, -1), P(onSkin(x, topY(x) - 0.03, 0, IN_SKIN)), upper(x, 1)]), ["airframe"], {
+    part(() => tube([upper(x, -1), P(onSkin(x, topY(x) - 0.08, 0, IN_SKIN)), upper(x, 1)]), ["airframe"], {
       color: FRAME,
     }),
   );

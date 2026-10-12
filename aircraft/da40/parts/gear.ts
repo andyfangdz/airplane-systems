@@ -62,6 +62,7 @@ const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
     ["gear"],
     {
       name: "Brake line (" + (s > 0 ? "R" : "L") + ")",
+      ext: true,
       note: "Parking-brake valve → brake cylinder at the wheel (AFM 7-14 hydraulic schematic).",
     },
   );

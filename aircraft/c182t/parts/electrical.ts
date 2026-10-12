@@ -73,12 +73,6 @@ part(() => box(0.14, 0.12, 0.16), ["electrical"], {
   note: "Between the firewall and the instrument panel, arm 10.8. Feeds only the ESSENTIAL BUS — automatically when the main bus falls below 20 V, for at least 30 minutes; it cannot power the transponder (POH 7-47, 3-15, 3-35).",
   pin: true,
 });
-part(() => box(0.06, 0.05, 0.08), ["electrical"], {
-  pos: P3(12, -9.5, 54),
-  color: "#8A7A3A",
-  name: "Standby battery controller",
-  note: "On/off control, test load with an overheat switch, and a current shunt for S BATT; it senses main bus voltage through the WARN breaker; 25 A fuse at the battery (Fig. 7-7 Sheet 3).",
-});
 part(() => box(0.012, 0.025, 0.02), ["electrical"], {
   pos: P3(18.1, -18.3, 64.7),
   color: "#C9D0D5",

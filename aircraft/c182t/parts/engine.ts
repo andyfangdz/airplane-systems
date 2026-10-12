@@ -41,6 +41,7 @@ part(() => cyl(0.075, 0.13, "x"), ["propeller"], {
   pos: P3(-45.5, 0, 50.375),
   color: "#8C959C",
   name: "Propeller hub (oil filled)",
+  ext: true,
   note: "P4317296-01 oil-filled hub, assembly 76.6 lb at arm −47.5 (POH 6-24). Governor oil pressure on its piston twists the blades toward high pitch (low RPM); centrifugal force and an internal spring twist them back toward low pitch (POH 7-37).",
   pin: true,
 });
@@ -50,6 +51,7 @@ part(() => box(0.86, 0.3, 0.44), ["engine"], {
   pos: P3(-23.6, 0, 48.6),
   color: "#7E8890",
   name: "Lycoming IO-540-AB1A5",
+  fairing: true,
   note: "Normally aspirated, direct drive, air-cooled, horizontally opposed, fuel injected, six cylinders, 541 cu in; 230 BHP at 2,400 RPM; wet sump; 400.4 lb at arm −23.6 (POH 1-5, 7-27, 6-24).",
   pin: true,
 });
@@ -87,6 +89,7 @@ CYLS.forEach((c, i) => {
     pos: base,
     color: "#7C858C",
     name: "Cylinder " + c.n,
+    fairing: true,
     note:
       (c.s > 0 ? "Right" : "Left") +
       " bank. Baffles route cooling air around the fins and out past the cowl flaps (POH 7-37). Numbering per Lycoming convention (not stated in the POH)." +
@@ -96,11 +99,13 @@ CYLS.forEach((c, i) => {
     part(() => cyl(0.072, 0.008, "z", 18), ["engine"], {
       pos: [base[0], base[1], base[2] + c.s * k * 0.03],
       color: "#8C959C",
+      fairing: true,
     });
   part(() => box(0.14, 0.15, 0.07), ["engine"], {
     pos: [base[0], base[1] + 0.01, base[2] + c.s * 0.075],
     color: "#6A737A",
     name: "Cylinder head " + c.n,
+    fairing: true,
     note: "Two spark plugs; CHT thermocouple in the head and EGT thermocouple in the exhaust pipe (POH 7-33). Engine page shows the hottest; the LEAN page shows all six.",
     pin: c.n === 1,
   });

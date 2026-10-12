@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import { Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Small } from "@/components/ui/controls";
 import { CAT } from "../parts";
 import { useM20C } from "../store";
@@ -106,6 +107,7 @@ export function Cabin() {
           <li key={t}>{t}</li>
         ))}
       </ol>
+      <DepthDetail system="cabin" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("cabin")} />
     </>

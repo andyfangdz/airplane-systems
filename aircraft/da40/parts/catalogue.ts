@@ -19,7 +19,8 @@ export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSur
 
 /* ---------- per-frame part animations ---------- */
 export const sim = () => useDA40.getState();
-export const fires = (mag: "R" | "L") => () => live.rpm > 100 && magFires(mag, sim().s.eng.key);
+export const fires = (mag: "R" | "L") => () =>
+  live.rpm > 100 && magFires(mag, sim().s.eng.key) && !sim().s.eng.fail[mag === "L" ? "magL" : "magR"];
 /** Glows `lit` when cond() is true in the given systems' views. */
 export const glow = (base: string, lit: string, cond: () => boolean, sys: SysId[]) => glowAnim(base, cond, sys, lit);
 export const selPtrAnim: PartAnim = (m) => {

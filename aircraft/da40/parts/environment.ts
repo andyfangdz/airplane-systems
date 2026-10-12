@@ -29,7 +29,7 @@ part(() => box(0.08, 0.1, 0.12), ["environment"], {
   pos: [FW + 0.045, -0.4, 0.12],
   color: "#E0522B",
   name: "Heat valve",
-  note: "On the firewall: sends muffler-heated air through the firewall to the distributor valve, or overboard at the bottom of the cowling when OFF (unofficial technical description). Shown on the engine side; its position is approximate.",
+  note: "On the firewall: sends muffler-heated air through the firewall to the distributor valve, or overboard at the bottom of the cowling when OFF (AMM 21-00-00 pp. 1–3). Shown on the engine side; its position is approximate.",
   pin: true,
 });
 part(() => box(0.08, 0.1, 0.18), ["environment"], {
@@ -44,15 +44,16 @@ part(() => box(0.04, 0.012, 0.44), ["environment"], {
   pos: [DEFROST_X, 0.267, 0],
   color: "#149C94",
   name: "Defrost outlet",
-  note: "Outlet at the base of the canopy, fed from the floor / defrost distributor: with the distribution lever up, air goes to the canopy to keep mist and frost off it (AFM 7-18). The outlet's position comes from an unofficial technical description and is approximate.",
+  note: "Outlet at the base of the canopy, fed from the floor / defrost distributor: with the distribution lever up, air goes to the canopy to keep mist and frost off it (AFM 7-18). The outlet's position is approximate; AMM 21-00-00 pp. 1–3 describes its distributor and duct.",
 });
 [1, -1].forEach((s) =>
   part(() => sph(0.03), ["environment"], {
     pos: [PANEL_X - 0.02, -0.03, s * 0.485],
     color: "#149C94",
     name: "Panel air nozzle",
-    note: "Movable ventilation nozzle at each end of the panel; spherical nozzles open and close by twisting (AFM 7-12).",
+    note: "OAM 40-099 movable nozzle at each panel end, fed by its own front-fuselage NACA hose; spherical nozzles open and close by twisting (AFM 7-12; AMM 21-00-00 p. 3).",
     pin: s > 0,
+    fitted: () => sim().s.env.extraVents,
   }),
 );
 [1, -1].forEach((s) =>
@@ -80,6 +81,7 @@ part(() => box(0.05, 0.12, 0.03), ["environment", "cabin"], {
     m.rotation.y = sim().s.env.window ? 0.6 : 0;
   },
   name: "Canopy emergency window",
+  ext: true,
   note: "Opening window on the left of the canopy for ventilation or as an emergency window; close it if the alternate static valve is open (AFM 7-17, 2-29).",
   pin: true,
 });
@@ -90,6 +92,7 @@ part(() => box(0.04, 0.03, 0.12), ["cabin"], {
   pos: relTo(onSkin(fs(2.5), -0.03, -1, 1.02), CANOPY_HINGE),
   color: "#30363B",
   name: "Canopy handle (left)",
+  ext: true,
   note: "Locks the front canopy; position 2 latches the bolts with a cooling gap (ground only). Optional key lock — the placard says it must be unlocked in flight (AFM 7-17, 2-31).",
   pin: true,
 });
@@ -110,7 +113,7 @@ part(
 );
 part(() => box(0.04, 0.03, 0.05), ["cabin"], {
   parent: "door",
-  pos: relTo(onSkin(fs(3.55), 0.0, -1, 1.02), DOOR_HINGE),
+  pos: relTo(onSkin(fs(3.55), 0.0, -1, 0.9), DOOR_HINGE),
   color: "#C83A3A",
   name: "Rear door safety lever",
   note: "Extra lever against unintentional opening. Never try to lock the rear door in flight — it can come off; the airplane flies fine without it (AFM 7-18, 3-40).",

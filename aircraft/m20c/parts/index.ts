@@ -36,5 +36,9 @@ export { PITOT_Z, pitotBase, STAT_X, STALL_Z } from "./pitot";
 import "./environment";
 import "./cabin";
 import "./controls";
+// Append new detail without changing any legacy registration identifiers.
+import "./depth-engine";
+import "./depth-systems";
+import "./walk-inspection";
 
 export type { PartSpec, SurfaceSpec } from "@/lib/catalogue";

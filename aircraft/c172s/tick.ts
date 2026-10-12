@@ -148,7 +148,7 @@ export function simTick(dt: number) {
   live.hot = clamp((live.cht - 120) / 220, 0, 1);
   // Hobbs: oil pressure above 20 PSI, powered through the WARN breaker (POH 7-13, Fig 7-7); EIS ENG HRS: GEA 71 powered, engine running
   if (live.oilP > 20 && E.on["XF:WARN"]) live.hobbs += dt / 3600;
-  if (run && E.gia1) live.engHrs += dt / 3600;
+  if (run && E.engineData) live.engHrs += dt / 3600;
   // the tach RPM (rounded) also sizes the alternator's low-RPM capacity in the electrical solver
   const rpmQ = Math.round(live.rpm / 50) * 50;
   if (rpmQ !== cur.eng.rpm)
@@ -157,7 +157,7 @@ export function simTick(dt: number) {
     });
 
   /* ---------- vacuum and the standby attitude gyro ---------- */
-  live.vac = vacuumInHg(live.rpm, cur.vac.fail);
+  live.vac = vacuumInHg(live.rpm, cur.vac.fail || cur.vac.filterBlocked);
   live.gyro = live.vac >= 4 ? ap(live.gyro, 1, 20) : Math.max(0, live.gyro - (live.gyro * dt) / 200);
   live.drift = live.gyro > 0.7 ? ap(live.drift, 0, 10) : live.drift + dt * (1 - live.gyro) * 0.8;
 
@@ -197,7 +197,8 @@ export function simTick(dt: number) {
   /* ---------- flap motor (FLAPS breaker, ELECTRICAL BUS 1) ---------- */
   const ft = cur.flaps.cmd,
     moving = E.flapsPwr && Math.abs(live.flapAng - ft) > 0.05;
-  if (moving) live.flapAng += Math.sign(ft - live.flapAng) * Math.min(Math.abs(ft - live.flapAng), FLAP_RATE * dt);
+  if (moving && !cur.flaps.jammed)
+    live.flapAng += Math.sign(ft - live.flapAng) * Math.min(Math.abs(ft - live.flapAng), FLAP_RATE * dt);
   if (moving !== cur.flaps.moving)
     up((d) => {
       d.flaps.moving = moving;

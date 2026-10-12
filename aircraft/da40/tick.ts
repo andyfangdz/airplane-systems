@@ -15,7 +15,17 @@ import {
   type Gfc700State,
 } from "@/lib/avionics/gfc700";
 import { clamp, lerp } from "@/lib/math";
-import { AFCS_CFG, DA40_FLIGHT, fuelAvail, gaugeTarget, govRpm, live } from "./model";
+import {
+  AFCS_CFG,
+  DA40_FLIGHT,
+  fuelAvail,
+  fuelDeliveryAvailable,
+  ignitionAvailable,
+  inductionAvailable,
+  gaugeTarget,
+  govRpm,
+  live,
+} from "./model";
 import { useDA40 } from "./store";
 
 /** Ignition key START hold (s): released when the engine fires, or after this (AFM: crank at most 10 s). */
@@ -69,6 +79,7 @@ export function simTick(dt: number) {
   live.crankT = E.starterOn ? live.crankT + dt : 0;
   const avail = fuelAvail(s);
   const pumping = s.fuel.pump && E.pumpPwr && avail;
+  const fuelFed = fuelDeliveryAvailable(s, E);
 
   // ---------- priming and starting ----------
   if (!s.eng.running) {
@@ -79,17 +90,17 @@ export function simTick(dt: number) {
       live.prime = Math.max(0, live.prime - dt * 1.5); // flooded start: mixture LEAN, throttle half
     else live.prime = Math.max(0, live.prime - dt * (windmilling ? 1 : 0.03));
     const flooded = live.prime > 7,
-      ign = s.eng.key !== "OFF";
+      ign = ignitionAvailable(s) && inductionAvailable(s);
     // windmilling relight in flight (AFM 3.2.4): fuel back at the engine with the ignition on and the mixture rich enough
     const relight =
-      s.air && !cranking && live.rpm > 500 && avail && ign && s.eng.mix > 0.3 && live.fuelP >= 8 && !flooded;
+      s.air && !cranking && live.rpm > 500 && fuelFed && ign && s.eng.mix > 0.3 && live.fuelP >= 8 && !flooded;
     if (relight) {
       live.prime = 0;
       live.fireT = -1;
       up((d) => {
         d.eng.running = true;
       });
-    } else if (cranking && avail && ign) {
+    } else if (cranking && fuelFed && ign) {
       const primed = live.prime >= 1 && !flooded;
       const fires =
         (primed && live.crankT > 1.0) || (!flooded && live.prime < 1 && s.eng.mix > 0.3 && live.crankT > 3.5);
@@ -122,9 +133,9 @@ export function simTick(dt: number) {
       if (s.eng.mix > 0.05) live.fireT = -1;
     }
     const cutoff = s.eng.mix <= 0.05 && (live.fireT < 0 || live.fireT > 3);
-    const starved = !avail || live.fuelP < 8;
+    const starved = !avail || live.fuelP < 8 || !inductionAvailable(s);
     live.starve = starved ? live.starve + dt : 0;
-    if (s.eng.key === "OFF" || cutoff || live.starve > 3) {
+    if (!ignitionAvailable(s) || cutoff || live.starve > 3) {
       live.starve = 0;
       live.fireT = -1;
       up((d) => {
@@ -143,7 +154,8 @@ export function simTick(dt: number) {
   const windmill = s.air && fs.ias > 65 ? 600 + (fs.ias - 65) * 12 : 0; // windmilling (AFM 3-17: keeps turning above ~65 KIAS)
   if (run) {
     target = govOk ? Math.min(fine, gov) : Math.min(fine, 2950);
-    if ((s.eng.key === "L" || s.eng.key === "R") && fine <= gov + 30) target -= 90; // single-magneto drop below the governing range
+    if ((s.eng.key === "L" || s.eng.key === "R" || s.eng.fail.magL || s.eng.fail.magR) && fine <= gov + 30)
+      target -= 90; // single-magneto drop below the governing range
     if (s.eng.mix < 0.25) target -= (0.25 - s.eng.mix) * 1600; // too lean: rough running
   } else if (cranking) target = Math.max(260, windmill);
   else target = windmill;

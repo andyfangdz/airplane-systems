@@ -393,6 +393,20 @@ export function Vacuum() {
             })
           }
         />
+        <Check
+          id="vfilter"
+          label="Severe vacuum inlet-filter restriction"
+          checked={s.vac.filterBlocked}
+          onChange={(v) =>
+            up((d) => {
+              d.vac.filterBlocked = v;
+            })
+          }
+        />
+        <Small>
+          This teaching fault removes useful gyro suction. Filter restriction and a failed pump need different
+          maintenance diagnosis; both leave electrical AHRS attitude independent (POH 7-65;172RPC24 37-10-00Fig 07).
+        </Small>
         <Readouts
           items={[
             ["VAC", [`${live.vac.toFixed(1)} in.Hg`, live.vac < 3.5 ? "warnc" : ""]],

@@ -279,7 +279,7 @@ export function Flaps() {
         <Readouts
           items={[
             ["Position", live.flapAng.toFixed(1) + "°"],
-            ["Motor", s.flaps.moving ? ["RUNNING", "warnc"] : "Stopped"],
+            ["Motor", s.flaps.moving ? [s.flaps.jammed ? "ENERGIZED · JAMMED" : "RUNNING", "warnc"] : "Stopped"],
             ["FLAPS 10 A", E.flapsPwr ? "BUS 1 OK" : ["NO POWER", "bad"]],
             ["Stall (idle, 0° bank)", `${stallKias(live.flapAng)} KIAS`],
           ]}
@@ -307,6 +307,23 @@ export function Flaps() {
         ]}
       />
       <H3>Mechanism — tap to locate</H3>
+      <Ctl>
+        <Check
+          id="flapjam"
+          label="Flap actuator mechanically jammed"
+          checked={s.flaps.jammed}
+          onChange={(v) =>
+            up((d) => {
+              d.flaps.jammed = v;
+            })
+          }
+        />
+      </Ctl>
+      <Small>
+        A jam holds actual flap position even with power and a changed lever selection. Pulling FLAPS removes motor
+        power; restoring power alone does not release a mechanical jam. Motor load is illustrative; automatic breaker
+        trip timing is not simulated (POH 7-23;172RPC24 27-50).
+      </Small>
       <PartsList parts={CAT.pinned("flaps")} />
       <Caution title="Icing">
         Leave the flaps retracted with ice on the tail: the changed wing downwash can cost elevator effectiveness (POH
