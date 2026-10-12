@@ -119,3 +119,7 @@ Type-club context inspected by the parent research review:
 - [Cessna Flyer, Inspection Tips for the Cessna 182](https://www.cessnaflyer.org/cessna-models/cessna-singles/cessna-182/inspection-tips-for-the-cessna-182) concerns Continental-powered 1962–86 airplanes. Its bladder/carburetor/AD advice is not transferred to the restart IO-540/integral-tank 182T.
 - [Cessna Owner, Unbalanced Fuel Draw in 182 With Selector Set to Both](https://cessnaowner.org/unbalanced-fuel-draw-in-182-with-selector-set-to-both/), 27 October 2022, discusses 1975P/1973P/182E vent/cap/rigging hypotheses. It is context rather than proof of this 182T installation; the 182T maintenance manual controls the two-vent design.
 - The CPA Restart 182 manual endpoint and the Bendix/King official KAP 140 pilot-guide endpoint were attempted but did not return a usable document (404 and HTML respectively). Neither is represented as a downloaded/read source. The approved Cessna Supplement 3 and Garmin's explicit KAP 140 interconnect remain the inspected authorities.
+
+## Cabin routing verification
+
+Long avionics/audio connections use underfloor and sidewall lanes; roof and wing connections reach a headliner rail before descending. These schematic bends preserve the documented connections and clear the modeled seat and display volumes. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.

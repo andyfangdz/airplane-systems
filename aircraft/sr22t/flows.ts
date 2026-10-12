@@ -70,7 +70,8 @@ import {
   OAT_2,
   ADAHRS_1,
   ADAHRS_2,
-  MD302_POS,
+  MD302_PITOT_PORT,
+  MD302_STATIC_PORT,
   STATIC_TEE,
   TRAPS,
   SUMPS,
@@ -1349,10 +1350,11 @@ flow("pitotAdahrs2", [PITOT_JCT, [2.3, -0.2, -0.12], ADAHRS_2], ["pitot"], {
   name: "Pitot line to ADAHRS 2",
   note: "Tee to ADAHRS 2 (POH Fig 7-16 (2 of 2); AMM Fig 34-10-1 sheet 2 items 1, 9, 12, PDF p. 1646).",
 });
-flow("pitotStby", [PITOT_JCT, [2.1, -0.2, -0.25], MD302_POS], ["pitot"], {
+flow("pitotStby", [PITOT_JCT, [2.1, -0.2, -0.25], [2.3, -0.2, MD302_PITOT_PORT[2]], MD302_PITOT_PORT], ["pitot"], {
   r: 0.007,
   name: "Pitot line to MD302",
-  note: "Tee to the MD302 standby (POH Fig 7-16 (2 of 2); AMM Fig 34-10-1 sheet 2 item 17).",
+  note: "Tee to the MD302 standby's rear pitot connector, approaching below the screen then rising behind its face (POH Fig 7-16 (2 of 2); AMM Fig 34-10-1 sheet 2 item 17). Connector offsets and bends schematic.",
+  tension: 0,
 });
 // The RH line passes under the CAPS canister (parts/caps.ts) to the tee. Illustrative waypoint.
 flow(
@@ -1405,11 +1407,17 @@ flow("staticAdahrs2", [STATIC_JCT, [2.25, -0.3, -0.08], ADAHRS_2], ["pitot"], {
   name: "Static line to ADAHRS 2",
   note: "Tee to ADAHRS 2 (POH Fig 7-16 (2 of 2); AMM Fig 34-10-1 sheet 2 items 2, 9, 12, PDF p. 1646).",
 });
-flow("staticStby", [STATIC_JCT, [2.05, -0.3, -0.24], MD302_POS], ["pitot"], {
-  r: 0.007,
-  name: "Static line to MD302",
-  note: "Tee to the MD302 standby (POH Fig 7-16 (2 of 2); AMM Fig 34-10-1 sheet 2 item 17).",
-});
+flow(
+  "staticStby",
+  [STATIC_JCT, [2.05, -0.3, -0.24], [2.3, -0.25, MD302_STATIC_PORT[2]], MD302_STATIC_PORT],
+  ["pitot"],
+  {
+    r: 0.007,
+    name: "Static line to MD302",
+    note: "Tee to the MD302 standby's separate rear static connector, approaching below the screen then rising behind its face (POH Fig 7-16 (2 of 2); AMM Fig 34-10-1 sheet 2 item 17). Connector offsets and bends schematic.",
+    tension: 0,
+  },
+);
 flow("staticAlt", [ALT_STATIC, [1.84, -0.38, -0.16], STATIC_JCT], ["pitot"], {
   r: 0.007,
   name: "Alternate static",

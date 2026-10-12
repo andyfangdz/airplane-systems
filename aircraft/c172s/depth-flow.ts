@@ -3,6 +3,7 @@
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
+import { cabinHarness } from "@/lib/cabinRouting";
 import { DEPTH as D } from "./depth-anchors";
 import { AF } from "./geometry";
 import { RIG, RIG_SPEC } from "./rig";
@@ -46,9 +47,8 @@ function wire(
   sys: SysId[] = ["electrical"],
   note = "POH Fig 7-7: individual protected equipment feed.",
 ) {
-  // Down the cabin side/floor, remaining above the rounded belly; no diagonal through exterior skin.
-  const pts: Vec3[] =
-    a[0] < 0 || b[0] < 0 ? [a, [a[0], 0.02, a[2]], [b[0], 0.02, b[2]], b] : [a, [a[0], a[1], b[2]], b];
+  // Forward equipment stays behind the panel; cabin runs use floor, sidewall and headliner lanes.
+  const pts: Vec3[] = Math.min(a[0], b[0]) < AF.X(24) ? cabinHarness(AF, a, b, AF.X(14)) : [a, [a[0], a[1], b[2]], b];
   add(key, pts, sys, name, note, rate);
 }
 const on = (bus: string, label: string) => (_s: Sim, E: Elec) => (E.on[bus + ":" + label] ? 1 : 0);
@@ -320,7 +320,11 @@ for (const i of [1, 2]) {
 const gmu = AF.P(AF.wingP(AF.Z(-170), 0.42, 0));
 add(
   "gmuData",
-  [gmu, AF.P(AF.wingP(AF.Z(-40), 0.42, 0)), AF.P(AF.wingP(AF.Z(-12), 0.42, 0)), P(55, -12, 72), P(110, -5, 55), D.ahrs],
+  [
+    gmu,
+    AF.P(AF.wingP(AF.Z(-40), 0.42, 0)),
+    ...cabinHarness(AF, AF.P(AF.wingP(AF.Z(-12), 0.42, 0)), D.ahrs, AF.X(14), -1),
+  ],
   ["avionics"],
   "GMU 44 →GRS 77RS-485",
   "Garmin1-3: AHRS supplies magnetometer power and receives magnetic data; no standalone wing bus feed.",
@@ -409,13 +413,9 @@ for (const side of [-1, 1]) {
     [
       AF.P(AF.wingP(AF.Z(side * 47), 0.36, 0)),
       AF.P(AF.wingP(AF.Z(side * 24), 0.55, 0)),
-      AF.P(AF.wingP(AF.Z(side * 12), 0.55, 0)),
       // Descend the door post and cross forward below the display faces.
       // The GEA endpoint is forward of the instrument panel, not in the pilot's sightline.
-      P(32, side * 16.5, 74),
-      P(32, side * 16.5, 40),
-      P(12, side * 12, 40),
-      D.gea,
+      ...cabinHarness(AF, AF.P(AF.wingP(AF.Z(side * 12), 0.55, 0)), D.gea, AF.X(14), side),
     ],
     ["fuel", "avionics"],
     name + " tank quantity sender →GEA 71",
@@ -434,9 +434,7 @@ wire(
   "POH 7-64/Fig 7-7: heating element supplied byELECTRICAL BUS2; heater cannot clear a blocked static port.",
 );
 flows.at(-1)!.pts = [
-  D.panel,
-  P(32, -12, 74),
-  AF.P(AF.wingP(AF.Z(-12), 0.25, 0)),
+  ...cabinHarness(AF, D.panel, AF.P(AF.wingP(AF.Z(-12), 0.25, 0)), AF.X(14), -1),
   AF.P(AF.wingP(AF.Z(-45), 0.25, 0)),
   AF.P(AF.wingP(AF.Z(-65), 0.25, 0)),
   [PITOT[0], PITOT[1] + 0.01, PITOT[2]],
@@ -482,9 +480,7 @@ add(
   { color: "#2E7A3A", r: 0.005 },
 );
 flows.find((f) => f.key === "flapPower")!.pts = [
-  D.panel,
-  P(32, 12, 74),
-  AF.P(AF.wingP(AF.Z(12), 0.6, 0)),
+  ...cabinHarness(AF, D.panel, AF.P(AF.wingP(AF.Z(12), 0.6, 0)), AF.X(14), 1),
   AF.P(AF.wingP(AF.Z(30), 0.6, 0)),
 ];
 export const DEPTH_FLOWS = flows;

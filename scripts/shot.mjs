@@ -19,7 +19,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { chromium, errors } from "playwright-core";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -169,6 +169,28 @@ try {
     console.log(v);
     await page.goto(`${base}/${v}`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("canvas", { timeout: 60000 });
+    // A progressive scene can show its cabin while hundreds of other parts are still absent.
+    // Finish the build through the same control available to the user before taking review evidence.
+    await page.waitForFunction(
+      () => !document.querySelector("[data-building]") || document.querySelector(".loader-skip"),
+      null,
+      { timeout: 120000 },
+    );
+    const addAll = page.getByRole("button", { name: "Add all the remaining parts now", exact: true });
+    if (await addAll.isVisible()) {
+      try {
+        await addAll.click({ timeout: 5000 });
+      } catch (error) {
+        // The build can finish between visibility and click. Only that completed-build race is harmless.
+        if (
+          !(error instanceof errors.TimeoutError) ||
+          (await page.locator("[data-building]").count()) ||
+          (await addAll.isVisible())
+        )
+          throw error;
+      }
+    }
+    await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 120000 });
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" }); // the dev-mode badge
     await page.evaluate(
       async ([solid, noLabels]) => {

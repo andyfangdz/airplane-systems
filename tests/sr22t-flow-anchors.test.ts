@@ -70,7 +70,7 @@ const MCU = "Master Control Unit",
   ENGINE = "Continental TSIO-550-K",
   ADAHRS = "GSU 75 ADAHRS 1",
   ADAHRS2 = "GSU 75 ADAHRS 2",
-  // the MD302 standby is a screen, on the aft face of the bolster switch panel
+  // The MD302 screen is on the aft face; pressure lines attach to the rear housing face.
   MD302 = "Bolster switch panel",
   LOUVERS_R = sided("Cowl exit louvers", 1);
 

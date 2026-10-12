@@ -13,6 +13,8 @@ import {
   CAT,
   DRAINS,
   MD302_POS,
+  MD302_PITOT_PORT,
+  MD302_STATIC_PORT,
   PITOT_TIP,
   PITOT_Z,
   SPX,
@@ -21,6 +23,7 @@ import {
   TRAPS,
 } from "@/aircraft/sr22t/parts";
 import type { Vec3 } from "@/lib/math";
+import { partBounds } from "./placement-helpers";
 import { patched, type Patch } from "./helpers";
 
 const at = (name: string) => CAT.parts.find((p) => p.name === name)!;
@@ -137,7 +140,17 @@ describe("SR22T pitot and static plumbing (POH 7-68, Fig 7-16)", () => {
   });
 
   it("pitot and static reach the MD302 and the alternate static valve (POH Fig 7-16)", () => {
-    for (const key of ["pitotStby", "staticStby"]) expect(dist(pts(key).at(-1)!, MD302_POS), key).toBeLessThan(1e-9);
+    const housing = partBounds(at("Bolster switch panel"));
+    for (const [key, port] of [
+      ["pitotStby", MD302_PITOT_PORT],
+      ["staticStby", MD302_STATIC_PORT],
+    ] as const) {
+      expect(dist(pts(key).at(-1)!, port), key).toBeLessThan(1e-9);
+      expect(port[0], key + " rear housing face").toBeCloseTo(housing.max.x, 7);
+      expect(port[0], key + " behind screen").toBeGreaterThan(MD302_POS[0]);
+      expect(Math.abs(port[2] - MD302_POS[2]), key + " within standby width").toBeLessThan(0.07);
+    }
+    expect(MD302_PITOT_PORT[2]).not.toBe(MD302_STATIC_PORT[2]);
     const alt = pts("staticAlt");
     expect(dist(alt[0], ALT_STATIC)).toBeLessThan(1e-9);
     expect(at("Alternate static valve").pos).toEqual(ALT_STATIC);

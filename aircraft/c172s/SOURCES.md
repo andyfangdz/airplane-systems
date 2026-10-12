@@ -78,3 +78,7 @@ retains both enabled during START; an unverified right-mag grounding jumper is n
 Oil/ignition availability follows powered cranking or shaft rotation as well as running.
 CO detection remains integrated with G1000 as described in POH 7-80; no new wire asserts
 an unverified engine-airframe-unit termination.
+
+## Cabin routing verification
+
+Long avionics, intercom, ELT and pressure connections follow schematic underfloor, sidewall and headliner lanes. They retain their source connections and equipment arms while clearing the modeled cushions, seat backs and instrument sightlines. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.

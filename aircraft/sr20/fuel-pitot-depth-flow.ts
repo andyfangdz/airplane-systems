@@ -6,7 +6,8 @@
  */
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, toV, toVec3, type Vec3 } from "@/lib/math";
-import { FW, wingP } from "./geometry";
+import { cabinHarness } from "@/lib/cabinRouting";
+import { FW, FUSE, wingP } from "./geometry";
 import { ENGINE_FUEL_PUMP, INDUCTION_PLENUM } from "./engine-anchors";
 import { fuelAvail, type Elec, type Sim } from "./model";
 import { ADAHRS_1, ADAHRS_2, MD302_POS, GEA_71 } from "./parts/avionics";
@@ -56,10 +57,15 @@ for (const s of [-1, 1]) {
       note: "Each inboard-rib strainer feeds through the swing-check flapper to the collector; no tank-to-tank transfer. Gravity feed particles are schematic (POH 11934-005 7-41; AMM 12137-002 Rev A1 28-10 p. 1).",
     }),
   );
-  add(`fuel${side}`, [COLLECTOR(s), [1.2, -0.62, s * 0.3], FUEL_SELECTOR], {
-    name: `${label} feed line`,
-    note: "Collector to three-position selector. LEFT or RIGHT feeds one tank; OFF isolates both (POH 11934-005 7-42; AMM 12137-002 Rev A1 28-20 p. 1). Routing approximate.",
-  });
+  add(
+    `fuel${side}`,
+    [COLLECTOR(s), [1.2, -0.62, s * 0.3], [FUEL_SELECTOR[0], -0.62, FUEL_SELECTOR[2]], FUEL_SELECTOR],
+    {
+      name: `${label} feed line`,
+      note: "Collector to three-position selector. LEFT or RIGHT feeds one tank; OFF isolates both (POH 11934-005 7-42; AMM 12137-002 Rev A1 28-20 p. 1). Routing approximate.",
+      tension: 0,
+    },
+  );
   add(
     `fuelVent${side}`,
     [
@@ -143,7 +149,7 @@ for (const [key, pts] of [
 export const PITOT_BRANCH: Vec3 = [2.15, -0.32, -0.22];
 export const STATIC_BRANCH: Vec3 = [1.91, -0.4, -0.16];
 export const STATIC_INSTRUMENT_TEE: Vec3 = [2.24, -0.23, -0.22];
-const pressure = (key: string, pts: FlowSpec["pts"], name: string, note: string) =>
+const pressure = (key: string, pts: FlowSpec["pts"], name: string, note: string, options: Partial<FlowSpec> = {}) =>
   add(key, pts, {
     sys: ["pitot"],
     r: 0.009,
@@ -152,6 +158,7 @@ const pressure = (key: string, pts: FlowSpec["pts"], name: string, note: string)
     name,
     note:
       note + " Moving particles illustrate pressure transmission, not sustained airflow; bends and bores schematic.",
+    ...options,
   });
 pressure(
   "pitot",
@@ -196,9 +203,16 @@ for (const [key, s, sump] of [
   );
 pressure(
   "static2",
-  [STATIC_TEE, [0.1, -0.32, -0.18], TRAPS.static, [1.5, -0.57, -0.26], STATIC_BRANCH],
+  [
+    ...cabinHarness(FUSE, STATIC_TEE, TRAPS.static, 2.39, -1).map((p) =>
+      p === TRAPS.static || p[1] >= TRAPS.static[1] + 0.012 ? p : ([p[0], TRAPS.static[1] + 0.012, p[2]] as Vec3),
+    ),
+    [1.5, -0.57, -0.26],
+    STATIC_BRANCH,
+  ],
   "Floor static pressure line",
   "Bulkhead tee → under-floor low-point water trap → forward static plumbing (AMM 12137-002 Rev A1 34-10 pp. 1, 12).",
+  { tension: 0 },
 );
 pressure(
   "staticAlt",

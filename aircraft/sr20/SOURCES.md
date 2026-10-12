@@ -97,3 +97,7 @@ These member discussions were **fetched and read**, including later clarificatio
 - Engine starting/starvation delays, cooling/oil-flow rates, brake motion, CAPS timing and electrical currents/endurance remain illustrative. Battery endurance uses the pre-existing training-deck rule of thumb, not a dispatch guarantee.
 - The primary display keeps the existing fixed cruise picture. ADAHRS power/failure, screen reversion and breaker behavior are interactive; alignment, comparison logic, AFCS flight dynamics, fuel totalizer reconciliation and thermodynamic engine monitoring are not fully simulated.
 - The public AMM text omits some drawings/chapters. Unsupported detail is labeled approximate or omitted rather than filled with SR22T hardware. Use the current serial-specific POH, approved supplements, airworthiness limitations and maintenance instructions for the airplane.
+
+## Cabin routing verification
+
+Cabin RF/data paths and passenger ventilation ducts follow sidewall/underfloor lanes clear of the modeled seat meshes. Fuel feeds enter the selector vertically inside the console, and the static line reaches its floor trap below the rear seat. Source endpoints and pressure/fuel/air topology are retained; the bends remain schematic. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.

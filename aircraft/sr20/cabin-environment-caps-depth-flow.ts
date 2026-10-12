@@ -3,6 +3,8 @@
  * All routed stations, radii and particle magnitudes are illustrative. */
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
+import { cabinHarness } from "@/lib/cabinRouting";
+import { FUSE } from "./geometry";
 import type { Elec, Sim } from "./model";
 import { cabinOperation } from "./environment";
 import { MUFFLER } from "./engine-anchors";
@@ -34,8 +36,16 @@ const AIR = "#E0B040",
   COLD = "#66BAD7",
   HOT = "#E0522B";
 const F: FlowSpec[] = [];
-const air = (key: string, pts: FlowSpec["pts"], name: string, note: string, color = AIR, r = 0.015, tube = true) =>
-  F.push({ key, pts, sys: ["environment"], name, note, color, r, tube });
+const air = (
+  key: string,
+  pts: FlowSpec["pts"],
+  name: string,
+  note: string,
+  color = AIR,
+  r = 0.015,
+  tube = true,
+  extra: Partial<FlowSpec> = {},
+) => F.push({ key, pts, sys: ["environment"], name, note, color, r, tube, ...extra });
 air(
   "freshFeed",
   [[FRESH_INLET[0], FRESH_INLET[1], FRESH_INLET[2] - 0.025], [3.1, -0.45, 0.42], FRESH_VALVE],
@@ -161,11 +171,13 @@ for (const [side, suffix] of [
   );
   air(
     "arm" + suffix,
-    [MANIFOLD, [2.0, -0.59, side * 0.26], [0.6, -0.5, side * 0.48], PAX_PANEL_VENT(side)],
+    cabinHarness(FUSE, MANIFOLD, PAX_PANEL_VENT(side), 2.48, side, 0.035),
     "Passenger panel-vent duct",
     "Direct branch along cabin side trim to chest-height passenger outlet (POH7-65;AMM21-20).",
     AIR,
     0.013,
+    true,
+    { tension: 0 },
   );
   air(
     side < 0 ? "floorF" : "floorF2",
