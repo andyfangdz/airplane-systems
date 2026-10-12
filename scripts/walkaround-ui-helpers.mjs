@@ -22,3 +22,14 @@ export async function assertCurrentCheckVisible(page) {
   assert.ok(visible, "the single-line check and navigation fit in the scene without manual scrolling");
   assert.ok(await page.locator(".walk-map").isVisible(), "the station map stays expanded");
 }
+
+/** A horizontal gesture on the line must not bubble through the portal to item navigation. */
+export async function assertCurrentCheckSwipeStaysOnItem(page) {
+  const item = await page.locator(".walk-id").innerText();
+  await page.locator(".walk-current").evaluate((row) => {
+    const touch = (x) => new Touch({ identifier: 1, target: row, clientX: x, clientY: 100 });
+    row.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch(180)] }));
+    row.dispatchEvent(new TouchEvent("touchend", { bubbles: true, changedTouches: [touch(60)] }));
+  });
+  assert.equal(await page.locator(".walk-id").innerText(), item, "reading a long check must not change items");
+}

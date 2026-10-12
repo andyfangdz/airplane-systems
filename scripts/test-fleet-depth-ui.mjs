@@ -3,7 +3,7 @@
  * Run after npm run build, or pass an existing server: npm run test:ui:depth -- http://localhost:3000 [screenshot-directory]
  */
 import assert from "node:assert/strict";
-import { assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
+import { assertCurrentCheckSwipeStaysOnItem, assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -130,6 +130,7 @@ try {
         await assertCurrentCheckVisible(page);
         await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
         await assertCurrentCheckVisible(page);
+        await assertCurrentCheckSwipeStaysOnItem(page);
       }
       await activate(page.getByRole("button", { name: "✓ Reviewed", exact: true }));
       await changed(first);
@@ -169,13 +170,21 @@ try {
         const current = await itemId();
         lastStationSeen ||= current === finalStation;
         assert.ok((await page.locator(".walk-std").innerText()).length > 0, `${current} has an inspection standard`);
-        if (phone) await assertCurrentCheckVisible(page);
+        if (phone) {
+          await assertCurrentCheckVisible(page);
+          assert.equal(
+            await page.locator(".walk-current").evaluate((row) => row.scrollLeft),
+            0,
+            "each item starts at the beginning of its line",
+          );
+        }
         const text = await page.locator(".walk-text").innerText();
         const special = /pitot.*heat|leading edge|wing tip|wingtip|propeller|landing gear/i.test(text);
         if (special && captured.size < 5 && !captured.has(text)) {
           captured.add(text);
           await shot(`target-${current}`);
         }
+        if (phone) await page.locator(".walk-current").evaluate((row) => (row.scrollLeft = row.scrollWidth));
         await activate(page.getByRole("button", { name: "✓ Reviewed", exact: true }));
         await changed(current);
         reviewed++;
