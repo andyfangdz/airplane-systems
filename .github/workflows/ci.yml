@@ -28,3 +28,4 @@ jobs:
       - name: Install browser for interaction tests
         run: npx playwright-core install --with-deps chromium
       - run: npm run test:ui:m20c
+      - run: npm run test:ui:fleet

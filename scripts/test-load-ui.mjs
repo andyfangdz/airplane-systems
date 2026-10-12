@@ -432,7 +432,8 @@ try {
         };
         requestAnimationFrame(sample);
       });
-      await p.getByRole("button", { name: "C182T", exact: true }).click();
+      await p.getByRole("button", { name: /^Change airplane/ }).click();
+      await p.getByRole("button", { name: /C182T Skylane/ }).click();
       await sceneComplete(p);
       const frames = await p.evaluate(() => {
         window.__switchSampling = false;

@@ -1,0 +1,133 @@
+"use client";
+import { useEffect, useId, useRef, useState } from "react";
+import { FLEET, selectAircraft, useAircraft } from "@/aircraft";
+
+/** The airplane name doubles as a compact picker; the study view stays visible while choosing. */
+export function Fleet() {
+  const current = useAircraft();
+  const menu = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const id = useId();
+  const [open, setOpen] = useState(false);
+
+  function position() {
+    const panel = menu.current,
+      button = trigger.current;
+    if (!panel || !button) return;
+    const r = button.getBoundingClientRect();
+    const width = panel.offsetWidth,
+      height = panel.offsetHeight;
+    const below = innerHeight - r.bottom - 8;
+    const top = below >= height || below >= r.top ? r.bottom + 8 : r.top - height - 8;
+    panel.style.left = `${Math.max(12, Math.min(r.left, innerWidth - width - 12))}px`;
+    panel.style.top = `${Math.max(12, Math.min(top, innerHeight - height - 12))}px`;
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    return () => {
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+    };
+  }, [open]);
+
+  function close() {
+    menu.current?.hidePopover();
+    setOpen(false);
+    trigger.current?.focus({ preventScroll: true });
+  }
+
+  return (
+    <div className="fleet">
+      <h1>
+        <button
+          ref={trigger}
+          type="button"
+          className="fleet-trigger"
+          popoverTarget={id}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls={id}
+          aria-label={`Change airplane, current airplane ${current.name}`}
+          title="Change airplane"
+          onClick={(event) => {
+            event.preventDefault();
+            if (menu.current?.matches(":popover-open")) return close();
+            menu.current?.showPopover();
+            position();
+            setOpen(true);
+            menu.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true });
+          }}
+        >
+          <span>{current.name}</span>
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="m4 6 4 4 4-4" />
+          </svg>
+        </button>
+      </h1>
+      <p>{current.sub}</p>
+      <div
+        ref={menu}
+        id={id}
+        className="fleet-menu"
+        popover="auto"
+        role="dialog"
+        aria-label="Choose an airplane"
+        onToggle={(event) => setOpen(event.newState === "open")}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current)
+            menu.current?.hidePopover();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close();
+            return;
+          }
+          if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+          const options = [...event.currentTarget.querySelectorAll<HTMLButtonElement>(".fleet-option")];
+          const index = options.indexOf(document.activeElement as HTMLButtonElement);
+          const next =
+            event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? options.length - 1
+                : (index + (event.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+          event.preventDefault();
+          options[next]?.focus();
+        }}
+      >
+        <div className="fleet-options" role="group" aria-label="Airplanes">
+          {FLEET.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              className="fleet-option"
+              aria-pressed={a.id === current.id}
+              onClick={() => {
+                close();
+                // Re-selecting the current airplane preserves its system, camera and walk-around.
+                if (a.id !== current.id) selectAircraft(a.id);
+              }}
+            >
+              <span className="fleet-option-heading">
+                <span className="fleet-name">{a.name}</span>
+                {a.walk && (
+                  <span className="fleet-walk" title="Preflight walk-around available">
+                    Walk-around
+                  </span>
+                )}
+                <span className="fleet-check" aria-hidden="true">
+                  {a.id === current.id ? "✓" : ""}
+                </span>
+              </span>
+              <span className="fleet-equipment">{a.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

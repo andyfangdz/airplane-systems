@@ -12,6 +12,7 @@ Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zu
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # production build
+npm run test:ui:fleet # airplane picker: desktop, phone, keyboard and switching (after build)
 npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
 npm run test:ui:sr20 -- http://localhost:3000 # SR20 guided preflight, against a running server
 npm run check      # formatting, typecheck and tests (what CI runs, plus the build)

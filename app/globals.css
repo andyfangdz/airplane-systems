@@ -121,53 +121,107 @@ button {
   margin: 6px 0 4px;
   letter-spacing: 0.01em;
 }
-/* fleet picker: one button per airplane */
-.fleet {
-  display: grid;
-  /* one row of separate chips, so the heading and system list below keep their place: six fit every rail
-     width (smaller chips on the narrow desktop rail, below); a seventh airplane on a narrow rail scrolls sideways */
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(max-content, 1fr);
-  align-content: start;
-  gap: 3px;
-  /* the 28.5 px row plus the old 12 px bottom margin, which now holds the scrollbar when there is one; the -6 px
-     cancels the heading's 6 px top margin, which used to collapse into the 12 px */
-  height: 40.5px;
-  margin: 0 0 -6px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
+/* The airplane heading is the picker trigger; its compact popover leaves the model visible. */
+.fleet-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
 }
-.fleet button {
-  background: var(--panel2);
+.fleet-trigger > svg {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  padding: 3px;
   border: 1px solid var(--rule);
   border-radius: 4px;
-  /* 1 + 6 + 14.5 + 6 + 1 = 28.5 px, the height of the old bordered strip */
-  padding: 6px 2px;
-  cursor: pointer;
-  /* the condensed display face: six labels fit the 191 px rail with room for the gaps */
-  font-family: var(--f-disp);
-  font-weight: 600;
-  font-size: 11px;
-  line-height: 14.5px;
-  letter-spacing: 0;
-  white-space: nowrap;
-  color: var(--muted);
+  background: var(--panel2);
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
 }
-/* the scrolling strip clips anything outside it: draw the focus ring inside the chip */
-.fleet button:focus-visible {
-  outline-offset: -3px;
+.fleet-trigger:hover,
+.fleet-trigger[aria-expanded="true"] {
+  color: var(--accent);
 }
-.fleet button[aria-pressed="true"]:focus-visible {
-  outline-color: var(--on-accent);
-}
-.fleet button:hover {
+.fleet-menu {
+  position: fixed;
+  inset: auto;
+  width: min(352px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  background: var(--panel);
   color: var(--ink);
+  box-shadow: 0 8px 30px #0003;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-.fleet button[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+.fleet-options {
+  display: grid;
+  gap: 2px;
+}
+.fleet-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.fleet-option:hover {
+  background: var(--panel2);
+}
+.fleet-option:focus-visible {
+  outline-offset: -2px;
+}
+.fleet-option[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+  color: var(--accent);
+}
+.fleet-option-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fleet-name {
+  margin-right: auto;
+  font-size: 15px;
+  font-weight: 600;
+}
+.fleet-walk {
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.fleet-check {
+  width: 14px;
+  flex: none;
+  font-size: 13px;
+}
+.fleet-equipment {
+  color: var(--muted);
+  font-size: 11px;
 }
 .brand p {
   margin: 0;
@@ -1013,16 +1067,6 @@ button.chip:hover {
 @media (max-width: 1100px) {
   .app {
     grid-template-columns: 200px minmax(0, 1fr) 340px;
-  }
-}
-/* the narrow desktop rail (163 px): tighter chips, so all six still fit without scrolling */
-@media (min-width: 861px) and (max-width: 1100px) {
-  .fleet {
-    gap: 2px;
-  }
-  .fleet button {
-    padding: 6px 1px;
-    font-size: 10px;
   }
 }
 @media (max-width: 860px) {
