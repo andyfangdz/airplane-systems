@@ -141,6 +141,7 @@ button {
 .fleet-trigger-copy {
   display: grid;
   gap: 4px;
+  width: 100%;
 }
 .fleet-trigger-label {
   display: flex;
@@ -153,23 +154,15 @@ button {
 .fleet-trigger-label svg {
   width: 16px;
   height: 16px;
+  flex: none;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.fleet-trigger > svg {
-  width: 24px;
-  height: 24px;
-  flex: none;
-  padding: 3px;
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  background: var(--panel2);
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.5;
+.fleet-chevron {
+  margin-left: auto;
 }
 .fleet-trigger:hover,
 .fleet-trigger[aria-expanded="true"] {
