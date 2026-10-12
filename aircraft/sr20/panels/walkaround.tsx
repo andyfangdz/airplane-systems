@@ -253,6 +253,15 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
           {item.ref} · SR20 G6 POH
         </a>
       </div>
+      <details className="walk-through">
+        <summary>Throughout the walk-around</summary>
+        <ul>
+          {THROUGHOUT.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+        <span className="walk-ref">POH 4-4</span>
+      </details>
       <div className="walk-actions">
         <button
           type="button"
@@ -279,15 +288,6 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
           →
         </button>
       </div>
-      <details className="walk-through">
-        <summary>Throughout the walk-around</summary>
-        <ul>
-          {THROUGHOUT.map((text) => (
-            <li key={text}>{text}</li>
-          ))}
-        </ul>
-        <span className="walk-ref">POH 4-4</span>
-      </details>
     </div>
   );
 }
