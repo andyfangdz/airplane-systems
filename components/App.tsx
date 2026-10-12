@@ -1,55 +1,15 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  FLEET,
-  aircraft,
-  hasSys,
-  resetCam,
-  selectAircraft,
-  selectSys,
-  showInUrl,
-  sysOf,
-  useAircraft,
-} from "@/aircraft";
+import { aircraft, hasSys, resetCam, selectAircraft, selectSys, showInUrl, sysOf, useAircraft } from "@/aircraft";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
 import { revealStage, useView } from "@/lib/view";
 import { Loader } from "./Loader";
+import { Fleet } from "./Fleet";
 import { Tour, startTour } from "./Tour";
 
 // WebGL scene is client-only; the Loader overlay shows while it loads (the placeholder keeps the canvas's slot)
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div /> });
-
-function Fleet() {
-  const ac = useView((x) => x.ac);
-  const ref = useRef<HTMLDivElement>(null);
-  // more airplanes than the rail fits scroll sideways: keep the selected one in view, also when the rail resizes
-  useEffect(() => {
-    const strip = ref.current;
-    if (!strip) return;
-    const reveal = () => {
-      const b = strip.querySelector<HTMLElement>('button[aria-pressed="true"]');
-      if (!b) return;
-      const r = b.getBoundingClientRect(),
-        s = strip.getBoundingClientRect();
-      if (r.left < s.left) strip.scrollLeft -= s.left - r.left;
-      else if (r.right > s.right) strip.scrollLeft += r.right - s.right;
-    };
-    reveal();
-    const ro = new ResizeObserver(reveal);
-    ro.observe(strip);
-    return () => ro.disconnect();
-  }, [ac]);
-  return (
-    <div className="fleet" role="group" aria-label="Airplane" ref={ref}>
-      {FLEET.map((a) => (
-        <button key={a.id} type="button" aria-pressed={a.id === ac} title={a.name} onClick={() => selectAircraft(a.id)}>
-          {a.short}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function Rail() {
   const def = useAircraft();
@@ -71,8 +31,6 @@ function Rail() {
     <nav className="rail" aria-label="Systems">
       <div className="brand">
         <Fleet />
-        <h1>{def.name}</h1>
-        <p>{def.sub}</p>
       </div>
       <ul className="syslist">
         {def.systems.map((s) => (

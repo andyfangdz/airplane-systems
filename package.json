@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui:m20c": "node scripts/test-m20c-ui.mjs",
+    "test:ui:fleet": "node scripts/test-fleet-ui.mjs",
     "test:ui:load": "node scripts/test-load-ui.mjs",
     "test:ui:walkaround": "node scripts/test-walkaround-ui.mjs",
     "test:ui:sr20": "node scripts/test-sr20-walkaround-ui.mjs",
