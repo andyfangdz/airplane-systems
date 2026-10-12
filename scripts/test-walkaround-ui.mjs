@@ -8,6 +8,7 @@
  * Run after npm run build, or pass an existing server URL. `--shots <dir>` also saves screenshots there.
  */
 import assert from "node:assert/strict";
+import { assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
@@ -102,11 +103,12 @@ try {
     // the ramp: no display power until BAT 2 comes on at 1c
     await page.waitForFunction(() => document.querySelector(".cas .hd")?.textContent.includes("NO DISPLAY PWR"));
 
-    // phone layout: the 3D view takes the top ~55% and the card follows it
+    // Phone layout: the current check stays inside a large scene.
     if (phone) {
       const stage = await page.locator(".stage").boundingBox();
-      assert.ok(stage.height > 0.5 * 844 && stage.height < 0.6 * 844, `3D view height ${stage.height}`);
+      assert.ok(stage.height >= 0.55 * 844 && stage.height < 0.75 * 844, `3D view height ${stage.height}`);
       assert.equal(await page.locator(".rail").isVisible(), false, "rail hidden while walking on a phone");
+      await assertCurrentCheckVisible(page);
     } else {
       assert.ok(await page.locator(".panel .walk").isVisible(), "the card is in the right-hand panel");
     }
@@ -130,7 +132,7 @@ try {
     for (let i = 0; i < 12; i++) await page.getByRole("button", { name: "Next item" }).click();
     assert.equal(await itemId(page), "1p");
     assert.equal(await page.locator(".walk-std").innerText(), "SEE APPLICABLE FIKI SUPPLEMENT");
-    assert.ok((await page.locator(".walk-card").innerText()).includes("Configuration cue — see supplement"));
+    assert.ok((await page.locator(".walk-tech").innerText()).includes("Configuration cue — see supplement"));
     assert.ok(!(await page.locator(".walk-card").innerText()).includes("applying suction"));
     await shot("fiki-stall-cue");
 

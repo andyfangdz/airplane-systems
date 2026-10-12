@@ -63,7 +63,9 @@ function Panel() {
   const s = sysOf(def, sys),
     Body = def.panels[s.id];
   // phones: after picking a system from far down the panel, bring the 3D view back up
-  useEffect(revealStage, [sys, def]);
+  useEffect(() => {
+    if (!walking) revealStage();
+  }, [sys, def, walking]);
   const Walk = walking ? def.walk?.Panel : undefined;
   if (Walk)
     return (
@@ -302,6 +304,7 @@ export default function App() {
         <div className="stage-foot">
           <Alerts key={def.id} />
           <Hud />
+          <div id="walk-scene" className="walk-scene" />
         </div>
         <Tooltip />
       </main>

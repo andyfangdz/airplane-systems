@@ -5,6 +5,7 @@
  * and then to the item's parts, highlights them, dims the rest and shows the item's system in X-ray.
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
 import { useTicker } from "@/components/ui/controls";
 import { revealStage, useView } from "@/lib/view";
 import { SYS } from "../systems";
@@ -281,6 +282,7 @@ function Resume() {
 }
 
 export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
+  const big = useWalk((w) => w.big);
   const marks = useWalk((x) => x.marks);
   const swipe = useSwipe(at);
   const { station, item } = step;
@@ -317,14 +319,18 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
         </p>
       )}
       <div className="walk-card">
-        <div className="walk-line">
-          <span className="walk-id">{item.id}</span>
-          <span className="walk-text">{item.text}</span>
-          {mark && <span className={`walk-mark ${mark}`}>{mark === "ok" ? "✓ Checked" : "Skipped"}</span>}
-        </div>
-        {item.technique && <span className="walk-tech">{TECHNIQUE_BADGE}</span>}
-        {item.configurationCue && <span className="walk-tech">Configuration cue — see supplement</span>}
-        <div className="walk-std">{item.standard}</div>
+        <WalkSceneContent big={big}>
+          <div className="walk-current" key={item.id} tabIndex={0} role="group" aria-label="Current checklist item">
+            <div className="walk-line">
+              <span className="walk-id">{item.id}</span>
+              <span className="walk-text">{item.text}</span>
+              {mark && <span className={`walk-mark ${mark}`}>{mark === "ok" ? "✓ Checked" : "Skipped"}</span>}
+            </div>
+            {item.technique && <span className="walk-tech">{TECHNIQUE_BADGE}</span>}
+            {item.configurationCue && <span className="walk-tech">Configuration cue — see supplement</span>}
+            <div className="walk-std">{item.standard}</div>
+          </div>
+        </WalkSceneContent>
         {item.look && <p className="walk-look">{item.look}</p>}
         {item.steps && (
           <ol className="walk-steps">
@@ -354,32 +360,34 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
         </ul>
         <span className="walk-ref">POH 4-4</span>
       </details>
-      <div className="walk-actions">
-        <button
-          type="button"
-          className="walk-nav"
-          onClick={() => goStep(at - 1)}
-          disabled={at === 0}
-          aria-label="Previous item"
-        >
-          ←
-        </button>
-        <button type="button" className="btn walk-skip" onClick={() => markStep("skip")}>
-          Skip
-        </button>
-        <button type="button" className="walk-go" onClick={() => markStep("ok")}>
-          ✓ Checked
-        </button>
-        <button
-          type="button"
-          className="walk-nav"
-          onClick={() => goStep(at + 1)}
-          disabled={at === steps.length - 1}
-          aria-label="Next item"
-        >
-          →
-        </button>
-      </div>
+      <WalkSceneContent big={big}>
+        <div className="walk-actions">
+          <button
+            type="button"
+            className="walk-nav"
+            onClick={() => goStep(at - 1)}
+            disabled={at === 0}
+            aria-label="Previous item"
+          >
+            ←
+          </button>
+          <button type="button" className="btn walk-skip" onClick={() => markStep("skip")}>
+            Skip
+          </button>
+          <button type="button" className="walk-go" onClick={() => markStep("ok")}>
+            ✓ Checked
+          </button>
+          <button
+            type="button"
+            className="walk-nav"
+            onClick={() => goStep(at + 1)}
+            disabled={at === steps.length - 1}
+            aria-label="Next item"
+          >
+            →
+          </button>
+        </div>
+      </WalkSceneContent>
     </div>
   );
 }
@@ -445,7 +453,7 @@ export function WalkPanel() {
   const step = walking ? steps[at] : undefined;
   useStepScene(step, phase);
   useArrowKeys(walking, at);
-  // phones: the card is below the view, so keep the view in sight when the step changes
+  // Phones: reveal the current check after advancing or jumping stations.
   useEffect(revealStage, [at, phase]);
   return (
     <Shell big={big}>

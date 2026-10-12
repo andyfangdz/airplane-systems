@@ -4,6 +4,7 @@
  * The physical inspections are never marked as evidence of aircraft airworthiness.
  */
 import assert from "node:assert/strict";
+import { assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright-core";
@@ -55,13 +56,14 @@ try {
     await item("7a");
     if (phone) {
       const stage = await page.locator(".stage").boundingBox();
-      assert.ok(stage.height > 0.5 * 844 && stage.height < 0.6 * 844, `phone scene height ${stage.height}`);
+      assert.ok(stage.height >= 0.55 * 844 && stage.height < 0.75 * 844, `phone scene height ${stage.height}`);
       assert.equal(await page.locator(".rail").isVisible(), false);
+      await assertCurrentCheckVisible(page);
     } else assert.ok(await page.locator(".panel .walk").isVisible());
     await page.getByRole("button", { name: "Next item", exact: true }).click();
     await page.getByRole("button", { name: "Next item", exact: true }).click();
     await item("7c");
-    assert.match(await page.locator(".walk-card").innerText(), /Fuel Drains \(2 underside\)/);
+    assert.match(await page.locator(".walk-text").innerText(), /Fuel Drains \(2 underside\)/);
     assert.equal(await page.locator(".walk-nm").count(), 0, "both drain types are modelled");
     await shot("right-two-drains");
     if (!phone) {
@@ -156,7 +158,11 @@ try {
     assert.equal(await page.locator(".walk-nm").count(), 0, "the actual wing/fuselage junction is highlighted");
     await shot("wing-root-fairing");
     if (phone) await page.getByRole("button", { name: "Exit the SR20 study walk", exact: true }).click();
-    await page.locator(".fleet").getByRole("button", { name: "SR22T", exact: true }).click();
+    await page.getByRole("button", { name: /^Switch Airplanes, current airplane/ }).click();
+    await page
+      .getByRole("dialog", { name: "Choose an airplane" })
+      .getByRole("button", { name: /^Cirrus SR22T|^SR22T G6/ })
+      .click();
     await page.locator(".walk").waitFor({ state: "detached" });
     assert.equal(await page.locator(".walk").count(), 0, "switching aircraft closes the SR20 walk");
     await page.locator(".toolbar").getByRole("button", { name: "Preflight", exact: true }).click();
