@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 import { join, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { chromium, webkit, devices } from "playwright-core";
 
 const root = resolve(import.meta.dirname, "..");
 const port = 4100 + Math.floor(Math.random() * 800);
@@ -31,25 +31,40 @@ try {
     }
     assert.ok(ready, `Server did not start: ${log}`);
   }
-  browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
   mkdirSync(join(root, ".shots"), { recursive: true });
-  for (const [width, height, theme] of [
-    [1440, 900, "light"],
-    [980, 800, "dark"],
-    [390, 844, "light"],
-    [320, 640, "dark"],
+  for (const [engine, width, height, theme] of [
+    [chromium, 1440, 900, "light"],
+    [chromium, 980, 800, "dark"],
+    [chromium, 390, 844, "light"],
+    [chromium, 320, 640, "dark"],
+    [webkit, 390, 844, "light"],
+    [webkit, 320, 640, "dark"],
   ]) {
-    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: "reduce" });
+    if (browser?.browserType() !== engine) {
+      await browser?.close();
+      browser = await engine.launch(
+        engine === chromium ? { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } : {},
+      );
+    }
+    const touch = width < 860;
+    const device = touch ? devices[engine === webkit ? "iPhone 13" : "Pixel 7"] : {};
+    const context = await browser.newContext({ ...device, viewport: { width, height }, reducedMotion: "reduce" });
     await context.addInitScript((theme) => {
       localStorage.setItem("tourDone", "1");
       localStorage.setItem("sr20theme", theme);
     }, theme);
     const page = await context.newPage();
+    const activate = (locator) => (touch ? locator.tap() : locator.click());
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
     await page.goto(`${base}/sr20/electrical`);
-    const trigger = page.getByRole("button", { name: /^Change airplane/ });
+    const trigger = page.getByRole("button", { name: /^Switch Airplanes/ });
+    await trigger.waitFor();
+    assert.ok(
+      await trigger.getByText("Switch Airplanes", { exact: true }).isVisible(),
+      "The control explicitly names the switching action",
+    );
     const dialog = page.getByRole("dialog", { name: "Choose an airplane" });
     const choices = dialog.getByRole("group", { name: "Airplanes" }).getByRole("button");
     const waitForClosed = async () => {
@@ -58,8 +73,11 @@ try {
         () => document.querySelector(".fleet-trigger")?.getAttribute("aria-expanded") === "false",
       );
     };
-    await trigger.focus();
-    await page.keyboard.press("Enter");
+    if (touch) await activate(trigger);
+    else {
+      await trigger.focus();
+      await page.keyboard.press("Enter");
+    }
     await dialog.waitFor();
     assert.equal(await choices.count(), 6);
     for (const name of ["SR20 G6", "SR22T G6"])
@@ -75,7 +93,7 @@ try {
     assert.ok((await page.locator(".brand").boundingBox()).height < 140, "The picker adds no separate button row");
     for (const choice of await choices.all()) assert.ok((await choice.boundingBox()).height >= 44);
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
-    await page.screenshot({ path: join(root, `.shots/fleet-${width}-${theme}.png`) });
+    await page.screenshot({ path: join(root, `.shots/fleet-${engine.name()}-${width}-${theme}.png`) });
 
     await page.keyboard.press("ArrowDown");
     assert.ok(await choices.nth(1).evaluate((el) => el === document.activeElement));
@@ -94,38 +112,68 @@ try {
     if (width === 1440) {
       await page.getByRole("button", { name: "Preflight", exact: true }).click();
       await page.locator(".app.walking").waitFor();
-      await trigger.click();
-      await dialog.getByRole("button", { pressed: true }).click();
+      await activate(trigger);
+      await activate(dialog.getByRole("button", { pressed: true }));
       await waitForClosed();
       assert.equal(await page.locator(".app.walking").count(), 1, "Re-selecting SR20 preserves its walk-around");
     }
-    await trigger.click();
-    await dialog.getByRole("button", { name: /M20C Ranger/ }).click();
+    await activate(trigger);
+    await activate(dialog.getByRole("button", { name: /M20C Ranger/ }));
     await waitForClosed();
     await page.waitForURL("**/m20c/overview");
     assert.match(await page.locator(".brand h1").innerText(), /M20C Ranger/);
     assert.equal(await page.evaluate(() => localStorage.getItem("fleetAc")), "m20c");
     assert.equal(await page.locator(".app.walking").count(), 0, "Switching airplanes exits the previous walk-around");
-    await trigger.click();
+    await activate(trigger);
     assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /M20C Ranger/);
     await page.keyboard.press("Escape");
     await waitForClosed();
     assert.ok(await trigger.evaluate((el) => el === document.activeElement));
-    await trigger.click();
-    await page.mouse.click(width - 2, height - 2);
+    await activate(trigger);
+    if (touch) await page.touchscreen.tap(width - 2, height - 2);
+    else await page.mouse.click(width - 2, height - 2);
     await waitForClosed();
-    await trigger.click();
-    await trigger.click();
+    await activate(trigger);
+    await activate(trigger);
     await waitForClosed();
-    await trigger.click();
+    await activate(trigger);
     await page.keyboard.press("End");
     await page.keyboard.press("Tab");
     await waitForClosed();
+    if (touch) {
+      // Linux WebKit focuses tapped buttons; Safari may instead blur the old option with relatedTarget=null.
+      // Exercise that browser focus sequence during a real tap, before the synthesized click is delivered.
+      await page.evaluate(() => {
+        document.addEventListener(
+          "mousedown",
+          function blurWithoutReplacement(event) {
+            if (!event.target.closest?.(".fleet-option")) return;
+            document.removeEventListener("mousedown", blurWithoutReplacement, true);
+            event.preventDefault();
+            document.activeElement?.blur();
+          },
+          true,
+        );
+      });
+      await activate(trigger);
+      await activate(dialog.getByRole("button", { name: /SR20 G6/ }));
+      await waitForClosed();
+      await page.waitForURL("**/sr20/overview", { timeout: 5000 });
+      assert.equal(
+        await page.evaluate(() => localStorage.getItem("fleetAc")),
+        "sr20",
+        "A blur before click must not cancel a touch selection",
+      );
+      await activate(trigger);
+      await activate(dialog.getByRole("button", { name: /M20C Ranger/ }));
+      await waitForClosed();
+      await page.waitForURL("**/m20c/overview");
+    }
     await page.reload();
-    await page.waitForFunction(() => document.querySelector(".brand h1")?.textContent === "M20C Ranger");
+    await page.waitForFunction(() => document.querySelector(".fleet-current-name")?.textContent === "M20C Ranger");
     assert.deepEqual(errors, []);
     console.log(
-      `${width}×${height} ${theme}: selection, walk-around, persistence, keyboard, dismissal and compact layout passed`,
+      `${engine.name()} ${width}×${height} ${theme} ${touch ? "touch" : "mouse"}: selection, walk-around, persistence, keyboard, dismissal and compact layout passed`,
     );
     await context.close();
   }

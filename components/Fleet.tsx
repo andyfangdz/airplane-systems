@@ -2,7 +2,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { FLEET, selectAircraft, useAircraft } from "@/aircraft";
 
-/** The airplane name doubles as a compact picker; the study view stays visible while choosing. */
+/** An explicit switch control and current airplane share a compact picker. */
 export function Fleet() {
   const current = useAircraft();
   const menu = useRef<HTMLDivElement>(null);
@@ -50,8 +50,7 @@ export function Fleet() {
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={id}
-          aria-label={`Change airplane, current airplane ${current.name}`}
-          title="Change airplane"
+          aria-label={`Switch Airplanes, current airplane ${current.name}`}
           onClick={(event) => {
             event.preventDefault();
             if (menu.current?.matches(":popover-open")) return close();
@@ -61,7 +60,15 @@ export function Fleet() {
             menu.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true });
           }}
         >
-          <span>{current.name}</span>
+          <span className="fleet-trigger-copy">
+            <span className="fleet-trigger-label">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M3 6h14m-4-4 4 4-4 4M17 14H3m4-4-4 4 4 4" />
+              </svg>
+              Switch Airplanes
+            </span>
+            <span className="fleet-current-name">{current.name}</span>
+          </span>
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="m4 6 4 4 4-4" />
           </svg>
@@ -77,7 +84,13 @@ export function Fleet() {
         aria-label="Choose an airplane"
         onToggle={(event) => setOpen(event.newState === "open")}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== trigger.current)
+          // Safari can blur a tapped option without focusing its replacement. Hiding now would swallow the click.
+          // Only close for a known focus destination outside; native popover light-dismiss handles outside taps.
+          if (
+            event.relatedTarget &&
+            !event.currentTarget.contains(event.relatedTarget) &&
+            event.relatedTarget !== trigger.current
+          )
             menu.current?.hidePopover();
         }}
         onKeyDown={(event) => {

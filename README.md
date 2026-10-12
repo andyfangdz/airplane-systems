@@ -22,6 +22,8 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 
 `npm install` also sets up a pre-commit hook that formats staged files. `npm run shot` needs Chromium for Playwright
 (`npx playwright-core install chromium`); with `--compare <dir>` it reports which views changed against an earlier set.
+`npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright-core install chromium webkit`); it tests desktop input
+and touch taps with Android and iPhone device profiles.
 
 ## What's modelled
 
