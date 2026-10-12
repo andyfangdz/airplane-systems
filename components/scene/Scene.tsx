@@ -47,7 +47,11 @@ function CameraRig() {
     if (!controls) return;
     const ratio = fit / previousFit.current;
     previousFit.current = fit;
-    camera.position.sub(controls.target).multiplyScalar(ratio).add(controls.target);
+    camera.position
+      .sub(controls.target)
+      .multiplyScalar(ratio)
+      .clampLength(controls.minDistance, controls.maxDistance)
+      .add(controls.target);
     const f = flight.current;
     if (f) {
       f.fp.sub(f.ft).multiplyScalar(ratio).add(f.ft);

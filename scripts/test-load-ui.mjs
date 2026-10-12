@@ -548,11 +548,16 @@ try {
     // a camera move the user makes while the worker still builds the fuselage is kept when it answers: on the intro screen,
     // and on an item (2a) shown from its station while it waited for the hull, also when the viewport is resized during
     // the press. A tap there moves nothing, so 2a is still framed when the worker answers (and a tap on a part still
-    // shows its note)
-    for (const where of ["intro", "2a", "2a resize", "2a tap"]) {
+    // shows its note); nor does a taller viewport during a tap that stops a flight in from the zoom limit
+    for (const where of ["intro", "2a", "2a resize", "2a tap", "2a clamp"]) {
       const tap = where === "2a tap",
-        resize = where === "2a resize";
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+        resize = where === "2a resize",
+        clamp = where === "2a clamp";
+      // the clamp case taps during a camera flight, so it needs the flights (reduced motion jumps the camera)
+      const ctx = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+        reducedMotion: clamp ? "no-preference" : "reduce",
+      });
       await ctx.addInitScript(hookThree);
       await ctx.route("**/_vercel/**", (route) => route.abort());
       await ctx.addInitScript(holdWorker);
@@ -570,22 +575,69 @@ try {
       const still = await settledCamera(p);
       const box = await p.locator("canvas").boundingBox();
       await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      await p.mouse.down();
-      if (resize) {
-        // a taller viewport while the button is held: the app backs the camera off to fit, then the drag goes on
+      let moved;
+      if (clamp) {
+        // zoom out until the camera stops: the controls' 70 m limit (a user move, so 2a's wait is over)
+        for (let i = 0, last = still; ; i++) {
+          assert.ok(i < 30, `${where}: the zoom never reached its limit`);
+          for (let k = 0; k < 10; k++) await p.mouse.wheel(0, 100);
+          const now = await settledCamera(p);
+          if (!cameraDiff(now, last)) break;
+          last = now;
+        }
+        // a wheel step scales the distance by 0.95 (three-stdlib's zoom scale): one step in from the limit is 5% of it
+        await p.mouse.wheel(0, -100);
+        const nearer = await settledCamera(p);
+        await p.mouse.wheel(0, 100);
+        const out = await settledCamera(p);
+        const dist = Math.hypot(...[0, 1, 2].map((i) => out[i] - nearer[i])) / 0.05;
+        assert.ok(Math.abs(dist - 70) < 0.1, `${where}: zoomed out to the 70 m limit: ${dist} m`);
+        // another item and back: 2a waits for the hull again, from a 1 s flight to the station that starts at 70 m
+        await p.getByRole("button", { name: "Next item" }).click();
+        await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent !== "2a");
+        const stepped = Date.now();
+        await p.getByRole("button", { name: "Previous item" }).click();
+        await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent === "2a");
+        // a tap early in the flight stops it still far out, and a taller viewport during the press backs the camera off
+        // past the limit: the fit keeps it at the limit, so the controls don't move it again as if the user had
+        await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await p.mouse.down();
+        const late = Date.now() - stepped;
+        assert.ok(
+          late < 300,
+          `${where}: the press stops the flight within 300 ms (took ${late} ms; rerun on a quieter machine)`,
+        );
+        console.log(`?walk=2 2a: zoomed out to ${dist.toFixed(2)} m, pressed ${late} ms after stepping back to 2a`);
         await p.setViewportSize({ width: 1440, height: 1800 });
-        assert.ok(cameraDiff(await settledCamera(p), still), `${where}: the viewport fit moved the camera`);
+        await settledCamera(p);
+        await p.mouse.up();
+        // back to the viewport 2a's on-time framing was taken at
+        await p.setViewportSize({ width: 1440, height: 900 });
+        moved = await settledCamera(p);
+      } else {
+        await p.mouse.down();
+        if (resize) {
+          // a taller viewport while the button is held: the app backs the camera off to fit, then the drag goes on
+          await p.setViewportSize({ width: 1440, height: 1800 });
+          assert.ok(cameraDiff(await settledCamera(p), still), `${where}: the viewport fit moved the camera`);
+        }
+        if (!tap) await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
+        await p.mouse.up();
+        moved = await settledCamera(p);
+        if (tap) assert.ok(!cameraDiff(moved, still), `${where}: a tap leaves the camera: ${moved} vs ${still}`);
       }
-      if (!tap) await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
-      await p.mouse.up();
-      const moved = await settledCamera(p);
-      if (tap) assert.ok(!cameraDiff(moved, still), `${where}: a tap leaves the camera: ${moved} vs ${still}`);
       assert.ok(await p.locator("[data-building]").count(), `${where}: still building while the worker is held`);
       await p.evaluate(() => window.__releaseWorker());
       await sceneComplete(p);
       await p.waitForTimeout(1600);
       const after = await settledCamera(p);
-      if (tap) {
+      if (clamp)
+        assert.deepEqual(
+          after,
+          framed[2],
+          `${where}: 2a framed as when the hull was there from the start, after a tap and a resize at the zoom limit`,
+        );
+      else if (tap) {
         assert.deepEqual(
           after,
           framed[2],
@@ -617,9 +669,11 @@ try {
         );
       assert.deepEqual(errs, [], "No application runtime errors");
       console.log(
-        tap
-          ? "?walk=2 2a: a tap during the build still lets 2a be framed when the worker's hull arrives; a tap on a part shows its note"
-          : `?walk=2 ${where}: a camera drag during the build${resize ? " (resized mid-press)" : ""} is kept when the worker's hull arrives`,
+        clamp
+          ? "?walk=2 2a: a tap and a taller viewport at the zoom limit during the build still let 2a be framed when the worker's hull arrives"
+          : tap
+            ? "?walk=2 2a: a tap during the build still lets 2a be framed when the worker's hull arrives; a tap on a part shows its note"
+            : `?walk=2 ${where}: a camera drag during the build${resize ? " (resized mid-press)" : ""} is kept when the worker's hull arrives`,
       );
       await ctx.close();
     }
