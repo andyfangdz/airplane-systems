@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useTicker } from "@/components/ui/controls";
 import { revealStage, useView } from "@/lib/view";
+import { useFuselage } from "../fuselage-geo";
 import { SYS } from "../systems";
 import {
   beginWalk,
@@ -72,6 +73,8 @@ function useWakeLock() {
 /** Camera, highlight, X-ray system and the cabin station's switches for the current step. */
 function useStepScene(step: Step | undefined, phase: WalkPhase) {
   const last = useRef<number | null>(null);
+  // an item framed from the station while the fuselage was still being built is framed again once it is in
+  const fuselageIn = useFuselage((x) => x.settled);
   useEffect(() => {
     const { flyTo } = useView.getState();
     if (!step) {
@@ -97,7 +100,7 @@ function useStepScene(step: Step | undefined, phase: WalkPhase) {
     flyTo(step.station.cam.p, step.station.cam.t);
     const t = setTimeout(() => useView.getState().flyTo(pose.p, pose.t), STATION_SETTLE_MS);
     return () => clearTimeout(t);
-  }, [step, phase]);
+  }, [step, phase, fuselageIn]);
 }
 
 /** Arrow keys step through the items, unless a form control has focus. */

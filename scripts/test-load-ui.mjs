@@ -6,9 +6,10 @@
  * (the last bit of trig differs between runtimes; tests/scene-snapshot.test.ts measures it and checks each part to the
  * micrometre). Objects an animation moves are left out and counted. The camera framing must equal a1d3cdf0's too: the
  * SR22T overview, a system view and Reset view after a drag. Each load shows the loader, then a frame with every skin
- * shell, then no loader. The SR22T builds progressively: the deep-linked system's parts come first; a part that mounts
- * late is still found by "tap to locate"; a browser that refuses the fuselage worker builds the same scene; no build-in
- * glow under prefers-reduced-motion. Run after npm run build (it starts next start), or pass an existing server URL.
+ * shell, then no loader. The SR22T builds progressively: the deep-linked system's and the walk-around station's parts come
+ * first; a part that mounts late is still found by "tap to locate"; a walk-around begun while the fuselage worker still
+ * builds doesn't build the hull on the main thread and frames its first item as when the hull was there; a browser that
+ * refuses the fuselage worker builds the same scene; no build-in glow under prefers-reduced-motion. Run after npm run build (it starts next start), or pass an existing server URL.
  * `--update` rewrites the baseline (scripts/test-load-ui.baseline.json): only on main before this change, or for an
  * intended model change.
  */
@@ -54,6 +55,23 @@ async function startServer() {
 function hookThree() {
   // the load's timeline: when the loader was first and last seen, and each frame's count of drawn skin shells
   const marks = (window.__marks = { loaderSeen: null, loaderGone: null, frames: 0, shells: [], parts: [] });
+  // station 9's walk-around items' parts (aircraft/sr22t/walkaround.ts)
+  const STATION9 = new Set([
+    "Tow bar",
+    "Landing light (HID, lower cowl)",
+    "Nose gear strut",
+    "Nose oleo cylinder",
+    "Nose strut fairing",
+    "Nose wheel pant",
+    "Nose wheel",
+    "Propeller blade",
+    "Spinner",
+    "Front cowl fastener",
+    "Cowl inlet — cooling",
+    "NACA induction duct",
+    "ALT 1 — 100 A",
+    "ALT 2 — 70 A",
+  ]);
   new MutationObserver(() => {
     const shown = !!document.querySelector(".loader");
     if (shown) marks.loaderSeen ??= performance.now();
@@ -74,10 +92,11 @@ function hookThree() {
           if (o.isMesh && o.userData.pick?.shell && o.userData.pick.sys.every((s) => s === "airframe")) n++;
         });
         if (n !== marks.shells.at(-1)?.n) marks.shells.push({ t: performance.now(), n });
-        // parts mounted so far: all and electrical; and how many glow (a highlight material: emissive >= 0.4 × colour)
+        // parts mounted so far: all, electrical, station 9's; and how many glow (a highlight material: emissive >= 0.4 × colour)
         const c = {
           total: 0,
           electrical: 0,
+          station9: 0,
           glow: 0,
           building: !!document.querySelector("[data-building]"),
         };
@@ -88,6 +107,7 @@ function hookThree() {
           c.total++;
           const pick = o.userData.pick;
           if (pick?.sys.includes("electrical")) c.electrical++;
+          if (STATION9.has(pick?.name)) c.station9++;
           const m = o.material;
           if (
             m.isMeshStandardMaterial &&
@@ -331,7 +351,7 @@ try {
   delete got.cameras["/sr22t/overview Reset view after a drag"];
 
   if (!update) {
-    // the deep-linked system's parts are added first; the overview adds them later
+    // the deep-linked system's parts, and the walk-around station's, are added first; the overview adds them later
     const firstDone = async (route, key) => {
       await page.goto(base + route);
       await sceneComplete(page);
@@ -346,7 +366,15 @@ try {
       el < 0.6 && el < elOverview,
       `electrical parts first on /sr22t/electrical: ${el} of the parts (overview ${elOverview})`,
     );
-    console.log(`Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)})`);
+    const walk = await firstDone("/sr22t?walk=9", "station9"),
+      walkOverview = await firstDone("/sr22t/overview", "station9");
+    assert.ok(
+      walk < 0.25 && walk < walkOverview,
+      `station 9's parts first on ?walk=9: ${walk} (overview ${walkOverview})`,
+    );
+    console.log(
+      `Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)}), station 9 at ${walk.toFixed(2)} (overview ${walkOverview.toFixed(2)})`,
+    );
   }
 
   assert.deepEqual(errors, [], "No application runtime errors");
@@ -380,6 +408,93 @@ try {
       assert.ok(Math.abs(d - 2.6) < 0.01, `located the late part: camera ${d} m from it (2.6 m expected)`);
       console.log(`Tap to locate a part before it mounts: the camera flies to it once it does (${d.toFixed(3)} m)`);
       await ctx.close();
+    }
+
+    // the walk-around begun while the fuselage worker is still building (its answer held back): the item is framed without
+    // building the hull on the main thread (no long task), the card works, and once the worker answers the camera settles
+    // where it does when the hull was there from the start. Items 2a and 11a step back from the airplane (its outline).
+    const holdWorker = () => {
+      const W = window.Worker;
+      const held = [];
+      window.__holdWorker = true;
+      window.__releaseWorker = () => {
+        window.__holdWorker = false;
+        held.splice(0).forEach((deliver) => deliver());
+      };
+      window.Worker = class extends W {
+        set onmessage(f) {
+          super.onmessage = (e) => (window.__holdWorker ? held.push(() => f(e)) : f(e));
+        }
+        get onmessage() {
+          return super.onmessage;
+        }
+      };
+      window.__longTasks = [];
+      new PerformanceObserver((l) =>
+        window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration])),
+      ).observe({
+        type: "longtask",
+        buffered: true,
+      });
+    };
+    const beginWalk = async (station, hold) => {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+      await ctx.addInitScript(hookThree);
+      await ctx.route("**/_vercel/**", (route) => route.abort());
+      if (hold) await ctx.addInitScript(holdWorker);
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on("pageerror", (e) => errs.push(e.message));
+      await p.goto(base + `/sr22t?walk=${station}`);
+      if (!hold) await sceneComplete(p);
+      const begin = p.getByRole("button", { name: `Begin at station ${station}`, exact: true });
+      await begin.waitFor();
+      // from just before Begin: the framing runs while Begin is handled
+      const t0 = await p.evaluate(() => performance.now());
+      await begin.click();
+      const first = `${station}a`;
+      await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
+      let longest = null;
+      if (hold) {
+        // the card works meanwhile: forward a step and back
+        await p.getByRole("button", { name: "Next item" }).click();
+        await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent !== id, first);
+        await p.getByRole("button", { name: "Previous item" }).click();
+        await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
+        await p.waitForTimeout(1500);
+        assert.ok(
+          await p.locator("[data-building]").count(),
+          `?walk=${station}: still building while the worker is held`,
+        );
+        longest = await p.evaluate(
+          (t) => Math.max(0, ...window.__longTasks.filter(([s]) => s >= t).map(([, d]) => d)),
+          t0 - 50,
+        );
+        await p.evaluate(() => window.__releaseWorker());
+      }
+      await sceneComplete(p);
+      // a new station: the camera goes to the station, then to the item after the panel's 1.1 s settle (STATION_SETTLE_MS)
+      await p.waitForTimeout(1600);
+      const camera = await settledCamera(p);
+      assert.deepEqual(errs, [], "No application runtime errors");
+      await ctx.close();
+      return { camera, longest };
+    };
+    for (const station of [2, 11]) {
+      const held = await beginWalk(station, true),
+        onTime = await beginWalk(station, false);
+      assert.ok(
+        held.longest < 400,
+        `?walk=${station}: no main-thread hull build while the worker builds it (longest task ${held.longest} ms)`,
+      );
+      assert.deepEqual(
+        held.camera,
+        onTime.camera,
+        `?walk=${station}: ${station}a framed as when the hull was there from the start`,
+      );
+      console.log(
+        `?walk=${station} begun while the worker builds the hull: longest task ${Math.round(held.longest)} ms, camera ${held.camera}`,
+      );
     }
 
     // A newer system request supersedes a locate request for a part still being built.
