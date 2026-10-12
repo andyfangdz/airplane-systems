@@ -4,7 +4,7 @@ import type { FlowSpec } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { FW, PANEL_X, botY, onSkin, wingP } from "./geometry";
-import { fuelAvail, hornLevel, live, pcEngaged, type Elec, type Sim } from "./model";
+import { fuelAvail, hornLevel, live, type Elec, type Sim } from "./model";
 import { CYLS, PITOT_Z, SEL, STAT_X, pitotBase } from "./parts";
 import { FLAP_PUMP, SERVO } from "./rig";
 import { EQUIPMENT, OVERHEAD, headlinerPoint } from "./placement";
@@ -496,11 +496,11 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.vacPump = -vac;
   R.vacGyro = -vac;
   R.vacFilt = -vac;
-  const pc = pcEngaged(s);
-  R.pcRoll = pc && live.pcRoll < 0.02 ? -0.4 - Math.abs(live.pcRoll) : 0;
-  R.pcRollR = pc && live.pcRoll > -0.02 ? -0.4 - Math.abs(live.pcRoll) : 0;
-  R.pcYaw = pc ? -0.4 - Math.abs(live.pcYaw) : 0;
-  R.pcCut = s.pc.cutoff ? 1 : 0;
+  R.pcRoll = R.dPCServoL;
+  R.pcRollR = R.dPCServoR;
+  // This original route represents the paired rudder lines; the detailed left/right branches show their opposite directions.
+  R.pcYaw = Math.min(R.dPCYawL, R.dPCYawR);
+  R.pcCut = R.dPCCut;
   // hydraulics
   R.hydRes = live.pumpAnim > 0.2 ? 1 : 0;
   R.hydFlap = live.pumpAnim > 0.2 ? 1.5 : s.flaps.valve === "UP" && live.flapAng > 0 ? -0.6 : 0;

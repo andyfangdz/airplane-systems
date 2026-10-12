@@ -1,7 +1,13 @@
 /** Small skin-conformal selection regions for POH4-7–10 external inspection. */
+import { useView } from "@/lib/view";
+import { spotsAt } from "@/lib/spot";
 import * as THREE from "three";
 import { AF, onSkin, X, Y, Z } from "../geometry";
 import { part } from "./catalogue";
+/** Invisible during ordinary viewing; Part's locator policy can still reveal a focused region. */
+const onlySpotted = (name: string, side: number) => (mesh: { visible: boolean }) => {
+  mesh.visible = spotsAt(useView.getState().spot, name, side);
+};
 function patch(at: (u: number, v: number) => THREE.Vector3) {
   const a: number[] = [],
     ix: number[] = [];
@@ -23,6 +29,7 @@ for (const side of [-1, 1]) {
     ["airframe"],
     {
       name: "Wing tip",
+      anim: onlySpotted("Wing tip", side),
       note: "Narrow wing-tip inspection surface: POH4-7/4-10 requires lights and general condition. Skin region is a visual selection aid, not an added structural component.",
       pin: side > 0,
       ext: true,
@@ -35,6 +42,7 @@ for (const side of [-1, 1]) {
     ["airframe"],
     {
       name: "Wing leading edge",
+      anim: onlySpotted("Wing leading edge", side),
       note: "Narrow upper leading-edge inspection surface for condition checks (POH4-7/4-10). Each side is a separate selection mesh; no unsupported stall strip is added.",
       pin: side > 0,
       ext: true,
@@ -45,6 +53,7 @@ for (const side of [-1, 1]) {
 }
 part(() => patch((u, v) => onSkin(X(-15 + 10 * u), Y(54 + 7 * v), 1, 1.001)), ["airframe", "engine"], {
   name: "Cowling inspection region",
+  anim: onlySpotted("Cowling inspection region", 1),
   note: "Narrow right-upper cowling/oil-access inspection region (POH4-8). Conformal selection surface, not a second cowling or a service-door dimension claim.",
   pin: true,
   ext: true,

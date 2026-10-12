@@ -503,14 +503,7 @@ export function Model() {
   const system = useView((x) => x.sys);
   const walking = useView((x) => x.walking);
   const flows = useMemo(
-    () =>
-      FLOWS.filter((f) => {
-        if (walking) return true;
-        // Doorpost cabin-air runs obscure the whole-panel camera. Keep avionics
-        // cooling/data paths and all routing in the environment and overview views.
-        const unrelatedCabinAir = system === "avionics" && f.sys.includes("environment") && !f.sys.includes("avionics");
-        return !unrelatedCabinAir && !engineHidden(f, system, shown);
-      }),
+    () => FLOWS.filter((f) => walking || !engineHidden(f, system, shown)),
     [walking, system, shown],
   );
   return (

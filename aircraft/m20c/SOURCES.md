@@ -59,6 +59,10 @@ Useful direct 1968 pages: [charging options](https://www.manualslib.com/manual/1
   whole-tail articulation and the original browser regression flow are preserved. Fault responses (screen restriction,
   flap leakage, PC leak, high vacuum, magnetos, cooler obstruction, heater leak and protective alternator trip) are
   qualitative; no measured leak rate, CO concentration, regulator calibration or failure life is implied.
+- PC command particles show the opposing suction/atmospheric-vent outputs in Brittain 11968 § 2.2; neutral demand
+  has no differential movement. The display follows the model's qualitative roll/yaw demands, not separately
+  controlled physical gyro axes or calibrated airflow. Primary vacuum at the pneumatic relay remains independent
+  of cut-off or the study servo-line-leak fault; the relay's sequenced feed and command outputs stop when PC is disabled.
 - The wing's schematic buried root was moved inward to connect its physical skin to the narrowed curved lower
   fuselage. Tip/span and dimensioned wheel track/wheelbase remain unchanged. The equivalent fuel display envelope
   was recalibrated to **26 US gal per wing**; it is not a surveyed tank volume drawing.

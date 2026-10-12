@@ -505,7 +505,7 @@ for (const side of [-1, 1]) {
     ],
     ["autopilot", "vacuum"],
     "PC " + suffix + " rudder servo command",
-    "Four-servo roll/yaw installation; rudder servos in tail cone (MAN 106 § 6-9).",
+    "The same rate-gyro valve applies suction to one rudder servo and vents the opposing output; rudder servos sit in the tail cone (Brittain 11968 § 2.2; MAN 106 § 6-9).",
     vac,
   );
 }
@@ -684,6 +684,18 @@ export function depthRates(s: Sim, E: Elec): Record<string, number> {
       R[k] = fuelAvail(s) && (E.fuelPump || (live.rpm > 100 && !s.eng.fail.mechPump)) ? 0.5 : 0;
     else R[k] = E.bus > 0 ? 0.2 : 0;
   }
+  // Brittain 11968 § 2.2: the metering valve draws from one output while admitting atmospheric air to the other.
+  // Negative is servo → valve suction; positive is valve → servo vent admission. Neutral has no differential movement.
+  // Particle speed/deadband illustrate the live control demand, not calibrated pneumatic flow or independent gyro axes.
+  const servoRate = (demand: number, side: -1 | 1) =>
+    pc && Math.abs(demand) > 0.02 ? (Math.sign(demand) === side ? -1 : 1) * (0.4 + Math.abs(demand)) : 0;
+  R.dPCServoL = servoRate(live.pcRoll, -1);
+  R.dPCServoR = servoRate(live.pcRoll, 1);
+  R.dPCYawL = servoRate(live.pcYaw, -1);
+  R.dPCYawR = servoRate(live.pcYaw, 1);
+  // Primary suction reaches the pilot relay even when it cuts off sequenced vacuum or servo leakage disables PC.
+  R.dPCSupply = live.vac > 1 ? -0.4 : 0;
+  R.dPCCut = live.vac > 1 && s.pc.cutoff ? 0.4 : 0;
   // 180°F is an illustrative display crossover, not a specified 1968 bypass-valve calibration.
   R.dOilBypass = oilOn && (live.oilT < 180 || s.faults.oilCooler) ? 0.5 : 0;
   R.dOilCooler = R.dOilReturn = oilOn && !s.faults.oilCooler && live.oilT >= 180 ? 0.5 : 0;

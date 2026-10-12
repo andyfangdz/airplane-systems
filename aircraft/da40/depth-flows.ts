@@ -701,7 +701,8 @@ export function depthRates(s: Sim, E: Elec): Record<string, number> {
   r.doorDiscrete = E.gea ? 0.5 : 0;
   r.oatData = E.adc ? 0.5 : 0;
   for (const name of Object.keys(SERVO)) {
-    r[`servoData${name}`] = E.gia1 && E.gia2 && E.afcsPwr ? 0.5 : 0;
+    // Each data link needs its own GIA and powered servo receiver; overall AP availability is separate.
+    r[`servoData${name}`] = E.gia1 && E.afcsPwr ? 0.5 : 0;
     r[`servoPower${name}`] = E.afcsPwr ? 0.5 : 0;
     r[`servoData2${name}`] = E.gia2 && E.afcsPwr ? 0.5 : 0;
     r[`servoEnable${name}`] = E.afcsPwr ? 0.5 : 0;

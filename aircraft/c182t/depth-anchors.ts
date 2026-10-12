@@ -1,24 +1,25 @@
 /** Source locations use POH equipment arms; BL/height are schematic and stay within the model skin. */
 import type { Vec3 } from "@/lib/math";
 import { AF } from "./geometry";
+import { NAV3_BL } from "../cessna/faceplate";
 const { P3 } = AF;
 export const DEPTH = {
   jbox: P3(-2.5, -15, 43),
   cb: P3(17.3, -11, 46),
   stby: P3(10.8, -14, 50.5),
   controller: P3(16, -16, 54),
-  pfd: P3(17, -8.7, 61.4),
-  mfd: P3(17, 8.3, 61.4),
-  audio: P3(17, -0.2, 61.4),
+  pfd: P3(17, NAV3_BL.pfd, 61.4),
+  mfd: P3(17, NAV3_BL.mfd, 61.4),
+  audio: P3(17, NAV3_BL.gma, 61.4),
   gia1: P3(136, -4.5, 49.5),
   gia2: P3(136, 4.5, 49.5),
   ahrs: P3(140, 0, 43.5),
-  adc: P3(11.4, 8.3, 61.5),
+  adc: P3(11.4, NAV3_BL.mfd, 61.5),
   gea: P3(11.4, -3, 57),
   xpdr: P3(140, 5, 52.5),
-  gdl: P3(11.4, 8.3, 55),
-  pfdFan: P3(12.7, -8.7, 60),
-  mfdFan: P3(12.7, 8.3, 60),
+  gdl: P3(11.4, NAV3_BL.mfd, 55),
+  pfdFan: P3(12.7, NAV3_BL.pfd, 60),
+  mfdFan: P3(12.7, NAV3_BL.mfd, 60),
   deckFan: P3(12.7, -1, 63),
   aftFan: P3(125.5, 0, 55),
   masterL: P3(5.5, -17, 30.5),

@@ -228,4 +228,45 @@ describe("C172S source-bounded systems depth", () => {
       expect(R.exh1).toBe(0);
     },
   );
+  it("stops only GIA2 data links when NAV2 is pulled", () => {
+    const s = fresh();
+    s.elec.cb["AV2:NAV 2"] = true;
+    const E = solve(s),
+      R = flowRates(s, E);
+    expect(E.gia1).toBe(true);
+    expect(E.gia2).toBe(false);
+    for (const prefix of ["geaGia", "ahrsGia", "adcGia", "xpdrGia", "audioGia"]) {
+      expect(R[prefix + 1], prefix + "1").toBeGreaterThan(0);
+      expect(R[prefix + 2], prefix + "2").toBe(0);
+    }
+  });
+  it("retains healthy GIA2 instrumentation when only the GIA1 processing supply is lost", () => {
+    const s = fresh();
+    s.elec.cb["ESS:NAV 1 ENG"] = s.elec.cb["AV1:NAV 1 ENG"] = true;
+    const E = solve(s),
+      R = flowRates(s, E);
+    expect(E.gia1).toBe(false);
+    expect(E.gia2).toBe(true);
+    for (const prefix of ["ahrsGia", "adcGia", "xpdrGia", "audioGia"]) {
+      expect(R[prefix + 1], prefix + "1").toBe(0);
+      expect(R[prefix + 2], prefix + "2").toBeGreaterThan(0);
+    }
+    // The GEA shares the modeled NAV1 ENG supply; a healthy receiver cannot restore an unpowered source.
+    expect(R.geaGia1 + R.geaGia2).toBe(0);
+  });
+  it.each(["ahrs", "adc", "gea", "xpdr"] as const)(
+    "stops the failed %s source on both GIA links without stopping other sources",
+    (failed) => {
+      const s = fresh();
+      if (failed === "xpdr") s.elec.cb["AV2:XPNDR"] = true;
+      else s.avx[failed === "ahrs" ? "ahrsFail" : failed === "adc" ? "adcFail" : "geaFail"] = true;
+      const E = solve(s),
+        R = flowRates(s, E);
+      expect(E.gia1 && E.gia2).toBe(true);
+      for (const source of ["ahrs", "adc", "gea", "xpdr"]) {
+        const prefix = source === "gea" ? "geaGia" : source + "Gia";
+        for (const i of [1, 2]) expect(R[prefix + i] > 0, prefix + i).toBe(source !== failed);
+      }
+    },
+  );
 });

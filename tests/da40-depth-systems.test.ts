@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { FLOWS, flowRates, flowsFor } from "@/aircraft/da40/flows";
 import { scenarioRamp, useDA40 } from "@/aircraft/da40/store";
+import { gfc700Init } from "@/lib/avionics/gfc700";
+import { SERVO } from "@/aircraft/da40/rig";
 import { START_HOLD, simTick } from "@/aircraft/da40/tick";
 import { CYLS } from "@/aircraft/da40/parts/engine";
 import { CAT } from "@/aircraft/da40/parts";
@@ -247,6 +249,62 @@ describe("DA40 XLS source-specific plumbing and interfaces", () => {
     for (let i = 0; i < 12; i++) simTick(0.25);
     expect(useDA40.getState().s.eng.running).toBe(true);
     expect(live.fuelP).toBeGreaterThan(8);
+  });
+  it("keeps the GFC 700 protected servo feed and each normal GIA data link independent (SMM 2-7, AFMS 7-5)", () => {
+    const s = sim(),
+      E = solve(s),
+      r = flowRates(s, E);
+    expect(E.afcsPwr && E.gia1 && E.gia2).toBe(true);
+    for (const name of Object.keys(SERVO)) {
+      expect(r[`servoPower${name}`]).toBeGreaterThan(0);
+      expect(r[`servoEnable${name}`]).toBeGreaterThan(0);
+      expect(r[`servoData${name}`]).toBeGreaterThan(0);
+      expect(r[`servoData2${name}`]).toBeGreaterThan(0);
+    }
+  });
+  it.each([
+    ["GPS/NAV 1", 1],
+    ["GPS/NAV 2", 2],
+  ] as const)(
+    "pulling %s stops only that GIA data link while AP disconnects with live servo power",
+    (breaker, failed) => {
+      const s = sim({ cb: { [breaker]: true } }),
+        E = solve(s),
+        r = flowRates(s, E);
+      expect(E.afcsPwr).toBe(true);
+      expect(failed === 1 ? E.gia1 : E.gia2).toBe(false);
+      expect(failed === 1 ? E.gia2 : E.gia1).toBe(true);
+      for (const name of Object.keys(SERVO)) {
+        expect(r[`servoData${failed === 1 ? "" : "2"}${name}`]).toBe(0);
+        expect(r[`servoData${failed === 1 ? "2" : ""}${name}`]).toBeGreaterThan(0);
+        expect(r[`servoPower${name}`]).toBeGreaterThan(0);
+        expect(r[`servoEnable${name}`]).toBeGreaterThan(0);
+      }
+      useDA40.setState({ s, E });
+      live.afcs = { ...gfc700Init(), powered: true, pft: "pass", ap: true, fd: true };
+      live.afcsDerived = "";
+      simTick(0.25);
+      expect(live.afcs.ap).toBe(false);
+      expect(useDA40.getState().E.afcsPwr).toBe(true);
+      if (failed === 2) {
+        expect(live.afcs.fail.sys).toBe(true);
+        expect(live.afcs.fd).toBe(true);
+      } else expect(live.afcs.powered).toBe(false);
+    },
+  );
+  it("pulling AFCS removes servo receiver power and both GIA data paths while the GIAs stay powered", () => {
+    const s = sim({ cb: { AFCS: true } }),
+      E = solve(s),
+      r = flowRates(s, E);
+    expect(E.gia1 && E.gia2).toBe(true);
+    expect(E.afcsPwr).toBe(false);
+    for (const name of Object.keys(SERVO))
+      for (const prefix of ["servoData", "servoData2", "servoPower", "servoEnable"])
+        expect(r[`${prefix}${name}`]).toBe(0);
+    useDA40.setState({ s, E });
+    live.afcs = { ...gfc700Init(), powered: true, pft: "pass", ap: true, fd: true };
+    simTick(0.25);
+    expect(live.afcs.ap).toBe(false);
   });
   it("evaluates all rate helpers without undefined state access or nonfinite values", () => {
     for (const s of [

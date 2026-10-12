@@ -130,7 +130,7 @@ wire(
 wire("depthGia2Mfd", D.gia2, D.mfd, "GIA 2 ↔ MFD HSDB", "Ethernet high-speed display link (Garmin 1-2)");
 add(
   "depthDisplayBus",
-  [D.pfd, P3(14, -8.7, 62), P3(14, 8.3, 62), D.mfd],
+  [D.pfd, P3(14, D.pfd[2] / 0.0254, 62), P3(14, D.mfd[2] / 0.0254, 62), D.mfd],
   "PFD ↔ MFD HSDB",
   "Ethernet display-to-display link (Garmin 1-2)",
 );
@@ -190,7 +190,7 @@ add(
 const oat = P3(41.5, -4, 80.5);
 add(
   "depthOatAdc",
-  [oat, P3(41.5, -4, 77), P3(28, -12, 73), P3(14, 8.3, 60), D.adc],
+  [oat, P3(41.5, -15, 78), P3(29, -17, 74), P3(30, -18, 34), lane(30, -1), lane(20, -1), lane(11.4, -1), D.adc],
   "OAT → GDC 74A",
   "GTP 59 outside-air sensor independent of pitot/static pressure input (POH 7-67)",
   ["pitot", "avionics"],
@@ -241,7 +241,22 @@ for (const [n, gia] of [
     `VOR/GS antenna → NAV${n}`,
     "Fin-mounted navigation antenna RF feeds the GIA's VHF NAV receiver; endpoint is inside the antenna mounting region (POH 7-69; Garmin p. 1-7)",
   );
-wire("depthSpeaker", D.audio, P3(55, 0, 77), "GMA → cabin speaker", "Audio panel output (POH 7-66)");
+add(
+  "depthSpeaker",
+  [
+    D.audio,
+    P3(14.8, D.audio[2] / 0.0254, 45),
+    lane(14.8, -1),
+    lane(30, -1),
+    lane(55, -1),
+    P3(55, -18, 42),
+    P3(55, -18, 76.5),
+    P3(55, -12, 77),
+    P3(55, 0, 77),
+  ],
+  "GMA → cabin speaker",
+  "Audio panel output; run behind panel and under floor to the sidewall/headliner, clear of the instrument faces (POH 7-66)",
+);
 for (const [i, fs, bl] of [
   [1, 37, -16],
   [2, 37, 16],

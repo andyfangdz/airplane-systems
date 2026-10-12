@@ -283,6 +283,87 @@ describe("M20C detailed failure interactions", () => {
     expect(pcAvailable(useM20C.getState().s)).toBe(false);
     expect(live.eff.roll).toBeGreaterThan(0);
   });
+  it.each([
+    { bank: 8, slip: -0.4, rollSuction: "L", rollVent: "R", yawSuction: "R", yawVent: "L" },
+    { bank: -8, slip: 0.4, rollSuction: "R", rollVent: "L", yawSuction: "L", yawVent: "R" },
+  ])(
+    "routes opposing PC roll/yaw corrections for bank $bank and slip $slip (Brittain 11968 § 2.2)",
+    ({ bank, slip, rollSuction, rollVent, yawSuction, yawVent }) => {
+      live.fs.roll = bank;
+      live.fs.slip = slip;
+      simTick(0.5);
+      const { s, E } = useM20C.getState();
+      const rates = flowRates(s, E);
+      expect(rates["dPCServo" + rollSuction]).toBeLessThan(0);
+      expect(rates["dPCServo" + rollVent]).toBeGreaterThan(0);
+      expect(rates["dPCYaw" + yawSuction]).toBeLessThan(0);
+      expect(rates["dPCYaw" + yawVent]).toBeGreaterThan(0);
+      expect(rates.pcRoll).toBe(rates.dPCServoL);
+      expect(rates.pcRollR).toBe(rates.dPCServoR);
+      expect(rates.pcYaw).toBeLessThan(0);
+    },
+  );
+  it("balances PC output pairs at neutral while primary and sequenced vacuum remain available", () => {
+    live.fs.roll = 0;
+    live.fs.slip = 0;
+    simTick(0.5);
+    const { s, E } = useM20C.getState();
+    const rates = flowRates(s, E);
+    for (const key of ["dPCServoL", "dPCServoR", "dPCYawL", "dPCYawR", "pcRoll", "pcRollR", "pcYaw"])
+      expect(rates[key]).toBe(0);
+    expect(rates.dPCSupply).toBeLessThan(0);
+    expect(rates.dPCRate).toBeLessThan(0);
+    expect(rates.dPCCut).toBe(0);
+  });
+  it("keeps zero yaw demand balanced while correcting roll, and zero roll demand balanced while correcting yaw", () => {
+    live.fs.roll = 8;
+    live.fs.slip = 0;
+    simTick(0.5);
+    let { s, E } = useM20C.getState();
+    let rates = flowRates(s, E);
+    expect(rates.dPCServoL).toBeLessThan(0);
+    expect(rates.dPCYawL).toBe(0);
+    expect(rates.dPCYawR).toBe(0);
+    live.fs.roll = 0;
+    live.fs.slip = 0.4;
+    simTick(0.5);
+    ({ s, E } = useM20C.getState());
+    rates = flowRates(s, E);
+    expect(rates.dPCServoL).toBe(0);
+    expect(rates.dPCServoR).toBe(0);
+    expect(rates.dPCYawL).toBeLessThan(0);
+  });
+  it.each(["cutoff", "servo-line leak"])(
+    "stops all PC command branches on %s while preserving common vacuum",
+    (failure) => {
+      live.fs.roll = 8;
+      live.fs.slip = -0.4;
+      simTick(0.5);
+      update((d) => {
+        if (failure === "cutoff") d.pc.cutoff = true;
+        else d.faults.pcLeak = true;
+      });
+      const { s, E } = useM20C.getState();
+      expect(Math.abs(live.pcRoll)).toBeGreaterThan(0.02);
+      expect(Math.abs(live.pcYaw)).toBeGreaterThan(0.02);
+      const rates = flowRates(s, E);
+      for (const key of ["dPCServoL", "dPCServoR", "dPCYawL", "dPCYawR", "dPCRate", "pcRoll", "pcRollR", "pcYaw"])
+        expect(rates[key]).toBe(0);
+      expect(rates.dPCSupply).toBeLessThan(0);
+      expect(rates.vacGyro).toBeLessThan(0);
+      expect(rates.dPCCut > 0).toBe(failure === "cutoff");
+    },
+  );
+  it("stops PC command and supply animation without vacuum despite stale control demand", () => {
+    live.fs.roll = 8;
+    live.fs.slip = -0.4;
+    simTick(0.5);
+    live.vac = 0;
+    const { s, E } = useM20C.getState();
+    const rates = flowRates(s, E);
+    for (const key of ["dPCServoL", "dPCServoR", "dPCYawL", "dPCYawR", "dPCSupply", "dPCRate", "dPCCut"])
+      expect(rates[key]).toBe(0);
+  });
   it("opens the alternator study fault's protective relay, leaving battery power and manual gear", () => {
     update((d) => {
       d.faults.overvoltage = true;

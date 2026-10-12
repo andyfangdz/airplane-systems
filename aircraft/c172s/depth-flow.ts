@@ -268,18 +268,18 @@ for (const [id, from, ok] of [
   ["ahrs", D.ahrs, "ahrs"],
   ["adc", D.adc, "adc"],
 ] as const)
-  for (const [to, target] of [
-    ["Pfd", D.pfd],
-    ["Mfd", D.mfd],
-    ["Gia1", D.gia1],
-    ["Gia2", D.gia2],
+  for (const [to, target, receiver] of [
+    ["Pfd", D.pfd, "pfd"],
+    ["Mfd", D.mfd, "mfd"],
+    ["Gia1", D.gia1, "gia1"],
+    ["Gia2", D.gia2, "gia2"],
   ] as const)
     data(
       id + to,
       from,
       target,
       id.toUpperCase() + " →" + to + " ARINC 429",
-      bool(ok),
+      (_s, E) => (E[ok] && E[receiver] ? 1 : 0),
       garmin + "primary/secondary instrumentation paths to displays and GIAs.",
     );
 data(
@@ -296,7 +296,7 @@ for (const i of [1, 2]) {
     D.gea,
     i === 1 ? D.gia1 : D.gia2,
     "GEA 71 →GIA" + i + " RS-485",
-    bool("engineData"),
+    (_s, E) => (E.engineData && (i === 1 ? E.gia1 : E.gia2) ? 1 : 0),
     garmin +
       "processed sensor data sent to both IAUs; sensors and displays can fail independently from engine operation.",
   );
@@ -313,7 +313,7 @@ for (const i of [1, 2]) {
     D.xpdr,
     i === 1 ? D.gia1 : D.gia2,
     "GTX 33 ↔GIA" + i + " RS-232",
-    bool("xpdr"),
+    (_s, E) => (E.xpdr && (i === 1 ? E.gia1 : E.gia2) ? 1 : 0),
     garmin + "transponder data/control via GIAs.",
   );
 }
