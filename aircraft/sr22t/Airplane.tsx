@@ -48,6 +48,7 @@ import { surfDeflection } from "./rig";
 import { useSR22T } from "./store";
 import { useEngineGroups } from "./engine-group-store";
 import { fuselageInWorker, isFuselage } from "./fuselage-geo";
+import { walkFirst } from "./walk-store";
 import { engineHidden } from "./engine-groups";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
@@ -343,10 +344,23 @@ export function Model({ overlays = true }: { overlays?: boolean } = {}) {
 const heldBack = (p: PartSpec) =>
   (globalThis as { __buildHold?: string[] }).__buildHold?.includes(p.name ?? "") ?? false;
 
-/** The parts the view needs first: the shown system's (a deep link), then the labelled ones. */
+/**
+ * Names of the parts the view needs first: the walk-around item's (its spot) or, before the walk starts, its station's;
+ * then the shown system's parts (a deep link) and the labelled ones.
+ */
 function priority() {
   const { sys } = useView.getState();
-  return (p: PartSpec) => (heldBack(p) ? 3 : sys !== "overview" && p.sys.includes(sys) ? 0 : p.pin ? 1 : 2);
+  const walkNames = walkFirst();
+  return (p: PartSpec) =>
+    heldBack(p)
+      ? 4
+      : p.name && walkNames.has(p.name)
+        ? 0
+        : sys !== "overview" && p.sys.includes(sys)
+          ? 1
+          : p.pin
+            ? 2
+            : 3;
 }
 
 /** Work per slice of the systems build (building parts and React mounting them), ms: one slice runs between two frames. */

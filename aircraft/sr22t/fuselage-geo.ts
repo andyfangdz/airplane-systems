@@ -1,5 +1,6 @@
 /** The SR22T fuselage skin built in a Web Worker (fuselage.worker.ts), so the main thread stays free while it is built. */
 import * as THREE from "three";
+import { create } from "zustand";
 import { primeGeo } from "@/lib/catalogue";
 import { fuselageGeo } from "./geometry";
 import { CAT } from "./parts";
@@ -23,9 +24,19 @@ export function fuselageInWorker(): Promise<THREE.BufferGeometry | null> {
   // its result becomes the shell's geometry the moment it arrives, so nothing builds the hull again meanwhile
   return (pending ??= buildInWorker().then((g) => {
     if (g) primeGeo(HULL, g);
+    useFuselage.setState({ settled: true });
     return g;
   }));
 }
+
+/** Whether the page's worker build of the fuselage has finished (its geometry primed) or given up. */
+export const useFuselage = create<{ settled: boolean }>(() => ({ settled: false }));
+
+/**
+ * Is the worker still building the fuselage? Until it settles, asking for the hull's geometry would build it a second time,
+ * on the main thread: callers that can wait (the walk-around's clearance framing) do, and re-run on `useFuselage`.
+ */
+export const hullPending = () => pending !== null && !useFuselage.getState().settled;
 
 /** One worker build of the fuselage (fuselageInWorker shares one per page). */
 export function buildInWorker(): Promise<THREE.BufferGeometry | null> {

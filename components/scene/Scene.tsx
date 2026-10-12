@@ -21,6 +21,9 @@ import { PinDeclutter, pinPolicy } from "./PinDeclutter";
  * Camera views are framed for the desktop viewport (about 0.9 wide per unit height). On narrower or portrait
  * viewports, back the camera off along its line of sight so the same system stays in frame.
  */
+/** How far (m, squared) the camera or its target must go from where a press found them to count as moved. */
+const MOVED = 1e-6;
+
 /** Animates the camera to the latest requested view; any user drag cancels the flight. */
 function CameraRig() {
   const cam = useView((x) => x.cam);
@@ -34,6 +37,8 @@ function CameraRig() {
     tt: THREE.Vector3;
     t0: number;
   } | null>(null);
+  /** Camera and target at the user's last press (re-noted after a viewport fit), until the camera moves or is moved. */
+  const press = useRef<{ p: THREE.Vector3; t: THREE.Vector3 } | null>(null);
 
   const fit = fitDist(size.width / size.height);
   const previousFit = useRef(1);
@@ -42,16 +47,27 @@ function CameraRig() {
     if (!controls) return;
     const ratio = fit / previousFit.current;
     previousFit.current = fit;
-    camera.position.sub(controls.target).multiplyScalar(ratio).add(controls.target);
+    camera.position
+      .sub(controls.target)
+      .multiplyScalar(ratio)
+      .clampLength(controls.minDistance, controls.maxDistance)
+      .add(controls.target);
     const f = flight.current;
     if (f) {
       f.fp.sub(f.ft).multiplyScalar(ratio).add(f.ft);
       f.tp.sub(f.tt).multiplyScalar(ratio).add(f.tt);
     }
+    // the fit's own motion isn't the user's; a press still held is measured from here on
+    const held = press.current;
+    if (held) {
+      held.p.copy(camera.position);
+      held.t.copy(controls.target);
+    }
   }, [controls, camera, fit]);
 
   useEffect(() => {
     if (!cam || !controls) return;
+    press.current = null;
     // drop any momentum left from a drag (damping would keep turning the camera after the jump or flight);
     // an update with damping off zeroes it, then the camera is put back where it was
     const p0 = camera.position.clone(),
@@ -82,12 +98,25 @@ function CameraRig() {
 
   useEffect(() => {
     if (!controls) return;
-    const cancel = () => {
+    // a press stops a flight; it counts as a camera move only once the camera moves (a tap just shows a part's note)
+    const start = () => {
       flight.current = null;
+      press.current = { p: camera.position.clone(), t: controls.target.clone() };
     };
-    controls.addEventListener("start", cancel);
-    return () => controls.removeEventListener("start", cancel);
-  }, [controls]);
+    const change = () => {
+      const was = press.current;
+      if (!was) return;
+      if (camera.position.distanceToSquared(was.p) < MOVED && controls.target.distanceToSquared(was.t) < MOVED) return;
+      press.current = null;
+      view.moves++;
+    };
+    controls.addEventListener("start", start);
+    controls.addEventListener("change", change);
+    return () => {
+      controls.removeEventListener("start", start);
+      controls.removeEventListener("change", change);
+    };
+  }, [controls, camera]);
 
   useFrame(() => {
     const f = flight.current;

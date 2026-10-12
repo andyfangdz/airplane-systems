@@ -6,8 +6,10 @@
  * (the last bit of trig differs between runtimes; tests/scene-snapshot.test.ts measures it and checks each part to the
  * micrometre). Objects an animation moves are left out and counted. The camera framing must equal a1d3cdf0's too: the
  * SR22T overview, a system view and Reset view after a drag. Each load shows the loader, then a frame with every skin
- * shell, then no loader. The SR22T builds progressively: the deep-linked system's parts come first; a part that mounts
- * late is still found by "tap to locate"; a browser that refuses the fuselage worker builds the same scene; no build-in
+ * shell, then no loader. The SR22T builds progressively: the deep-linked system's and the walk-around station's parts come
+ * first; a part that mounts late is still found by "tap to locate"; a walk-around begun while the fuselage worker still
+ * builds doesn't build the hull on the main thread and frames its first item as when the hull was there, but keeps a
+ * camera move the user made meanwhile; a browser that refuses the fuselage worker builds the same scene; no build-in
  * glow under prefers-reduced-motion. Run after npm run build (it starts next start), or pass an existing server URL.
  * `--update` rewrites the baseline (scripts/test-load-ui.baseline.json): only on main before this change, or for an
  * intended model change.
@@ -54,6 +56,58 @@ async function startServer() {
 function hookThree() {
   // the load's timeline: when the loader was first and last seen, and each frame's count of drawn skin shells
   const marks = (window.__marks = { loaderSeen: null, loaderGone: null, frames: 0, shells: [], parts: [] });
+  // station 9's walk-around items' parts (aircraft/sr22t/walkaround.ts)
+  const STATION9 = new Set([
+    "Tow bar",
+    "Landing light (HID, lower cowl)",
+    "Nose gear strut",
+    "Nose oleo cylinder",
+    "Nose strut fairing",
+    "Nose wheel pant",
+    "Nose wheel",
+    "Propeller blade",
+    "Spinner",
+    "Front cowl fastener",
+    "Cowl inlet — cooling",
+    "NACA induction duct",
+    "ALT 1 — 100 A",
+    "ALT 2 — 70 A",
+  ]);
+  // station 1's items' parts with FIKI fitted (the default): walkSteps gives 1o/1p the lift transducer, not the inlet
+  const STATION1 = new Set([
+    "Required documents",
+    "AVIONICS switch",
+    "BAT 2 switch",
+    "PFD bezel",
+    "Essential Distribution Bus",
+    "Flap position light",
+    "BAT 1 switch",
+    "PFD cooling fan",
+    "MFD cooling fan",
+    "Avionics (IAU) cooling fan",
+    "Oxygen outlet 1",
+    "Oxygen outlet 2",
+    "Oxygen masks and cannulas",
+    "MFD bezel",
+    "Fuel selector valve",
+    "FLAPS switch",
+    "Right flap",
+    "Left flap",
+    "NAV switch",
+    "STROBE switch",
+    "LAND switch",
+    "Stall warning lift transducer",
+    "Oxygen system control panel",
+    "PITOT HEAT switch",
+    "Heated pitot tube",
+    "Alternate static knob",
+    "Circuit breaker panel",
+    "Fire extinguisher",
+    "Armrest: egress hammer & hour meters",
+    "CAPS activation T-handle",
+    "CAPS activation handle cover",
+    "CAPS handle safety pin",
+  ]);
   new MutationObserver(() => {
     const shown = !!document.querySelector(".loader");
     if (shown) marks.loaderSeen ??= performance.now();
@@ -74,10 +128,13 @@ function hookThree() {
           if (o.isMesh && o.userData.pick?.shell && o.userData.pick.sys.every((s) => s === "airframe")) n++;
         });
         if (n !== marks.shells.at(-1)?.n) marks.shells.push({ t: performance.now(), n });
-        // parts mounted so far: all and electrical; and how many glow (a highlight material: emissive >= 0.4 × colour)
+        // parts mounted so far: all, electrical, station 9's, station 1's; and how many glow (a highlight material:
+        // emissive >= 0.4 × colour)
         const c = {
           total: 0,
           electrical: 0,
+          station9: 0,
+          station1: 0,
           glow: 0,
           building: !!document.querySelector("[data-building]"),
         };
@@ -88,6 +145,8 @@ function hookThree() {
           c.total++;
           const pick = o.userData.pick;
           if (pick?.sys.includes("electrical")) c.electrical++;
+          if (STATION9.has(pick?.name)) c.station9++;
+          if (STATION1.has(pick?.name)) c.station1++;
           const m = o.material;
           if (
             m.isMeshStandardMaterial &&
@@ -334,7 +393,7 @@ try {
   delete got.cameras["/sr22t/overview Reset view after a drag"];
 
   if (!update) {
-    // the deep-linked system's parts are added first; the overview adds them later
+    // the deep-linked system's parts, and the walk-around station's, are added first; the overview adds them later
     const firstDone = async (route, key) => {
       await page.goto(base + route);
       await sceneComplete(page);
@@ -349,7 +408,22 @@ try {
       el < 0.6 && el < elOverview,
       `electrical parts first on /sr22t/electrical: ${el} of the parts (overview ${elOverview})`,
     );
-    console.log(`Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)})`);
+    const walk = await firstDone("/sr22t?walk=9", "station9"),
+      walkOverview = await firstDone("/sr22t/overview", "station9");
+    assert.ok(
+      walk < 0.25 && walk < walkOverview,
+      `station 9's parts first on ?walk=9: ${walk} (overview ${walkOverview})`,
+    );
+    // station 1 with FIKI fitted: its items' configured parts, the lift transducer included
+    const walk1 = await firstDone("/sr22t?walk=1", "station1"),
+      walk1Overview = await firstDone("/sr22t/overview", "station1");
+    assert.ok(
+      walk1 < 0.25 && walk1 < walk1Overview,
+      `station 1's configured parts first on ?walk=1: ${walk1} (overview ${walk1Overview})`,
+    );
+    console.log(
+      `Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)}), station 9 at ${walk.toFixed(2)} (overview ${walkOverview.toFixed(2)}), station 1 at ${walk1.toFixed(2)} (overview ${walk1Overview.toFixed(2)})`,
+    );
   }
 
   assert.deepEqual(errors, [], "No application runtime errors");
@@ -382,6 +456,228 @@ try {
       });
       assert.ok(Math.abs(d - 2.6) < 0.01, `located the late part: camera ${d} m from it (2.6 m expected)`);
       console.log(`Tap to locate a part before it mounts: the camera flies to it once it does (${d.toFixed(3)} m)`);
+      await ctx.close();
+    }
+
+    // the walk-around begun while the fuselage worker is still building (its answer held back): the item is framed without
+    // building the hull on the main thread (no long task), the card works, and once the worker answers the camera settles
+    // where it does when the hull was there from the start. Items 2a and 11a step back from the airplane (its outline).
+    const holdWorker = () => {
+      const W = window.Worker;
+      const held = [];
+      window.__holdWorker = true;
+      window.__releaseWorker = () => {
+        window.__holdWorker = false;
+        held.splice(0).forEach((deliver) => deliver());
+      };
+      window.Worker = class extends W {
+        set onmessage(f) {
+          super.onmessage = (e) => (window.__holdWorker ? held.push(() => f(e)) : f(e));
+        }
+        get onmessage() {
+          return super.onmessage;
+        }
+      };
+      window.__longTasks = [];
+      new PerformanceObserver((l) =>
+        window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration])),
+      ).observe({
+        type: "longtask",
+        buffered: true,
+      });
+    };
+    const beginWalk = async (station, hold) => {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+      await ctx.addInitScript(hookThree);
+      await ctx.route("**/_vercel/**", (route) => route.abort());
+      if (hold) await ctx.addInitScript(holdWorker);
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on("pageerror", (e) => errs.push(e.message));
+      await p.goto(base + `/sr22t?walk=${station}`);
+      if (!hold) await sceneComplete(p);
+      const begin = p.getByRole("button", { name: `Begin at station ${station}`, exact: true });
+      await begin.waitFor();
+      // from just before Begin: the framing runs while Begin is handled
+      const t0 = await p.evaluate(() => performance.now());
+      await begin.click();
+      const first = `${station}a`;
+      await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
+      let longest = null;
+      if (hold) {
+        // the card works meanwhile: forward a step and back
+        await p.getByRole("button", { name: "Next item" }).click();
+        await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent !== id, first);
+        await p.getByRole("button", { name: "Previous item" }).click();
+        await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
+        await p.waitForTimeout(1500);
+        assert.ok(
+          await p.locator("[data-building]").count(),
+          `?walk=${station}: still building while the worker is held`,
+        );
+        longest = await p.evaluate(
+          (t) => Math.max(0, ...window.__longTasks.filter(([s]) => s >= t).map(([, d]) => d)),
+          t0 - 50,
+        );
+        await p.evaluate(() => window.__releaseWorker());
+      }
+      await sceneComplete(p);
+      // a new station: the camera goes to the station, then to the item after the panel's 1.1 s settle (STATION_SETTLE_MS)
+      await p.waitForTimeout(1600);
+      const camera = await settledCamera(p);
+      assert.deepEqual(errs, [], "No application runtime errors");
+      await ctx.close();
+      return { camera, longest };
+    };
+    const framed = {};
+    for (const station of [2, 11]) {
+      const held = await beginWalk(station, true),
+        onTime = await beginWalk(station, false);
+      framed[station] = onTime.camera;
+      assert.ok(
+        held.longest < 400,
+        `?walk=${station}: no main-thread hull build while the worker builds it (longest task ${held.longest} ms)`,
+      );
+      assert.deepEqual(
+        held.camera,
+        onTime.camera,
+        `?walk=${station}: ${station}a framed as when the hull was there from the start`,
+      );
+      console.log(
+        `?walk=${station} begun while the worker builds the hull: longest task ${Math.round(held.longest)} ms, camera ${held.camera}`,
+      );
+    }
+
+    // a camera move the user makes while the worker still builds the fuselage is kept when it answers: on the intro screen,
+    // and on an item (2a) shown from its station while it waited for the hull, also when the viewport is resized during
+    // the press. A tap there moves nothing, so 2a is still framed when the worker answers (and a tap on a part still
+    // shows its note); nor does a taller viewport during a tap that stops a flight in from the zoom limit
+    for (const where of ["intro", "2a", "2a resize", "2a tap", "2a clamp"]) {
+      const tap = where === "2a tap",
+        resize = where === "2a resize",
+        clamp = where === "2a clamp";
+      // the clamp case taps during a camera flight, so it needs the flights (reduced motion jumps the camera)
+      const ctx = await browser.newContext({
+        viewport: { width: 1440, height: 900 },
+        reducedMotion: clamp ? "no-preference" : "reduce",
+      });
+      await ctx.addInitScript(hookThree);
+      await ctx.route("**/_vercel/**", (route) => route.abort());
+      await ctx.addInitScript(holdWorker);
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on("pageerror", (e) => errs.push(e.message));
+      await p.goto(base + "/sr22t?walk=2");
+      const begin = p.getByRole("button", { name: "Begin at station 2", exact: true });
+      await begin.waitFor();
+      if (where !== "intro") {
+        await begin.click();
+        await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent === "2a");
+        await p.waitForTimeout(1600); // the station, then the item after the panel's settle (STATION_SETTLE_MS)
+      }
+      const still = await settledCamera(p);
+      const box = await p.locator("canvas").boundingBox();
+      await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      let moved;
+      if (clamp) {
+        // zoom out until the camera stops: the controls' 70 m limit (a user move, so 2a's wait is over)
+        for (let i = 0, last = still; ; i++) {
+          assert.ok(i < 30, `${where}: the zoom never reached its limit`);
+          for (let k = 0; k < 10; k++) await p.mouse.wheel(0, 100);
+          const now = await settledCamera(p);
+          if (!cameraDiff(now, last)) break;
+          last = now;
+        }
+        // a wheel step scales the distance by 0.95 (three-stdlib's zoom scale): one step in from the limit is 5% of it
+        await p.mouse.wheel(0, -100);
+        const nearer = await settledCamera(p);
+        await p.mouse.wheel(0, 100);
+        const out = await settledCamera(p);
+        const dist = Math.hypot(...[0, 1, 2].map((i) => out[i] - nearer[i])) / 0.05;
+        assert.ok(Math.abs(dist - 70) < 0.1, `${where}: zoomed out to the 70 m limit: ${dist} m`);
+        // another item and back: 2a waits for the hull again, from a 1 s flight to the station that starts at 70 m
+        await p.getByRole("button", { name: "Next item" }).click();
+        await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent !== "2a");
+        const stepped = Date.now();
+        await p.getByRole("button", { name: "Previous item" }).click();
+        await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent === "2a");
+        // a tap early in the flight stops it still far out, and a taller viewport during the press backs the camera off
+        // past the limit: the fit keeps it at the limit, so the controls don't move it again as if the user had
+        await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await p.mouse.down();
+        const late = Date.now() - stepped;
+        assert.ok(
+          late < 300,
+          `${where}: the press stops the flight within 300 ms (took ${late} ms; rerun on a quieter machine)`,
+        );
+        console.log(`?walk=2 2a: zoomed out to ${dist.toFixed(2)} m, pressed ${late} ms after stepping back to 2a`);
+        await p.setViewportSize({ width: 1440, height: 1800 });
+        await settledCamera(p);
+        await p.mouse.up();
+        // back to the viewport 2a's on-time framing was taken at
+        await p.setViewportSize({ width: 1440, height: 900 });
+        moved = await settledCamera(p);
+      } else {
+        await p.mouse.down();
+        if (resize) {
+          // a taller viewport while the button is held: the app backs the camera off to fit, then the drag goes on
+          await p.setViewportSize({ width: 1440, height: 1800 });
+          assert.ok(cameraDiff(await settledCamera(p), still), `${where}: the viewport fit moved the camera`);
+        }
+        if (!tap) await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
+        await p.mouse.up();
+        moved = await settledCamera(p);
+        if (tap) assert.ok(!cameraDiff(moved, still), `${where}: a tap leaves the camera: ${moved} vs ${still}`);
+      }
+      assert.ok(await p.locator("[data-building]").count(), `${where}: still building while the worker is held`);
+      await p.evaluate(() => window.__releaseWorker());
+      await sceneComplete(p);
+      await p.waitForTimeout(1600);
+      const after = await settledCamera(p);
+      if (clamp)
+        assert.deepEqual(
+          after,
+          framed[2],
+          `${where}: 2a framed as when the hull was there from the start, after a tap and a resize at the zoom limit`,
+        );
+      else if (tap) {
+        assert.deepEqual(
+          after,
+          framed[2],
+          `${where}: 2a framed as when the hull was there from the start, after a tap`,
+        );
+        // and a tap on a part (the small one nearest mid-canvas, so its middle is on it) still shows its note
+        const [x, y] = await p.evaluate(() => {
+          const cam = window.__three.camera;
+          let best = null;
+          window.__three.scenes
+            .find((s) => s.children.length)
+            .traverse((o) => {
+              if (!o.isMesh || !o.userData.pick || !("shell" in o.userData.pick) || o.userData.pick.shell) return;
+              o.geometry.computeBoundingSphere();
+              const { center, radius } = o.geometry.boundingSphere;
+              const v = o.localToWorld(center.clone()).project(cam),
+                off = Math.hypot(v.x, v.y);
+              if (radius > 0.01 && radius < 0.2 && Math.abs(v.z) < 1 && (!best || off < best.off)) best = { off, v };
+            });
+          return [(best.v.x + 1) / 2, (1 - best.v.y) / 2];
+        });
+        await p.mouse.click(box.x + box.width * x, box.y + box.height * y);
+        await p.locator(".tip").waitFor();
+        assert.ok(!cameraDiff(await settledCamera(p), after), `${where}: a tap on a part leaves the camera`);
+      } else
+        assert.ok(
+          !cameraDiff(after, moved),
+          `${where}: the user's camera kept when the hull arrives: ${after} vs ${moved}`,
+        );
+      assert.deepEqual(errs, [], "No application runtime errors");
+      console.log(
+        clamp
+          ? "?walk=2 2a: a tap and a taller viewport at the zoom limit during the build still let 2a be framed when the worker's hull arrives"
+          : tap
+            ? "?walk=2 2a: a tap during the build still lets 2a be framed when the worker's hull arrives; a tap on a part shows its note"
+            : `?walk=2 ${where}: a camera drag during the build${resize ? " (resized mid-press)" : ""} is kept when the worker's hull arrives`,
+      );
       await ctx.close();
     }
 

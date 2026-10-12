@@ -33,7 +33,12 @@ export function registerPart(name: string, mesh: THREE.Mesh, pinned: boolean) {
     pick();
   };
 }
-export const view: { camera: THREE.Camera | null; target: THREE.Vector3 | null } = { camera: null, target: null };
+/** The scene's camera and orbit target, and how many times the user has moved the camera (not a mere tap). */
+export const view: { camera: THREE.Camera | null; target: THREE.Vector3 | null; moves: number } = {
+  camera: null,
+  target: null,
+  moves: 0,
+};
 
 /** A part "tap to locate" asked for that is not mounted yet: focused as soon as it is. */
 let waiting: string | null = null;

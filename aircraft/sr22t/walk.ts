@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { specGeo } from "@/lib/catalogue";
 import { toVec3, V } from "@/lib/math";
 import { partCentre, partSide, type Side } from "@/lib/spot";
+import { hullPending } from "./fuselage-geo";
 import { doorHinge } from "./geometry";
 import { FLAP_DEG, initialSim, type Sim } from "./model";
 import { CAT, NOSE_CASTER, NOSE_GEAR, PROP } from "./parts";
@@ -187,9 +188,15 @@ export function underAirplane(p: THREE.Vector3) {
  * Camera for an item: the eye stays at the station's standing height (crouched for the items marked `crouch`, the
  * underside drains, vents and gascolator) and walks along the ground from the station towards the item's parts, to
  * FRAME_DIST from them but never over or under the airplane, then looks at them. An item with its own `eye` (the
- * technique items) is seen from there. Items without modelled parts keep the station view.
+ * technique items) is seen from there. Items without modelled parts keep the station view. While the page's worker still
+ * builds the fuselage skin an item that needs the clearance outline keeps the station view too (see framePose).
  */
 export function stepPose(step: Step): CameraPose {
+  return framePose(step) ?? step.station.cam;
+}
+
+/** stepPose, or null while the item's clearance framing waits for the page's worker to finish the fuselage skin. */
+export function framePose(step: Step): CameraPose | null {
   const c = stepCentroid(step),
     { p } = step.station.cam;
   if (!c) return step.station.cam;
@@ -198,8 +205,12 @@ export function stepPose(step: Step): CameraPose {
   const away = V(p[0] - c.x, 0, p[2] - c.z),
     d = away.length();
   away.normalize();
+  const r0 = Math.min(Math.max(d, FRAME_DIST[0]), FRAME_DIST[1]);
+  // the clearance outline needs the fuselage skin: while the page's worker still builds it, wait rather than build it
+  // again here (walk-frame.ts frames the item once it is in)
+  if (r0 < d && !outline && hullPending()) return null;
   // from the framing distance back towards the station (which is clear of the airplane) until clear
-  for (let r = Math.min(Math.max(d, FRAME_DIST[0]), FRAME_DIST[1]); r < d; r += BACK_STEP_M) {
+  for (let r = r0; r < d; r += BACK_STEP_M) {
     const at = V(c.x + away.x * r, y, c.z + away.z * r);
     if (!underAirplane(at)) return { p: toVec3(at), t: toVec3(c) };
   }
