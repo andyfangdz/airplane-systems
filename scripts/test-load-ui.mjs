@@ -73,6 +73,41 @@ function hookThree() {
     "ALT 1 — 100 A",
     "ALT 2 — 70 A",
   ]);
+  // station 1's items' parts with FIKI fitted (the default): walkSteps gives 1o/1p the lift transducer, not the inlet
+  const STATION1 = new Set([
+    "Required documents",
+    "AVIONICS switch",
+    "BAT 2 switch",
+    "PFD bezel",
+    "Essential Distribution Bus",
+    "Flap position light",
+    "BAT 1 switch",
+    "PFD cooling fan",
+    "MFD cooling fan",
+    "Avionics (IAU) cooling fan",
+    "Oxygen outlet 1",
+    "Oxygen outlet 2",
+    "Oxygen masks and cannulas",
+    "MFD bezel",
+    "Fuel selector valve",
+    "FLAPS switch",
+    "Right flap",
+    "Left flap",
+    "NAV switch",
+    "STROBE switch",
+    "LAND switch",
+    "Stall warning lift transducer",
+    "Oxygen system control panel",
+    "PITOT HEAT switch",
+    "Heated pitot tube",
+    "Alternate static knob",
+    "Circuit breaker panel",
+    "Fire extinguisher",
+    "Armrest: egress hammer & hour meters",
+    "CAPS activation T-handle",
+    "CAPS activation handle cover",
+    "CAPS handle safety pin",
+  ]);
   new MutationObserver(() => {
     const shown = !!document.querySelector(".loader");
     if (shown) marks.loaderSeen ??= performance.now();
@@ -93,11 +128,13 @@ function hookThree() {
           if (o.isMesh && o.userData.pick?.shell && o.userData.pick.sys.every((s) => s === "airframe")) n++;
         });
         if (n !== marks.shells.at(-1)?.n) marks.shells.push({ t: performance.now(), n });
-        // parts mounted so far: all, electrical, station 9's; and how many glow (a highlight material: emissive >= 0.4 × colour)
+        // parts mounted so far: all, electrical, station 9's, station 1's; and how many glow (a highlight material:
+        // emissive >= 0.4 × colour)
         const c = {
           total: 0,
           electrical: 0,
           station9: 0,
+          station1: 0,
           glow: 0,
           building: !!document.querySelector("[data-building]"),
         };
@@ -109,6 +146,7 @@ function hookThree() {
           const pick = o.userData.pick;
           if (pick?.sys.includes("electrical")) c.electrical++;
           if (STATION9.has(pick?.name)) c.station9++;
+          if (STATION1.has(pick?.name)) c.station1++;
           const m = o.material;
           if (
             m.isMeshStandardMaterial &&
@@ -373,8 +411,15 @@ try {
       walk < 0.25 && walk < walkOverview,
       `station 9's parts first on ?walk=9: ${walk} (overview ${walkOverview})`,
     );
+    // station 1 with FIKI fitted: its items' configured parts, the lift transducer included
+    const walk1 = await firstDone("/sr22t?walk=1", "station1"),
+      walk1Overview = await firstDone("/sr22t/overview", "station1");
+    assert.ok(
+      walk1 < 0.25 && walk1 < walk1Overview,
+      `station 1's configured parts first on ?walk=1: ${walk1} (overview ${walk1Overview})`,
+    );
     console.log(
-      `Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)}), station 9 at ${walk.toFixed(2)} (overview ${walkOverview.toFixed(2)})`,
+      `Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)}), station 9 at ${walk.toFixed(2)} (overview ${walkOverview.toFixed(2)}), station 1 at ${walk1.toFixed(2)} (overview ${walk1Overview.toFixed(2)})`,
     );
   }
 

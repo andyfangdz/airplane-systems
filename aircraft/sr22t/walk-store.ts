@@ -72,6 +72,18 @@ let steps: Step[] = [];
 /** The steps of the open walk-around, and the airplane state it started from. */
 export const walkNow = () => ({ steps, prior: prior?.s ?? null });
 
+/**
+ * Names of the parts a progressive build adds first for the walk-around: the shown item's (its spot) or, before the walk
+ * begins, those of its starting station's items for the equipment fitted (the open walk's steps); none while it is closed.
+ */
+export function walkFirst(): Set<string> {
+  const { spot, walking } = useView.getState();
+  if (spot) return new Set(spot.names);
+  if (!walking) return new Set();
+  const { from } = useWalk.getState();
+  return new Set(steps.filter((x) => x.station.n === from).flatMap((x) => x.item.parts));
+}
+
 const now = () => performance.now();
 /** Walking time so far, ms. */
 export const elapsed = (w: WalkState) => w.ms + (w.since === null ? 0 : now() - w.since);

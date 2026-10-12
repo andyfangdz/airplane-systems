@@ -48,8 +48,7 @@ import { surfDeflection } from "./rig";
 import { useSR22T } from "./store";
 import { useEngineGroups } from "./engine-group-store";
 import { fuselageInWorker, isFuselage } from "./fuselage-geo";
-import { useWalk } from "./walk-store";
-import { WALK } from "./walkaround";
+import { walkFirst } from "./walk-store";
 import { engineHidden } from "./engine-groups";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
@@ -350,11 +349,8 @@ const heldBack = (p: PartSpec) =>
  * then the shown system's parts (a deep link) and the labelled ones.
  */
 function priority() {
-  const { spot, walking, sys } = useView.getState();
-  const walkNames = new Set(
-    spot?.names ??
-      (walking ? (WALK.find((st) => st.n === useWalk.getState().from)?.items.flatMap((item) => item.parts) ?? []) : []),
-  );
+  const { sys } = useView.getState();
+  const walkNames = walkFirst();
   return (p: PartSpec) =>
     heldBack(p)
       ? 4
