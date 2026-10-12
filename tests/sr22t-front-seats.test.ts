@@ -1,27 +1,14 @@
 /** Front occupants: POH 13772-007 Fig 6-3 Loading Data (PDF p. 222), FS 143.5; rear occupants FS 180. */
-import { Box3, BufferGeometry, Euler, Matrix4, Quaternion, Vector3 } from "three";
+import { Box3, Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { WR, doorHinge, doorRotation, inFus, wC, wLE, wY } from "@/aircraft/sr22t/geometry";
-import { initialSim, live } from "@/aircraft/sr22t/model";
+import { WR, inFus, wC, wLE, wY } from "@/aircraft/sr22t/geometry";
 import { FLOWS } from "@/aircraft/sr22t/flows";
-import {
-  CAPS_CABLE,
-  CAT,
-  CYLS,
-  NOSE_CASTER,
-  NOSE_GEAR,
-  OXY,
-  PROP,
-  YOKES,
-  YOKE_X,
-  YOKE_Y,
-  cylOrigin,
-} from "@/aircraft/sr22t/parts";
+import { CAPS_CABLE, CAT, OXY, YOKE_X } from "@/aircraft/sr22t/parts";
 import { AC } from "@/aircraft/sr22t/parts/aircon";
 import { CAPS_HANDLE_ATTACH, CAPS_HANDLE_POS, FRONT_SEAT, REAR_SEAT } from "@/aircraft/sr22t/parts/cabin";
 import { BLOWER } from "@/aircraft/sr22t/parts/environment";
-import { AIL_SECTOR, CARR, ETT, PULLEYS, RUD_HORN, rigPose } from "@/aircraft/sr22t/rig";
 import type { PartSpec } from "@/lib/catalogue";
+import { doorIntersects, doorSolid } from "./sr22t-door-clearance";
 
 const named = (name: string) => CAT.parts.filter((p) => p.name === name);
 /** Each seat name has two parts: the cushion first, then the reclined back (parts/cabin.ts). */
@@ -46,134 +33,15 @@ const moved = [
 /** Model x → fuselage station; 39.37 is rounded inches/metre, independent of the published fsX scale. */
 const FS = (x: number) => 100 + (2.61 - x) * 39.37;
 
-/** World-placed triangles of a part: moving groups at their neutral pose, doors closed, as Airplane/ControlRig mount them. */
-interface Solid {
-  tris: Vector3[][];
-  box: Box3;
-  closed: boolean;
-}
-const pose = rigPose(initialSim);
-const parentMatrix = (parent: string) => {
-  const m = new Matrix4();
-  if (parent.startsWith("door:")) {
-    const key = parent.slice(5) as "L" | "R" | "bag";
-    return m.compose(doorHinge(key).pivot, doorRotation(key, live.doors[key]), new Vector3(1, 1, 1));
-  }
-  const at = (v: readonly number[]) => m.makeTranslation(v[0], v[1], v[2]);
-  const pulley = parent.startsWith("rig:pul:") ? PULLEYS[parent.slice(8)] : undefined;
-  const cylinder = CYLS.find((c) => parent === `cyl:${c.n}`);
-  const surface = CAT.surfaces.find((sf) => parent === `surf:${sf.key}`);
-  const yoke = YOKES.find((y) => parent === `yoke:${y.side}` || parent === `grip:${y.side}`);
-  if (cylinder) return at(cylOrigin(cylinder));
-  if (surface) return at(surface.pivot);
-  if (yoke) return at([YOKE_X, YOKE_Y, yoke.z]);
-  if (pulley) {
-    const axis = new Vector3(pulley.axis === "x" ? 1 : 0, pulley.axis === "y" ? 1 : 0, pulley.axis === "z" ? 1 : 0);
-    const turn = new Matrix4().makeRotationAxis(axis, pose.pulley[parent.slice(8)]);
-    return at(pulley.c).multiply(turn);
-  }
-  if (parent === "rig:ett") return at(ETT.c).multiply(new Matrix4().makeRotationZ(pose.ett));
-  if (parent === "rig:ailSector") return at(AIL_SECTOR.c).multiply(new Matrix4().makeRotationX(pose.ailSector));
-  if (parent === "rig:rudHorn") return at(RUD_HORN.c).multiply(new Matrix4().makeRotationY(pose.rudHorn));
-  if (parent.startsWith("rig:carr:"))
-    return at([CARR.x, CARR.y, parent.endsWith("L") ? -CARR.z : CARR.z]).multiply(
-      new Matrix4().makeRotationX(pose.carr),
-    );
-  if (parent === "rig:pedL") return at([-pose.pedal, 0, 0]);
-  if (parent === "rig:pedR") return at([pose.pedal, 0, 0]);
-  if (parent === "noseGear") return at(NOSE_GEAR);
-  if (parent === "caster")
-    return at([NOSE_CASTER[0] + NOSE_GEAR[0], NOSE_CASTER[1] + NOSE_GEAR[1], NOSE_CASTER[2] + NOSE_GEAR[2]]);
-  if (parent.startsWith("blade:"))
-    return at(PROP).multiply(new Matrix4().makeRotationX((Number(parent.slice(6)) * Math.PI * 2) / 3));
-  throw new Error(`Unplaced catalogue parent ${parent}`);
-};
+type Solid = ReturnType<typeof doorSolid>;
 const solids = new Map<PartSpec, Solid>();
-const solidOf = (p: PartSpec): Solid => {
-  const cached = solids.get(p);
-  if (cached) return cached;
-  const m = new Matrix4().compose(
-    new Vector3(...(p.pos ?? [0, 0, 0])),
-    new Quaternion().setFromEuler(new Euler(...(p.rot ?? [0, 0, 0]))),
-    new Vector3(...(p.scale ?? [1, 1, 1])),
-  );
-  if (p.parent) m.premultiply(parentMatrix(p.parent));
-  const g: BufferGeometry = p.geo().applyMatrix4(m);
-  const pos = g.getAttribute("position"),
-    index = g.getIndex();
-  const vertex = (i: number) => new Vector3().fromBufferAttribute(pos, index ? index.getX(i) : i);
-  const n = index ? index.count : pos.count;
-  const tris: Vector3[][] = [];
-  for (let i = 0; i + 2 < n; i += 3) tris.push([vertex(i), vertex(i + 1), vertex(i + 2)]);
-  g.computeBoundingBox();
-  const s = { tris, box: g.boundingBox!.clone(), closed: !p.parent?.startsWith("door:") };
-  g.dispose();
-  solids.set(p, s);
-  return s;
+/** World-placed mesh: parented parts at their neutral pose, doors closed (tests/sr22t-door-clearance.ts). */
+const solidOf = (p: PartSpec) => {
+  if (!solids.has(p)) solids.set(p, doorSolid(p));
+  return solids.get(p)!;
 };
 const box = (p: PartSpec) => solidOf(p).box;
-
-const EPS = 1e-6;
-const e1 = new Vector3(),
-  e2 = new Vector3(),
-  h = new Vector3(),
-  sv = new Vector3(),
-  q = new Vector3(),
-  dir = new Vector3();
-/** Möller–Trumbore: parameter t along origin + t·d where it crosses triangle (a, b, c), or null. Flush faces don't count. */
-const cross = (origin: Vector3, d: Vector3, [a, b, c]: Vector3[]) => {
-  e1.subVectors(b, a);
-  e2.subVectors(c, a);
-  h.crossVectors(d, e2);
-  const det = e1.dot(h);
-  if (Math.abs(det) < 1e-12) return null;
-  sv.subVectors(origin, a);
-  const u = sv.dot(h) / det;
-  if (u < EPS || u > 1 - EPS) return null;
-  q.crossVectors(sv, e1);
-  const w = d.dot(q) / det;
-  if (w < EPS || u + w > 1 - EPS) return null;
-  return e2.dot(q) / det;
-};
-const triBox = (t: Vector3[]) => new Box3().setFromPoints(t);
-/** Some edge of one triangle pierces the other's interior. */
-const trisMeet = (a: Vector3[], b: Vector3[]) => {
-  for (const [p, o] of [
-    [a, b],
-    [b, a],
-  ])
-    for (let i = 0; i < 3; i++) {
-      const s = p[i],
-        e = p[(i + 1) % 3];
-      dir.subVectors(e, s);
-      const t = cross(s, dir, o);
-      if (t !== null && t > EPS && t < 1 - EPS) return true;
-    }
-  return false;
-};
-/** Ray parity: a point inside a closed solid crosses its surface an odd number of times. A point on the solid's bounding
- * box (a face flush against it) is not inside. */
-const inside = (point: Vector3, s: Solid) => {
-  if (!s.closed || !s.box.clone().expandByScalar(-EPS).containsPoint(point)) return false;
-  const d = new Vector3(0.5773, 0.5774, 0.5775);
-  let hits = 0;
-  for (const t of s.tris) {
-    const at = cross(point, d, t);
-    if (at !== null && at > 0) hits++;
-  }
-  return hits % 2 === 1;
-};
-const hits = (pa: PartSpec, pb: PartSpec) => {
-  const a = solidOf(pa),
-    b = solidOf(pb);
-  if (!a.box.intersectsBox(b.box)) return false;
-  const near = b.tris.filter((t) => a.box.intersectsBox(triBox(t)));
-  for (const ta of a.tris) {
-    if (!b.box.intersectsBox(triBox(ta))) continue;
-    for (const tb of near) if (trisMeet(ta, tb)) return true;
-  }
-  return inside(a.tris[0][0], b) || inside(b.tris[0][0], a);
-};
+const hits = (a: PartSpec, b: PartSpec) => doorIntersects(solidOf(a), solidOf(b));
 
 describe("SR22T front occupant station", () => {
   it("ties each seat row to its POH occupant station: front FS 143.5, rear FS 180 (POH Fig 6-3, PDF p. 222)", () => {
@@ -277,8 +145,10 @@ describe("SR22T front occupant station", () => {
 
   it("keeps the front seats inside the cabin hull", () => {
     for (const p of frontCushions) expect(p.pos![0]).toBeCloseTo(FRONT_SEAT.referenceX + FRONT_SEAT.cushionOffset, 8);
-    for (const seat of front)
-      for (const t of solidOf(seat).tris) for (const v of t) expect(inFus(v), seat.name).toBe(true);
+    for (const seat of front) {
+      const a = solidOf(seat).g.getAttribute("position");
+      for (let i = 0; i < a.count; i++) expect(inFus(new Vector3().fromBufferAttribute(a, i)), seat.name).toBe(true);
+    }
   });
   it("keeps each part placed from the front seats at its source placement", () => {
     const [lh, rh] = frontCushions.map(box);

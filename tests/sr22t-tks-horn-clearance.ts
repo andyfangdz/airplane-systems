@@ -24,7 +24,7 @@ const local = (p: PartSpec) =>
     new THREE.Quaternion().setFromEuler(new THREE.Euler(...(p.rot ?? [0, 0, 0]))),
     new THREE.Vector3(...(p.scale ?? [1, 1, 1])),
   );
-const solid = (g: THREE.BufferGeometry) => {
+export const solid = (g: THREE.BufferGeometry) => {
   // Collapsed loft/tube seam triangles have no area and are not physical surfaces.
   // BVH triangle intersections otherwise report spurious contacts against those seams.
   const vertices = points(g, I),
@@ -67,10 +67,22 @@ const signedDistance = (p: THREE.Vector3, s: Solid) => {
   const exits = hits.filter((d, i) => i === 0 || d - hits[i - 1] > 0.00001);
   return exits.length % 2 ? -distance : distance;
 };
-const gap = (a: Solid, b: Solid) => {
+export const gap = (a: Solid, b: Solid) => {
   if (a.bvh.intersectsGeometry(b.g, I)) return 0;
   if (inside(points(a.g, I)[0], b.mesh, b.box) || inside(points(b.g, I)[0], a.mesh, a.box)) return -1;
-  return a.bvh.closestPointToGeometry(b.g, I)!.distance;
+  // Supply the target's existing BVH for the dual-tree nearest-distance traversal.
+  // Keep it scoped to this query: the intersection/parity oracles above stay unchanged.
+  const previous = b.g.boundsTree;
+  // three-mesh-bvh 0.8.3 skips intersectsBounds for roots, leaving its shared
+  // obb2 stale when a root is a leaf. Inspect every root (groups can add roots)
+  // and keep the original brute traversal if any root lacks an internal node.
+  const roots = (a.bvh as unknown as { _roots: ArrayBuffer[] })._roots;
+  b.g.boundsTree = roots.every((root) => new Uint16Array(root)[15] !== 0xffff) ? b.bvh : undefined;
+  try {
+    return a.bvh.closestPointToGeometry(b.g, I)!.distance;
+  } finally {
+    b.g.boundsTree = previous;
+  }
 };
 /** Actual rendered triangle walls, sampled on a barycentric grid with edges <= 1 mm.
  * The named hinge-crossing exemption removes only points within 20 mm of the joint.
