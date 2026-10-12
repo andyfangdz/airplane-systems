@@ -2,12 +2,12 @@
 /** Common accessible study controls; all inspection wording, order, sources and targets come from the selected airplane. */
 import { useEffect, useMemo, useRef, type TouchEvent } from "react";
 import { Pin } from "./scene/Part";
-import { WalkMap } from "@/components/ui/WalkMap";
+import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
 import { useTicker } from "./ui/controls";
 import { fleetStationStart, fleetStepSide, fleetTally, fleetWalkClock, type FleetWalkStep } from "@/lib/fleet-walk";
 import type { FleetWalkController, FleetWalkPhase } from "@/lib/fleet-walk-store";
 import { SPOT_COLOR } from "@/lib/spot";
-import { revealWalkItem, useView } from "@/lib/view";
+import { revealStage, useView } from "@/lib/view";
 import "@/aircraft/sr22t/panels/walkaround.css";
 import "./fleet-walkaround.css";
 
@@ -198,6 +198,7 @@ function Resume<S>({ controller }: { controller: FleetWalkController<S> }) {
   );
 }
 function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>; step: FleetWalkStep<S>; at: number }) {
+  const big = controller.useWalk((w) => w.big);
   const marks = controller.useWalk((w) => w.marks),
     swipe = useSwipe(controller, at),
     { station, item } = step;
@@ -220,21 +221,35 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
       >
         <i style={{ width: `${(100 * (at + 1)) / steps.length}%` }} />
       </div>
-      <WalkMap key={item.id}>
-        <MiniMap controller={controller} at={at} marks={marks} />
-      </WalkMap>
+      <MiniMap controller={controller} at={at} marks={marks} />
       <h3 className="walk-stn">
         {station.n}. {station.title}
       </h3>
+      {station.warning && (
+        <p className="walk-alert warning" role="note">
+          <b>Warning</b> {station.warning}
+        </p>
+      )}
+      {station.note && index === 0 && (
+        <p className="walk-note">
+          <b>Note</b> {station.note}
+        </p>
+      )}
       <div className="walk-card">
-        <div className="walk-line">
-          <span className="walk-id">{item.id}</span>
-          <span className="walk-text">{item.text}</span>
-          {marks[item.id] && (
-            <span className={`walk-mark ${marks[item.id]}`}>{marks[item.id] === "ok" ? "✓ Reviewed" : "Skipped"}</span>
-          )}
-        </div>
-        <div className="walk-std">{item.standard}</div>
+        <WalkSceneContent big={big}>
+          <div className="walk-current" key={item.id} tabIndex={0} role="group" aria-label="Current checklist item">
+            <div className="walk-line">
+              <span className="walk-id">{item.id}</span>
+              <span className="walk-text">{item.text}</span>
+              {marks[item.id] && (
+                <span className={`walk-mark ${marks[item.id]}`}>
+                  {marks[item.id] === "ok" ? "✓ Reviewed" : "Skipped"}
+                </span>
+              )}
+            </div>
+            <div className="walk-std">{item.standard}</div>
+          </div>
+        </WalkSceneContent>
         {item.note && (
           <p className="walk-note">
             <b>Note</b> {item.note}
@@ -250,16 +265,6 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
           {item.ref} · {data.short}
         </a>
       </div>
-      {station.warning && (
-        <p className="walk-alert warning" role="note">
-          <b>Warning</b> {station.warning}
-        </p>
-      )}
-      {station.note && index === 0 && (
-        <p className="walk-note">
-          <b>Note</b> {station.note}
-        </p>
-      )}
       <details className="walk-through">
         <summary>Throughout the walk-around</summary>
         <ul>
@@ -269,32 +274,34 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
         </ul>
         <span className="walk-ref">{data.source}</span>
       </details>
-      <div className="walk-actions">
-        <button
-          type="button"
-          className="walk-nav"
-          aria-label="Previous item"
-          disabled={at === 0}
-          onClick={() => controller.goStep(at - 1)}
-        >
-          ←
-        </button>
-        <button type="button" className="btn walk-skip" onClick={() => controller.mark("skip")}>
-          Skip
-        </button>
-        <button type="button" className="walk-go" onClick={() => controller.mark("ok")}>
-          ✓ Reviewed
-        </button>
-        <button
-          type="button"
-          className="walk-nav"
-          aria-label="Next item"
-          disabled={at === steps.length - 1}
-          onClick={() => controller.goStep(at + 1)}
-        >
-          →
-        </button>
-      </div>
+      <WalkSceneContent big={big}>
+        <div className="walk-actions">
+          <button
+            type="button"
+            className="walk-nav"
+            aria-label="Previous item"
+            disabled={at === 0}
+            onClick={() => controller.goStep(at - 1)}
+          >
+            ←
+          </button>
+          <button type="button" className="btn walk-skip" onClick={() => controller.mark("skip")}>
+            Skip
+          </button>
+          <button type="button" className="walk-go" onClick={() => controller.mark("ok")}>
+            ✓ Reviewed
+          </button>
+          <button
+            type="button"
+            className="walk-nav"
+            aria-label="Next item"
+            disabled={at === steps.length - 1}
+            onClick={() => controller.goStep(at + 1)}
+          >
+            →
+          </button>
+        </div>
+      </WalkSceneContent>
     </div>
   );
 }
@@ -341,7 +348,7 @@ export function FleetWalkPanel<S>({ controller }: { controller: FleetWalkControl
   useTicker(1000);
   useStepScene(controller, step, phase);
   useSession(controller, at, phase === "walk");
-  useEffect(revealWalkItem, [at, phase]);
+  useEffect(revealStage, [at, phase]);
   return (
     <div className={`walk fleet-walkaround${big ? " walk-big" : ""}`}>
       <div className="walk-hd">

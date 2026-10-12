@@ -8,7 +8,7 @@
  * Run after npm run build, or pass an existing server URL. `--shots <dir>` also saves screenshots there.
  */
 import assert from "node:assert/strict";
-import { assertCurrentCheckVisible, openStationMap } from "./walkaround-ui-helpers.mjs";
+import { assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
@@ -103,10 +103,10 @@ try {
     // the ramp: no display power until BAT 2 comes on at 1c
     await page.waitForFunction(() => document.querySelector(".cas .hd")?.textContent.includes("NO DISPLAY PWR"));
 
-    // Phone layout: a compact 3D view leaves the current check visible below it.
+    // Phone layout: the current check stays inside a large scene.
     if (phone) {
       const stage = await page.locator(".stage").boundingBox();
-      assert.ok(stage.height >= 140 && stage.height < 0.35 * 844, `3D view height ${stage.height}`);
+      assert.ok(stage.height >= 0.55 * 844 && stage.height < 0.75 * 844, `3D view height ${stage.height}`);
       assert.equal(await page.locator(".rail").isVisible(), false, "rail hidden while walking on a phone");
       await assertCurrentCheckVisible(page);
     } else {
@@ -132,17 +132,15 @@ try {
     for (let i = 0; i < 12; i++) await page.getByRole("button", { name: "Next item" }).click();
     assert.equal(await itemId(page), "1p");
     assert.equal(await page.locator(".walk-std").innerText(), "SEE APPLICABLE FIKI SUPPLEMENT");
-    assert.ok((await page.locator(".walk-card").innerText()).includes("Configuration cue — see supplement"));
+    assert.ok((await page.locator(".walk-tech").innerText()).includes("Configuration cue — see supplement"));
     assert.ok(!(await page.locator(".walk-card").innerText()).includes("applying suction"));
     await shot("fiki-stall-cue");
 
     // jump via the mini-map: past the cabin the flaps are down (1m), batteries off (1u)
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 5: Right Wing Trailing Edge/ }).click();
     await waitProgress(page, "Station 5 of 13 · item 1 of 4");
     assert.equal(await itemId(page), "5a");
     await shot("station5-flap-jump");
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 7: Right Forward Wing and Main Gear/ }).click();
     await waitProgress(page, "Station 7 of 13 · item 1 of 8");
     assert.equal(await itemId(page), "7a");
@@ -171,7 +169,6 @@ try {
     await page.getByText("Indicator checked from the other side, see 11e.", { exact: true }).waitFor();
     await badge(page, false);
     await shot("station7-wheel-brakes");
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 9: Nose Gear/ }).click();
     await page.getByText("Keep clear of propeller rotation plane.", { exact: false }).waitFor();
     await shot("station9-prop");
@@ -184,7 +181,6 @@ try {
     await page.getByText("Keep clear of propeller rotation plane.", { exact: false }).waitFor();
     await shot("station9-cowl-fasteners");
     // 11e+: from the left drains, the RIGHT wheel's indicator
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 11: Left Main Gear/ }).click();
     for (let i = 0; i < 5; i++) await page.getByRole("button", { name: "Next item" }).click();
     await waitProgress(page, "Station 11 of 13 · item 6 of 8");
@@ -195,7 +191,6 @@ try {
     await shot("station11-brake-indicator-right");
 
     // resume after a reload
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 12: Left Wing Tip/ }).click();
     await page.getByRole("button", { name: "Next item" }).click();
     await waitProgress(page, "Station 12 of 13 · item 2 of 4");
@@ -213,7 +208,6 @@ try {
     await page.getByLabel("Larger text").uncheck();
 
     // finish: the last station, every item checked
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 13: Left Wing Trailing Edge/ }).click();
     for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "✓ Checked", exact: true }).click();
     await page.getByText("Walk-around complete").waitFor();

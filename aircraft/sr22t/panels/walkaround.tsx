@@ -5,9 +5,9 @@
  * and then to the item's parts, highlights them, dims the rest and shows the item's system in X-ray.
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { WalkMap } from "@/components/ui/WalkMap";
+import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
 import { useTicker } from "@/components/ui/controls";
-import { revealWalkItem, useView } from "@/lib/view";
+import { revealStage, useView } from "@/lib/view";
 import { SYS } from "../systems";
 import {
   beginWalk,
@@ -282,6 +282,7 @@ function Resume() {
 }
 
 export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
+  const big = useWalk((w) => w.big);
   const marks = useWalk((x) => x.marks);
   const swipe = useSwipe(at);
   const { station, item } = step;
@@ -303,21 +304,33 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
       >
         <i style={{ width: `${((at + 1) / steps.length) * 100}%` }} />
       </div>
-      <WalkMap key={item.id}>
-        <MiniMap steps={steps} at={at} marks={marks} />
-      </WalkMap>
+      <MiniMap steps={steps} at={at} marks={marks} />
       <h3 className="walk-stn">
         {station.n}. {station.title}
       </h3>
+      {station.warning && (
+        <p className={`walk-alert ${station.n === 10 ? "caution" : "warning"}`} role="note">
+          <b>{station.n === 10 ? "Caution" : "Warning"}</b> {station.warning}
+        </p>
+      )}
+      {station.note && k === 1 && (
+        <p className="walk-note" role="note">
+          <b>Note</b> {station.note}
+        </p>
+      )}
       <div className="walk-card">
-        <div className="walk-line">
-          <span className="walk-id">{item.id}</span>
-          <span className="walk-text">{item.text}</span>
-          {mark && <span className={`walk-mark ${mark}`}>{mark === "ok" ? "✓ Checked" : "Skipped"}</span>}
-        </div>
-        {item.technique && <span className="walk-tech">{TECHNIQUE_BADGE}</span>}
-        {item.configurationCue && <span className="walk-tech">Configuration cue — see supplement</span>}
-        <div className="walk-std">{item.standard}</div>
+        <WalkSceneContent big={big}>
+          <div className="walk-current" key={item.id} tabIndex={0} role="group" aria-label="Current checklist item">
+            <div className="walk-line">
+              <span className="walk-id">{item.id}</span>
+              <span className="walk-text">{item.text}</span>
+              {mark && <span className={`walk-mark ${mark}`}>{mark === "ok" ? "✓ Checked" : "Skipped"}</span>}
+            </div>
+            {item.technique && <span className="walk-tech">{TECHNIQUE_BADGE}</span>}
+            {item.configurationCue && <span className="walk-tech">Configuration cue — see supplement</span>}
+            <div className="walk-std">{item.standard}</div>
+          </div>
+        </WalkSceneContent>
         {item.look && <p className="walk-look">{item.look}</p>}
         {item.steps && (
           <ol className="walk-steps">
@@ -338,16 +351,6 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
         )}
         <span className="walk-ref">{item.ref}</span>
       </div>
-      {station.warning && (
-        <p className={`walk-alert ${station.n === 10 ? "caution" : "warning"}`} role="note">
-          <b>{station.n === 10 ? "Caution" : "Warning"}</b> {station.warning}
-        </p>
-      )}
-      {station.note && k === 1 && (
-        <p className="walk-note" role="note">
-          <b>Note</b> {station.note}
-        </p>
-      )}
       <details className="walk-through">
         <summary>Throughout the walk-around</summary>
         <ul>
@@ -357,32 +360,34 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
         </ul>
         <span className="walk-ref">POH 4-4</span>
       </details>
-      <div className="walk-actions">
-        <button
-          type="button"
-          className="walk-nav"
-          onClick={() => goStep(at - 1)}
-          disabled={at === 0}
-          aria-label="Previous item"
-        >
-          ←
-        </button>
-        <button type="button" className="btn walk-skip" onClick={() => markStep("skip")}>
-          Skip
-        </button>
-        <button type="button" className="walk-go" onClick={() => markStep("ok")}>
-          ✓ Checked
-        </button>
-        <button
-          type="button"
-          className="walk-nav"
-          onClick={() => goStep(at + 1)}
-          disabled={at === steps.length - 1}
-          aria-label="Next item"
-        >
-          →
-        </button>
-      </div>
+      <WalkSceneContent big={big}>
+        <div className="walk-actions">
+          <button
+            type="button"
+            className="walk-nav"
+            onClick={() => goStep(at - 1)}
+            disabled={at === 0}
+            aria-label="Previous item"
+          >
+            ←
+          </button>
+          <button type="button" className="btn walk-skip" onClick={() => markStep("skip")}>
+            Skip
+          </button>
+          <button type="button" className="walk-go" onClick={() => markStep("ok")}>
+            ✓ Checked
+          </button>
+          <button
+            type="button"
+            className="walk-nav"
+            onClick={() => goStep(at + 1)}
+            disabled={at === steps.length - 1}
+            aria-label="Next item"
+          >
+            →
+          </button>
+        </div>
+      </WalkSceneContent>
     </div>
   );
 }
@@ -449,7 +454,7 @@ export function WalkPanel() {
   useStepScene(step, phase);
   useArrowKeys(walking, at);
   // Phones: reveal the current check after advancing or jumping stations.
-  useEffect(revealWalkItem, [at, phase]);
+  useEffect(revealStage, [at, phase]);
   return (
     <Shell big={big}>
       {phase === "intro" ? (

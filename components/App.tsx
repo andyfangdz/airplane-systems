@@ -304,6 +304,7 @@ export default function App() {
         <div className="stage-foot">
           <Alerts key={def.id} />
           <Hud />
+          <div id="walk-scene" className="walk-scene" />
         </div>
         <Tooltip />
       </main>

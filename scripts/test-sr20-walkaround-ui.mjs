@@ -4,7 +4,7 @@
  * The physical inspections are never marked as evidence of aircraft airworthiness.
  */
 import assert from "node:assert/strict";
-import { assertCurrentCheckVisible, openStationMap } from "./walkaround-ui-helpers.mjs";
+import { assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright-core";
@@ -56,14 +56,14 @@ try {
     await item("7a");
     if (phone) {
       const stage = await page.locator(".stage").boundingBox();
-      assert.ok(stage.height >= 140 && stage.height < 0.35 * 844, `phone scene height ${stage.height}`);
+      assert.ok(stage.height >= 0.55 * 844 && stage.height < 0.75 * 844, `phone scene height ${stage.height}`);
       assert.equal(await page.locator(".rail").isVisible(), false);
       await assertCurrentCheckVisible(page);
     } else assert.ok(await page.locator(".panel .walk").isVisible());
     await page.getByRole("button", { name: "Next item", exact: true }).click();
     await page.getByRole("button", { name: "Next item", exact: true }).click();
     await item("7c");
-    assert.match(await page.locator(".walk-card").innerText(), /Fuel Drains \(2 underside\)/);
+    assert.match(await page.locator(".walk-text").innerText(), /Fuel Drains \(2 underside\)/);
     assert.equal(await page.locator(".walk-nm").count(), 0, "both drain types are modelled");
     await shot("right-two-drains");
     if (!phone) {
@@ -79,7 +79,6 @@ try {
     await page.getByRole("button", { name: "Resume", exact: true }).click();
     await item("7d");
     await shot("resumed");
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 8: Nose, Right Side/ }).click();
     await item("8a");
     assert.equal(await page.locator(".walk-std").innerText(), "CHECK 6–7 QUARTS, LEAKS");
@@ -133,7 +132,6 @@ try {
       .filter({ hasText: /^1p Pitot Heat$/ })
       .waitFor();
     await shot("pitot-heat-probe");
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 6: Right Wing Tip/ }).click();
     await item("6a");
     await page
@@ -141,7 +139,6 @@ try {
       .filter({ hasText: /^6a Tip$/ })
       .waitFor();
     await shot("right-tip-target");
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 7: Right Forward Wing/ }).click();
     await item("7a");
     await page
@@ -150,7 +147,6 @@ try {
       .waitFor();
     assert.equal(await page.locator(".walk-nm").count(), 0, "leading edge and actual SR20 inboard strips are modelled");
     await shot("leading-edge-strips");
-    await openStationMap(page);
     await page.getByRole("button", { name: /^Station 4: Right Fuselage/ }).click();
     await item("4a");
     await page.getByRole("button", { name: "Next item", exact: true }).click();

@@ -1,9 +1,9 @@
 "use client";
 /** Source-specific SR20 study UI, sharing the existing Cirrus walk styling and common camera/spot/pin infrastructure. */
 import { useEffect, useRef, type TouchEvent } from "react";
-import { WalkMap } from "@/components/ui/WalkMap";
+import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
 import { useTicker } from "@/components/ui/controls";
-import { revealWalkItem, useView } from "@/lib/view";
+import { revealStage, useView } from "@/lib/view";
 import { SYS } from "../systems";
 import { clock, loadProgress, stationStart, stepParts, stepPose, stepSide, tally, type Step } from "../walk";
 import {
@@ -195,6 +195,7 @@ function Resume() {
   );
 }
 function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
+  const big = useWalk((w) => w.big);
   const marks = useWalk((w) => w.marks),
     swipe = useSwipe(at),
     { station, item } = step;
@@ -216,21 +217,35 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
       >
         <i style={{ width: `${(100 * (at + 1)) / steps.length}%` }} />
       </div>
-      <WalkMap key={item.id}>
-        <MiniMap steps={steps} at={at} marks={marks} />
-      </WalkMap>
+      <MiniMap steps={steps} at={at} marks={marks} />
       <h3 className="walk-stn">
         {station.n}. {station.title}
       </h3>
+      {station.warning && (
+        <p className={`walk-alert ${station.n === 8 ? "caution" : "warning"}`} role="note">
+          <b>{station.n === 8 ? "Caution" : "Warning"}</b> {station.warning}
+        </p>
+      )}
+      {station.note && index === 0 && (
+        <p className="walk-note">
+          <b>Note</b> {station.note}
+        </p>
+      )}
       <div className="walk-card">
-        <div className="walk-line">
-          <span className="walk-id">{item.id}</span>
-          <span className="walk-text">{item.text}</span>
-          {marks[item.id] && (
-            <span className={`walk-mark ${marks[item.id]}`}>{marks[item.id] === "ok" ? "✓ Reviewed" : "Skipped"}</span>
-          )}
-        </div>
-        <div className="walk-std">{item.standard}</div>
+        <WalkSceneContent big={big}>
+          <div className="walk-current" key={item.id} tabIndex={0} role="group" aria-label="Current checklist item">
+            <div className="walk-line">
+              <span className="walk-id">{item.id}</span>
+              <span className="walk-text">{item.text}</span>
+              {marks[item.id] && (
+                <span className={`walk-mark ${marks[item.id]}`}>
+                  {marks[item.id] === "ok" ? "✓ Reviewed" : "Skipped"}
+                </span>
+              )}
+            </div>
+            <div className="walk-std">{item.standard}</div>
+          </div>
+        </WalkSceneContent>
         {item.note && (
           <p className="walk-note">
             <b>Note</b> {item.note}
@@ -246,16 +261,6 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
           {item.ref} · SR20 G6 POH
         </a>
       </div>
-      {station.warning && (
-        <p className={`walk-alert ${station.n === 8 ? "caution" : "warning"}`} role="note">
-          <b>{station.n === 8 ? "Caution" : "Warning"}</b> {station.warning}
-        </p>
-      )}
-      {station.note && index === 0 && (
-        <p className="walk-note">
-          <b>Note</b> {station.note}
-        </p>
-      )}
       <details className="walk-through">
         <summary>Throughout the walk-around</summary>
         <ul>
@@ -265,32 +270,34 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
         </ul>
         <span className="walk-ref">POH 4-4</span>
       </details>
-      <div className="walk-actions">
-        <button
-          type="button"
-          className="walk-nav"
-          aria-label="Previous item"
-          disabled={at === 0}
-          onClick={() => goStep(at - 1)}
-        >
-          ←
-        </button>
-        <button type="button" className="btn walk-skip" onClick={() => markStep("skip")}>
-          Skip
-        </button>
-        <button type="button" className="walk-go" onClick={() => markStep("ok")}>
-          ✓ Reviewed
-        </button>
-        <button
-          type="button"
-          className="walk-nav"
-          aria-label="Next item"
-          disabled={at === steps.length - 1}
-          onClick={() => goStep(at + 1)}
-        >
-          →
-        </button>
-      </div>
+      <WalkSceneContent big={big}>
+        <div className="walk-actions">
+          <button
+            type="button"
+            className="walk-nav"
+            aria-label="Previous item"
+            disabled={at === 0}
+            onClick={() => goStep(at - 1)}
+          >
+            ←
+          </button>
+          <button type="button" className="btn walk-skip" onClick={() => markStep("skip")}>
+            Skip
+          </button>
+          <button type="button" className="walk-go" onClick={() => markStep("ok")}>
+            ✓ Reviewed
+          </button>
+          <button
+            type="button"
+            className="walk-nav"
+            aria-label="Next item"
+            disabled={at === steps.length - 1}
+            onClick={() => goStep(at + 1)}
+          >
+            →
+          </button>
+        </div>
+      </WalkSceneContent>
     </div>
   );
 }
@@ -339,7 +346,7 @@ export function WalkPanel() {
   useTicker(1000);
   useStepScene(step, phase);
   useStudySession(at, phase === "walk");
-  useEffect(revealWalkItem, [at, phase]);
+  useEffect(revealStage, [at, phase]);
   return (
     <div className={`walk sr20-walk${big ? " walk-big" : ""}`}>
       <div className="walk-hd">

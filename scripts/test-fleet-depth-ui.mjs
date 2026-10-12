@@ -3,7 +3,7 @@
  * Run after npm run build, or pass an existing server: npm run test:ui:depth -- http://localhost:3000 [screenshot-directory]
  */
 import assert from "node:assert/strict";
-import { assertCurrentCheckVisible, openStationMap } from "./walkaround-ui-helpers.mjs";
+import { assertCurrentCheckVisible } from "./walkaround-ui-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -121,12 +121,14 @@ try {
         await page.getByRole("progressbar", { name: "Study position" }).getAttribute("aria-valuemax"),
       );
       assert.ok(total > 20, `${id} has its full inspection sequence`);
-      const stations = page.locator(".walk-map [role=button]");
+      const stations = page.getByRole("button", { name: /^Station \d+:/ });
       assert.ok((await stations.count()) >= 6, `${id} has source-specific inspection stations`);
       assert.match(await page.locator(".walk-card .walk-ref").getAttribute("href"), /^https:\/\//);
       if (phone) {
         assert.equal(await page.locator(".rail").isVisible(), false, "phone inspection preserves the scene");
-        assert.ok((await page.locator(".stage").boundingBox()).height < 0.35 * 844);
+        assert.ok((await page.locator(".stage").boundingBox()).height >= 0.55 * 844);
+        await assertCurrentCheckVisible(page);
+        await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
         await assertCurrentCheckVisible(page);
       }
       await activate(page.getByRole("button", { name: "✓ Reviewed", exact: true }));
@@ -144,10 +146,8 @@ try {
       await shot("resumed");
 
       // Station navigation and keyboard movement must preserve previously reviewed/skipped items.
-      await openStationMap(page);
       await activate(stations.last());
       const finalStation = await itemId();
-      await openStationMap(page);
       await activate(stations.first());
       assert.equal(await itemId(), first);
       if (phone) await assertCurrentCheckVisible(page);
@@ -159,7 +159,7 @@ try {
       }
       await activate(page.getByRole("button", { name: "Next item", exact: true }));
       await changed(first);
-      assert.match(await page.locator(".walk-card").innerText(), /Skipped/);
+      assert.match(await page.locator(".walk-mark").innerText(), /Skipped/);
       await activate(page.getByRole("button", { name: "Next item", exact: true }));
       assert.equal(await itemId(), saved);
       let reviewed = 2;
@@ -169,6 +169,7 @@ try {
         const current = await itemId();
         lastStationSeen ||= current === finalStation;
         assert.ok((await page.locator(".walk-std").innerText()).length > 0, `${current} has an inspection standard`);
+        if (phone) await assertCurrentCheckVisible(page);
         const text = await page.locator(".walk-text").innerText();
         const special = /pitot.*heat|leading edge|wing tip|wingtip|propeller|landing gear/i.test(text);
         if (special && captured.size < 5 && !captured.has(text)) {

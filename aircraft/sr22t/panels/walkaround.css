@@ -90,9 +90,6 @@
   width: 100%;
   max-height: 170px;
 }
-.walk-map-section > summary {
-  display: none;
-}
 .walk-map .fus,
 .walk-map .wing {
   fill: var(--panel2);
@@ -163,6 +160,9 @@
   align-items: baseline;
   gap: 4px 8px;
   font-size: 16px;
+}
+.walk-current {
+  display: contents;
 }
 .walk-id {
   font-family: var(--f-mono);
@@ -318,17 +318,104 @@
   min-height: 60px;
   font-size: 21px;
 }
-/* phones: the 3D view takes the top of the screen and the card follows it (globals.css stacks the page) */
+/* Empty on desktop and outside an active check. */
+.walk-scene:empty {
+  display: none;
+}
+/* Keep a large scene in view while the map, warnings and supporting notes scroll. */
 @media (max-width: 860px) {
   .app.walking .rail {
     display: none;
   }
   .app.walking .stage {
-    height: 28svh;
-    min-height: 140px;
+    height: 65svh;
+    min-height: 0;
+    flex-shrink: 0;
+  }
+  .app.walking .stage:has(.walk-scene:not(:empty)) {
+    position: sticky;
+    top: 0;
+    z-index: 32;
+  }
+  .app.walking .stage-foot {
+    flex-direction: column;
+    align-items: stretch;
+    z-index: 31; /* above scene pins and tooltips */
+    left: max(8px, env(safe-area-inset-left, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    bottom: 8px;
+  }
+  .walk-scene {
+    --c: var(--accent);
+    display: grid;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+  .walk-scene > * {
+    min-width: 0;
+  }
+  .walk-scene .walk-line {
+    font-size: 14px;
+    gap: 2px 6px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+  .walk-scene .walk-current {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+  .walk-scene .walk-current > * {
+    flex-shrink: 0;
+  }
+  .walk-scene .walk-std {
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+  .walk-scene .walk-std::before {
+    content: "—";
+    margin-right: 6px;
+    color: var(--muted);
+  }
+  .walk-scene .walk-big .walk-line {
+    font-size: 18px;
+  }
+  .walk-scene .walk-big .walk-std {
+    font-size: 18px;
+  }
+  .walk-scene .walk-actions {
+    gap: 6px;
+  }
+  .walk-scene .walk-go {
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .walk-scene .walk-big .walk-go {
+    min-height: 52px;
+    font-size: 18px;
+  }
+  .walk-scene .walk-nav {
+    min-width: 44px;
+    font-size: 18px;
+  }
+  .walk-scene .walk-skip {
+    min-width: 60px;
+    font-size: 14px;
   }
   .app.walking .panel-inner {
     padding: 8px 12px 16px;
+  }
+  .app.walking .panel :is(button, input, summary, a, .walk-map) {
+    scroll-margin-top: calc(65svh + 8px);
   }
   .walk {
     gap: 6px;
@@ -339,14 +426,6 @@
   .walk-x {
     min-height: 44px;
     padding: 4px 10px;
-  }
-  .walk-map-section > summary {
-    display: list-item;
-    min-height: 44px;
-    padding: 12px 0;
-    font-size: 13px;
-    color: var(--muted);
-    cursor: pointer;
   }
   .app.walking .walk-stn {
     margin: 0 0 6px;
@@ -361,43 +440,6 @@
   .walk-item > .walk-note,
   .walk-through {
     margin-top: 8px;
-  }
-  /* The page scrolls on phones, so anchor the controls to the viewport. Leave
-     space below the content for the bar, including larger text and safe areas. */
-  .walk:has(.walk-item) {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-  }
-  .walk-big:has(.walk-item) {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  }
-  .walk-item > .walk-actions {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 31; /* above the scene's pins and tooltips */
-    margin: 0;
-    gap: 6px;
-    padding: 6px max(12px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px))
-      max(12px, env(safe-area-inset-left, 0px));
-  }
-  .walk-item > .walk-actions .walk-go {
-    min-width: 0;
-    min-height: 44px;
-    font-size: 16px;
-  }
-  .walk-big .walk-item > .walk-actions .walk-go {
-    min-height: 52px;
-    font-size: 18px;
-  }
-  .walk-item > .walk-actions .walk-nav {
-    min-width: 44px;
-    font-size: 18px;
-  }
-  .walk-item > .walk-actions .walk-skip {
-    min-width: 60px;
-    font-size: 14px;
-  }
-  .walk-map {
-    max-height: 132px;
   }
 }
 /* the Overview panel's link (panels/general.tsx) */
