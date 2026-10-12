@@ -1,7 +1,8 @@
 /** Sourced DA40 XLS component routes. Bends/bores and particles are explanatory, not surveyed installation. */
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, toVec3, type Vec3 } from "@/lib/math";
-import { FW, PANEL_X, ROLLBAR_X, fs, onSkin, wingP } from "./geometry";
+import { cabinHarness } from "@/lib/cabinRouting";
+import { FW, PANEL_X, ROLLBAR_X, FUSE, fs, onSkin, wingP } from "./geometry";
 import { CYLS, PROP } from "./parts/engine";
 import { PITOT_Z, pitotBase } from "./parts/pitot";
 import { LIGHTS } from "./parts/lights";
@@ -40,11 +41,13 @@ const signal = (key: string, a: Vec3, b: Vec3, note: string, sys: FlowSpec["sys"
       (z) => z > 0 && z < Math.abs(a[2]),
     ))
       pts.push(toVec3(wingP(side * z, 0.45, 0)));
-    from = [fs(2.3), -0.46, side * 0.25];
+    from = [fs(2.3), -0.6, side * 0.25];
     pts.push(from);
   }
-  if (Math.abs(b[2]) > 0.65) to = [fs(2.3), -0.46, Math.sign(b[2]) * 0.25];
-  if (Math.abs(from[0] - to[0]) > 0.3) {
+  if (Math.abs(b[2]) > 0.65) to = [fs(2.3), -0.6, Math.sign(b[2]) * 0.25];
+  if (Math.min(from[0], to[0]) < PANEL_X - 0.05) {
+    pts.push(...cabinHarness(FUSE, from, to, PANEL_X + 0.12).slice(1));
+  } else if (Math.abs(from[0] - to[0]) > 0.3) {
     const toward = from[0] < to[0] ? 1 : -1;
     pts.push(
       [Math.min(from[0] + toward * 0.06, 1.85), -0.29, from[2] * 0.6],
@@ -52,7 +55,7 @@ const signal = (key: string, a: Vec3, b: Vec3, note: string, sys: FlowSpec["sys"
     );
   }
   if (to !== b) {
-    pts.push(to);
+    if (pts.at(-1) !== to) pts.push(to);
     const side = Math.sign(b[2]);
     for (const z of [0.7, 1.35, Math.abs(b[2]) * 0.72, Math.abs(b[2]) - 0.06].filter(
       (z) => z > 0 && z < Math.abs(b[2]),
@@ -60,7 +63,13 @@ const signal = (key: string, a: Vec3, b: Vec3, note: string, sys: FlowSpec["sys"
       pts.push(toVec3(wingP(side * z, 0.45, 0)));
   }
   pts.push(b);
-  add(key, pts, sys, key, note, { r: 0.003, count: 5, color: "#C8399F", pcolor: "#EDAAE1" });
+  add(key, pts, sys, key, note + " Cabin harness follows underfloor/sidewall lanes.", {
+    r: 0.003,
+    count: 5,
+    color: "#C8399F",
+    pcolor: "#EDAAE1",
+    tension: 0,
+  });
 };
 const staticRoute = { count: 0, color: "#738797" };
 
@@ -289,16 +298,16 @@ add(
     wingP(PITOT_Z, 0.32, 0),
     wingP(-1.4, 0.32, 0),
     A.PITOT_FILTER,
-    A.PITOT_SPLIT,
+    ...cabinHarness(FUSE, A.PITOT_FILTER, A.PITOT_SPLIT, PANEL_X + 0.12, -1, 0.012).slice(1),
     A.PITOT_JOIN,
-    [fs(2.05), -0.5, -0.22],
+    [PANEL_X + 0.06, -0.55, -0.22],
     PT,
     A.GDC,
   ],
   ["pitot"],
   "Pitot instrument feed",
   "Combined LH pressure mast → wing-root filter → parallel water-trap tees → GDC74A (AFM 7-54; AMM 34-10-00 p 1).",
-  { r: 0.005 },
+  { r: 0.005, tension: 0 },
 );
 add(
   "static",
@@ -307,15 +316,15 @@ add(
     wingP(PITOT_Z, 0.36, 0),
     wingP(-1.4, 0.36, 0),
     A.STATIC_FILTER,
-    A.STATIC_SPLIT,
+    ...cabinHarness(FUSE, A.STATIC_FILTER, A.STATIC_SPLIT, PANEL_X + 0.12, -1, 0.012).slice(1),
     A.STATIC_JOIN,
-    [fs(2.05), -0.5, -0.29],
+    [PANEL_X + 0.075, -0.55, -0.29],
     ST,
   ],
   ["pitot"],
   "Mast static source to common tee",
   "Mast static orifices → blue/purple tubing → parallel water-trap tees → instrument static tee; alternate valve selects cabin pressure instead (AFM 7-54; AMM 34-10-00 p. 1).",
-  { r: 0.005, color: "#2E6FB0" },
+  { r: 0.005, color: "#2E6FB0", tension: 0 },
 );
 add(
   "staticGdc",
@@ -501,11 +510,18 @@ add(
 );
 add(
   "freshCross",
-  [wingP(-0.75, 0.15, 0), [fs(2.3), -0.5, -0.3], [fs(2.3), -0.5, 0.3], wingP(0.75, 0.15, 0)],
+  [
+    wingP(-0.75, 0.15, 0),
+    [wingP(-0.75, 0.15, 0).x, -0.56, -0.38],
+    [fs(2.3), -0.59, -0.25],
+    [fs(2.3), -0.59, 0.25],
+    [wingP(0.75, 0.15, 0).x, -0.56, 0.38],
+    wingP(0.75, 0.15, 0),
+  ],
   ["environment"],
   "Fresh-air cross-fuselage pipe",
   "LH stub-wing collector feeds RH closing rib across fuselage; side ducts feed roll-bar outlets (AMM 21-00-00 p 3).",
-  { r: 0.013 },
+  { r: 0.013, tension: 0 },
 );
 // Optional panel ventilation has two independent front-fuselage inlets, not a wing-root branch.
 for (const side of [-1, 1])

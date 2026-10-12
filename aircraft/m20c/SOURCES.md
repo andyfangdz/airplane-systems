@@ -73,3 +73,7 @@ Useful direct 1968 pages: [charging options](https://www.manualslib.com/manual/1
 - Wing tip, leading edge and side-specific cowling highlights are narrow, skin-conforming inspection regions,
   visible only when spotlighted. Their bounds/offsets are display choices. The inspected 1968 sources did not
   establish an SR22T-style stall-strip installation, so none is added by assumption.
+
+## Cabin routing verification
+
+Cabin wiring, fuel/pressure lines and PC tubes follow side-trim/underfloor lanes, using a clear forward post where the narrow lower cabin cannot accommodate a line beside a cushion. The main-output breaker remains on the source-supported 1968 right upholstery panel, with its schematic lateral offset moved clear of the copilot seat back. Circuit and manual-system behavior is unchanged. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.

@@ -90,8 +90,12 @@ export const sided = (secs: THREE.Vector3[][], s: number) => (s < 0 ? secs.map((
 
 /** Console lever pivot, schematic: POH 13772-007 Fig 7-4 (7-14), 7-32. */
 export const CONSOLE_QUADRANT: Vec3 = [1.72, -0.32, 0];
-/** MD302 standby screen centre (Airplane.tsx SCREENS), where the pitot-static branches end. */
+/** MD302 standby screen centre (Airplane.tsx SCREENS). */
 export const MD302_POS: Vec3 = [2.175, -0.07, -0.245];
+/** Separate rear pressure connections in the modeled housing behind the standby display.
+ * Display position is unchanged. Connector offsets are schematic, not installation dimensions. */
+export const MD302_PITOT_PORT: Vec3 = [MD302_POS[0] + 0.105, MD302_POS[1], MD302_POS[2] - 0.025];
+export const MD302_STATIC_PORT: Vec3 = [MD302_POS[0] + 0.105, MD302_POS[1], MD302_POS[2] + 0.025];
 
 /** Key switch on the instrument panel (POH 7-37; AMM Fig 74-30-2 PDF p. 2633); position illustrative. */
 export const IGNITION_SWITCH: Vec3 = [2.266, 0.03, -0.47];

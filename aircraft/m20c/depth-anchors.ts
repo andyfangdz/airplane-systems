@@ -25,7 +25,7 @@ export const DEPTH = {
   starterRelay: [2.12, -0.16, -0.25] as Vec3,
   overvoltage: [2.06, 0.09, -0.22] as Vec3,
   fieldBreaker: [1.56, -0.13, 0.35] as Vec3,
-  outputBreaker: [1.02, -0.19, 0.5] as Vec3,
+  outputBreaker: [1.02, -0.19, 0.55] as Vec3,
   instrument: [1.55, 0.05, -0.3] as Vec3,
   engineGauges: [1.56, 0.025, 0.32] as Vec3,
   vacuumSwitch: [1.79, 0.04, -0.13] as Vec3,

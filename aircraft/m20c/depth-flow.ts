@@ -3,6 +3,7 @@
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
+import { cabinRoute } from "./cabin-routing";
 import { DEPTH, depthWing, tankPickup } from "./depth-anchors";
 import { live, pcEngaged, fuelAvail, type Sim, type Elec } from "./model";
 import { breatherOpening, pumpDrainOpening, selectorDrain } from "./airframe-ports";
@@ -229,9 +230,7 @@ for (const side of [-1, 1]) {
     [
       depthWing(side, 1.3, 0.2),
       depthWing(side, 0.8, 0.2),
-      [1.2, -0.54, side * 0.25],
-      [1.6, -0.2, side * 0.2],
-      [1.55, 0.075, side < 0 ? 0.27 : 0.36],
+      ...cabinRoute(depthWing(side, 0.55, 0.2), [1.55, 0.075, side < 0 ? 0.27 : 0.36], side, 0.012),
     ],
     ["fuel", "electrical"],
     "Tank sender → quantity gauge",
@@ -339,7 +338,7 @@ for (const [key, end, name] of [
   );
 add(
   "dPitotHeat",
-  [DEPTH.bus, [1.6, -0.34, -0.2], [1.2, -0.5, -0.28], depthWing(-1, 0.75, 0.3), depthWing(-1, 2.2, 0.3)],
+  [...cabinRoute(DEPTH.bus, depthWing(-1, 0.55, 0.3), -1, 0.012), depthWing(-1, 0.75, 0.3), depthWing(-1, 2.2, 0.3)],
   ["electrical", "pitot"],
   "PITOT HEAT switch-breaker → heated probe",
   "Heated pitot is optional 1968 equipment and fitted in this study (1968 OM scan p. 18; IPC 205 Fig. 44).",
@@ -349,8 +348,7 @@ for (const side of [-1, 1])
   add(
     "dNav" + (side < 0 ? "L" : "R"),
     [
-      DEPTH.bus,
-      [1.2, -0.4, side * 0.2],
+      ...cabinRoute(DEPTH.bus, [1.2, -0.6, side * 0.2], side),
       depthWing(side, 0.8, 0.4),
       depthWing(side, 2, 0.4),
       depthWing(side, 3.5, 0.4),
@@ -363,7 +361,7 @@ for (const side of [-1, 1])
   );
 add(
   "dNavTail",
-  [DEPTH.bus, [0, -0.38, 0], [-1.4, -0.36, 0], [-2.5, -0.35, 0], [-3.5, -0.455, 0]],
+  cabinRoute(DEPTH.bus, [-3.5, -0.455, 0]),
   ["electrical", "lighting"],
   "NAV switch-breaker → tail position light",
   "Tail-light wiring remains within tail-cone centerline. Tail articulation/terminal pigtail is schematic (1968 OM; IPC 205 lighting figures).",
@@ -371,7 +369,7 @@ add(
 );
 add(
   "dBeacon",
-  [DEPTH.bus, [0.2, -0.5, 0], [-0.35, -0.55, 0]],
+  cabinRoute(DEPTH.bus, [-0.35, -0.55, 0]),
   ["electrical", "lighting"],
   "BEACON circuit → belly lamp",
   "Belly beacon is retained from photographed baseline; wiring route approximate (1968 OM scan p. 14 switch list).",
@@ -387,10 +385,10 @@ add(
 );
 add(
   "dCabinLamp",
-  [DEPTH.bus, [1.4, 0.12, 0], OVERHEAD.dome],
+  cabinRoute(DEPTH.bus, OVERHEAD.dome),
   ["electrical", "lighting"],
   "Cabin light switch → dome lamp",
-  "Separate cabin lighting; follows central cabin interior to headliner (1968 OM scan p. 28).",
+  "Separate cabin lighting; schematic sidewall and headliner path keeps wiring out of occupied space (1968 OM scan p. 28).",
   electric,
 );
 add(
@@ -482,8 +480,7 @@ for (const side of [-1, 1]) {
   add(
     "dPCServo" + suffix,
     [
-      DEPTH.pcRate,
-      [1.2, -0.44, side * 0.2],
+      ...cabinRoute(DEPTH.pcRate, depthWing(side, 0.55, 0.62), side, 0.012),
       depthWing(side, 0.8, 0.62),
       depthWing(side, 1.5, 0.62),
       depthWing(side, 2.5, 0.62),
@@ -496,13 +493,7 @@ for (const side of [-1, 1]) {
   );
   add(
     "dPCYaw" + suffix,
-    [
-      DEPTH.pcRate,
-      [1.1, -0.38, side * 0.12],
-      [0, -0.4, side * 0.12],
-      [-1, -0.4, side * 0.1],
-      [SERVO.yaw[0], SERVO.yaw[1], side * 0.1],
-    ],
+    cabinRoute(DEPTH.pcRate, [SERVO.yaw[0], SERVO.yaw[1], side * 0.1], side),
     ["autopilot", "vacuum"],
     "PC " + suffix + " rudder servo command",
     "The same rate-gyro valve applies suction to one rudder servo and vents the opposing output; rudder servos sit in the tail cone (Brittain 11968 § 2.2; MAN 106 § 6-9).",
@@ -520,7 +511,13 @@ add(
 );
 add(
   "dFlapOutlet",
-  [DEPTH.flapPump, DEPTH.flapOutlet, [0.6, -0.61, 0.05], DEPTH.flapActuator],
+  [
+    DEPTH.flapPump,
+    DEPTH.flapOutlet,
+    [DEPTH.flapOutlet[0], -0.62, DEPTH.flapOutlet[2]],
+    [0.6, -0.61, 0.05],
+    DEPTH.flapActuator,
+  ],
   ["flaps"],
   "Pump outlet check → flap actuator",
   "Hand-pump strokes deliver pressure; pressure held inDOWN, without electricity (MAN 106 § 6-6; IPC 205 Fig. 30).",

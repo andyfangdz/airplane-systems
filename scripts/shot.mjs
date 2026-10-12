@@ -169,6 +169,16 @@ try {
     console.log(v);
     await page.goto(`${base}/${v}`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("canvas", { timeout: 60000 });
+    // A progressive scene can show its cabin while hundreds of other parts are still absent.
+    // Finish the build through the same control available to the user before taking review evidence.
+    await page.waitForFunction(
+      () => !document.querySelector("[data-building]") || document.querySelector(".loader-skip"),
+      null,
+      { timeout: 120000 },
+    );
+    const addAll = page.getByRole("button", { name: "Add all the remaining parts now", exact: true });
+    if (await addAll.isVisible()) await addAll.click();
+    await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 120000 });
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" }); // the dev-mode badge
     await page.evaluate(
       async ([solid, noLabels]) => {

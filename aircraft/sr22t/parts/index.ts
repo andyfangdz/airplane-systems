@@ -39,7 +39,16 @@
  * Sections may import anchors only from earlier sections; outside consumers use ./parts.
  * Shared constants go in catalogue.ts.
  */
-export { CAT, CONSOLE_QUADRANT, STALL_Z, chanOfKey, surfacePivot, MD302_POS } from "./catalogue";
+export {
+  CAT,
+  CONSOLE_QUADRANT,
+  STALL_Z,
+  chanOfKey,
+  surfacePivot,
+  MD302_POS,
+  MD302_PITOT_PORT,
+  MD302_STATIC_PORT,
+} from "./catalogue";
 import "./airframe";
 import "./surfaces";
 import "./cowl";

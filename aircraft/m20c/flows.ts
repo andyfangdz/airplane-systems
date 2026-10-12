@@ -3,6 +3,7 @@ import * as THREE from "three";
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
+import { cabinRoute } from "./cabin-routing";
 import { FW, PANEL_X, botY, onSkin, wingP } from "./geometry";
 import { fuelAvail, hornLevel, live, type Elec, type Sim } from "./model";
 import { CYLS, PITOT_Z, SEL, STAT_X, pitotBase } from "./parts";
@@ -19,13 +20,13 @@ const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 
 /* ---------- fuel: tank → selector → boost pump → engine pump → carburetor (OM p. 3) ---------- */
 const tankOut = (s: number) => wingP(s * 0.85, 0.3, 0);
-flow("fuelL", [tankOut(-1), [1.1, -0.52, -0.35], SEL], ["fuel"], {
+flow("fuelL", [tankOut(-1), ...cabinRoute(P(wingP(-0.55, 0.3, 0)), SEL, -1, 0.012)], ["fuel"], {
   name: "Left tank feed line",
   note: "Aluminium line from the left bay's lowest point to the selector valve (OM p. 3).",
   r: 0.006,
   tension: 0,
 });
-flow("fuelR", [tankOut(1), [1.1, -0.52, 0.35], [1.2, -0.58, 0.0], SEL], ["fuel"], {
+flow("fuelR", [tankOut(1), ...cabinRoute(P(wingP(0.55, 0.3, 0)), SEL, 1, 0.012)], ["fuel"], {
   name: "Right tank feed line",
   note: "Right bay → selector valve. One tank at a time — no BOTH.",
   r: 0.006,
@@ -233,9 +234,7 @@ flow(
     P(pitotBase.clone().add(V(0.0, 0.01, 0))),
     P(wingP(PITOT_Z, 0.35, 0)),
     P(wingP(-0.9, 0.35, 0)),
-    [1.0, -0.53, -0.38],
-    [PANEL_X + 0.1, -0.4, -0.45],
-    ASI,
+    ...cabinRoute(P(wingP(-0.55, 0.35, 0)), ASI, -1, 0.012),
   ],
   ["pitot"],
   {
@@ -263,15 +262,14 @@ flow(
     [STAT_X + 0.1, -0.3, 0],
     [-2.4, -0.45, 0],
     [-0.5, -0.6, -0.3],
-    [1.0, -0.62, -0.42],
-    [PANEL_X + 0.1, -0.35, -0.4],
-    [PANEL_X + 0.04, 0.05, -0.3],
+    ...cabinRoute([-0.5, -0.6, -0.3], [PANEL_X + 0.04, 0.05, -0.3], -1).slice(1),
   ],
   ["pitot"],
   {
     r: 0.008,
     color: "#2E6FB0",
     name: "Static line",
+    tension: 0,
     note: "Forward along the belly (drain below the tail-cone access door) to the altimeter, airspeed and rate of climb.",
   },
 );
@@ -324,7 +322,7 @@ flow("vacFilt", [GYROS, [PANEL_X + 0.1, -0.05, -0.33], FILT], ["vacuum"], {
 });
 flow(
   "pcRoll",
-  [TC, [PANEL_X + 0.0, -0.3, -0.35], [0.9, -0.47, -0.55], P(wingP(-2.0, 0.6, 0)), SERVO.roll],
+  [...cabinRoute(TC, P(wingP(-0.55, 0.6, 0)), -1, 0.012), P(wingP(-2.0, 0.6, 0)), SERVO.roll],
   ["autopilot", "vacuum"],
   {
     r: 0.004,
@@ -337,9 +335,7 @@ flow(
 flow(
   "pcRollR",
   [
-    TC,
-    [PANEL_X + 0.0, -0.3, 0.3],
-    [0.9, -0.47, 0.55],
+    ...cabinRoute(TC, P(wingP(0.55, 0.6, 0)), 1, 0.012),
     P(wingP(2.0, 0.6, 0)),
     [SERVO.roll[0], SERVO.roll[1], -SERVO.roll[2]],
   ],
@@ -352,17 +348,13 @@ flow(
     note: "The opposite servo is signalled for the other roll direction.",
   },
 );
-flow(
-  "pcYaw",
-  [TC, [PANEL_X + 0.0, -0.35, -0.3], [0.5, -0.6, 0.1], [-1.0, -0.55, 0.1], SERVO.yaw],
-  ["autopilot", "vacuum"],
-  {
-    r: 0.007,
-    color: "#C8399F",
-    name: "PC rudder servo lines",
-    note: "Signal lines aft through the tail cone to the two rudder servos.",
-  },
-);
+flow("pcYaw", cabinRoute(TC, SERVO.yaw), ["autopilot", "vacuum"], {
+  r: 0.007,
+  color: "#C8399F",
+  name: "PC rudder servo lines",
+  tension: 0,
+  note: "Signal lines aft through the tail cone to the two rudder servos.",
+});
 flow(
   "pcCut",
   [[PANEL_X - 0.2, 0.02, -0.43], [PANEL_X - 0.05, -0.2, -0.46], [PANEL_X + 0.08, -0.1, -0.46], TC],
@@ -431,7 +423,13 @@ flow("start", [RELAY, [2.3, -0.3, -0.2], [2.6, -0.35, 0.1], EQUIPMENT.starter], 
 });
 flow(
   "gen",
-  [GEN, [2.5, -0.22, -0.25], [2.2, -0.13, -0.25], [FW - 0.02, -0.18, -0.25], DEPTH.outputBreaker, DEPTH.bus],
+  [
+    GEN,
+    [2.5, -0.22, -0.25],
+    [2.2, -0.13, -0.25],
+    ...cabinRoute([FW - 0.02, -0.18, -0.25], DEPTH.outputBreaker, 1, 0.035),
+    ...cabinRoute(DEPTH.outputBreaker, DEPTH.bus, 1, 0.035).slice(1),
+  ],
   ["electrical"],
   {
     r: 0.012,

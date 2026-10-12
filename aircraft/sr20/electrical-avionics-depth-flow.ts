@@ -6,6 +6,7 @@
  */
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
+import { cabinHarness } from "@/lib/cabinRouting";
 import type { Elec, Sim } from "./model";
 import { MCU, BAT_1, BAT2_BOX, BAT2_RELAY, GROUND_POWER } from "./parts/electrical";
 import {
@@ -35,7 +36,7 @@ import {
   GTS_800,
   KN_63,
 } from "./parts/avionics";
-import { HH, botY, fLE, fus, hingeX, topY } from "./geometry";
+import { FUSE, HH, botY, fLE, fus, hingeX, onSkin, topY } from "./geometry";
 
 const CB: Vec3 = [1.8, -0.42, -0.115];
 const F: FlowSpec[] = [];
@@ -262,29 +263,37 @@ for (const [name, unit, base] of [
     );
 add(
   "xpdrData",
-  [XPDR, [-0.5, -0.35, 0.31], [0.8, -0.52, 0.25], [1.9, -0.5, 0.22], [2.52, -0.25, -0.1], GIA_1],
+  cabinHarness(FUSE, XPDR, GIA_1, 2.48),
   "Transponder ↔ GIA 1",
   "RS-232 transponder control/data to primary GIA (POH 7-79; AMM 34-50 troubleshooting)",
+  ["avionics"],
+  { tension: 0 },
 );
 
 /* Optional systems keep their model identity and documented integration paths. */
 add(
   "xmData",
-  [GDL_69A, [-0.5, -0.38, 0.3], [1.1, -0.54, 0.28], [2.51, -0.2, 0.15], MFD_CONN],
+  cabinHarness(FUSE, GDL_69A, MFD_CONN, 2.48),
   "XM receiver ↔ MFD (optional)",
   "Satellite weather and control to MFD; display bus carries it to PFD (POH 7-84–7-85; Garminp. 2)",
+  ["avionics"],
+  { tension: 0 },
 );
 add(
   "iridiumData",
-  [GSR_56, [-0.48, -0.37, -0.22], [1.1, -0.55, -0.23], [2.5, -0.23, -0.13], GIA_1],
+  cabinHarness(FUSE, GSR_56, GIA_1, 2.48),
   "Iridium ↔ primary GIA (optional)",
   "RS-232 satellite voice/data transceiver integration (POH 7-84; Garminp. 2)",
+  ["avionics"],
+  { tension: 0 },
 );
 add(
   "gatewayData",
-  [GIA_1, [2.52, 0.18, -0.08], [2.5, -0.23, 0.32], [1, -0.53, 0.3], [-0.45, -0.35, 0.32], GATEWAY],
+  cabinHarness(FUSE, GIA_1, GATEWAY, 2.48),
   "Avionics → gateway (optional)",
   "Read-only ARINC429 on same line feeding RDM300; gateway cellular upload on ground (AMM 31-70 p. 1)",
+  ["avionics"],
+  { tension: 0 },
 );
 add(
   "wxData",
@@ -334,7 +343,19 @@ const rfEnd = (p: Vec3, side: number): Vec3[] => {
   if (p[0] > 2.3) return [p, [2.59, p[1], p[2]], [2.59, -0.35, side * 0.4], [2.39, -0.5, side * 0.4]];
   const lane = cabinLane(p[0], side),
     middle = fus(p[0]).cy;
-  if (p[1] > 0.3) return [p, [p[0], Math.min(p[1] - 0.045, topY(p[0]) - 0.03), p[2]], [p[0], middle, lane[2]], lane];
+  if (p === MICROPHONE) return [p, [p[0], p[1], -0.1], [p[0], lane[1], -0.1], lane];
+  if (p[1] <= lane[1] + 0.08) return [p, [p[0], lane[1], p[2]], lane];
+  if (p[1] > 0.3) {
+    const y = Math.min(p[1] - 0.045, topY(p[0]) - 0.065);
+    const points: Vec3[] = [p, [p[0], y, p[2]]];
+    const steps = Math.max(1, Math.ceil((y - lane[1] - 0.06) / 0.08));
+    for (let i = 0; i <= steps; i++) {
+      const h = y + ((lane[1] + 0.06 - y) * i) / steps;
+      points.push([p[0], h, side * Math.max(0, Math.abs(onSkin(p[0], h, side, 1).z) - 0.02)]);
+    }
+    points.push(lane);
+    return points;
+  }
   // Move across the widest section before descending: a diagonal from a side LRU toward a belly port cuts the skin.
   return [p, [p[0], middle, p[2]], [p[0], middle, lane[2]], lane];
 };

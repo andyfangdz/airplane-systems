@@ -3,7 +3,8 @@ import * as THREE from "three";
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
-import { Z, wingP } from "./geometry";
+import { cabinHarness } from "@/lib/cabinRouting";
+import { AF, Z, wingP } from "./geometry";
 import { engineTurning } from "./engine-operation";
 import { live, type Elec, type Sim } from "./model";
 import {
@@ -287,10 +288,11 @@ flow(
     note: "Pitot head → wing → door post → standby airspeed indicator and the air data computer (POH 7-12).",
   },
 );
-flow("pitot2", [D.pressureTee, P3(70, -12, 32), P3(110, -6, 36), ADC], ["pitot"], {
+flow("pitot2", cabinHarness(AF, D.pressureTee, ADC, AF.X(14), -1), ["pitot"], {
   r: 0.006,
   color: PIT,
   name: "Pitot line to the GDC 74A",
+  tension: 0,
 });
 flow("static", [STATIC_PORT, P3(15, -17, 44), D.staticTee], ["pitot"], {
   r: 0.006,
@@ -298,10 +300,11 @@ flow("static", [STATIC_PORT, P3(15, -17, 44), D.staticTee], ["pitot"], {
   name: "Static line",
   note: "Static port → standby airspeed and altimeter; shared with the air data computer (POH 7-12).",
 });
-flow("static2", [D.staticTee, P3(40, -12, 30), P3(110, -6, 36), ADC], ["pitot"], {
+flow("static2", cabinHarness(AF, D.staticTee, ADC, AF.X(14), -1), ["pitot"], {
   r: 0.006,
   color: "#2E7A3A",
   name: "Static line to the GDC 74A",
+  tension: 0,
 });
 flow("altStatic", [P3(30, -5, 40), P3(18.4, -3.5, 50.5)], ["pitot"], {
   tube: false,

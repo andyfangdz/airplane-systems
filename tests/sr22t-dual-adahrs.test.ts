@@ -18,7 +18,8 @@ import {
   MAG_1,
   MAG_2,
   MAG_WIRES,
-  MD302_POS,
+  MD302_PITOT_PORT,
+  MD302_STATIC_PORT,
   OAT_1,
   OAT_2,
   TANK_SPAN,
@@ -119,10 +120,10 @@ describe("SR22T pitot-static feeds both ADAHRS and the MD302 (POH Fig 7-16 (2 of
     const ends: [string, Vec3][] = [
       ["pitot", anchor("GSU 75 ADAHRS 1")],
       ["pitotAdahrs2", anchor("GSU 75 ADAHRS 2")],
-      ["pitotStby", MD302_POS],
+      ["pitotStby", MD302_PITOT_PORT],
       ["staticAdahrs", anchor("GSU 75 ADAHRS 1")],
       ["staticAdahrs2", anchor("GSU 75 ADAHRS 2")],
-      ["staticStby", MD302_POS],
+      ["staticStby", MD302_STATIC_PORT],
     ];
     for (const [key, end] of ends) expect(dist(pts(key).at(-1)!, end), key).toBeLessThan(0.01);
     // the branches tee off the main lines: pitot after its trap, static after the console tee

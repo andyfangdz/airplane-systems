@@ -48,3 +48,7 @@ The [Diamond Aviators “Low fuel pressure... again” discussion, page5](https:
 ## Physical checks
 
 The added and corrected fixed hardware, closed-door hardware and actual rendered curved tube walls are tested against the model’s fuselage/wing/stabilizer/fin skin. Moving-group geometry is also covered by the fleet test, including triangle centroids and edge midpoints. The undimensioned elevator horn uses a compact arm inside the root skin and its linkage follows the same attachment, avoiding a face across the simplified fin/stabilizer skin gap. `airframe-ports.ts` permits only short named skin crossings at physical vent/probe/lamp/overboard/horn/root-fairing interfaces; interior portions remain checked. Real exposed horns, mast, gear fittings, windows/handles and inspection surface overlays are explicitly classified as exterior. These are model-consistency checks, not certification of real-aircraft clearances.
+
+## Cabin routing verification
+
+Long electrical/data connections and the fresh-air cross-fuselage duct clear the modeled seats through underfloor/sidewall lanes. The parallel pressure-trap tees sit below the cushions; their low-point sumps, filters and instrument topology remain distinct. Tee heights and bend coordinates are schematic, not surveyed installation dimensions. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.

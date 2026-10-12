@@ -4,6 +4,7 @@
  */
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
+import { cabinFloorLane, cabinHarness } from "@/lib/cabinRouting";
 import type { Elec, Sim } from "./model";
 import { DEPTH as D } from "./depth-anchors";
 import { AF, X, Y, Z, botY, fLE, fus } from "./geometry";
@@ -33,9 +34,7 @@ const add = (
     ...extra,
   });
 const lane = (fs: number, side = 1): Vec3 => {
-  const x = X(fs),
-    s = fus(x);
-  return [x, s.cy - s.hh * 0.65, side * Math.min(s.hw * 0.45, 0.25)];
+  return cabinFloorLane(AF, X(fs), side);
 };
 /** All long avionics/data runs follow the underfloor volume; forward links remain behind the panel. */
 const wire = (
@@ -47,6 +46,10 @@ const wire = (
   sys: FlowSpec["sys"] = ["avionics"],
   power = false,
 ) => {
+  if (Math.min(a[0], b[0]) < X(24)) {
+    add(key, cabinHarness(AF, a, b, X(14.8)), name, note, sys, power ? { color: "#AD8739", pcolor: "#FFD167" } : {});
+    return;
+  }
   const side = a[2] + b[2] < 0 ? -1 : 1;
   const afs = 100 - a[0] / 0.0254,
     bfs = 100 - b[0] / 0.0254;
@@ -178,11 +181,7 @@ add(
   [
     mag,
     ...[-150, -120, -90, -60, -30, -19].map((bl) => wp(bl, 0.45)),
-    P3(45, -13, 70),
-    lane(45, -1),
-    lane(100, -1),
-    lane(140, -1),
-    D.ahrs,
+    ...cabinHarness(AF, wp(-12, 0.45), D.ahrs, X(14.8), -1),
   ],
   "GMU 44 → GRS 77",
   "Left-wing magnetometer RS-485 data/power from AHRS (POH 7-67; Garmin 1-3)",
@@ -241,19 +240,10 @@ for (const [n, gia] of [
     `VOR/GS antenna → NAV${n}`,
     "Fin-mounted navigation antenna RF feeds the GIA's VHF NAV receiver; endpoint is inside the antenna mounting region (POH 7-69; Garmin p. 1-7)",
   );
-add(
+wire(
   "depthSpeaker",
-  [
-    D.audio,
-    P3(14.8, D.audio[2] / 0.0254, 45),
-    lane(14.8, -1),
-    lane(30, -1),
-    lane(55, -1),
-    P3(55, -18, 42),
-    P3(55, -18, 76.5),
-    P3(55, -12, 77),
-    P3(55, 0, 77),
-  ],
+  D.audio,
+  P3(55, 0, 77),
   "GMA → cabin speaker",
   "Audio panel output; run behind panel and under floor to the sidewall/headliner, clear of the instrument faces (POH 7-66)",
 );
@@ -316,10 +306,7 @@ for (const side of [-1, 1]) {
     [
       sender,
       ...[55, 45, 35, 24, 19].map((bl) => wp(side * bl, 0.5)),
-      P3(45, side * 12, 68),
-      lane(45, side),
-      lane(15, side),
-      D.gea,
+      ...cabinHarness(AF, wp(side * 12, 0.5), D.gea, X(14.8), side),
     ],
     "Fuel float → GEA",
     "Electrical signal remains in the wing/cabin harness, separate from supply manifold (POH 7-40)",
