@@ -10,6 +10,42 @@ import { chromium, webkit, devices } from "playwright-core";
 const root = resolve(import.meta.dirname, "..");
 const port = 4100 + Math.floor(Math.random() * 800);
 const base = process.argv[2] || `http://localhost:${port}`;
+
+/** Observe the rendered camera through three.js's devtools hook, as in test-load-ui.mjs. */
+function hookCamera() {
+  const state = (window.__fleetCamera = { camera: null, frames: 0 });
+  const dev = new EventTarget();
+  dev.addEventListener("observe", ({ detail: renderer }) => {
+    if (!renderer?.isWebGLRenderer) return;
+    const render = renderer.render.bind(renderer);
+    renderer.render = (scene, camera) => {
+      state.camera = camera;
+      state.frames++;
+      return render(scene, camera);
+    };
+  });
+  window.__THREE_DEVTOOLS__ = dev;
+}
+
+async function settledCamera(page) {
+  const read = async () => {
+    const frame = await page.evaluate(() => window.__fleetCamera.frames);
+    await page.waitForFunction((f) => window.__fleetCamera.frames >= f + 2, frame);
+    return page.evaluate(() => {
+      const camera = window.__fleetCamera.camera;
+      return [...camera.position.toArray(), ...camera.quaternion.toArray()];
+    });
+  };
+  let previous = await read();
+  for (let i = 0; i < 120; i++) {
+    await delay(250);
+    const current = await read();
+    if (current.every((v, k) => Math.abs(v - previous[k]) < 1e-5)) return current;
+    previous = current;
+  }
+  throw new Error("Camera did not settle after orbiting");
+}
+
 let server, browser;
 try {
   if (!process.argv[2]) {
@@ -49,6 +85,7 @@ try {
     const touch = width < 860;
     const device = touch ? devices[engine === webkit ? "iPhone 13" : "Pixel 7"] : {};
     const context = await browser.newContext({ ...device, viewport: { width, height }, reducedMotion: "reduce" });
+    if (width === 1440) await context.addInitScript(hookCamera);
     await context.addInitScript((theme) => {
       localStorage.setItem("tourDone", "1");
       localStorage.setItem("sr20theme", theme);
@@ -110,6 +147,28 @@ try {
     assert.ok(await trigger.evaluate((el) => el === document.activeElement), "Focus returns to the trigger");
 
     if (width === 1440) {
+      await page.waitForFunction(() => window.__fleetCamera.camera && !document.querySelector("[data-building]"));
+      const defaultCamera = await settledCamera(page);
+      const canvas = await page.locator("canvas").boundingBox();
+      const x = canvas.x + canvas.width / 2,
+        y = canvas.y + canvas.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x + 160, y + 60, { steps: 8 });
+      await page.mouse.up();
+      const orbitedCamera = await settledCamera(page);
+      assert.ok(
+        orbitedCamera.some((v, k) => Math.abs(v - defaultCamera[k]) > 0.1),
+        "Dragging moves the camera away from its default view",
+      );
+      await activate(trigger);
+      await activate(dialog.getByRole("button", { pressed: true }));
+      await waitForClosed();
+      const reselectedCamera = await settledCamera(page);
+      assert.ok(
+        reselectedCamera.every((v, k) => Math.abs(v - orbitedCamera[k]) < 1e-3),
+        `Re-selecting the current airplane preserves the orbited camera: ${reselectedCamera} vs ${orbitedCamera}`,
+      );
       await page.getByRole("button", { name: "Preflight", exact: true }).click();
       await page.locator(".app.walking").waitFor();
       await activate(trigger);
