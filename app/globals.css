@@ -161,9 +161,6 @@ button {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.fleet-chevron {
-  margin-left: auto;
-}
 .fleet-trigger:hover,
 .fleet-trigger[aria-expanded="true"] {
   color: var(--accent);

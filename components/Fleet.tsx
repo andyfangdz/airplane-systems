@@ -66,9 +66,6 @@ export function Fleet() {
                 <path d="M3 6h14m-4-4 4 4-4 4M17 14H3m4-4-4 4 4 4" />
               </svg>
               Switch Airplanes
-              <svg className="fleet-chevron" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="m4 6 4 4 4-4" />
-              </svg>
             </span>
             <span className="fleet-current-name">{current.name}</span>
           </span>
