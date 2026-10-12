@@ -7,7 +7,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useTicker } from "@/components/ui/controls";
 import { revealStage, useView } from "@/lib/view";
-import { useFuselage } from "../fuselage-geo";
 import { SYS } from "../systems";
 import {
   beginWalk,
@@ -22,7 +21,8 @@ import {
   walkNow,
   type WalkPhase,
 } from "../walk-store";
-import { clock, loadProgress, MAP_MARK_R, sightLine, stepParts, stepPose, stepSide, tally, type Step } from "../walk";
+import { clock, loadProgress, MAP_MARK_R, sightLine, stepParts, stepSide, tally, type Step } from "../walk";
+import { cancelFrame, frameStep } from "../walk-frame";
 import {
   COLD_WEATHER,
   GENERAL_WARNING,
@@ -73,8 +73,6 @@ function useWakeLock() {
 /** Camera, highlight, X-ray system and the cabin station's switches for the current step. */
 function useStepScene(step: Step | undefined, phase: WalkPhase) {
   const last = useRef<number | null>(null);
-  // an item framed from the station while the fuselage was still being built is framed again once it is in
-  const fuselageIn = useFuselage((x) => x.settled);
   useEffect(() => {
     const { flyTo } = useView.getState();
     if (!step) {
@@ -90,17 +88,21 @@ function useStepScene(step: Step | undefined, phase: WalkPhase) {
       spot: { names: stepParts(step).shown, side: stepSide(step) },
       focus: null,
     });
-    const pose = stepPose(step);
+    // an item framed from the station while the fuselage was still being built is framed once it is in, unless the step
+    // changes or the camera moves first (walk-frame.ts)
     if (last.current === step.station.n) {
-      flyTo(pose.p, pose.t);
-      return;
+      frameStep(step);
+      return cancelFrame;
     }
     // a new station: walk to it first, then look at the item
     last.current = step.station.n;
     flyTo(step.station.cam.p, step.station.cam.t);
-    const t = setTimeout(() => useView.getState().flyTo(pose.p, pose.t), STATION_SETTLE_MS);
-    return () => clearTimeout(t);
-  }, [step, phase, fuselageIn]);
+    const t = setTimeout(() => frameStep(step), STATION_SETTLE_MS);
+    return () => {
+      clearTimeout(t);
+      cancelFrame();
+    };
+  }, [step, phase]);
 }
 
 /** Arrow keys step through the items, unless a form control has focus. */

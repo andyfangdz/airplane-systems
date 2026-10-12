@@ -85,6 +85,7 @@ function CameraRig() {
     if (!controls) return;
     const cancel = () => {
       flight.current = null;
+      view.moves++;
     };
     controls.addEventListener("start", cancel);
     return () => controls.removeEventListener("start", cancel);

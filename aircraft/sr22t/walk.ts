@@ -186,9 +186,15 @@ export function underAirplane(p: THREE.Vector3) {
  * Camera for an item: the eye stays at the station's standing height (crouched for the items marked `crouch`, the
  * underside drains, vents and gascolator) and walks along the ground from the station towards the item's parts, to
  * FRAME_DIST from them but never over or under the airplane, then looks at them. An item with its own `eye` (the
- * technique items) is seen from there. Items without modelled parts keep the station view.
+ * technique items) is seen from there. Items without modelled parts keep the station view. While the page's worker still
+ * builds the fuselage skin an item that needs the clearance outline keeps the station view too (see framePose).
  */
 export function stepPose(step: Step): CameraPose {
+  return framePose(step) ?? step.station.cam;
+}
+
+/** stepPose, or null while the item's clearance framing waits for the page's worker to finish the fuselage skin. */
+export function framePose(step: Step): CameraPose | null {
   const c = stepCentroid(step),
     { p } = step.station.cam;
   if (!c) return step.station.cam;
@@ -198,9 +204,9 @@ export function stepPose(step: Step): CameraPose {
     d = away.length();
   away.normalize();
   const r0 = Math.min(Math.max(d, FRAME_DIST[0]), FRAME_DIST[1]);
-  // the clearance outline needs the fuselage skin: while the page's worker still builds it, keep the station's view
-  // rather than build it again here (the walk-around frames the item again once it is in: useFuselage)
-  if (r0 < d && !outline && hullPending()) return step.station.cam;
+  // the clearance outline needs the fuselage skin: while the page's worker still builds it, wait rather than build it
+  // again here (walk-frame.ts frames the item once it is in)
+  if (r0 < d && !outline && hullPending()) return null;
   // from the framing distance back towards the station (which is clear of the airplane) until clear
   for (let r = r0; r < d; r += BACK_STEP_M) {
     const at = V(c.x + away.x * r, y, c.z + away.z * r);

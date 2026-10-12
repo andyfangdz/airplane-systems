@@ -8,8 +8,9 @@
  * SR22T overview, a system view and Reset view after a drag. Each load shows the loader, then a frame with every skin
  * shell, then no loader. The SR22T builds progressively: the deep-linked system's and the walk-around station's parts come
  * first; a part that mounts late is still found by "tap to locate"; a walk-around begun while the fuselage worker still
- * builds doesn't build the hull on the main thread and frames its first item as when the hull was there; a browser that
- * refuses the fuselage worker builds the same scene; no build-in glow under prefers-reduced-motion. Run after npm run build (it starts next start), or pass an existing server URL.
+ * builds doesn't build the hull on the main thread and frames its first item as when the hull was there, but keeps a
+ * camera move the user made meanwhile; a browser that refuses the fuselage worker builds the same scene; no build-in
+ * glow under prefers-reduced-motion. Run after npm run build (it starts next start), or pass an existing server URL.
  * `--update` rewrites the baseline (scripts/test-load-ui.baseline.json): only on main before this change, or for an
  * intended model change.
  */
@@ -495,6 +496,45 @@ try {
       console.log(
         `?walk=${station} begun while the worker builds the hull: longest task ${Math.round(held.longest)} ms, camera ${held.camera}`,
       );
+    }
+
+    // a camera move the user makes while the worker still builds the fuselage is kept when it answers: on the intro screen,
+    // and on an item (2a) shown from its station while it waited for the hull
+    for (const where of ["intro", "2a"]) {
+      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+      await ctx.addInitScript(hookThree);
+      await ctx.route("**/_vercel/**", (route) => route.abort());
+      await ctx.addInitScript(holdWorker);
+      const p = await ctx.newPage();
+      const errs = [];
+      p.on("pageerror", (e) => errs.push(e.message));
+      await p.goto(base + "/sr22t?walk=2");
+      const begin = p.getByRole("button", { name: "Begin at station 2", exact: true });
+      await begin.waitFor();
+      if (where === "2a") {
+        await begin.click();
+        await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent === "2a");
+        await p.waitForTimeout(1600); // the station, then the item after the panel's settle (STATION_SETTLE_MS)
+      }
+      await settledCamera(p);
+      const box = await p.locator("canvas").boundingBox();
+      await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await p.mouse.down();
+      await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
+      await p.mouse.up();
+      const moved = await settledCamera(p);
+      assert.ok(await p.locator("[data-building]").count(), `${where}: still building while the worker is held`);
+      await p.evaluate(() => window.__releaseWorker());
+      await sceneComplete(p);
+      await p.waitForTimeout(1600);
+      const after = await settledCamera(p);
+      assert.ok(
+        !cameraDiff(after, moved),
+        `${where}: the user's camera kept when the hull arrives: ${after} vs ${moved}`,
+      );
+      assert.deepEqual(errs, [], "No application runtime errors");
+      console.log(`?walk=2 ${where}: a camera drag during the build is kept when the worker's hull arrives`);
+      await ctx.close();
     }
 
     // A newer system request supersedes a locate request for a part still being built.
