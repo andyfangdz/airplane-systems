@@ -203,6 +203,7 @@ part(() => box(0.08, 0.1, 0.06), ["controls"], {
       chan: ["elevator"],
       color: "#E0B040",
       name: "Elevator trim bungee",
+      ext: true,
       note: "Springs on the elevator horns whose setting changes with the stabilizer trim, giving trim assist from the elevator (OM p. 9).",
       pin: s > 0,
     },

@@ -22,6 +22,8 @@ import { useC182 } from "../store";
 import { QUARTER_TANK } from "../tick";
 import { Scenarios } from "./general";
 import { cancelPropCycle, startPropCycle } from "../propCycle";
+import { ENGINE_GROUPS } from "../engine-groups";
+import { useEngineGroups } from "../engine-group-store";
 
 const pct = (v: number) => Math.round(v * 100) + "%";
 const thr = (v: number) => (v < 0.02 ? "IDLE (full out)" : v > 0.98 ? "FULL (full in)" : `${pct(v)} in`);
@@ -110,6 +112,7 @@ function EngineKnobs({ id = "" }: { id?: string }) {
 }
 
 export function Engine() {
+  const groups = useEngineGroups();
   useTicker(150);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
@@ -166,6 +169,23 @@ export function Engine() {
   ];
   return (
     <>
+      <H3>Engine study layers</H3>
+      <Ctl>
+        <BtnRow>
+          {ENGINE_GROUPS.map((group) => (
+            <Check
+              key={group}
+              id={"engine-layer-" + group}
+              label={group}
+              checked={groups.shown[group]}
+              onChange={(value) => groups.set(group, value)}
+            />
+          ))}
+        </BtnRow>
+      </Ctl>
+      <Small>
+        These layers change the study view; source operation, failures and the propeller cycle continue independently.
+      </Small>
       <p className="lead">
         Lycoming IO-540-AB1A5: six cylinders, horizontally opposed, fuel injected, 230 BHP at 2,400 RPM, driving a
         three-blade constant-speed McCauley propeller. Throttle, PROPELLER and mixture are push-pull knobs in the lower

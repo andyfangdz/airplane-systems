@@ -19,6 +19,8 @@ import { live } from "./model";
 import { CAT, LIGHTS, NOSE, NOSE_CASTER, P3, PROP, YOKES, surfacePivot } from "./parts";
 import { NAV3_BL } from "../cessna/faceplate";
 import { PULLEYS, RIG, RIG_SPEC } from "./rig";
+import { useEngineGroups } from "./engine-group-store";
+import { engineHidden } from "./engine-groups";
 import { useC172 } from "./store";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
@@ -360,6 +362,12 @@ const flowColor = (k: string, out: THREE.Color) => {
 
 /** The C172S scene: airframe shells, control surfaces, moving assemblies, tanks, displays, lights. */
 export function Model() {
+  const shown = useEngineGroups((x) => x.shown),
+    engineView = useView((x) => x.sys === "engine" && !x.walking);
+  const flows = useMemo(
+    () => FLOWS.filter((f) => !engineView || !engineHidden(f, "engine", shown)),
+    [engineView, shown],
+  );
   return (
     <>
       <Shells cat={CAT} />
@@ -369,7 +377,7 @@ export function Model() {
       <Propeller />
       <ControlRig />
       <Tanks tanks={TANKS} />
-      <Flows flows={FLOWS} rates={rates} color={flowColor} />
+      <Flows flows={flows} rates={rates} color={flowColor} />
       <Screens screens={SCREENS} />
       <LightFX glows={GLOWS} beams={BEAMS} />
       <WindowOutlines loops={windowOutlines} />

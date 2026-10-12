@@ -1,7 +1,7 @@
 /**
  * 1968 Mooney M20C simulation model: discrete state, the pure electrical solver, engine / fuel / vacuum helpers and the
  * warning-light and horn list. Sources: the Mark 21 (M20C) Owner's Manual, 1965 edition with the 1962–64 supplement
- * ("OM p. n" — the closest available edition to the 1968 book for manual gear, hydraulic flaps and PC), the M20C Ranger
+ * ("OM p. n" — retained legacy references), the inspected 1968 POH 1187, the M20C Ranger
  * Operator's Manual of Dec 1974 ("Ranger 2-n", used where the older book is silent),
  * the 1963 FAA Approved Flight Manual for s/n 2394, and TCDS 2A3. Where this model makes an assumption it says so.
  */
@@ -67,6 +67,19 @@ export interface Sim {
   /** Cabin heat valve 0..1, right-scoop cabin vent 0..1, overhead ram-air scoop 0 (retracted) … 1 (extended), pilot's storm window. */
   env: { heat: number; vent: number; scoop: number; stormWindow: boolean };
   doors: { cabin: boolean; baggage: boolean };
+  /** Maintenance-based study faults. Outcomes/timing are qualitative, not a maintenance diagnosis. */
+  faults: {
+    fuelScreen: boolean;
+    boostPump: boolean;
+    flapLeak: boolean;
+    pcLeak: boolean;
+    vacuumRegulator: boolean;
+    magL: boolean;
+    magR: boolean;
+    oilCooler: boolean;
+    exhaustLeak: boolean;
+    overvoltage: boolean;
+  };
 }
 
 export const initialSim: Sim = {
@@ -94,6 +107,18 @@ export const initialSim: Sim = {
   lights: { instr: 0, spot: 0, cabin: false, selector: 0 },
   env: { heat: 0.3, vent: 0.4, scoop: 0.3, stormWindow: false },
   doors: { cabin: true, baggage: true },
+  faults: {
+    fuelScreen: false,
+    boostPump: false,
+    flapLeak: false,
+    pcLeak: false,
+    vacuumRegulator: false,
+    magL: false,
+    magR: false,
+    oilCooler: false,
+    exhaustLeak: false,
+    overvoltage: false,
+  },
 };
 
 /** The integrator works in knots; the M20C's instruments read miles per hour. */
@@ -233,6 +258,7 @@ export interface Elec {
   com1: boolean;
   com2: boolean;
   xpdr: boolean;
+  overvoltage: boolean;
 }
 
 /** Typical loads (A, 12 V) — illustrative; the Owner's Manual gives none. */
@@ -261,8 +287,10 @@ export const ALT_MIN_RPM = 700;
 /**
  * Electrical solver. One bus: battery → master relay at the battery (master switch) → bus; 60 A 12 V alternator → ALT 60 A
  * breaker → bus, its field excited from the bus through ALT FIELD and the voltage regulator (Ranger 2-13). The 1962–67
- * Mark 21 had a 50 A Delco-Remy generator and a load meter instead (OM p. 3; TCDS 2A3); the 1968 Ranger's Prestolite
- * alternator carries the loads from idle up. The engine's ignition is independent of all of this (OM p. 3 note).
+ * Earlier Mark21 documentation describes a 50 A generator/load meter. The actual 1968 POH 1187 scan p. 7,24 permits either
+ * 50 A generator or 60 A alternator and describes a battery ammeter. This study selects the existing alternator variant;
+ * N6947N installed equipment is not independently established. MAN 106 § 9-3 places its 1968 output breaker on the right
+ * upholstery panel. Magneto ignition is independent of this bus.
  */
 export function solve(s: Sim, prev?: Elec): Elec {
   // An alternator already on line sustains its field after battery loss (Ranger 2-13).
@@ -277,11 +305,12 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExc
     cb = (n: string) => !s.cb[n];
   const batOk = e.master && !e.fail.bat && batCharge;
   const field = ((allowBatteryExcitation && batOk) || excited) && cb("ALT FIELD");
-  const genOn = s.eng.running && s.eng.altSpinning && !e.fail.gen && cb("ALT") && field && e.master;
+  const genOn =
+    s.eng.running && s.eng.altSpinning && !e.fail.gen && !s.faults.overvoltage && cb("ALT") && field && e.master;
   const bus = batOk || genOn;
   const pw = (name: string) => bus && cb(name);
   const sw = (k: keyof Sim["sw"], name: string) => pw(name) && s.sw[k];
-  const fuelPump = sw("fuelPump", "FUEL PUMP"),
+  const fuelPump = sw("fuelPump", "FUEL PUMP") && !s.faults.boostPump,
     pitotHeat = sw("pitotHeat", "PITOT HEAT") && s.pitot.heatInstalled;
   const beacon = sw("beacon", "BEACON"),
     nav = sw("nav", "NAV LTS"),
@@ -355,12 +384,25 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExc
     com1,
     com2,
     xpdr,
+    overvoltage: bus && s.faults.overvoltage,
   };
 }
 
 /* ---------- engine, propeller, fuel ---------- */
 
-export const fuelAvail = (s: Sim) => s.fuel.sel !== "OFF" && (s.fuel.sel === "L" ? s.fuel.qL : s.fuel.qR) > 0.05;
+export const fuelAvail = (s: Sim) =>
+  !s.faults.fuelScreen && s.fuel.sel !== "OFF" && (s.fuel.sel === "L" ? s.fuel.qL : s.fuel.qR) > 0.05;
+/** Magnetos are independent of the bus; START grounds the right and powers the left retard circuit (1968 OM scan p. 15). */
+export const ignitionAvailable = (s: Sim, E: Pick<Elec, "vibrator">) =>
+  s.eng.key === "START"
+    ? E.vibrator && !s.faults.magL
+    : s.eng.key === "L"
+      ? !s.faults.magL
+      : s.eng.key === "R"
+        ? !s.faults.magR
+        : s.eng.key === "BOTH" && (!s.faults.magL || !s.faults.magR);
+/** Exhaust heater leak demonstrates contamination exposure without inventing a carbon-monoxide concentration. */
+export const cabinHeatContaminated = (s: Sim) => s.eng.running && s.env.heat > 0 && s.faults.exhaustLeak;
 /** Governor target RPM for the propeller control 0..1 (low-RPM stop not in the manual: ≈ 1,800 assumed). */
 export const govRpmFor = (lever: number) => Math.round(1800 + 900 * lever);
 export const govRpm = (s: Sim) => govRpmFor(s.eng.prop);
@@ -377,7 +419,8 @@ export function bladeAngle(s: Sim, rpm: number) {
 export const VAC = { lo: 4.05, hi: 5.2, reg: 4.8 };
 export const vacOk = (v: number) => v >= VAC.lo && v <= VAC.hi;
 /** PC works whenever the pump turns fast enough — windmilling at about 1,000 RPM or above (OM p. 8). */
-export const pcAvailable = (s: Sim) => !s.eng.fail.vacPump && live.rpm >= 1000 && live.vac >= 3.5;
+export const pcAvailable = (s: Sim) =>
+  !s.eng.fail.vacPump && !s.faults.pcLeak && live.rpm >= 1000 && live.vac >= 3.5 && live.vac <= 6;
 export const pcEngaged = (s: Sim) => pcAvailable(s) && !s.pc.cutoff;
 
 /* ---------- gear, flaps, stall ---------- */
@@ -397,14 +440,14 @@ export const FLAP_MAX = 33,
 
 /** Stall speeds, power off, 2,575 lb, IAS mph (OM Fig. 4): flaps up 67, 15° 64, 33° 57. */
 export const stallMph = (flap: number) => (flap < 7 ? 67 : flap < 24 ? 64 : 57);
-/** Stall horn: within 5–10 mph of the stall (OM p. 23), intermittent then steady. 0 = quiet … 1 = steady. */
+/** Steady stall horn, distinct from the intermittent gear horn (1968 OM scan p. 21). Threshold is illustrative. */
 export function hornLevel(s: Sim, E: Elec) {
   if (!E.stallWarn || s.stall.stuck) return 0;
   const vs = stallMph(live.flapAng);
   const ias = s.air ? Math.min(mph(live.fs.ias), s.stall.ias) : s.stall.ias;
   if (ias < 30) return 0;
   const m = ias - vs;
-  return m > 10 ? 0 : Math.min(1, (10 - m) / 6);
+  return m > 10 ? 0 : 1;
 }
 
 /* ---------- lights ---------- */
@@ -440,5 +483,6 @@ export function warnings(s: Sim, E: Elec): [CasLevel, string][] {
   const h = hornLevel(s, E);
   if (h > 0) m.push(["c", h > 0.9 ? "STALL HORN — STEADY" : "STALL HORN — INTERMITTENT"]);
   if (E.genOn === false && s.eng.running && E.bus > 0) m.push(["c", "AMMETER DISCHARGE"]);
+  if (E.overvoltage) m.push(["w", "ALTERNATOR OVERVOLTAGE"]);
   return m;
 }

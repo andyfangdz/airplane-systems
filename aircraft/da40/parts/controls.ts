@@ -48,7 +48,7 @@ crank(
     [-ARMS.e, 0, 0],
   ],
 );
-part(() => box(0.012, ELEV_HORN.len, 0.03), ["controls"], {
+part(() => box(0.008, ELEV_HORN.len, 0.018), ["controls"], {
   parent: "surf:elev",
   chan: ["elevator"],
   pos: (() => {
@@ -62,7 +62,7 @@ part(() => box(0.012, ELEV_HORN.len, 0.03), ["controls"], {
   rot: [0, 0, Math.atan2(-ELEV_HORN.dir[0], ELEV_HORN.dir[1])],
   color: CTL,
   name: "Elevator horn",
-  note: "Elevator horn, its bearing and the push-rod connection are inspected at the upper end of the rudder (AFM 7-7).",
+  note: "Elevator horn, its bearing and the push-rod connection are inspected at the upper end of the rudder (AFM 7-7). Lever dimensions are schematic; compact arm fits the modeled elevator root skin, and its linkage attachment uses the same geometry.",
   pin: true,
 });
 crank(
@@ -108,6 +108,7 @@ crank(
     pos: [hz.x - pv[0], hz.y - 0.025 - pv[1], hz.z - pv[2]],
     color: CTL,
     name: "Aileron control horn",
+    ext: true,
     note: "Aluminium horn held to the aileron by 3 screws; a bolt joins it to the push-rod's rod-end bearing (AFM 7-4).",
     pin: s > 0,
   });
@@ -120,6 +121,7 @@ crank(
     pos: [rh[0] - surfacePivot("rudder")[0], rh[1] - surfacePivot("rudder")[1], 0],
     color: CTL,
     name: "Rudder lower bracket (cable horn)",
+    ext: true,
     note: "The cable eyes connect to bolts on this bracket; the bearing bracket below it carries the rudder stops (AFM 7-7).",
     pin: true,
   });

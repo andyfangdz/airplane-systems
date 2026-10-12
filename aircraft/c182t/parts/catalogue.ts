@@ -12,6 +12,9 @@ import { AF, X, Z, paintSkin, wC, wLE, wingP } from "../geometry";
 import { brakeAmount, magFires } from "@/lib/anims";
 import { live } from "../model";
 import { useC182 } from "../store";
+import { useView } from "@/lib/view";
+import { ENGINE_GROUPS, engineHidden } from "../engine-groups";
+import { useEngineGroups } from "../engine-group-store";
 
 /** POH station → scene position (FS, BL, h in inches), and Vector3 → Vec3: from the Cessna airframe builder. */
 export const { P3, P: PV } = AF;
@@ -86,6 +89,9 @@ const QUIET: Partial<Record<SysId, string[]>> = {
   // the lever and indicator are in the cockpit, out of this view's frame (pins aren't depth-tested): listed, not labelled
   flaps: ["Flap bellcrank", "Wing flap switch lever", "Flap position indicator"],
   gear: [
+    "L brake master cylinder",
+    "R brake master cylinder",
+    "Parking-brake ratchet and cable anchor",
     "Brake disc",
     "Rudder bars",
     "Main gear step bracket",
@@ -135,6 +141,8 @@ const QUIET: Partial<Record<SysId, string[]>> = {
     "Fuel/air control unit (servo)",
   ],
   electrical: [
+    "Standby battery controller",
+    "Standby battery fuse (25 A)",
     "MAGNETOS switch",
     "Flap motor and actuator",
     "Auxiliary fuel pump",
@@ -152,6 +160,8 @@ const QUIET: Partial<Record<SysId, string[]>> = {
   ],
   lighting: ["Switch panel", "Flood light", "Overhead console", "Rear dome light", "Taxi light", "DIMMING panel"],
   avionics: [
+    "PFD display cooling fan",
+    "MFD display cooling fan",
     "AVIONICS switch (BUS 1 | BUS 2)",
     "DISPLAY BACKUP button",
     "Forward avionics cooling fan",
@@ -205,7 +215,13 @@ const NARROW: Partial<Record<SysId, string[]>> = {
   avionics: [],
   autopilot: ["KS 271C roll servo", "KS-270C pitch servo"],
 };
-export const CAT = new Catalogue("c182t", { quiet: QUIET, narrow: NARROW }, paintSkin);
+export const CAT = new Catalogue(
+  "c182t",
+  { quiet: QUIET, narrow: NARROW },
+  paintSkin,
+  (p) => !useView.getState().walking && engineHidden(p, useView.getState().sys, useEngineGroups.getState().shown),
+  ENGINE_GROUPS,
+);
 export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */

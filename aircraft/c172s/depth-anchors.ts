@@ -1,0 +1,38 @@
+/** Source-backed functional ports with schematic installation coordinates, NAV III / IO-360-L2A. */
+import { NAV3_BL } from "../cessna/faceplate";
+import { AF } from "./geometry";
+const P = AF.P3;
+export const DEPTH = {
+  oilScreen: P(-20, 0, 39),
+  oilPump: P(-8, -2, 45),
+  oilAdapter: P(-5, 0, 47.5),
+  oilRelief: P(-7, 6, 48),
+  oilThermostat: P(-5, 2, 49),
+  oilGalleryL: P(-18, -5, 49),
+  oilGalleryR: P(-18, 5, 49),
+  starterGear: P(-33, -4, 49),
+  breather: P(-6, 6, 51),
+  panel: P(16.8, -12.5, 46.3),
+  gia1: P(113.3, -4, 50),
+  gia2: P(113.3, 4, 50),
+  gea: P(11.4, 8, 57),
+  ahrs: P(134, 0, 45.5),
+  adc: P(118.7, -4, 55),
+  xpdr: P(134, 4, 52.5),
+  pfd: P(17.9, NAV3_BL.pfd, 61),
+  mfd: P(17.9, NAV3_BL.mfd, 61),
+  audio: P(17.9, NAV3_BL.gma, 61),
+  pressureTee: P(22, -5, 46),
+  staticTee: P(22, -3, 45),
+  standbyAsi: P(16, 0, 52),
+  standbyAlt: P(16, 6, 52),
+  stbyController: P(12, -9.5, 54.7),
+  stbyShunt: P(11, -11, 48),
+  elt: P(135.5, 6, 47),
+  eltRemote: P(18.1, 10.9, 63.5),
+  fuelServo: P(-28.2, 0, 33.8),
+  fuelSelector: P(26.4, 0, 27),
+  fuelShutoff: P(4.5, -2.5, 26.5),
+  heatValve: P(0.6, 5, 37.5),
+  airValve: P(0.6, 14, 36.5),
+};

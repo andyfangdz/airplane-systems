@@ -22,14 +22,14 @@ part(() => box(0.06, 0.05, 0.06), ["electrical"], {
   pin: true,
 });
 part(() => box(0.08, 0.06, 0.04), ["electrical"], {
-  pos: [FW + 0.12, 0.15, -0.3],
+  pos: [FW + 0.12, 0.08, -0.3],
   color: "#5A5040",
   name: "Voltage regulator",
   note: "On the firewall (TCDS arm +7 in): adjusts the alternator field to hold 14 V as the load changes. Over-voltage: radios off, master off and on to reset; if it recurs, pull ALT FIELD (Ranger 2-15).",
   pin: true,
 });
 part(() => box(0.02, 0.045, 0.018), ["electrical"], {
-  pos: [PANEL_X - 0.03, 0.0, -0.58],
+  pos: [PANEL_X - 0.03, 0.0, -0.52],
   color: "#B53A3A",
   anim: (m) => {
     m.rotation.z = sim().s.elec.master ? -0.35 : 0.35;

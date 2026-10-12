@@ -21,12 +21,21 @@ export { CAT, P3, PV, onSurf, surfacePivot } from "./catalogue";
 import "./airframe";
 import "./surfaces";
 export { MG, NOSE, NOSE_CASTER } from "./gear";
-export { CYLS, INTAKES, NOZZLES, PROP } from "./engine";
+export { CYLS, INTAKES, NOZZLES, PROP, SPARK_PLUGS, MAGNETOS } from "./engine";
 import "./structure";
 export { YOKES } from "./controls";
 export { FSEL } from "./fuel";
 export { ALTERNATOR, BATTERY_TERMINAL, JBOX } from "./electrical";
 import "./avionics";
-export { PITOT, STALL_INLET, STATIC_PORT } from "./pitot";
+export { PITOT, STALL_INLET, STATIC_PORT, OAT_PROBE } from "./pitot";
 export { LIGHTS } from "./lighting";
 export { MANIFOLD } from "./cabin";
+
+import "./depth-engine";
+import "./depth-electrical";
+import "./depth-avionics";
+import "./depth-cabin-gear";
+import "./depth-controls";
+
+import "./depth-presentation";
+import "./depth-inspection";

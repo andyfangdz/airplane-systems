@@ -75,7 +75,7 @@ part(() => box(0.08, 0.07, 0.07), ["vacuum", "autopilot"], {
       "controls",
     ]),
     name: "PC rudder servo (Brittain BI-706)",
-    note: "Two servo cans in the tail cone pull cables on the rudder linkage: PC gives roll and yaw stability (Ranger 2-9). Leaking diaphragms are the usual fault — Brittain closed in 2019; seal kits still come from a former employee.",
+    note: "Two servo cans in the tail cone pull cables on the rudder linkage: PC gives roll and yaw stability (Ranger 2-9). Leak tests isolate diaphragm, plumbing and pilot-valve faults (Brittain 11968 §§8–9). Current parts/support availability is not established here.",
     pin: s > 0,
     chan: ["rudder"],
   }),

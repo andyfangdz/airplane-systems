@@ -122,7 +122,7 @@ const WICK =
       ext: true,
     }),
   );
-  onSurf("elev" + side, V(sLE(Z(64)) - 0.04, SY, s * Z(64)), () => box(0.07, 0.03, 0.12), {
+  onSurf("elev" + side, V(sLE(Z(64)) - 0.06, SY, s * Z(64)), () => box(0.045, 0.016, 0.07), {
     color: "#6E7A84",
     name: "Elevator balance weight",
     note: "In the elevator tip leading-edge extension ahead of the hinge (horn balance) — reduces stick force and prevents flutter (POH 7-6).",
@@ -175,6 +175,8 @@ const WICK =
   onSurf("elevR", V(...tab.pivot), () => box(0.02, 0.05, 0.01).translate(-0.02, 0.025, 0), {
     color: "#7C57CF",
     name: "Trim tab horn",
+    note: "Exposed trim-tab horn receives the stabilizer actuator push-pull rod (POH7-6;172RPC24 27-30). It rides with the tab; simplified size and placement.",
+    ext: true,
     anim: animate,
   });
 }
@@ -185,7 +187,7 @@ onSurf("rudder", V(fLE(Y(49)) - fC(Y(49)) + 0.055, Y(49), 0), () => box(0.1, 0.1
   ext: true,
   pin: true,
 });
-onSurf("rudder", V(fLE(Y(103.5)) - 0.12, Y(103.5), 0), () => box(0.12, 0.04, 0.03), {
+onSurf("rudder", V(fLE(Y(102.5)) - 0.12, Y(102.5), 0), () => box(0.08, 0.014, 0.012), {
   color: "#6E7A84",
   name: "Rudder balance weight",
   note: "In the leading-edge extension at the top of the rudder (horn balance, POH 7-6).",

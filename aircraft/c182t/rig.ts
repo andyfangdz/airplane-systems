@@ -33,10 +33,10 @@ export const RIG_SPEC: RigSpec = {
   ail: {
     lower: [13, 17.5, 29.5],
     postFs: 29.6,
-    postBl: 18.6,
+    postBl: 17.2,
     postLow: 29.5,
-    postHigh: 75.5,
-    root: [32, 19.2, 79.6],
+    postHigh: 73.8,
+    root: [32, 16, 80.5],
     crankBl: 106,
     crankC: 0.66,
     balanceC: 0.6,

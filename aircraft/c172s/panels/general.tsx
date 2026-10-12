@@ -95,8 +95,10 @@ export function Overview() {
         NAV III, 190-00384-13 Rev. B; FAA TCDS 3A12 for control-surface travel; the KAP 140 edition (172SPHAUS) only as
         a cross-check. Breaker ratings the POH doesn&apos;t print were read from a photo of a 172S NAV III panel and are
         marked as such. Geometry is approximate, flight behaviour is a teaching model and currents are illustrative.
-        Section 9 supplements and the actual equipment fitted to N6189Q are not covered — always use the airplane&apos;s
-        own POH/AFM, supplements and equipment list.
+        Added mechanism/connection depth uses Cessna 172RPC24, Lycoming IO-360-L2A parts/operator manuals and Garmin NAV
+        III line-maintenance interfaces. Exact document revisions and applicability are recorded in
+        aircraft/c172s/SOURCES.md. Section 9 supplements and the actual equipment fitted to N6189Q are not covered —
+        always use the airplane&apos;s own POH/AFM, supplements and equipment list.
       </p>
     </>
   );

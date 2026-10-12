@@ -42,6 +42,8 @@ import { NAV3_BL } from "../cessna/faceplate";
 import { AFT_CRANK, PULLEYS, RIG, RIG_SPEC, RUD_TRIM, aftCrankAngle, aftLinks, rudTrimLinks } from "./rig";
 import type { CtlIn } from "../cessna/rig";
 import { useC182 } from "./store";
+import { engineHidden } from "./engine-groups";
+import { useEngineGroups } from "./engine-group-store";
 
 type Pose = ReturnType<typeof RIG.pose>;
 
@@ -497,6 +499,13 @@ const flowColor = (k: string, out: THREE.Color) => {
 
 /** The C182T scene: airframe shells, control surfaces, moving assemblies, tanks, displays, lights. */
 export function Model() {
+  const shown = useEngineGroups((x) => x.shown);
+  const system = useView((x) => x.sys);
+  const walking = useView((x) => x.walking);
+  const flows = useMemo(
+    () => FLOWS.filter((f) => walking || !engineHidden(f, system, shown)),
+    [walking, system, shown],
+  );
   return (
     <>
       <Shells cat={CAT} />
@@ -507,7 +516,7 @@ export function Model() {
       <CowlFlaps />
       <ControlRig />
       <Tanks tanks={TANKS} />
-      <Flows flows={FLOWS} rates={rates} color={flowColor} />
+      <Flows flows={flows} rates={rates} color={flowColor} />
       <Screens screens={SCREENS} />
       <LightFX glows={GLOWS} beams={BEAMS} />
       <WindowOutlines loops={windowOutlines} />

@@ -67,7 +67,7 @@ export function scenarioRamp() {
     d.lights = { ...f.lights, position: false, strobe: false };
     d.pitot.heat = false;
     d.fuel = { ...d.fuel, sel: d.fuel.qL >= d.fuel.qR ? "L" : "R", pump: false };
-    d.env = { heat: 0, dist: 0.5, window: false };
+    d.env = { heat: 0, dist: 0.5, window: false, extraVents: true };
     d.stall.ias = 0;
     d.gear.park = true;
     d.doors = { canopy: "GAP", rear: true };

@@ -30,7 +30,7 @@ export const PEDALS = { x: 1.78, y: -0.46, z: [-0.42, -0.2, 0.2, 0.42], travel: 
 /* ---------- elevator chain ---------- */
 /** Torque tube under the panel joining both wheel shafts; its lever drives the push-pull tube aft. */
 export const E_TT: Vec3 = [1.62, -0.42, 0];
-const E_IDLE: Vec3 = [-0.45, -0.64, 0]; // idler under the rear seat / baggage floor
+const E_IDLE: Vec3 = [-0.45, -0.6, 0]; // idler under the rear seat / baggage floor
 export const E_TAIL: Vec3 = [-2.4, -0.33, 0]; // bellcrank at the tail-cone bulkhead, ahead of the empennage pivot
 const E_ARM = 0.09;
 /** Elevator horn at the hinge line (root), reaching down into the tail cone. */
@@ -55,7 +55,7 @@ export const NOSE_STEER: Vec3 = [2.28, -0.48, 0];
 /* ---------- trim ---------- */
 export const TRIM_WHEEL = { c: [0.85, -0.56, 0.0] as Vec3, r: 0.075 };
 /** Jack screw bolted to the tail-cone bulkhead, driving the empennage up and down about its pivot. */
-export const JACK: Vec3 = [-2.48, -0.5, 0];
+export const JACK: Vec3 = [-2.48, -0.46, 0];
 /** Stabilizer travel about the pivot (TCDS 2A3, s/n to 690001): leading edge up 1–2½° (nose down), down ≈ 4½° (nose up). */
 export const tailAngle = (trim: number) => (trim > 0 ? -trim * 4.5 : -trim * 2.0) * D2R;
 

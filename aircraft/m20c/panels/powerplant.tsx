@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import {
   BtnRow,
   Caution,
@@ -289,7 +290,7 @@ export function Engine() {
       <H3>Engine data</H3>
       <Facts
         rows={[
-          ["Type", "O-360-A1D · 361 cu in · 8.7:1 · Dynafocal Lord mounts"],
+          ["Type", "O-360-A1D · 361 cu in · 8.5:1 · Dynafocal Lord mounts"],
           ["Carburetor", "Marvel-Schebler MA-4-5, updraft, accelerator pump = primer"],
           [
             "Ignition",
@@ -297,13 +298,13 @@ export function Engine() {
           ],
           [
             "Oil",
-            "8 qt wet sump, 6 min for flight, add at 6; 180 °F thermostat; cooler on the lower left cowl; filter optional (OM p. 2)",
+            "8 qt wet sump, 6 min for flight, add at 6; automatic cooler bypass when cold/obstructed; cooler on the lower left cowl; filter optional (OM p. 2)",
           ],
           [
             "Cooling",
             "Downdraft baffles; cowl flaps fixed on the 1968 airplane (adjustable to 1967: open on the ground and in climb)",
           ],
-          ["Fuel", "91/98 min as built, 100/130 OK — 100LL today; 80 octane never"],
+          ["Fuel", "91/96 min as built, 100/130 OK — 100LL today; 80 octane never"],
           ["Climb", "2,500 RPM / 25 in; 115–120 mph enroute for cooling; Vy ≈ 105 mph (OM p. 19)"],
           [
             "Cruise",
@@ -325,6 +326,7 @@ export function Engine() {
           drain the battery.
         </Caution>
       )}
+      <DepthDetail system="engine" />
       <H3>Engine — tap to locate</H3>
       <PartsList parts={CAT.pinned("engine")} />
     </>
@@ -409,7 +411,7 @@ export function Propeller() {
       <H3>Hardware (TCDS 2A3; Hartzell 115N)</H3>
       <Facts
         rows={[
-          ["Model", "Hartzell HC-C2YK-1B (or -1BF) hub, 7666A-2 blades; 53.75 lb at arm −30.16"],
+          ["Model", "Hartzell HC-C2YK-1B (or -1BF) hub, 7666 A-2 blades; 53.75 lb at arm −30.16"],
           ["Diameter", "74 in (72.5 in minimum after repair)"],
           ["Pitch at 30 in", "Low 13° · high 29° ± 2°"],
           [
@@ -435,6 +437,7 @@ export function Propeller() {
           "Avoid high RPM on gravel and open the throttle slowly for take-off (OM p. 17, 19).",
         ]}
       />
+      <DepthDetail system="propeller" />
       <H3>Propeller — tap to locate</H3>
       <PartsList parts={CAT.pinned("propeller")} />
     </>
@@ -542,13 +545,26 @@ export function Fuel() {
               "Feeding",
               f.sel === "OFF"
                 ? ["OFF", "bad"]
-                : fuelAvail(s)
-                  ? f.sel === "L"
-                    ? "LEFT"
-                    : "RIGHT"
-                  : ["EMPTY TANK", "bad"],
+                : s.faults.fuelScreen
+                  ? ["SCREEN BLOCKED", "bad"]
+                  : fuelAvail(s)
+                    ? f.sel === "L"
+                      ? "LEFT"
+                      : "RIGHT"
+                    : ["EMPTY TANK", "bad"],
             ],
-            ["Boost pump", s.sw.fuelPump ? (E.fuelPump ? "ON" : ["NO PWR", "bad"]) : "OFF"],
+            [
+              "Boost pump",
+              s.sw.fuelPump
+                ? E.fuelPump
+                  ? "ON"
+                  : E.bus === 0 || s.cb["FUEL PUMP"]
+                    ? ["NO PWR", "bad"]
+                    : s.faults.boostPump
+                      ? ["FAILED", "bad"]
+                      : ["NO PWR", "bad"]
+                : "OFF",
+            ],
             ["Fuel pressure", [live.fuelP.toFixed(1) + " psi", live.fuelP < 0.5 ? "bad" : ""]],
             [
               "Endurance",
@@ -559,8 +575,9 @@ export function Fuel() {
       </Ctl>
       <Small>
         Selecting OFF or an empty tank stops the engine after a few seconds. If a tank runs dry, retard the throttle
-        before switching and restarting: an advanced throttle can overspeed the engine (OM p. 21). The gauges need the
-        master switch (Ranger 2-5).
+        before switching and restarting: an advanced throttle can overspeed the engine (OM p. 21). Fuel-quantity gauges
+        need the master switch; the mechanical fuel-pressure gauge remains independent of bus power (1968 OM scan p. 16;
+        IPC 205 Fig. 37).
       </Small>
       {s.eng.running && s.eng.fail.mechPump && !E.fuelPump && (
         <Caution title="Engine-driven pump failed">
@@ -586,7 +603,7 @@ export function Fuel() {
           ["Capacity", "2 × 26 US gal = 52 (48 on 1962–63 airplanes); 3.4 lb unusable (TCDS)"],
           [
             "Grade",
-            "91/98 minimum as placarded (blue); 100/130 (green) acceptable; 100LL today. Never 80 octane (red)",
+            "91/96 minimum as placarded (blue); 100/130 (green) acceptable; 100LL today. Never 80 octane (red)",
           ],
           ["Gauges", "Electric float senders in the tanks → engine cluster; master switch on"],
           ["Pressure", "Red 0.5 and 6.0 · green 0.5–6.0 · normal 2.5–3.5 psi"],
@@ -609,6 +626,7 @@ export function Fuel() {
           "Fuel tank selector drain ring: be sure it returns to OFF and sits in its recess (OM p. 15).",
         ]}
       />
+      <DepthDetail system="fuel" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("fuel")} />
     </>

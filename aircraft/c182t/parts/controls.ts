@@ -157,14 +157,6 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
     name: "Rudder / brake pedal",
     note: "Pedals steer the nosewheel through the bungee and move the rudder; toe pressure on the top applies that side's brake. Copilot pedals at FS 6.8 (POH 6-22, 7-46).",
   });
-  if (bl < 0)
-    part(() => cyl(0.014, 0.1), ["gear"], {
-      parent,
-      pos: P3(5.5, bl, 28.5),
-      color: STEEL,
-      name: "Brake master cylinder",
-      note: "One on each of the pilot's pedals; the copilot's pedals act through the interconnect (POH 7-46).",
-    });
 });
 // elevator arm on the torque tube, rudder horn, aileron horns
 {
@@ -205,7 +197,8 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   onSurf("ail" + sd, [aw[0] - 0.16, aw[1] - 0.035, aw[2]], () => box(0.03, 0.04, 0.012), {
     color: CTL,
     name: "Aileron horn",
-    note: "The push-pull rod from the bellcrank drives the aileron's inboard leading edge here (Fig 7-1).",
+    note: "Exposed control horn in the aileron cove: the push-pull rod from the wing bellcrank drives the aileron's inboard leading edge here (POH Fig. 7-1). The bracket dimensions are schematic.",
+    ext: true,
     pin: s > 0,
   });
 });

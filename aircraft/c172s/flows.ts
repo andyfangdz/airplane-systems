@@ -4,6 +4,7 @@ import type { FlowSpec } from "@/lib/catalogue";
 import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
 import { Z, wingP } from "./geometry";
+import { engineTurning } from "./engine-operation";
 import { live, type Elec, type Sim } from "./model";
 import {
   ALTERNATOR,
@@ -21,6 +22,8 @@ import {
   STATIC_PORT,
 } from "./parts";
 import { CABLES } from "./rig";
+import { DEPTH as D } from "./depth-anchors";
+import { DEPTH_FLOWS, depthFlowRates } from "./depth-flow";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) =>
@@ -130,34 +133,21 @@ flow(
     color: "#7EB3F5",
   },
 );
-flow(
-  "vent",
-  [wp(-90, 0.15, 1, -0.02), wp(-23, 0.15, 1, -0.02), wp(23, 0.15, 1, -0.02), wp(90, 0.15, 1, -0.02)],
-  ["fuel"],
-  { tube: false, pcolor: "#CFE3FF", size: 0.05, name: "Vent" },
-);
+flow("vent", [wp(-90, 0.15, 0), wp(-12, 0.15, 0), wp(12, 0.15, 0), wp(90, 0.15, 0)], ["fuel"], {
+  tube: false,
+  pcolor: "#CFE3FF",
+  size: 0.05,
+  tension: 0,
+  name: "Vent",
+});
 
 /* ---------- oil, induction, exhaust, cooling ---------- */
-flow(
-  "oil",
-  [
-    P3(-18, 0, 39.4),
-    P3(-8, -3, 42),
-    P3(-5, 0, 47.5),
-    P3(-8, 9, 52),
-    P3(-11, 12.6, 55),
-    P3(-16, 6, 55),
-    P3(-22, -6, 54),
-    P3(-18, 0, 47),
-  ],
-  ["engine"],
-  {
-    r: 0.009,
-    color: "#B85A2A",
-    name: "Oil circuit",
-    note: "Sump pickup screen → engine-driven pump → full-flow filter → pressure relief valve → thermostatic remote oil cooler → galleries → back to the sump (POH 7-35).",
-  },
-);
+flow("oil", [D.oilScreen, D.oilPump], ["engine"], {
+  r: 0.006,
+  color: "#B85A2A",
+  name: "Sump screen → accessory oil pump",
+  note: "POH7-35;LycomingIPC15/17: wet-sump pressure pickup. Other branches show filter/cooler/galleries and gravity return separately; passages schematic.",
+});
 // intake → filter → air box → servo; the alternate air door is on the air box's right side (parts/engine.ts); man* follow the intake tubes
 flow("intake", [P3(-38.5, 0, 37.8), P3(-29.5, 0, 37.9), P3(-27.6, 0, 36.8), P3(-28.2, 0, 33.8)], ["engine"], {
   tube: false,
@@ -255,13 +245,14 @@ flow("toMan2", [P3(0.6, 14, 36.5), P3(3, 8, 32), MAN], ["environment"], { r: 0.0
   });
   flow(
     "wroot" + sd,
-    [wp(s * 19, 0.01, 0, -0.005), wp(s * 17.5, 0.06, 0, -0.01), P3(29, s * 17.8, 77.5), P3(30, s * 18.2, 74.5)],
+    [wp(s * 19, 0.01, 0, -0.005), wp(s * 12, 0.1), P3(29, s * 12, 77.5), P3(30, s * 18.2, 74.5)],
     ["environment"],
     {
       r: 0.012,
       color: AIR,
       pcolor: "#5FC8F0",
       name: "Wing-root fresh air",
+      tension: 0,
       note: "To the forward cabin upper and lower outlets — not heated (Fig. 7-8).",
     },
   );
@@ -275,8 +266,7 @@ flow("toMan2", [P3(0.6, 14, 36.5), P3(3, 8, 32), MAN], ["environment"], { r: 0.0
 
 /* ---------- pitot-static, stall warning, vacuum ---------- */
 const PIT = "#3A9448",
-  ADC = P3(118.7, -4, 55),
-  SBY = P3(16, 0, 52);
+  ADC = P3(118.7, -4, 55);
 flow(
   "pitot",
   [
@@ -287,7 +277,7 @@ flow(
     P3(31.6, -18.4, 75),
     P3(31, -18.3, 32),
     P3(20, -6, 28),
-    SBY,
+    D.pressureTee,
   ],
   ["pitot"],
   {
@@ -297,23 +287,23 @@ flow(
     note: "Pitot head → wing → door post → standby airspeed indicator and the air data computer (POH 7-12).",
   },
 );
-flow("pitot2", [P3(31, -18.3, 32), P3(70, -14, 29), P3(110, -6, 34), ADC], ["pitot"], {
+flow("pitot2", [D.pressureTee, P3(70, -12, 32), P3(110, -6, 36), ADC], ["pitot"], {
   r: 0.006,
   color: PIT,
   name: "Pitot line to the GDC 74A",
 });
-flow("static", [STATIC_PORT, P3(15, -17, 44), P3(16, -4, 49), SBY], ["pitot"], {
+flow("static", [STATIC_PORT, P3(15, -17, 44), D.staticTee], ["pitot"], {
   r: 0.006,
   color: "#2E7A3A",
   name: "Static line",
   note: "Static port → standby airspeed and altimeter; shared with the air data computer (POH 7-12).",
 });
-flow("static2", [P3(15, -17, 44), P3(40, -14, 27.5), P3(110, -6, 36), ADC], ["pitot"], {
+flow("static2", [D.staticTee, P3(40, -12, 30), P3(110, -6, 36), ADC], ["pitot"], {
   r: 0.006,
   color: "#2E7A3A",
   name: "Static line to the GDC 74A",
 });
-flow("altStatic", [P3(30, -5, 40), P3(16.5, -3.5, 50.5), P3(16, -2, 51)], ["pitot"], {
+flow("altStatic", [P3(30, -5, 40), P3(18.4, -3.5, 50.5)], ["pitot"], {
   tube: false,
   pcolor: "#B7E5B4",
   size: 0.04,
@@ -351,7 +341,7 @@ flow("alt", [ALTERNATOR, P3(-20, 4, 34), P3(-8, -8, 36), JB], ["electrical"], {
   r: 0.01,
   color: "#D9960F",
   name: "Alternator output",
-  note: "Alternator B terminal → ACU → alternator relay → J-box main node.",
+  note: "Alternator B terminal → alternator relay → J-box main node. ACU controls the separate field circuit.",
 });
 // The terminal follows the battery case; the short lead enters the J-box below it.
 flow("bat", [BATTERY_TERMINAL, JB], ["electrical"], {
@@ -402,6 +392,7 @@ flow("flapX", [wp(-24, 0.66, 0, -0.01), wp(24, 0.66, 0, -0.01)], ["flaps"], {
   size: 0.05,
 });
 
+F.push(...DEPTH_FLOWS);
 export const FLOWS = F;
 const CABIN_AIR = ["toMan", "toMan2", "defrostL", "defrostR", "floorL", "floorR", "rearL", "rearR"];
 export const isCabinAir = (k: string) => CABIN_AIR.includes(k);
@@ -426,10 +417,12 @@ function controlRates() {
 export function flowRates(s: Sim, E: Elec): Record<string, number> {
   const R: Record<string, number> = {};
   const run = s.eng.running,
+    turning = engineTurning(s, E),
     f = s.fuel,
     flying = !s.ground;
   const prime = !run && E.fuelPumpOn && E.fuelOk && s.eng.mix > 0.5;
-  const feed = (run && E.fuelOk && E.fuelPress) || prime;
+  const crank = !run && s.eng.mags === "START" && E.starterPwr;
+  const feed = E.fuelOk && E.fuelPress && (run || crank || E.fuelPumpOn);
   const hasL = f.qL > 0.02,
     hasR = f.qR > 0.02;
   R.fuelL = feed && hasL && f.sel !== "RIGHT" ? 1 : 0;
@@ -439,14 +432,14 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.fuelMetered = feed && (s.eng.mix > 0.06 || prime) ? 1 : 0;
   CYLS.forEach((c) => {
     R["inj" + c.n] = R.fuelMetered;
-    R["man" + c.n] = run ? 1 : 0;
+    R["man" + c.n] = turning ? 1 : 0;
     R["exh" + c.n] = run ? 1.2 : 0;
   });
-  R.fuelReturn = run && feed ? 0.5 : 0;
+  R.fuelReturn = feed && (run || crank || E.fuelPumpOn) ? 0.5 : 0;
   R.vent = feed ? 0.25 : 0;
-  R.oil = run && !s.eng.fail.oil ? 0.7 : 0;
-  R.intake = run && !s.eng.filter ? 1 : 0;
-  R.altAir = run && s.eng.filter ? 1 : 0;
+  R.oil = engineTurning(s, E) && !s.eng.fail.oil ? 0.7 : 0;
+  R.intake = turning && !s.eng.filter ? 1 : 0;
+  R.altAir = turning && s.eng.filter ? 1 : 0;
   R.tailpipe = run ? 1.2 : 0;
   R.coolL = R.coolR = run || flying ? 1 : 0;
   const ram = run || (flying && live.fs.ias > 30) ? 1 : 0;
@@ -483,8 +476,8 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.rudR = -v.yaw * 1.5;
   R.rudL = v.yaw * 1.5;
   R.trim = v.trim * 4;
-  R.flapX = s.flaps.moving ? 1 : 0;
-  return R;
+  R.flapX = s.flaps.moving && !s.flaps.jammed ? 1 : 0;
+  return { ...R, ...depthFlowRates(s, E) };
 }
 
 /** Cabin-air particle colour follows the CABIN HT / CABIN AIR blend. */

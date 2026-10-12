@@ -27,6 +27,9 @@ import {
 } from "./parts";
 import { CABLES, RIG_SPEC } from "./rig";
 import { NAV3_BL } from "../cessna/faceplate";
+import { SYSTEM_DEPTH_FLOWS, systemsDepthRates } from "./systems-depth-flow";
+import { DEPTH } from "./depth-anchors";
+import { ENGINE_DEPTH_FLOWS, ENGINE_DEPTH_REPLACED_FLOW_KEYS, engineDepthFlowRates } from "./engine-depth-flow";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) =>
@@ -42,6 +45,7 @@ const FUEL = "#2F7FE6",
   // particles only: the manifold tube itself is a catalogue part
   flow("fuel" + sd, fuelManifoldPath(s), ["fuel"], {
     tube: false,
+    tension: 0,
     pcolor: "#5FA0FF",
     size: 0.05,
     name: (s > 0 ? "Right" : "Left") + " tank supply",
@@ -52,12 +56,14 @@ const FUEL = "#2F7FE6",
       P3(27.4, s * 1, 25.9),
       P3(40, s * 9.4, 27.8),
       P3(64.2, s * 18.9, 31),
-      P3(64.2, s * 18.9, 77.5),
+      P3(65.4, s * 16.2, 74.2),
+      P3(65.4, s * 16.2, 80.6),
       wp(s * 27, 0.6, -1, 0.03),
     ],
     ["fuel"],
     {
       r: 0.005,
+      tension: 0,
       color: RET,
       name: "Fuel return line to the " + (s > 0 ? "right" : "left") + " tank",
       note: "From the top (return) section of the selector back up the aft door post to the tank — only to the tank(s) selected as the feed (POH 7-43).",
@@ -140,9 +146,9 @@ flow(
 );
 flow(
   "vent",
-  [wp(-90, 0.14, 1, -0.02), wp(-23, 0.14, 1, -0.02), wp(23, 0.14, 1, -0.02), wp(90, 0.14, 1, -0.02)],
+  [wp(-90, 0.14, 1, -0.04), wp(-23, 0.14, 1, -0.04), wp(23, 0.14, 1, -0.04), wp(90, 0.14, 1, -0.04)],
   ["fuel"],
-  { tube: false, pcolor: "#CFE3FF", size: 0.05, name: "Vent" },
+  { tube: false, tension: 0, pcolor: "#CFE3FF", size: 0.05, name: "Vent" },
 );
 [1, -1].forEach((s) =>
   flow(
@@ -312,7 +318,7 @@ flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 
   });
   flow(
     "wroot" + sd,
-    [wp(s * 19, 0.01, 0, -0.005), wp(s * 17.5, 0.06, 0, -0.01), P3(29, s * 18.2, 79), P3(30, s * 18.8, 76)],
+    [wp(s * 19, 0.01, 0, -0.005), wp(s * 17.5, 0.06, 0, -0.01), P3(29, s * 17, 77), P3(30, s * 18.8, 76)],
     ["environment"],
     {
       r: 0.012,
@@ -322,13 +328,13 @@ flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 
       note: "To the forward cabin upper (adjustable) and lower outlets — not heated (Fig. 7-8).",
     },
   );
-  flow("wlow" + sd, [P3(29, s * 18.2, 79), P3(31, s * 19.6, 52), P3(31, s * 19.4, 34)], ["environment"], {
+  flow("wlow" + sd, [P3(29, s * 17, 77), P3(31, s * 19.6, 52), P3(31, s * 19.4, 34)], ["environment"], {
     r: 0.01,
     color: AIR,
     pcolor: "#5FC8F0",
     name: "Forward cabin lower air duct",
   });
-  flow("wrear" + sd, [P3(29, s * 18.2, 79), P3(52, s * 18, 79.6), P3(74, s * 18, 76)], ["environment"], {
+  flow("wrear" + sd, [P3(29, s * 17, 77), P3(52, s * 17, 78), P3(74, s * 18, 76)], ["environment"], {
     r: 0.01,
     color: AIR,
     pcolor: "#5FC8F0",
@@ -339,7 +345,7 @@ flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 
 /* ---------- pitot-static, stall warning, vacuum ---------- */
 const PIT = "#3A9448",
   ADC = P3(11.4, NAV3_BL.mfd, 61.5),
-  SBY = P3(16.6, 0.6, 52.2);
+  SBY = DEPTH.pitotTee;
 flow(
   "pitot",
   [
@@ -365,19 +371,19 @@ flow("pitot2", [SBY, P3(14, 5, 57), ADC], ["pitot"], { r: 0.006, color: PIT, nam
 const STAT = "#2E7A3A";
 STATIC_PORTS.forEach((p, i) => {
   const s = i === 0 ? 1 : -1;
-  flow("static" + (s > 0 ? "R" : "L"), [p, P3(15, s * 17, 44.5), P3(15.6, s * 6, 49), SBY], ["pitot"], {
+  flow("static" + (s > 0 ? "R" : "L"), [p, P3(15, s * 17, 44.5), P3(15.6, s * 6, 49), DEPTH.staticTee], ["pitot"], {
     r: 0.006,
     color: STAT,
     name: "Static line",
     note: "Both static ports join behind the panel: standby airspeed and altimeter, and the air data computer (POH 7-62).",
   });
 });
-flow("static2", [SBY, P3(13, 6, 54), [ADC[0] + 0.02, ADC[1] - 0.03, ADC[2]]], ["pitot"], {
+flow("static2", [DEPTH.staticTee, P3(13, 6, 54), [ADC[0] + 0.02, ADC[1] - 0.03, ADC[2]]], ["pitot"], {
   r: 0.006,
   color: STAT,
   name: "Static line to the GDC 74A",
 });
-flow("altStatic", [P3(30, -6, 41), P3(18.4, -4.6, 43.2), P3(16, -2, 47), SBY], ["pitot"], {
+flow("altStatic", [P3(30, -6, 41), P3(18.4, -4.6, 43.2), P3(16, -2, 47), DEPTH.staticTee], ["pitot"], {
   tube: false,
   pcolor: "#B7E5B4",
   size: 0.04,
@@ -427,7 +433,7 @@ flow("alt", [P3(-33.4, 9, 41.5), P3(-20, 6, 36), P3(-8, -8, 38), JBOX], ["electr
   r: 0.01,
   color: ELEC,
   name: "Alternator output",
-  note: "Alternator → ACU → alternator relay → J-box main node (Fig. 7-7 Sheet 1).",
+  note: "Alternator output → alternator relay → J-box main node. The ACU controls the field; it is not in series with the high-current output (Fig. 7-7 Sheet 1).",
 });
 flow(
   "bat",
@@ -513,7 +519,7 @@ CABLES.forEach((c) =>
   flow(c.key, c.pts, ["controls"], {
     r: 0.004,
     size: 0.04,
-    tension: 0.05,
+    tension: c.key.startsWith("ail") ? 0 : 0.05,
     name: c.name,
     note: c.note,
     count: 18,
@@ -526,7 +532,12 @@ flow("flapX", [wp(-24, 0.67, 0, -0.01), wp(24, 0.67, 0, -0.01)], ["flaps"], {
   size: 0.05,
 });
 
-export const FLOWS = F;
+for (const f of F) if (["wrootL", "wrootR", "wrearL", "wrearR", "apRoll", "pitot"].includes(f.key)) f.tension = 0;
+export const FLOWS = [
+  ...F.filter((f) => !(ENGINE_DEPTH_REPLACED_FLOW_KEYS as readonly string[]).includes(f.key)),
+  ...ENGINE_DEPTH_FLOWS,
+  ...SYSTEM_DEPTH_FLOWS,
+];
 const CABIN_AIR = ["toMan", "toMan2", "defrostL", "defrostR", "floorL", "floorR", "rearL", "rearR"];
 export const isCabinAir = (k: string) => CABIN_AIR.includes(k);
 
@@ -552,8 +563,10 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   const run = s.eng.running,
     f = s.fuel,
     flying = !s.ground;
+  const cranking = s.eng.mags === "START" && E.starterPwr;
+  const turning = run || cranking;
   const prime = !run && E.fuelPumpOn && E.fuelOk && s.eng.mix > 0.5;
-  const feed = (run && E.fuelOk && E.fuelPress) || prime;
+  const feed = (turning && E.fuelOk && E.fuelPress) || prime;
   const hasL = f.qL > 0.02,
     hasR = f.qR > 0.02;
   const usesL = f.sel === "LEFT" || f.sel === "BOTH",
@@ -565,11 +578,11 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.fuelMetered = feed && (s.eng.mix > 0.06 || prime) ? 1 : 0;
   CYLS.forEach((c) => {
     R["inj" + c.n] = R.fuelMetered;
-    R["man" + c.n] = run ? 1 : 0;
+    R["man" + c.n] = turning ? 1 : 0;
     R["exh" + c.n] = run ? 1.2 : 0;
   });
   // return: ≈ 7 GPH back through the top section of the selector to the selected tank(s) only (POH 7-43)
-  const ret = run && feed ? 0.5 : 0;
+  const ret = turning && feed ? 0.5 : 0;
   R.fuelReturn = ret;
   R.retL = usesL ? ret : 0;
   R.retR = usesR ? ret : 0;
@@ -582,8 +595,8 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   const fine = rpmFine(1, live.fs.ias),
     gov = govRpm(s.eng.prop);
   R.oilGov = governs ? (live.rpm > gov - 30 || fine > gov ? 0.8 : -0.4) : 0;
-  R.intake = run && !s.eng.filter ? 1 : 0;
-  R.altAir = run && s.eng.filter ? 1 : 0;
+  R.intake = turning && !s.eng.filter ? 1 : 0;
+  R.altAir = turning && s.eng.filter ? 1 : 0;
   R.tailpipe = R.tailpipeL = run ? 1.2 : 0;
   R.coolL = R.coolR = run || flying ? 0.6 + 0.6 * s.eng.cowl : 0;
   const ram = run || (flying && live.fs.ias > 30) ? 1 : 0;
@@ -626,7 +639,7 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.rudL = v.yaw * 1.5;
   R.trim = v.trim * 4;
   R.flapX = s.flaps.moving ? 1 : 0;
-  return R;
+  return Object.assign(R, engineDepthFlowRates(s, E, live.rpm, live.fs.ias), systemsDepthRates(s, E, live.rpm));
 }
 
 const HOT_AIR = new THREE.Color("#FF7A3D");

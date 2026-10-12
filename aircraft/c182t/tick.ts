@@ -7,6 +7,7 @@
 import { clamp, lerp } from "@/lib/math";
 import { navReceiverValid, pitchFor, stepFlight, yokeCmd, type FlightState } from "@/lib/avionics/flight";
 import { kap140Command, kap140Power, kap140Tick } from "@/lib/avionics/kap140";
+import { indicated } from "./displays";
 import { stepNav3Soc } from "../cessna/electrical";
 import { vacuumInHg } from "../cessna/tick";
 import {
@@ -289,15 +290,22 @@ export function simTick(dt: number) {
 
 /**
  * The flight state as the KAP 140 sees it. It gets NAV, HDG and roll steering from the G1000 through GIA #2 (Fig S3-1). ROL uses its
- * own DC turn coordinator; VS and ALT run independently of the G1000 (POH 7-12 — their sensor isn't named); the encoder's gray-code
+ * own DC turn coordinator; VS and ALT have direct static plumbing (MM 34-11-00 Fig. 201 Sheet 2), independent of the GDC 74A; the encoder's gray-code
  * altitude feeds only the alerter and preselect (S3-19 item 5). Its "attitude" failure is the turn coordinator, not the AHRS; with the
  * AHRS or GIA #2 lost it works in ROL only (S3-19; POH 3-26 instead says only HDG is lost — the supplement is modelled).
  */
-export const kapView = (s: Sim, E: Elec, f: FlightState): FlightState => ({
-  ...f,
-  fail: { ...f.fail, att: s.avx.tcFail },
-  navValid: f.navValid && E.gia2 && E.ahrs,
-});
+export const kapView = (s: Sim, E: Elec, f: FlightState): FlightState => {
+  // MM 34-11-00 Fig. 201 Sheet 2 shows a direct static branch. Electronic ADC failure
+  // cannot remove it; a blocked external static source does freeze pressure-derived altitude/VS.
+  const pressure = indicated(s, f);
+  return {
+    ...f,
+    alt: pressure.alt,
+    vs: pressure.vs,
+    fail: { ...f.fail, att: s.avx.tcFail, air: false },
+    navValid: f.navValid && E.gia2 && E.ahrs,
+  };
+};
 
 function stepAir(s: Sim, E: Elec, P: number, dt: number) {
   let fs: FlightState = {

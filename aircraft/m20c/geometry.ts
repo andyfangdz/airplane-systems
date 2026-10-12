@@ -1,5 +1,5 @@
 /**
- * Airframe geometry for the 1967 Mooney M20C model.
+ * Airframe geometry for the 1968 Mooney M20C model.
  *
  * Axes: x forward, y up, z toward the right wing. Units: metres.
  * Stations: x = 2.3 − FS, where FS is the Mooney fuselage station in metres aft of the datum — the nose-gear attaching
@@ -75,7 +75,8 @@ export const SK = { x0: -3.9, x1: 3.4, y0: -0.9, y1: 0.75, W: 2048, H: 512 };
 
 /* ---------- wing: laminar flow (NACA 63-215 root / 64-412 tip), 5.5° dihedral, straight trailing edge ---------- */
 /** Root rib at the fuselage side, tip. The 1967 wing has a near-straight trailing edge and a tapered leading edge. */
-export const WR = 0.57,
+// Buried model root maintains enclosure at the curved lower-fuselage junction; not a measured rib station.
+export const WR = 0.5,
   WTIP = 5.33;
 export const WING_TE = -0.32;
 export const ROOT_C = 1.75,

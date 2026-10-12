@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import {
   BtnRow,
   Caution,
@@ -114,10 +115,11 @@ export function Electrical() {
     <>
       <p className="lead">
         A simple 12 V system: a 35 Ah battery on the forward left side of the firewall, a master switch that works a
-        relay at the battery, and one bus. On the 1968 Ranger a 60 A Prestolite alternator at the front of the engine
-        feeds the bus through the ALT breaker, its field through ALT FIELD and the regulator; the ammeter in the engine
-        cluster reads charge and discharge. The 1962–67 Mark 21 had a 50 A Delco-Remy generator and a load meter
-        instead. Everything except the magnetos goes dark with the master off — the engine keeps running.
+        relay at the battery, and one bus. The selected study configuration has a 60 A alternator at the front of the
+        engine feeds the bus through the ALT breaker, its field through ALT FIELD and the regulator; the ammeter in the
+        engine cluster reads charge and discharge. The actual 1968 manual permits either a 50 A generator or 60 A
+        alternator; this specific aircraft’s installed charging model is unverified. Everything except the magnetos goes
+        dark with the master off — the engine keeps running.
       </p>
       <H3>Switches</H3>
       <Ctl>
@@ -272,8 +274,8 @@ export function Electrical() {
       <Small>
         Endurance uses 70 % of the 35 Ah battery; loads are illustrative — the manual gives none. A tripped
         switch-breaker flips its switch off (OM p. 4); the push-to-reset breakers are under the cover on the co-pilot's
-        side. The 1968 book's own breaker labels are not available, so those names follow the 1974 Ranger schematic
-        without the electric-gear circuits.
+        side. Detailed study breaker names/ratings still include inferences from the later Ranger schematic; the 1968
+        main alternator breaker belongs on the right side panel without the electric-gear circuits.
       </Small>
       {!E.genOn && s.eng.running && E.bus > 0 && (
         <Caution title="Alternator off line (Ranger 2-15, 5-4)">
@@ -314,6 +316,7 @@ export function Electrical() {
           ["Polarity", "Negative ground; mind it with chargers and jump batteries (Ranger 7-8)"],
         ]}
       />
+      <DepthDetail system="electrical" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("electrical")} />
     </>

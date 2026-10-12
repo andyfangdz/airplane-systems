@@ -41,8 +41,9 @@ part(() => cyl(0.012, 0.03, "x"), ["pitot"], {
   note: "Adjacent to the throttle: pull ON for cabin static pressure if the external source blocks. With it on, the Section 5 table shows airspeed 0–4 kt high (Fig. 5-1 Sheet 2); POH 3-32 states a maximum variation of 11 kt and 50 ft, and doesn't explain the difference (POH 7-64, 3-15).",
   pin: true,
 });
+export const OAT_PROBE: Vec3 = [X(41.5), top(41.5, -4) + 0.022, Z(-4)];
 part(() => cyl(0.006, 0.05), ["pitot", "avionics"], {
-  pos: [X(41.5), top(41.5, -4) + 0.022, Z(-4)],
+  pos: OAT_PROBE,
   color: PIT,
   name: "OAT probe (GTP 59)",
   note: "On top of the cabin, arm 41.5; feeds the air data computer and the PFD OAT window (POH 7-67, 6-21).",

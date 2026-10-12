@@ -76,14 +76,14 @@ function data(s: Sim, E: Elec): FlightData {
 
 /** EIS strip: ENGINE page items for the 172S (CRG p. 5; POH Figure 2-3, 7-30 … 7-40). Red X when the GEA 71 has no power. */
 export function eisGauges(s: Sim, E: Elec): Gauge[] {
-  const ok = E.gia1,
+  const ok = E.engineData,
     v = (x: number) => (ok ? x : null);
   const alt = live.fs.alt,
     top = alt < 5000 ? 2500 : alt < 10000 ? 2600 : 2700; // green arc top changes with altitude (POH 2-7)
   const iL = fuelInd(s.fuel.qL),
     iR = fuelInd(s.fuel.qR);
   const fuelAlert = iL <= 0.05 || iR <= 0.05 ? "warning" : s.ann.lowFuelL || s.ann.lowFuelR ? "caution" : null;
-  return [
+  const gauges: Gauge[] = [
     {
       key: "rpm",
       label: "RPM",
@@ -182,6 +182,7 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
     },
     ...nav3ElecGauges({ ...E, mBus: ok ? E.mBus : null, eBus: ok ? E.eBus : null }),
   ];
+  return ok ? gauges : gauges.map((g) => ({ ...g, value: null, value2: null, text: undefined }));
 }
 
 function pfdData(s: Sim, E: Elec): PfdData {

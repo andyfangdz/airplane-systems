@@ -445,6 +445,12 @@ export function Gear() {
         about 27 ft (POH 7-19). N8050J is shown without the optional fairings in the current flyingclub.org photo.
         Toggle them here to study the optional installation (item 32-03-A, ≈ 3 knots).
       </Small>
+      <Small>
+        Two master cylinders sit immediately ahead of the pilot&apos;s pedals, each with an integral fluid reservoir.
+        The copilot pedals operate these same cylinders mechanically. The parking handle&apos;s ratchet and cable hold
+        both piston rods; a hydraulic parking shutoff valve is not shown in this installation (MM 32-42-00 p. 201). The
+        hydraulic shimmy damper shown is one equipment variant; the Lord rubber damper requires its own servicing.
+      </Small>
       <H3>Gear — tap to locate</H3>
       <PartsList parts={CAT.pinned("gear")} />
       <H3>Servicing (POH 8-21)</H3>

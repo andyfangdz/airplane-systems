@@ -13,7 +13,7 @@ import { D2R, V, lerp, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawBreakers, drawGma, drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
-import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
+import { flowsFor, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { PANEL_X, canopyOutlines, doorOutlines, loft, windowOutlines, wingSec } from "./geometry";
 import { sided } from "@/lib/geometry";
 import { bladeAngle, extLit, live } from "./model";
@@ -295,6 +295,8 @@ const flowColor = (k: string, out: THREE.Color) => {
 
 /** The DA40 XLS scene: airframe shells, control surfaces, moving assemblies, tanks, displays and lights. */
 export function Model() {
+  const panelVents = useDA40((x) => x.s.env.extraVents);
+  const flows = useMemo(() => flowsFor(panelVents), [panelVents]);
   return (
     <>
       <Shells cat={CAT} />
@@ -306,7 +308,7 @@ export function Model() {
       <Cylinders />
       <ControlRig />
       <Tanks tanks={TANKS} />
-      <Flows flows={FLOWS} rates={rates} color={flowColor} />
+      <Flows flows={flows} rates={rates} color={flowColor} />
       <Screens screens={SCREENS} />
       <LightFX glows={GLOWS} beams={BEAMS} />
       <WindowOutlines loops={windowOutlines} />

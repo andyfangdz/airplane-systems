@@ -46,6 +46,7 @@ part(() => box(0.62, 0.3, 0.42), ["engine"], {
   pos: P3(-18.6, 0, 47.5),
   color: "#7E8890",
   name: "Lycoming IO-360-L2A",
+  fairing: true,
   note: "Four-cylinder, horizontally opposed, fuel-injected, direct drive, air cooled, 360 cu in; 180 BHP at 2,700 RPM; wet sump (POH 1-5, 7-29). Engine CG FS −18.6 (POH 6-23).",
   pin: true,
 });
@@ -53,6 +54,7 @@ part(() => box(0.38, 0.12, 0.34), ["engine"], {
   pos: P3(-18, 0, 39.4),
   color: "#B85A2A",
   name: "Oil sump",
+  fairing: true,
   note: "Wet sump on the bottom of the engine: 8 qt capacity (9 total with the filter); never operate below 5 qt (POH 7-35, 1-7). The case outline is approximate, attached under the crankcase and aft of the induction filter.",
 });
 /** Cylinder positions (Lycoming numbering: 1 & 3 right, 2 & 4 left; the POH does not map numbers to positions). */
@@ -74,12 +76,22 @@ export const INTAKES: Vec3[][] = CYLS.map((c) => [
   P3(c.fs, c.s * 13, 40),
   P3(c.fs - 1.5, c.s * 14.9, 46.6),
 ]);
+/** The harness endpoints and visible plugs share one installation definition. */
+export const SPARK_PLUGS: Record<number, { U: Vec3; L: Vec3 }> = Object.fromEntries(
+  CYLS.map((c) => {
+    const at = P3(c.fs, c.s * 11, 49.5),
+      z = at[2] + c.s * (c.n === 1 ? 0.113 : 0.12);
+    return [c.n, { U: [at[0] - 0.09, at[1] + 0.055, z] as Vec3, L: [at[0] - 0.09, at[1] - 0.055, z] as Vec3 }];
+  }),
+);
+export const MAGNETOS = { L: P3(-5.5, -5.5, 54), R: P3(-5.5, 5.5, 54) };
 CYLS.forEach((c, i) => {
   const base = P3(c.fs, c.s * 11, 49.5);
   part(() => cyl(0.06, 0.2, "z", 18), ["engine"], {
     pos: base,
     color: "#7C858C",
     name: "Cylinder " + c.n,
+    fairing: true,
     note:
       (c.s > 0 ? "Right" : "Left") +
       " bank. Baffles route cooling air down around the fins (POH 7-37). Numbering per Lycoming convention (not stated in the POH).",
@@ -88,11 +100,13 @@ CYLS.forEach((c, i) => {
     part(() => cyl(0.075, 0.008, "z", 18), ["engine"], {
       pos: [base[0], base[1], base[2] + c.s * k * 0.03],
       color: "#8C959C",
+      fairing: true,
     });
   part(() => box(0.15, 0.15, 0.07), ["engine"], {
-    pos: [base[0], base[1] + 0.01, base[2] + c.s * 0.12],
+    pos: [base[0], base[1] + 0.01, base[2] + c.s * (c.n === 1 ? 0.113 : 0.12)],
     color: "#6A737A",
     name: "Cylinder head " + c.n,
+    fairing: true,
     note: "Two spark plugs; CHT thermocouple in the head, EGT probe in the exhaust riser (POH 7-34).",
   });
   (
@@ -100,11 +114,11 @@ CYLS.forEach((c, i) => {
       ["U", 0.055],
       ["L", -0.055],
     ] as const
-  ).forEach(([pos, dy]) => {
+  ).forEach(([pos]) => {
     // POH 7-36: left magneto fires the upper left and lower right plugs; right magneto the lower left and upper right
     const mag = c.s < 0 === (pos === "U") ? "L" : "R";
     part(() => cyl(0.014, 0.05, "x", 10), ["engine"], {
-      pos: [base[0] - 0.09, base[1] + dy, base[2] + c.s * 0.12],
+      pos: SPARK_PLUGS[c.n][pos],
       color: "#DADFE2",
       anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
       name: `Spark plug — cyl ${c.n} ${pos === "U" ? "upper" : "lower"}`,
@@ -119,7 +133,7 @@ CYLS.forEach((c, i) => {
   });
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
-  pos: P3(-5.5, -5.5, 54),
+  pos: MAGNETOS.L,
   color: "#3E4A52",
   anim: magAnim(fires("L")),
   name: "Left magneto",
@@ -127,7 +141,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
-  pos: P3(-5.5, 5.5, 54),
+  pos: MAGNETOS.R,
   color: "#3E4A52",
   anim: magAnim(fires("R")),
   name: "Right magneto",
@@ -145,6 +159,7 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
   pos: P3(-5, 0, 47.5),
   color: "#1F3A5A",
   name: "Oil filter (full flow)",
+  fairing: true,
   note: "Rear of the accessory case; its adapter has a bypass valve for a plugged filter or very cold oil, and carries the oil temperature sensor (POH 7-35, 7-33).",
   pin: true,
 });

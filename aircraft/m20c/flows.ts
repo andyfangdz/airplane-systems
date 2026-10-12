@@ -4,10 +4,13 @@ import type { FlowSpec } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { FW, PANEL_X, botY, onSkin, wingP } from "./geometry";
-import { fuelAvail, hornLevel, live, pcEngaged, type Elec, type Sim } from "./model";
+import { fuelAvail, hornLevel, live, type Elec, type Sim } from "./model";
 import { CYLS, PITOT_Z, SEL, STAT_X, pitotBase } from "./parts";
 import { FLAP_PUMP, SERVO } from "./rig";
 import { EQUIPMENT, OVERHEAD, headlinerPoint } from "./placement";
+import { DEPTH_FLOWS, depthRates } from "./depth-flow";
+import { DEPTH } from "./depth-anchors";
+import { ventOpening } from "./airframe-ports";
 
 const F: FlowSpec[] = [];
 const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSpec> = {}) =>
@@ -15,14 +18,18 @@ const flow = (key: string, pts: FlowSpec["pts"], sys: SysId[], o: Partial<FlowSp
 const P = (v: THREE.Vector3): Vec3 => [v.x, v.y, v.z];
 
 /* ---------- fuel: tank → selector → boost pump → engine pump → carburetor (OM p. 3) ---------- */
-const tankOut = (s: number) => wingP(s * 0.85, 0.3, -1).add(V(0, 0.03, 0));
-flow("fuelL", [tankOut(-1), [1.1, -0.66, -0.4], SEL], ["fuel"], {
+const tankOut = (s: number) => wingP(s * 0.85, 0.3, 0);
+flow("fuelL", [tankOut(-1), [1.1, -0.52, -0.35], SEL], ["fuel"], {
   name: "Left tank feed line",
   note: "Aluminium line from the left bay's lowest point to the selector valve (OM p. 3).",
+  r: 0.006,
+  tension: 0,
 });
-flow("fuelR", [tankOut(1), [1.1, -0.66, 0.4], [1.2, -0.66, 0.0], SEL], ["fuel"], {
+flow("fuelR", [tankOut(1), [1.1, -0.52, 0.35], [1.2, -0.58, 0.0], SEL], ["fuel"], {
   name: "Right tank feed line",
   note: "Right bay → selector valve. One tank at a time — no BOTH.",
+  r: 0.006,
+  tension: 0,
 });
 const BOOST: Vec3 = EQUIPMENT.boost,
   MECH: Vec3 = [2.3, -0.2, -0.16],
@@ -45,12 +52,13 @@ flow("fuelCarb", [MECH, [2.42, -0.3, -0.12], CARB], ["fuel", "engine"], {
 [1, -1].forEach((s) =>
   flow(
     "vent" + (s > 0 ? "R" : "L"),
-    [P(wingP(s * 1.6, 0.25, 1)), P(wingP(s * 2.4, 0.3, 0)), P(wingP(s * 2.4, 0.3, -1).add(V(0, -0.04, 0)))],
+    [P(wingP(s * 1.6, 0.25, 0)), P(wingP(s * 2.4, 0.3, 0)), ventOpening(s)],
     ["fuel"],
     {
       name: "Tank overflow vent",
       note: "Vents each tank and lets it overflow when full (OM p. 26).",
       r: 0.005,
+      tension: 0,
       count: 4,
       pcolor: "#BFE3FF",
     },
@@ -83,11 +91,12 @@ CYLS.forEach((c) =>
   }),
 );
 CYLS.forEach((c) =>
-  flow("exh" + c.n, [[c.x, -0.08, c.s * 0.33], [c.x, -0.3, c.s * 0.26], MUFF], ["engine"], {
+  flow("exh" + c.n, [[c.x, -0.08, c.s * 0.33], [c.x, -0.22, c.s * 0.18], MUFF], ["engine"], {
     r: 0.015,
     color: "#8A5A3C",
     pcolor: "#FF8A4A",
     count: 4,
+    tension: 0,
     name: "Exhaust riser",
     note: "Into the manifold / muffler under the engine; the optional EGT probe sits in a riser (OM p. 20).",
   }),
@@ -118,20 +127,30 @@ flow(
     note: "Sump → pump → thermostatic bypass → oil cooler on the lower left cowl → galleries (OM p. 2; Ranger 2-6).",
   },
 );
+flow("oilGov", [DEPTH.governor, [2.9, -0.04, 0], [2.975, -0.05, 0]], ["engine", "propeller"], {
+  r: 0.008,
+  tube: false,
+  tension: 0,
+  color: "#B85A2A",
+  name: "Governor oil to the hub",
+  note: "The governor meters engine oil to the propeller hub to raise blade angle and hold RPM (OM p. 2).",
+});
 flow(
-  "oilGov",
+  "oilHub",
   [
-    [2.7, 0.06, 0.04],
-    [2.9, 0.08, 0.06],
-    [3.0, 0.02, 0],
+    [2.975, -0.05, 0],
+    [3.035, -0.025, 0],
     [3.07, 0, 0],
   ],
   ["engine", "propeller"],
   {
-    r: 0.008,
-    color: "#B85A2A",
-    name: "Governor oil to the hub",
-    note: "The governor meters engine oil to the propeller hub to raise blade angle and hold RPM (OM p. 2).",
+    name: "Propeller hub oil transfer",
+    note: "Short forward passage crosses the cowling boundary into the actual exterior propeller hub (Hartzell 115N Description 2.B). Internal functional path, particles only.",
+    tube: false,
+    ext: true,
+    pcolor: "#EAB36C",
+    size: 0.025,
+    tension: 0,
   },
 );
 
@@ -214,23 +233,30 @@ flow(
     P(pitotBase.clone().add(V(0.0, 0.01, 0))),
     P(wingP(PITOT_Z, 0.35, 0)),
     P(wingP(-0.9, 0.35, 0)),
-    [1.0, -0.6, -0.5],
+    [1.0, -0.53, -0.38],
     [PANEL_X + 0.1, -0.4, -0.45],
     ASI,
   ],
   ["pitot"],
   {
-    r: 0.008,
+    r: 0.004,
+    tension: 0,
     name: "Pitot line",
     note: "Inboard through the wing (drain at the root) and up behind the panel to the airspeed indicator.",
   },
 );
-flow("static", [P(V(STAT_X, -0.3, 0.17)), [STAT_X + 0.1, -0.3, 0], P(V(STAT_X, -0.3, -0.17))], ["pitot"], {
-  r: 0.008,
-  color: "#2E6FB0",
-  name: "Static crossover",
-  note: "The two tail-cone ports are tied together.",
-});
+flow(
+  "static",
+  [P(onSkin(STAT_X, -0.3, 1, 1.003)), [STAT_X + 0.1, -0.3, 0], P(onSkin(STAT_X, -0.3, -1, 1.003))],
+  ["pitot"],
+  {
+    r: 0.004,
+    tension: 0,
+    color: "#2E6FB0",
+    name: "Static crossover",
+    note: "The two tail-cone ports are tied together.",
+  },
+);
 flow(
   "static2",
   [
@@ -265,9 +291,9 @@ flow(
 );
 flow(
   "stall",
-  [P(wingP(-1.9, 0.02, 0)), P(wingP(-1.0, 0.25, 0)), [1.0, -0.55, -0.5], headlinerPoint(1, -0.4, 0.045), OVERHEAD.horn],
+  [P(wingP(-1.9, 0.02, 0)), P(wingP(-1.0, 0.25, 0)), [1.0, -0.5, -0.35], headlinerPoint(1, -0.4, 0.045), OVERHEAD.horn],
   ["pitot"],
-  { tube: false, pcolor: "#FF6A6A", size: 0.04, name: "Stall warning circuit" },
+  { tube: false, pcolor: "#FF6A6A", size: 0.04, name: "Stall warning circuit", tension: 0 },
 );
 
 /* ---------- vacuum: pump → regulator → gyros, PC servos (OM p. 8, 10) ---------- */
@@ -298,10 +324,11 @@ flow("vacFilt", [GYROS, [PANEL_X + 0.1, -0.05, -0.33], FILT], ["vacuum"], {
 });
 flow(
   "pcRoll",
-  [TC, [PANEL_X + 0.0, -0.3, -0.5], [0.9, -0.55, -0.6], P(wingP(-2.0, 0.6, 0)), SERVO.roll],
+  [TC, [PANEL_X + 0.0, -0.3, -0.35], [0.9, -0.47, -0.55], P(wingP(-2.0, 0.6, 0)), SERVO.roll],
   ["autopilot", "vacuum"],
   {
-    r: 0.007,
+    r: 0.004,
+    tension: 0,
     color: "#C8399F",
     name: "PC roll servo line (left)",
     note: "Pneumatic signal from the turn coordinator's pick-off out through the wing to the aileron servo (Ranger 2-9).",
@@ -312,13 +339,14 @@ flow(
   [
     TC,
     [PANEL_X + 0.0, -0.3, 0.3],
-    [0.9, -0.55, 0.6],
+    [0.9, -0.47, 0.55],
     P(wingP(2.0, 0.6, 0)),
     [SERVO.roll[0], SERVO.roll[1], -SERVO.roll[2]],
   ],
   ["autopilot", "vacuum"],
   {
-    r: 0.007,
+    r: 0.004,
+    tension: 0,
     color: "#C8399F",
     name: "PC roll servo line (right)",
     note: "The opposite servo is signalled for the other roll direction.",
@@ -378,7 +406,6 @@ flow("hydBrake", [RES, [FW - 0.1, -0.3, -0.1], [PANEL_X + 0.25, -0.5, -0.3]], ["
 const BAT: Vec3 = [EQUIPMENT.battery[0], EQUIPMENT.battery[1] + 0.1, EQUIPMENT.battery[2]],
   RELAY: Vec3 = [FW + 0.25, -0.08, -0.3],
   GEN: Vec3 = [2.8, -0.18, -0.2],
-  REGU: Vec3 = [FW + 0.12, 0.15, -0.3],
   SWP: Vec3 = [PANEL_X - 0.03, -0.22, -0.46],
   CBP: Vec3 = [PANEL_X - 0.03, -0.15, 0.45];
 flow("bat", [BAT, RELAY], ["electrical"], {
@@ -402,11 +429,17 @@ flow("start", [RELAY, [2.3, -0.3, -0.2], [2.6, -0.35, 0.1], EQUIPMENT.starter], 
   name: "Starter cable",
   note: "Heavy cable from the battery relay to the starter at the front of the engine.",
 });
-flow("gen", [GEN, [2.5, -0.26, -0.3], [2.2, 0.05, -0.28], REGU, [FW - 0.02, 0.05, -0.3]], ["electrical"], {
-  r: 0.012,
-  name: "Alternator → ALT 60 A → bus",
-  note: "Alternator output through the ALT breaker to the bus; the regulator on the firewall feeds its field through ALT FIELD (Ranger 2-13).",
-});
+flow(
+  "gen",
+  [GEN, [2.5, -0.22, -0.25], [2.2, -0.13, -0.25], [FW - 0.02, -0.18, -0.25], DEPTH.outputBreaker, DEPTH.bus],
+  ["electrical"],
+  {
+    r: 0.012,
+    name: "Alternator → ALT 60 A → bus",
+    note: "Main output passes through the 1968 right-side-panel breaker to the bus. It does not pass through the field voltage regulator (MAN 106 § 9-3;1968 OM scan p. 24).",
+    tension: 0,
+  },
+);
 flow("vib", [SWP, [FW - 0.05, 0.1, -0.1], [FW + 0.04, 0.12, 0]], ["electrical", "engine"], {
   r: 0.006,
   color: "#6FD8FF",
@@ -414,32 +447,33 @@ flow("vib", [SWP, [FW - 0.05, 0.1, -0.1], [FW + 0.04, 0.12, 0]], ["electrical", 
   note: "Battery power to the starting vibrator while START is pushed (OM p. 2).",
 });
 
-export const FLOWS = F;
+export const FLOWS = [...F, ...DEPTH_FLOWS];
 
 const CABIN_AIR = ["defrost", "feetF1", "feetF-1", "feetR", "bag"];
 export const isCabinAir = (k: string) => CABIN_AIR.includes(k);
 
 /** Particle speed multiplier per flow (0 = stopped; negative = reversed). */
 export function flowRates(s: Sim, E: Elec): Record<string, number> {
-  const R: Record<string, number> = {};
+  const R: Record<string, number> = depthRates(s, E);
   const run = s.eng.running,
     avail = fuelAvail(s),
     pumping = E.fuelPump && avail;
   const ff = run ? live.ff / 9 : pumping ? 0.4 : 0;
-  const feed = avail && (run || pumping) ? Math.max(0.3, ff) : 0;
+  const feed = avail && (pumping || (live.rpm > 100 && !s.eng.fail.mechPump)) ? Math.max(0.3, ff) : 0;
   R.fuelL = s.fuel.sel === "L" ? feed : 0;
   R.fuelR = s.fuel.sel === "R" ? feed : 0;
   R.fuelSel = R.fuelFw = R.fuelCarb = feed;
   R.ventL = R.ventR = s.air ? 0.2 : 0;
-  R.intake = run && s.eng.carbHeat < 0.5 ? live.rpm / 2400 : 0;
-  R.carbHot = run && s.eng.carbHeat >= 0.5 ? live.rpm / 2400 : 0;
+  R.intake = live.rpm > 100 && s.eng.carbHeat < 0.5 ? live.rpm / 2400 : 0;
+  R.carbHot = live.rpm > 100 && s.eng.carbHeat >= 0.5 ? live.rpm / 2400 : 0;
   CYLS.forEach((c) => {
-    R["man" + c.n] = run ? live.rpm / 2400 : 0;
+    R["man" + c.n] = live.rpm > 100 ? live.rpm / 2400 : 0;
     R["exh" + c.n] = run ? (1.2 * live.rpm) / 2400 : 0;
   });
   R.tailpipe = run ? 1.3 : 0;
   R.oil = run || live.oilP > 5 ? 0.7 : 0;
   R.oilGov = run && !s.eng.fail.governor && live.oilP > 20 ? 0.5 : 0;
+  R.oilHub = R.oilGov;
   // heat & vent: ram air, or prop wash on the ground
   const ram = s.air ? 1 : run ? 0.5 : 0,
     heat = s.env.heat,
@@ -459,14 +493,14 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.stall = hornLevel(s, E) > 0 ? 1.2 : 0;
   // vacuum: flow toward the pump
   const vac = live.vac > 1 ? 0.8 : 0;
-  R.vacPump = vac;
+  R.vacPump = -vac;
   R.vacGyro = -vac;
   R.vacFilt = -vac;
-  const pc = pcEngaged(s);
-  R.pcRoll = pc && live.pcRoll < 0.02 ? -0.4 - Math.abs(live.pcRoll) : 0;
-  R.pcRollR = pc && live.pcRoll > -0.02 ? -0.4 - Math.abs(live.pcRoll) : 0;
-  R.pcYaw = pc ? -0.4 - Math.abs(live.pcYaw) : 0;
-  R.pcCut = s.pc.cutoff ? 1 : 0;
+  R.pcRoll = R.dPCServoL;
+  R.pcRollR = R.dPCServoR;
+  // This original route represents the paired rudder lines; the detailed left/right branches show their opposite directions.
+  R.pcYaw = Math.min(R.dPCYawL, R.dPCYawR);
+  R.pcCut = R.dPCCut;
   // hydraulics
   R.hydRes = live.pumpAnim > 0.2 ? 1 : 0;
   R.hydFlap = live.pumpAnim > 0.2 ? 1.5 : s.flaps.valve === "UP" && live.flapAng > 0 ? -0.6 : 0;

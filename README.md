@@ -15,6 +15,7 @@ npm run build      # production build
 npm run test:ui:fleet # airplane picker: desktop, phone, keyboard and switching (after build)
 npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
 npm run test:ui:sr20 -- http://localhost:3000 # SR20 guided preflight, against a running server
+npm run test:ui:depth # C172S, C182T, DA40 and M20C preflight browser checks (after build; also run in CI)
 npm run check      # formatting, typecheck and tests (what CI runs, plus the build)
 npm run format     # format everything with Prettier
 npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all") into .shots/
@@ -87,6 +88,18 @@ The SR20 G6 component expansion, optional ADAHRS interactions and 86-item guided
 12137-002, Lycoming installation/maintenance/parts manuals, Garmin guide and COPA discussions, with exact source
 locations, configuration boundaries and document disagreements. The early G6 Lycoming model does not reuse older
 Continental SR20 or SR22T engine systems.
+
+The other fleet expansions have separate applicability and source records:
+
+- [C172S](aircraft/c172s/SOURCES.md): NAV III with IO-360-L2A and GFC 700, including fuel return, standby-battery distribution, pneumatic stall warning and vacuum standby attitude.
+- [C182T](aircraft/c182t/SOURCES.md): naturally aspirated NAV III with IO-540, McCauley constant-speed propeller and KAP 140; its autopilot connections and propeller oil behavior differ from the C172S.
+- [DA40 XLS](aircraft/da40/SOURCES.md): avgas IO-360, G1000 and GFC 700; aluminum fuel chambers, rotary alternate air, control rods and pressure-line traps follow the applicable installation.
+- [M20C Ranger](aircraft/m20c/SOURCES.md): the 1968 manual-gear configuration, hydraulic flaps, whole-tail trim and Brittain Positive Control. The selected alternator installation is distinguished from the generator variant; the geometry reference does not establish the aircraft's current equipment records.
+
+Each includes a source-specific guided preflight study walk with separate saved progress and restoration of the prior
+model state. Component shapes and routing are schematic; the source records identify the inspected editions and
+configuration disagreements. Internal meshes and curved tube walls are checked against the modeled airframe skins;
+named exterior-port transitions are checked separately.
 
 - Cirrus SR20 POH, P/N 11934-005 Reissue A — Section 7 (systems), Section 1 Figure 1-1 (three view, used for the fuselage profile), Section 2 limits and markings, Sections 3 and 3A (CAS message names, best glide), the Section 4 speeds used on the PFD, and the Section 5 cruise table (percent power).
 - Garmin Cirrus Perspective+ Pilot's Guide 190-02183-03 and the Cirrus Perspective+ brochure — display layout and bezels.

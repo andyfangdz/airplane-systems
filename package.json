@@ -16,6 +16,7 @@
     "test:ui:load": "node scripts/test-load-ui.mjs",
     "test:ui:walkaround": "node scripts/test-walkaround-ui.mjs",
     "test:ui:sr20": "node scripts/test-sr20-walkaround-ui.mjs",
+    "test:ui:depth": "node scripts/test-fleet-depth-ui.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run typecheck && npm test && npm run test:trusted-preview",

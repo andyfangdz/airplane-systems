@@ -33,8 +33,8 @@ part(() => box(0.7, 0.16, 0.14), ["cabin"], {
 });
 (
   [
-    [fs(2.3), -0.26, "Pilot seat", 0.36],
-    [fs(2.3), 0.26, "Front passenger seat", 0.36],
+    [fs(2.3), -0.26, "Pilot seat", 0.34],
+    [fs(2.3), 0.26, "Front passenger seat", 0.34],
     [fs(3.25), -0.26, "Rear seat (L)", 0.36],
     [fs(3.25), 0.26, "Rear seat (R)", 0.36],
   ] as [number, number, string, number][]
@@ -49,7 +49,7 @@ part(() => box(0.7, 0.16, 0.14), ["cabin"], {
         : "Rear seat (arm 3.25 m); the backs fold forward after pulling up the locking-bolt knob (AFM 7-15).",
     pin: i === 0 || i === 2,
   });
-  part(() => box(0.08, 0.6, w * (i < 2 ? 0.92 : 0.8)), ["cabin"], {
+  part(() => box(0.08, 0.6, w * 0.8), ["cabin"], {
     pos: [x - 0.26, -0.17, z],
     rot: [0, 0, 0.18],
     color: "#6B5A48",

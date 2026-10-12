@@ -50,7 +50,7 @@ export interface Sim {
     /** Usable gallons per tank (26.5 max). */ qL: number;
     qR: number;
   };
-  flaps: { cmd: FlapCmd; moving: boolean };
+  flaps: { cmd: FlapCmd; moving: boolean; jammed: boolean };
   /** Pilot's control wheel and rudder pedals, −1 … 1 (pitch + = pull). */
   ctrl: { pitch: number; roll: number; yaw: number };
   /** Differential toe braking −1 (left) … 1 (right), parking brake. */
@@ -83,8 +83,17 @@ export interface Sim {
     oat: number;
   };
   stall: { inletBlocked: boolean };
-  vac: { fail: boolean };
-  avx: { backup: boolean; pfdFail: boolean; mfdFail: boolean; ahrsFail: boolean; adcFail: boolean };
+  vac: { fail: boolean; filterBlocked: boolean };
+  avx: {
+    backup: boolean;
+    pfdFail: boolean;
+    mfdFail: boolean;
+    ahrsFail: boolean;
+    adcFail: boolean;
+    geaFail: boolean;
+    fwdFanFail: boolean;
+    aftFanFail: boolean;
+  };
   /** Latched annunciation timers (set by tick.ts): LOW FUEL needs 60 s, STBY BATT 10 s. */
   ann: { lowFuelL: boolean; lowFuelR: boolean; stbyBatt: boolean };
   cabin: { doorL: boolean; doorR: boolean; bag: boolean; lock: boolean; elt: "ARM" | "ON" | "TEST" };
@@ -105,7 +114,7 @@ export const initialSim: Sim = {
   elec: nav3Init(),
   warp: 1,
   fuel: { sel: "BOTH", shutoff: true, pump: false, qL: 20, qR: 19 },
-  flaps: { cmd: 0, moving: false },
+  flaps: { cmd: 0, moving: false, jammed: false },
   ctrl: { pitch: 0, roll: 0, yaw: 0 },
   gear: { diff: 0, park: false },
   lights: {
@@ -125,8 +134,17 @@ export const initialSim: Sim = {
   env: { heat: 0.2, air: 0.5, defrost: 0.5, vents: true, coLeak: false, coAck: false },
   pitot: { heat: false, heaterFail: false, altStatic: false, staticBlocked: false, pitotBlocked: false, oat: 8 },
   stall: { inletBlocked: false },
-  vac: { fail: false },
-  avx: { backup: false, pfdFail: false, mfdFail: false, ahrsFail: false, adcFail: false },
+  vac: { fail: false, filterBlocked: false },
+  avx: {
+    backup: false,
+    pfdFail: false,
+    mfdFail: false,
+    ahrsFail: false,
+    adcFail: false,
+    geaFail: false,
+    fwdFanFail: false,
+    aftFanFail: false,
+  },
   ann: { lowFuelL: false, lowFuelR: false, stbyBatt: false },
   cabin: { doorL: false, doorR: false, bag: false, lock: false, elt: "ARM" },
 };
@@ -338,6 +356,8 @@ export interface Elec extends Nav3Solution {
   fuelPumpOn: boolean;
   flapsPwr: boolean;
   pitotHeating: boolean;
+  /** Engine instrumentation can fail independently of mechanical engine operation. */
+  engineData: boolean;
   fwdFan: boolean;
   aftFan: boolean;
   /** GFC 700 flight director (runs in GIA 1, shown on the PFD) and the servo / trim power (AUTO PILOT breaker, AVIONICS BUS 2). */
@@ -436,8 +456,9 @@ export function solve(s: Sim, prev?: Elec): Elec {
     fuelPumpOn,
     flapsPwr: on("E1", "FLAPS"),
     pitotHeating: s.pitot.heat && on("E2", "PITOT HEAT") && !s.pitot.heaterFail,
-    fwdFan: on("AV1", "PFD"),
-    aftFan: on("AV2", "NAV 2"),
+    engineData: gia1 && !s.avx.geaFail,
+    fwdFan: on("AV1", "PFD") && !s.avx.fwdFanFail,
+    aftFan: on("AV2", "NAV 2") && !s.avx.aftFanFail,
     lit: {
       beacon: L.beacon && on("E1", "BCN LT"),
       land: L.land && on("E1", "LAND LT"),
@@ -451,7 +472,15 @@ export function solve(s: Sim, prev?: Elec): Elec {
       map: L.nav && on("E2", "NAV LTS"),
     },
     fuelOk: fuelOk(s),
-    fuelPress: (s.eng.running || s.eng.mags === "START") && !s.eng.fail.edp ? true : fuelPumpOn,
+    fuelPress:
+      (s.eng.running ||
+        (s.eng.mags === "START" &&
+          s.elec.bat &&
+          on("XF", "WARN") &&
+          (s.elec.ext || (!s.elec.fail.bat && s.elec.socMain > 0.08)))) &&
+      !s.eng.fail.edp
+        ? true
+        : fuelPumpOn,
   };
 }
 

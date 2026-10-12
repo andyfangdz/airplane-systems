@@ -472,6 +472,7 @@ export function solve(s: Sim, prev?: Elec): Elec {
   const L = s.lights,
     warnPwr = on("XF", "WARN");
   const fuelPumpOn = s.fuel.pump && on("E1", "FUEL PUMP");
+  const starterPwr = s.elec.bat && warnPwr && (s.elec.ext || (!s.elec.fail.bat && s.elec.socMain > 0.08));
   return {
     ...N,
     pfd,
@@ -489,7 +490,7 @@ export function solve(s: Sim, prev?: Elec): Elec {
     kapPwr: on("AV2", "AUTO PILOT"),
     warnPwr,
     // starter relay: coil from MAGNETOS START through the WARN breaker; contacts on the battery side of the current shunt (Fig 7-7 Sh 1)
-    starterPwr: s.elec.bat && warnPwr && (s.elec.ext || (!s.elec.fail.bat && s.elec.socMain > 0.08)),
+    starterPwr,
     outlet12: L.cabinPwr && on("E1", "CABIN LTS/PWR"),
     fuelPumpOn,
     flapsPwr: on("E1", "FLAPS"),
@@ -511,7 +512,7 @@ export function solve(s: Sim, prev?: Elec): Elec {
       map: L.nav && on("E2", "NAV LTS"),
     },
     fuelOk: fuelOk(s),
-    fuelPress: (s.eng.running || s.eng.mags === "START") && !s.eng.fail.edp ? true : fuelPumpOn,
+    fuelPress: (s.eng.running || (s.eng.mags === "START" && starterPwr)) && !s.eng.fail.edp ? true : fuelPumpOn,
   };
 }
 

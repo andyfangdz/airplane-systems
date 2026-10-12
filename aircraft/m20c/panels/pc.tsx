@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import {
   Caution,
   Check,
@@ -125,7 +126,7 @@ export function PositiveControl() {
           "The engine-driven vacuum pump supplies the suction, so PC runs from engine start to shutdown — and keeps working after an engine failure as long as the propeller windmills above about 1,000 RPM.",
           "The turn coordinator (electric gyro, vacuum pick-off) senses roll and yaw and meters suction to the servos through a pilot valve behind the panel.",
           "Four Brittain BI-706 servo cans — 4½ in rubber-cupped diaphragms — one in the outer third of each wing on the aileron linkage and two in the tail cone on the rudder linkage, pull the controls toward wings level.",
-          "The cut-off valve in the pilot's left wheel grip vents the servos while it is held; released, the airplane returns to straight and level from any attitude.",
+          "The cut-off valve in the pilot's left wheel grip vents the servos while it is held; released, the airplane returns to straight and level when properly trimmed.",
           "The roll-trim knob on the turn coordinator biases the system: clockwise trims right, counter-clockwise left.",
           "Optional add-ons tracked a VOR/LOC course (B-11 Accu-Trak) or a heading (B-5 / Accu-Flite); without one, PC holds a reasonable heading but not a preselected one (Ranger 2-9).",
         ].map((t) => (
@@ -137,11 +138,11 @@ export function PositiveControl() {
         rows={[
           [
             "Maker",
-            "Brittain Industries, Tulsa (closed 2019; seal kits and overhauls still available through former staff)",
+            "Brittain Industries, Tulsa; manual11968 covers the base two-axis PC system. Current parts/support status is not established here",
           ],
           ["Power", "Vacuum only — no electrical requirement (OM p. 8)"],
           ["Axes", "Roll and yaw; no pitch"],
-          ["Cut-off", "Pneumatic button in the left grip (electric switch and solenoid valve from 1977)"],
+          ["Cut-off", "Pneumatic button in the left grip (electric switch/solenoid from 1975 models in MAN 106 § 6-9)"],
           ["Override", "Can be overpowered from either seat without damage (OM p. 8–9; Ranger 2-10)"],
           [
             "Spins",
@@ -158,6 +159,7 @@ export function PositiveControl() {
           "The 1962–64 airplanes had no PC unless retrofitted (1962–64 supplement).",
         ]}
       />
+      <DepthDetail system="autopilot" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("autopilot")} />
     </>

@@ -101,6 +101,7 @@ crank(
     pos: [hz.x - pv[0], hz.y - 0.025 - pv[1], hz.z - pv[2]],
     color: CTL,
     name: "Aileron control horn",
+    ext: true,
     note: "Horn on the aileron driven by the push rod's self-aligning rod-end bearing (OM p. 8).",
     pin: s > 0,
   });
@@ -180,7 +181,7 @@ part(() => cyl(0.03, 0.22, "x"), ["flaps"], {
   note: "Single hydraulic cylinder under the floor at the flap torque tube; the relief valve releases it as the springs and air load raise the flaps (OM p. 9).",
   pin: true,
 });
-part(() => cyl(0.018, 1.0, "z"), ["flaps"], {
+part(() => cyl(0.018, 0.65, "z"), ["flaps"], {
   pos: [0.05, -0.6, 0],
   color: "#9F85E6",
   name: "Flap torque tube",

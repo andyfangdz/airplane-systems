@@ -182,6 +182,28 @@ export function Avionics() {
           ],
         ]}
       />
+      <H3>Data paths (Garmin 190-00352-00 Rev K, 1-2–1-7)</H3>
+      <Facts
+        rows={[
+          ["Display links", "Each GIA has an Ethernet HSDB link to its display; a separate HSDB connects PFD and MFD."],
+          [
+            "Flight sensors",
+            "GRS 77 and GDC 74A send ARINC 429 data to the displays and both GIAs. The left-wing GMU 44 sends RS-485 magnetic data to the AHRS and receives power from it.",
+          ],
+          [
+            "Engine and transponder",
+            "GEA 71 sends RS-485 engine/airframe data to both GIAs; GTX 33 communicates with both through RS-232.",
+          ],
+          [
+            "Audio and weather",
+            "GMA 1347 receives radio audio and RS-232 control. Optional GDL 69A has separate Ethernet weather/control and entertainment-audio links.",
+          ],
+          [
+            "KAP 140",
+            "GIA #2 sends analog HSI signals. Its separate DC turn coordinator and direct static line supply roll rate and pressure sensing.",
+          ],
+        ]}
+      />
       <H3>Annunciation window (POH 7-51)</H3>
       <Nav3AnnTable defs={C182T_ANN} />
       <Small>
@@ -297,11 +319,11 @@ export function Autopilot() {
         The Bendix/King KAP 140 is a two-axis (roll and pitch) autopilot with altitude preselect and electric pitch trim
         — no flight director, yaw damper, CWS or go-around button. The panel unit flies three servos: KS 271C roll
         (aileron cables, FS 52.0), KS-270C pitch (elevator cables, FS 158.8) and KS-272C pitch trim (trim cable, FS
-        176.4). ROL uses its own hidden DC turn coordinator; VS and ALT run independently of the G1000 (their sensor is
-        not given in the POH); the encoder&apos;s gray-code altitude feeds only the altitude alerter and preselect (POH
-        7-12; S3-19). HDG, NAV, APR and REV follow the G1000 heading bug, course and CDI through GIA #2. Power: the 5 A
-        AUTO PILOT breaker on AVIONICS BUS 2; WARN feeds the PFD&apos;s PITCH TRIM box and the disconnect horn (POH
-        7-12, 7-68; Supplement 3).
+        176.4). ROL uses its own hidden DC turn coordinator; VS and ALT use a direct static-pressure branch (MM 34-11-00
+        Figure 201 Sheet 2), independently of the GDC 74A; the encoder&apos;s gray-code altitude feeds only the altitude
+        alerter and preselect (POH 7-12; S3-19). HDG, NAV, APR and REV follow the G1000 heading bug, course and CDI
+        through GIA #2. Power: the 5 A AUTO PILOT breaker on AVIONICS BUS 2; WARN feeds the PFD&apos;s PITCH TRIM box
+        and the disconnect horn (POH 7-12, 7-68; Supplement 3).
       </p>
       <Kap140Unit st={unit} fs={fs} onKey={onKey} onSet={onSet} loc={[loc, false]} />
       {live.voice && now - live.voiceT < 3 && <Caution title="Voice message">“{live.voice}” (S3-16)</Caution>}
@@ -524,6 +546,7 @@ export function Autopilot() {
           "There is no connection between the G1000 ALT SEL and the KAP 140 altitude alerter — set both (POH 7-16, S3-12).",
           "On a GPS approach to an ILS the G1000 switches the CDI to NAV1 near the final course: the KAP 140 reverts to ROL — press APR again (POH 4-45, S3-38).",
           "The trim servo drives the same cable as the trim wheel, so the wheel turns under MET and autotrim (S3-21).",
+          "The KAP 140 has a direct static-pressure connection. Electronic ADC failure does not remove that input; blocked external static freezes pressure-derived altitude and vertical speed until ALT STATIC AIR is selected (MM 34-11-00 Figure 201 Sheet 2; the blockage response is a teaching approximation).",
         ]}
       />
     </>

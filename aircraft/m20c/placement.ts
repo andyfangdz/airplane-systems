@@ -140,7 +140,7 @@ export const EQUIPMENT = {
 export const fuelBayGeo = (side: number) =>
   loft(
     sided(
-      [0.62, 1, 1.4, 1.8, 2.2, 2.5].map((z) => wingSec(side * z, 0.06, MAIN_SPAR - 0.02, 0.6332556)),
+      [0.62, 1, 1.4, 1.8, 2.2, 2.5].map((z) => wingSec(side * z, 0.06, MAIN_SPAR - 0.02, 0.64176584682)),
       side,
     ),
   );
