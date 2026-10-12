@@ -37,7 +37,7 @@ function CameraRig() {
     tt: THREE.Vector3;
     t0: number;
   } | null>(null);
-  /** Camera and target where the user's last press found them, until the camera moves or another request moves it. */
+  /** Camera and target at the user's last press (re-noted after a viewport fit), until the camera moves or is moved. */
   const press = useRef<{ p: THREE.Vector3; t: THREE.Vector3 } | null>(null);
 
   const fit = fitDist(size.width / size.height);
@@ -45,7 +45,6 @@ function CameraRig() {
   // Fit the starting view and preserve the user's orbit/zoom when the viewport changes shape.
   useEffect(() => {
     if (!controls) return;
-    press.current = null;
     const ratio = fit / previousFit.current;
     previousFit.current = fit;
     camera.position.sub(controls.target).multiplyScalar(ratio).add(controls.target);
@@ -53,6 +52,12 @@ function CameraRig() {
     if (f) {
       f.fp.sub(f.ft).multiplyScalar(ratio).add(f.ft);
       f.tp.sub(f.tt).multiplyScalar(ratio).add(f.tt);
+    }
+    // the fit's own motion isn't the user's; a press still held is measured from here on
+    const held = press.current;
+    if (held) {
+      held.p.copy(camera.position);
+      held.t.copy(controls.target);
     }
   }, [controls, camera, fit]);
 

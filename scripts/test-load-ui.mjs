@@ -546,10 +546,12 @@ try {
     }
 
     // a camera move the user makes while the worker still builds the fuselage is kept when it answers: on the intro screen,
-    // and on an item (2a) shown from its station while it waited for the hull. A tap there moves nothing, so 2a is still
-    // framed when the worker answers (and a tap on a part still shows its note)
-    for (const where of ["intro", "2a", "2a tap"]) {
-      const tap = where === "2a tap";
+    // and on an item (2a) shown from its station while it waited for the hull, also when the viewport is resized during
+    // the press. A tap there moves nothing, so 2a is still framed when the worker answers (and a tap on a part still
+    // shows its note)
+    for (const where of ["intro", "2a", "2a resize", "2a tap"]) {
+      const tap = where === "2a tap",
+        resize = where === "2a resize";
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
       await ctx.addInitScript(hookThree);
       await ctx.route("**/_vercel/**", (route) => route.abort());
@@ -569,6 +571,11 @@ try {
       const box = await p.locator("canvas").boundingBox();
       await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await p.mouse.down();
+      if (resize) {
+        // a taller viewport while the button is held: the app backs the camera off to fit, then the drag goes on
+        await p.setViewportSize({ width: 1440, height: 1800 });
+        assert.ok(cameraDiff(await settledCamera(p), still), `${where}: the viewport fit moved the camera`);
+      }
       if (!tap) await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
       await p.mouse.up();
       const moved = await settledCamera(p);
@@ -612,7 +619,7 @@ try {
       console.log(
         tap
           ? "?walk=2 2a: a tap during the build still lets 2a be framed when the worker's hull arrives; a tap on a part shows its note"
-          : `?walk=2 ${where}: a camera drag during the build is kept when the worker's hull arrives`,
+          : `?walk=2 ${where}: a camera drag during the build${resize ? " (resized mid-press)" : ""} is kept when the worker's hull arrives`,
       );
       await ctx.close();
     }
