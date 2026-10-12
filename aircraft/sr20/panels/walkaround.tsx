@@ -1,8 +1,9 @@
 "use client";
 /** Source-specific SR20 study UI, sharing the existing Cirrus walk styling and common camera/spot/pin infrastructure. */
 import { useEffect, useRef, type TouchEvent } from "react";
+import { WalkMap } from "@/components/ui/WalkMap";
 import { useTicker } from "@/components/ui/controls";
-import { revealStage, useView } from "@/lib/view";
+import { revealWalkItem, useView } from "@/lib/view";
 import { SYS } from "../systems";
 import { clock, loadProgress, stationStart, stepParts, stepPose, stepSide, tally, type Step } from "../walk";
 import {
@@ -215,20 +216,12 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
       >
         <i style={{ width: `${(100 * (at + 1)) / steps.length}%` }} />
       </div>
-      <MiniMap steps={steps} at={at} marks={marks} />
+      <WalkMap key={item.id}>
+        <MiniMap steps={steps} at={at} marks={marks} />
+      </WalkMap>
       <h3 className="walk-stn">
         {station.n}. {station.title}
       </h3>
-      {station.warning && (
-        <p className={`walk-alert ${station.n === 8 ? "caution" : "warning"}`} role="note">
-          <b>{station.n === 8 ? "Caution" : "Warning"}</b> {station.warning}
-        </p>
-      )}
-      {station.note && index === 0 && (
-        <p className="walk-note">
-          <b>Note</b> {station.note}
-        </p>
-      )}
       <div className="walk-card">
         <div className="walk-line">
           <span className="walk-id">{item.id}</span>
@@ -253,6 +246,16 @@ function Item({ step, at, steps }: { step: Step; at: number; steps: Step[] }) {
           {item.ref} · SR20 G6 POH
         </a>
       </div>
+      {station.warning && (
+        <p className={`walk-alert ${station.n === 8 ? "caution" : "warning"}`} role="note">
+          <b>{station.n === 8 ? "Caution" : "Warning"}</b> {station.warning}
+        </p>
+      )}
+      {station.note && index === 0 && (
+        <p className="walk-note">
+          <b>Note</b> {station.note}
+        </p>
+      )}
       <details className="walk-through">
         <summary>Throughout the walk-around</summary>
         <ul>
@@ -336,7 +339,7 @@ export function WalkPanel() {
   useTicker(1000);
   useStepScene(step, phase);
   useStudySession(at, phase === "walk");
-  useEffect(revealStage, [at, phase]);
+  useEffect(revealWalkItem, [at, phase]);
   return (
     <div className={`walk sr20-walk${big ? " walk-big" : ""}`}>
       <div className="walk-hd">

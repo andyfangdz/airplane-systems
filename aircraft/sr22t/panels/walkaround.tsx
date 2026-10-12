@@ -5,8 +5,9 @@
  * and then to the item's parts, highlights them, dims the rest and shows the item's system in X-ray.
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { WalkMap } from "@/components/ui/WalkMap";
 import { useTicker } from "@/components/ui/controls";
-import { revealStage, useView } from "@/lib/view";
+import { revealWalkItem, useView } from "@/lib/view";
 import { SYS } from "../systems";
 import {
   beginWalk,
@@ -302,20 +303,12 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
       >
         <i style={{ width: `${((at + 1) / steps.length) * 100}%` }} />
       </div>
-      <MiniMap steps={steps} at={at} marks={marks} />
+      <WalkMap key={item.id}>
+        <MiniMap steps={steps} at={at} marks={marks} />
+      </WalkMap>
       <h3 className="walk-stn">
         {station.n}. {station.title}
       </h3>
-      {station.warning && (
-        <p className={`walk-alert ${station.n === 10 ? "caution" : "warning"}`} role="note">
-          <b>{station.n === 10 ? "Caution" : "Warning"}</b> {station.warning}
-        </p>
-      )}
-      {station.note && k === 1 && (
-        <p className="walk-note" role="note">
-          <b>Note</b> {station.note}
-        </p>
-      )}
       <div className="walk-card">
         <div className="walk-line">
           <span className="walk-id">{item.id}</span>
@@ -345,6 +338,16 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
         )}
         <span className="walk-ref">{item.ref}</span>
       </div>
+      {station.warning && (
+        <p className={`walk-alert ${station.n === 10 ? "caution" : "warning"}`} role="note">
+          <b>{station.n === 10 ? "Caution" : "Warning"}</b> {station.warning}
+        </p>
+      )}
+      {station.note && k === 1 && (
+        <p className="walk-note" role="note">
+          <b>Note</b> {station.note}
+        </p>
+      )}
       <details className="walk-through">
         <summary>Throughout the walk-around</summary>
         <ul>
@@ -445,8 +448,8 @@ export function WalkPanel() {
   const step = walking ? steps[at] : undefined;
   useStepScene(step, phase);
   useArrowKeys(walking, at);
-  // phones: the card is below the view, so keep the view in sight when the step changes
-  useEffect(revealStage, [at, phase]);
+  // Phones: reveal the current check after advancing or jumping stations.
+  useEffect(revealWalkItem, [at, phase]);
   return (
     <Shell big={big}>
       {phase === "intro" ? (

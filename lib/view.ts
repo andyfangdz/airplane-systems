@@ -84,6 +84,24 @@ export function revealStage() {
   if (narrowLayout() && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
 }
 
+/** Keep the current inspection and its expected result above the phone action bar.
+ * Long supporting notes can scroll, but advancing must reveal the new check. */
+export function revealWalkItem() {
+  if (!narrowLayout()) return;
+  const card = document.querySelector(".walk-card");
+  const standard = card?.querySelector(".walk-std");
+  const actions = document.querySelector(".walk-item > .walk-actions");
+  if (!card || !standard || !actions) {
+    revealStage();
+    return;
+  }
+  const top = card.getBoundingClientRect().top;
+  const bottom = standard.getBoundingClientRect().bottom;
+  const limit = actions.getBoundingClientRect().top - 8;
+  if (top < 8) window.scrollBy({ top: top - 8, behavior: "instant" });
+  else if (bottom > limit) window.scrollBy({ top: Math.min(bottom - limit, top - 8), behavior: "instant" });
+}
+
 let camId = 0;
 let focusTimer: ReturnType<typeof setTimeout> | undefined;
 

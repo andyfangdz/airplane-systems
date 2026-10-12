@@ -2,11 +2,12 @@
 /** Common accessible study controls; all inspection wording, order, sources and targets come from the selected airplane. */
 import { useEffect, useMemo, useRef, type TouchEvent } from "react";
 import { Pin } from "./scene/Part";
+import { WalkMap } from "@/components/ui/WalkMap";
 import { useTicker } from "./ui/controls";
 import { fleetStationStart, fleetStepSide, fleetTally, fleetWalkClock, type FleetWalkStep } from "@/lib/fleet-walk";
 import type { FleetWalkController, FleetWalkPhase } from "@/lib/fleet-walk-store";
 import { SPOT_COLOR } from "@/lib/spot";
-import { revealStage, useView } from "@/lib/view";
+import { revealWalkItem, useView } from "@/lib/view";
 import "@/aircraft/sr22t/panels/walkaround.css";
 import "./fleet-walkaround.css";
 
@@ -219,20 +220,12 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
       >
         <i style={{ width: `${(100 * (at + 1)) / steps.length}%` }} />
       </div>
-      <MiniMap controller={controller} at={at} marks={marks} />
+      <WalkMap key={item.id}>
+        <MiniMap controller={controller} at={at} marks={marks} />
+      </WalkMap>
       <h3 className="walk-stn">
         {station.n}. {station.title}
       </h3>
-      {station.warning && (
-        <p className="walk-alert warning" role="note">
-          <b>Warning</b> {station.warning}
-        </p>
-      )}
-      {station.note && index === 0 && (
-        <p className="walk-note">
-          <b>Note</b> {station.note}
-        </p>
-      )}
       <div className="walk-card">
         <div className="walk-line">
           <span className="walk-id">{item.id}</span>
@@ -257,6 +250,16 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
           {item.ref} · {data.short}
         </a>
       </div>
+      {station.warning && (
+        <p className="walk-alert warning" role="note">
+          <b>Warning</b> {station.warning}
+        </p>
+      )}
+      {station.note && index === 0 && (
+        <p className="walk-note">
+          <b>Note</b> {station.note}
+        </p>
+      )}
       <details className="walk-through">
         <summary>Throughout the walk-around</summary>
         <ul>
@@ -338,7 +341,7 @@ export function FleetWalkPanel<S>({ controller }: { controller: FleetWalkControl
   useTicker(1000);
   useStepScene(controller, step, phase);
   useSession(controller, at, phase === "walk");
-  useEffect(revealStage, [at, phase]);
+  useEffect(revealWalkItem, [at, phase]);
   return (
     <div className={`walk fleet-walkaround${big ? " walk-big" : ""}`}>
       <div className="walk-hd">

@@ -3,6 +3,7 @@
  * Run after npm run build, or pass an existing server: npm run test:ui:depth -- http://localhost:3000 [screenshot-directory]
  */
 import assert from "node:assert/strict";
+import { assertCurrentCheckVisible, openStationMap } from "./walkaround-ui-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -120,18 +121,20 @@ try {
         await page.getByRole("progressbar", { name: "Study position" }).getAttribute("aria-valuemax"),
       );
       assert.ok(total > 20, `${id} has its full inspection sequence`);
-      const stations = page.getByRole("button", { name: /^Station \d+:/ });
+      const stations = page.locator(".walk-map [role=button]");
       assert.ok((await stations.count()) >= 6, `${id} has source-specific inspection stations`);
       assert.match(await page.locator(".walk-card .walk-ref").getAttribute("href"), /^https:\/\//);
       if (phone) {
         assert.equal(await page.locator(".rail").isVisible(), false, "phone inspection preserves the scene");
-        assert.ok((await page.locator(".stage").boundingBox()).height > 350);
+        assert.ok((await page.locator(".stage").boundingBox()).height < 0.35 * 844);
+        await assertCurrentCheckVisible(page);
       }
       await activate(page.getByRole("button", { name: "✓ Reviewed", exact: true }));
       await changed(first);
       const second = await itemId();
       await activate(page.getByRole("button", { name: "Skip", exact: true }));
       await changed(second);
+      if (phone) await assertCurrentCheckVisible(page);
       const saved = await itemId();
       await page.reload();
       await page.getByRole("heading", { name: `Resume ${short} study walk?`, exact: true }).waitFor();
@@ -141,10 +144,13 @@ try {
       await shot("resumed");
 
       // Station navigation and keyboard movement must preserve previously reviewed/skipped items.
+      await openStationMap(page);
       await activate(stations.last());
       const finalStation = await itemId();
+      await openStationMap(page);
       await activate(stations.first());
       assert.equal(await itemId(), first);
+      if (phone) await assertCurrentCheckVisible(page);
       if (!phone) {
         await page.keyboard.press("ArrowRight");
         assert.equal(await itemId(), second);
