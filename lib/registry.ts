@@ -33,7 +33,7 @@ export function registerPart(name: string, mesh: THREE.Mesh, pinned: boolean) {
     pick();
   };
 }
-/** The scene's camera and orbit target, and how many times the user has started moving the camera (drag, zoom, touch). */
+/** The scene's camera and orbit target, and how many times the user has moved the camera (not a mere tap). */
 export const view: { camera: THREE.Camera | null; target: THREE.Vector3 | null; moves: number } = {
   camera: null,
   target: null,

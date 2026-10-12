@@ -526,9 +526,11 @@ try {
       await ctx.close();
       return { camera, longest };
     };
+    const framed = {};
     for (const station of [2, 11]) {
       const held = await beginWalk(station, true),
         onTime = await beginWalk(station, false);
+      framed[station] = onTime.camera;
       assert.ok(
         held.longest < 400,
         `?walk=${station}: no main-thread hull build while the worker builds it (longest task ${held.longest} ms)`,
@@ -544,8 +546,10 @@ try {
     }
 
     // a camera move the user makes while the worker still builds the fuselage is kept when it answers: on the intro screen,
-    // and on an item (2a) shown from its station while it waited for the hull
-    for (const where of ["intro", "2a"]) {
+    // and on an item (2a) shown from its station while it waited for the hull. A tap there moves nothing, so 2a is still
+    // framed when the worker answers (and a tap on a part still shows its note)
+    for (const where of ["intro", "2a", "2a tap"]) {
+      const tap = where === "2a tap";
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
       await ctx.addInitScript(hookThree);
       await ctx.route("**/_vercel/**", (route) => route.abort());
@@ -556,29 +560,60 @@ try {
       await p.goto(base + "/sr22t?walk=2");
       const begin = p.getByRole("button", { name: "Begin at station 2", exact: true });
       await begin.waitFor();
-      if (where === "2a") {
+      if (where !== "intro") {
         await begin.click();
         await p.waitForFunction(() => document.querySelector(".walk-id")?.textContent === "2a");
         await p.waitForTimeout(1600); // the station, then the item after the panel's settle (STATION_SETTLE_MS)
       }
-      await settledCamera(p);
+      const still = await settledCamera(p);
       const box = await p.locator("canvas").boundingBox();
       await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await p.mouse.down();
-      await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
+      if (!tap) await p.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
       await p.mouse.up();
       const moved = await settledCamera(p);
+      if (tap) assert.ok(!cameraDiff(moved, still), `${where}: a tap leaves the camera: ${moved} vs ${still}`);
       assert.ok(await p.locator("[data-building]").count(), `${where}: still building while the worker is held`);
       await p.evaluate(() => window.__releaseWorker());
       await sceneComplete(p);
       await p.waitForTimeout(1600);
       const after = await settledCamera(p);
-      assert.ok(
-        !cameraDiff(after, moved),
-        `${where}: the user's camera kept when the hull arrives: ${after} vs ${moved}`,
-      );
+      if (tap) {
+        assert.deepEqual(
+          after,
+          framed[2],
+          `${where}: 2a framed as when the hull was there from the start, after a tap`,
+        );
+        // and a tap on a part (the small one nearest mid-canvas, so its middle is on it) still shows its note
+        const [x, y] = await p.evaluate(() => {
+          const cam = window.__three.camera;
+          let best = null;
+          window.__three.scenes
+            .find((s) => s.children.length)
+            .traverse((o) => {
+              if (!o.isMesh || !o.userData.pick || !("shell" in o.userData.pick) || o.userData.pick.shell) return;
+              o.geometry.computeBoundingSphere();
+              const { center, radius } = o.geometry.boundingSphere;
+              const v = o.localToWorld(center.clone()).project(cam),
+                off = Math.hypot(v.x, v.y);
+              if (radius > 0.01 && radius < 0.2 && Math.abs(v.z) < 1 && (!best || off < best.off)) best = { off, v };
+            });
+          return [(best.v.x + 1) / 2, (1 - best.v.y) / 2];
+        });
+        await p.mouse.click(box.x + box.width * x, box.y + box.height * y);
+        await p.locator(".tip").waitFor();
+        assert.ok(!cameraDiff(await settledCamera(p), after), `${where}: a tap on a part leaves the camera`);
+      } else
+        assert.ok(
+          !cameraDiff(after, moved),
+          `${where}: the user's camera kept when the hull arrives: ${after} vs ${moved}`,
+        );
       assert.deepEqual(errs, [], "No application runtime errors");
-      console.log(`?walk=2 ${where}: a camera drag during the build is kept when the worker's hull arrives`);
+      console.log(
+        tap
+          ? "?walk=2 2a: a tap during the build still lets 2a be framed when the worker's hull arrives; a tap on a part shows its note"
+          : `?walk=2 ${where}: a camera drag during the build is kept when the worker's hull arrives`,
+      );
       await ctx.close();
     }
 

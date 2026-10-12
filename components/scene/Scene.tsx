@@ -21,6 +21,8 @@ import { PinDeclutter, pinPolicy } from "./PinDeclutter";
  * viewports, back the camera off along its line of sight so the same system stays in frame.
  */
 const fitDist = (aspect: number) => Math.max(1, 0.9 / aspect);
+/** How far (m, squared) the camera or its target must go from where a press found them to count as moved. */
+const MOVED = 1e-6;
 
 /** Animates the camera to the latest requested view; any user drag cancels the flight. */
 function CameraRig() {
@@ -35,12 +37,15 @@ function CameraRig() {
     tt: THREE.Vector3;
     t0: number;
   } | null>(null);
+  /** Camera and target where the user's last press found them, until the camera moves or another request moves it. */
+  const press = useRef<{ p: THREE.Vector3; t: THREE.Vector3 } | null>(null);
 
   const fit = fitDist(size.width / size.height);
   const previousFit = useRef(1);
   // Fit the starting view and preserve the user's orbit/zoom when the viewport changes shape.
   useEffect(() => {
     if (!controls) return;
+    press.current = null;
     const ratio = fit / previousFit.current;
     previousFit.current = fit;
     camera.position.sub(controls.target).multiplyScalar(ratio).add(controls.target);
@@ -53,6 +58,7 @@ function CameraRig() {
 
   useEffect(() => {
     if (!cam || !controls) return;
+    press.current = null;
     // drop any momentum left from a drag (damping would keep turning the camera after the jump or flight);
     // an update with damping off zeroes it, then the camera is put back where it was
     const p0 = camera.position.clone(),
@@ -83,13 +89,25 @@ function CameraRig() {
 
   useEffect(() => {
     if (!controls) return;
-    const cancel = () => {
+    // a press stops a flight; it counts as a camera move only once the camera moves (a tap just shows a part's note)
+    const start = () => {
       flight.current = null;
+      press.current = { p: camera.position.clone(), t: controls.target.clone() };
+    };
+    const change = () => {
+      const was = press.current;
+      if (!was) return;
+      if (camera.position.distanceToSquared(was.p) < MOVED && controls.target.distanceToSquared(was.t) < MOVED) return;
+      press.current = null;
       view.moves++;
     };
-    controls.addEventListener("start", cancel);
-    return () => controls.removeEventListener("start", cancel);
-  }, [controls]);
+    controls.addEventListener("start", start);
+    controls.addEventListener("change", change);
+    return () => {
+      controls.removeEventListener("start", start);
+      controls.removeEventListener("change", change);
+    };
+  }, [controls, camera]);
 
   useFrame(() => {
     const f = flight.current;
