@@ -158,7 +158,11 @@ try {
     assert.equal(await page.locator(".walk-nm").count(), 0, "the actual wing/fuselage junction is highlighted");
     await shot("wing-root-fairing");
     if (phone) await page.getByRole("button", { name: "Exit the SR20 study walk", exact: true }).click();
-    await page.locator(".fleet").getByRole("button", { name: "SR22T", exact: true }).click();
+    await page.getByRole("button", { name: /^Switch Airplanes, current airplane/ }).click();
+    await page
+      .getByRole("dialog", { name: "Choose an airplane" })
+      .getByRole("button", { name: /^Cirrus SR22T|^SR22T G6/ })
+      .click();
     await page.locator(".walk").waitFor({ state: "detached" });
     assert.equal(await page.locator(".walk").count(), 0, "switching aircraft closes the SR20 walk");
     await page.locator(".toolbar").getByRole("button", { name: "Preflight", exact: true }).click();
