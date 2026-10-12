@@ -29,6 +29,10 @@ small-part dimensions remain schematic.
   and the return/check path. Powered cranking turns the mechanical pump even before
   `running`; START without starter power does not. Particle motion depicts availability,
   not quantitative fuel flow, pressure or pump capacity.
+- GFC 700 servo receiver power follows the AUTO PILOT breaker; each GIA has its own
+  RS-485 connection (Garmin line maintenance 1-4/1-7). A healthy GIA's data cue can remain
+  available after the other GIA loses power, while the autopilot still disconnects.
+  Connection availability and overall AFCS availability are separate teaching states.
 - Vacuum remains applicable to this serial's mechanical standby attitude indicator.
   Revision 4's GI275/no-vacuum configuration from 172S12701 is excluded. A severe inlet
   restriction is an illustrative complete-loss teaching fault, not a maintenance diagnosis

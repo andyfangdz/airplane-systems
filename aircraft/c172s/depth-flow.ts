@@ -230,7 +230,7 @@ for (const channel of ["roll", "pitch", "trim"] as const) {
       i === 1 ? D.gia1 : D.gia2,
       at,
       "GIA " + i + "→ " + channel + " servoRS-485",
-      (_s, E) => (E.afcsPwr ? 1 : 0),
+      (_s, E) => (E.on["AV2:AUTO PILOT"] && (i === 1 ? E.gia1 : E.gia2) ? 1 : 0),
       ["avionics", "autopilot"],
       "Garmin 190-00352-00Rev K 1-4,1-7: both GIAs communicate with the GSA 81 servo network. Exact daisy-chain topology/termination schematic.",
     );

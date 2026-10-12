@@ -269,4 +269,32 @@ describe("C172S source-bounded systems depth", () => {
       }
     },
   );
+  it.each([
+    ["GIA 1", ["ESS:NAV 1 ENG", "AV1:NAV 1 ENG"]],
+    ["GIA 2", ["AV2:NAV 2"]],
+    ["AUTO PILOT", ["AV2:AUTO PILOT"]],
+  ] as const)("keeps each servo data source independent and disconnects AP after %s loss", (failed, breakers) => {
+    const s = fresh();
+    for (const key of breakers) s.elec.cb[key] = true;
+    const E = solve(s),
+      R = flowRates(s, E),
+      receiver = failed !== "AUTO PILOT";
+    expect(E.on["AV2:AUTO PILOT"]).toBe(receiver);
+    expect(E.afcsPwr).toBe(false);
+    expect(E.gia1).toBe(failed !== "GIA 1");
+    expect(E.gia2).toBe(failed !== "GIA 2");
+    for (const channel of ["roll", "pitch", "trim"]) {
+      expect(R[channel + "ServoPower"] > 0, channel + " receiver").toBe(receiver);
+      expect(R[channel + "ServoData1"] > 0, channel + " GIA1").toBe(receiver && failed !== "GIA 1");
+      expect(R[channel + "ServoData2"] > 0, channel + " GIA2").toBe(receiver && failed !== "GIA 2");
+    }
+    useC172.setState({ s, E });
+    live.afcs = { ...live.afcs, powered: true, pft: "pass", ap: true, fd: true };
+    live.sysUser = live.servoLost = false;
+    simTick(0.1);
+    expect(live.afcs.ap).toBe(false);
+    // GIA1/PFD still run the flight director after GIA2 or servo-feed loss.
+    expect(live.afcs.powered).toBe(failed !== "GIA 1");
+    if (failed !== "GIA 1") expect(live.afcs.fd).toBe(true);
+  });
 });
