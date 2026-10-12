@@ -345,6 +345,15 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
         )}
         <span className="walk-ref">{item.ref}</span>
       </div>
+      <details className="walk-through">
+        <summary>Throughout the walk-around</summary>
+        <ul>
+          {THROUGHOUT.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+        <span className="walk-ref">POH 4-4</span>
+      </details>
       <div className="walk-actions">
         <button
           type="button"
@@ -371,15 +380,6 @@ export function Item({ step, at, steps }: { step: Step; at: number; steps: Step[
           →
         </button>
       </div>
-      <details className="walk-through">
-        <summary>Throughout the walk-around</summary>
-        <ul>
-          {THROUGHOUT.map((t) => (
-            <li key={t}>{t}</li>
-          ))}
-        </ul>
-        <span className="walk-ref">POH 4-4</span>
-      </details>
     </div>
   );
 }

@@ -257,6 +257,15 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
           {item.ref} · {data.short}
         </a>
       </div>
+      <details className="walk-through">
+        <summary>Throughout the walk-around</summary>
+        <ul>
+          {data.throughout.map((text) => (
+            <li key={text}>{text}</li>
+          ))}
+        </ul>
+        <span className="walk-ref">{data.source}</span>
+      </details>
       <div className="walk-actions">
         <button
           type="button"
@@ -283,15 +292,6 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
           →
         </button>
       </div>
-      <details className="walk-through">
-        <summary>Throughout the walk-around</summary>
-        <ul>
-          {data.throughout.map((text) => (
-            <li key={text}>{text}</li>
-          ))}
-        </ul>
-        <span className="walk-ref">{data.source}</span>
-      </details>
     </div>
   );
 }
