@@ -146,11 +146,12 @@ export function openWalk(n?: number) {
   };
   steps = walkSteps(s);
   const saved = n ? null : loadProgress();
-  const resumable = !!saved && !saved.done && steps.some((x) => x.item.id === saved.at);
+  const resume = saved && !saved.done ? steps.find((x) => x.item.id === saved.at) : undefined;
   useWalk.setState({
-    phase: resumable ? "resume" : "intro",
+    phase: resume ? "resume" : "intro",
     done: false,
-    from: n ?? 1,
+    // offering to resume: the saved item's station (its parts are built first; Start over goes back to station 1)
+    from: n ?? resume?.station.n ?? 1,
     at: 0,
     marks: {},
     ms: 0,
