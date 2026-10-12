@@ -12,6 +12,7 @@ import { view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
 import { nextFrame, setBuild, useBuild } from "@/lib/build";
 import { advanceSimulation } from "@/lib/simulationClock";
+import { CAMERA_FOV, cameraFitDistance as fitDist } from "@/lib/camera";
 import { useView } from "@/lib/view";
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
@@ -20,7 +21,6 @@ import { PinDeclutter, pinPolicy } from "./PinDeclutter";
  * Camera views are framed for the desktop viewport (about 0.9 wide per unit height). On narrower or portrait
  * viewports, back the camera off along its line of sight so the same system stays in frame.
  */
-const fitDist = (aspect: number) => Math.max(1, 0.9 / aspect);
 /** How far (m, squared) the camera or its target must go from where a press found them to count as moved. */
 const MOVED = 1e-6;
 
@@ -253,7 +253,7 @@ export default function Scene() {
     <Canvas
       flat
       dpr={[1, 2]}
-      camera={{ fov: 38, near: 0.05, far: 400, position: startPos }}
+      camera={{ fov: CAMERA_FOV, near: 0.05, far: 400, position: startPos }}
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
       }}

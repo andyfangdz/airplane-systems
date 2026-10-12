@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -245,6 +246,7 @@ export function Controls() {
           </ol>
         </>
       )}
+      <DepthDetail system="controls" />
       <H3>Mechanisms &amp; details — tap to locate</H3>
       <PartsList parts={CAT.pinned("controls")} />
       <H3>Details (TCDS 2A3, s/n before 690001)</H3>
@@ -383,6 +385,7 @@ export function Flaps() {
           "Go-around: full power, then lift the release and let the flaps bleed up while you trim forward — expect a pitch-up.",
         ]}
       />
+      <DepthDetail system="flaps" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("flaps")} />
     </>
@@ -568,6 +571,7 @@ export function Gear() {
           "Nose-wheel shimmy comes from worn torque-link bushings and bearing preload; a dent in the steering-stop tube from over-towing grounds the truss.",
         ]}
       />
+      <DepthDetail system="gear" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("gear")} />
     </>

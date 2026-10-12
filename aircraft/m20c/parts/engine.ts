@@ -11,7 +11,7 @@ import { live } from "../model";
 import { fires, glow, knobAnim, part, sim } from "./catalogue";
 import { EQUIPMENT } from "../placement";
 
-/* ---------- propeller: Hartzell HC-C2YK-1B / 7666A-2, 74 in ---------- */
+/* ---------- propeller: Hartzell HC-C2YK-1B / 7666 A-2, 74 in ---------- */
 export const PROP: Vec3 = [3.07, 0, 0];
 const bladeGeo = () => {
   const sh = new THREE.Shape();
@@ -30,7 +30,7 @@ for (let i = 0; i < 2; i++)
     parent: "blade:" + i,
     color: "#2E3439",
     name: "Propeller blade",
-    note: "Hartzell aluminium-alloy constant-speed blade, 74 in diameter (OM p. 2); hub HC-C2YK-1B, blades 7666A-2 (AFM, Ranger 1-4). Pitch 13° low to 29° high at the 30 in station. Hartzell's hub AD calls for recurring eddy-current inspections.",
+    note: "Hartzell aluminium-alloy constant-speed blade, 74 in diameter (OM p. 2); hub HC-C2YK-1B, blades 7666 A-2 (AFM, Ranger 1-4). Pitch 13° low to 29° high at the 30 in station. Installed hub suffix, blades and modifications determine AD applicability; no recurring interval is inferred from the generic model name (Hartzell 115N Inspection/Check).",
     ext: true,
     pin: i === 0,
     pinIn: [],
@@ -39,6 +39,7 @@ part(() => cyl(0.09, 0.1, "x", 20), ["propeller"], {
   pos: [PROP[0] - 0.02, 0, 0],
   color: "#4A5158",
   name: "Propeller hub",
+  ext: true,
   note: "Single-acting hub: engine oil pressure from the governor drives the piston to increase blade angle; a spring and the blades' aerodynamic twisting moment return them to low pitch (Ranger 1-2). Lose oil and the blades go fine — full RPM.",
   pin: true,
 });
@@ -53,15 +54,17 @@ export const CYLS = [
 part(() => box(0.62, 0.26, 0.3), ["engine"], {
   pos: [2.58, -0.02, 0],
   color: "#7C858C",
+  fairing: true,
   name: "Lycoming O-360-A1D",
-  note: "Four-cylinder, horizontally opposed, air cooled, carbureted, 361 cu in, 8.7:1, 180 hp at 2,700 RPM (OM p. 2; Ranger 1-3). Fuel 91/98 octane minimum (100/130 acceptable) — 100LL today.",
+  note: "Four-cylinder, horizontally opposed, air cooled, carbureted,361cuin,8.5:1 compression,180 hp at 2700 RPM (1968 OM scan p. 9). Minimum aviation fuel91/96 in the 1968 book; use approved fuel for the fitted engine and current records. No fuel injection or turbocharger.",
   pin: true,
 });
 part(() => box(0.44, 0.1, 0.26), ["engine"], {
   pos: [2.58, -0.2, 0],
   color: "#6A737A",
+  fairing: true,
   name: "Oil sump (wet sump)",
-  note: "Pressure-type wet sump, 8 qt; add a quart below 6 (OM p. 2). An oil temperature thermostat set for 180 °F in the reservoir keeps the oil warm (OM p. 2).",
+  note: "Pressure-type wet sump, 8 qt; add a quart below 6 (OM p. 2). Automatic cooler bypass operates when cold or obstructed (1968 OM scan p. 16). The study180°F display crossover is illustrative, not a valve calibration.",
   pin: true,
 });
 CYLS.forEach((c) => {
@@ -69,17 +72,24 @@ CYLS.forEach((c) => {
   part(() => cyl(0.07, 0.18, "z", 18), ["engine"], {
     parent,
     color: "#7C858C",
+    fairing: true,
     name: "Cylinder " + c.n,
     note:
       (c.s > 0 ? "Right" : "Left") +
       " bank (Lycoming numbering: 1–3 right, 2–4 left). Baffling directs the cooling air over the fins and out past the cowl flaps (OM p. 2).",
   });
   for (let k = -2; k <= 2; k++)
-    part(() => cyl(0.085, 0.008, "z", 18), ["engine"], { parent, pos: [0, 0, k * 0.032], color: "#8C959C" });
+    part(() => cyl(0.085, 0.008, "z", 18), ["engine"], {
+      parent,
+      pos: [0, 0, k * 0.032],
+      color: "#8C959C",
+      fairing: true,
+    });
   part(() => box(0.14, 0.14, 0.05), ["engine"], {
     parent,
     pos: [0, 0, c.s * 0.11],
     color: "#6A737A",
+    fairing: true,
     name: "Cylinder head " + c.n,
     note: "Two shielded spark plugs; the CHT probe is on one head (OM p. 2: shielded plugs and harness suppress radio noise).",
   });
@@ -135,6 +145,7 @@ part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
 part(() => box(0.1, 0.12, 0.1), ["engine", "fuel"], {
   pos: EQUIPMENT.carburetor,
   color: "#7E8A93",
+  fairing: true,
   name: "Carburetor (Marvel-Schebler MA-4-5)",
   note: "Updraft float carburetor under the sump (Ranger 1-3). Its accelerator pump is the only primer: pump the throttle twice with the boost pump on (OM p. 15). Mixture to idle cut-off stops the engine (OM p. 24).",
   pin: true,
@@ -235,7 +246,7 @@ part(() => cyl(0.025, 0.05, "x"), ["engine", "vacuum"], {
   color: "#3A9448",
   anim: glow("#2A6A34", "#5FD36E", () => live.vac > 3.5, ["vacuum", "engine"]),
   name: "Engine-driven vacuum pump",
-  note: "Airborne dry carbon-vane pump (TCDS 2A3: 113A or 200/211CC series; arm 0.0) on the accessory case; its output is regulated to 4.5–5.0 in Hg and powers the artificial horizon, directional gyro and the PC servos (OM p. 10). Dry pumps fail without warning at 700–800 h; losing it loses AI, DG and PC together.",
+  note: "Airborne dry carbon-vane pump on the accessory case; suction powers artificial horizon, directional gyro and PC servos (1968 OM scan p. 17; IPC 205 Fig. 43). Pump or drive failure can remove all three functions. No fixed failure-hour prediction is supported by the inspected manuals.",
   pin: true,
 });
 part(() => cyl(0.06, 0.12, "x"), ["electrical", "engine"], {
@@ -243,7 +254,7 @@ part(() => cyl(0.06, 0.12, "x"), ["electrical", "engine"], {
   color: "#D9960F",
   anim: glow("#5A5040", "#D9960F", () => sim().E.genOn, ["electrical", "engine"]),
   name: "Alternator — 12 V, 60 A",
-  note: "Prestolite 60 A alternator belt-driven at the front of the engine (TCDS 2A3 arm −19.5; a 1968 Ranger owner reports the original ALY-6406). It carries the loads from idle up and charges the battery; field through ALT FIELD, output through ALT 60 A (Ranger 2-13). The 1962–67 Mark 21 had a 50 A Delco-Remy generator on the accessory case and a load meter instead (OM p. 3).",
+  note: "Selected study configuration: belt-driven60A alternator. The 1968 POH 1187 scan p. 7,24 permits either 50 A generator or 60 A alternator; it does not establish N6947N's installed model. Field regulator circuit and main output breaker are separate;1968 main breaker is on right-side upholstery panel (MAN 106 § 9-3). Earlier generator behavior is not silently substituted.",
   pin: true,
 });
 part(() => box(0.08, 0.08, 0.1), ["engine", "fuel"], {

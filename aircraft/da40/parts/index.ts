@@ -40,4 +40,7 @@ export { PITOT_Z, pitotBase, STALL_Z, STALL_HOSE } from "./pitot";
 import "./environment";
 export { LIGHTS } from "./lights";
 
+import "./depth";
+import "./walk-inspection";
+
 export type { PartSpec } from "@/lib/catalogue";

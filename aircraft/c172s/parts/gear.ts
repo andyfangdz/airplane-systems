@@ -78,6 +78,7 @@ export const MG = { fs: 58.2, bl: 50, h: 8.6 };
     ["gear"],
     {
       name: "Brake line",
+      ext: true,
       note: "From the master cylinder on the pilot's pedal, down the gear leg to the wheel cylinder (POH 7-46).",
     },
   );

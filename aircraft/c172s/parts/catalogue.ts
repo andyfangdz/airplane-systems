@@ -5,11 +5,15 @@
  * Equipment-list arms (POH Figure 6-9) place most items fore/aft; butt lines and heights are not in the
  * POH and are placed from the descriptions ("left forward side of the firewall", "tailcone", …) and photos.
  */
+import { useView } from "@/lib/view";
+import { engineHidden, ENGINE_GROUPS } from "../engine-groups";
+import { useEngineGroups } from "../engine-group-store";
 import { Catalogue, type PartAnim } from "@/lib/catalogue";
 import { V, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { AF, X, Z, paintSkin, wC, wLE, wingP } from "../geometry";
-import { brakeAmount, magFires } from "@/lib/anims";
+import { brakeAmount } from "@/lib/anims";
+import { magnetoOperating } from "../engine-operation";
 import { live } from "../model";
 import { useC172 } from "../store";
 
@@ -140,16 +144,19 @@ const QUIET: Partial<Record<SysId, string[]>> = {
     "GFC 700 pitch trim servo",
   ],
 };
-export const CAT = new Catalogue("c172s", { quiet: QUIET }, paintSkin);
+export const CAT = new Catalogue(
+  "c172s",
+  { quiet: QUIET },
+  paintSkin,
+  (s) => !useView.getState().walking && engineHidden(s, useView.getState().sys, useEngineGroups.getState().shown),
+  ENGINE_GROUPS,
+);
 export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */
 export const S = () => useC172.getState().s;
 /** The magneto is firing: engine turning, its key position on, and not failed. */
-export const fires = (mag: "R" | "L") => () => {
-  const e = S().eng;
-  return live.rpm > 150 && magFires(mag, e.mags, mag === "L" ? e.fail.magL : e.fail.magR);
-};
+export const fires = (mag: "R" | "L") => () => magnetoOperating(S(), EL(), mag, live.rpm);
 /** Toe brake (differential) or parking brake on one side, 0..1. */
 export const braking = (side: "R" | "L") => () => brakeAmount(S().gear, side);
 export const altDoorAnim =

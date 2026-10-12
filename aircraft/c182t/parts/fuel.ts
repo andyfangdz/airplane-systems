@@ -11,7 +11,8 @@ export const TANK_BL = [24, 100] as const;
 /** Schematic aft-doorpost route, shared by the pipe and its fuel particles; the upper elbow enters under the wing root. */
 export const fuelManifoldPath = (s: number): Vec3[] => [
   wp(s * 24.5, 0.62, -1, 0.02),
-  P3(65, s * 18, 78),
+  P3(65, s * 16, 80.3),
+  P3(65, s * 16, 76),
   P3(65, s * 19.4, 30),
   P3(40, s * 8, 26.8),
   P3(27.5, s * 2.5, 25.4),
@@ -64,7 +65,7 @@ export const fuelManifoldPath = (s: number): Vec3[] => [
     pin: s > 0,
   });
   // fuel manifold down each aft door post (FS 65.30) to the selector, with the return line beside it
-  part(() => tubeGeo(fuelManifoldPath(s), 0.008), ["fuel"], {
+  part(() => tubeGeo(fuelManifoldPath(s), 0.008, 0), ["fuel"], {
     color: FUEL,
     name: "Fuel manifold (aft door post)",
     note: "“Two fuel manifolds (one in each aft doorpost)”: gravity feed from each tank outlet down the door post and under the floor to the selector (POH 7-38, Fig. 7-6). The bends are schematic, entering the cabin under the wing root.",
@@ -73,7 +74,11 @@ export const fuelManifoldPath = (s: number): Vec3[] => [
 });
 part(
   () =>
-    tubeGeo([wp(-90, 0.14, 1, -0.02), wp(-23, 0.14, 1, -0.02), wp(23, 0.14, 1, -0.02), wp(90, 0.14, 1, -0.02)], 0.006),
+    tubeGeo(
+      [wp(-90, 0.14, 1, -0.04), wp(-23, 0.14, 1, -0.04), wp(23, 0.14, 1, -0.04), wp(90, 0.14, 1, -0.04)],
+      0.006,
+      0,
+    ),
   ["fuel"],
   {
     color: "#7EB3F5",

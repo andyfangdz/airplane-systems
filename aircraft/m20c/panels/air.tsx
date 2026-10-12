@@ -1,4 +1,5 @@
 "use client";
+import { DepthDetail } from "./depth";
 import {
   Caution,
   Check,
@@ -136,6 +137,7 @@ export function Environment() {
           ["Blower", "None — all ram air"],
         ]}
       />
+      <DepthDetail system="environment" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("environment")} />
     </>
@@ -155,7 +157,8 @@ export function Pitot() {
         A pitot tube under the left wing feeds the airspeed indicator; static ports on both sides of the tail cone feed
         the altimeter, airspeed and rate of climb; drains sit under the left wing root and under the tail-cone access
         door. The airspeed indicator reads miles per hour. The stall warning is a vane in the left wing's leading edge
-        that closes an electric horn in the headliner — intermittent 5 to 10 mph above the stall, steady at it.
+        that closes an electric horn in the headliner — a steady stall-warning tone, distinct from the intermittent gear
+        horn (1968 OM scan p. 21).
       </p>
       <H3>Pitot heat</H3>
       <Ctl>
@@ -297,6 +300,7 @@ export function Pitot() {
           "The gear horn and the stall horn are both reed horns — the gear horn is tied only to throttle position.",
         ]}
       />
+      <DepthDetail system="pitot" />
       <H3>Components — tap to locate</H3>
       <PartsList parts={CAT.pinned("pitot")} />
     </>

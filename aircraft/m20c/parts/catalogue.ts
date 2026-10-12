@@ -12,9 +12,10 @@ import type { SysId } from "@/lib/systems";
 import { TAIL_PIVOT, loft, paintSkin, withUv } from "../geometry";
 import { live } from "../model";
 import { useM20C } from "../store";
+import { DEPTH_QUIET } from "../depth-labels";
 
 // The live screen owns the panel label; retain the housing in the equipment/tap-to-locate list.
-export const CAT = new Catalogue("m20c", { quiet: { cabin: ["Instrument panel"] } }, paintSkin);
+export const CAT = new Catalogue("m20c", { quiet: DEPTH_QUIET }, paintSkin);
 export const { part, surfacePivot, shell } = CAT;
 export { sysNow };
 
@@ -23,7 +24,11 @@ export const sim = () => useM20C.getState();
 /** START grounds the right magneto; the left retard points need the powered vibrator (OM p. 2). */
 export const fires = (mag: "R" | "L") => () => {
   const { s, E } = sim();
-  return live.rpm > 100 && (s.eng.key === "START" ? mag === "L" && E.vibrator : magFires(mag, s.eng.key));
+  return (
+    live.rpm > 100 &&
+    !(mag === "L" ? s.faults.magL : s.faults.magR) &&
+    (s.eng.key === "START" ? mag === "L" && E.vibrator : magFires(mag, s.eng.key))
+  );
 };
 /** Glows `lit` when cond() is true in the given systems' views. */
 export const glow = (base: string, lit: string, cond: () => boolean, sys: SysId[]) => glowAnim(base, cond, sys, lit);

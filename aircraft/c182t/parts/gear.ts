@@ -5,6 +5,7 @@ import { brakeAnim } from "@/lib/anims";
 import { box, cyl, taperTubeGeo, tubeGeo, wheelFairingGeo } from "../geometry";
 import { IN } from "../../cessna/airframe";
 import { P3, braking, fairingAnim, part } from "./catalogue";
+import { DEPTH } from "../depth-anchors";
 
 /* ---------- landing gear: track 9'-0" (POH 1-3), wheelbase 66.5 in, main axles FS 58.9, nose axle ≈ FS −7.6 (POH 1-4, 6-22) ---------- */
 export const MG = { fs: 58.9, bl: 54, h: 8.7 };
@@ -81,6 +82,7 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     () =>
       tubeGeo(
         [
+          s > 0 ? DEPTH.masterR : DEPTH.masterL,
           P3(8.5, s * 8, 27.2),
           P3(30, s * 11, 26.4),
           P3(55, s * 13, 25.6),
@@ -93,6 +95,7 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     ["gear"],
     {
       name: "Brake line",
+      ext: true,
       note: "From the master cylinder on each of the pilot's pedals, down the gear leg to the wheel cylinder (POH 7-46).",
     },
   );
@@ -128,10 +131,23 @@ part(() => cyl(0.036, 0.22), ["gear"], {
         0.012,
       ),
     ["gear"],
-    { parent: "caster", color: "#C9D0D5" },
+    {
+      parent: "caster",
+      color: "#C9D0D5",
+      ext: true,
+      name: "Nose gear fork side",
+      note: "Exposed wheel-carrier fork beside the nose tire (POH 7-19); schematic dimensions.",
+    },
   ),
 );
-part(() => box(0.035, 0.03, 0.17), ["gear"], { parent: "caster", pos: [0, NA[1] + 0.215, 0], color: "#C9D0D5" });
+part(() => box(0.035, 0.03, 0.17), ["gear"], {
+  parent: "caster",
+  pos: [0, NA[1] + 0.215, 0],
+  color: "#C9D0D5",
+  ext: true,
+  name: "Nose gear fork crown",
+  note: "Exposed crown joins the fork sides above the nose tire (POH 7-19); schematic dimensions.",
+});
 part(
   () =>
     tubeGeo(

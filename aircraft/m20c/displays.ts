@@ -479,7 +479,7 @@ export function drawPanel(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
     "FUEL PSI",
     0,
     8,
-    E.gaugesPwr ? live.fuelP : 0,
+    live.fuelP,
     [
       [0.5, 6, GREEN],
       [2.5, 3.5, "#1F9E3C"],
@@ -554,7 +554,7 @@ export function drawPanel(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
     810,
     210,
     "AMMETER",
-    E.gaugesPwr ? E.amps : null,
+    E.amps,
     -60,
     60,
     [

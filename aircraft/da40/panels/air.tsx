@@ -28,8 +28,8 @@ export function Environment() {
       <p className="lead">
         Two levers on the small centre console under the panel: CABIN HEAT (up = ON) and the air-distribution lever (up
         = canopy, down = floor). Heated air comes from a shroud around the exhaust muffler fed by the right cowling
-        intake; unheated fresh air comes in under the left stub wing and leaves through the nozzles in the panel, the
-        roll bar and above the rear seats. There is no blower — airflow is ram air.
+        intake; unheated air from the left stub wing feeds the roll bar and rear-seat outlets. Optional panel nozzles
+        have two separate front-fuselage NACA inlets. There is no blower — airflow is ram air.
       </p>
       <H3>Levers</H3>
       <Ctl>
@@ -77,6 +77,16 @@ export function Environment() {
             })
           }
         />
+        <Check
+          id="da40-extra-vents"
+          label="OAM 40-099 panel vents fitted"
+          checked={env.extraVents}
+          onChange={(v) =>
+            up((d) => {
+              d.env.extraVents = v;
+            })
+          }
+        />
         <Readouts
           items={[
             ["Airflow", ram ? (s.air ? "Ram air" : "Prop wash only") : ["None (engine off)", "warnc"]],
@@ -87,8 +97,9 @@ export function Environment() {
         />
       </Ctl>
       <Small>
-        The heat source, valves and duct routing come from an unofficial DA40 technical description — the AFM only
-        describes the two levers and the nozzles. The canopy cooling-gap position (Cabin panel) is for the ground only.
+        AMM 21-00-00 describes the RH intake adaptor, alternator-cooling branch, exhaust heat shroud, firewall dump
+        valve, floor/defrost distributor and cross-fuselage fresh-air pipe. Stations and duct dimensions are
+        approximate. The canopy cooling-gap position is for the ground only.
       </Small>
       <H3>Procedures that use heat and air</H3>
       <Notes
@@ -135,9 +146,10 @@ export function Pitot() {
     <>
       <p className="lead">
         One heated pitot-static mast under the left wing measures total pressure at the opening on its leading edge and
-        static pressure at two orifices on its lower and rear edges; filters at the wing root keep out dirt and water.
-        An optional alternate static valve under the panel uses cabin pressure. The stall warning is purely pneumatic:
-        suction at a red-ringed orifice in the left wing leading edge blows a horn in the panel.
+        static pressure at two orifices on its lower and rear edges. Filters at the wing root and parallel lower sump
+        loops below the pilot seat keep dirt and water from the instrument branches. An optional alternate static valve
+        under the panel uses cabin pressure. The stall warning is purely pneumatic: suction at a red-ringed orifice in
+        the left wing leading edge blows a horn in the panel.
       </p>
       <H3>Pitot heat</H3>
       <Ctl>
@@ -273,10 +285,11 @@ export function Pitot() {
           ["Heat control", "PITOT switch; thermal switch + thermal fuse in the mast"],
           ["Heat check", "Before taxi: ON — no PITOT FAIL; OFF if not needed (AFMS p. 45)"],
           ["Air data", "GDC 74A behind the panel; OAT probe under the right fuselage"],
-          ["Standby", "Pneumatic airspeed and altimeter"],
+          ["Standby", "Pneumatic airspeed and altimeter; separate pressure branches share the mast"],
+          ["Water traps", "Parallel tee/sump/tee loops below pilot seat; upper runs feed instruments (AMM 34-10-00)"],
           [
             "Autopilot static sources",
-            "Optional extra static ports on both fuselage sides for autopilot airplanes (OAM 40-267, AFM 7-54); walk-around: check for blockage (AFM 4A-7, 4A-8). Not modelled — N949KC's fit is unconfirmed",
+            "The selected GFC 700 uses GDC air data from the common mast. OAM 40-267 rear static ports belong to a different optional installation and are not imported here (AMM 34-10-00; Garmin SMM 2-12).",
           ],
           ["Required", "Pitot heat and alternate static for night VFR (AFM 2-20)"],
           ["Stall horn check", "Walk-around: suck on the orifice (AFM 4A-6)"],

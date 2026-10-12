@@ -446,6 +446,7 @@ export function Vacuum() {
           ["Annunciation", "LOW VACUUM, amber, single tone, below 3.5 in.Hg"],
           ["Pump", "AA3215CC dry pump, arm −5.0, cooling shroud −5.6"],
           ["Regulator · transducer · filter", "Arms 2.1 · 8.5 · 11.5"],
+          ["Two filters", "Gyro inlet filter and separate regulator bypass-air filter (MM 37-10-00 p. 207)"],
           ["Run-up", "VAC indicator check at 1,800 RPM (POH 4-17)"],
           ["KOEL", "Pump, VAC indicator and standby attitude required for IFR (POH 2-13)"],
           ["Pump failure", "Use the PFD (AHRS) attitude; the autopilot isn't affected (POH 3-26)"],

@@ -490,14 +490,26 @@ it("crossover, tailpipes and bypass meet only at documented LH wastegate joints 
               ? toV(TAILPIPE(-1).at(-3)!)
               : undefined
           : undefined;
+      // Check every pair, then assert its minimum once. Formatting a diagnostic
+      // and allocating an assertion for each pair dominates this exhaustive audit.
+      let clearance = Infinity;
+      let finite = true;
+      let closest: [Vector3, Vector3] | null = null;
       for (const p of A.samples)
         for (const q of B.samples) {
           if (joint && p.distanceTo(joint) <= diameter + 0.01 && q.distanceTo(joint) <= diameter + 0.01) continue;
-          expect(
-            p.distanceTo(q),
-            `${A.name} overlaps ${B.name} at ${p.toArray()} / ${q.toArray()}`,
-          ).toBeGreaterThanOrEqual(diameter - 0.000001);
+          const distance = p.distanceTo(q);
+          if (!Number.isFinite(distance)) finite = false;
+          if (!Number.isFinite(distance) || distance < clearance) {
+            clearance = distance;
+            closest = [p, q];
+          }
         }
+      expect(finite && Number.isFinite(clearance), `${A.name} / ${B.name} have finite samples`).toBe(true);
+      expect(
+        clearance,
+        `${A.name} overlaps ${B.name} at ${closest?.[0].toArray()} / ${closest?.[1].toArray()}`,
+      ).toBeGreaterThanOrEqual(diameter - 0.000001);
     }
 });
 

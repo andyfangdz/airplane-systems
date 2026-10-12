@@ -18,6 +18,7 @@ import {
   STARTER,
   pitotBase,
 } from "./parts";
+import { DEPTH_FLOWS, DEPTH_REPLACEMENTS, depthRates } from "./depth-flows";
 import { CABLES } from "./rig";
 
 const F: FlowSpec[] = [];
@@ -102,7 +103,6 @@ flow("bleed", [MECH, [fs(1.3), -0.4, -0.15], [fs(1.32), botY(fs(1.32)) - 0.02, -
   note: "Bleed line from the mechanical pump out of the engine compartment; where it ends is not in the documents.",
   r: 0.006,
   count: 4,
-  ext: true,
 });
 [1, -1].forEach((s) =>
   flow(
@@ -214,11 +214,10 @@ flow(
     pcolor: "#FF8A4A",
     name: "Exhaust tailpipe",
     note: "Underslung exhaust, out under the cowling.",
-    ext: true,
   },
 );
 
-/* ---------- cabin heat & fresh air (heat source and ducting from an unofficial technical description) ---------- */
+/* ---------- cabin heat & fresh air (AMM 21-00-00 pp. 1–4) ---------- */
 const AIR = "#149C94",
   HOT = "#E0522B";
 // Heat valve on the engine side of the firewall, distributor valve behind it (parts.ts; both must match these points)
@@ -254,13 +253,12 @@ flow("heatDump", [HV, [FW + 0.055, -0.5, 0.19], [FW + 0.07, botY(FW + 0.07) - 0.
   pcolor: "#FFA070",
   name: "Heat valve overboard outlet",
   note: "With CABIN HEAT OFF the flap dumps the hot air overboard at the bottom of the cowling.",
-  ext: true,
 });
 flow("heatCab", [HV, [FW - 0.05, -0.41, 0.07], DV], ["environment"], {
   r: 0.022,
   color: HOT,
   name: "Heat valve → distributor",
-  note: "Through the firewall to the floor / defrost distributor valve behind it (unofficial technical description).",
+  note: "Through the firewall to the floor / defrost distributor valve behind it (AMM 21-00-00 pp. 1–4).",
 });
 flow(
   "defrost",
@@ -290,14 +288,14 @@ const NACA = toVec3(wingP(-0.85, 0.08, -1).add(V(0, 0.03, 0)));
 const RBN = (s: number): Vec3 => [ROLLBAR_X + 0.02, RB_NOZZLE.y, s * RB_NOZZLE.z];
 flow(
   "fresh",
-  [NACA, [fs(2.3), -0.53, -0.55], [fs(2.6), -0.3, -0.52], [ROLLBAR_X + 0.02, 0.12, -0.47], RBN(-1)],
+  [NACA, [fs(2.3), -0.53, -0.55], [fs(2.6), -0.3, -0.49], [ROLLBAR_X + 0.02, 0.12, -0.47], RBN(-1)],
   ["environment"],
   {
     r: 0.02,
     color: AIR,
     pcolor: "#5FC8F0",
     name: "Fresh-air duct (left)",
-    note: "Stub-wing NACA inlet → side duct → roll-bar nozzle (unofficial technical description).",
+    note: "Stub-wing NACA inlet → side duct → roll-bar nozzle (AMM 21-00-00 pp. 1–4).",
   },
 );
 flow("fresh2", [RBN(-1), [ROLLBAR_X + 0.02, 0.48, 0], RBN(1)], ["environment"], {
@@ -481,7 +479,10 @@ CABLES.forEach((c) =>
   }),
 );
 
-export const FLOWS = F;
+export const FLOWS = [...F.filter((f) => !DEPTH_REPLACEMENTS.has(f.key)), ...DEPTH_FLOWS];
+/** OAM40-099 hoses disappear with their independently fitted inlets/nozzles. */
+export const flowsFor = (panelVents: boolean) =>
+  panelVents ? FLOWS : FLOWS.filter((f) => f.key !== "freshPanel" && f.key !== "freshPanelR");
 
 const CABIN_AIR = ["defrost", "floorF1", "floorF-1", "floorR1", "floorR-1", "heatCab"];
 export const isCabinAir = (k: string) => CABIN_AIR.includes(k);
@@ -540,7 +541,7 @@ export function flowRates(s: Sim, E: Elec): Record<string, number> {
   R.rudL = live.eff.yaw * 2;
   R.rudR = -live.eff.yaw * 2;
   R.trim = Math.max(-3, Math.min(3, live.trimRate * 6));
-  return R;
+  return Object.assign(R, depthRates(s, E));
 }
 
 const HOT_AIR = new THREE.Color("#FF7A3D");

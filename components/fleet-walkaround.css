@@ -1,0 +1,9 @@
+.fleet-walkaround > * {
+  min-width: 0;
+}
+.fleet-walkaround .walk-src a {
+  color: inherit;
+}
+.fleet-walkaround .walk-map .stn:focus-visible circle {
+  stroke-width: 3;
+}

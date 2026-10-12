@@ -23,7 +23,7 @@ export const RIG_SPEC: RigSpec = {
   ail: {
     lower: [13, 16.5, 31.5],
     postFs: 30.6,
-    postBl: 18.2,
+    postBl: 16.5,
     postLow: 31.5,
     postHigh: 76.5,
     root: [33, 17.5, 80.0],
@@ -63,8 +63,8 @@ export const RIG_SPEC: RigSpec = {
   servo: {
     // Approximate BL clears the console and front shoulder-harness reels; source arm is unchanged.
     roll: [59.5, 7.2, 76],
-    pitch: [180.7, 2.5, 37.8],
-    trim: [180.7, -2.5, 37.8],
+    pitch: [180.7, 2.5, 41],
+    trim: [180.7, -2.5, 41],
     names: {
       roll: "GFC 700 roll servo (FS 59.5)",
       pitch: "GFC 700 pitch servo (FS 180.7)",
@@ -74,4 +74,8 @@ export const RIG_SPEC: RigSpec = {
 };
 export const TRAVEL: Travel = { ailUp: 20, ailDn: 15, elUp: 28, elDn: 23, rud: 16.17, tabUp: 22, tabDn: 19 };
 export const RIG = cessnaRig(AF, RIG_SPEC, TRAVEL);
+// The lower cable stays above the rising tailcone belly until the exposed torque-tube horn.
+// Intermediate guides are schematic; retain source equipment arms and the actual surface endpoint.
+const lower = RIG.cable("elDn").pts;
+lower.splice(lower.length - 1, 0, AF.P3(206, 1.5, 42.8), AF.P3(220, 1.5, 44));
 export const { P: PULLEYS, C: CABLES } = RIG;

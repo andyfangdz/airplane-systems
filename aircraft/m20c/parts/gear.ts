@@ -2,7 +2,7 @@
 
 import { V, type Vec3 } from "@/lib/math";
 
-import { FW, PANEL_X, box, cyl, sph, tubeGeo } from "../geometry";
+import { FW, PANEL_X, box, cyl, sph, tubeGeo, wingP } from "../geometry";
 import { gearHorn, gearLights, live } from "../model";
 import { JBAR, PEDALS, johnsonTip } from "../rig";
 import { GEAR_BUNGEE, MG, NG, NOSE_WELL, mainAxle, mainWellGeo, noseDoorGeo } from "../placement";
@@ -78,8 +78,9 @@ import { brake, glow, knobAnim, part, sim } from "./catalogue";
       tubeGeo(
         [
           [1.3, -0.6, s * 0.25],
-          [0.9, -0.66, s * 0.45],
-          [MG.trunnion[0], MG.trunnion[1], s * MG.trunnion[2]],
+          [0.9, -0.5, s * 0.3],
+          [0.9, -0.47, s * 0.55],
+          wingP(s * MG.trunnion[2], 0.39, 0).toArray() as Vec3,
         ],
         0.008,
       ),
@@ -94,6 +95,7 @@ import { brake, glow, knobAnim, part, sim } from "./catalogue";
     pos: [axle[0] * 0.3 + 0.03, axle[1] * 0.3, axle[2] * 0.3],
     color: "#E0B040",
     name: "Gear assist spring",
+    ext: true,
     note: "Assist springs in the wing and bungee springs in the fuselage balance the weight of the gear so the bar can be swung by hand (OM p. 6).",
     pin: s > 0,
   });
@@ -144,6 +146,7 @@ part(() => box(0.06, 0.03, 0.2), ["gear", "controls"], {
   color: "#7C57CF",
   chan: ["rudder"],
   name: "Nose-wheel steering horn",
+  ext: true,
   note: "Steering rods from the rudder pedals turn the strut; retraction disconnects the steering and centres the wheel (Ranger 2-12).",
   pin: true,
 });
@@ -215,8 +218,8 @@ part(() => box(0.06, 0.03, 0.05), ["gear"], {
   note: "In the floor between the seats, aft of the pivot: the handle latches here with the gear up (OM p. 6). 'Clear floor for retraction handle clearance' is a pre-take-off item (OM p. 18).",
   pin: true,
 });
-part(() => cyl(0.02, 1.0, "z"), ["gear"], {
-  pos: [JBAR.pivot[0], JBAR.pivot[1] - 0.02, 0],
+part(() => cyl(0.014, 0.64, "z"), ["gear"], {
+  pos: [JBAR.pivot[0], JBAR.pivot[1] + 0.025, 0],
   color: "#5C6E7E",
   name: "Gear torque tube",
   note: "The bar turns a torque tube under the floor; push-pull rods from it retract the two mains and the nose gear — 'direct mechanical linkage' (OM p. 6).",

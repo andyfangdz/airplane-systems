@@ -30,7 +30,16 @@ export interface Sim {
     mix: number;
     altAir: boolean;
     /** fuelHi: the engine-driven pump's pressure regulation fails high (illustrative — the AFM has no FUEL PRES HI procedure). */
-    fail: { governor: boolean; oilLeak: boolean; mechPump: boolean; starterStuck: boolean; fuelHi: boolean };
+    fail: {
+      governor: boolean;
+      oilLeak: boolean;
+      mechPump: boolean;
+      starterStuck: boolean;
+      fuelHi: boolean;
+      magL: boolean;
+      magR: boolean;
+      intakeBlocked: boolean;
+    };
   };
   elec: {
     /** Split master: BAT and ALT halves; AVIONIC MASTER; ESS. BUS; HORIZON EMERGENCY; external power plugged in. */
@@ -53,7 +62,7 @@ export interface Sim {
   /** Toe brakes −1 (left) … +1 (right) and the parking brake lever (down = set). */
   gear: { diff: number; park: boolean };
   /** Cabin heat lever 0 (OFF) … 1 (ON); air distribution 0 (floor ▼) … 1 (canopy ▲); left canopy window open. */
-  env: { heat: number; dist: number; window: boolean };
+  env: { heat: number; dist: number; window: boolean; extraVents: boolean };
   pitot: { heat: boolean; oat: number; heaterFail: boolean; altStatic: boolean };
   /** Stall-warning demo: indicated airspeed and a blocked orifice. */
   stall: { ias: number; blocked: boolean };
@@ -72,7 +81,16 @@ export const initialSim: Sim = {
     rpmLever: 0.667,
     mix: 0.82,
     altAir: false,
-    fail: { governor: false, oilLeak: false, mechPump: false, starterStuck: false, fuelHi: false },
+    fail: {
+      governor: false,
+      oilLeak: false,
+      mechPump: false,
+      starterStuck: false,
+      fuelHi: false,
+      magL: false,
+      magR: false,
+      intakeBlocked: false,
+    },
   },
   elec: {
     bat: true,
@@ -89,7 +107,7 @@ export const initialSim: Sim = {
   flaps: { cmd: 0 },
   ctrl: { pitch: 0, roll: 0, yaw: 0 },
   gear: { diff: 0, park: false },
-  env: { heat: 0.4, dist: 0.3, window: false },
+  env: { heat: 0.4, dist: 0.3, window: false, extraVents: true },
   pitot: { heat: true, oat: 6, heaterFail: false, altStatic: false },
   stall: { ias: 90, blocked: false },
   lights: { landing: false, taxi: false, position: true, strobe: true, instr: 0, flood: 0 },
@@ -451,7 +469,18 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExc
 /* ---------- engine & fuel helpers ---------- */
 
 /** Fuel available at the engine from the selected tank. */
+/** Independent magnetos and manually selected alternate induction; failure thresholds are illustrative. */
+export const ignitionAvailable = (s: Sim) =>
+  (["L", "BOTH", "START"].includes(s.eng.key) && !s.eng.fail.magL) ||
+  (["R", "BOTH", "START"].includes(s.eng.key) && !s.eng.fail.magR);
+/** Mechanical pumping continues while starter-driven or windmilling, independently of combustion. */
+export const engineTurning = (s: Sim, E: Elec) => s.eng.running || E.starterOn || live.rpm > 100;
+export const inductionAvailable = (s: Sim) => !s.eng.fail.intakeBlocked || s.eng.altAir;
+
 export const fuelAvail = (s: Sim) => s.fuel.sel !== "OFF" && (s.fuel.sel === "L" ? s.fuel.qL : s.fuel.qR) > 0.05;
+/** Selected-tank fuel must also have an available driven mechanical pump or powered electric backup. */
+export const fuelDeliveryAvailable = (s: Sim, E: Elec) =>
+  fuelAvail(s) && ((engineTurning(s, E) && !s.eng.fail.mechPump) || (s.fuel.pump && E.pumpPwr));
 /** Governor target RPM for a blue RPM lever position 0..1 (low-RPM stop not in the AFM: assumed 1,800). */
 export const govRpmFor = (lever: number) => Math.round(1800 + 900 * lever);
 export const govRpm = (s: Sim) => govRpmFor(s.eng.rpmLever);

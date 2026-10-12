@@ -85,7 +85,7 @@ part(() => box(0.04, 0.03, 0.03), ["pitot"], {
     m.rotation.z = sim().s.pitot.altStatic ? 0.8 : 0;
   },
   name: "Alternate static source valve (SB M20-158)",
-  note: "Not factory-fitted on 1960s Mooneys — Service Bulletin M20-158 (1969) added a valve under the left side of the panel that opens the static line to the cabin (Ranger 2-7). Whether N6947N has it is not known; modelled as fitted.",
+  note: "The actual 1968 OM scan p. 18 explicitly lists optional alternate static. A cabin-source valve is fitted in this study, but N6947N records are unverified; later SB M20-158 installation details must be checked for the aircraft.",
   pin: true,
 });
 export const STALL_Z = -1.9;
@@ -105,6 +105,6 @@ part(() => cyl(0.025, 0.03, "y", 16), ["pitot", "electrical"], {
   color: "#3A9448",
   anim: glow("#2A6A34", "#FF4A4A", () => hornLevel(sim().s, sim().E) > 0, ["pitot"]),
   name: "Stall warning horn",
-  note: "Mounted in the cabin headliner (Ranger 2-7): intermittent, then steady at the stall. Electric — dead with the master off (OM p. 3 list).",
+  note: "Mounted in the cabin headliner (Ranger 2-7): steady tone, distinct from the intermittent gear horn (1968 OM scan p. 21). Electric — dead with the master off (OM p. 3 list).",
   pin: true,
 });

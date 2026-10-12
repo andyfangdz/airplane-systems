@@ -5,7 +5,17 @@
  */
 import { stepFlight, yokeCmd, type FlightCmd } from "@/lib/avionics/flight";
 import { clamp, lerp } from "@/lib/math";
-import { ALT_MIN_RPM, FLAP_MAX, M20C_FLIGHT, VAC, fuelAvail, govRpm, live, pcEngaged } from "./model";
+import {
+  ALT_MIN_RPM,
+  FLAP_MAX,
+  M20C_FLIGHT,
+  VAC,
+  fuelAvail,
+  govRpm,
+  ignitionAvailable,
+  live,
+  pcEngaged,
+} from "./model";
 import { useM20C } from "./store";
 
 /** START push hold (s): released when the engine fires, or after this. */
@@ -43,7 +53,7 @@ export function simTick(dt: number) {
       live.prime - dt * (windmilling ? 0.5 : cranking && s.eng.mix <= 0.05 && s.eng.throttle > 0.4 ? 0.6 : 0.02),
     );
     const flooded = live.prime > 4.5,
-      ign = s.eng.key !== "OFF";
+      ign = ignitionAvailable(s, E);
     // windmilling relight: fuel back at the carburetor with the ignition on and the mixture rich (OM p. 21: throttle back first)
     const relight =
       s.air &&
@@ -94,7 +104,7 @@ export function simTick(dt: number) {
     const cutoff = s.eng.mix <= 0.05 && (live.fireT < 0 || live.fireT > 3);
     const starved = !avail || live.fuelP < 0.5;
     live.starve = starved ? live.starve + dt : 0;
-    if (s.eng.key === "OFF" || cutoff || live.starve > 3 || live.carbIce >= 1) {
+    if (!ignitionAvailable(s, E) || cutoff || live.starve > 3 || live.carbIce >= 1) {
       live.starve = 0;
       live.fireT = -1;
       up((d) => {
@@ -119,7 +129,7 @@ export function simTick(dt: number) {
   let target = 0;
   if (run) {
     target = govOk ? Math.min(fine, gov) : Math.min(fine, 2950);
-    if ((s.eng.key === "L" || s.eng.key === "R") && fine <= gov + 30) target -= 110; // single magneto (max drop 125, OM p. 18)
+    if ((s.eng.key === "L" || s.eng.key === "R" || s.faults.magL || s.faults.magR) && fine <= gov + 30) target -= 110; // qualitative single-magneto drop
     if (s.eng.mix < 0.25) target -= (0.25 - s.eng.mix) * 1600;
     target -= live.carbIce * 900; // ice: power loss, rough running
   } else if (cranking) target = Math.max(250, windmill);
@@ -151,7 +161,7 @@ export function simTick(dt: number) {
   const ground = !s.air && run ? 35 : 0;
   live.oilT = lerp(
     live.oilT,
-    run ? 165 + 50 * pwr + (s.pitot.oat - 15) * 0.8 + ground * 0.5 : oatF,
+    run ? 165 + 50 * pwr + (s.pitot.oat - 15) * 0.8 + ground * 0.5 + (s.faults.oilCooler ? 35 : 0) : oatF,
     clamp(dt / 40, 0, 1),
   );
   live.oilLoss = s.eng.fail.oilLeak ? Math.min(1, live.oilLoss + dt / 40) : 0;
@@ -174,7 +184,9 @@ export function simTick(dt: number) {
       ? 0
       : live.rpm < 1000
         ? ((live.rpm - 400) / 600) * VAC.reg
-        : VAC.reg + (live.rpm > 2600 ? 0.1 : 0);
+        : s.faults.vacuumRegulator
+          ? 6.3
+          : VAC.reg + (live.rpm > 2600 ? 0.1 : 0);
   live.vac = lerp(live.vac, vacT, clamp(dt * 1.5, 0, 1));
 
   // ---------- landing gear: the bar swings in about a second; the gear follows the linkage ----------
@@ -187,6 +199,7 @@ export function simTick(dt: number) {
 
   // ---------- flaps: pumped down (store.pumpFlaps), bled up by the relief valve at a controlled rate (OM p. 9) ----------
   if (s.flaps.valve === "UP" && live.flapAng > 0) live.flapAng = Math.max(0, live.flapAng - 6 * dt);
+  else if (s.faults.flapLeak && live.flapAng > 0) live.flapAng = Math.max(0, live.flapAng - 1.5 * dt);
   if (live.pumpAnim > 0) live.pumpAnim = Math.max(0, live.pumpAnim - dt * 2.2);
   live.flapAng = Math.min(live.flapAng, FLAP_MAX);
 

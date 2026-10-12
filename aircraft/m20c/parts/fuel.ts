@@ -15,7 +15,7 @@ import { EQUIPMENT } from "../placement";
     pos: P(wingP(s * 1.6, 0.22, 1).add(V(0, 0.005, 0))),
     color: "#2F7FE6",
     name: nm + " fuel filler cap",
-    note: "On top of the wing over each 26 gal integral bay (OM p. 3). Fuel 91/98 min — today 100LL.",
+    note: "On top of the wing over each 26 gal integral bay (OM p. 3). 1968 OM scan p. 10 specifies 91/96 minimum; use fuel approved for the fitted engine and current records.",
     ext: true,
     pin: s > 0,
   });

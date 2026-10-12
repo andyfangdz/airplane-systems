@@ -14,6 +14,8 @@ import { CAT } from "./parts";
 import { useC172 } from "./store";
 import { SYS } from "./systems";
 import { simTick } from "./tick";
+import { WalkPanel, WalkMarker } from "./walk-panel";
+import { walkController } from "./walk-store";
 
 /** G1000 annunciation window: shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
 function useAlerts() {
@@ -34,6 +36,7 @@ export const C172S: AircraftDef = {
   groundY: GROUND_Y,
   pivotX: 0,
   Model,
+  Overlay: WalkMarker,
   panels: {
     overview: Overview,
     airframe: Airframe,
@@ -56,4 +59,5 @@ export const C172S: AircraftDef = {
   useAlerts,
   alertTitle: "ANNUNCIATIONS",
   labels: { cat: CAT, inside: inFus },
+  walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
 };

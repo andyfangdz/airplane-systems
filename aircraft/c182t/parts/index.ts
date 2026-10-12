@@ -37,3 +37,7 @@ export { KAP, KAP_LCD } from "./avionics";
 export { PITOT, STALL_HORN, STALL_VANE, STATIC_PORTS } from "./pitot";
 export { LIGHTS } from "./lighting";
 export { MANIFOLD } from "./cabin";
+
+import "./engine-depth";
+import "./systems-depth";
+import "./walk-inspection";

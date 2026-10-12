@@ -30,7 +30,7 @@ part(() => planeRing(BAG_FRAME), ["airframe", "cabin"], {
   plate: true,
   pin: true,
   name: "Baggage compartment frame",
-  note: "Rear of the standard baggage compartment; the baggage tube and extension lie behind it. Cabin air leaves through holes in this frame (unofficial technical description).",
+  note: "Rear of the standard baggage compartment; the baggage tube and extension lie behind it. Cabin air leaves through holes in this frame (AMM21-00-00p3).",
 });
 part(
   () => tubeGeo(fRing(ROLLBAR_X, 0.93, 30, -0.1, Math.PI + 0.1, false), 0.025),
@@ -84,7 +84,7 @@ part(
   }),
 );
 part(() => box(0.15, 0.025, 0.04), ["airframe"], {
-  pos: [fs(6.0), topY(fs(6.0)) - 0.016, 0],
+  pos: [fs(6.0), topY(fs(6.0)) - 0.022, 0],
   color: "#E0B040",
   name: "Levelling wedge position",
   note: "Place a 600:31 wedge here, on top of the tail boom in front of the fin: with its top level, the Datum Plane is vertical (AFM 6-3).",

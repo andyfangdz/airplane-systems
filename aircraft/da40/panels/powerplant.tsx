@@ -79,6 +79,25 @@ const fails = (s: Sim, up: (fn: (d: Sim) => void) => void) => (
           })
         }
       />
+      {(
+        [
+          ["magL", "Left magneto fails"],
+          ["magR", "Right magneto fails"],
+          ["intakeBlocked", "Primary induction blocked"],
+        ] as const
+      ).map(([key, label]) => (
+        <Check
+          key={key}
+          id={`da40-${key}`}
+          label={label}
+          checked={s.eng.fail[key]}
+          onChange={(v) =>
+            up((d) => {
+              d.eng.fail[key] = v;
+            })
+          }
+        />
+      ))}
     </BtnRow>
   </div>
 );
@@ -98,6 +117,11 @@ export function Engine() {
         ignition key, the electric fuel pump and the manual ALTERNATE AIR lever. There is no primer: the electric pump
         with the mixture RICH primes the engine.
       </p>
+      <Small>
+        Filter obstruction can stop the modeled engine; manually open ALTERNATE AIR to admit warm compartment air. Each
+        magneto operates independently. Hardware and routing use AMM 71-60/79-00, Lycoming IO-360-M1A parts catalog and
+        Power Flow PFS-15102 instructions; the oil-temperature crossover and RPM response are illustrative.
+      </Small>
       <H3>Engine controls</H3>
       <Ctl>
         <div className="switches">
@@ -554,7 +578,7 @@ export function Fuel() {
       <ol className="notes">
         {[
           "Tank (3 chambers) → finger filter and drain at the inboard, lowest point.",
-          "Wing feed line → fuel tank selector on the centre console.",
+          "Wing feed line → selector valve below the cockpit floor, operated by the centre-console lever and shaft.",
           "Filter/screen (gascolator) with drain — the lowest point of the system.",
           "Electric fuel pump, with a bypass for when it is off.",
           "Through the firewall → engine-driven (mechanical) pump with bleed line.",
@@ -571,7 +595,7 @@ export function Fuel() {
           ["Usable", "2 × 25 US gal = 50 · unusable 0.5 per tank"],
           ["Gauge", "Dual pointers (L top, R bottom), max indication 24 gal"],
           ["Ungauged", "16–19 gal: gauge reads 16 — measure with the dipstick device or plan on 16"],
-          ["Probes", "Two per side (inboard + outboard chamber)"],
+          ["Probes", "Two capacitive probes per side: inboard + long-range chamber"],
           ["Max imbalance", "8 US gal (also with the AP engaged)"],
           ["Fuel", "AVGAS 100LL"],
           ["Drains", "3: left tank, right tank, gascolator"],
@@ -595,6 +619,8 @@ export function Fuel() {
           "Engine fire: selector OFF — it is the only fuel shut-off (AFM 3-22, 3-26).",
           "Electric pump is on the MAIN bus: after an alternator failure with ESS BUS ON it is gone (AFMS p. 30).",
           "High altitude with the pump OFF can give vapour bubbles: intermittent low fuel pressure, then high fuel-flow indications (AFM 4A-27).",
+          "Each long-range tank has three aluminum chambers. Large flexible couplings carry fuel; smaller upper hoses connect vapor spaces. Independent capillary and check-valve vents balance pressure (AMM 28-10-00).",
+          "Fuel pressure, measured quantity and flow-integrating totalizer are independent inputs. A pressure indication fault does not by itself establish an actual pump failure (Garmin SMM 5.5; SOURCES.md).",
         ]}
       />
       <H3>Components — tap to locate</H3>
