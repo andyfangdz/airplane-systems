@@ -474,20 +474,21 @@ export const ignitionAvailable = (s: Sim) =>
   (["L", "BOTH", "START"].includes(s.eng.key) && !s.eng.fail.magL) ||
   (["R", "BOTH", "START"].includes(s.eng.key) && !s.eng.fail.magR);
 /** Mechanical pumping continues while starter-driven or windmilling, independently of combustion. */
-export const engineTurning = (s: Sim, E: Elec) => s.eng.running || E.starterOn || live.rpm > 100;
+export const engineTurning = (s: Sim, E: Elec, sample: typeof live = live) =>
+  s.eng.running || E.starterOn || sample.rpm > 100;
 export const inductionAvailable = (s: Sim) => !s.eng.fail.intakeBlocked || s.eng.altAir;
 
 export const fuelAvail = (s: Sim) => s.fuel.sel !== "OFF" && (s.fuel.sel === "L" ? s.fuel.qL : s.fuel.qR) > 0.05;
 /** Selected-tank fuel must also have an available driven mechanical pump or powered electric backup. */
-export const fuelDeliveryAvailable = (s: Sim, E: Elec) =>
-  fuelAvail(s) && ((engineTurning(s, E) && !s.eng.fail.mechPump) || (s.fuel.pump && E.pumpPwr));
+export const fuelDeliveryAvailable = (s: Sim, E: Elec, sample: typeof live = live) =>
+  fuelAvail(s) && ((engineTurning(s, E, sample) && !s.eng.fail.mechPump) || (s.fuel.pump && E.pumpPwr));
 /** Governor target RPM for a blue RPM lever position 0..1 (low-RPM stop not in the AFM: assumed 1,800). */
 export const govRpmFor = (lever: number) => Math.round(1800 + 900 * lever);
 export const govRpm = (s: Sim) => govRpmFor(s.eng.rpmLever);
 /** Blade angle at 0.75 R (MTV-12-B/183-59b: 11.0° fine … 30.0° coarse), from how hard the governor is working. */
-export function bladeAngle(s: Sim, rpm: number) {
-  if (rpm < 300 || s.eng.fail.governor || live.oilP < 15) return 11;
-  const fineRpm = 650 + s.eng.throttle * 2350 + (s.air ? live.fs.ias * 4 : 0);
+export function bladeAngle(s: Sim, rpm: number, sample: typeof live = live) {
+  if (rpm < 300 || s.eng.fail.governor || sample.oilP < 15) return 11;
+  const fineRpm = 650 + s.eng.throttle * 2350 + (s.air ? sample.fs.ias * 4 : 0);
   return Math.max(11, Math.min(30, 11 + (fineRpm - rpm) / 45));
 }
 
@@ -497,10 +498,10 @@ export const gaugeTarget = (q: number) => (q > 19 ? Math.min(q, 24) : q >= 16 ? 
 /** Stall speeds (KIAS, 0° bank) at 1,200 kg / 2,646 lb (AFM 5.3.4, p. 5-8): UP 53, T/O 52, LDG 52. */
 export const STALL_KIAS: Record<FlapSel, number> = { 0: 53, 1: 52, 2: 52 };
 /** Stall horn (AFM 7.13): pneumatic, sounds from about 10 kt down to at least 5 kt above the stall. 0 = quiet … 1 = loud. */
-export function hornLevel(s: Sim) {
+export function hornLevel(s: Sim, sample: typeof live = live) {
   if (s.stall.blocked) return 0;
   const vs = STALL_KIAS[s.flaps.cmd];
-  const ias = s.air ? Math.min(live.fs.ias, s.stall.ias) : s.stall.ias;
+  const ias = s.air ? Math.min(sample.fs.ias, s.stall.ias) : s.stall.ias;
   if (ias < 30) return 0; // no airflow, no suction at the orifice
   const m = ias - vs;
   return m > 10 ? 0 : Math.min(1, (10 - m) / 5);
@@ -536,12 +537,12 @@ export type { CasLevel };
  * Annunciation window text, exactly as listed for the DA 40. Engine, fuel, door, starter and pitot-heat
  * sensing comes through the GEA 71 (ENG INST breaker) and a GIA to the displays.
  */
-export function annunciations(s: Sim, E: Elec): [CasLevel, string][] {
+export function annunciations(s: Sim, E: Elec, sample: typeof live = live): [CasLevel, string][] {
   const m: [CasLevel, string][] = [];
   const sensed = E.gea && (E.gia1 || E.gia2);
   if (sensed) {
-    const fuelPressure = fuelPressureState(live.fuelP);
-    if (live.oilP < 25) m.push(["w", "OIL PRES LO"]);
+    const fuelPressure = fuelPressureState(sample.fuelP);
+    if (sample.oilP < 25) m.push(["w", "OIL PRES LO"]);
     if (fuelPressure === "low") m.push(["w", "FUEL PRES LO"]);
     if (fuelPressure === "high") m.push(["w", "FUEL PRES HI"]);
     if (s.eng.running && !E.altFeed) m.push(["w", "ALTERNATOR"]);

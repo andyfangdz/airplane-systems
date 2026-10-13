@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   altAirOpen,
   bladeAngle,
@@ -28,14 +29,13 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 
 const lever = (v: number) => (v < 0.03 ? "IDLE" : v > 0.97 ? "MAX" : Math.round(v * 100) + "%");
-const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
+const rpm10 = (rpm: number) => String(Math.round(rpm / 10) * 10);
 
 export function Engine() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR22T((x) => x.s),
     up = useSR22T((x) => x.update);
   const { shown, set } = useEngineGroups();
@@ -127,11 +127,11 @@ export function Engine() {
         <Readouts
           items={[
             ["Engine", g.running ? "RUNNING" : g.key === "START" ? ["CRANKING", "warnc"] : ["STOPPED", "bad"]],
-            ["RPM", rpm10()],
-            ["MAP in", mapInHg(s, live.rpm).toFixed(1)],
+            ["RPM", rpm10(snapshot.rpm)],
+            ["MAP in", mapInHg(s, snapshot.rpm).toFixed(1)],
             [
               "Plugs firing",
-              live.rpm < 100 ? "—" : g.key === "R" ? "R mag · 6" : g.key === "L" ? "L mag · 6" : "Both · 12",
+              snapshot.rpm < 100 ? "—" : g.key === "R" ? "R mag · 6" : g.key === "L" ? "L mag · 6" : "Both · 12",
             ],
             ["Alt air door", altAirOpen(s) ? ["OPEN", "warnc"] : "closed"],
           ]}
@@ -192,7 +192,7 @@ export function Engine() {
         ]}
       />
       <H3>Components</H3>
-      <PartsList parts={CAT.pinned("engine")} />
+      <PartsList cat={CAT} sys="engine" />
     </>
   );
 }
@@ -201,9 +201,10 @@ export function Engine() {
  * Panel-only TIT pending strip placement confirmation. Pressure altitude and fuel guidance
  * are modelled elsewhere. */
 function Turbo() {
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR22T((x) => x.s),
     up = useSR22T((x) => x.update);
-  const map = mapInHg(s, live.rpm),
+  const map = mapInHg(s, snapshot.rpm),
     tit = titState(s);
   return (
     <>
@@ -272,7 +273,7 @@ function Turbo() {
 }
 
 export function Propeller() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR22T((x) => x.s),
     up = useSR22T((x) => x.update);
   return (
@@ -310,7 +311,7 @@ export function Propeller() {
         <Readouts
           items={[
             ["Governor setting", "2,500 (fixed)"],
-            ["RPM", live.rpm > 2550 ? [rpm10(), "bad"] : rpm10()],
+            ["RPM", snapshot.rpm > 2550 ? [rpm10(snapshot.rpm), "bad"] : rpm10(snapshot.rpm)],
             ["Blade angle", bladeAngle(s).toFixed(0) + "°"],
           ]}
         />
@@ -352,12 +353,12 @@ export function Propeller() {
 }
 
 export function Fuel() {
-  useTicker(500);
+  const snapshot = useLiveSnapshot(live, 500);
   const s = useSR22T((x) => x.s),
     E = useSR22T((x) => x.E),
     up = useSR22T((x) => x.update);
   const f = s.fuel;
-  const speed = pumpSpeed(s, E, live.rpm, mapInHg(s, live.rpm), s.paFt);
+  const speed = pumpSpeed(s, E, snapshot.rpm, mapInHg(s, snapshot.rpm), s.paFt);
   return (
     <>
       <p className="lead">
@@ -543,7 +544,7 @@ export function Fuel() {
         ]}
       />
       <H3>Components</H3>
-      <PartsList parts={CAT.pinned("fuel")} />
+      <PartsList cat={CAT} sys="fuel" />
     </>
   );
 }

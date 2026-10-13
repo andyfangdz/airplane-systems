@@ -1,14 +1,15 @@
 "use client";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useView } from "@/lib/view";
 import { live } from "../model";
 import { resetCaps, startCaps, useSR20 } from "../store";
 import { CAPS_CAM, SYS } from "../systems";
-import { BtnRow, Caution, Ctl, Facts, H3, Notes, Slider, Small, useTicker } from "@/components/ui/controls";
+import { BtnRow, Caution, Ctl, Facts, H3, Notes, Slider, Small } from "@/components/ui/controls";
 
 export function Caps() {
-  useTicker(100);
-  const { update } = useSR20.getState(),
-    { flyTo } = useView.getState();
+  const snapshot = useLiveSnapshot(live, 100);
+  const update = useSR20((x) => x.update),
+    flyTo = useView((x) => x.flyTo);
   const capsOn = useSR20((x) => x.s.capsOn);
   return (
     <>
@@ -20,18 +21,23 @@ export function Caps() {
       <H3>Deployment sequence</H3>
       <Ctl>
         <BtnRow>
-          <button type="button" className="btn primary" onClick={startCaps}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => {
+              startCaps();
+              refreshLiveSnapshot(live);
+            }}
+          >
             Pull the handle
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => {
-              if (!capsOn) {
-                startCaps();
-                return;
-              }
-              live.capsPlaying = !live.capsPlaying;
+              if (!capsOn) startCaps();
+              else live.capsPlaying = !live.capsPlaying;
+              refreshLiveSnapshot(live);
             }}
           >
             Pause / play
@@ -41,6 +47,7 @@ export function Caps() {
             className="btn"
             onClick={() => {
               resetCaps();
+              refreshLiveSnapshot(live);
               const [p, t] = SYS.find((d) => d.id === "caps")!.cam;
               flyTo(p, t);
             }}
@@ -54,7 +61,7 @@ export function Caps() {
           min={0}
           max={16}
           step={0.05}
-          value={Math.max(0, live.capsT)}
+          value={Math.max(0, snapshot.capsT)}
           onChange={(v) => {
             if (!capsOn) {
               update((d) => {
@@ -64,6 +71,7 @@ export function Caps() {
             }
             live.capsT = v;
             live.capsPlaying = false;
+            refreshLiveSnapshot(live);
           }}
           fmt={(v) => "T+" + v.toFixed(1) + " s"}
         />

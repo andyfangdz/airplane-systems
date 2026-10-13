@@ -104,7 +104,9 @@ function Toolbar() {
     spin = useView((x) => x.spin),
     theme = useView((x) => x.theme),
     walking = useView((x) => x.walking);
-  const { set, setTheme, flyTo } = useView.getState();
+  const set = useView((v) => v.set),
+    setTheme = useView((v) => v.setTheme),
+    flyTo = useView((v) => v.flyTo);
   const dark = theme === "dark";
   const walk = def.walk;
   return (
@@ -155,31 +157,6 @@ function Toolbar() {
       >
         ?
       </button>
-    </div>
-  );
-}
-
-/** Crew-alert window; keyed by airplane so each airplane's alert hook is called consistently. */
-function Alerts() {
-  const def = useAircraft();
-  const { powered, msgs } = def.useAlerts();
-  return (
-    <div className="cas" aria-live="polite">
-      <div className="hd">
-        <span>{def.alertTitle}</span>
-        <span>{powered ? `${msgs.length} ${msgs.length === 1 ? "msg" : "msgs"}` : "NO DISPLAY PWR"}</span>
-      </div>
-      <ul>
-        {msgs.length ? (
-          msgs.map(([c, t]) => (
-            <li key={t} className={c}>
-              {t}
-            </li>
-          ))
-        ) : (
-          <li className="none">{powered ? "No alerts" : "—"}</li>
-        )}
-      </ul>
     </div>
   );
 }
@@ -302,7 +279,7 @@ export default function App() {
         <Loader />
         <Toolbar />
         <div className="stage-foot">
-          <Alerts key={def.id} />
+          <def.Alerts key={def.id} />
           <Hud />
           <div id="walk-scene" className="walk-scene" />
         </div>

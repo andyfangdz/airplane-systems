@@ -2,8 +2,8 @@
 /**
  * GFC 700 side-panel controls: AFCS status strip, the G1000 bezel AFCS keys, the control-wheel/stick
  * switches (AP DISC, CWS, MET trim) and GA, live readouts and the G1000 knobs that feed the autopilot.
- * Stateless: the airplane keeps `Gfc700State` + `FlightState` and passes `onKey` / `onSet`; re-render the
- * parent at ≥ 5 Hz (e.g. `useTicker(100)`) so the strip follows the sim.
+ * Stateless: the airplane keeps `Gfc700State` + `FlightState` and passes `onKey` / `onSet`; pass immutable
+ * snapshots at ≥ 5 Hz (e.g. `useLiveSnapshot(live, 100)`) so the strip follows the sim.
  */
 import "./avionics.css";
 import { Readouts } from "@/components/ui/controls";

@@ -12,7 +12,7 @@ import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { skinMat } from "@/lib/materials";
 import { D2R, type Vec3 } from "@/lib/math";
-import { beginParts, endParts, markAdded, nextFrame, setBuild, useBuild } from "@/lib/build";
+import { beginParts, endParts, markAdded, nextFrame, publishParts, setBuild, useBuild } from "@/lib/build";
 import { specGeo, type PartSpec } from "@/lib/catalogue";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { narrowLayout, useView } from "@/lib/view";
@@ -441,7 +441,7 @@ export function SceneModel() {
       }
       if (!n) continue; // only held-back parts left
       const t1 = performance.now();
-      useBuild.setState({ done: built.size });
+      publishParts(CAT, built);
       await Promise.resolve(); // the store update renders and commits in a microtask queued before this one
       commitPerPart = (commitPerPart + (performance.now() - t1) / n) / 2;
     }

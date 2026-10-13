@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { DepthDetail } from "./depth";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
@@ -17,7 +18,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import {
   FLAP_MAX,
@@ -87,7 +87,7 @@ const RUNS: Record<Chan, { src: string; steps: string[] }> = {
 };
 
 export function Controls() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
   const ctrlFocus = useView((x) => x.ctrlFocus),
@@ -97,10 +97,10 @@ export function Controls() {
     const [p, t] = v === "all" ? SYS.find((d) => d.id === "controls")!.cam : CHAN_CAM[v];
     flyTo(p, t);
   };
-  const e = live.eff,
+  const e = snapshot.eff,
     d = deflections(e.pitch, e.roll, e.yaw),
     trim = s.ctrl.trim;
-  const pc = pcEngaged(s);
+  const pc = pcEngaged(s, snapshot);
   return (
     <>
       <p className="lead">
@@ -248,7 +248,7 @@ export function Controls() {
       )}
       <DepthDetail system="controls" />
       <H3>Mechanisms &amp; details — tap to locate</H3>
-      <PartsList parts={CAT.pinned("controls")} />
+      <PartsList cat={CAT} sys="controls" />
       <H3>Details (TCDS 2A3, s/n before 690001)</H3>
       <Facts
         rows={[
@@ -283,12 +283,12 @@ export function Controls() {
 const fmtAil = (up: number) => (up > 0.3 ? `${up.toFixed(0)}° up` : up < -0.3 ? `${(-up).toFixed(0)}° dn` : "0°");
 
 export function Flaps() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
-  const a = live.flapAng,
+  const a = snapshot.flapAng,
     vfe = 125,
-    ias = s.air ? mph(live.fs.ias) : 0;
+    ias = s.air ? mph(snapshot.fs.ias) : 0;
   return (
     <>
       <p className="lead">
@@ -345,7 +345,7 @@ export function Flaps() {
                     ? "FULL (33°)"
                     : "Intermediate",
             ],
-            ["Moving", s.flaps.valve === "UP" && a > 0 ? "Bleeding up" : live.pumpAnim > 0 ? "Pumping" : "Holding"],
+            ["Moving", s.flaps.valve === "UP" && a > 0 ? "Bleeding up" : snapshot.pumpAnim > 0 ? "Pumping" : "Holding"],
             ["Airspeed", [`${ias.toFixed(0)} mph`, s.air && a > 1 && ias > vfe ? "bad" : ""]],
           ]}
         />
@@ -387,21 +387,21 @@ export function Flaps() {
       />
       <DepthDetail system="flaps" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("flaps")} />
+      <PartsList cat={CAT} sys="flaps" />
     </>
   );
 }
 
 export function Gear() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
   const g = s.gear,
-    lights = gearLights(s, E),
-    horn = gearHorn(s, E),
-    ias = s.air ? mph(live.fs.ias) : 0;
-  const moving = !gearDown() && !gearUp();
+    lights = gearLights(s, E, snapshot),
+    horn = gearHorn(s, E, snapshot),
+    ias = s.air ? mph(snapshot.fs.ias) : 0;
+  const moving = !gearDown(snapshot) && !gearUp(snapshot);
   const setLever = (v: GearLever) =>
     up((d) => {
       d.gear.lever = v;
@@ -468,9 +468,9 @@ export function Gear() {
         <Readouts
           items={[
             ["Handle", g.lever === "DOWN" ? "Down-lock socket" : "Up-lock socket (floor)"],
-            ["Gear", moving ? ["IN TRANSIT", "warnc"] : gearDown() ? "DOWN & LOCKED" : ["UP", "warnc"]],
+            ["Gear", moving ? ["IN TRANSIT", "warnc"] : gearDown(snapshot) ? "DOWN & LOCKED" : ["UP", "warnc"]],
             ["Horn", horn ? ["SOUNDING", "bad"] : "Quiet"],
-            ["Man press", live.map.toFixed(1) + " in"],
+            ["Man press", snapshot.map.toFixed(1) + " in"],
             ["Airspeed", [`${ias.toFixed(0)} mph`, s.air && ias > 120 && (moving || g.lever === "DOWN") ? "bad" : ""]],
           ]}
         />
@@ -514,7 +514,7 @@ export function Gear() {
         />
         <Readouts
           items={[
-            ["Nose wheel", gearDown() ? "Steered by the pedals" : "Centred, disconnected"],
+            ["Nose wheel", gearDown(snapshot) ? "Steered by the pedals" : "Centred, disconnected"],
             ["Parking brake", g.park ? ["SET", "warnc"] : "Released"],
           ]}
         />
@@ -573,7 +573,7 @@ export function Gear() {
       />
       <DepthDetail system="gear" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("gear")} />
+      <PartsList cat={CAT} sys="gear" />
     </>
   );
 }

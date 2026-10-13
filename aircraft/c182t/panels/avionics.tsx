@@ -1,8 +1,10 @@
 "use client";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useState } from "react";
 import { Kap140Unit } from "@/components/avionics/Kap140Unit";
 import {
   BtnRow,
+  ScenarioButton,
   Caution,
   Check,
   Ctl,
@@ -12,7 +14,6 @@ import {
   PartsList,
   Readouts,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { wrap360, type FlySet } from "@/lib/avionics/flight";
 import {
@@ -51,7 +52,6 @@ const wholePanel = () => {
 };
 
 export function Avionics() {
-  useTicker(300);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update),
@@ -213,7 +213,7 @@ export function Avionics() {
         annunciation.
       </Small>
       <H3>Units — tap to locate</H3>
-      <PartsList parts={CAT.pinned("avionics")} />
+      <PartsList cat={CAT} sys="avionics" />
       <Notes
         items={[
           "A missing CDI deviation bar is the navigation warning flag on the HSI (POH 4-17).",
@@ -249,16 +249,15 @@ function throttleFor(s: Sim, power: number) {
 }
 
 export function Autopilot() {
-  useTicker(100);
+  const snapshot = useLiveSnapshot(live, 100);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
   const [loc, setLoc] = useState(false);
   // KAP 140 and flight state live outside React: re-render at once after a change so controlled inputs don't snap back
-  const [, force] = useState(0),
-    rerender = () => force((n) => n + 1);
-  const st = live.kap,
-    fs = live.fs,
+  const rerender = () => refreshLiveSnapshot(live);
+  const st = snapshot.kap,
+    fs = snapshot.fs,
     now = fs.t;
   const onKey = (k: Kap140Key) => {
     const c = useC182.getState();
@@ -277,31 +276,18 @@ export function Autopilot() {
   const air = () => {
     if (s.ground || !s.eng.running) scenarioCruise();
   };
-  const scen = (label: string, fn: () => void) => (
-    <button
-      key={label}
-      type="button"
-      className="btn"
-      onClick={() => {
-        air();
-        fn();
-        rerender();
-      }}
-    >
-      {label}
-    </button>
-  );
+
   const ph = kap140Phase(st, now).ph;
   const ias = fs.ias,
     outside = !s.ground && (ias < 80 || ias > 160);
   const pitchTrim = E.warnPwr && kap140Pfd(st, now) != null;
   // Aural: the disconnect horn (also the end-of-test tone) is powered through WARN and heard through the audio panel — it still sounds
   // when the computer loses power while engaged; the altitude-alert tones need the audio panel (S3-10 items 11–12, S3-19 item 7).
-  const lostPwr = !st.powered && live.discTone > now;
+  const lostPwr = !st.powered && snapshot.discTone > now;
   const kind = lostPwr ? "disc" : st.tone > now ? st.toneKind : null;
   const heard = kind === "alert" ? E.audio : E.warnPwr && E.audio;
   const unit: Kap140State =
-    !kind || !heard ? { ...st, tone: 0 } : lostPwr ? { ...st, tone: live.discTone, toneKind: "disc" } : st;
+    !kind || !heard ? { ...st, tone: 0 } : lostPwr ? { ...st, tone: snapshot.discTone, toneKind: "disc" } : st;
   /** Knob → 7,500 through the KAP logic (arms ALT with the AP engaged and resets the alerter, S3-12); engages AP if needed, +500 FPM. */
   const preselectClimb = () => {
     const c = useC182.getState(),
@@ -326,7 +312,9 @@ export function Autopilot() {
         and the disconnect horn (POH 7-12, 7-68; Supplement 3).
       </p>
       <Kap140Unit st={unit} fs={fs} onKey={onKey} onSet={onSet} loc={[loc, false]} />
-      {live.voice && now - live.voiceT < 3 && <Caution title="Voice message">“{live.voice}” (S3-16)</Caution>}
+      {snapshot.voice && now - snapshot.voiceT < 3 && (
+        <Caution title="Voice message">“{snapshot.voice}” (S3-16)</Caution>
+      )}
       {pitchTrim && (
         <Caution title="PITCH TRIM (red, PFD)">
           {st.fail.trim
@@ -342,45 +330,65 @@ export function Autopilot() {
         </Caution>
       )}
       {st.ap && outside && <Caution title="Limitation">Autopilot airspeed range 80–160 KIAS (S3-13).</Caution>}
-      {st.ap && live.flapAng > 10.5 && (
+      {st.ap && snapshot.flapAng > 10.5 && (
         <Caution title="Limitation">Maximum flap extension with the autopilot engaged is 10° (S3-13).</Caution>
       )}
       <H3>Set up</H3>
       <Ctl>
         <BtnRow>
           {/* left of the course (xtk < 0) with the present heading — and the heading bug — 30° / 20° right of it: an intercept */}
-          {scen("GPS course to intercept", () => {
-            setLoc(false);
-            const h = Math.round(live.fs.hdg);
-            live.fs = {
-              ...live.fs,
-              navSrc: "GPS",
-              crs: wrap360(h - 30),
-              hdgBug: h,
-              xtk: -1.6,
-              gsErr: null,
-              vpath: null,
-            };
-          })}
+          <ScenarioButton
+            before={air}
+            after={rerender}
+            onClick={() => {
+              setLoc(false);
+              const h = Math.round(live.fs.hdg);
+              live.fs = {
+                ...live.fs,
+                navSrc: "GPS",
+                crs: wrap360(h - 30),
+                hdgBug: h,
+                xtk: -1.6,
+                gsErr: null,
+                vpath: null,
+              };
+            }}
+          >
+            {"GPS course to intercept"}
+          </ScenarioButton>
           {/* approach power: the descent on the glideslope adds speed, so the throttle comes back (keeps it inside 80–160 KIAS, S3-13) */}
-          {scen("ILS: LOC + glideslope", () => {
-            setLoc(true);
-            const h = Math.round(live.fs.hdg);
-            live.fs = {
-              ...live.fs,
-              navSrc: "LOC1",
-              crs: wrap360(h - 20),
-              hdgBug: h,
-              xtk: -0.5,
-              gsErr: -350,
-              vpath: null,
-            };
-            onSet({ power: ILS_POWER });
-          })}
-          {scen("Preselect 7,500 and climb", preselectClimb)}
-          {scen("CDI softkey: change source (reversion)", () => {
-            live.fs = { ...live.fs, navSrc: live.fs.navSrc === "GPS" ? (loc ? "LOC1" : "VOR1") : "GPS" };
-          })}
+          <ScenarioButton
+            before={air}
+            after={rerender}
+            onClick={() => {
+              setLoc(true);
+              const h = Math.round(live.fs.hdg);
+              live.fs = {
+                ...live.fs,
+                navSrc: "LOC1",
+                crs: wrap360(h - 20),
+                hdgBug: h,
+                xtk: -0.5,
+                gsErr: -350,
+                vpath: null,
+              };
+              onSet({ power: ILS_POWER });
+            }}
+          >
+            {"ILS: LOC + glideslope"}
+          </ScenarioButton>
+          <ScenarioButton before={air} after={rerender} onClick={preselectClimb}>
+            {"Preselect 7,500 and climb"}
+          </ScenarioButton>
+          <ScenarioButton
+            before={air}
+            after={rerender}
+            onClick={() => {
+              live.fs = { ...live.fs, navSrc: live.fs.navSrc === "GPS" ? (loc ? "LOC1" : "VOR1") : "GPS" };
+            }}
+          >
+            {"CDI softkey: change source (reversion)"}
+          </ScenarioButton>
         </BtnRow>
         <Check id="loc1" label="NAV 1 tuned to a localizer (CDI shows LOC1)" checked={loc} onChange={setLoc} />
       </Ctl>
@@ -540,7 +548,7 @@ export function Autopilot() {
         ]}
       />
       <H3>Servos &amp; controls — tap to locate</H3>
-      <PartsList parts={CAT.pinned("autopilot")} />
+      <PartsList cat={CAT} sys="autopilot" />
       <Notes
         items={[
           "There is no connection between the G1000 ALT SEL and the KAP 140 altitude alerter — set both (POH 7-16, S3-12).",

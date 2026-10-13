@@ -42,7 +42,7 @@ export function Oxygen() {
         carrying the dome light (AFMS Fig 1 p. 10; POH 7-59), with all five mask ports side by side on its lower face;
         console size and port pitch approximate (AFMS Fig 1 undimensioned).
       </Small>
-      <PartsList parts={CAT.pinned("oxygen")} />
+      <PartsList cat={CAT} sys="oxygen" />
       <H3>Control panel</H3>
       <svg
         viewBox="0 0 300 210"

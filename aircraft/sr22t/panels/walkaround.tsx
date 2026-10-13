@@ -6,7 +6,6 @@
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
-import { useTicker } from "@/components/ui/controls";
 import { revealStage, useView } from "@/lib/view";
 import { SYS } from "../systems";
 import {
@@ -19,7 +18,6 @@ import {
   resumeWalk,
   setBig,
   useWalk,
-  walkNow,
   type WalkPhase,
 } from "../walk-store";
 import { clock, loadProgress, MAP_MARK_R, sightLine, stepParts, stepSide, tally, type Step } from "../walk";
@@ -256,7 +254,7 @@ function Intro() {
 
 function Resume() {
   const saved = loadProgress();
-  const { steps } = walkNow();
+  const steps = useWalk((w) => w.steps);
   const step = steps.find((s) => s.item.id === saved?.at);
   return (
     <>
@@ -446,9 +444,8 @@ export function WalkPanel() {
   const phase = useWalk((x) => x.phase),
     at = useWalk((x) => x.at),
     big = useWalk((x) => x.big);
-  useTicker(1000);
   useWakeLock();
-  const { steps } = walkNow();
+  const steps = useWalk((w) => w.steps);
   const walking = phase === "walk";
   const step = walking ? steps[at] : undefined;
   useStepScene(step, phase);

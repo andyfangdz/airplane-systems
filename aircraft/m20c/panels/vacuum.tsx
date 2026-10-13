@@ -1,28 +1,17 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { DepthDetail } from "./depth";
-import {
-  Caution,
-  Check,
-  Ctl,
-  Facts,
-  H3,
-  Notes,
-  PartsList,
-  Readouts,
-  Slider,
-  Small,
-  useTicker,
-} from "@/components/ui/controls";
+import { Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Slider, Small } from "@/components/ui/controls";
 import { VAC, live, pcEngaged, vacOk } from "../model";
 import { CAT } from "../parts";
 import { useM20C } from "../store";
 
 export function Vacuum() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
-  const v = live.vac,
+  const v = snapshot.vac,
     ok = vacOk(v);
   return (
     <>
@@ -66,7 +55,7 @@ export function Vacuum() {
             ["HIGH VACUUM light", E.vacWarn ? (v > VAC.hi ? ["ON", "bad"] : "out") : ["NO PWR", "bad"]],
             ["Artificial horizon", v >= 3 ? "Erect" : ["TUMBLING", "bad"]],
             ["Directional gyro", v >= 3 ? "Spinning" : ["PRECESSING", "bad"]],
-            ["PC", pcEngaged(s) ? "Operating" : s.pc.cutoff ? "Cut off" : ["Inoperative", "warnc"]],
+            ["PC", pcEngaged(s, snapshot) ? "Operating" : s.pc.cutoff ? "Cut off" : ["Inoperative", "warnc"]],
             ["Turn coordinator", E.turnBank ? "Electric — OK" : ["NO PWR", "bad"]],
           ]}
         />
@@ -121,7 +110,7 @@ export function Vacuum() {
       />
       <DepthDetail system="vacuum" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("vacuum")} />
+      <PartsList cat={CAT} sys="vacuum" />
     </>
   );
 }

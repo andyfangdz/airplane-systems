@@ -1,8 +1,10 @@
 "use client";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useState } from "react";
 import { Gfc700Controls } from "@/components/avionics/Gfc700Controls";
 import {
   BtnRow,
+  ScenarioButton,
   Caution,
   Check,
   Ctl,
@@ -12,7 +14,6 @@ import {
   PartsList,
   Readouts,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { wrap360, type FlySet } from "@/lib/avionics/flight";
 import { gfc700Engaged, gfc700Fail, gfc700Key, type Gfc700Fail, type Gfc700Key } from "@/lib/avionics/gfc700";
@@ -29,7 +30,6 @@ import { scenarioCruise } from "../store";
 const onOff = (b: boolean): [string, "" | "bad"] => (b ? ["ON", ""] : ["OFF", "bad"]);
 
 export function Avionics() {
-  useTicker(300);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update),
@@ -212,7 +212,7 @@ export function Avionics() {
         140 only.
       </Small>
       <H3>Units — tap to locate</H3>
-      <PartsList parts={CAT.pinned("avionics")} />
+      <PartsList cat={CAT} sys="avionics" />
       <Notes
         items={[
           "A missing CDI deviation bar is the navigation warning flag on the HSI (POH 4-17).",
@@ -235,19 +235,21 @@ const FAILS: [keyof Gfc700Fail, string][] = [
 ];
 
 export function Autopilot() {
-  useTicker(100);
+  const snapshot = useLiveSnapshot(live, 100);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update);
   const [loc, setLoc] = useState(false);
-  const st = live.afcs,
-    fs = live.fs;
+  const st = snapshot.afcs,
+    fs = snapshot.fs;
   const onKey = (k: Gfc700Key) => {
     live.afcs = gfc700Key(live.afcs, k, live.fs, AFCS_CFG);
+    refreshLiveSnapshot(live);
   };
   const onSet = (p: FlySet) => {
     const { power, ...rest } = p;
     live.fs = { ...live.fs, ...rest };
+    refreshLiveSnapshot(live);
     if (power != null)
       up((d) => {
         d.eng.throttle = Math.min(1, Math.pow(Math.max(0, power) / densityFactor(live.fs.alt), 1 / 0.85));
@@ -256,19 +258,7 @@ export function Autopilot() {
   const air = () => {
     if (s.ground || !s.eng.running) scenarioCruise();
   };
-  const scen = (label: string, fn: () => void) => (
-    <button
-      key={label}
-      type="button"
-      className="btn"
-      onClick={() => {
-        air();
-        fn();
-      }}
-    >
-      {label}
-    </button>
-  );
+
   const ias = fs.ias,
     outside = !s.ground && (ias < 70 || ias > 150);
   return (
@@ -303,38 +293,58 @@ export function Autopilot() {
       <Ctl>
         <BtnRow>
           {/* left of the course (xtk < 0) with the present heading — and the heading bug — 30° / 20° right of it: an intercept */}
-          {scen("GPS course to intercept", () => {
-            const h = Math.round(live.fs.hdg);
-            live.fs = {
-              ...live.fs,
-              navSrc: "GPS",
-              crs: wrap360(h - 30),
-              hdgBug: h,
-              xtk: -2.2,
-              gsErr: null,
-              vpath: null,
-            };
-          })}
-          {scen("ILS: LOC + glideslope", () => {
-            setLoc(true);
-            const h = Math.round(live.fs.hdg);
-            live.fs = {
-              ...live.fs,
-              navSrc: "LOC1",
-              crs: wrap360(h - 20),
-              hdgBug: h,
-              xtk: -0.5,
-              gsErr: -350,
-              vpath: null,
-              selAlt: 1500,
-            };
-          })}
-          {scen("Climb: FLC to 6,500", () => {
-            live.fs = { ...live.fs, selAlt: 6500 };
-          })}
-          {scen("VNAV descent path", () => {
-            live.fs = { ...live.fs, vpath: { err: -150, vs: -500 }, selAlt: 2500 };
-          })}
+          <ScenarioButton
+            before={air}
+            onClick={() => {
+              const h = Math.round(live.fs.hdg);
+              live.fs = {
+                ...live.fs,
+                navSrc: "GPS",
+                crs: wrap360(h - 30),
+                hdgBug: h,
+                xtk: -2.2,
+                gsErr: null,
+                vpath: null,
+              };
+            }}
+          >
+            {"GPS course to intercept"}
+          </ScenarioButton>
+          <ScenarioButton
+            before={air}
+            onClick={() => {
+              setLoc(true);
+              const h = Math.round(live.fs.hdg);
+              live.fs = {
+                ...live.fs,
+                navSrc: "LOC1",
+                crs: wrap360(h - 20),
+                hdgBug: h,
+                xtk: -0.5,
+                gsErr: -350,
+                vpath: null,
+                selAlt: 1500,
+              };
+            }}
+          >
+            {"ILS: LOC + glideslope"}
+          </ScenarioButton>
+          <ScenarioButton
+            before={air}
+            onClick={() => {
+              live.fs = { ...live.fs, selAlt: 6500 };
+            }}
+          >
+            {"Climb: FLC to 6,500"}
+          </ScenarioButton>
+          <ScenarioButton
+            before={air}
+            onClick={() => {
+              live.fs = { ...live.fs, vpath: { err: -150, vs: -500 }, selAlt: 2500 };
+            }}
+          >
+            {"VNAV descent path"}
+          </ScenarioButton>
         </BtnRow>
         <Check id="loc1" label="NAV 1 tuned to a localizer (CDI shows LOC1)" checked={loc} onChange={setLoc} />
       </Ctl>
@@ -351,7 +361,7 @@ export function Autopilot() {
               key={k}
               id={"f" + k}
               label={label}
-              checked={k === "sys" && live.servoLost ? live.sysUser : !!st.fail[k]}
+              checked={k === "sys" && snapshot.servoLost ? snapshot.sysUser : !!st.fail[k]}
               onChange={(v) => {
                 if (k === "sys" && live.servoLost) live.sysUser = v;
                 else live.afcs = gfc700Fail(live.afcs, { [k]: v }, live.fs.t);
@@ -478,7 +488,7 @@ export function Autopilot() {
         ]}
       />
       <H3>Servos &amp; controls — tap to locate</H3>
-      <PartsList parts={CAT.pinned("autopilot")} />
+      <PartsList cat={CAT} sys="autopilot" />
       <Notes
         items={[
           "CWS releases the pitch and roll servos while held; large pitch changes under CWS leave the airplane out of trim (POH 7-71).",

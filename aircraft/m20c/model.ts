@@ -407,9 +407,9 @@ export const cabinHeatContaminated = (s: Sim) => s.eng.running && s.env.heat > 0
 export const govRpmFor = (lever: number) => Math.round(1800 + 900 * lever);
 export const govRpm = (s: Sim) => govRpmFor(s.eng.prop);
 /** Blade angle at the 30 in station: 13° low pitch … 29° high (Ranger 1-4). Oil pressure raises pitch; lose it and the blades go fine. */
-export function bladeAngle(s: Sim, rpm: number) {
-  if (rpm < 300 || s.eng.fail.governor || live.oilP < 20) return 13;
-  const fineRpm = 650 + s.eng.throttle * 2350 + (s.air ? live.fs.ias * 4 : 0);
+export function bladeAngle(s: Sim, rpm: number, sample: typeof live = live) {
+  if (rpm < 300 || s.eng.fail.governor || sample.oilP < 20) return 13;
+  const fineRpm = 650 + s.eng.throttle * 2350 + (s.air ? sample.fs.ias * 4 : 0);
   return Math.max(13, Math.min(29, 13 + (fineRpm - rpm) / 50));
 }
 
@@ -419,21 +419,22 @@ export function bladeAngle(s: Sim, rpm: number) {
 export const VAC = { lo: 4.05, hi: 5.2, reg: 4.8 };
 export const vacOk = (v: number) => v >= VAC.lo && v <= VAC.hi;
 /** PC works whenever the pump turns fast enough — windmilling at about 1,000 RPM or above (OM p. 8). */
-export const pcAvailable = (s: Sim) =>
-  !s.eng.fail.vacPump && !s.faults.pcLeak && live.rpm >= 1000 && live.vac >= 3.5 && live.vac <= 6;
-export const pcEngaged = (s: Sim) => pcAvailable(s) && !s.pc.cutoff;
+export const pcAvailable = (s: Sim, sample: typeof live = live) =>
+  !s.eng.fail.vacPump && !s.faults.pcLeak && sample.rpm >= 1000 && sample.vac >= 3.5 && sample.vac <= 6;
+export const pcEngaged = (s: Sim, sample: typeof live = live) => pcAvailable(s, sample) && !s.pc.cutoff;
 
 /* ---------- gear, flaps, stall ---------- */
 
-export const gearDown = () => live.gearFrac < 0.02;
-export const gearUp = () => live.gearFrac > 0.98;
+export const gearDown = (sample: typeof live = live) => sample.gearFrac < 0.02;
+export const gearUp = (sample: typeof live = live) => sample.gearFrac > 0.98;
 /** Green light: handle engaged in the down socket; red: not sufficiently engaged in the down-lock (OM p. 6). */
-export const gearLights = (s: Sim, E: Elec) => ({
-  green: E.gearWarn && s.gear.lever === "DOWN" && gearDown(),
-  red: E.gearWarn && !(s.gear.lever === "DOWN" && gearDown()),
+export const gearLights = (s: Sim, E: Elec, sample: typeof live = live) => ({
+  green: E.gearWarn && s.gear.lever === "DOWN" && gearDown(sample),
+  red: E.gearWarn && !(s.gear.lever === "DOWN" && gearDown(sample)),
 });
 /** Gear horn: throttle retarded with the gear not down and locked — about 10 in Hg manifold pressure (OM p. 27). */
-export const gearHorn = (_s: Sim, E: Elec) => E.gearWarn && !gearDown() && live.map < 10 && live.rpm > 300;
+export const gearHorn = (_s: Sim, E: Elec, sample: typeof live = live) =>
+  E.gearWarn && !gearDown(sample) && sample.map < 10 && sample.rpm > 300;
 export const FLAP_MAX = 33,
   FLAP_TO = 15,
   FLAP_STROKE = FLAP_MAX / 4.5;
@@ -441,10 +442,10 @@ export const FLAP_MAX = 33,
 /** Stall speeds, power off, 2,575 lb, IAS mph (OM Fig. 4): flaps up 67, 15° 64, 33° 57. */
 export const stallMph = (flap: number) => (flap < 7 ? 67 : flap < 24 ? 64 : 57);
 /** Steady stall horn, distinct from the intermittent gear horn (1968 OM scan p. 21). Threshold is illustrative. */
-export function hornLevel(s: Sim, E: Elec) {
+export function hornLevel(s: Sim, E: Elec, sample: typeof live = live) {
   if (!E.stallWarn || s.stall.stuck) return 0;
-  const vs = stallMph(live.flapAng);
-  const ias = s.air ? Math.min(mph(live.fs.ias), s.stall.ias) : s.stall.ias;
+  const vs = stallMph(sample.flapAng);
+  const ias = s.air ? Math.min(mph(sample.fs.ias), s.stall.ias) : s.stall.ias;
   if (ias < 30) return 0;
   const m = ias - vs;
   return m > 10 ? 0 : 1;
@@ -469,18 +470,18 @@ export type { CasLevel };
  * What the 1968 panel can tell you: the two gear lights, the low/high vacuum lights on the artificial horizon, the gear horn
  * and the stall horn. All need the master switch (Ranger 4-9: "All warning devices are inoperative when the master switch is off").
  */
-export function warnings(s: Sim, E: Elec): [CasLevel, string][] {
+export function warnings(s: Sim, E: Elec, sample: typeof live = live): [CasLevel, string][] {
   const m: [CasLevel, string][] = [];
   void s;
-  const g = gearLights(s, E);
+  const g = gearLights(s, E, sample);
   if (g.red) m.push(["w", "GEAR UNSAFE (red)"]);
   if (g.green) m.push(["a", "GEAR DOWN (green)"]);
   if (E.vacWarn && s.eng.running !== undefined) {
-    if (live.vac < VAC.lo) m.push(["w", "LOW VACUUM"]);
-    else if (live.vac > VAC.hi) m.push(["w", "HIGH VACUUM"]);
+    if (sample.vac < VAC.lo) m.push(["w", "LOW VACUUM"]);
+    else if (sample.vac > VAC.hi) m.push(["w", "HIGH VACUUM"]);
   }
-  if (gearHorn(s, E)) m.push(["w", "GEAR WARNING HORN"]);
-  const h = hornLevel(s, E);
+  if (gearHorn(s, E, sample)) m.push(["w", "GEAR WARNING HORN"]);
+  const h = hornLevel(s, E, sample);
   if (h > 0) m.push(["c", h > 0.9 ? "STALL HORN — STEADY" : "STALL HORN — INTERMITTENT"]);
   if (E.genOn === false && s.eng.running && E.bus > 0) m.push(["c", "AMMETER DISCHARGE"]);
   if (E.overvoltage) m.push(["w", "ALTERNATOR OVERVOLTAGE"]);

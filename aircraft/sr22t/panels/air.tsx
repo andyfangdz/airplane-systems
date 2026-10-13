@@ -1,20 +1,9 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { LIFT_HEAT_REF, LIFT_HEAT_GROUND_LIMIT, liftHeatDuty, live } from "../model";
 import { useSR22T } from "../store";
 import { airflowValveOpen, freshValveOpen, hotValveOpen, valveEnv } from "../parts";
-import {
-  useTicker,
-  Caution,
-  Check,
-  Ctl,
-  Facts,
-  H3,
-  Notes,
-  Readouts,
-  Seg,
-  Slider,
-  Small,
-} from "@/components/ui/controls";
+import { Caution, Check, Ctl, Facts, H3, Notes, Readouts, Seg, Slider, Small } from "@/components/ui/controls";
 
 export function Environment() {
   const s = useSR22T((x) => x.s),
@@ -146,7 +135,7 @@ export function Environment() {
 }
 
 export function Pitot() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR22T((x) => x.s),
     E = useSR22T((x) => x.E),
     up = useSR22T((x) => x.update);
@@ -233,7 +222,7 @@ export function Pitot() {
             <Readouts
               items={[
                 ["Lift heat", `${Math.round(liftHeatDuty(s, E) * 100)}%`],
-                ["Ground heat", `${live.liftHeatGroundSec.toFixed(1)} / ${LIFT_HEAT_GROUND_LIMIT} s`],
+                ["Ground heat", `${snapshot.liftHeatGroundSec.toFixed(1)} / ${LIFT_HEAT_GROUND_LIMIT} s`],
               ]}
             />
           </Ctl>
@@ -250,7 +239,9 @@ export function Pitot() {
             {LIFT_HEAT_REF}); the circuit topology is not established here.
           </Small>
           <Caution
-            title={live.liftHeatGroundSec > LIFT_HEAT_GROUND_LIMIT ? "Ground heat limit exceeded" : "Ground heat limit"}
+            title={
+              snapshot.liftHeatGroundSec > LIFT_HEAT_GROUND_LIMIT ? "Ground heat limit exceeded" : "Ground heat limit"
+            }
           >
             Limit ground operation to 45 seconds (p. 6; {LIFT_HEAT_REF}). This is a pilot limit; the model does not
             automatically switch heat off or infer a thermal warning at 45 seconds.

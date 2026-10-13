@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { DepthDetail } from "./depth";
 import {
   Caution,
@@ -12,14 +13,13 @@ import {
   Rocker,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { hornLevel, live, mph, stallMph } from "../model";
 import { CAT } from "../parts";
 import { useM20C } from "../store";
 
 export function Environment() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
   const env = s.env,
@@ -101,7 +101,7 @@ export function Environment() {
         goes to the defrosters and the rear outlets (OM p. 11). Open the overhead scoop only enough for the outlets — it
         costs drag (OM p. 11).
       </Small>
-      {s.env.stormWindow && s.air && mph(live.fs.ias) > 150 && (
+      {s.env.stormWindow && s.air && mph(snapshot.fs.ias) > 150 && (
         <Caution title="Storm window">Do not open the storm window above 150 mph (Ranger 4-9).</Caution>
       )}
       <H3>Procedures</H3>
@@ -139,18 +139,18 @@ export function Environment() {
       />
       <DepthDetail system="environment" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("environment")} />
+      <PartsList cat={CAT} sys="environment" />
     </>
   );
 }
 
 export function Pitot() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
-  const horn = hornLevel(s, E),
-    vs = stallMph(live.flapAng);
+  const horn = hornLevel(s, E, snapshot),
+    vs = stallMph(snapshot.flapAng);
   return (
     <>
       <p className="lead">
@@ -220,7 +220,7 @@ export function Pitot() {
                     : ["NO PWR", "bad"],
             ],
             ["Static source", s.pitot.altStatic ? ["CABIN", "warnc"] : "Tail-cone ports"],
-            ["Airspeed", s.air ? `${mph(live.fs.ias).toFixed(0)} mph` : "0"],
+            ["Airspeed", s.air ? `${mph(snapshot.fs.ias).toFixed(0)} mph` : "0"],
           ]}
         />
       </Ctl>
@@ -258,9 +258,9 @@ export function Pitot() {
         />
         <Readouts
           items={[
-            ["Stall speed", `${vs} mph (2,575 lb, flaps ${live.flapAng.toFixed(0)}°)`],
+            ["Stall speed", `${vs} mph (2,575 lb, flaps ${snapshot.flapAng.toFixed(0)}°)`],
             ["Horn", horn > 0 ? [horn > 0.9 ? "STEADY" : "INTERMITTENT", "bad"] : "Quiet"],
-            ["Margin", `${Math.round(Math.min(s.stall.ias, s.air ? mph(live.fs.ias) : 999) - vs)} mph`],
+            ["Margin", `${Math.round(Math.min(s.stall.ias, s.air ? mph(snapshot.fs.ias) : 999) - vs)} mph`],
             ["STALL WARN breaker", E.stallWarn ? "OK" : ["NO PWR", "bad"]],
           ]}
         />
@@ -302,7 +302,7 @@ export function Pitot() {
       />
       <DepthDetail system="pitot" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("pitot")} />
+      <PartsList cat={CAT} sys="pitot" />
     </>
   );
 }

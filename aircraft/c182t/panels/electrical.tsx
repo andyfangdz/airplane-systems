@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
   Caution,
@@ -13,7 +14,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { FEEDER, NAV3_BUSES, nav3Init, stbyAhOf } from "../../cessna/electrical";
 import { BreakerBoard, Nav3Diagram, Nav3Meters, Nav3Switches } from "../../cessna/panels";
@@ -27,7 +27,7 @@ const reset = (d: Sim) => {
 };
 
 export function Electrical() {
-  useTicker(250);
+  const snapshot = useLiveSnapshot(live, 250);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
@@ -72,7 +72,7 @@ export function Electrical() {
       </p>
       <H3>Switches</H3>
       <Ctl>
-        <Nav3Switches e={e} E={E} up={upE} testHeld={live.testHeld} testSeconds={20} />
+        <Nav3Switches e={e} E={E} up={upE} testHeld={snapshot.testHeld} testSeconds={20} />
         <Check
           id="ext"
           label="External power connected (28 V regulated)"
@@ -395,7 +395,7 @@ export function Electrical() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("electrical")} />
+      <PartsList cat={CAT} sys="electrical" />
       <Caution title="Caution">
         Both AVIONICS switches OFF before turning the MASTER on or off, starting the engine or connecting external power
         (POH 7-47, 4-12).
@@ -414,7 +414,6 @@ export function Electrical() {
 }
 
 export function Lighting() {
-  useTicker(400);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
@@ -507,7 +506,7 @@ export function Lighting() {
         </Small>
       </Ctl>
       <H3>Lights — tap to locate</H3>
-      <PartsList parts={CAT.pinned("lighting")} />
+      <PartsList cat={CAT} sys="lighting" />
       <H3>Breakers (Figure 7-7)</H3>
       <Facts
         rows={[

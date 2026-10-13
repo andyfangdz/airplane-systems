@@ -6,7 +6,7 @@ import { Pin } from "@/components/scene/Part";
 import { SPOT_COLOR } from "@/lib/spot";
 import { useView } from "@/lib/view";
 import { emphasisPoints, sightLine, stepCentroid, type Step } from "./walk";
-import { useWalk, walkNow } from "./walk-store";
+import { useWalk } from "./walk-store";
 
 /** Halo colour for emphasized parts: a bright accent beside the orange spot. */
 export const EMPHASIS_COLOR = "#FFE14D";
@@ -25,7 +25,8 @@ export function WalkMarker() {
   const walking = useView((x) => x.walking),
     phase = useWalk((x) => x.phase),
     at = useWalk((x) => x.at);
-  const step = walking && phase === "walk" ? walkNow().steps[at] : undefined;
+  const steps = useWalk((w) => w.steps);
+  const step = walking && phase === "walk" ? steps[at] : undefined;
   const c = useMemo(() => (step ? stepCentroid(step) : null), [step]);
   if (!step || !c) return null;
   return (
@@ -92,7 +93,7 @@ function Halos({ step }: { step: Step }) {
   useFrame(({ clock }) => {
     // approximate: the pulse's opacity and size range are a display choice
     const k = 0.5 + 0.5 * Math.sin(clock.elapsedTime * PULSE_HZ * 2 * Math.PI);
-    mat.opacity = 0.35 + 0.5 * k;
+    mat.setValues({ opacity: 0.35 + 0.5 * k });
     group.current?.children.forEach((o) => o.scale.setScalar(1 + 0.6 * k));
   });
   if (!pts.length) return null;

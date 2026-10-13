@@ -1,4 +1,5 @@
 "use client";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -15,7 +16,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { live, stallKias, type FlapCmd } from "../model";
 import { CAT } from "../parts";
@@ -76,7 +76,7 @@ const RUNS: Record<Chan, { fig: string; steps: string[] }> = {
 };
 
 export function Controls() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC172((x) => x.s),
     up = useC172((x) => x.update);
   const ctrlFocus = useView((x) => x.ctrlFocus),
@@ -86,10 +86,11 @@ export function Controls() {
     const [p, t] = v === "all" ? SYS.find((d) => d.id === "controls")!.cam : CHAN_CAM[v];
     flyTo(p, t);
   };
-  const a = RIG.surfaceAngles({ ...live.ctl, trim: live.afcs.trim }, live.flapAng);
-  const servo = live.afcs.ap && !live.afcs.cws;
+  const a = RIG.surfaceAngles({ ...snapshot.ctl, trim: snapshot.afcs.trim }, snapshot.flapAng);
+  const servo = snapshot.afcs.ap && !snapshot.afcs.cws;
   const setTrim = (v: number) => {
     live.afcs = { ...live.afcs, trim: v };
+    refreshLiveSnapshot(live);
   };
   return (
     <>
@@ -160,7 +161,7 @@ export function Controls() {
           min={-1}
           max={1}
           step={0.01}
-          value={live.afcs.trim}
+          value={snapshot.afcs.trim}
           onChange={setTrim}
           fmt={(v) =>
             Math.abs(v) < 0.03
@@ -214,7 +215,7 @@ export function Controls() {
         </>
       )}
       <H3>Mechanisms — tap to locate</H3>
-      <PartsList parts={CAT.pinned("controls")} />
+      <PartsList cat={CAT} sys="controls" />
       <H3>Travel (TCDS 3A12 — not in the POH)</H3>
       <Facts
         rows={[
@@ -246,7 +247,7 @@ export function Controls() {
 }
 
 export function Flaps() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update);
@@ -278,10 +279,10 @@ export function Flaps() {
         />
         <Readouts
           items={[
-            ["Position", live.flapAng.toFixed(1) + "°"],
+            ["Position", snapshot.flapAng.toFixed(1) + "°"],
             ["Motor", s.flaps.moving ? [s.flaps.jammed ? "ENERGIZED · JAMMED" : "RUNNING", "warnc"] : "Stopped"],
             ["FLAPS 10 A", E.flapsPwr ? "BUS 1 OK" : ["NO POWER", "bad"]],
-            ["Stall (idle, 0° bank)", `${stallKias(live.flapAng)} KIAS`],
+            ["Stall (idle, 0° bank)", `${stallKias(snapshot.flapAng)} KIAS`],
           ]}
         />
       </Ctl>
@@ -324,7 +325,7 @@ export function Flaps() {
         power; restoring power alone does not release a mechanical jam. Motor load is illustrative; automatic breaker
         trip timing is not simulated (POH 7-23;172RPC24 27-50).
       </Small>
-      <PartsList parts={CAT.pinned("flaps")} />
+      <PartsList cat={CAT} sys="flaps" />
       <Caution title="Icing">
         Leave the flaps retracted with ice on the tail: the changed wing downwash can cost elevator effectiveness (POH
         3-14).
@@ -341,10 +342,10 @@ export function Flaps() {
 }
 
 export function Gear() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useC172((x) => x.s),
     up = useC172((x) => x.update);
-  const steer = Math.max(-30, Math.min(30, live.ctl.yaw * 10 + s.gear.diff * 20));
+  const steer = Math.max(-30, Math.min(30, snapshot.ctl.yaw * 10 + s.gear.diff * 20));
   return (
     <>
       <p className="lead">
@@ -405,7 +406,7 @@ export function Gear() {
         about 27 ft (POH 7-22).
       </Small>
       <H3>Gear — tap to locate</H3>
-      <PartsList parts={CAT.pinned("gear")} />
+      <PartsList cat={CAT} sys="gear" />
       <H3>Servicing</H3>
       <Facts
         rows={[

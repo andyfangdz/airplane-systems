@@ -25,6 +25,7 @@ vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useRef: (v?: unknown) => ({ current: v ?? null }),
   useEffect: () => {},
+  useLayoutEffect: (f: () => void) => f(),
   useMemo: (f: () => unknown) => f(),
 }));
 vi.mock("@react-three/fiber", () => ({

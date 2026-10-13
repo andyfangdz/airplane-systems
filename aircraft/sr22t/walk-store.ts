@@ -27,6 +27,8 @@ import {
 
 export type WalkPhase = "intro" | "resume" | "walk" | "done";
 export interface WalkState {
+  /** Immutable step list for the equipment selected when this session opened. */
+  steps: Step[];
   phase: WalkPhase;
   /** Completion survives returning to the items for review; only a new walk clears it. */
   done: boolean;
@@ -53,6 +55,7 @@ const readBig = () => {
 };
 
 export const useWalk = create<WalkState>(() => ({
+  steps: [],
   phase: "intro",
   done: false,
   at: 0,
@@ -148,6 +151,7 @@ export function openWalk(n?: number) {
   const saved = n ? null : loadProgress();
   const resume = saved && !saved.done ? steps.find((x) => x.item.id === saved.at) : undefined;
   useWalk.setState({
+    steps,
     phase: resume ? "resume" : "intro",
     done: false,
     // offering to resume: the saved item's station (its parts are built first; Start over goes back to station 1)

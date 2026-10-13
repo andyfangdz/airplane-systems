@@ -1,5 +1,6 @@
 "use client";
-import { Check, Ctl, Facts, H3, Notes, Readouts, Small, useTicker } from "@/components/ui/controls";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
+import { Check, Ctl, Facts, H3, Notes, Readouts, Small } from "@/components/ui/controls";
 import type { SysId } from "@/lib/systems";
 import { cabinHeatContaminated, live, pcAvailable, type Sim } from "../model";
 import { useM20C } from "../store";
@@ -215,7 +216,7 @@ const FACTS: Partial<Record<SysId, readonly [string, string][]>> = {
   ],
 };
 export function DepthDetail({ system }: { system: SysId }) {
-  useTicker(250);
+  const snapshot = useLiveSnapshot(live, 250);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
   const faults = FAULTS[system] ?? [],
@@ -242,7 +243,7 @@ export function DepthDetail({ system }: { system: SysId }) {
           {system === "flaps" && (
             <Readouts
               items={[
-                ["Held flap position", `${live.flapAng.toFixed(1)}°`],
+                ["Held flap position", `${snapshot.flapAng.toFixed(1)}°`],
                 [
                   "Hydraulic state",
                   s.flaps.valve === "UP" ? "Releasing" : s.faults.flapLeak ? "Creeping up" : "Held / ready to pump",
@@ -255,7 +256,7 @@ export function DepthDetail({ system }: { system: SysId }) {
               items={[
                 [
                   "Pneumatic authority",
-                  pcAvailable(s) ? "Available" : s.faults.pcLeak ? "Leak / unavailable" : "Unavailable",
+                  pcAvailable(s, snapshot) ? "Available" : s.faults.pcLeak ? "Leak / unavailable" : "Unavailable",
                 ],
               ]}
             />

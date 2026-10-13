@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
   Caution,
@@ -13,7 +14,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { bladeAngle, fuelAvail, govRpm, govRpmFor, live, type Key, type Sim } from "../model";
 import { CAT } from "../parts";
@@ -22,7 +22,7 @@ import { START_HOLD } from "../tick";
 import { fuelPressureState } from "../limits";
 
 const pct = (v: number) => Math.round(v * 100) + "%";
-const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
+const rpm10 = (rpm: number) => String(Math.round(rpm / 10) * 10);
 const fails = (s: Sim, up: (fn: (d: Sim) => void) => void) => (
   <div className="row">
     <div className="lbl">
@@ -103,12 +103,12 @@ const fails = (s: Sim, up: (fn: (d: Sim) => void) => void) => (
 );
 
 export function Engine() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
   const g = s.eng;
-  const flooded = live.prime > 7;
+  const flooded = snapshot.prime > 7;
   return (
     <>
       <p className="lead">
@@ -242,24 +242,34 @@ export function Engine() {
             [
               "Engine",
               g.running
-                ? live.fireT >= 0
+                ? snapshot.fireT >= 0
                   ? ["FIRING — MIXTURE RICH!", "warnc"]
                   : "RUNNING"
                 : E.starterOn
                   ? ["CRANKING", "warnc"]
                   : ["STOPPED", "bad"],
             ],
-            ["RPM", rpm10()],
-            ["MAN IN", live.map.toFixed(1)],
-            ["Fuel flow GPH", live.ff.toFixed(1)],
-            ["Oil press PSI", [live.oilP.toFixed(0), live.oilP < 25 ? "bad" : live.oilP < 56 ? "warnc" : ""]],
-            ["Oil temp °F", live.oilT.toFixed(0)],
-            ["CHT °F", live.cht.toFixed(0)],
-            ["Fuel press PSI", [live.fuelP.toFixed(0), fuelPressureState(live.fuelP) !== "normal" ? "bad" : ""]],
-            ["Priming", flooded ? ["FLOODED", "bad"] : live.prime > 0.2 ? live.prime.toFixed(1) + " s" : "—"],
+            ["RPM", rpm10(snapshot.rpm)],
+            ["MAN IN", snapshot.map.toFixed(1)],
+            ["Fuel flow GPH", snapshot.ff.toFixed(1)],
+            [
+              "Oil press PSI",
+              [snapshot.oilP.toFixed(0), snapshot.oilP < 25 ? "bad" : snapshot.oilP < 56 ? "warnc" : ""],
+            ],
+            ["Oil temp °F", snapshot.oilT.toFixed(0)],
+            ["CHT °F", snapshot.cht.toFixed(0)],
+            [
+              "Fuel press PSI",
+              [snapshot.fuelP.toFixed(0), fuelPressureState(snapshot.fuelP) !== "normal" ? "bad" : ""],
+            ],
+            ["Priming", flooded ? ["FLOODED", "bad"] : snapshot.prime > 0.2 ? snapshot.prime.toFixed(1) + " s" : "—"],
             [
               "Starter",
-              live.crankT > 10 ? ["> 10 s — let it cool", "bad"] : E.starterOn ? live.crankT.toFixed(1) + " s" : "—",
+              snapshot.crankT > 10
+                ? ["> 10 s — let it cool", "bad"]
+                : E.starterOn
+                  ? snapshot.crankT.toFixed(1) + " s"
+                  : "—",
             ],
           ]}
         />
@@ -342,13 +352,13 @@ export function Engine() {
         </Caution>
       )}
       <H3>Engine — tap to locate</H3>
-      <PartsList parts={CAT.pinned("engine")} />
+      <PartsList cat={CAT} sys="engine" />
     </>
   );
 }
 
 export function Propeller() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useDA40((x) => x.s),
     up = useDA40((x) => x.update);
   const gov = govRpm(s);
@@ -402,10 +412,10 @@ export function Propeller() {
         />
         <Readouts
           items={[
-            ["Governor target", s.eng.fail.governor || live.oilP < 15 ? ["NONE", "bad"] : gov.toLocaleString()],
-            ["RPM", [rpm10(), live.rpm > 2700 ? "bad" : ""]],
-            ["Blade angle", bladeAngle(s, live.rpm).toFixed(0) + "°"],
-            ["MAN IN", live.map.toFixed(1)],
+            ["Governor target", s.eng.fail.governor || snapshot.oilP < 15 ? ["NONE", "bad"] : gov.toLocaleString()],
+            ["RPM", [rpm10(snapshot.rpm), snapshot.rpm > 2700 ? "bad" : ""]],
+            ["Blade angle", bladeAngle(s, snapshot.rpm, snapshot).toFixed(0) + "°"],
+            ["MAN IN", snapshot.map.toFixed(1)],
           ]}
         />
       </Ctl>
@@ -414,7 +424,7 @@ export function Propeller() {
         throttle. The low-RPM end of the lever is not given in the AFM (≈1,800 RPM here); blade angle is illustrative
         between 11° and 30°.
       </Small>
-      {(s.eng.fail.governor || live.oilP < 15) && s.eng.running && (
+      {(s.eng.fail.governor || snapshot.oilP < 15) && s.eng.running && (
         <Caution title="Governor or oil failure (AFM 7-22, 3-13)">
           Adjust RPM with the throttle and try not to exceed 2,700 RPM. If oil pressure is normal and pulling the RPM
           lever gives no audible change, the governor is defective.
@@ -447,7 +457,7 @@ export function Propeller() {
 }
 
 export function Fuel() {
-  useTicker(250);
+  const snapshot = useLiveSnapshot(live, 250);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
@@ -542,7 +552,7 @@ export function Fuel() {
         </BtnRow>
         <Readouts
           items={[
-            ["Gauge L / R", `${live.gaugeL.toFixed(0)} / ${live.gaugeR.toFixed(0)}`],
+            ["Gauge L / R", `${snapshot.gaugeL.toFixed(0)} / ${snapshot.gaugeR.toFixed(0)}`],
             ["Total usable", (f.qL + f.qR).toFixed(1) + " gal"],
             [
               "Feeding",
@@ -557,7 +567,7 @@ export function Fuel() {
             ["Electric pump", f.pump ? (E.pumpPwr ? "ON" : ["NO PWR", "bad"]) : "OFF"],
             [
               "Fuel pressure",
-              [live.fuelP.toFixed(0) + " psi", fuelPressureState(live.fuelP) !== "normal" ? "bad" : ""],
+              [snapshot.fuelP.toFixed(0) + " psi", fuelPressureState(snapshot.fuelP) !== "normal" ? "bad" : ""],
             ],
             ["Imbalance", [imb.toFixed(1) + " gal", imb > 8 ? "bad" : ""]],
           ]}
@@ -624,7 +634,7 @@ export function Fuel() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("fuel")} />
+      <PartsList cat={CAT} sys="fuel" />
     </>
   );
 }

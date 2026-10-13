@@ -1,8 +1,9 @@
 "use client";
-import { useTicker } from "@/components/ui/controls";
+import { AlertWindow } from "@/components/AlertWindow";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
-import { warnings } from "./model";
+import { live, warnings } from "./model";
 import { Model } from "./Airplane";
 import { CAT } from "./parts";
 import { Environment, Pitot } from "./panels/air";
@@ -20,12 +21,14 @@ import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** Warning lights and horns: all dead with the master switch off (Ranger 4-9). */
-function useAlerts() {
-  useTicker(250);
+function Alerts() {
+  const snapshot = useLiveSnapshot(live, 250);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E);
   const powered = E.bus > 0;
-  return { powered, msgs: powered ? warnings(s, E) : [] };
+  return (
+    <AlertWindow title="WARNING LIGHTS & HORNS" powered={powered} msgs={powered ? warnings(s, E, snapshot) : []} />
+  );
 }
 
 /**
@@ -63,8 +66,7 @@ export const M20C: AircraftDef = {
     cabin: Cabin,
   },
   tick: simTick,
-  useAlerts,
-  alertTitle: "WARNING LIGHTS & HORNS",
+  Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
 };

@@ -109,7 +109,7 @@ export function Cabin() {
       </ol>
       <DepthDetail system="cabin" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("cabin")} />
+      <PartsList cat={CAT} sys="cabin" />
     </>
   );
 }

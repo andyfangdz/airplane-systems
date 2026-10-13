@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
   Caution,
@@ -12,7 +13,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { gfc700Key } from "@/lib/avionics/gfc700";
 import { indicated } from "../displays";
@@ -25,7 +25,7 @@ const knob = (v: number) =>
   v < 0.03 ? "Pushed in (OFF)" : v > 0.97 ? "Pulled full out" : `Pulled ${Math.round(v * 100)}%`;
 
 export function Environment() {
-  useTicker(300);
+  const snapshot = useLiveSnapshot(live, 300);
   const s = useC172((x) => x.s),
     up = useC172((x) => x.update),
     env = s.env;
@@ -102,9 +102,9 @@ export function Environment() {
             ["Max heat", env.heat > 0.97 && env.air < 0.03 ? "Yes" : "No"],
             [
               "CO",
-              live.coPpm >= 50
+              snapshot.coPpm >= 50
                 ? [env.coAck ? "CO LVL HIGH · steady" : "CO LVL HIGH · flashing", "bad"]
-                : `${Math.round(live.coPpm)} PPM`,
+                : `${Math.round(snapshot.coPpm)} PPM`,
             ],
           ]}
         />
@@ -125,7 +125,7 @@ export function Environment() {
           <button
             type="button"
             className="btn"
-            disabled={live.coPpm < 50 || env.coAck}
+            disabled={snapshot.coPpm < 50 || env.coAck}
             onClick={() =>
               up((d) => {
                 d.env.coAck = true;
@@ -159,7 +159,7 @@ export function Environment() {
         stays on, land as soon as possible.
       </Caution>
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("environment")} />
+      <PartsList cat={CAT} sys="environment" />
       <H3>Outlets</H3>
       <Facts
         rows={[
@@ -182,13 +182,13 @@ export function Environment() {
 }
 
 export function Pitot() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update),
     p = s.pitot;
-  const ind = indicated(s, live.fs),
-    vs = stallKias(live.flapAng);
+  const ind = indicated(s, snapshot.fs, snapshot),
+    vs = stallKias(snapshot.flapAng);
   const startDemo = () => {
     if (s.ground || !s.eng.running) scenarioCruise();
     if (live.afcs.ap) live.afcs = gfc700Key(live.afcs, "AP_DISC", live.fs, AFCS_CFG); // normal disconnect: yellow AP + tone
@@ -342,10 +342,13 @@ export function Pitot() {
         </BtnRow>
         <Readouts
           items={[
-            ["IAS", `${Math.round(live.fs.ias)} KIAS`],
+            ["IAS", `${Math.round(snapshot.fs.ias)} KIAS`],
             ["Stall speed", `${vs} KIAS`],
-            ["Horn", live.horn ? ["SOUNDING", "bad"] : s.stall.inletBlocked ? ["SILENT (blocked)", "warnc"] : "Quiet"],
-            ["Demo", live.stallDemo ? "Slowing" : "—"],
+            [
+              "Horn",
+              snapshot.horn ? ["SOUNDING", "bad"] : s.stall.inletBlocked ? ["SILENT (blocked)", "warnc"] : "Quiet",
+            ],
+            ["Demo", snapshot.stallDemo ? "Slowing" : "—"],
           ]}
         />
       </Ctl>
@@ -356,7 +359,7 @@ export function Pitot() {
         lists “stall warning” among the WARN breaker loads.
       </Small>
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("pitot")} />
+      <PartsList cat={CAT} sys="pitot" />
       <Notes
         items={[
           "Preflight: pitot cover off, static opening clear, stall-warning opening clear; test the horn by sucking gently through a handkerchief over the inlet (POH 4-5, 4-9, 4-10).",
@@ -369,10 +372,10 @@ export function Pitot() {
 }
 
 export function Vacuum() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useC172((x) => x.s),
     up = useC172((x) => x.update);
-  const flag = live.vac < 3.5 || live.gyro < 0.7;
+  const flag = snapshot.vac < 3.5 || snapshot.gyro < 0.7;
   return (
     <>
       <p className="lead">
@@ -409,9 +412,9 @@ export function Vacuum() {
         </Small>
         <Readouts
           items={[
-            ["VAC", [`${live.vac.toFixed(1)} in.Hg`, live.vac < 3.5 ? "warnc" : ""]],
-            ["LOW VACUUM", live.vac < 3.5 ? ["SHOWN", "warnc"] : "—"],
-            ["Gyro rotor", `${Math.round(live.gyro * 100)}%`],
+            ["VAC", [`${snapshot.vac.toFixed(1)} in.Hg`, snapshot.vac < 3.5 ? "warnc" : ""]],
+            ["LOW VACUUM", snapshot.vac < 3.5 ? ["SHOWN", "warnc"] : "—"],
+            ["Gyro rotor", `${Math.round(snapshot.gyro * 100)}%`],
             ["GYRO flag", flag ? ["IN VIEW", "bad"] : "Hidden"],
           ]}
         />
@@ -425,7 +428,7 @@ export function Vacuum() {
         attitude indicator.
       </Caution>
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("vacuum")} />
+      <PartsList cat={CAT} sys="vacuum" />
       <Facts
         rows={[
           ["VAC green", "4.5–5.5 in.Hg (POH 2-7)"],

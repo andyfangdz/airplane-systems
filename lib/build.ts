@@ -22,34 +22,38 @@ export interface Build {
   total: number;
   /** The user skipped the build-in: add the rest at once. */
   skip: boolean;
+  /** Detached set published after each progressive slice; React never receives the builder's mutable set. */
+  built: { cat: Catalogue; parts: ReadonlySet<PartSpec> } | null;
 }
 
-export const useBuild = create<Build>(() => ({ stage: "code", done: 0, total: 0, skip: false }));
+export const useBuild = create<Build>(() => ({ stage: "code", done: 0, total: 0, skip: false, built: null }));
 
 /** Move the build to `stage` (counts reset unless given). */
 export const setBuild = (stage: BuildStage, done = 0, total = 0) => useBuild.setState({ stage, done, total });
 
 /* ---------- progressive builds (an airplane that opts in with `progressive`, e.g. the SR22T) ---------- */
 
-/** While a catalogue builds progressively: its parts whose geometry is built, the only ones Parts mounts. */
-const building = new WeakMap<Catalogue, Set<PartSpec>>();
-
 /** Start mounting `cat`'s parts as they are added to the returned set (and the build's count moves). */
 export function beginParts(cat: Catalogue) {
   const built = new Set<PartSpec>();
-  building.set(cat, built);
   buildIn = true;
-  useBuild.setState({ skip: false });
+  useBuild.setState({ skip: false, built: { cat, parts: new Set() } });
   return built;
 }
 
+/** Publish a finished slice atomically with its count. Earlier React snapshots remain unchanged. */
+export function publishParts(cat: Catalogue, parts: ReadonlySet<PartSpec>) {
+  useBuild.setState({ done: parts.size, built: { cat, parts: new Set(parts) } });
+}
+
 /** Mount all of `cat`'s parts again (call before the stage moves on, so Parts re-renders). */
-export const endParts = (cat: Catalogue) => building.delete(cat);
+export function endParts(cat: Catalogue) {
+  if (useBuild.getState().built?.cat === cat) useBuild.setState({ built: null });
+}
 
 /** The parts of `cat` that may mount: null (all) unless a progressive build is running; re-renders as parts are added. */
 export function useBuiltParts(cat: Catalogue) {
-  useBuild((b) => (building.has(cat) ? b.done : -1));
-  return building.get(cat) ?? null;
+  return useBuild((b) => (b.built?.cat === cat ? b.built.parts : null));
 }
 
 /** How long a part a progressive build adds glows (its highlight material), ms. */

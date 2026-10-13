@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -16,7 +16,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { live, stallKias, type FlapCmd } from "../model";
 import { CAT } from "../parts";
@@ -77,7 +76,7 @@ const RUNS: Record<Chan, { fig: string; steps: string[] }> = {
 };
 
 export function Controls() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update);
   const ctrlFocus = useView((x) => x.ctrlFocus),
@@ -87,14 +86,13 @@ export function Controls() {
     const [p, t] = v === "all" ? SYS.find((d) => d.id === "controls")!.cam : CHAN_CAM[v];
     flyTo(p, t);
   };
-  const yaw = Math.max(-1, Math.min(1, live.ctl.yaw + s.ctrl.rudTrim * RUD_TRIM.bias));
-  const a = RIG.surfaceAngles({ ...live.ctl, yaw, trim: live.kap.trim }, live.flapAng);
-  const servo = live.kap.ap;
+  const yaw = Math.max(-1, Math.min(1, snapshot.ctl.yaw + s.ctrl.rudTrim * RUD_TRIM.bias));
+  const a = RIG.surfaceAngles({ ...snapshot.ctl, yaw, trim: snapshot.kap.trim }, snapshot.flapAng);
+  const servo = snapshot.kap.ap;
   // the trim position lives in the KAP 140 state (outside React): re-render at once so the slider doesn't snap back
-  const [, force] = useState(0);
   const setTrim = (v: number) => {
     live.kap = { ...live.kap, trim: v };
-    force((n) => n + 1);
+    refreshLiveSnapshot(live);
   };
   return (
     <>
@@ -166,7 +164,7 @@ export function Controls() {
           min={-1}
           max={1}
           step={0.01}
-          value={live.kap.trim}
+          value={snapshot.kap.trim}
           onChange={setTrim}
           fmt={(v) =>
             Math.abs(v) < 0.03
@@ -250,7 +248,7 @@ export function Controls() {
         </>
       )}
       <H3>Mechanisms — tap to locate</H3>
-      <PartsList parts={CAT.pinned("controls")} />
+      <PartsList cat={CAT} sys="controls" />
       <H3>Travel (TCDS 3A13 — not in the POH)</H3>
       <Facts
         rows={[
@@ -283,7 +281,7 @@ export function Controls() {
 }
 
 export function Flaps() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
@@ -316,11 +314,11 @@ export function Flaps() {
         />
         <Readouts
           items={[
-            ["Position", live.flapAng.toFixed(1) + "°"],
+            ["Position", snapshot.flapAng.toFixed(1) + "°"],
             ["Motor", s.flaps.moving ? ["RUNNING", "warnc"] : "Stopped"],
             ["FLAPS 10 A", E.flapsPwr ? "BUS 1 OK" : ["NO POWER", "bad"]],
-            ["Stall (idle, 0° bank)", `${stallKias(live.flapAng)} KIAS`],
-            ["VFE now", live.flapAng <= 10.5 ? "140 KIAS" : live.flapAng <= 20.5 ? "120 KIAS" : "100 KIAS"],
+            ["Stall (idle, 0° bank)", `${stallKias(snapshot.flapAng)} KIAS`],
+            ["VFE now", snapshot.flapAng <= 10.5 ? "140 KIAS" : snapshot.flapAng <= 20.5 ? "120 KIAS" : "100 KIAS"],
           ]}
         />
       </Ctl>
@@ -334,7 +332,7 @@ export function Flaps() {
           The FLAPS breaker or ELECTRICAL BUS 1 is out — the flaps stay where they are.
         </Caution>
       )}
-      {live.kap.ap && live.flapAng > 10.5 && (
+      {snapshot.kap.ap && snapshot.flapAng > 10.5 && (
         <Caution title="Autopilot limitation">Maximum flap extension with the KAP 140 engaged is 10° (S3-13).</Caution>
       )}
       <H3>Limits</H3>
@@ -354,7 +352,7 @@ export function Flaps() {
         ]}
       />
       <H3>Mechanism — tap to locate</H3>
-      <PartsList parts={CAT.pinned("flaps")} />
+      <PartsList cat={CAT} sys="flaps" />
       <Caution title="Electrical failure">
         With LOW VOLTS or HIGH VOLTS, the flap motor is a large load — make sure a landing is possible before extending
         the flaps (POH 3-16, 3-18).
@@ -370,10 +368,10 @@ export function Flaps() {
 }
 
 export function Gear() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update);
-  const yaw = Math.max(-1, Math.min(1, live.ctl.yaw + s.ctrl.rudTrim * RUD_TRIM.bias));
+  const yaw = Math.max(-1, Math.min(1, snapshot.ctl.yaw + s.ctrl.rudTrim * RUD_TRIM.bias));
   const steer = Math.max(-29, Math.min(29, yaw * 11 + s.gear.diff * 18));
   return (
     <>
@@ -452,7 +450,7 @@ export function Gear() {
         hydraulic shimmy damper shown is one equipment variant; the Lord rubber damper requires its own servicing.
       </Small>
       <H3>Gear — tap to locate</H3>
-      <PartsList parts={CAT.pinned("gear")} />
+      <PartsList cat={CAT} sys="gear" />
       <H3>Servicing (POH 8-21)</H3>
       <Facts
         rows={[

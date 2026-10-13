@@ -103,7 +103,19 @@ AGENTS.md             Working notes for coding agents (CLAUDE.md points to it)
 
 - **View state** (which airplane and system, x-ray, labels, theme, camera requests, hover) is shared in `lib/view.ts`.
 - **Discrete state** (switches, levers, selections) lives in each airplane's zustand store as an immutable `Sim` object. Every update recomputes that airplane's solution `E` (buses, powered loads, …) with a pure `solve` function that is easy to test.
-- **Continuous values** (RPM, flap angle, flight state, autopilot state, CAPS time) live in each airplane's mutable `live` object advanced in `useFrame`, so animation doesn't re-render React. Panels that show them use a small `useTicker` hook.
+- **Continuous values** (RPM, flap angle, flight state, autopilot state, CAPS time) live in each airplane's mutable `live` object advanced in `useFrame`, so animation doesn't re-render React. Panels read detached snapshots with `useLiveSnapshot(live, ms)`. Subscribers at the same rate share a timer, which stops when the last subscriber unmounts. Event handlers that need immediate feedback call `refreshLiveSnapshot(live)` after writing the source.
+
+### React Compiler
+
+React Compiler is enabled for the whole app. Render calculations must take their changing inputs explicitly: use a
+sampled snapshot for live simulation values, and pass that snapshot to helpers instead of relying on hidden reads of
+`live`. Event handlers and frame callbacks continue to read and write the original simulation. Aircraft alert windows
+are components with static hook bindings; catalogue visibility and progressive part batches publish immutable snapshots.
+When adding an optional part or study filter, register its state selector with `CAT.trackVisibility`.
+
+`npm run check:compiler` rejects compiler failures and opt-outs across the app. `npm run test:react` runs DOM regressions
+against compiler-transformed components, including live readouts, alerts, optional equipment, and progressive loading.
+Both run in `npm run check`.
 
 How to add an airplane, and where each kind of code goes: [aircraft/README.md](aircraft/README.md).
 

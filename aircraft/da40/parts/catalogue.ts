@@ -15,6 +15,7 @@ import { live } from "../model";
 import { useDA40 } from "../store";
 
 export const CAT = new Catalogue("da40", {}, paintSkin);
+CAT.trackVisibility(useDA40, (s) => s.s.env.extraVents);
 export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */

@@ -49,6 +49,9 @@ export const CAT = new Catalogue(
   (spec) => !useView.getState().walking && engineHidden(spec, sysNow(), useEngineGroups.getState().shown),
   ENGINE_GROUPS,
 );
+CAT.trackVisibility(useView, (v) => `${v.sys}:${v.walking}`);
+CAT.trackVisibility(useEngineGroups, (s) => s.shown);
+CAT.trackVisibility(useSR22T, (s) => s.s.equip.fiki);
 export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */

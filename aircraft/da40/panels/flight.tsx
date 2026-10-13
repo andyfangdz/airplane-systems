@@ -1,5 +1,5 @@
 "use client";
-import { useReducer } from "react";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -16,7 +16,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { gfc700Engaged } from "@/lib/avionics/gfc700";
 import { TO_TRIM, live, type FlapSel } from "../model";
@@ -74,7 +73,7 @@ const RUNS: Record<Chan, { src: string; steps: string[] }> = {
 };
 
 export function Controls() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useDA40((x) => x.s),
     up = useDA40((x) => x.update);
   const ctrlFocus = useView((x) => x.ctrlFocus),
@@ -84,12 +83,10 @@ export function Controls() {
     const [p, t] = v === "all" ? SYS.find((d) => d.id === "controls")!.cam : CHAN_CAM[v];
     flyTo(p, t);
   };
-  // the trim lives in `live` (outside React): re-render on input so the slider doesn't snap back until the next tick
-  const [, bump] = useReducer((n: number) => n + 1, 0);
-  const e = live.eff,
+  const e = snapshot.eff,
     d = deflections(e.pitch, e.roll, e.yaw),
-    trim = live.afcs.trim;
-  const apOn = gfc700Engaged(live.afcs);
+    trim = snapshot.afcs.trim;
+  const apOn = gfc700Engaged(snapshot.afcs);
   return (
     <>
       <p className="lead">
@@ -162,7 +159,7 @@ export function Controls() {
           value={trim}
           onChange={(v) => {
             live.afcs = { ...live.afcs, trim: v };
-            bump();
+            refreshLiveSnapshot(live);
           }}
           fmt={(v) =>
             Math.abs(v - TO_TRIM) < 0.015
@@ -187,7 +184,7 @@ export function Controls() {
             className="btn"
             onClick={() => {
               live.afcs = { ...live.afcs, trim: TO_TRIM };
-              bump();
+              refreshLiveSnapshot(live);
             }}
           >
             Trim to takeoff
@@ -233,7 +230,7 @@ export function Controls() {
         </>
       )}
       <H3>Mechanisms &amp; details — tap to locate</H3>
-      <PartsList parts={CAT.pinned("controls")} />
+      <PartsList cat={CAT} sys="controls" />
       <H3>Details</H3>
       <Facts
         rows={[
@@ -262,11 +259,11 @@ export function Controls() {
 const fmtAil = (up: number) => (up > 0.3 ? `${up.toFixed(0)}° up` : up < -0.3 ? `${(-up).toFixed(0)}° dn` : "0°");
 
 export function Flaps() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
-  const a = live.flapAng;
+  const a = snapshot.flapAng;
   const lit = (pos: 0 | 1 | 2) =>
     E.flapsPwr &&
     ([0, 20, 42].some((t, i) => i === pos && Math.abs(a - t) < 1) ||
@@ -353,7 +350,7 @@ export function Flaps() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("flaps")} />
+      <PartsList cat={CAT} sys="flaps" />
     </>
   );
 }
@@ -436,7 +433,7 @@ export function Gear() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("gear")} />
+      <PartsList cat={CAT} sys="gear" />
     </>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
-import { useTicker } from "@/components/ui/controls";
+import { AlertWindow } from "@/components/AlertWindow";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
-import { annunciations } from "./model";
+import { live, annunciations } from "./model";
 import { Model } from "./Airplane";
 import { Environment, Pitot, Vacuum } from "./panels/air";
 import { Autopilot, Avionics } from "./panels/avionics";
@@ -18,12 +19,18 @@ import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window (with the KAP 140 PITCH TRIM): shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
-function useAlerts() {
-  useTicker(400);
+function Alerts() {
+  const snapshot = useLiveSnapshot(live, 400);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E);
   const powered = E.pfd || E.mfd;
-  return { powered, msgs: powered ? annunciations(s, E) : [] };
+  return (
+    <AlertWindow
+      title="ANNUNCIATIONS"
+      powered={powered}
+      msgs={powered ? annunciations(s, E, undefined, snapshot) : []}
+    />
+  );
 }
 
 export const C182T: AircraftDef = {
@@ -56,8 +63,7 @@ export const C182T: AircraftDef = {
     autopilot: Autopilot,
   },
   tick: simTick,
-  useAlerts,
-  alertTitle: "ANNUNCIATIONS",
+  Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
 };

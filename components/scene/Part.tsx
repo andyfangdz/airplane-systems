@@ -1,7 +1,7 @@
 "use client";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 import { animatePart } from "@/lib/anims";
 import { buildingIn, useBuiltParts } from "@/lib/build";
@@ -135,7 +135,10 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
  * built so far. */
 export function Parts({ cat, parent }: { cat: Catalogue; parent?: string }) {
   const built = useBuiltParts(cat);
-  return <>{cat.partsFor(parent).map((p) => (!built || built.has(p)) && <Part key={p.id} spec={p} cat={cat} />)}</>;
+  const visible = useSyncExternalStore(cat.subscribeVisibility, cat.visibleSnapshot, cat.visibleSnapshot);
+  return (
+    <>{cat.partsFor(parent, visible).map((p) => (!built || built.has(p)) && <Part key={p.id} spec={p} cat={cat} />)}</>
+  );
 }
 
 /** Airframe skin: x-ray ghost, painted skin or plain white. */

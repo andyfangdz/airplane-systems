@@ -25,6 +25,13 @@ import { PinDeclutter, pinPolicy } from "./PinDeclutter";
 /** How far (m, squared) the camera or its target must go from where a press found them to count as moved. */
 const MOVED = 1e-6;
 
+/** OrbitControls owns mutable damping state; clear its accumulated motion before a camera flight. */
+function clearDamping(controls: OrbitControlsImpl) {
+  controls.enableDamping = false;
+  controls.update();
+  controls.enableDamping = true;
+}
+
 /** Animates the camera to the latest requested view; any user drag cancels the flight. */
 function CameraRig() {
   const cam = useView((x) => x.cam);
@@ -73,9 +80,7 @@ function CameraRig() {
     // an update with damping off zeroes it, then the camera is put back where it was
     const p0 = camera.position.clone(),
       t0 = controls.target.clone();
-    controls.enableDamping = false;
-    controls.update();
-    controls.enableDamping = true;
+    clearDamping(controls);
     camera.position.copy(p0);
     controls.target.copy(t0);
     const tt = V(...cam.t),

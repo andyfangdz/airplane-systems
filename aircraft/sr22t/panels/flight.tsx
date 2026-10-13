@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { Vec3 } from "@/lib/math";
 import type { Chan } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -18,7 +19,6 @@ import {
   Readouts,
   Seg,
   Slider,
-  useTicker,
 } from "@/components/ui/controls";
 
 const dir = (v: number, pos: string, neg: string, mid: string, dz = 0.02) => (v > dz ? pos : v < -dz ? neg : mid);
@@ -180,7 +180,7 @@ export function Controls() {
         </>
       )}
       <H3>Mechanisms &amp; surface details — tap to locate</H3>
-      <PartsList parts={CAT.pinned("controls")} />
+      <PartsList cat={CAT} sys="controls" />
       <H3>Details</H3>
       <Facts
         rows={[
@@ -216,11 +216,11 @@ export function Controls() {
 }
 
 export function Flaps() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR22T((x) => x.s),
     E = useSR22T((x) => x.E),
     up = useSR22T((x) => x.update);
-  const at = flapPositionLit(s.flaps.cmd, live.flapAng, E.flapsPwr);
+  const at = flapPositionLit(s.flaps.cmd, snapshot.flapAng, E.flapsPwr);
   return (
     <>
       <p className="lead">
@@ -260,7 +260,7 @@ export function Flaps() {
         </div>
         <Readouts
           items={[
-            ["Position", live.flapAng.toFixed(1) + "°"],
+            ["Position", snapshot.flapAng.toFixed(1) + "°"],
             ["FLAPS 10 A", E.flapsPwr ? "NON ESS OK" : ["NO POWER", "bad"]],
           ]}
         />

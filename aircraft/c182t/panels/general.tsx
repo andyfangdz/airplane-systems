@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useState } from "react";
 import { selectSys } from "@/lib/fleet";
 import { sysColor } from "@/lib/systems";
@@ -16,7 +17,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { live, type Elt } from "../model";
 import { CAT } from "../parts";
@@ -176,7 +176,7 @@ export function Airframe() {
         ]}
       />
       <H3>Structure — tap to locate</H3>
-      <PartsList parts={CAT.pinned("airframe")} />
+      <PartsList cat={CAT} sys="airframe" />
       <H3>Weight &amp; balance check</H3>
       <Ctl>
         {sl("front", "Pilot + front passenger (arm 37)", 500)}
@@ -216,7 +216,7 @@ export function Airframe() {
 
 /* ---------- cabin & safety ---------- */
 export function Cabin() {
-  useTicker(500);
+  const snapshot = useLiveSnapshot(live, 500);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update),
@@ -224,7 +224,7 @@ export function Cabin() {
   // the hour meter needs oil pressure above 20 PSI and power through the WARN breaker (POH 7-12, Fig 7-7 Sheet 2)
   const hobbs: [string, "" | "warnc"] | string = !E.warnPwr
     ? ["No (no WARN power)", "warnc"]
-    : live.oilP > 20
+    : snapshot.oilP > 20
       ? "Yes (oil > 20 PSI)"
       : "No";
   return (
@@ -288,16 +288,16 @@ export function Cabin() {
         />
         <Readouts
           items={[
-            ["Hobbs", live.hobbs.toFixed(1)],
+            ["Hobbs", snapshot.hobbs.toFixed(1)],
             ["Hobbs running", hobbs],
             ["ELT", c.elt === "ON" ? ["TRANSMITTING", "bad"] : c.elt === "RESET" ? ["RESET", "warnc"] : "Armed (AUTO)"],
-            ["CO", live.coPpm >= 50 ? ["CO LVL HIGH", "bad"] : `${Math.round(live.coPpm)} ppm`],
+            ["CO", snapshot.coPpm >= 50 ? ["CO LVL HIGH", "bad"] : `${Math.round(snapshot.coPpm)} ppm`],
           ]}
         />
       </Ctl>
       {c.lock && <Caution title="Caution">CONTROL LOCK — REMOVE BEFORE STARTING ENGINE (placard, POH 2-18).</Caution>}
       <H3>Equipment — tap to locate</H3>
-      <PartsList parts={CAT.pinned("cabin")} />
+      <PartsList cat={CAT} sys="cabin" />
       <H3>Seats &amp; restraints</H3>
       <Notes
         items={[

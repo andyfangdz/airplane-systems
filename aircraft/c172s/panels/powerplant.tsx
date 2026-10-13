@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
   Caution,
@@ -12,7 +13,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { densityFactor, enginePower, fuelInd, lambda, live, type FuelSel, type Mags } from "../model";
 import { Nav3MagSwitch } from "../../cessna/panels";
@@ -25,11 +25,12 @@ import { Scenarios } from "./general";
 const pct = (v: number) => Math.round(v * 100) + "%";
 const thr = (v: number) => (v < 0.02 ? "IDLE (full out)" : v > 0.98 ? "FULL (full in)" : `${pct(v)} in`);
 const mixFmt = (v: number) => (v <= 0.05 ? "IDLE CUTOFF" : v > 0.97 ? "FULL RICH" : `Leaned · ${pct(v)}`);
-const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
+const rpm10 = (rpm: number) => String(Math.round(rpm / 10) * 10);
 const tick = (b: boolean) => (b ? "✓ " : "· ");
 
 /** MAGNETOS rotary with the spring-loaded START position held by a button. */
 function MagSwitch() {
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update);
@@ -37,7 +38,7 @@ function MagSwitch() {
     up((d) => {
       d.eng.mags = m;
     });
-  const crankSec = live.crankT > 0 ? live.crankTotal : null;
+  const crankSec = snapshot.crankT > 0 ? snapshot.crankTotal : null;
   return (
     <Nav3MagSwitch
       mags={s.eng.mags}
@@ -52,17 +53,17 @@ function MagSwitch() {
 }
 
 export function Engine() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update);
   const { shown, set } = useEngineGroups();
   const g = s.eng,
-    alt = live.fs.alt;
+    alt = snapshot.fs.alt;
   const lam = lambda(g.mix, alt),
     P = g.running ? enginePower(s, alt) : 0;
   const state = g.running
-    ? live.primeRun > 0
+    ? snapshot.primeRun > 0
       ? [g.mix < 0.06 ? "RUNNING ON PRIME — ADVANCE MIXTURE" : "TOO LEAN — DYING", "warnc"]
       : "RUNNING"
     : g.mags === "START"
@@ -84,12 +85,12 @@ export function Engine() {
     [s.elec.bat && s.elec.alt, "MASTER (ALT and BAT) ON"],
     [s.lights.beacon, "BEACON ON"],
     [
-      live.wet > 0.3 || g.running || live.hot > 0.6,
+      snapshot.wet > 0.3 || g.running || snapshot.hot > 0.6,
       "Prime: FUEL PUMP ON, mixture FULL RICH until stable fuel flow (3–5 s), then IDLE CUTOFF and FUEL PUMP OFF (omit if warm)",
     ],
     [g.running, "MAGNETOS START — release when the engine starts"],
     [g.running && g.mix > 0.9, "Mixture ADVANCE SMOOTHLY TO RICH"],
-    [g.running && live.oilP >= 50, "Oil pressure in the green within 30–60 s"],
+    [g.running && snapshot.oilP >= 50, "Oil pressure in the green within 30–60 s"],
     [g.running && E.mBatt > 0 && !E.lowVolts, "AMPS positive (charge), LOW VOLTS not shown"],
   ];
   return (
@@ -164,13 +165,13 @@ export function Engine() {
         <Readouts
           items={[
             ["Engine", state as [string, "bad" | "warnc"] | string],
-            ["RPM", rpm10()],
-            ["FFLOW GPH", live.ff.toFixed(1)],
+            ["RPM", rpm10(snapshot.rpm)],
+            ["FFLOW GPH", snapshot.ff.toFixed(1)],
             ["Power", g.running ? pct(P) : "—"],
-            ["OIL PRES", [`${Math.round(live.oilP)} psi`, live.oilP <= 20 ? "bad" : ""]],
-            ["OIL TEMP", `${Math.round(live.oilT)} °F`],
-            ["EGT", `${Math.round(live.egt)} °F`],
-            ["CHT", `${Math.round(live.cht)} °F`],
+            ["OIL PRES", [`${Math.round(snapshot.oilP)} psi`, snapshot.oilP <= 20 ? "bad" : ""]],
+            ["OIL TEMP", `${Math.round(snapshot.oilT)} °F`],
+            ["EGT", `${Math.round(snapshot.egt)} °F`],
+            ["CHT", `${Math.round(snapshot.cht)} °F`],
             [
               "Fuel/air",
               g.running
@@ -184,14 +185,14 @@ export function Engine() {
             [
               "Cylinders",
               g.running
-                ? live.hot > 0.6
+                ? snapshot.hot > 0.6
                   ? "Warm"
                   : "Warming up"
-                : live.wet > 1.9
+                : snapshot.wet > 1.9
                   ? ["FLOODED", "bad"]
-                  : live.wet > 0.3
+                  : snapshot.wet > 0.3
                     ? "Primed"
-                    : live.hot > 0.6
+                    : snapshot.hot > 0.6
                       ? "Warm"
                       : "Dry",
             ],
@@ -212,7 +213,7 @@ export function Engine() {
           </li>
         ))}
       </ol>
-      {live.crankTotal > 10 && (
+      {snapshot.crankTotal > 10 && (
         <Caution title="Starter limit">
           Crank no more than 10 seconds, then let the starter cool 20 seconds; after three cycles cool it 10 minutes
           (POH 4-26).
@@ -316,17 +317,17 @@ export function Engine() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("engine")} />
+      <PartsList cat={CAT} sys="engine" />
     </>
   );
 }
 
 export function Propeller() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC172((x) => x.s),
     up = useC172((x) => x.update);
-  const ias = s.ground ? 0 : live.fs.ias,
-    P = s.eng.running ? enginePower(s, live.fs.alt) : 0;
+  const ias = s.ground ? 0 : snapshot.fs.ias,
+    P = s.eng.running ? enginePower(s, snapshot.fs.alt) : 0;
   return (
     <>
       <p className="lead">
@@ -366,10 +367,10 @@ export function Propeller() {
         />
         <Readouts
           items={[
-            ["RPM", [rpm10(), live.rpm >= 2780 ? "bad" : live.rpm > 2700 ? "warnc" : ""]],
+            ["RPM", [rpm10(snapshot.rpm), snapshot.rpm >= 2780 ? "bad" : snapshot.rpm > 2700 ? "warnc" : ""]],
             ["IAS", `${Math.round(ias)} KT`],
             ["Power", s.eng.running ? pct(P) : "—"],
-            ["Density", pct(densityFactor(live.fs.alt))],
+            ["Density", pct(densityFactor(snapshot.fs.alt))],
           ]}
         />
       </Ctl>
@@ -397,13 +398,13 @@ export function Propeller() {
           ["Care", "Dress nicks; never alkaline cleaners (POH 8-24)"],
         ]}
       />
-      <PartsList parts={CAT.pinned("propeller")} />
+      <PartsList cat={CAT} sys="propeller" />
     </>
   );
 }
 
 export function Fuel() {
-  useTicker(400);
+  const snapshot = useLiveSnapshot(live, 400);
   const s = useC172((x) => x.s),
     E = useC172((x) => x.E),
     up = useC172((x) => x.update);
@@ -516,14 +517,14 @@ export function Fuel() {
             ["Gauge L / R", [`${iL.toFixed(0)} / ${iR.toFixed(0)}`, iL < 5 || iR < 5 ? "warnc" : ""]],
             ["Usable total", (f.qL + f.qR).toFixed(1)],
             ["Feeding", feeding as [string, "bad"] | string],
-            ["FFLOW", `${live.ff.toFixed(1)} GPH`],
+            ["FFLOW", `${snapshot.ff.toFixed(1)} GPH`],
             ["Aux pump", f.pump ? (E.fuelPumpOn ? "Running" : ["NO PWR", "bad"]) : "Off"],
             [
               "LOW FUEL",
               s.ann.lowFuelL || s.ann.lowFuelR
                 ? ["SHOWN", "warnc"]
                 : iL < 5 || iR < 5
-                  ? `in ${Math.max(0, 60 - Math.max(live.timers.lowL, live.timers.lowR)).toFixed(0)} s`
+                  ? `in ${Math.max(0, 60 - Math.max(snapshot.timers.lowL, snapshot.timers.lowR)).toFixed(0)} s`
                   : "—",
             ],
           ]}
@@ -568,7 +569,7 @@ export function Fuel() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("fuel")} />
+      <PartsList cat={CAT} sys="fuel" />
     </>
   );
 }

@@ -66,7 +66,7 @@ function Tail() {
 
 /** Manual gear: the mains swing inboard about fore-aft trunnions, the nose gear aft; the Johnson bar follows. */
 function Gear() {
-  const doorAxis = useMemo(noseDoorAxis, []);
+  const doorAxis = useMemo(() => noseDoorAxis(), []);
   const mL = useRef<THREE.Group>(null!),
     mR = useRef<THREE.Group>(null!),
     nose = useRef<THREE.Group>(null!),

@@ -40,7 +40,8 @@ export function Links({
 
   useFrame(() => {
     const L = points();
-    for (const [k, [a, b]] of Object.entries(L)) {
+    for (const [k, ends] of Object.entries(L)) {
+      const [a, b] = ends;
       const m = meshes.current[k];
       if (!m) continue;
       tmp.dir.subVectors(b, a);

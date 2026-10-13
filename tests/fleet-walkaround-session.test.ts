@@ -132,9 +132,9 @@ function sessions<
       const saved = controller.logic.loadProgress();
       expect(saved?.marks[controller.logic.steps[4].item.id]).toBe("skip");
       controller.boot("");
-      expect(controller.useWalk.getState().phase).toBe("resume");
+      expect(controller.store.getState().phase).toBe("resume");
       controller.resume();
-      expect(controller.useWalk.getState().at).toBe(5);
+      expect(controller.store.getState().at).toBe(5);
       expect(sim.getState().s).toEqual(controller.logic.simAt(initial, 5));
       useView.setState({ ac: "sr22t" });
       expect(useView.getState().walking).toBe(false);
@@ -153,10 +153,10 @@ function sessions<
       controller.boot("");
       expect(useView.getState().walking).toBe(false);
       controller.open();
-      expect(controller.useWalk.getState().phase).toBe("intro");
+      expect(controller.store.getState().phase).toBe("intro");
       controller.resume();
-      expect(controller.useWalk.getState().marks[controller.logic.steps[0].item.id]).toBe("skip");
-      expect(controller.useWalk.getState().done).toBe(true);
+      expect(controller.store.getState().marks[controller.logic.steps[0].item.id]).toBe("skip");
+      expect(controller.store.getState().done).toBe(true);
       controller.close();
       vi.stubGlobal("localStorage", {
         getItem: () => {

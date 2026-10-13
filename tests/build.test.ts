@@ -1,7 +1,17 @@
 /** Progressive scene builds (lib/build.ts): which parts mount while a build runs, and the build-in glow. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Catalogue } from "@/lib/catalogue";
-import { beginParts, buildingIn, BUILD_IN_MS, endParts, markAdded, setBuild, skipBuild, useBuild } from "@/lib/build";
+import {
+  beginParts,
+  buildingIn,
+  BUILD_IN_MS,
+  endParts,
+  markAdded,
+  publishParts,
+  setBuild,
+  skipBuild,
+  useBuild,
+} from "@/lib/build";
 import { box } from "@/lib/geometry";
 
 const cat = new Catalogue("probe");
@@ -30,9 +40,14 @@ describe("a progressive build", () => {
     const built = beginParts(cat);
     expect(built.size).toBe(0);
     built.add(a);
-    useBuild.setState({ done: built.size });
+    const before = useBuild.getState().built!.parts;
+    publishParts(cat, built);
     expect([...built]).toEqual([a]);
     expect(useBuild.getState().done).toBe(1);
+    expect([...before]).toEqual([]);
+    expect([...useBuild.getState().built!.parts]).toEqual([a]);
+    built.clear();
+    expect([...useBuild.getState().built!.parts]).toEqual([a]);
   });
 
   it("makes a part glow for BUILD_IN_MS after it is added, and no other part", () => {

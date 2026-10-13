@@ -12,7 +12,6 @@ import {
   Rocker,
   Slider,
   Small,
-  useTicker,
   type Reading,
 } from "@/components/ui/controls";
 import { BUSES, SPARE_CB, fuelAvail, initialSim, type BusId, type Sim } from "../model";
@@ -69,7 +68,6 @@ const resetElec = (d: Sim) => {
 };
 
 export function Electrical() {
-  useTicker(250);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
@@ -351,7 +349,7 @@ export function Electrical() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("electrical")} />
+      <PartsList cat={CAT} sys="electrical" />
     </>
   );
 }

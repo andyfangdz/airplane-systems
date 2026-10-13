@@ -23,6 +23,8 @@ import {
 
 export type WalkPhase = "intro" | "resume" | "walk" | "done";
 export interface WalkState {
+  /** Immutable step list for the equipment selected when this session opened. */
+  steps: Step[];
   phase: WalkPhase;
   done: boolean;
   at: number;
@@ -33,6 +35,7 @@ export interface WalkState {
   big: boolean;
 }
 export const useWalk = create<WalkState>(() => ({
+  steps: [],
   phase: "intro",
   done: false,
   at: 0,
@@ -108,6 +111,7 @@ export function openWalk(n?: number) {
     big = localStorage.getItem(BIG_KEY) === "1";
   } catch {}
   useWalk.setState({
+    steps,
     phase: saved && !saved.done ? "resume" : "intro",
     done: false,
     at: 0,
