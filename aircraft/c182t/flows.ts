@@ -55,9 +55,10 @@ const FUEL = "#2F7FE6",
     [
       P3(27.4, s * 1, 25.9),
       P3(40, s * 9.4, 27.8),
-      P3(64.2, s * 18.9, 31),
-      P3(65.4, s * 16.2, 74.2),
-      P3(65.4, s * 16.2, 80.6),
+      P3(68, s * 9.4, 27.8),
+      P3(68, s * 18.9, 31),
+      P3(68, s * 16.2, 74.2),
+      P3(68, s * 16.2, 80.6),
       wp(s * 27, 0.6, -1, 0.03),
     ],
     ["fuel"],
@@ -328,7 +329,7 @@ flow("toMan2", [P3(0.6, 13, 38), P3(3, 8, 33), MANIFOLD], ["environment"], { r: 
       note: "To the forward cabin upper (adjustable) and lower outlets — not heated (Fig. 7-8).",
     },
   );
-  flow("wlow" + sd, [P3(29, s * 17, 77), P3(31, s * 19.6, 52), P3(31, s * 19.4, 34)], ["environment"], {
+  flow("wlow" + sd, [P3(29, s * 17, 77), P3(27, s * 19.6, 52), P3(27, s * 19.4, 34)], ["environment"], {
     r: 0.01,
     color: AIR,
     pcolor: "#5FC8F0",
@@ -353,8 +354,8 @@ flow(
     wp(-65, 0.2, -1, 0.04),
     wp(-45, 0.25, 0),
     wp(-17, 0.22, -1, 0.03),
-    P3(31.6, -19.4, 76),
-    P3(30.6, -19.6, 50),
+    P3(27, -19.4, 76),
+    P3(27, -19.6, 50),
     P3(16, -19.6, 50),
     P3(16, -8, 50),
     SBY,
@@ -532,7 +533,8 @@ flow("flapX", [wp(-24, 0.67, 0, -0.01), wp(24, 0.67, 0, -0.01)], ["flaps"], {
   size: 0.05,
 });
 
-for (const f of F) if (["wrootL", "wrootR", "wrearL", "wrearR", "apRoll", "pitot"].includes(f.key)) f.tension = 0;
+for (const f of F)
+  if (["wrootL", "wrootR", "wrearL", "wrearR", "wlowL", "wlowR", "apRoll", "pitot"].includes(f.key)) f.tension = 0;
 export const FLOWS = [
   ...F.filter((f) => !(ENGINE_DEPTH_REPLACED_FLOW_KEYS as readonly string[]).includes(f.key)),
   ...ENGINE_DEPTH_FLOWS,

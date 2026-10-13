@@ -22,6 +22,16 @@ beforeAll(() => {
   sr22tWalk.underAirplane(new Vector3());
 }, 120_000);
 
+it.each(["2a", "2f", "4c"])("SR20 %s keeps the closed-door hardware inspection marker and camera target", (id) => {
+  const step = sr20Walk.walkSteps().find((s) => s.item.id === id)!;
+  const centres = sr20Walk.stepParts(step).shown.flatMap((name) => sr20Walk.nameCentres(name, sr20Walk.stepSide(step)));
+  expect(centres.length).toBeGreaterThan(0);
+  const marker = sr20Walk.stepCentroid(step);
+  expect(marker).not.toBeNull();
+  expect(new Vector3(...sr20Walk.stepPose(step).t).distanceTo(marker!)).toBeLessThan(1e-9);
+  expect(Math.sign(marker!.z)).toBe(sr20Walk.stepSide(step));
+});
+
 it("the left-fuselage transponder check highlights and frames the unique right-offset belly antenna", () => {
   const step = sr20Walk.walkSteps().find((step) => step.item.id === "2c")!;
   const antenna = sr20Cat.parts.find((part) => part.name === "Transponder antenna")!;

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, clamp, type Vec3 } from "@/lib/math";
 import type { Chan, SysId } from "@/lib/systems";
-import { cabinHarness } from "@/lib/cabinRouting";
+import { cessnaCabinHarness as cabinHarness } from "../cessna/cabin-routing";
 import { AF, Z, wingP } from "./geometry";
 import { engineTurning } from "./engine-operation";
 import { live, type Elec, type Sim } from "./model";
@@ -39,14 +39,15 @@ const wp = (bl: number, c: number, up = 0, dy = 0): Vec3 => PV(wingP(Z(bl), c, u
     [
       wp(s * 23.5, 0.28, -1, 0.02),
       wp(s * 17, 0.2, -1, 0.03),
-      P3(31.2, s * 17.8, 75.5),
-      P3(30.8, s * 18.2, 32),
+      P3(28, s * 17.8, 75.5),
+      P3(28, s * 18.2, 32),
       P3(26, s * 8, 27.4),
       [FSEL[0] - 0.02, FSEL[1], FSEL[2] + s * 0.03],
     ],
     ["fuel"],
     {
       name: (s > 0 ? "Right" : "Left") + " tank supply line",
+      tension: 0,
       note: "Gravity feed from the tank outlet screen down the forward door post to the selector valve.",
       r: 0.009,
     },
@@ -275,8 +276,8 @@ flow(
     wp(-65, 0.25, -1, 0.04),
     wp(-45, 0.3, 0),
     wp(-17, 0.25, -1, 0.03),
-    P3(31.6, -18.4, 75),
-    P3(31, -18.3, 32),
+    P3(28, -18.4, 75),
+    P3(28, -18.3, 32),
     P3(20, -6, 28),
     D.pressureTee,
   ],

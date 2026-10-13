@@ -212,7 +212,7 @@ for (const [fs, bl] of [
 ]) {
   unit(
     "Headset and microphone jacks",
-    P3(fs, bl, 45),
+    P3(fs === 37 ? 27 : fs, bl, 45),
     [0.023, 0.035, 0.03],
     ["avionics", "cabin"],
     "Pilot/passenger headphone and microphone connections to GMA 1347; rear positions are intercom/entertainment, not independent NAV/COM radios (POH 7-66). Locations approximate.",

@@ -4,7 +4,8 @@
  */
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
-import { cabinFloorLane, cabinHarness } from "@/lib/cabinRouting";
+import { cabinFloorLane } from "@/lib/cabinRouting";
+import { cessnaCabinHarness as cabinHarness } from "../cessna/cabin-routing";
 import type { Elec, Sim } from "./model";
 import { DEPTH as D } from "./depth-anchors";
 import { AF, X, Y, Z, botY, fLE, fus } from "./geometry";
@@ -189,7 +190,7 @@ add(
 const oat = P3(41.5, -4, 80.5);
 add(
   "depthOatAdc",
-  [oat, P3(41.5, -15, 78), P3(29, -17, 74), P3(30, -18, 34), lane(30, -1), lane(20, -1), lane(11.4, -1), D.adc],
+  cabinHarness(AF, oat, D.adc, X(14.8), -1),
   "OAT → GDC 74A",
   "GTP 59 outside-air sensor independent of pitot/static pressure input (POH 7-67)",
   ["pitot", "avionics"],
@@ -256,7 +257,7 @@ for (const [i, fs, bl] of [
   wire(
     `depthHeadset${i}`,
     D.audio,
-    P3(fs, bl, 45),
+    P3(fs === 37 ? 27 : fs, bl, 45),
     "Headset/microphone audio",
     "Crew/passenger intercom and COM audio from GMA 1347 (POH 7-66)",
   );

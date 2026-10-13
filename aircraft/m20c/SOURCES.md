@@ -106,3 +106,14 @@ The real roof-wrapping door opening also exposed front headliner fixtures placed
 schematic lateral offsets now keep both spot lights and the front ceiling outlets on the fixed center headliner;
 shared anchors move the connected duct routes with them. The roof-attachment test checks the fixed hull, including
 with the door absent, so an open door cannot leave those fixtures floating in the aperture.
+
+### Cabin finishes and open-door clearance
+
+The same cabin/door sources above support the fixed cabin enclosure; floor height, lining inset and jamb thickness
+are illustrative drawing offsets. Solid mode covers systems behind the floor and trim; X-ray retains their visibility.
+Roof wiring uses fixed structure around the entrance rather than descending through the door aperture. Endpoint and
+connection topology are retained; approximate mounting positions are adjusted where necessary to stay on fixed trim.
+See `MODELING.md` and the doorway-clearance regression tests for the limits of this spatial check.
+
+Opening-clearance follow-up uses the same door sources above. Hinge stand-off, seal inset and jamb subdivision
+are illustrative model corrections verified against the unchanged exterior loft; see `MODELING.md`.

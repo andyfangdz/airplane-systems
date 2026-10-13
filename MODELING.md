@@ -26,11 +26,11 @@ Missing assets still invoke the complete source factories. `npm run geometry:sta
 | Aircraft | Hull triangles before | Hull triangles after | Total triangles before | Total triangles after | Gzip MiB before | Gzip MiB after |
 | -------- | --------------------: | -------------------: | ---------------------: | --------------------: | --------------: | -------------: |
 | SR22T    |               462,451 |               73,385 |                802,090 |               402,569 |           6.829 |          2.330 |
-| SR20     |                12,416 |               61,072 |                161,528 |               216,636 |           1.432 |          1.530 |
-| C172S    |                18,128 |               90,512 |                124,658 |               207,276 |           1.439 |          1.656 |
-| C182T    |                18,938 |               89,219 |                140,992 |               222,149 |           1.678 |          1.847 |
-| DA40     |                11,672 |               11,672 |                 92,020 |                92,660 |           0.990 |          0.991 |
-| M20C     |                11,674 |               51,334 |                 83,528 |               130,150 |           1.029 |          1.070 |
+| SR20     |                12,416 |               61,072 |                161,528 |               229,274 |           1.432 |          1.687 |
+| C172S    |                18,128 |               90,512 |                124,658 |               220,888 |           1.439 |          1.818 |
+| C182T    |                18,938 |               89,219 |                140,992 |               236,072 |           1.678 |          2.014 |
+| DA40     |                11,672 |               11,672 |                 92,020 |                92,770 |           0.990 |          0.992 |
+| M20C     |                11,674 |               51,334 |                 83,528 |               140,117 |           1.029 |          1.188 |
 
 The other four hulls gain triangles because they now wrap the doors, preserve loft stations and resolve curved jambs.
 They are bounded by regression budgets; increasing density is not the target. The DA40 already had moving openings,
@@ -41,7 +41,10 @@ where the clipping/paint pipeline emits a triangle stream with an identity index
 
 The previous main revision already added selected component cases, filters, control sheath routes and mechanical
 poses across all five aircraft. This change closes the largest remaining functional gap: movable openings with
-hardware that stays attached. All details use the ordinary aircraft catalogue and the shared build/worker pipeline.
+hardware that stays attached. Finished cabin floors, fixed lining and jamb return faces now cover the systems
+behind the interior in solid mode, while ghosting for X-ray inspection. Ceiling harnesses descend through fixed
+posts rather than the door apertures; headset terminals and the Mooney side-panel breaker remain on fixed structure.
+The lining uses a 2 mm sampled tolerance and illustrative offsets. All details use the ordinary aircraft catalogue and the shared build/worker pipeline.
 
 | Area                                           | Current coverage and changes                                                                                                                                                                                                                                                                                                                                                                                                        | Remaining limitation                                                                                                                                                                                 |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -56,6 +59,30 @@ This establishes shared construction and verification standards, not a claim tha
 visual or mechanical depth. Remaining work should be chosen from the cited aircraft sources and the concrete gaps
 above, not from a target mesh count.
 
+## Surface-protrusion follow-up
+
+The audit found and corrected thin door-jamb return faces crossing concave loft stations, hinge-side panel/seal
+intersections during opening on the SR20, C172S, C182T and M20C, and the DA40 rear-door pivot below its roof hinge
+edge, plus a C172 window latch that did not release clear of its frame. Jamb strips now split at stations and adapt to the source loft; panel seals sit inside the border. Illustrative
+hinge placements clear the curved skin, with a 30 mm barrel stand-off on the SR20 baggage, Cessna and Mooney doors.
+The DA40 longitudinal axis clears the highest/outboard roof edge with a 10 mm bracket offset. These offsets describe
+the study model, not real-aircraft rigging dimensions. The SR20 baggage seal reuses its original catalogue entry;
+the duplicate seal was removed.
+
+All six airframes are covered by containment regressions. SR20 and the four non-Cirrus models check internal mesh
+vertices, edge midpoints and face centers, plus complete sampled routes and rendered tube walls, using a 0.1 mm
+numerical allowance and named exterior-port transitions. SR22T checks every part and physical tube's vertices
+against the complete airframe and its reasoned exterior-part budgets, with a 1 mm flush allowance. Its remaining
+92 mm legacy drain exception was stale: the current preflight outlet projects **8.44 mm** at its intended terminal.
+It now has a **9 mm** exterior limit and a displaced-outlet negative control; the SR22T debt ledger is empty.
+
+New moving-assembly checks cover the four new hinged fleets at eight opening fractions, including released handle
+and latch poses; DA40 canopy, rear door, locks and strut at the same fractions; and SR20 gas struts from closed to
+fully open. Both Cessna windows are also checked against their own door panels independently of cabin-door motion. The existing SR22T nine-pose door/strut collision audit remains enabled. The SR20 exterior lever may
+rise from its recess when released, bounded here to 15 mm. Wheels, propellers, antennas, drains and other declared
+exterior equipment intentionally project outside. These tests do not prove continuous clearance between every
+sampled pose or every pair of internal components, and they are not manufacturing/maintenance tolerance checks.
+
 ## Evidence and limits
 
 - `tests/skin-patch-quality.test.ts`: outward finite curved faces, hole clearance, sampled chord error; exact aperture
@@ -63,6 +90,11 @@ above, not from a target mesh count.
 - `tests/fleet-door-mechanisms.test.ts`: registered hulls have real openings, closed panels fill them, opened panels
   clear them; every panel/glass vertex, edge midpoint and triangle center stays within 0.75 mm of the analytic skin.
   Strut ends remain connected with a rigid barrel and a physically available rod stroke throughout sampled travel.
+- `tests/fleet-door-skin-clearance.test.ts`: operating panels, released hardware, struts and DA40 openings clear fixed exterior skins.
+- `tests/fleet-doorway-clearance.test.ts`: fixed system runs clear the SR20/Cessna entrances above the floor;
+  opaque floors cover the underfloor volume and lining/jambs retain the open passage.
+- `tests/fleet-door-appearance.test.ts`: paint and two-sided glazing persist across solid system views, with
+  focus, walk highlighting/dimming and X-ray still taking precedence.
 - Existing SR22T door, cowl, inlet, exhaust and worker tests protect the detailed openings and downstream behavior.
   Hull budgets catch a return to excessive density without treating a low count as proof of quality.
 - Existing fleet tests cover containment, occupied-space route clearance, controls, faults, catalogue integrity and

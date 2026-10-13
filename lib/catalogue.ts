@@ -59,6 +59,8 @@ export interface PartSpec {
   color?: string;
   /** Physical finish in solid mode, keeping the study colour for x-ray. */
   solidColor?: string;
+  /** Physical paint/glazing in solid mode, still subject to focus and walk dimming. */
+  solidMaterial?: () => THREE.MeshStandardMaterial;
   pos?: Vec3;
   rot?: Vec3;
   scale?: Vec3;

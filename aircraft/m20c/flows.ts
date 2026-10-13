@@ -410,11 +410,22 @@ flow("batBus", [RELAY, [FW - 0.02, -0.05, -0.3], [PANEL_X + 0.1, -0.1, -0.45], S
   name: "Relay → bus (switch-breakers)",
   note: "Main feed to the switch-breaker row and on to the push-to-reset breaker panel.",
 });
-flow("busCb", [SWP, [PANEL_X + 0.08, -0.25, 0.0], CBP], ["electrical"], {
-  r: 0.011,
-  name: "Bus → push-to-reset breakers",
-  note: "Radios, instruments and warning circuits on the co-pilot's side (OM p. 4).",
-});
+flow(
+  "busCb",
+  [
+    [SWP[0] + 0.02, SWP[1], SWP[2]],
+    [PANEL_X + 0.08, -0.25, 0.0],
+    [PANEL_X + 0.08, CBP[1], CBP[2]],
+    [CBP[0] + 0.015, CBP[1], CBP[2]],
+  ],
+  ["electrical"],
+  {
+    r: 0.011,
+    name: "Bus → push-to-reset breakers",
+    tension: 0,
+    note: "Radios, instruments and warning circuits on the co-pilot's side (OM p. 4).",
+  },
+);
 flow("start", [RELAY, [2.3, -0.3, -0.2], [2.6, -0.35, 0.1], EQUIPMENT.starter], ["electrical", "engine"], {
   r: 0.016,
   color: "#B0761A",

@@ -1,9 +1,10 @@
+import { registerCabinTrim } from "@/lib/cabin-trim";
 /** POH 11934-005 7-26/7-33; AMM 12137-002 52-10/52-30. Illustrative attachment geometry. */
 import { Vector3 } from "three";
-import { attachDoorParts, doorHardwareMotion, doorPoint, registerDoorPanels } from "@/lib/doors";
+import { attachDoorParts, doorHardwareMotion, doorPoint, doorSeal, registerDoorPanels } from "@/lib/doors";
 import { sidePaintUV } from "@/lib/livery";
 import { telescopingStrut } from "@/lib/strut";
-import { DOORS, DOOR_SKIN, SK, paintSkin } from "../geometry";
+import { DOORS, DOOR_SKIN, FUSE, WIN, SK, paintSkin } from "../geometry";
 import { useSR20 } from "../store";
 import { CAT } from "./catalogue";
 import { doorHardwarePoint } from "./doors";
@@ -13,7 +14,7 @@ export const doorTarget = (key: string) =>
   Number(useSR20.getState().s.lights[key === "L" ? "door" : key === "R" ? "doorR" : "bag"]);
 registerDoorPanels(
   CAT,
-  DOORS.map((door) => ({ ...door, edgeSeal: door.key === "bag" })),
+  DOORS.map((door) => ({ ...door, edgeSeal: false })),
   DOOR_SKIN,
   ["doors", "cabin"],
   (g) => sidePaintUV(g, SK).setIndex(null),
@@ -44,6 +45,11 @@ for (const name of [
     "z",
     0.8,
   );
+// Reuse the original catalogue entries, with seals inset from the actual panel border.
+for (const [i, p] of CAT.parts.filter((p) => p.name === "Cabin door perimeter seal").entries())
+  p.geo = () => doorSeal(DOOR_SKIN, DOORS[i]);
+CAT.parts.find((p) => p.name === "Baggage door")!.geo = () => doorSeal(DOOR_SKIN, DOORS[2]);
+
 export const DOOR_STRUTS = [-1, 1].map((side, index) => {
   const door = DOORS[index],
     fixed = new Vector3(...doorHardwarePoint(1.85, 0.05, side, 0.12));
@@ -56,4 +62,13 @@ export const DOOR_STRUTS = [-1, 1].map((side, index) => {
     ends: (fraction) => ({ fixed: fixed.clone(), moving: doorPoint(door, moving, fraction) }),
     replace: CAT.parts.filter((p) => p.name === "Cabin door gas strut")[index],
   });
+});
+
+registerCabinTrim(CAT, FUSE, DOOR_SKIN, {
+  aft: -0.62,
+  front: 2.05,
+  floor: -0.51,
+  doors: DOORS,
+  windows: [-1, 1].map((side) => ({ side, outline: DOOR_SKIN.outline(WIN.rear) })),
+  note: "Fixed cabin trim and floor cover the systems installation beneath the seats and behind the sidewalls (POH 7-27–31; AMM 25-10). Openings follow the same source skin as the doors.",
 });

@@ -52,6 +52,8 @@ export const stepParts = (step: Step) => ({
 });
 
 function groupOrigin(parent: string) {
+  // Door vertices and attached hardware retain aircraft coordinates at the closed inspection pose.
+  if (parent.startsWith("door:")) return V(0, 0, 0);
   if (parent.startsWith("surf:")) return V(...CAT.surfacePivot(parent.slice(5)));
   if (parent === "noseGear") return V(...NOSE_GEAR);
   if (parent === "caster") return V(...NOSE_GEAR).add(V(...NOSE_CASTER));

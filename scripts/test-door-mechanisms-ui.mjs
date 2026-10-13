@@ -73,7 +73,9 @@ try {
   }
   if (shots) await mkdir(".shots/mechanisms", { recursive: true });
   browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-  for (const test of cases) {
+  for (const test of cases.filter(
+    (c) => !process.env.DOOR_AIRCRAFT || process.env.DOOR_AIRCRAFT.split(",").includes(c.id),
+  )) {
     const context = await browser.newContext({
       viewport: phone ? { width: 390, height: 844 } : { width: 1100, height: 800 },
       reducedMotion: "reduce",

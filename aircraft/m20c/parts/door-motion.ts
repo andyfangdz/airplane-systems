@@ -1,6 +1,7 @@
+import { registerCabinTrim } from "@/lib/cabin-trim";
 /** Original 1968 OM p. 15; MAN205 Fig 15 (1968–1975 cabin) and Fig 16 (baggage). */
 import { attachDoorParts, doorHardwareMotion, registerDoorPanels } from "@/lib/doors";
-import { DOORS, DOOR_SKIN, doorPaint, paintSkin, box, cyl, onSkin, tubeGeo } from "../geometry";
+import { DOORS, DOOR_SKIN, FUSE, WIN, doorPaint, paintSkin, box, cyl, onSkin, tubeGeo } from "../geometry";
 import { useM20C } from "../store";
 import { CAT } from "./catalogue";
 export const DOOR_POSE: Record<string, number> = { cabin: 0, baggage: 0 };
@@ -67,4 +68,15 @@ CAT.part(() => box(0.035, 0.03, 0.018), ["cabin"], {
     m.rotation.z = doorTarget("cabin") * 0.7;
   },
   note: "Handle-operated cabin latch (1968 OM p. 15; MAN205 Fig 15, 1968–1975 installation). Shape, placement and latch rotation illustrative.",
+});
+
+registerCabinTrim(CAT, FUSE, DOOR_SKIN, {
+  aft: -0.5,
+  front: 1.56,
+  doors: DOORS,
+  windows: [
+    { side: -1, outline: DOOR_SKIN.outline(WIN.front) },
+    ...[-1, 1].map((side) => ({ side, outline: DOOR_SKIN.outline(WIN.rear) })),
+  ],
+  note: "Fixed cabin lining surrounds the single cabin door and baggage opening (1968 OM p. 15; MAN205 Figs 15–16). The existing shaped floor retains the Johnson-bar recess.",
 });

@@ -1,3 +1,5 @@
+import { cabinFloor } from "@/lib/cabin-trim";
+import { FUSE, fs } from "../geometry";
 /** AFM 7-13/14/18: rear-door damper and four serial brake masters. Travel/attachments illustrative. */
 import { Vector3 } from "three";
 import { telescopingStrut } from "@/lib/strut";
@@ -56,4 +58,11 @@ bindHardwareMotion(CAT, "Canopy handle (left)", () => (mesh) => {
 });
 bindHardwareMotion(CAT, "Rear door safety lever", () => (mesh) => {
   mesh.rotation.z = sim().s.doors.rear ? 0 : 0.8;
+});
+
+CAT.part(() => cabinFloor(FUSE, fs(3.98), fs(1.8), -0.56), ["cabin", "airframe"], {
+  name: "Cabin floor covering",
+  fairing: true,
+  color: "#514F4B",
+  note: "Floor panel separates the cabin from the control runs beneath the seats (AFM 7-15, 7-19). Floor height and edge clearance illustrative.",
 });

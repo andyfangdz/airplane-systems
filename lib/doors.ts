@@ -5,7 +5,6 @@ import { fuselageOpenings, insetOutline } from "./fuselage-openings";
 import type { Vec3 } from "./math";
 import { mats, skinMat } from "./materials";
 import type { SysId } from "./systems";
-import { useView } from "./view";
 
 export interface StudyDoor {
   key: string;
@@ -31,13 +30,15 @@ export function studyDoor(
     outline: number[][];
     window?: number[][];
     hinge: [THREE.Vector3, THREE.Vector3];
+    /** Illustrative hinge-barrel offset from the traced skin, in metres. */
+    hingeStandOff?: number;
   },
 ): StudyDoor {
   return {
     ...spec,
     outline: skin.outline(spec.outline),
     window: spec.window && skin.outline(spec.window),
-    pivot: spec.hinge[0],
+    pivot: spec.hinge[0].clone().add(new THREE.Vector3(0, 0, spec.side * (spec.hingeStandOff ?? 0))),
     axis: spec.hinge[1].clone().sub(spec.hinge[0]).normalize(),
   };
 }
@@ -90,33 +91,27 @@ export function registerDoorPanels(
         fairing: true,
         ext: true,
         color: glazing ? "#354C5A" : "#F3F5F6",
-        anim: (mesh) => {
-          const view = useView.getState();
-          if (!view.xray && view.focus !== name)
-            mesh.material = glazing ? glass : (material ??= plainDoorInterior(skinMat(texture).clone()));
-        },
+        solidMaterial: () => (glazing ? glass : (material ??= plainDoorInterior(skinMat(texture).clone()))),
       });
     add(door.name, () => paint(skin.patch(edge, door.window ? [door.window] : [], door.side)), door.glazing);
     if (door.window && !door.windowKey) add(`${door.name} window`, () => skin.patch(door.window!, [], door.side), true);
     if (door.edgeSeal === false) continue;
-    cat.part(
-      () => {
-        const points = edge.map((p) => {
-          const v = skin.point(p, door.side);
-          v.addScaledVector(skin.normal(v), -0.007);
-          return v.toArray() as Vec3;
-        });
-        return tubeGeo([...points, points[0]], 0.003, 0);
-      },
-      systems,
-      {
-        name: `${door.name} edge seal`,
-        note: `${door.note} Seal profile and edge clearance illustrative.`,
-        parent: `door:${door.key}`,
-        color: "#454C50",
-      },
-    );
+    cat.part(() => doorSeal(skin, door), systems, {
+      name: `${door.name} edge seal`,
+      note: `${door.note} Seal profile and edge clearance illustrative.`,
+      parent: `door:${door.key}`,
+      color: "#454C50",
+    });
   }
+}
+
+/** A seal sits inside the panel border; using the aperture itself makes its tube sweep through the jamb. */
+export function doorSeal(skin: DoorSkin, door: StudyDoor) {
+  const points = insetOutline(door.outline, 0.012).map((p) => {
+    const v = skin.point(p, door.side);
+    return v.addScaledVector(skin.normal(v), -0.004).toArray() as Vec3;
+  });
+  return tubeGeo([...points, points[0]], 0.003, 0);
 }
 
 /** Explicit attachment selection. Wrong names/counts fail at registration instead of leaving orphaned hardware. */

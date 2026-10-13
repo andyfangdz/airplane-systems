@@ -22,7 +22,7 @@ import { groupMatrix as m20cParent } from "@/aircraft/m20c/walk";
 import { curveOf } from "@/lib/geometry";
 import { toV } from "@/lib/math";
 import { insideFleetAirframe } from "./fleet-airframe-helpers";
-import { worldGeometry } from "./placement-helpers";
+import { worldGeometry, firstSurfaceSample } from "./placement-helpers";
 
 const fleet = [
   { id: "c172s", cat: C172, flows: C172_FLOWS, ports: C172_PORTS, parent: c172Parent },
@@ -35,47 +35,6 @@ const location = (p: THREE.Vector3) =>
     .toArray()
     .map((v) => v.toFixed(4))
     .join(", ");
-
-/** A non-convex union can contain all three vertices while a face crosses a skin gap. */
-function outsideMesh(g: THREE.BufferGeometry, inside: (p: THREE.Vector3) => boolean) {
-  const position = g.getAttribute("position");
-  const a = new THREE.Vector3(),
-    b = new THREE.Vector3(),
-    c = new THREE.Vector3(),
-    sample = new THREE.Vector3();
-  for (let i = 0; i < position.count; i++) {
-    sample.fromBufferAttribute(position, i);
-    if (!inside(sample)) return sample.clone();
-  }
-  const index = g.getIndex();
-  const count = index?.count ?? position.count;
-  const edges = new Set<string>();
-  const outsideEdge = (i: number, j: number, p: THREE.Vector3, q: THREE.Vector3) => {
-    const key = i < j ? `${i},${j}` : `${j},${i}`;
-    if (edges.has(key)) return false;
-    edges.add(key);
-    return !inside(sample.copy(p).add(q).multiplyScalar(0.5));
-  };
-  for (let i = 0; i < count; i += 3) {
-    const ai = index ? index.getX(i) : i,
-      bi = index ? index.getX(i + 1) : i + 1,
-      ci = index ? index.getX(i + 2) : i + 2;
-    a.fromBufferAttribute(position, ai);
-    b.fromBufferAttribute(position, bi);
-    c.fromBufferAttribute(position, ci);
-    if (
-      !inside(
-        sample
-          .copy(a)
-          .add(b)
-          .add(c)
-          .multiplyScalar(1 / 3),
-      )
-    )
-      return sample.clone();
-    if (outsideEdge(ai, bi, a, b) || outsideEdge(bi, ci, b, c) || outsideEdge(ci, ai, c, a)) return sample.clone();
-  }
-}
 
 describe.each(fleet)("$id complete airframe containment", ({ id, cat, flows, ports, parent }) => {
   // A tenth of a millimetre absorbs Float32/interpolation noise, not visible protrusions.
@@ -90,7 +49,7 @@ describe.each(fleet)("$id complete airframe containment", ({ id, cat, flows, por
         part.parent ? parent(part.parent) : undefined,
       );
       try {
-        const outside = outsideMesh(g, contained);
+        const outside = firstSurfaceSample(g, (p) => !contained(p));
         if (outside) failures.push(`${part.name ?? part.id}: ${location(outside)}`);
       } finally {
         g.dispose();
@@ -116,7 +75,7 @@ describe.each(fleet)("$id complete airframe containment", ({ id, cat, flows, por
         false,
       );
       try {
-        const outside = outsideMesh(g, inside);
+        const outside = firstSurfaceSample(g, (p) => !inside(p));
         if (outside) failures.push(`${flow.key} tube wall: ${location(outside)}`);
       } finally {
         g.dispose();

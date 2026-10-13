@@ -232,6 +232,7 @@ DOORS.push(
     side: -1,
     outline: BAGGAGE_DOOR,
     hinge: [onSkin(0.08, -0.31, -1, 1), onSkin(0.06, 0.09, -1, 1)],
+    hingeStandOff: 0.03,
     angle: (-80 * Math.PI) / 180,
     note: "Left baggage door, hinged forward and secured by the manual key lock (POH 7-26; AMM 52-30). Outline, hinge and travel illustrative for the pre-2901 G6 installation.",
   }),
