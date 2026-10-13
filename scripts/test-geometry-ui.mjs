@@ -33,12 +33,18 @@ try {
   }
   browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
   for (const id of ids) {
-    let downloadedNames;
-    for (const fallback of [false, true]) {
+    let downloadedNames, downloadedBaked;
+    for (const mode of id === "sr22t" ? ["prebuilt", "delayed", "fallback"] : ["prebuilt", "fallback"]) {
+      const fallback = mode === "fallback";
       const context = await browser.newContext({ viewport: { width: 640, height: 480 }, reducedMotion: "reduce" });
       await context.route("**/_vercel/**", (r) => r.fulfill({ status: 204, body: "" }));
       // Worker requests must be intercepted at context scope, not page scope.
       if (fallback) await context.route("**/geometry/*.bin.gz", (r) => r.fulfill({ status: 503, body: "unavailable" }));
+      if (mode === "delayed")
+        await context.route("**/geometry/*.bin.gz", async (r) => {
+          await delay(3000);
+          await r.continue();
+        });
       await context.addInitScript(() => {
         localStorage.setItem("tourDone", "1");
         window.__geometry = { scene: null, frames: 0, workers: [] };
@@ -136,10 +142,16 @@ try {
           `${id}: decoded in worker`,
         );
         assert.ok(!warnings.some((m) => /Prebuilt geometry|Geometry worker/.test(m)), `${id}: unexpected fallback`);
-        downloadedNames = result.names;
+        if (mode === "delayed") {
+          assert.deepEqual(result.names, downloadedNames, `${id}: delayed asset keeps the same equipment`);
+          assert.equal(result.baked, downloadedBaked, `${id}: delayed asset uses every eligible rendered mesh`);
+        } else {
+          downloadedNames = result.names;
+          downloadedBaked = result.baked;
+        }
       }
       console.log(
-        `${id} ${fallback ? "fallback" : "prebuilt"}: ${result.names.length} named meshes, ${result.baked} prebuilt; ${JSON.stringify(result.workers.map(({ meshes, ms, terminated }) => ({ meshes, ms: Math.round(ms || 0), terminated })))}`,
+        `${id} ${mode}: ${result.names.length} named meshes, ${result.baked} prebuilt; ${JSON.stringify(result.workers.map(({ meshes, ms, terminated }) => ({ meshes, ms: Math.round(ms || 0), terminated })))}`,
       );
       await context.close();
     }

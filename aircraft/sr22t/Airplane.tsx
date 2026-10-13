@@ -14,6 +14,7 @@ import { skinMat } from "@/lib/materials";
 import { D2R, type Vec3 } from "@/lib/math";
 import { beginParts, endParts, markAdded, nextFrame, setBuild, useBuild } from "@/lib/build";
 import { specGeo, type PartSpec } from "@/lib/catalogue";
+import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { narrowLayout, useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawMfdScreen, drawOff, drawPfdScreen, drawStandby } from "./displays";
@@ -370,8 +371,8 @@ const SLICE_MS = 8, // approximate: frame pacing, not a source value
 /**
  * The SR22T scene as the airplane mounts it (`progressive`), stage by stage for the loader (lib/build.ts):
  * 1. its shader programs start compiling (components/scene/Precompile.tsx);
- * 2. the skin shells and control surfaces are built in slices between frames, the fuselage skin in a worker
- *    (fuselage-geo.ts, started at boot by the airplane's prepare); part geometry is built ahead until it is back;
+ * 2. the prebuilt catalogue is awaited; on fallback, skin shells and control surfaces are built in slices between frames,
+ *    the fuselage skin in a worker (fuselage-geo.ts); part geometry is built ahead until it is back;
  * 3. once the shaders are ready, the airframe mounts: the camera responds from here on;
  * 4. the parts are built and mount in slices of SLICE_MS between frames, those the view needs first (priority());
  * 5. the tanks, flows, screens and light effects mount, and the scene is complete.
@@ -393,6 +394,10 @@ export function SceneModel() {
       fuselage = fuselageInWorker();
     let hullBuilt: THREE.BufferGeometry | null | undefined;
     void fuselage.then((g) => (hullBuilt = g));
+    // Let the downloaded catalogue populate the cache before any eligible factory runs. On fallback, the fuselage
+    // worker continues in parallel with the sliced procedural build below; shader compilation overlaps both paths.
+    await prepareGeometry(CAT);
+    if (!current()) return;
     // the other shells and the surfaces, in slices between frames; then, until the fuselage is back, part geometry
     // (built, not mounted yet)
     const parts = CAT.parts.filter((p) => !p.fitted || p.fitted()),
