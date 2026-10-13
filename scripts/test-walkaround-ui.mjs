@@ -125,6 +125,8 @@ async function checkCameraRestore(browser, phone, reducedMotion, maxDistance = f
     await context.addInitScript(hookCamera);
     if (maxDistance) await context.addInitScript(holdResizeHook);
     const page = await context.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(`${base}/sr22t/overview`);
     await page.waitForFunction(() => window.__walkCamera.camera && !document.querySelector("[data-building]"), null, {
       timeout: 120_000,
@@ -184,6 +186,7 @@ async function checkCameraRestore(browser, phone, reducedMotion, maxDistance = f
       after.every((v, k) => Math.abs(v - before[k]) <= 1e-3),
       `${name}: active Exit restores the saved camera within 1e-3: ${after} vs ${before}`,
     );
+    assert.deepEqual(errors, [], `${name}: no application runtime errors`);
   } finally {
     await context.close();
   }
