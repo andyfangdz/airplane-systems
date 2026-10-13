@@ -26,6 +26,7 @@ import type { StoreApi } from "zustand";
 import { useView } from "@/lib/view";
 import { PartsList } from "@/components/ui/controls";
 import { useSR20 } from "@/aircraft/sr20/store";
+import { useSR22T } from "@/aircraft/sr22t/store";
 import { CAT as sr20Parts } from "@/aircraft/sr20/parts";
 import { CAT as da40Parts } from "@/aircraft/da40/parts";
 
@@ -37,10 +38,24 @@ function resetter<T>(store: StoreApi<T>) {
   const initial = store.getState();
   return () => store.setState(initial, true);
 }
-const resetStores = [resetter(useSR20), resetter(useC172), resetter(useC182), resetter(useDA40), resetter(useM20C)];
+const resetStores = [
+  resetter(useSR20),
+  resetter(useSR22T),
+  resetter(useC172),
+  resetter(useC182),
+  resetter(useDA40),
+  resetter(useM20C),
+  resetter(useView),
+];
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("matchMedia", (media: string) => ({
+    media,
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
   vi.useFakeTimers();
   // jsdom has no canvas renderer; browser checks cover the instrument displays.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
@@ -64,6 +79,60 @@ const reading = (label: string) =>
     ?.textContent;
 
 describe("compiled fleet panels", () => {
+  for (const [aircraft, live, store] of [
+    [SR20, sr20, useSR20],
+    [SR22T, sr22t, useSR22T],
+  ] as const) {
+    it(`${aircraft.id} publishes CAPS timeline, playback and reset actions before the next sample`, () => {
+      live.capsT = -1;
+      live.capsPlaying = false;
+      store.getState().update((s) => {
+        s.capsOn = false;
+      });
+      useView.setState({ sys: "caps" });
+      const Panel = aircraft.panels.caps!;
+      const Hud = aircraft.Hud!;
+      function Playback() {
+        const snapshot = useLiveSnapshot(live, 100);
+        return <span data-playback>{snapshot.capsPlaying ? "playing" : "paused"}</span>;
+      }
+      render(
+        <>
+          <Panel />
+          <Hud />
+          <Playback />
+        </>,
+      );
+      const timeline = host.querySelector<HTMLInputElement>("#capsT")!;
+      const output = () => host.querySelector('label[for="capsT"] output')?.textContent;
+      const click = (name: string) =>
+        act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === name)!.click());
+      const scrub = (value: number) =>
+        act(() => {
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(timeline, String(value));
+          timeline.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      scrub(6);
+      expect(live.capsT).toBe(6);
+      expect(Number(timeline.value)).toBe(6);
+      expect(output()).toBe("T+6.0 s");
+      scrub(9);
+      expect(output()).toBe("T+9.0 s");
+      click("Pull the handle");
+      expect(output()).toBe("T+0.0 s");
+      expect(host.querySelector("[data-playback]")?.textContent).toBe("playing");
+      click("Pause / play");
+      expect(host.querySelector("[data-playback]")?.textContent).toBe("paused");
+      scrub(4);
+      click("Reset");
+      expect(output()).toBe("T+0.0 s");
+      expect(host.querySelector(".caps-hud b")?.textContent).toBe("Ready");
+      click("Pause / play");
+      expect(host.querySelector(".caps-hud b")?.textContent).not.toBe("Ready");
+      expect(host.querySelector("[data-playback]")?.textContent).toBe("playing");
+    });
+  }
+
   it("publishes DA40 takeoff trim before the next polling interval", () => {
     da40.afcs.trim = 0.8;
     const Panel = DA40.panels.controls!;

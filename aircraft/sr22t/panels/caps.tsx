@@ -1,5 +1,5 @@
 "use client";
-import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useView } from "@/lib/view";
 import { live } from "../model";
 import { resetCaps, startCaps, useSR22T } from "../store";
@@ -21,18 +21,23 @@ export function Caps() {
       <H3>Deployment sequence</H3>
       <Ctl>
         <BtnRow>
-          <button type="button" className="btn primary" onClick={startCaps}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => {
+              startCaps();
+              refreshLiveSnapshot(live);
+            }}
+          >
             Pull the handle
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => {
-              if (!capsOn) {
-                startCaps();
-                return;
-              }
-              live.capsPlaying = !live.capsPlaying;
+              if (!capsOn) startCaps();
+              else live.capsPlaying = !live.capsPlaying;
+              refreshLiveSnapshot(live);
             }}
           >
             Pause / play
@@ -42,6 +47,7 @@ export function Caps() {
             className="btn"
             onClick={() => {
               resetCaps();
+              refreshLiveSnapshot(live);
               const [p, t] = SYS.find((d) => d.id === "caps")!.cam;
               flyTo(p, t);
             }}
@@ -65,6 +71,7 @@ export function Caps() {
             }
             live.capsT = v;
             live.capsPlaying = false;
+            refreshLiveSnapshot(live);
           }}
           fmt={(v) => "T+" + v.toFixed(1) + " s"}
         />
