@@ -663,6 +663,7 @@ export function fuselage({ table, nTop, nBot, tumble, section: sectionOf, profil
   return {
     xNose,
     xTail,
+    stations: table.map((row) => row[0]),
     nTop,
     nBot,
     tumble,

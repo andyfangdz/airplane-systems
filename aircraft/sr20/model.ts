@@ -34,6 +34,7 @@ export interface Sim {
   lights: {
     cabin: CabinSwitch;
     door: boolean;
+    doorR: boolean;
     unlocked: boolean;
     bag: boolean;
     nav: boolean;
@@ -65,7 +66,17 @@ export const initialSim: Sim = {
   env: { fan: 1, temp: 0.35, vent: "PF", ac: false, recirc: false },
   pitot: { heat: true, oat: 8, heaterFail: false, alt: false },
   stall: { aoa: 6, fault: false },
-  lights: { cabin: "AUTO", door: false, unlocked: false, bag: false, nav: true, strobe: true, land: false, ice: false },
+  lights: {
+    cabin: "AUTO",
+    door: false,
+    doorR: false,
+    unlocked: false,
+    bag: false,
+    nav: true,
+    strobe: true,
+    land: false,
+    ice: false,
+  },
   avx: { backup: false, pfdFail: false, dualAdahrs: true, ahrs1Fail: false, ahrs2Fail: false },
   capsOn: false,
 };
@@ -221,7 +232,7 @@ export function cabinLit(s: Sim, E: Elec) {
   const L = s.lights,
     off = { dome: false, foot: false, step: false, bag: false };
   if (!E.convPwr || L.cabin === "OFF") return off;
-  const trig = L.door || L.unlocked;
+  const trig = L.door || L.doorR || L.unlocked;
   if (L.cabin === "ON") return { dome: true, foot: true, step: trig, bag: L.bag };
   return { dome: trig, foot: trig, step: trig, bag: L.bag };
 }

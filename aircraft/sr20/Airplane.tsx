@@ -1,4 +1,5 @@
 "use client";
+import { HingedDoors } from "@/components/scene/HingedDoors";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type * as THREE from "three";
@@ -14,9 +15,23 @@ import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawMfdScreen, drawOff, drawPfdScreen, drawStandby } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { loft, windowOutlines, wingSec } from "./geometry";
+import { DOORS, loft, windowOutlines, wingSec } from "./geometry";
 import { bladeAngle, cabinLit, extLit, live } from "./model";
-import { CAT, CYLS, LIGHTS, NOSE_CASTER, NOSE_GEAR, PROP, TANK_CHORD, TANK_SPAN, YOKES, YOKE_X, YOKE_Y } from "./parts";
+import {
+  DOOR_POSE,
+  doorTarget,
+  CAT,
+  CYLS,
+  LIGHTS,
+  NOSE_CASTER,
+  NOSE_GEAR,
+  PROP,
+  TANK_CHORD,
+  TANK_SPAN,
+  YOKES,
+  YOKE_X,
+  YOKE_Y,
+} from "./parts";
 import { useSR20 } from "./store";
 import { engineHidden } from "./engine-groups";
 import { useEngineGroups } from "./engine-group-store";
@@ -263,6 +278,7 @@ export function Model() {
   return (
     <>
       <Shells cat={CAT} />
+      <HingedDoors cat={CAT} doors={DOORS} pose={DOOR_POSE} target={doorTarget} />
       <ControlSurfaces cat={CAT} angle={surfaceAngle} />
       <P />
       <NoseGear />

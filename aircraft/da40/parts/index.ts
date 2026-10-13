@@ -47,3 +47,5 @@ export type { PartSpec } from "@/lib/catalogue";
 
 import "./hardware-detail";
 import "./control-routing";
+
+export { DOOR_POSE } from "./mechanisms";

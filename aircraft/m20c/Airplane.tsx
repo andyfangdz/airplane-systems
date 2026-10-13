@@ -1,4 +1,5 @@
 "use client";
+import { HingedDoors } from "@/components/scene/HingedDoors";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type * as THREE from "three";
@@ -14,9 +15,9 @@ import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawBreakerCover, drawPanel } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { PANEL_X, TAIL_PIVOT, windowOutlines } from "./geometry";
+import { DOORS, PANEL_X, TAIL_PIVOT, windowOutlines } from "./geometry";
 import { bladeAngle, extLit, live } from "./model";
-import { CAT, CYLS, LIGHTS, MG, NG, PROP, TAIL_SHELLS, TAIL_SURFACE_KEYS } from "./parts";
+import { DOOR_POSE, doorTarget, CAT, CYLS, LIGHTS, MG, NG, PROP, TAIL_SHELLS, TAIL_SURFACE_KEYS } from "./parts";
 import { FLAP_PUMP, JBAR, deflections, johnsonAngle, tailAngle } from "./rig";
 import { fuelBayGeo, mainAngle, noseAngle, noseDoorAngle, noseDoorAxis, noseDoorHinge } from "./placement";
 import { useM20C } from "./store";
@@ -261,6 +262,7 @@ export function Model() {
   return (
     <>
       <Shells cat={CAT} />
+      <HingedDoors cat={CAT} doors={DOORS} pose={DOOR_POSE} target={doorTarget} />
       {CAT.surfaces
         .filter((s) => !TAIL_SURFACE_KEYS.includes(s.key))
         .map((s) => (

@@ -10,6 +10,8 @@ import { paintAtlas, sidePaintUV } from "@/lib/livery";
  * outlines traced from a G6 side photo (OO-CBB, s/n 2347, Wikimedia Commons).
  */
 import * as THREE from "three";
+import { fuselageOpenings } from "@/lib/fuselage-openings";
+import { studyDoor } from "@/lib/doors";
 import { densify, finSurface, fuselage, liftingSurface, roundPoly, type Ring } from "@/lib/geometry";
 import { clamp, lerp } from "@/lib/math";
 
@@ -198,10 +200,47 @@ export const DOOR = roundPoly(
   0.12,
 );
 
+/** Door seams retained from the G6 photograph; hinge coordinates/travel are illustrative.
+ * Forward/upward cabin opening: POH 11934-005 7-33, AMM 12137-002 52-10 Fig 52-10-1.
+ * Forward-hinged left baggage door: POH 7-26 / AMM 52-30. */
+export const BAGGAGE_DOOR = roundPoly(
+  [
+    [-0.36, -0.31],
+    [-0.36, 0.09],
+    [0.06, 0.09],
+    [0.08, -0.31],
+  ],
+  0.07,
+);
+export const DOOR_SKIN = fuselageOpenings(FUSE);
+export const DOORS = [-1, 1].map((side) =>
+  studyDoor(DOOR_SKIN, {
+    key: side < 0 ? "L" : "R",
+    name: side < 0 ? "Left cabin door" : "Right cabin door",
+    side,
+    outline: DOOR,
+    window: WIN.front,
+    hinge: [onSkin(1.95, -0.22, side, 1), onSkin(1.81, 0.39, side, 1)],
+    angle: (side * 70 * Math.PI) / 180,
+    note: "Forward-hinged cabin door with gas-strut assistance (POH 11934-005 7-33; AMM 12137-002 52-10). Opening, hinge coordinates and travel illustrate operation; they are not installation dimensions.",
+  }),
+);
+DOORS.push(
+  studyDoor(DOOR_SKIN, {
+    key: "bag",
+    name: "Baggage door panel",
+    side: -1,
+    outline: BAGGAGE_DOOR,
+    hinge: [onSkin(0.08, -0.31, -1, 1), onSkin(0.06, 0.09, -1, 1)],
+    angle: (-80 * Math.PI) / 180,
+    note: "Left baggage door, hinged forward and secured by the manual key lock (POH 7-26; AMM 52-30). Outline, hinge and travel illustrative for the pre-2901 G6 installation.",
+  }),
+);
+
 /** Window outline loops projected onto the skin (both sides + windshield). */
 export function windowOutlines(): THREE.Vector3[][] {
   const loops: THREE.Vector3[][] = [];
-  [1, -1].forEach((s) => [WIN.front, WIN.rear].forEach((w) => loops.push(densify(w).map(([x, y]) => onSkin(x, y, s)))));
+  [1, -1].forEach((s) => [WIN.rear].forEach((w) => loops.push(densify(w).map(([x, y]) => onSkin(x, y, s)))));
   const side = (s: number) => densify(WIN.windLower, 0.03, false).map(([x, y]) => onSkin(x, y, s));
   const ta = FUSE.thetaAt(1.73, 0.6),
     tb = FUSE.thetaAt(2.45, 0.24);
@@ -215,7 +254,7 @@ export function windowOutlines(): THREE.Vector3[][] {
 }
 
 /** Fuselage loft with side-projected UVs for the painted skin texture. */
-export const fuselageGeo = () => sidePaintUV(cutCowlInlets(FUSE.geo({ step: 0.06, N: 48 }), COWL_INLETS.sr20), SK);
+export const fuselageGeo = () => sidePaintUV(cutCowlInlets(DOOR_SKIN.hull(DOORS), COWL_INLETS.sr20), SK).setIndex(null);
 
 /** Paints N800KP’s photo-referenced stripes, window shapes and door seams (browser only). */
 export function paintSkin(): THREE.CanvasTexture {
@@ -255,7 +294,7 @@ export function paintSkin(): THREE.CanvasTexture {
   ]);
   g.fillStyle = glass();
   g.fill();
-  [WIN.front, WIN.rear].forEach((w) => {
+  [WIN.rear].forEach((w) => {
     path(w);
     g.fillStyle = glass();
     g.fill();

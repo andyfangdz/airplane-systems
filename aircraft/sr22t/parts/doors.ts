@@ -1,6 +1,7 @@
 /** Door hardware: POH 13772-007 7-31/7-26; AMM 13773-002 Rev 7 ch. 52.
  * Hardware sizes/attachment coordinates are illustrative, scaled from the cited figures. */
 import * as THREE from "three";
+import { plainDoorInterior } from "@/lib/doors";
 import { mats, skinMat } from "@/lib/materials";
 import { useView } from "@/lib/view";
 import { toVec3 } from "@/lib/math";
@@ -37,16 +38,7 @@ doorGlass.side = THREE.DoubleSide;
 
 /** Exterior livery stays on front faces; the cabin sees plain trim, not reversed pinstripes.
  * Interior finish is cosmetic/illustrative (AMM Fig 52-10-8, PDF 2046). */
-export function plainDoorInterior(material: THREE.MeshStandardMaterial) {
-  material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <map_fragment>",
-      "#include <map_fragment>\nif (!gl_FrontFacing) diffuseColor = vec4(diffuse, opacity);",
-    );
-  };
-  material.customProgramCacheKey = () => "sr22t-door-interior";
-  return material;
-}
+export { plainDoorInterior } from "@/lib/doors";
 let paintedDoor: THREE.MeshStandardMaterial | undefined;
 const doorMaterial = () => (paintedDoor ??= plainDoorInterior(skinMat(paintSkin).clone()));
 

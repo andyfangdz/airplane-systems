@@ -96,7 +96,15 @@ export interface Sim {
   };
   /** Latched annunciation timers (set by tick.ts): LOW FUEL needs 60 s, STBY BATT 10 s. */
   ann: { lowFuelL: boolean; lowFuelR: boolean; stbyBatt: boolean };
-  cabin: { doorL: boolean; doorR: boolean; bag: boolean; lock: boolean; elt: "ARM" | "ON" | "TEST" };
+  cabin: {
+    windowL: boolean;
+    windowR: boolean;
+    doorL: boolean;
+    doorR: boolean;
+    bag: boolean;
+    lock: boolean;
+    elt: "ARM" | "ON" | "TEST";
+  };
 }
 
 export const initialSim: Sim = {
@@ -146,7 +154,7 @@ export const initialSim: Sim = {
     aftFanFail: false,
   },
   ann: { lowFuelL: false, lowFuelR: false, stbyBatt: false },
-  cabin: { doorL: false, doorR: false, bag: false, lock: false, elt: "ARM" },
+  cabin: { windowL: false, windowR: false, doorL: false, doorR: false, bag: false, lock: false, elt: "ARM" },
 };
 
 /* ---------- flight model and autopilot configuration ---------- */

@@ -81,6 +81,16 @@ afterEach(() => {
 });
 
 describe("SR22T door geometry", () => {
+  it("keeps the fixed hull within its rendering budget without discarding finite normals or paint UVs", () => {
+    const hull = fixedHullGeo();
+    expect((hull.index?.count ?? hull.getAttribute("position").count) / 3).toBeLessThan(100_000);
+    for (const name of ["position", "normal", "uv"]) {
+      const attribute = hull.getAttribute(name);
+      expect(attribute.count).toBe(hull.getAttribute("position").count);
+      expect(Array.from(attribute.array).every(Number.isFinite)).toBe(true);
+    }
+    for (const x of [-3, -1, 1, 3.74]) for (const q of [-1, 1]) expect(doorSkin(x, q, 1).z).toBe(0);
+  }, 30_000);
   it("the cabin door opening matches POH Fig 1-2 (PDF p. 15)", () => {
     for (const side of [-1, 1]) {
       const p = DOOR_OPENING(side),

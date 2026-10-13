@@ -103,6 +103,8 @@ export function Overview() {
 }
 
 export function Doors() {
+  const lights = useSR20((x) => x.s.lights),
+    up = useSR20((x) => x.update);
   return (
     <>
       <p className="lead">
@@ -119,11 +121,33 @@ export function Doors() {
           ["Windows", "Acrylic; use approved cleaning methods"],
         ]}
       />
+      <H3>Operate the doors</H3>
+      <Ctl>
+        {(
+          [
+            ["door", "Left cabin door open"],
+            ["doorR", "Right cabin door open"],
+            ["bag", "Baggage door open"],
+          ] as const
+        ).map(([key, label]) => (
+          <Check
+            key={key}
+            id={`doors-${key}`}
+            label={label}
+            checked={lights[key]}
+            onChange={(v) =>
+              up((d) => {
+                d.lights[key] = v;
+              })
+            }
+          />
+        ))}
+      </Ctl>
       <H3>Door hardware — tap to locate</H3>
       <PartsList parts={CAT.pinned("doors")} />
       <Small>
-        Door geometry is shown closed; the light-panel door switch represents a cabin door opening for convenience
-        lighting. Later serial 8500-and-up baggage-lock behavior is outside this configuration.
+        Panels, windows and latch hardware move together; struts follow both attachments. Opening angles and hardware
+        travel are illustrative. Later serial 8500-and-up baggage-lock behavior is outside this configuration.
       </Small>
     </>
   );
@@ -272,7 +296,7 @@ export function Lighting() {
         />
         <Check
           id="door"
-          label="A cabin door is open"
+          label="Left cabin door open"
           checked={L.door}
           onChange={(v) =>
             up((d) => {

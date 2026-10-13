@@ -67,3 +67,12 @@ are schematic. The control details respond to the existing simulation state; no 
 or electrical dependencies are introduced. Geometry is built through the same source catalogue
 and lossless meshoptimizer pipeline as the SR22T. Tests check envelope containment, independent
 control operation, route clearance and byte-exact encoded/decoded geometry.
+
+## Working openings and mechanisms
+
+AFM 6.01.01-E 7-13/14 describes the brake pedals and four masters, with pilot/copilot masters in series for each wheel; 7-17/18 describes canopy/rear-door locks and the rear-door gas-pressure damper. The rear strut now has a fixed-length barrel and sliding rod connected to the actual rendered door pose. Toe pressure moves the applicable piston rods and pedals; retained parking pressure does not hold the pedals depressed. The canopy bolts retract in OPEN, remain engaged in the cooling gap, and the rear locks/lever follow their control.
+
+The shared curved-skin triangulation, panel parenting and strut helpers use the same source catalogue and
+lossless prebuilt pipeline as the SR22T. Opening angles, hinge/anchor offsets, clearances, hardware shapes and
+mechanism travel are illustrative, not manufacturer rigging dimensions. Existing station profiles and traced
+outlines are retained. Functional/surface checks and remaining fleet gaps are listed in [MODELING.md](../../MODELING.md).

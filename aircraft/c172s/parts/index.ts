@@ -42,3 +42,5 @@ import "./depth-inspection";
 
 import "./hardware-detail";
 import "./control-routing";
+
+export { DOOR_POSE, doorTarget } from "./door-motion";

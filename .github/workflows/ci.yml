@@ -28,6 +28,13 @@ jobs:
       - name: Install browsers for interaction tests
         run: npx playwright-core install --with-deps chromium webkit
       - run: npm run test:ui:geometry
+      - run: npm run test:ui:doors -- --shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fleet-door-review
+          path: .shots/mechanisms
+          if-no-files-found: ignore
       - run: npm run test:ui:m20c
       - run: npm run test:ui:fleet
       - run: npm run test:ui:depth

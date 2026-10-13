@@ -97,3 +97,12 @@ are schematic. The control details respond to the existing simulation state; no 
 or electrical dependencies are introduced. Geometry is built through the same source catalogue
 and lossless meshoptimizer pipeline as the SR22T. Tests check envelope containment, independent
 control operation, route clearance and byte-exact encoded/decoded geometry.
+
+## Working openings and mechanisms
+
+POH 7-27–28 and 172RPC24 52-10/52-10-02 support the front-hinged cabin doors, handle/latch linkage and top-hinged opening windows; 52-30 covers the baggage door. Existing outlines now cut real apertures. Window groups are children of their cabin doors, so either can operate independently while the handles and latches stay attached. The bolt retracts and the linkage/handle move with the opening command.
+
+The shared curved-skin triangulation, panel parenting and strut helpers use the same source catalogue and
+lossless prebuilt pipeline as the SR22T. Opening angles, hinge/anchor offsets, clearances, hardware shapes and
+mechanism travel are illustrative, not manufacturer rigging dimensions. Existing station profiles and traced
+outlines are retained. Functional/surface checks and remaining fleet gaps are listed in [MODELING.md](../../MODELING.md).

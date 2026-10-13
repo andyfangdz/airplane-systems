@@ -1,3 +1,4 @@
+import { DOORS } from "@/aircraft/sr20/geometry";
 /** Internal installation consistency with the modeled skin; this does not assert surveyed maintenance dimensions. */
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
@@ -14,6 +15,7 @@ import { insideSR20Airframe } from "./sr20-airframe-helpers";
 
 function parentMatrix(parent: string | undefined) {
   if (!parent) return undefined;
+  if (DOORS.some((door) => parent === `door:${door.key}`)) return new THREE.Matrix4();
   if (parent.startsWith("cyl:")) {
     const c = CYLS.find((c) => `cyl:${c.n}` === parent)!;
     return new THREE.Matrix4().makeTranslation(c.x, -0.14, c.s * 0.25);

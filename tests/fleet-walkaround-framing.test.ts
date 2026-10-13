@@ -95,7 +95,7 @@ function checkFraming<S>(
       expect(V(...pose.p).distanceTo(target)).toBeGreaterThan(V(...close.p).distanceTo(target));
       expect(pose.t).toEqual(close.t);
       expect(walk.stepCentroid(step)?.distanceTo(target)).toBeLessThan(1e-8);
-    });
+    }, 30_000); // This branch lazily builds the complete source hull for marker raycasts.
   });
 }
 checkFraming(c172, cat172, parent172, prop172, "5-4", [0]);

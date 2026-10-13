@@ -28,7 +28,9 @@ import { cutMainWell, cutNoseWell } from "../placement";
 
 /* ---------- airframe shells ---------- */
 shell(
-  () => cutNoseWell(fuselageGeo()),
+  // The clipper emits a triangle stream with an identity index. Leave it unindexed so
+  // the shared encoder can deduplicate identical position/normal/UV tuples losslessly.
+  () => cutNoseWell(fuselageGeo()).setIndex(null),
   "Fuselage",
   "Cabin: welded 4130 steel-tube truss covered with aluminium skins; stainless-steel firewall. Tail cone: conventional aluminium monocoque (OM p. 5–6; Ranger 1-2). Short-body M20C fuselage, unchanged 1962–77.",
   true,

@@ -1,4 +1,5 @@
 "use client";
+import { HingedDoors } from "@/components/scene/HingedDoors";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import type * as THREE from "three";
@@ -22,9 +23,11 @@ import {
   drawStbyAsi,
 } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { Z, loft, sided, windowOutlines, wingSec } from "./geometry";
+import { DOORS, Z, loft, sided, windowOutlines, wingSec } from "./geometry";
 import { live } from "./model";
 import {
+  DOOR_POSE,
+  doorTarget,
   CAT,
   COWL_FLAP,
   KAP_LCD,
@@ -509,6 +512,7 @@ export function Model() {
   return (
     <>
       <Shells cat={CAT} />
+      <HingedDoors cat={CAT} doors={DOORS} pose={DOOR_POSE} target={doorTarget} />
       <ControlSurfaces cat={CAT} angle={surfaceAngle} />
       <P />
       <NoseGear />

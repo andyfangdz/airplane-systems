@@ -92,3 +92,17 @@ are schematic. The control details respond to the existing simulation state; no 
 or electrical dependencies are introduced. Geometry is built through the same source catalogue
 and lossless meshoptimizer pipeline as the SR22T. Tests check envelope containment, independent
 control operation, route clearance and byte-exact encoded/decoded geometry.
+
+## Working openings and mechanisms
+
+The 1968 Owner’s Manual p. 15 supports the cabin pull strap and handle operation. MAN205 Fig. 15 (1968–1975 cabin installation) and Fig. 16 (baggage) identify hinge halves/pins, latch arms/guides and paired baggage lock pins. The existing cabin and baggage outlines now cut real apertures; the right cabin door opens forward and the baggage panel opens about its top hinge. The strap, glazing, handle, latch and lock pins follow the panels. No later inside emergency-release retrofit is assumed (SI M20-40 describes an optional retrofit).
+
+The shared curved-skin triangulation, panel parenting and strut helpers use the same source catalogue and
+lossless prebuilt pipeline as the SR22T. Opening angles, hinge/anchor offsets, clearances, hardware shapes and
+mechanism travel are illustrative, not manufacturer rigging dimensions. Existing station profiles and traced
+outlines are retained. Functional/surface checks and remaining fleet gaps are listed in [MODELING.md](../../MODELING.md).
+
+The real roof-wrapping door opening also exposed front headliner fixtures placed beneath the moving panel. Their
+schematic lateral offsets now keep both spot lights and the front ceiling outlets on the fixed center headliner;
+shared anchors move the connected duct routes with them. The roof-attachment test checks the fixed hull, including
+with the door absent, so an open door cannot leave those fixtures floating in the aperture.

@@ -49,7 +49,7 @@ describe("M20C overhead attachments", () => {
       skin.geometry.dispose();
       material.dispose();
     }
-  });
+  }, 30_000); // Includes cold construction of the complete curved source hull.
 
   it("keeps the ceiling ducts inside the roof and joined to their outlets", () => {
     const vents = CAT.parts.filter((p) => p.name === "Ceiling outlet");
