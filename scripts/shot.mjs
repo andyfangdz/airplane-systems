@@ -205,7 +205,8 @@ try {
     );
     await page.waitForTimeout(wait);
     const file = join(out, v.replace("/", "-") + (phone ? "-phone" : "") + ".png");
-    writeFileSync(file, await page.screenshot({ fullPage: phone }));
+    // Software WebGL can need longer than Playwright's default 30 s to read back a detailed fleet scene.
+    writeFileSync(file, await page.screenshot({ fullPage: phone, timeout: 120000 }));
     if (compare) {
       const ref = join(resolve(compare), file.slice(out.length + 1));
       if (!existsSync(ref)) console.log(`  no reference ${ref}`);

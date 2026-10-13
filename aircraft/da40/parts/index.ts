@@ -44,3 +44,6 @@ import "./depth";
 import "./walk-inspection";
 
 export type { PartSpec } from "@/lib/catalogue";
+
+import "./hardware-detail";
+import "./control-routing";

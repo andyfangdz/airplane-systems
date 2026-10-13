@@ -1,7 +1,8 @@
 /** The SR22T fuselage skin built in a Web Worker (fuselage.worker.ts), so the main thread stays free while it is built. */
 import * as THREE from "three";
 import { create } from "zustand";
-import { primeGeo } from "@/lib/catalogue";
+import { primeGeo, specGeo } from "@/lib/catalogue";
+import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { fuselageGeo } from "./geometry";
 import { CAT } from "./parts";
 
@@ -22,11 +23,13 @@ let pending: Promise<THREE.BufferGeometry | null> | null = null;
 export function fuselageInWorker(): Promise<THREE.BufferGeometry | null> {
   // one build per page: the first call (the airplane's prepare, at boot) starts it, the model's build awaits the same one;
   // its result becomes the shell's geometry the moment it arrives, so nothing builds the hull again meanwhile
-  return (pending ??= buildInWorker().then((g) => {
-    if (g) primeGeo(HULL, g);
-    useFuselage.setState({ settled: true });
-    return g;
-  }));
+  return (pending ??= prepareGeometry(CAT)
+    .then((ready) => (ready ? specGeo(HULL) : buildInWorker()))
+    .then((g) => {
+      if (g) primeGeo(HULL, g);
+      useFuselage.setState({ settled: true });
+      return g;
+    }));
 }
 
 /** Whether the page's worker build of the fuselage has finished (its geometry primed) or given up. */

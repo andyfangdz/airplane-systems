@@ -27,6 +27,7 @@ jobs:
       - run: npm run build
       - name: Install browsers for interaction tests
         run: npx playwright-core install --with-deps chromium webkit
+      - run: npm run test:ui:geometry
       - run: npm run test:ui:m20c
       - run: npm run test:ui:fleet
       - run: npm run test:ui:depth

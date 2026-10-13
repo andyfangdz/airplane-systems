@@ -29,7 +29,9 @@ export function specGeo(spec: { geo: () => THREE.BufferGeometry }) {
 
 /** Use `g`, built elsewhere (a worker) by `spec.geo`'s own code, as `spec`'s geometry, unless it has one already. */
 export function primeGeo(spec: { geo: () => THREE.BufferGeometry }, g: THREE.BufferGeometry) {
-  if (!geoCache.has(spec)) geoCache.set(spec, g);
+  if (geoCache.has(spec)) return false;
+  geoCache.set(spec, g);
+  return true;
 }
 
 /** Rejects a `groups` tag outside `allowed` at registration, for specs the types don't reach (casts, JSON). */
@@ -63,7 +65,7 @@ export interface PartSpec {
   /** Moving group this part rides on (e.g. "surf:elevR", "blade:0"); the airplane's Model renders it. */
   parent?: string;
   anim?: PartAnim;
-  /** Animation owns replacement geometry; release it on unmount and retain the shared catalogue geometry. */
+  /** Animation mutates geometry or owns its replacement: keep procedural metadata; release replacements on unmount. */
   dynamicGeo?: boolean;
   /** Optional equipment: while this returns false the part is left out of `partsFor` and `pinned` (scene, pins, lists). */
   fitted?: () => boolean;

@@ -82,3 +82,18 @@ an unverified engine-airframe-unit termination.
 ## Cabin routing verification
 
 Long avionics, intercom, ELT and pressure connections follow schematic underfloor, sidewall and headliner lanes. They retain their source connections and equipment arms while clearing the modeled cushions, seat backs and instrument sightlines. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.
+
+## Shared component and geometry pipeline
+
+`parts/hardware-detail.ts` explicitly selects existing source-cited equipment for more legible
+cases, covers, actuator housings and filter media. Their installation envelopes, system roles
+and optional-equipment rules remain those of the cited parts. Surface seams, internal finish,
+pleat spacing and displayed mechanism travel are illustrative, not manufacturer measurements.
+No connector counts, terminal layouts or new equipment ratings are inferred.
+
+Mechanical throttle/mixture/governor sheath routes retain this aircraft's control architecture
+and cite the applicable POH/AFM in their part notes. Bend radii, ferrules and attachment offsets
+are schematic. The control details respond to the existing simulation state; no new dynamics
+or electrical dependencies are introduced. Geometry is built through the same source catalogue
+and lossless meshoptimizer pipeline as the SR22T. Tests check envelope containment, independent
+control operation, route clearance and byte-exact encoded/decoded geometry.

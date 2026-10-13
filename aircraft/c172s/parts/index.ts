@@ -39,3 +39,6 @@ import "./depth-controls";
 
 import "./depth-presentation";
 import "./depth-inspection";
+
+import "./hardware-detail";
+import "./control-routing";

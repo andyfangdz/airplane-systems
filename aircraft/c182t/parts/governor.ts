@@ -2,6 +2,7 @@
  * C182T catalogue: propeller governor and the throttle, propeller and mixture cables (POH 7-27, 7-37, 6-24); the knobs
  * are in engine.ts.
  */
+import { controlCableGeo } from "@/lib/hardware";
 import type { Vec3 } from "@/lib/math";
 import { glowAnim as glow } from "@/lib/anims";
 import { cyl, tubeGeo } from "../geometry";
@@ -41,20 +42,27 @@ part(
 );
 part(
   () =>
-    tubeGeo([P3(KNOB.fs - 1, -1.8, KNOB.h), P3(10, -2, 42), P3(0, -2, 39), P3(-14, -2, 36), P3(-21, -1, 35.5)], 0.004),
+    controlCableGeo(
+      [P3(KNOB.fs - 1, -1.8, KNOB.h), P3(10, -2, 42), P3(0, -2, 39), P3(-14, -2, 36), P3(-21, -1, 35.5)],
+      0.004,
+    ),
   ["engine"],
   {
     color: "#3E4A52",
     name: "Throttle cable",
-    note: "Throttle knob → fuel/air control unit throttle valve (POH 7-27, 7-35).",
+    note: "Throttle knob → fuel/air control unit throttle valve (POH 7-27, 7-35). Sheath bends and end ferrules are illustrative.",
   },
 );
 part(
-  () => tubeGeo([P3(KNOB.fs - 1, 5.8, KNOB.h), P3(10, 5, 42), P3(0, 3, 38.5), P3(-14, 2, 35), P3(-21, 1, 35)], 0.004),
+  () =>
+    controlCableGeo(
+      [P3(KNOB.fs - 1, 5.8, KNOB.h), P3(10, 5, 42), P3(0, 3, 38.5), P3(-14, 2, 35), P3(-21, 1, 35)],
+      0.004,
+    ),
   ["engine"],
   {
     color: "#C8313B",
     name: "Mixture cable",
-    note: "Mixture knob → fuel/air control unit: full in = RICH, full out = IDLE CUTOFF (POH 7-28).",
+    note: "Mixture knob → fuel/air control unit: full in = RICH, full out = IDLE CUTOFF (POH 7-28). Sheath bends and end ferrules are illustrative.",
   },
 );

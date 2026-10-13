@@ -12,6 +12,7 @@ import { view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
 import { nextFrame, setBuild, useBuild } from "@/lib/build";
 import { advanceSimulation } from "@/lib/simulationClock";
+import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { CAMERA_FOV, cameraFitDistance as fitDist } from "@/lib/camera";
 import { useView } from "@/lib/view";
 import type { PickInfo } from "./Part";
@@ -200,7 +201,9 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
   useEffect(() => {
     if (def.progressive) return;
     let current = true;
-    void nextFrame().then(() => {
+    void nextFrame().then(async () => {
+      if (!current) return;
+      if (def.labels) await prepareGeometry(def.labels.cat);
       if (current) setMountModel(true);
     });
     return () => {

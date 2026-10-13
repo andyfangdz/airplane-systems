@@ -76,6 +76,7 @@ export const HARNESS: Record<"fwdL" | "fwdR" | "aft", Vec3> = {
 };
 [-1, 1].forEach((s) =>
   part(() => tubeGeo(fwdStrap(s), 0.012), ["caps"], {
+    dynamicGeo: true,
     anim: tearOut,
     name: "Forward harness strap",
     note: "Runs from the canister just under the fuselage skin to a firewall attach point, and pulls through the skin covering when the parachute deploys (POH 7-98). The path along the side, below the door, and the fitting height are illustrative.",

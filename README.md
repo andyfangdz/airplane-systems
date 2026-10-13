@@ -16,6 +16,7 @@ npm run test:ui:fleet # airplane picker: desktop, phone, keyboard and switching 
 npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
 npm run test:ui:sr20 -- http://localhost:3000 # SR20 guided preflight, against a running server
 npm run test:ui:depth # C172S, C182T, DA40 and M20C preflight browser checks (after build; also run in CI)
+npm run test:ui:geometry # production asset loading, animation compatibility and procedural fallback for every airplane
 npm run check      # formatting, typecheck and tests (what CI runs, plus the build)
 npm run format     # format everything with Prettier
 npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all") into .shots/
@@ -25,6 +26,25 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 (`npx playwright-core install chromium`); with `--compare <dir>` it reports which views changed against an earlier set.
 `npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright-core install chromium webkit`); it tests desktop input
 and touch taps with Android and iPhone device profiles.
+
+### Production geometry
+
+`npm run build` first runs `npm run geometry:build`. It evaluates all six source catalogues, losslessly indexes large
+triangle meshes and encodes their attributes with **meshoptimizer's WebAssembly codec**. Hashed `.bin.gz` assets and
+a manifest are generated in `public/geometry/` (ignored by git), then included in the Next.js build or static export.
+No Rust toolchain is required. There is no mesh simplification, coordinate quantization or change to simulation logic.
+
+The browser downloads only the selected aircraft's asset. A short-lived worker decompresses and decodes it, transfers
+the buffers, and primes the normal geometry cache. Missing, corrupt or unavailable assets fall back to the source
+factories; development always uses those factories so geometry edits are immediate. Geometry mutated by animations
+(`dynamicGeo`, including CAPS tear-out straps) stays procedural. Positions, materials and control animations remain live.
+The encoder is build-only; the decoder runs in the worker. Old hashed assets are retained for open pages; clean
+`public/geometry/` before a build when a deployment should include only its current assets.
+
+`tests/fleet-prebuilt-geometry.test.ts` checks every encoded attribute and index byte against the source and exercises
+part animations on decoded meshes. The source factories and each aircraft's cited installation data remain the modeling
+pipeline. Shared hardware detail in `lib/hardware.ts` adds enclosure seams, filter frames, actuators and mechanical
+cable sheaths within explicitly selected aircraft-specific envelopes; it does not infer certified component dimensions.
 
 ## What's modelled
 
