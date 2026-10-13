@@ -1,5 +1,7 @@
 /** Cabin finishes separate the occupied cabin from systems behind trim. All offsets are illustrative. */
 import * as THREE from "three";
+import polygonClipping from "polygon-clipping";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Catalogue } from "./catalogue";
 import type { StudyDoor, DoorSkin } from "./doors";
 import { fuselageNormal } from "./fuselage-openings";
@@ -36,6 +38,8 @@ export function registerCabinTrim(
     floor?: number;
     doors: StudyDoor[];
     windows?: { side: number; outline: THREE.Vector2[] }[];
+    /** Optional outer edge, e.g. a headliner ending at a wraparound roof window. */
+    liningOutline?: THREE.Vector2[];
     note: string;
   },
 ) {
@@ -54,7 +58,7 @@ export function registerCabinTrim(
       color: "#514F4B",
       solidMaterial: () => mats("#514F4B").on,
     });
-  const outline = [
+  const outline = options.liningOutline ?? [
     new THREE.Vector2(options.aft, -1),
     new THREE.Vector2(options.front, -1),
     new THREE.Vector2(options.front, 1),
@@ -109,22 +113,33 @@ export function registerCabinTrim(
       .filter((d) => d.side === side)
       .map((d) => d.outline);
     cat.part(
-      () =>
-        curvedSkinPatch({
-          outline,
-          holes,
-          side,
-          point: (p) => liningPoint(p, side),
-          // Parameterization belongs to the source skin: refinement must not re-project the inset point.
-          parameter: (p) => {
-            const cy = fuse.fus(p.x).cy;
-            return skin.parameter(new THREE.Vector3(p.x, cy + (p.y - cy) / 0.9, p.z / 0.9));
-          },
-          normal: (p) => fuselageNormal(fuse, p),
-          uv: (p) => [p.x, p.y],
-          splitX: fuse.stations,
-          tolerance: 0.002,
-        }),
+      () => {
+        // Roof and side glazing may overlap or meet the headliner edge. CDT expects
+        // nonintersecting loops, so resolve the actual finish regions first.
+        const ring = (points: THREE.Vector2[]) => points.map((p) => [p.x, p.y] as [number, number]);
+        const regions = polygonClipping.difference([ring(outline)], ...holes.map((h) => [ring(h)]));
+        const pieces = regions.map((region) => {
+          const loops = region.map((r) => r.slice(0, -1).map(([x, y]) => new THREE.Vector2(x, y)));
+          return curvedSkinPatch({
+            outline: loops[0],
+            holes: loops.slice(1),
+            side,
+            point: (p) => liningPoint(p, side),
+            // Invert the inset when testing a chord against its original aperture.
+            parameter: (p) => {
+              const cy = fuse.fus(p.x).cy;
+              return skin.parameter(new THREE.Vector3(p.x, cy + (p.y - cy) / 0.9, p.z / 0.9));
+            },
+            normal: (p) => fuselageNormal(fuse, p),
+            uv: (p) => [p.x, p.y],
+            splitX: fuse.stations,
+            tolerance: 0.002,
+          });
+        });
+        const merged = mergeGeometries(pieces)!;
+        pieces.forEach((g) => g.dispose());
+        return merged;
+      },
       ["cabin", "airframe"],
       { ...common, name: "Fixed cabin lining" },
     );

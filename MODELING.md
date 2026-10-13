@@ -26,11 +26,11 @@ Missing assets still invoke the complete source factories. `npm run geometry:sta
 | Aircraft | Hull triangles before | Hull triangles after | Total triangles before | Total triangles after | Gzip MiB before | Gzip MiB after |
 | -------- | --------------------: | -------------------: | ---------------------: | --------------------: | --------------: | -------------: |
 | SR22T    |               462,451 |               73,385 |                802,090 |               402,569 |           6.829 |          2.330 |
-| SR20     |                12,416 |               61,072 |                161,528 |               229,274 |           1.432 |          1.687 |
-| C172S    |                18,128 |               90,512 |                124,658 |               220,888 |           1.439 |          1.818 |
-| C182T    |                18,938 |               89,219 |                140,992 |               236,072 |           1.678 |          2.014 |
+| SR20     |                12,416 |               61,072 |                161,528 |               229,268 |           1.432 |          1.688 |
+| C172S    |                18,128 |               90,512 |                124,658 |               220,418 |           1.439 |          1.826 |
+| C182T    |                18,938 |               89,219 |                140,992 |               235,583 |           1.678 |          2.020 |
 | DA40     |                11,672 |               11,672 |                 92,020 |                92,770 |           0.990 |          0.992 |
-| M20C     |                11,674 |               51,334 |                 83,528 |               140,117 |           1.029 |          1.188 |
+| M20C     |                11,674 |               51,334 |                 83,528 |               140,103 |           1.029 |          1.188 |
 
 The other four hulls gain triangles because they now wrap the doors, preserve loft stations and resolve curved jambs.
 They are bounded by regression budgets; increasing density is not the target. The DA40 already had moving openings,
@@ -43,8 +43,11 @@ The previous main revision already added selected component cases, filters, cont
 poses across all five aircraft. This change closes the largest remaining functional gap: movable openings with
 hardware that stays attached. Finished cabin floors, fixed lining and jamb return faces now cover the systems
 behind the interior in solid mode, while ghosting for X-ray inspection. Ceiling harnesses descend through fixed
-posts rather than the door apertures; headset terminals and the Mooney side-panel breaker remain on fixed structure.
-The lining uses a 2 mm sampled tolerance and illustrative offsets. All details use the ordinary aircraft catalogue and the shared build/worker pipeline.
+posts rather than the door apertures; solid Cessna post enclosures cover the straight control cables and fuel feeds.
+Pressure junctions remain behind the C172 instrument panel. Rear side, wraparound and roof glazing stay clear of
+the lining. Headset terminals and the Mooney side-panel breaker remain on fixed structure.
+The lining uses `polygon-clipping` 0.15.7 to subtract overlapping glazing before constrained triangulation,
+and a 2 mm sampled tolerance and illustrative offsets. All details use the ordinary aircraft catalogue and the shared build/worker pipeline.
 
 | Area                                           | Current coverage and changes                                                                                                                                                                                                                                                                                                                                                                                                        | Remaining limitation                                                                                                                                                                                 |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -90,6 +93,8 @@ sampled pose or every pair of internal components, and they are not manufacturin
 - `tests/fleet-door-mechanisms.test.ts`: registered hulls have real openings, closed panels fill them, opened panels
   clear them; every panel/glass vertex, edge midpoint and triangle center stays within 0.75 mm of the analytic skin.
   Strut ends remain connected with a rigid barrel and a physically available rod stroke throughout sampled travel.
+- `tests/cessna-cabin-trim.test.ts`: post finishes occlude the actual straight control cables and fuel feeds;
+  pressure junctions sit behind the panel; lining leaves the side and roof rear glazing uncovered.
 - `tests/fleet-door-skin-clearance.test.ts`: operating panels, released hardware, struts and DA40 openings clear fixed exterior skins.
 - `tests/fleet-doorway-clearance.test.ts`: fixed system runs clear the SR20/Cessna entrances above the floor;
   opaque floors cover the underfloor volume and lining/jambs retain the open passage.

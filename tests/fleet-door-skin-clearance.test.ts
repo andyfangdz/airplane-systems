@@ -27,7 +27,7 @@ const fleet = [
 ];
 describe.each(fleet)("$id door surface crossings", ({ geo, cat }) => {
   it("keeps attached panels and hardware clear of fixed skins at eight opening poses", () => {
-    const skins = cat.shells.map((s) => {
+    const skins = [...cat.shells, ...cat.parts.filter((p) => p.name === "Forward door post")].map((s) => {
       const g = s.geo().clone();
       return { name: s.name, g, bvh: new MeshBVH(g) };
     });

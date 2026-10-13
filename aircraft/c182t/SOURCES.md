@@ -158,3 +158,6 @@ See `MODELING.md` and the doorway-clearance regression tests for the limits of t
 
 Opening-clearance follow-up uses the same door sources above. Hinge stand-off, seal inset and jamb subdivision
 are illustrative model corrections verified against the unchanged exterior loft; see `MODELING.md`.
+
+Forward-post trim encloses the Figure 7-1 control runs; its section is illustrative.
+The lining ends at the traced wraparound roof glazing and cuts both rear side-window regions.

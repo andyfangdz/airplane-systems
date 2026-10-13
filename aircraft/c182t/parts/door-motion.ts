@@ -1,3 +1,4 @@
+import { cessnaLiningOutline, finishCessnaPosts } from "../../cessna/cabin-trim";
 import { registerCabinTrim } from "@/lib/cabin-trim";
 /** Cabin/baggage door mechanisms; outlines from this aircraft's airframe, illustrative travel. */
 import { attachDoorParts, doorHardwareMotion, registerDoorPanels } from "@/lib/doors";
@@ -30,6 +31,14 @@ registerCabinTrim(CAT, FUSE, DOOR_SKIN, {
   front: X(25),
   floor: Y(29.5),
   doors: DOORS,
-  windows: [-1, 1].map((side) => ({ side, outline: DOOR_SKIN.outline(WIN.rearSide.map(([fs, h]) => [X(fs), Y(h)])) })),
+  liningOutline: cessnaLiningOutline(DOOR_SKIN, WIN.rearRoof, X, Y),
+  windows: [-1, 1].flatMap((side) =>
+    [WIN.rearSide, WIN.rearWrap].map((window) => ({
+      side,
+      outline: DOOR_SKIN.outline(window.map(([fs, h]) => [X(fs), Y(h)])),
+    })),
+  ),
   note: "Cabin floor and fixed interior trim cover the underfloor and door-post systems (POH Fig 7-1, cabin description). Door and rear-window apertures remain clear; trim ghosts in X-ray.",
 });
+
+finishCessnaPosts(CAT, FUSE, X, Y);

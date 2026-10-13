@@ -342,7 +342,7 @@ wire(
 );
 add(
   "staticAltimeter",
-  [D.staticTee, P(18, 3, 48), D.standbyAlt],
+  [D.staticTee, P(14, 3, 48), D.standbyAlt],
   ["pitot"],
   "Static tee → standby altimeter",
   "POH 7-64: independent standby-altimeter pressure branch.",
