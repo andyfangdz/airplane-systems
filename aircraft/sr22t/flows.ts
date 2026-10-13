@@ -224,8 +224,9 @@ flow(
     // Over the A/C condenser and condenser blower under the baggage floor (parts/aircon.ts). Illustrative.
     [-0.45, -0.46, -0.08],
     [-0.1, -0.455, -0.085],
-    [0.3, -0.48, -0.1],
-    [0.6, -0.62, -0.12],
+    // outboard of the flap actuator under the baggage floor (parts/cabin.ts FLAP_ACT). Illustrative.
+    [0.3, -0.53, -0.16],
+    [0.6, -0.62, -0.17],
     [1.55, -0.55, -0.15],
     // the circuit breaker panel holds the BAT 2 breaker's ESS BUS 1 (parts/cabin.ts); neither is modelled on its own
     off(CB_PANEL, [0, -0.02, -0.01]),
@@ -1380,6 +1381,8 @@ flow(
     // Outboard of the A/C condenser and its blower, inboard of the WX-500 (parts/aircon.ts, parts/avionics.ts),
     // then aft of the pitch servo and under the rudder/elevator pulley gang bracket. Illustrative.
     [0.05, -0.53, -0.155],
+    // over the flap actuator housing (parts/cabin.ts FLAP_ACT), inboard of it before dropping aft of the servo. Illustrative.
+    [0.25, -0.5, -0.04],
     [0.36, -0.61, -0.05],
     [0.4, -0.62, 0.15],
     [0.5, -0.6, 0.1],

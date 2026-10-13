@@ -46,9 +46,9 @@ const ENTRY_TOL = 1e-8;
  * box, area and area centroid instead; measured: area 0.015%, centroid 0.12 mm, bounding box 0. */
 const REMESHED = new Set([
   "sr22t/Fuselage-0",
-  "sr22t/Left cabin door-649",
-  "sr22t/Right cabin door-672",
-  "sr22t/Baggage door-695",
+  "sr22t/Left cabin door-651",
+  "sr22t/Right cabin door-674",
+  "sr22t/Baggage door-697",
 ]);
 const SKIN_TOL = { area: 1e-3 /* relative */, centroid: 1e-3 /* m */, box: 1e-6 };
 /** Three seam vertices take u or 1 − u depending on the runtime; u is summed as min(u, 1 − u). */

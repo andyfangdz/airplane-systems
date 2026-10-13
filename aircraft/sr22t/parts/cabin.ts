@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeos, roundEnds, sweepGeo, tubeGeo } from "@/lib/geometry";
 import { clamp, ease, type Vec3 } from "@/lib/math";
-import { box, cyl, sectionSlab } from "../geometry";
+import { box, cyl, lowerSkinY, sectionSlab } from "../geometry";
 import { live } from "../model";
 import { fsX } from "../rig";
 import { useSR22T } from "../store";
@@ -456,12 +456,68 @@ part(() => cyl(0.02, 1.9, "z"), ["flaps"], {
   name: "Flap torque tube",
   note: "Mechanically ties both flaps to one actuator.",
 });
-part(() => box(0.24, 0.07, 0.09), ["flaps"], {
-  pos: [FT.x + 0.02, FT.y + 0.02, 0],
-  color: "#7C57CF",
-  name: "Flap actuator",
-  note: "Motorized linear actuator; proximity switches stop travel and drive the position lights. 10 A FLAPS, NON ESS BUS.",
-  pin: true,
+/**
+ * Flap drive (AMM 13773-002 Rev 7 27-50; Fig 27-50-2 Detail A, PDF p. 1060): a linear actuator under the baggage floor
+ * (27-50 p. 1, PDF p. 1050) runs fore-and-aft from a skin bracket to the coupler crank on the torque tube. Removal opens
+ * CF4C for the rod-end bolt at the coupler and CF5 for the bracket pin (27-50 p. 2, PDF p. 1051; Fig 6-00-6 PDF p. 123).
+ * The figures are undimensioned: the pin at FS 199 under CF5, the crank drop, the sizes and the 0.10 m offset left of
+ * the centreline are approximate. The offset clears the parts on the centreline under the floor (the pitch servo capstan
+ * and bridle, the trim system relays at CF4C, the marker beacon sled at CF5); the AMM shows no offset. `drop` is the
+ * crank tip below the tube axis, which sets the actuator's height.
+ */
+export const FLAP_ACT = { z: -0.1, drop: 0.05, pinX: fsX(199) };
+const ACT_Y = FT.y - FLAP_ACT.drop;
+/** Rod end at the aft face of the coupler crank (Fig 27-50-2 items 4, 5, 18); aft end just behind the bracket pin (item 9). */
+const ACT_FWD = FT.x - 0.015,
+  ACT_AFT = FLAP_ACT.pinX - 0.02;
+// Actuator: motor and clutch housing with the proximity sensor at the aft end, ram tube, rod end forward (Fig 27-50-2
+// items 1, 2, 4, 5). Lengths and radii approximate. Registered before the coupler and bracket so its id stays put.
+part(
+  () => {
+    const len = ACT_FWD - ACT_AFT,
+      housing = 0.22,
+      ram = 0.255,
+      seg = (r: number, l: number, from: number) => cyl(r, l, "x").translate(ACT_AFT + from + l / 2, 0, 0);
+    return mergeGeos([
+      seg(0.035, housing, 0),
+      seg(0.022, ram, housing),
+      seg(0.012, len - housing - ram, housing + ram),
+    ]);
+  },
+  ["flaps"],
+  {
+    pos: [0, ACT_Y, FLAP_ACT.z],
+    color: "#7C57CF",
+    name: "Flap actuator",
+    note: "Motorized linear actuator under the baggage floor (AMM 13773-002 Rev 7 27-50 p. 1, PDF p. 1050): its rod end bolts to the torque tube coupler at CF4C and its aft end is pinned to a bracket on the fuselage skin under CF5 (27-50 PDF p. 1051; Fig 27-50-2 PDF p. 1060; Fig 6-00-6 PDF p. 123). A load-limiting clutch prevents deployment at high speed; proximity switches stop travel and drive the position lights (POH 7-22). 10 A FLAPS, NON ESS BUS (POH 7-23). Stations, size and the offset left of the centreline approximate (the figures are undimensioned).",
+    pin: true,
+  },
+);
+// Torque tube coupler (Fig 27-50-2 item 18): joins the LH and RH tubes in the inboard bushing (27-50 2.B, PDF p. 1059)
+// and carries the clevis crank for the actuator rod end (Fig 27-50-2 sheet 3 View A1, PDF p. 1062). Sizes approximate;
+// the 0.08 m sleeve stays on the actuator's side, outboard of the roll servo on the centreline.
+part(
+  () =>
+    mergeGeos([
+      cyl(0.026, 0.08, "z").translate(0, 0, FLAP_ACT.z + 0.015),
+      box(0.03, FLAP_ACT.drop + 0.015, 0.03).translate(0, -(FLAP_ACT.drop + 0.015) / 2, FLAP_ACT.z),
+    ]),
+  ["flaps"],
+  {
+    pos: [FT.x, FT.y, 0],
+    color: "#9F85E6",
+    name: "Flap torque tube coupler",
+    note: "Joins the LH and RH torque tubes; its crank takes the actuator's rod end, so the actuator turns the tube (AMM 13773-002 Rev 7 27-50 PDF p. 1059; Fig 27-50-2 item 18, PDF pp. 1060, 1062). Reached through floor access panel CF4C. Size approximate.",
+  },
+);
+// Mounting bracket (Fig 27-50-2 item 7) on the fuselage skin at the pin; its base sits 3 mm inside the belly skin. Size
+// approximate.
+const BRACKET_BASE = lowerSkinY(FLAP_ACT.pinX, FLAP_ACT.z) + 0.003;
+part(() => box(0.05, ACT_Y - BRACKET_BASE, 0.05), ["flaps"], {
+  pos: [FLAP_ACT.pinX, (ACT_Y + BRACKET_BASE) / 2, FLAP_ACT.z],
+  color: "#9F85E6",
+  name: "Flap actuator bracket",
+  note: "Bolted to the fuselage skin under access panel CF5; a pin and retainer rings hold the actuator's aft end (AMM 13773-002 Rev 7 27-50 PDF pp. 1051–1052; Fig 27-50-2 items 7, 9, 10, PDF p. 1060). Size approximate.",
 });
 // POH 7-23: at the bottom of the console's vertical section. Fig. 7-4 (7-14/7-15) item 10 is the panel between the avionics panel
 // (15) and the engine controls (13), knob on its right: here at the foot of the upright avionics panel, right of centre.
