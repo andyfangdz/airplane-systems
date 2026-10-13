@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 import { pulleyGeo } from "@/lib/geometry";
 import type { PartSpec } from "@/lib/catalogue";
 import { CAT } from "@/aircraft/sr22t/parts";
-import { FT } from "@/aircraft/sr22t/parts/cabin";
+import { FLAP_ACT, FT } from "@/aircraft/sr22t/parts/cabin";
+import { lowerSkinY } from "@/aircraft/sr22t/geometry";
 import { AFT_GANG, FLOOR_HOLES, PULLEYS, fsX } from "@/aircraft/sr22t/rig";
 
 const boxOf = (p: PartSpec) => {
@@ -64,6 +65,8 @@ describe("SR22T flap actuator under the baggage floor (AMM 27-50 p. 1, PDF p. 10
     expect(b.min.x).toBeGreaterThan(cf5.x - cf5.hx);
     expect(b.min.x).toBeLessThan(cf5.x + cf5.hx);
     const bracket = only("Flap actuator bracket");
+    // Allow 1 mm tolerance around the documented 3 mm skin inset.
+    expect(Math.abs(bracket.min.y - (lowerSkinY(FLAP_ACT.pinX, FLAP_ACT.z) + 0.003))).toBeLessThanOrEqual(0.001);
     expect(gap(bracket, b)).toBe(0);
     expect(bracket.min.x).toBeLessThan(b.min.x + 0.06);
   });
