@@ -1,19 +1,7 @@
 "use client";
+import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Gfc700Controls } from "@/components/avionics/Gfc700Controls";
-import { useReducer } from "react";
-import {
-  BtnRow,
-  Caution,
-  Check,
-  Ctl,
-  Facts,
-  H3,
-  Notes,
-  PartsList,
-  Readouts,
-  Small,
-  useTicker,
-} from "@/components/ui/controls";
+import { BtnRow, Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Small } from "@/components/ui/controls";
 import { initFlight, type FlightState, type FlySet } from "@/lib/avionics/flight";
 import { gfc700Key, type Gfc700Fail, type Gfc700Key } from "@/lib/avionics/gfc700";
 import { AFCS_CFG, cruiseFlight, displays, live } from "../model";
@@ -36,7 +24,6 @@ const wholePanel = () => {
 };
 
 export function Avionics() {
-  useTicker(250);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
@@ -184,7 +171,7 @@ export function Avionics() {
         ]}
       />
       <H3>Units — tap to locate</H3>
-      <PartsList parts={CAT.pinned("avionics")} />
+      <PartsList cat={CAT} sys="avionics" />
     </>
   );
 }
@@ -243,21 +230,20 @@ const SETUPS: [string, () => void][] = [
 ];
 
 export function Autopilot() {
-  useTicker(100);
+  const snapshot = useLiveSnapshot(live, 100);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
-  // `live` is mutated outside React: re-render straight away so controlled inputs don't snap back until the next tick
-  const [, bump] = useReducer((n: number) => n + 1, 0);
-  const st = live.afcs,
-    fs = live.fs,
-    U = live.afcsUser;
+  // Publish event changes immediately so controlled inputs do not wait for the next sample.
+  const st = snapshot.afcs,
+    fs = snapshot.fs,
+    U = snapshot.afcsUser;
   const onKey = (k: Gfc700Key) => {
     const E2 = useDA40.getState().E;
     if (BEZEL.includes(k) && !E2.mfd) return; // the AFCS keys are on the MFD bezel
     if (!E2.pfd && !PFD_LOST_KEYS.includes(k)) return; // PFD lost: AP and FD inoperative, MET still works (AFMS p. 10)
     live.afcs = gfc700Key(live.afcs, k, live.fs, AFCS_CFG);
-    bump();
+    refreshLiveSnapshot(live);
   };
   const onSet = (p: FlySet) => {
     const { power, ...rest } = p;
@@ -267,12 +253,12 @@ export function Autopilot() {
       });
     if (Object.keys(rest).length) {
       live.fs = { ...live.fs, ...rest };
-      bump();
+      refreshLiveSnapshot(live);
     }
   };
   const inject = (f: Gfc700Fail) => {
     live.afcsUser = { ...live.afcsUser, ...f };
-    bump();
+    refreshLiveSnapshot(live);
   };
   const outside = st.ap && !fs.onGround && (fs.ias < 70 || fs.ias > 165);
   return (
@@ -445,7 +431,7 @@ export function Autopilot() {
         ))}
       </ol>
       <H3>Servos &amp; switches — tap to locate</H3>
-      <PartsList parts={CAT.pinned("autopilot")} />
+      <PartsList cat={CAT} sys="autopilot" />
     </>
   );
 }

@@ -40,13 +40,13 @@ const clock = (t: number) => {
 };
 
 /** Air data as the instruments see it: pitot/static blockages and the alternate static source (POH 3-15, Fig. 5-1 Sheet 2). */
-export function indicated(s: Sim, fs: FlightState) {
+export function indicated(s: Sim, fs: FlightState, sample: typeof live = live) {
   let ias = fs.ias,
     alt = fs.alt,
     vs = fs.vs;
   if (s.pitot.pitotBlocked) ias = 0;
   if (s.pitot.staticBlocked && !s.pitot.altStatic) {
-    alt = live.staticAlt ?? fs.alt;
+    alt = sample.staticAlt ?? fs.alt;
     vs = 0;
   }
   if (s.pitot.altStatic) {

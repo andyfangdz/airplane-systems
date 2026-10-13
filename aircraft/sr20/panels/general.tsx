@@ -144,7 +144,7 @@ export function Doors() {
         ))}
       </Ctl>
       <H3>Door hardware — tap to locate</H3>
-      <PartsList parts={CAT.pinned("doors")} />
+      <PartsList cat={CAT} sys="doors" />
       <Small>
         Panels, windows and latch hardware move together; struts follow both attachments. Opening angles and hardware
         travel are illustrative. Later serial 8500-and-up baggage-lock behavior is outside this configuration.
@@ -173,7 +173,7 @@ export function Airframe() {
         ]}
       />
       <H3>Structure — tap to locate</H3>
-      <PartsList parts={CAT.pinned("airframe")} />
+      <PartsList cat={CAT} sys="airframe" />
       <H3>Notes</H3>
       <Notes
         items={[
@@ -193,7 +193,7 @@ export function Cabin() {
         Seats, restraints and the emergency equipment you should be able to find with your eyes closed. Tap any item to
         locate it on the model.
       </p>
-      <PartsList parts={CAT.pinned("cabin")} />
+      <PartsList cat={CAT} sys="cabin" />
       <H3>Restraints</H3>
       <Notes
         items={[
@@ -276,7 +276,7 @@ export function Lighting() {
         (BAT 1 after an ALT 1 failure), the ice lights with MAIN BUS 1.
       </Small>
       <H3>Lights — tap to locate</H3>
-      <PartsList parts={CAT.pinned("lighting")} />
+      <PartsList cat={CAT} sys="lighting" />
       <H3>Cabin light switch</H3>
       <Ctl>
         <Seg
@@ -506,7 +506,7 @@ export function Avionics() {
         </a>{" "}
         (membership required).
       </p>
-      <PartsList parts={CAT.pinned("avionics")} />
+      <PartsList cat={CAT} sys="avionics" />
     </>
   );
 }

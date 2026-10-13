@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
   Caution,
@@ -12,7 +13,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { kap140Key } from "@/lib/avionics/kap140";
 import { indicated } from "../displays";
@@ -25,7 +25,7 @@ const knob = (v: number) =>
   v < 0.03 ? "Pushed in (OFF)" : v > 0.97 ? "Pulled full out" : `Pulled ${Math.round(v * 100)}%`;
 
 export function Environment() {
-  useTicker(300);
+  const snapshot = useLiveSnapshot(live, 300);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update),
     env = s.env;
@@ -104,9 +104,9 @@ export function Environment() {
             ["Max heat", env.heat > 0.97 && env.air < 0.03 ? "Yes" : "No"],
             [
               "CO",
-              live.coPpm >= 50
+              snapshot.coPpm >= 50
                 ? [env.coAck ? "CO LVL HIGH · steady" : "CO LVL HIGH · flashing", "bad"]
-                : `${Math.round(live.coPpm)} PPM`,
+                : `${Math.round(snapshot.coPpm)} PPM`,
             ],
           ]}
         />
@@ -127,7 +127,7 @@ export function Environment() {
           <button
             type="button"
             className="btn"
-            disabled={live.coPpm < 50 || env.coAck}
+            disabled={snapshot.coPpm < 50 || env.coAck}
             onClick={() =>
               up((d) => {
                 d.env.coAck = true;
@@ -162,7 +162,7 @@ export function Environment() {
         (175 KIAS maximum). If it remains on, land as soon as practical.
       </Caution>
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("environment")} />
+      <PartsList cat={CAT} sys="environment" />
       <H3>Outlets (Figure 7-8)</H3>
       <Facts
         rows={[
@@ -190,13 +190,13 @@ export function Environment() {
 }
 
 export function Pitot() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update),
     p = s.pitot;
-  const ind = indicated(s, live.fs),
-    vs = stallKias(live.flapAng);
+  const ind = indicated(s, snapshot.fs, snapshot),
+    vs = stallKias(snapshot.flapAng);
   const startDemo = () => {
     if (s.ground || !s.eng.running) scenarioCruise();
     if (live.kap.ap) live.kap = kap140Key(live.kap, "DISC", live.fs);
@@ -350,11 +350,11 @@ export function Pitot() {
         </BtnRow>
         <Readouts
           items={[
-            ["IAS", `${Math.round(live.fs.ias)} KIAS`],
+            ["IAS", `${Math.round(snapshot.fs.ias)} KIAS`],
             ["Stall speed", `${vs} KIAS`],
             [
               "Horn",
-              live.horn
+              snapshot.horn
                 ? ["SOUNDING", "bad"]
                 : s.stall.vaneStuck
                   ? ["SILENT (vane)", "warnc"]
@@ -362,7 +362,7 @@ export function Pitot() {
                     ? ["NO POWER (WARN)", "bad"]
                     : "Quiet",
             ],
-            ["Demo", live.stallDemo ? "Slowing" : "—"],
+            ["Demo", snapshot.stallDemo ? "Slowing" : "—"],
           ]}
         />
       </Ctl>
@@ -372,7 +372,7 @@ export function Pitot() {
         interpolated. The horn needs the WARN breaker — trip it on the Electrical page and the horn stays silent.
       </Small>
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("pitot")} />
+      <PartsList cat={CAT} sys="pitot" />
       <Notes
         items={[
           "Preflight: pitot cover removed and the tube clear; static openings on both sides clear; stall vane free; with the MASTER on, push the vane up and hear the horn (POH 4-8 – 4-11, 7-65).",
@@ -386,10 +386,10 @@ export function Pitot() {
 }
 
 export function Vacuum() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update);
-  const flag = live.vac < 3.5 || live.gyro < 0.7;
+  const flag = snapshot.vac < 3.5 || snapshot.gyro < 0.7;
   return (
     <>
       <p className="lead">
@@ -422,9 +422,9 @@ export function Vacuum() {
         />
         <Readouts
           items={[
-            ["VAC", [`${live.vac.toFixed(1)} in.Hg`, live.vac < 3.5 ? "warnc" : ""]],
-            ["LOW VACUUM", live.vac < 3.5 ? ["SHOWN", "warnc"] : "—"],
-            ["Gyro rotor", `${Math.round(live.gyro * 100)}%`],
+            ["VAC", [`${snapshot.vac.toFixed(1)} in.Hg`, snapshot.vac < 3.5 ? "warnc" : ""]],
+            ["LOW VACUUM", snapshot.vac < 3.5 ? ["SHOWN", "warnc"] : "—"],
+            ["Gyro rotor", `${Math.round(snapshot.gyro * 100)}%`],
             ["GYRO flag", flag ? ["IN VIEW", "bad"] : "Hidden"],
           ]}
         />
@@ -439,7 +439,7 @@ export function Vacuum() {
         attitude indicator, it must not be used for attitude information.
       </Caution>
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("vacuum")} />
+      <PartsList cat={CAT} sys="vacuum" />
       <Facts
         rows={[
           ["VAC green", "4.5–5.5 in.Hg (POH 2-7)"],

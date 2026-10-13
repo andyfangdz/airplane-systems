@@ -519,19 +519,19 @@ export function solve(s: Sim, prev?: Elec): Elec {
 /* ---------- indications ---------- */
 /** Fuel quantity indication: 0 at the 2.5 gal unusable level; the float travel ends at ≈ 35–36 gal, the top of the green arc (POH 7-40, 2-7). */
 export const fuelInd = (usable: number) => Math.min(35.5, Math.max(0, usable));
-export const oilPressSwitch = () => live.oilP <= 20;
+export const oilPressSwitch = (sample: typeof live = live) => sample.oilP <= 20;
 /**
  * An engine limit in the red: RPM ≥ 2,472, oil pressure ≤ 20 or ≥ 115 PSI, oil temperature ≥ 245 °F or CHT ≥ 500 °F. When one
  * starts while the SYSTEM (or LEAN) page is shown, the EIS returns to the ENGINE page (POH 7-29 – 7-33); tick.ts flips the page as
  * the G1000 does, so the pilot can select SYSTEM again afterwards (e.g. on the ground with the engine stopped).
  */
-export const eisExceedance = (E: Pick<Elec, "gea">) =>
+export const eisExceedance = (E: Pick<Elec, "gea">, sample: typeof live = live) =>
   E.gea &&
-  (Math.round(live.rpm / 10) * 10 >= 2472 ||
-    live.oilP <= 20 ||
-    live.oilP >= 115 ||
-    live.oilT >= 245 ||
-    live.cht >= 500);
+  (Math.round(sample.rpm / 10) * 10 >= 2472 ||
+    sample.oilP <= 20 ||
+    sample.oilP >= 115 ||
+    sample.oilT >= 245 ||
+    sample.cht >= 500);
 
 /** The 182T annunciation window (POH 7-51 list, CRG 115–116 levels and tones), warnings first. */
 export const C182T_ANN: Nav3AnnDef[] = [
@@ -604,21 +604,22 @@ export const C182T_ANN: Nav3AnnDef[] = [
 ];
 
 /** PITCH TRIM shows when the KAP 140 reports a trim fault (or its display test), and the WARN breaker powers the annunciator (S3-6). */
-export const pitchTrimOn = (E: Pick<Elec, "warnPwr">) => E.warnPwr && kap140Pfd(live.kap, live.fs.t) != null;
+export const pitchTrimOn = (E: Pick<Elec, "warnPwr">, sample: typeof live = live) =>
+  E.warnPwr && kap140Pfd(sample.kap, sample.fs.t) != null;
 
 /** G1000 annunciation window for this airplane. `withPitchTrim` false = leave PITCH TRIM out (the PFD draws it separately, top right). */
-export function annunciations(s: Sim, E: Elec, withPitchTrim = true): [CasLevel, string][] {
+export function annunciations(s: Sim, E: Elec, withPitchTrim = true, sample: typeof live = live): [CasLevel, string][] {
   return nav3Annunciations(
     {
-      oilPress: oilPressSwitch(),
+      oilPress: oilPressSwitch(sample),
       lowFuelL: s.ann.lowFuelL,
       lowFuelR: s.ann.lowFuelR,
-      vac: live.vac,
+      vac: sample.vac,
       lowVolts: E.lowVolts,
       highVolts: E.highVolts,
       stbyBatt: s.ann.stbyBatt,
-      co: live.coPpm >= 50,
-      pitchTrim: withPitchTrim && pitchTrimOn(E),
+      co: sample.coPpm >= 50,
+      pitchTrim: withPitchTrim && pitchTrimOn(E, sample),
     },
     C182T_ANN,
   );

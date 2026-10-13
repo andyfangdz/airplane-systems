@@ -2,7 +2,6 @@
 /** Source-specific SR20 study UI, sharing the existing Cirrus walk styling and common camera/spot/pin infrastructure. */
 import { useEffect, useRef, type TouchEvent } from "react";
 import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
-import { useTicker } from "@/components/ui/controls";
 import { revealStage, useView } from "@/lib/view";
 import { SYS } from "../systems";
 import { clock, loadProgress, stationStart, stepParts, stepPose, stepSide, tally, type Step } from "../walk";
@@ -17,7 +16,6 @@ import {
   resumeWalk,
   setBig,
   useWalk,
-  walkNow,
   type WalkPhase,
 } from "../walk-store";
 import { GENERAL_WARNING, NOT_MODELLED, SOURCE, SOURCE_URL, THROUGHOUT, WALK } from "../walkaround";
@@ -171,7 +169,8 @@ function Intro() {
 }
 function Resume() {
   const saved = loadProgress(),
-    step = walkNow().steps.find((s) => s.item.id === saved?.at);
+    steps = useWalk((w) => w.steps),
+    step = steps.find((s) => s.item.id === saved?.at);
   return (
     <>
       <p className="walk-notice">
@@ -341,9 +340,8 @@ export function WalkPanel() {
   const phase = useWalk((w) => w.phase),
     at = useWalk((w) => w.at),
     big = useWalk((w) => w.big),
-    { steps } = walkNow();
+    steps = useWalk((w) => w.steps);
   const step = phase === "walk" ? steps[at] : undefined;
-  useTicker(1000);
   useStepScene(step, phase);
   useStudySession(at, phase === "walk");
   useEffect(revealStage, [at, phase]);

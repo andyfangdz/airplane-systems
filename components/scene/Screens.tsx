@@ -28,35 +28,40 @@ export interface ScreenSpec {
   draw: (ctx: CanvasRenderingContext2D, W: number, H: number) => void;
 }
 
+/** Allocate imperative Three.js resources once per specification list. */
+function createScreens(screens: ScreenSpec[]) {
+  return screens.map((d) => {
+    const c = document.createElement("canvas");
+    c.width = d.px[0];
+    c.height = d.px[1];
+    const tx = new THREE.CanvasTexture(c);
+    tx.anisotropy = 4;
+    tx.colorSpace = THREE.SRGBColorSpace;
+    return { d, ctx: c.getContext("2d")!, tx };
+  });
+}
+
+/** Canvas texture invalidation belongs to the renderer's frame callback. */
+function drawScreens(items: ReturnType<typeof createScreens>) {
+  for (const it of items) {
+    it.d.draw(it.ctx, it.d.px[0], it.d.px[1]);
+    it.tx.needsUpdate = true;
+  }
+}
 /** Live cockpit displays drawn into canvas textures. */
 export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every?: number }) {
   const sys = useView((x) => x.sys);
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
   const narrow = useNarrowLayout();
-  const items = useMemo(
-    () =>
-      screens.map((d) => {
-        const c = document.createElement("canvas");
-        c.width = d.px[0];
-        c.height = d.px[1];
-        const tx = new THREE.CanvasTexture(c);
-        tx.anisotropy = 4;
-        tx.colorSpace = THREE.SRGBColorSpace;
-        return { d, ctx: c.getContext("2d")!, tx };
-      }),
-    [screens],
-  );
+  const items = useMemo(() => createScreens(screens), [screens]);
   useEffect(() => () => items.forEach((it) => it.tx.dispose()), [items]);
   const acc = useRef(1);
   useFrame((_, dt) => {
     acc.current += dt;
     if (acc.current < every) return;
     acc.current = 0;
-    for (const it of items) {
-      it.d.draw(it.ctx, it.d.px[0], it.d.px[1]);
-      it.tx.needsUpdate = true;
-    }
+    drawScreens(items);
   });
   return (
     <>

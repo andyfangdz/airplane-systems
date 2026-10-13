@@ -13,7 +13,6 @@ import {
   Rocker,
   Slider,
   Small,
-  useTicker,
   type Reading,
 } from "@/components/ui/controls";
 import { PUSH_CB, SWITCH_CB, fuelAvail, initialSim, type Sim } from "../model";
@@ -78,7 +77,6 @@ const resetElec = (d: Sim) => {
 };
 
 export function Electrical() {
-  useTicker(250);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
@@ -318,7 +316,7 @@ export function Electrical() {
       />
       <DepthDetail system="electrical" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("electrical")} />
+      <PartsList cat={CAT} sys="electrical" />
     </>
   );
 }

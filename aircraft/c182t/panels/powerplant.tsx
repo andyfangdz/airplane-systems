@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useEffect } from "react";
 import {
   BtnRow,
@@ -13,7 +14,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { fuelInd, govRpm, lambda, live, powerFrac, type EisPage, type FuelSel, type Mags } from "../model";
 import { Nav3MagSwitch } from "../../cessna/panels";
@@ -31,11 +31,12 @@ const mixFmt = (v: number) => (v <= 0.05 ? "IDLE CUTOFF" : v > 0.97 ? "FULL RICH
 const propFmt = (v: number) =>
   `${v > 0.98 ? "HIGH RPM (full in)" : v < 0.02 ? "LOW RPM (full out)" : pct(v) + " in"} · governs ${Math.round(govRpm(v) / 10) * 10}`;
 const cowlFmt = (v: number) => (v > 0.97 ? "OPEN" : v < 0.03 ? "CLOSED" : `${pct(v)} open`);
-const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
+const rpm10 = (rpm: number) => String(Math.round(rpm / 10) * 10);
 const tick = (b: boolean) => (b ? "✓ " : "· ");
 
 /** MAGNETOS rotary with the spring-loaded START position held by a button. */
 function MagSwitch() {
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
@@ -43,7 +44,7 @@ function MagSwitch() {
     up((d) => {
       d.eng.mags = m;
     });
-  const crankSec = live.crankT > 0 ? live.crankTotal : null;
+  const crankSec = snapshot.crankT > 0 ? snapshot.crankTotal : null;
   return (
     <Nav3MagSwitch
       mags={s.eng.mags}
@@ -113,16 +114,16 @@ function EngineKnobs({ id = "" }: { id?: string }) {
 
 export function Engine() {
   const groups = useEngineGroups();
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
   const g = s.eng,
-    alt = live.fs.alt;
+    alt = snapshot.fs.alt;
   const lam = lambda(g.mix, alt),
-    P = g.running ? powerFrac(s, live.map, live.rpm, alt) : 0;
+    P = g.running ? powerFrac(s, snapshot.map, snapshot.rpm, alt) : 0;
   const state = g.running
-    ? live.primeRun > 0
+    ? snapshot.primeRun > 0
       ? [g.mix < 0.06 ? "RUNNING ON PRIME — ADVANCE MIXTURE" : "TOO LEAN — DYING", "warnc"]
       : "RUNNING"
     : g.mags === "START"
@@ -132,7 +133,7 @@ export function Engine() {
       : g.flooded
         ? ["FLOODED", "bad"]
         : ["STOPPED", "bad"];
-  const warm = live.hot > 0.6;
+  const warm = snapshot.hot > 0.6;
   const steps: [boolean, string][] = [
     [!s.elec.avn1 && !s.elec.avn2, "AVIONICS (BUS 1 and BUS 2) OFF"],
     [g.cowl > 0.97, "Cowl flaps OPEN"],
@@ -158,13 +159,13 @@ export function Engine() {
     [s.elec.bat && s.elec.alt, "MASTER (ALT and BAT) ON"],
     [s.lights.beacon, "BEACON ON"],
     [
-      live.wet > 0.3 || g.running || warm,
+      snapshot.wet > 0.3 || g.running || warm,
       `Prime: FUEL PUMP ON, mixture FULL RICH until stable fuel flow (3–5 s), then IDLE CUTOFF and FUEL PUMP OFF${warm ? " — engine warm: omit" : ""}`,
     ],
     [!s.fuel.pump || g.running, "FUEL PUMP OFF"],
     [g.running, "MAGNETOS START — release when the engine starts"],
     [g.running && g.mix > 0.9, "Mixture ADVANCE SMOOTHLY TO RICH"],
-    [g.running && live.oilP >= 50, "Oil pressure in the green within 30–60 s"],
+    [g.running && snapshot.oilP >= 50, "Oil pressure in the green within 30–60 s"],
     [g.running && E.mBatt > 0 && !E.lowVolts, "AMPS (M BATT and BATT S) charging, LOW VOLTS not shown"],
   ];
   return (
@@ -244,14 +245,14 @@ export function Engine() {
         <Readouts
           items={[
             ["Engine", state as [string, "bad" | "warnc"] | string],
-            ["RPM", [rpm10(), live.rpm >= 2472 ? "bad" : ""]],
-            ["MAN IN", live.map.toFixed(1)],
-            ["FFLOW GPH", live.ff.toFixed(1)],
+            ["RPM", [rpm10(snapshot.rpm), snapshot.rpm >= 2472 ? "bad" : ""]],
+            ["MAN IN", snapshot.map.toFixed(1)],
+            ["FFLOW GPH", snapshot.ff.toFixed(1)],
             ["Power", g.running ? pct(P) : "—"],
-            ["OIL PRES", [`${Math.round(live.oilP)} psi`, live.oilP <= 20 ? "bad" : ""]],
-            ["OIL TEMP", [`${Math.round(live.oilT)} °F`, live.oilT >= 245 ? "bad" : ""]],
-            ["CHT", [`${Math.round(live.cht)} °F · cyl ${live.hotCyl}`, live.cht >= 500 ? "bad" : ""]],
-            ["EGT", `${Math.round(live.egt)} °F`],
+            ["OIL PRES", [`${Math.round(snapshot.oilP)} psi`, snapshot.oilP <= 20 ? "bad" : ""]],
+            ["OIL TEMP", [`${Math.round(snapshot.oilT)} °F`, snapshot.oilT >= 245 ? "bad" : ""]],
+            ["CHT", [`${Math.round(snapshot.cht)} °F · cyl ${snapshot.hotCyl}`, snapshot.cht >= 500 ? "bad" : ""]],
+            ["EGT", `${Math.round(snapshot.egt)} °F`],
             [
               "Fuel/air",
               g.running
@@ -268,9 +269,9 @@ export function Engine() {
                 ? warm
                   ? "Warm"
                   : "Warming up"
-                : live.wet > 1.9
+                : snapshot.wet > 1.9
                   ? ["FLOODED", "bad"]
-                  : live.wet > 0.3
+                  : snapshot.wet > 0.3
                     ? "Primed"
                     : warm
                       ? "Warm"
@@ -294,7 +295,7 @@ export function Engine() {
           </li>
         ))}
       </ol>
-      {!g.running && live.crankTotal > 10 && (
+      {!g.running && snapshot.crankTotal > 10 && (
         <Caution title="Starter limit">
           Crank no more than 10 seconds, then let the starter cool 20 seconds; after three cycles cool it 10 minutes
           (POH 4-28).
@@ -432,21 +433,21 @@ export function Engine() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("engine")} />
+      <PartsList cat={CAT} sys="engine" />
     </>
   );
 }
 
 export function Propeller() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   useEffect(() => cancelPropCycle, []);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update);
   const g = s.eng,
-    ias = s.ground ? 0 : live.fs.ias,
+    ias = s.ground ? 0 : snapshot.fs.ias,
     gov = govRpm(g.prop);
-  const governing = g.running && !g.fail.gov && live.blade > 15.2;
-  const P = g.running ? powerFrac(s, live.map, live.rpm, live.fs.alt) : 0;
+  const governing = g.running && !g.fail.gov && snapshot.blade > 15.2;
+  const P = g.running ? powerFrac(s, snapshot.map, snapshot.rpm, snapshot.fs.alt) : 0;
   const cycle = () => {
     up((d) => {
       d.eng.prop = 0;
@@ -489,10 +490,10 @@ export function Propeller() {
         </BtnRow>
         <Readouts
           items={[
-            ["RPM", [rpm10(), live.rpm >= 2472 ? "bad" : ""]],
+            ["RPM", [rpm10(snapshot.rpm), snapshot.rpm >= 2472 ? "bad" : ""]],
             ["Governor set", String(Math.round(gov / 10) * 10)],
-            ["MAN IN", live.map.toFixed(1)],
-            ["Blade angle", `${live.blade.toFixed(1)}°`],
+            ["MAN IN", snapshot.map.toFixed(1)],
+            ["Blade angle", `${snapshot.blade.toFixed(1)}°`],
             [
               "State",
               !g.running
@@ -538,13 +539,13 @@ export function Propeller() {
           ["Care", "Check for nicks and red oil leaks; never alkaline cleaners (POH 4-10, 8-23)"],
         ]}
       />
-      <PartsList parts={CAT.pinned("propeller")} />
+      <PartsList cat={CAT} sys="propeller" />
     </>
   );
 }
 
 export function Fuel() {
-  useTicker(400);
+  const snapshot = useLiveSnapshot(live, 400);
   const s = useC182((x) => x.s),
     E = useC182((x) => x.E),
     up = useC182((x) => x.update);
@@ -679,20 +680,27 @@ export function Fuel() {
             ["Usable total", (f.qL + f.qR).toFixed(1)],
             ["Feeding", feeding as [string, "bad"] | string],
             ["Return to", retTo],
-            ["FFLOW", `${live.ff.toFixed(1)} GPH`],
-            ["GAL USED / REM", `${live.galUsed.toFixed(1)} / ${Math.max(0, live.galStart - live.galUsed).toFixed(0)}`],
+            ["FFLOW", `${snapshot.ff.toFixed(1)} GPH`],
+            [
+              "GAL USED / REM",
+              `${snapshot.galUsed.toFixed(1)} / ${Math.max(0, snapshot.galStart - snapshot.galUsed).toFixed(0)}`,
+            ],
             ["Aux pump", f.pump ? (E.fuelPumpOn ? "Running" : ["NO PWR", "bad"]) : "Off"],
             [
               "LOW FUEL",
               s.ann.lowFuelL || s.ann.lowFuelR
                 ? ["SHOWN", "warnc"]
                 : iL < 8 || iR < 8
-                  ? `in ${Math.max(0, 60 - Math.max(live.timers.lowL, live.timers.lowR)).toFixed(0)} s`
+                  ? `in ${Math.max(0, 60 - Math.max(snapshot.timers.lowL, snapshot.timers.lowR)).toFixed(0)} s`
                   : "—",
             ],
             [
               "Unporting",
-              live.unport > 0 ? [`${live.unport.toFixed(0)} s`, "bad"] : f.slip && lowSel ? ["RISK", "warnc"] : "—",
+              snapshot.unport > 0
+                ? [`${snapshot.unport.toFixed(0)} s`, "bad"]
+                : f.slip && lowSel
+                  ? ["RISK", "warnc"]
+                  : "—",
             ],
           ]}
         />
@@ -745,7 +753,7 @@ export function Fuel() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("fuel")} />
+      <PartsList cat={CAT} sys="fuel" />
     </>
   );
 }

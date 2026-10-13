@@ -49,10 +49,8 @@ export interface AircraftDef {
   panels: Partial<Record<SysId, ComponentType>>;
   /** Per-frame simulation step (dt seconds, clamped). */
   tick: (dt: number) => void;
-  /** Hook returning the crew-alert list for the alert window. Called unconditionally inside a component keyed by airplane. */
-  useAlerts: () => { powered: boolean; msgs: [CasLevel, string][] };
-  /** Alert window heading, e.g. "CAS" or "ANNUNCIATIONS". */
-  alertTitle: string;
+  /** Aircraft-specific alert window with statically bound hooks. */
+  Alerts: ComponentType;
   /** Optional overlay in the viewport (SR20 CAPS timeline HUD). */
   Hud?: ComponentType;
   /** Called when the selected system changes (e.g. stop the CAPS animation when leaving CAPS). */

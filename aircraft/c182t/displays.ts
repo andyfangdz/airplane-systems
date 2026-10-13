@@ -65,13 +65,13 @@ const ALT_FT = [
 ];
 
 /** Air data as the instruments see it: pitot/static blockages and the alternate static source (POH 3-13, 3-30, Figs 5-1, 5-2). */
-export function indicated(s: Sim, fs: FlightState) {
+export function indicated(s: Sim, fs: FlightState, sample: typeof live = live) {
   let ias = fs.ias,
     alt = fs.alt,
     vs = fs.vs;
   if (s.pitot.pitotBlocked) ias = 0;
   if (s.pitot.staticBlocked && !s.pitot.altStatic) {
-    alt = live.staticAlt ?? fs.alt;
+    alt = sample.staticAlt ?? fs.alt;
     vs = 0;
   }
   if (s.pitot.altStatic && ias > 40) {

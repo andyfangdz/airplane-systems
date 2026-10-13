@@ -1,8 +1,9 @@
 "use client";
-import { useTicker } from "@/components/ui/controls";
+import { AlertWindow } from "@/components/AlertWindow";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
-import { annunciations, displays } from "./model";
+import { live, annunciations, displays } from "./model";
 import { Model } from "./Airplane";
 import { CAT } from "./parts";
 import { Environment, Pitot } from "./panels/air";
@@ -19,13 +20,13 @@ import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window: shown only while a display has power (PFD, or the MFD in reversionary mode). */
-function useAlerts() {
-  useTicker(250);
+function Alerts() {
+  const snapshot = useLiveSnapshot(live, 250);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E);
   const d = displays(s, E),
     powered = d.pfd || d.mfd;
-  return { powered, msgs: powered ? annunciations(s, E) : [] };
+  return <AlertWindow title="ANNUNCIATIONS" powered={powered} msgs={powered ? annunciations(s, E, snapshot) : []} />;
 }
 
 export const DA40: AircraftDef = {
@@ -57,8 +58,7 @@ export const DA40: AircraftDef = {
     cabin: Cabin,
   },
   tick: simTick,
-  useAlerts,
-  alertTitle: "ANNUNCIATIONS",
+  Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
 };

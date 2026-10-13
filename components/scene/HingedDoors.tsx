@@ -6,6 +6,13 @@ import type { Catalogue } from "@/lib/catalogue";
 import { doorMatrix, type StudyDoor } from "@/lib/doors";
 import { Parts } from "./Part";
 
+/** Advance the imperative pose shared by door panels and their attached hardware. */
+function advanceDoor(pose: Record<string, number>, key: string, amount: number, dt: number) {
+  pose[key] += (amount - pose[key]) * (1 - Math.exp(-6 * Math.min(dt, 0.1)));
+  if (Math.abs(amount - pose[key]) < 0.0001) pose[key] = amount;
+  return pose[key];
+}
+
 /** The supplied pose is also read by struts and other hardware, so their attachments never lag the panel. */
 export function HingedDoors({
   cat,
@@ -21,12 +28,10 @@ export function HingedDoors({
   const groups = useRef<Record<string, THREE.Group | null>>({});
   useFrame((_, dt) => {
     for (const door of doors) {
-      const amount = target(door.key);
-      pose[door.key] += (amount - pose[door.key]) * (1 - Math.exp(-6 * Math.min(dt, 0.1)));
-      if (Math.abs(amount - pose[door.key]) < 0.0001) pose[door.key] = amount;
+      const amount = advanceDoor(pose, door.key, target(door.key), dt);
       const group = groups.current[door.key];
       if (group) {
-        doorMatrix(door, pose[door.key], group.matrix);
+        doorMatrix(door, amount, group.matrix);
         group.matrixWorldNeedsUpdate = true;
       }
     }

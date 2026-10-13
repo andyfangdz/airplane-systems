@@ -495,7 +495,7 @@ export function solve(s: Sim, prev?: Elec): Elec {
 /* ---------- indications ---------- */
 /** Fuel quantity indication: 0 at the unusable level, sensor range ends at ~24 gal (POH 7-39). */
 export const fuelInd = (usable: number) => Math.min(24, Math.max(0, usable));
-export const oilPressSwitch = () => live.oilP <= 20;
+export const oilPressSwitch = (sample: typeof live = live) => sample.oilP <= 20;
 
 /** The 172S annunciation set with exact text, level, aural and trigger (POH 7-51; levels and tones CRG 190-00384-13 pp. 115–116). */
 export const C172S_ANN: Nav3AnnDef[] = [
@@ -558,17 +558,17 @@ export const C172S_ANN: Nav3AnnDef[] = [
 ];
 
 /** G1000 annunciation window (POH 7-51) for this airplane. Needs a powered display. */
-export function annunciations(s: Sim, E: Elec): [CasLevel, string][] {
+export function annunciations(s: Sim, E: Elec, sample: typeof live = live): [CasLevel, string][] {
   return nav3Annunciations(
     {
-      oilPress: oilPressSwitch(),
+      oilPress: oilPressSwitch(sample),
       lowFuelL: s.ann.lowFuelL,
       lowFuelR: s.ann.lowFuelR,
-      vac: live.vac,
+      vac: sample.vac,
       lowVolts: E.lowVolts,
       highVolts: E.highVolts,
       stbyBatt: s.ann.stbyBatt,
-      co: live.coPpm >= 50,
+      co: sample.coPpm >= 50,
     },
     C172S_ANN,
   );

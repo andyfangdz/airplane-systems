@@ -118,7 +118,7 @@ export function Airframe() {
         ]}
       />
       <H3>Structure — tap to locate</H3>
-      <PartsList parts={CAT.pinned("airframe")} />
+      <PartsList cat={CAT} sys="airframe" />
       <H3>Notes</H3>
       <Notes
         items={[
@@ -215,7 +215,7 @@ export function Lighting() {
         (MAIN).
       </Small>
       <H3>Lights — tap to locate</H3>
-      <PartsList parts={CAT.pinned("lighting")} />
+      <PartsList cat={CAT} sys="lighting" />
       <H3>Power</H3>
       <Facts
         rows={[

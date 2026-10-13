@@ -1,5 +1,6 @@
 "use client";
-import { useTicker } from "@/components/ui/controls";
+import { AlertWindow } from "@/components/AlertWindow";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef, ModelRefs } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
 import { casMessages, live } from "./model";
@@ -31,11 +32,11 @@ function Overlay(refs: ModelRefs) {
 
 /** CAPS timeline readout in the viewport while the CAPS view is open. */
 function CapsHud() {
-  useTicker(100);
+  const snapshot = useLiveSnapshot(live, 100);
   const sys = useView((x) => x.sys);
   if (sys !== "caps") return null;
-  const t = Math.max(0, live.capsT),
-    [, title, sub] = live.capsT < 0 ? [0, "Ready", ""] : capsPhase(t);
+  const t = Math.max(0, snapshot.capsT),
+    [, title, sub] = snapshot.capsT < 0 ? [0, "Ready", ""] : capsPhase(t);
   return (
     <div className="caps-hud">
       <span>T + {t.toFixed(1)} s</span>
@@ -45,11 +46,11 @@ function CapsHud() {
   );
 }
 
-function useAlerts() {
+function Alerts() {
   const s = useSR20((x) => x.s),
     E = useSR20((x) => x.E);
   const powered = E.pfd || E.mfd;
-  return { powered, msgs: powered ? casMessages(s, E) : [] };
+  return <AlertWindow title="CAS" powered={powered} msgs={powered ? casMessages(s, E) : []} />;
 }
 
 export const SR20: AircraftDef = {
@@ -82,8 +83,7 @@ export const SR20: AircraftDef = {
     caps: Caps,
   },
   tick: simTick,
-  useAlerts,
-  alertTitle: "CAS",
+  Alerts,
   Hud: CapsHud,
   onSelect: (to) => {
     if (to !== "caps" && useSR20.getState().s.capsOn) resetCaps();

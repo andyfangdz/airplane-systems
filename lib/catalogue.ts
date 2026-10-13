@@ -169,6 +169,36 @@ export class Catalogue {
   private byParent = new Map<string, PartSpec[]>();
   private pins = new Map<SysId, PartSpec[]>();
   private pinIds = new Map<string, Set<string>>();
+  private visible: ReadonlySet<PartSpec> | null = null;
+  private visibilityListeners = new Set<() => void>();
+
+  /** Stable external-store snapshot for React's fitted-part and study-filter consumers. */
+  visibleSnapshot = (): ReadonlySet<PartSpec> => (this.visible ??= new Set(visibleOnly(this.parts, this.hidden)));
+  subscribeVisibility = (notify: () => void) => {
+    this.visibilityListeners.add(notify);
+    return () => {
+      this.visibilityListeners.delete(notify);
+    };
+  };
+  private invalidateVisibility = () => {
+    this.visible = null;
+    this.visibilityListeners.forEach((notify) => notify());
+  };
+
+  /** Bind each mutable input of fitted/hidden predicates to an explicit visibility subscription. */
+  trackVisibility<T>(
+    store: { getState: () => T; subscribe: (listener: (state: T) => void) => () => void },
+    select: (state: T) => unknown,
+  ) {
+    let previous = select(store.getState());
+    return store.subscribe((state) => {
+      const next = select(state);
+      if (!Object.is(previous, next)) {
+        previous = next;
+        this.invalidateVisibility();
+      }
+    });
+  }
 
   /** `paintSkin`: the airplane's painter for the solid-mode skin of shells added with `skin` true; `groupIds`: the
    * study-group ids `part()` accepts in a `groups` tag (others throw). */
@@ -189,6 +219,7 @@ export class Catalogue {
     this.byParent.clear();
     this.pins.clear();
     this.pinIds.clear();
+    this.invalidateVisibility();
     return spec;
   };
 
@@ -265,18 +296,19 @@ export class Catalogue {
   };
 
   /** Parts riding on a moving group (or the fixed airframe when parent is undefined). */
-  partsFor = (parent?: string) => {
+  partsFor = (parent?: string, visible?: ReadonlySet<PartSpec>) => {
     const k = parent ?? "";
     let l = this.byParent.get(k);
     if (!l) {
       l = this.parts.filter((p) => (p.parent ?? "") === k);
       this.byParent.set(k, l);
     }
-    return visibleOnly(l, this.hidden);
+    return visible ? l.filter((part) => visible.has(part)) : visibleOnly(l, this.hidden);
   };
 
   /** Unique pinned, named parts for a system (labels and "tap to locate" lists). */
-  pinned = (sys: SysId) => visibleOnly(this.allPinned(sys), this.hidden);
+  pinned = (sys: SysId, visible?: ReadonlySet<PartSpec>) =>
+    visible ? this.allPinned(sys).filter((part) => visible.has(part)) : visibleOnly(this.allPinned(sys), this.hidden);
 
   /** `pinned` with unfitted equipment included, so cached label ids survive an equipment change. */
   private allPinned(sys: SysId) {

@@ -1,6 +1,6 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { createRef, useEffect, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
 import { V } from "@/lib/math";
 import { sysColor } from "@/lib/systems";
@@ -18,47 +18,56 @@ export interface TankSpec {
   color?: string;
 }
 
+/** Allocate imperative Three.js resources once per specification list. */
+function createTanks(tanks: TankSpec[]) {
+  return tanks.map((t) => {
+    const geo = t.geo();
+    geo.computeBoundingBox();
+    geo.computeBoundingSphere();
+    const plane = new THREE.Plane(V(0, -1, 0), 0);
+    const c = t.color ?? "#2F7FE6";
+    return {
+      t,
+      geo,
+      plane,
+      ymin: geo.boundingBox!.min.y,
+      ymax: geo.boundingBox!.max.y,
+      fuelMesh: createRef<THREE.Mesh>(),
+      shell: new THREE.MeshStandardMaterial({
+        color: c,
+        transparent: true,
+        opacity: 0.12,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+      fuel: new THREE.MeshStandardMaterial({
+        color: c,
+        transparent: true,
+        opacity: 0.62,
+        clippingPlanes: [plane],
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        emissive: new THREE.Color("#0B3A80"),
+      }),
+    };
+  });
+}
+
+/** Update clipping and visibility without a React render on every simulation frame. */
+function fillTanks(items: ReturnType<typeof createTanks>) {
+  for (const it of items) {
+    const q = Math.max(0, Math.min(1, it.t.level()));
+    it.plane.constant = it.ymin + (it.ymax - it.ymin) * Math.pow(q, 0.8) + (q > 0 ? 0.004 : -0.1);
+    if (it.fuelMesh.current) it.fuelMesh.current.visible = q > 0;
+  }
+}
 /** Fuel tanks: a faint shell plus a fuel volume whose level is a clipping plane. Shown strongly in Overview and Fuel. */
 export function Tanks({ tanks }: { tanks: TankSpec[] }) {
   const sys = useView((x) => x.sys);
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
   const spot = useView((x) => !!x.spot);
-  const items = useMemo(
-    () =>
-      tanks.map((t) => {
-        const geo = t.geo();
-        geo.computeBoundingBox();
-        geo.computeBoundingSphere();
-        const plane = new THREE.Plane(V(0, -1, 0), 0);
-        const c = t.color ?? "#2F7FE6";
-        return {
-          t,
-          geo,
-          plane,
-          ymin: geo.boundingBox!.min.y,
-          ymax: geo.boundingBox!.max.y,
-          fuelMesh: null as THREE.Mesh | null,
-          shell: new THREE.MeshStandardMaterial({
-            color: c,
-            transparent: true,
-            opacity: 0.12,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-          }),
-          fuel: new THREE.MeshStandardMaterial({
-            color: c,
-            transparent: true,
-            opacity: 0.62,
-            clippingPlanes: [plane],
-            side: THREE.DoubleSide,
-            depthWrite: false,
-            emissive: new THREE.Color("#0B3A80"),
-          }),
-        };
-      }),
-    [tanks],
-  );
+  const items = useMemo(() => createTanks(tanks), [tanks]);
   useEffect(
     () => () =>
       items.forEach((it) => {
@@ -68,20 +77,18 @@ export function Tanks({ tanks }: { tanks: TankSpec[] }) {
       }),
     [items],
   );
-  useFrame(() => {
-    for (const it of items) {
-      const q = Math.max(0, Math.min(1, it.t.level()));
-      it.plane.constant = it.ymin + (it.ymax - it.ymin) * Math.pow(q, 0.8) + (q > 0 ? 0.004 : -0.1);
-      if (it.fuelMesh) it.fuelMesh.visible = q > 0;
-    }
-  });
+  useFrame(() => fillTanks(items));
   // a walk-around spot dims the tanks with everything else it doesn't name
   const act = !spot && (sys === "overview" || sys === "fuel");
+  useLayoutEffect(() => {
+    for (const it of items) {
+      it.shell.setValues({ opacity: act ? 0.14 : 0.05 });
+      it.fuel.setValues({ opacity: act ? 0.62 : 0.12 });
+    }
+  }, [items, act]);
   return (
     <>
       {items.map((it) => {
-        it.shell.opacity = act ? 0.14 : 0.05;
-        it.fuel.opacity = act ? 0.62 : 0.12;
         return (
           <group key={it.t.key}>
             <mesh
@@ -93,14 +100,7 @@ export function Tanks({ tanks }: { tanks: TankSpec[] }) {
                 <Pin at={it.geo.boundingSphere!.center} label={it.t.name} color={sysColor("fuel", theme)} />
               )}
             </mesh>
-            <mesh
-              ref={(m) => {
-                it.fuelMesh = m;
-              }}
-              geometry={it.geo}
-              material={it.fuel}
-              raycast={() => null}
-            />
+            <mesh ref={it.fuelMesh} geometry={it.geo} material={it.fuel} raycast={() => null} />
           </group>
         );
       })}

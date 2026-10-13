@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { DepthDetail } from "./depth";
 import {
   Caution,
@@ -12,7 +13,6 @@ import {
   Readouts,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { live, pcAvailable, pcEngaged } from "../model";
 import { CAT } from "../parts";
@@ -21,12 +21,12 @@ import { useM20C } from "../store";
 const dir = (v: number, pos: string, neg: string, mid: string, dz = 0.02) => (v > dz ? pos : v < -dz ? neg : mid);
 
 export function PositiveControl() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
-  const avail = pcAvailable(s),
-    on = pcEngaged(s),
-    fs = live.fs;
+  const avail = pcAvailable(s, snapshot),
+    on = pcEngaged(s, snapshot),
+    fs = snapshot.fs;
   return (
     <>
       <p className="lead">
@@ -96,15 +96,15 @@ export function PositiveControl() {
         <Readouts
           items={[
             ["PC", on ? "LEVELING" : s.pc.cutoff ? ["CUT OFF", "warnc"] : ["INOPERATIVE", "bad"]],
-            ["Vacuum", [live.vac.toFixed(1) + " in Hg", avail ? "" : "bad"]],
+            ["Vacuum", [snapshot.vac.toFixed(1) + " in Hg", avail ? "" : "bad"]],
             [
               "Bank",
               s.air
                 ? `${Math.abs(fs.roll).toFixed(0)}° ${fs.roll > 0.5 ? "R" : fs.roll < -0.5 ? "L" : ""}`
                 : "On the ground",
             ],
-            ["Servo (roll)", on ? dir(live.pcRoll, "Pulling right", "Pulling left", "Idle", 0.02) : "—"],
-            ["Servo (yaw)", on ? dir(live.pcYaw, "Right rudder", "Left rudder", "Idle", 0.02) : "—"],
+            ["Servo (roll)", on ? dir(snapshot.pcRoll, "Pulling right", "Pulling left", "Idle", 0.02) : "—"],
+            ["Servo (yaw)", on ? dir(snapshot.pcYaw, "Right rudder", "Left rudder", "Idle", 0.02) : "—"],
           ]}
         />
       </Ctl>
@@ -161,7 +161,7 @@ export function PositiveControl() {
       />
       <DepthDetail system="autopilot" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("autopilot")} />
+      <PartsList cat={CAT} sys="autopilot" />
     </>
   );
 }

@@ -31,6 +31,12 @@ function pitchAt(t: number) {
   return -3 + Math.sin((t - 9.8) * 1.1) * 2;
 }
 
+/** Notify Three.js after the frame callback has rewritten suspension-line positions. */
+function updateLines(geometry: THREE.BufferGeometry) {
+  geometry.attributes.position.needsUpdate = true;
+  geometry.computeBoundingSphere();
+}
+
 export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
   const canopy = useRef<THREE.Mesh>(null!);
   const pack = useRef<THREE.Mesh>(null!);
@@ -111,19 +117,24 @@ export function Parachute({ rootRef, modelRef, gridRef }: ModelRefs) {
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2;
       const rp = inf > 0.01 ? V(canopy.current.position.x + Math.cos(a) * rimR, rimY, Math.sin(a) * rimR) : packPos;
-      pos.setXYZ(i++, rp.x, rp.y, rp.z);
-      pos.setXYZ(i++, conf.x, conf.y, conf.z);
+      pos.setXYZ(i, rp.x, rp.y, rp.z);
+      i += 1;
+      pos.setXYZ(i, conf.x, conf.y, conf.z);
+      i += 1;
     }
     const anchor = t < TAUT_T ? packPos : junction;
     hp.forEach((p) => {
-      pos.setXYZ(i++, p.x, p.y, p.z);
-      pos.setXYZ(i++, anchor.x, anchor.y, anchor.z);
+      pos.setXYZ(i, p.x, p.y, p.z);
+      i += 1;
+      pos.setXYZ(i, anchor.x, anchor.y, anchor.z);
+      i += 1;
     });
-    pos.setXYZ(i++, junction.x, junction.y, junction.z);
-    pos.setXYZ(i++, conf.x, conf.y, conf.z);
+    pos.setXYZ(i, junction.x, junction.y, junction.z);
+    i += 1;
+    pos.setXYZ(i, conf.x, conf.y, conf.z);
+    i += 1;
     if (t < ROCKET_T) for (let k = 0; k < i; k++) pos.setXYZ(k, can.x, can.y, can.z);
-    pos.needsUpdate = true;
-    lineGeo.computeBoundingSphere();
+    updateLines(lineGeo);
     // slider rides down the suspension lines from the skirt toward the confluence
     slider.current.visible = t >= 2 && inf > 0.01;
     if (slider.current.visible) {

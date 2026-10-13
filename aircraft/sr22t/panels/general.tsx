@@ -112,7 +112,7 @@ export function Airframe() {
         ]}
       />
       <H3>Structure — tap to locate</H3>
-      <PartsList parts={CAT.pinned("airframe")} />
+      <PartsList cat={CAT} sys="airframe" />
       <H3>Notes</H3>
       <Notes
         items={[
@@ -136,7 +136,7 @@ export function Cabin() {
       <button className="btn" onClick={() => selectSys("doors")}>
         Door operation and latches →
       </button>
-      <PartsList parts={CAT.pinned("cabin")} />
+      <PartsList cat={CAT} sys="cabin" />
       <H3>Restraints</H3>
       <Notes
         items={[
@@ -232,7 +232,7 @@ export function Lighting() {
         MAIN BUS 1.
       </Small>
       <H3>Lights — tap to locate</H3>
-      <PartsList parts={CAT.pinned("lighting")} />
+      <PartsList cat={CAT} sys="lighting" />
       <H3>Cabin light switch</H3>
       <Ctl>
         <Seg
@@ -424,7 +424,7 @@ export function Avionics() {
           "Three fans cool the stack: AVIONICS FAN 1, 5 A (NON ESS), cools the MFD; FAN 2, 5 A (MAIN 2), cools the PFD and integrated avionics units (POH 7-90). AMM 21-20 gives FAN 1 as 3 A; POH governs.",
         ]}
       />
-      <PartsList parts={CAT.pinned("avionics")} />
+      <PartsList cat={CAT} sys="avionics" />
     </>
   );
 }
@@ -522,7 +522,7 @@ export function Doors() {
         Cabin & safety →
       </button>
       <H3>Door hardware — tap to locate</H3>
-      <PartsList parts={CAT.pinned("doors")} />
+      <PartsList cat={CAT} sys="doors" />
     </>
   );
 }

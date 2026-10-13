@@ -19,7 +19,7 @@
     "test:ui:depth": "node scripts/test-fleet-depth-ui.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run typecheck && npm test && npm run test:trusted-preview",
+    "check": "npm run format:check && npm run typecheck && npm run check:compiler && npm test && npm run test:react && npm run test:trusted-preview",
     "shot": "node scripts/shot.mjs",
     "smoke": "node scripts/smoke.mjs",
     "test:deploy": "vitest run --config vitest.deploy.config.mts",
@@ -30,7 +30,9 @@
     "geometry:build": "node scripts/build-geometry.mjs",
     "test:ui:geometry": "node scripts/test-geometry-ui.mjs",
     "geometry:stats": "node scripts/geometry-stats.mjs",
-    "test:ui:doors": "node scripts/test-door-mechanisms-ui.mjs"
+    "test:ui:doors": "node scripts/test-door-mechanisms-ui.mjs",
+    "check:compiler": "node scripts/check-react-compiler.mjs",
+    "test:react": "vitest run --config vitest.react.config.mts"
   },
   "dependencies": {
     "@react-three/drei": "10.7.8",
@@ -46,10 +48,14 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@babel/core": "7.28.5",
+    "@types/babel__core": "7.20.5",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "0.186.0",
+    "babel-plugin-react-compiler": "1.0.0",
+    "jsdom": "26.1.0",
     "playwright-core": "1.56.1",
     "prettier": "3.9.9",
     "three-mesh-bvh": "0.8.3",

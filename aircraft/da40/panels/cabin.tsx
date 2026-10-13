@@ -1,16 +1,18 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Caution, Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Small } from "@/components/ui/controls";
-import { annunciations, displays, type CanopyPos } from "../model";
+import { live, annunciations, displays, type CanopyPos } from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
 
 export function Cabin() {
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
   const d = displays(s, E),
     shown = d.pfd || d.mfd;
-  const doorMsg = shown && annunciations(s, E).some(([, t]) => t === "DOOR OPEN");
+  const doorMsg = shown && annunciations(s, E, snapshot).some(([, t]) => t === "DOOR OPEN");
   const open = s.doors.canopy !== "CLOSED" || !s.doors.rear;
   return (
     <>
@@ -119,7 +121,7 @@ export function Cabin() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("cabin")} />
+      <PartsList cat={CAT} sys="cabin" />
     </>
   );
 }

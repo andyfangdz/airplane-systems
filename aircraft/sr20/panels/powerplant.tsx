@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { bladeAngle, fuelAvail, live, mapInHg } from "../model";
 import { CAT } from "../parts";
 import { useSR20 } from "../store";
@@ -18,19 +19,18 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 
 const lever = (v: number) => (v < 0.03 ? "IDLE" : v > 0.97 ? "MAX" : Math.round(v * 100) + "%");
-const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
+const rpm10 = (rpm: number) => String(Math.round(rpm / 10) * 10);
 
 export function Engine() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR20((x) => x.s),
     E = useSR20((x) => x.E),
     up = useSR20((x) => x.update);
   const g = s.eng,
-    operation = engineOperation(s, E, live.rpm);
+    operation = engineOperation(s, E, snapshot.rpm);
   const { shown, set } = useEngineGroups();
   return (
     <>
@@ -139,8 +139,8 @@ export function Engine() {
                     ? ["START — NO STARTER POWER", "bad"]
                     : ["STOPPED", "bad"],
             ],
-            ["RPM", rpm10()],
-            ["MAP in", mapInHg(s, live.rpm).toFixed(1)],
+            ["RPM", rpm10(snapshot.rpm)],
+            ["MAP in", mapInHg(s, snapshot.rpm).toFixed(1)],
             [
               "Plugs firing",
               operation.leftMag && operation.rightMag
@@ -242,7 +242,7 @@ export function Engine() {
 }
 
 export function Propeller() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useSR20((x) => x.s),
     up = useSR20((x) => x.update);
   return (
@@ -270,7 +270,7 @@ export function Propeller() {
         <Readouts
           items={[
             ["Governor target", s.eng.lever >= 0.93 ? "2,700" : "2,500"],
-            ["RPM", rpm10()],
+            ["RPM", rpm10(snapshot.rpm)],
             ["Blade angle", bladeAngle(s).toFixed(0) + "°"],
           ]}
         />
@@ -306,7 +306,6 @@ export function Propeller() {
 }
 
 export function Fuel() {
-  useTicker(500);
   const s = useSR20((x) => x.s),
     E = useSR20((x) => x.E),
     up = useSR20((x) => x.update);
@@ -445,7 +444,7 @@ export function Fuel() {
         ]}
       />
       <H3>Components</H3>
-      <PartsList parts={CAT.pinned("fuel")} />
+      <PartsList cat={CAT} sys="fuel" />
       <H3>Storage and injection paths</H3>
       <Notes
         items={[

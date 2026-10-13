@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   Caution,
   Check,
@@ -12,7 +13,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { STALL_KIAS, hornLevel, live, type FlapSel } from "../model";
 import { CAT } from "../parts";
@@ -125,17 +125,17 @@ export function Environment() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("environment")} />
+      <PartsList cat={CAT} sys="environment" />
     </>
   );
 }
 
 export function Pitot() {
-  useTicker(200);
+  const snapshot = useLiveSnapshot(live, 200);
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
-  const horn = hornLevel(s),
+  const horn = hornLevel(s, snapshot),
     vs = STALL_KIAS[s.flaps.cmd];
   const heatState = !s.pitot.heat
     ? (["PITOT OFF", "warnc"] as [string, "warnc"])
@@ -251,7 +251,7 @@ export function Pitot() {
           items={[
             ["Stall speed", `${vs} KIAS (1,200 kg)`],
             ["Horn", horn > 0 ? [horn > 0.9 ? "LOUD" : "SOUNDING", "bad"] : "Quiet"],
-            ["Margin", `${Math.round(Math.min(s.stall.ias, s.air ? live.fs.ias : 999) - vs)} kt`],
+            ["Margin", `${Math.round(Math.min(s.stall.ias, s.air ? snapshot.fs.ias : 999) - vs)} kt`],
           ]}
         />
       </Ctl>
@@ -305,7 +305,7 @@ export function Pitot() {
         ]}
       />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("pitot")} />
+      <PartsList cat={CAT} sys="pitot" />
     </>
   );
 }

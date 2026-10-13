@@ -1,14 +1,15 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useView } from "@/lib/view";
 import { live } from "../model";
 import { resetCaps, startCaps, useSR22T } from "../store";
 import { CAPS_CAM, SYS } from "../systems";
-import { BtnRow, Caution, Ctl, Facts, H3, Notes, Slider, useTicker } from "@/components/ui/controls";
+import { BtnRow, Caution, Ctl, Facts, H3, Notes, Slider } from "@/components/ui/controls";
 
 export function Caps() {
-  useTicker(100);
-  const { update } = useSR22T.getState(),
-    { flyTo } = useView.getState();
+  const snapshot = useLiveSnapshot(live, 100);
+  const update = useSR22T((x) => x.update),
+    flyTo = useView((x) => x.flyTo);
   const capsOn = useSR22T((x) => x.s.capsOn);
   return (
     <>
@@ -54,7 +55,7 @@ export function Caps() {
           min={0}
           max={16}
           step={0.05}
-          value={Math.max(0, live.capsT)}
+          value={Math.max(0, snapshot.capsT)}
           onChange={(v) => {
             if (!capsOn) {
               update((d) => {

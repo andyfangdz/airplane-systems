@@ -22,7 +22,9 @@ jobs:
       - name: Formatting (fix with npm run format)
         run: npm run format:check
       - run: npm run typecheck
+      - run: npm run check:compiler
       - run: npm test
+      - run: npm run test:react
       - run: npm run test:trusted-preview
       - run: npm run build
       - name: Install browsers for interaction tests

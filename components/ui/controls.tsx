@@ -1,15 +1,34 @@
 "use client";
-import { useEffect, useReducer, useRef, useState, type ReactNode } from "react";
-import type { PartSpec } from "@/lib/catalogue";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import type { Catalogue } from "@/lib/catalogue";
+import type { SysId } from "@/lib/systems";
 import { focusPart } from "@/lib/registry";
 
-/** Re-render on an interval — for readouts of values that live outside React state. */
-export function useTicker(ms = 200) {
-  const [, tick] = useReducer((x: number) => x + 1, 0);
-  useEffect(() => {
-    const id = setInterval(tick, ms);
-    return () => clearInterval(id);
-  }, [ms]);
+/** Run scenario actions only from an event, keeping their imperative simulation writes outside render. */
+export function ScenarioButton({
+  children,
+  before,
+  onClick,
+  after,
+}: {
+  children: ReactNode;
+  before?: () => void;
+  onClick: () => void;
+  after?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn"
+      onClick={() => {
+        before?.();
+        onClick();
+        after?.();
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function Seg<T extends string | number>({
@@ -168,8 +187,10 @@ export const H3 = ({ children }: { children: ReactNode }) => <h3>{children}</h3>
 export const Ctl = ({ children }: { children: ReactNode }) => <div className="ctl">{children}</div>;
 export const BtnRow = ({ children }: { children: ReactNode }) => <div className="btnrow">{children}</div>;
 
-/** "Tap to locate": flies the camera to a part and highlights it briefly. Pass `cat.pinned(sys)`. */
-export function PartsList({ parts }: { parts: PartSpec[] }) {
+/** "Tap to locate": follows the catalogue's visible parts, flies to a part and highlights it briefly. */
+export function PartsList({ cat, sys }: { cat: Catalogue; sys: SysId }) {
+  const visible = useSyncExternalStore(cat.subscribeVisibility, cat.visibleSnapshot, cat.visibleSnapshot);
+  const parts = cat.pinned(sys, visible);
   return (
     <ul className="parts">
       {parts.map((p) => (
@@ -230,7 +251,9 @@ export function HoldButton({
     r.current.t = r.current.i = 0;
   };
   const upRef = useRef(onUp);
-  upRef.current = onUp;
+  useLayoutEffect(() => {
+    upRef.current = onUp;
+  }, [onUp]);
   useEffect(
     () => () => {
       stop();

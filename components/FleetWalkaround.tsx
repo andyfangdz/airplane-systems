@@ -1,9 +1,9 @@
 "use client";
+import { useStore } from "zustand";
 /** Common accessible study controls; all inspection wording, order, sources and targets come from the selected airplane. */
 import { useEffect, useMemo, useRef, type TouchEvent } from "react";
 import { Pin } from "./scene/Part";
 import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
-import { useTicker } from "./ui/controls";
 import { fleetStationStart, fleetStepSide, fleetTally, fleetWalkClock, type FleetWalkStep } from "@/lib/fleet-walk";
 import type { FleetWalkController, FleetWalkPhase } from "@/lib/fleet-walk-store";
 import { SPOT_COLOR } from "@/lib/spot";
@@ -141,7 +141,7 @@ function MiniMap<S>({
   );
 }
 function Intro<S>({ controller }: { controller: FleetWalkController<S> }) {
-  const from = controller.useWalk((w) => w.from),
+  const from = useStore(controller.store, (w) => w.from),
     { data } = controller.logic,
     completed = from === 1 && controller.logic.loadProgress()?.done;
   return (
@@ -198,8 +198,8 @@ function Resume<S>({ controller }: { controller: FleetWalkController<S> }) {
   );
 }
 function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>; step: FleetWalkStep<S>; at: number }) {
-  const big = controller.useWalk((w) => w.big);
-  const marks = controller.useWalk((w) => w.marks),
+  const big = useStore(controller.store, (w) => w.big);
+  const marks = useStore(controller.store, (w) => w.marks),
     swipe = useSwipe(controller, at),
     { station, item } = step;
   const { data, steps, stepParts } = controller.logic,
@@ -306,7 +306,7 @@ function Item<S>({ controller, step, at }: { controller: FleetWalkController<S>;
   );
 }
 function Done<S>({ controller }: { controller: FleetWalkController<S> }) {
-  const w = controller.useWalk(),
+  const w = useStore(controller.store),
     counts = fleetTally(controller.logic.steps, w.marks);
   return (
     <div className="walk-done">
@@ -340,12 +340,11 @@ function Done<S>({ controller }: { controller: FleetWalkController<S> }) {
   );
 }
 export function FleetWalkPanel<S>({ controller }: { controller: FleetWalkController<S> }) {
-  const phase = controller.useWalk((w) => w.phase),
-    at = controller.useWalk((w) => w.at),
-    big = controller.useWalk((w) => w.big);
+  const phase = useStore(controller.store, (w) => w.phase),
+    at = useStore(controller.store, (w) => w.at),
+    big = useStore(controller.store, (w) => w.big);
   const { data, steps } = controller.logic,
     step = phase === "walk" ? steps[at] : undefined;
-  useTicker(1000);
   useStepScene(controller, step, phase);
   useSession(controller, at, phase === "walk");
   useEffect(revealStage, [at, phase]);
@@ -387,8 +386,8 @@ export function FleetWalkPanel<S>({ controller }: { controller: FleetWalkControl
 }
 export function FleetWalkMarker<S>({ controller }: { controller: FleetWalkController<S> }) {
   const walking = useView((v) => v.walking && v.ac === controller.logic.data.id),
-    phase = controller.useWalk((w) => w.phase),
-    at = controller.useWalk((w) => w.at);
+    phase = useStore(controller.store, (w) => w.phase),
+    at = useStore(controller.store, (w) => w.at);
   const step = walking && phase === "walk" ? controller.logic.steps[at] : undefined;
   const centre = useMemo(() => (step ? controller.logic.stepCentroid(step) : null), [controller, step]);
   return step && centre ? <Pin at={centre} label={`${step.item.id} ${step.item.text}`} color={SPOT_COLOR} /> : null;

@@ -1,6 +1,6 @@
 "use client";
 /** A separate reversible study session and progress store for each fleet airplane. */
-import { create, type StoreApi, type UseBoundStore } from "zustand";
+import { createStore, type StoreApi, type UseBoundStore } from "zustand";
 import { selectAircraft } from "./fleet";
 import { toVec3 } from "./math";
 import { view as scene } from "./registry";
@@ -23,7 +23,7 @@ export interface FleetWalkState {
 export interface FleetWalkController<S> {
   logic: ReturnType<typeof createFleetWalk<S>>;
   systems: SysDef[];
-  useWalk: UseBoundStore<StoreApi<FleetWalkState>>;
+  store: StoreApi<FleetWalkState>;
   elapsed: (w: FleetWalkState) => number;
   checkpoint: () => void;
   open: (n?: number) => void;
@@ -80,7 +80,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   syncLive?: (s: S, at: number) => void;
 }): FleetWalkController<S> {
   const { logic, sim, live, systems } = options;
-  const useWalk = create<FleetWalkState>(() => ({
+  const store = createStore<FleetWalkState>(() => ({
     phase: "intro",
     done: false,
     at: 0,
@@ -96,7 +96,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   const elapsed = (w: FleetWalkState) => w.ms + (w.since === null ? 0 : now() - w.since);
   const setSim = (s: S) => sim.getState().update((draft) => Object.assign(draft as object, s));
   function checkpoint() {
-    const w = useWalk.getState(),
+    const w = store.getState(),
       step = logic.steps[w.at];
     if (prior && step && (w.phase === "walk" || w.phase === "done"))
       logic.saveProgress({ v: 1, at: step.item.id, marks: w.marks, ms: Math.round(elapsed(w)), done: w.done });
@@ -109,7 +109,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
     if (prior && useView.getState().walking) {
       if (n) {
         checkpoint();
-        useWalk.setState({ phase: "intro", from: n, since: null });
+        store.setState({ phase: "intro", from: n, since: null });
       }
       return;
     }
@@ -138,7 +138,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
     try {
       big = localStorage.getItem(bigKey) === "1";
     } catch {}
-    useWalk.setState({
+    store.setState({
       phase: saved && !saved.done ? "resume" : "intro",
       done: false,
       at: 0,
@@ -165,7 +165,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   function close() {
     if (!prior) return;
     checkpoint();
-    useWalk.setState({ since: null });
+    store.setState({ since: null });
     const saved = prior;
     prior = null;
     const here = useView.getState().ac === logic.data.id;
@@ -203,10 +203,10 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   }
   function begin() {
     if (!prior) return;
-    useWalk.setState({
+    store.setState({
       phase: "walk",
       done: false,
-      at: Math.max(0, fleetStationStart(logic.steps, useWalk.getState().from)),
+      at: Math.max(0, fleetStationStart(logic.steps, store.getState().from)),
       marks: {},
       ms: 0,
       since: now(),
@@ -218,38 +218,38 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
     const saved = logic.loadProgress(),
       at = saved ? logic.steps.findIndex((s) => s.item.id === saved.at) : -1;
     if (!saved || at < 0) return begin();
-    useWalk.setState({ phase: "walk", done: saved.done, at, marks: saved.marks, ms: saved.ms, since: now() });
+    store.setState({ phase: "walk", done: saved.done, at, marks: saved.marks, ms: saved.ms, since: now() });
     checkpoint();
   }
   function reset() {
     logic.saveProgress(null);
-    useWalk.setState({ phase: "intro", done: false, at: 0, from: 1, marks: {}, ms: 0, since: null });
+    store.setState({ phase: "intro", done: false, at: 0, from: 1, marks: {}, ms: 0, since: null });
   }
   function goStep(at: number) {
-    const w = useWalk.getState();
+    const w = store.getState();
     if (!prior || (w.phase !== "walk" && w.phase !== "done")) return;
-    useWalk.setState({ phase: "walk", at: Math.max(0, Math.min(at, logic.steps.length - 1)), since: w.since ?? now() });
+    store.setState({ phase: "walk", at: Math.max(0, Math.min(at, logic.steps.length - 1)), since: w.since ?? now() });
     checkpoint();
   }
   function mark(kind: "ok" | "skip") {
-    const w = useWalk.getState();
+    const w = store.getState();
     if (!prior || w.phase !== "walk") return;
     const marks = { ...w.marks, [logic.steps[w.at].item.id]: kind };
     if (w.at === logic.steps.length - 1) {
-      useWalk.setState({ marks, phase: "done", done: true, ms: elapsed(w), since: null });
+      store.setState({ marks, phase: "done", done: true, ms: elapsed(w), since: null });
       checkpoint();
     } else {
-      useWalk.setState({ marks });
+      store.setState({ marks });
       goStep(w.at + 1);
     }
   }
   function setBig(big: boolean) {
-    useWalk.setState({ big });
+    store.setState({ big });
     try {
       localStorage.setItem(bigKey, big ? "1" : "0");
     } catch {}
   }
-  useWalk.subscribe((w, was) => {
+  store.subscribe((w, was) => {
     if (!prior || !useView.getState().walking || (w.at === was.at && w.phase === was.phase)) return;
     const on = w.phase === "walk" || w.phase === "done",
       at = on ? w.at : -1;
@@ -260,7 +260,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   return {
     logic,
     systems,
-    useWalk,
+    store,
     elapsed,
     checkpoint,
     open,

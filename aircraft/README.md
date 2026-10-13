@@ -57,6 +57,7 @@ To add one:
 - **State:** View state (which system is shown, x-ray, labels, channel focus, camera) is shared in `lib/view.ts`.
   Each airplane's switches, levers, failures and quantities live in its own store, so they survive switching airplanes.
   Values that change every frame (RPM, flap angle, timers) go in a mutable `live` object, not React state.
+  Panels use `useLiveSnapshot(live, ms)` and pass the snapshot to render calculations; event handlers still mutate `live`.
 - **Parts:** A part's `parent` puts it on a moving group that `Airplane.tsx` renders and animates
   (e.g. `"surf:elevR"` is added automatically by `<ControlSurfaces>`). `anim(mesh, t)` runs every frame for live material and position changes.
 - **SR22T engine groups:** An engine part or flow carries its Engine-view toggle groups as a `groups` option (`["oil"]`,

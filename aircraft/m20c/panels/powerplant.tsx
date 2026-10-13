@@ -1,4 +1,5 @@
 "use client";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { DepthDetail } from "./depth";
 import {
   BtnRow,
@@ -15,7 +16,6 @@ import {
   Seg,
   Slider,
   Small,
-  useTicker,
 } from "@/components/ui/controls";
 import { bladeAngle, fuelAvail, govRpm, govRpmFor, live, type Key, type Sim } from "../model";
 import { CAT } from "../parts";
@@ -23,7 +23,7 @@ import { primeThrottle, scenarioRamp, useM20C } from "../store";
 import { START_HOLD } from "../tick";
 
 const pct = (v: number) => Math.round(v * 100) + "%";
-const rpm10 = () => String(Math.round(live.rpm / 10) * 10);
+const rpm10 = (rpm: number) => String(Math.round(rpm / 10) * 10);
 const fails = (s: Sim, up: (fn: (d: Sim) => void) => void) => (
   <div className="row">
     <div className="lbl">
@@ -85,12 +85,12 @@ const fails = (s: Sim, up: (fn: (d: Sim) => void) => void) => (
 );
 
 export function Engine() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
   const g = s.eng;
-  const flooded = live.prime > 4.5;
+  const flooded = snapshot.prime > 4.5;
   return (
     <>
       <p className="lead">
@@ -219,30 +219,43 @@ export function Engine() {
             [
               "Engine",
               g.running
-                ? live.fireT >= 0
+                ? snapshot.fireT >= 0
                   ? ["FIRING", "warnc"]
                   : "RUNNING"
                 : E.starterOn
                   ? ["CRANKING", "warnc"]
                   : ["STOPPED", "bad"],
             ],
-            ["RPM", [rpm10(), live.rpm > 2700 ? "bad" : live.rpm > 1990 && live.rpm < 2260 ? "warnc" : ""]],
-            ["Man press", live.map.toFixed(1) + " in"],
-            ["Fuel flow", live.ff.toFixed(1) + " gph"],
-            ["Oil press", [live.oilP.toFixed(0) + " psi", live.oilP < 25 ? "bad" : live.oilP < 60 ? "warnc" : ""]],
-            ["Oil temp", [live.oilT.toFixed(0) + " °F", live.oilT > 245 ? "bad" : ""]],
-            ["CHT", [live.cht.toFixed(0) + " °F", live.cht > 500 ? "bad" : live.cht > 450 ? "warnc" : ""]],
-            ["Fuel press", [live.fuelP.toFixed(1) + " psi", live.fuelP < 0.5 ? "bad" : ""]],
-            ["Priming shots", flooded ? ["FLOODED", "bad"] : live.prime > 0.2 ? live.prime.toFixed(1) : "—"],
+            [
+              "RPM",
+              [
+                rpm10(snapshot.rpm),
+                snapshot.rpm > 2700 ? "bad" : snapshot.rpm > 1990 && snapshot.rpm < 2260 ? "warnc" : "",
+              ],
+            ],
+            ["Man press", snapshot.map.toFixed(1) + " in"],
+            ["Fuel flow", snapshot.ff.toFixed(1) + " gph"],
+            [
+              "Oil press",
+              [snapshot.oilP.toFixed(0) + " psi", snapshot.oilP < 25 ? "bad" : snapshot.oilP < 60 ? "warnc" : ""],
+            ],
+            ["Oil temp", [snapshot.oilT.toFixed(0) + " °F", snapshot.oilT > 245 ? "bad" : ""]],
+            ["CHT", [snapshot.cht.toFixed(0) + " °F", snapshot.cht > 500 ? "bad" : snapshot.cht > 450 ? "warnc" : ""]],
+            ["Fuel press", [snapshot.fuelP.toFixed(1) + " psi", snapshot.fuelP < 0.5 ? "bad" : ""]],
+            ["Priming shots", flooded ? ["FLOODED", "bad"] : snapshot.prime > 0.2 ? snapshot.prime.toFixed(1) : "—"],
             [
               "Carb ice",
-              live.carbIce > 0.02
-                ? [Math.round(live.carbIce * 100) + "%", live.carbIce > 0.3 ? "bad" : "warnc"]
+              snapshot.carbIce > 0.02
+                ? [Math.round(snapshot.carbIce * 100) + "%", snapshot.carbIce > 0.3 ? "bad" : "warnc"]
                 : "None",
             ],
             [
               "Starter",
-              live.crankT > 15 ? ["> 15 s — let it cool", "bad"] : E.starterOn ? live.crankT.toFixed(1) + " s" : "—",
+              snapshot.crankT > 15
+                ? ["> 15 s — let it cool", "bad"]
+                : E.starterOn
+                  ? snapshot.crankT.toFixed(1) + " s"
+                  : "—",
             ],
           ]}
         />
@@ -313,7 +326,7 @@ export function Engine() {
           ["Shutdown", "1,000–1,200 RPM, mixture to idle cut-off, throttle closed, mags and master OFF (OM p. 24)"],
         ]}
       />
-      {live.carbIce > 0.1 && (
+      {snapshot.carbIce > 0.1 && (
         <Caution title="Carburetor ice">
           Manifold pressure is dropping and the engine is losing power. Apply full carburetor heat — partial heat can
           raise the air to icing temperature (OM p. 22). Expect roughness while the ice clears, then a small MP loss
@@ -328,13 +341,13 @@ export function Engine() {
       )}
       <DepthDetail system="engine" />
       <H3>Engine — tap to locate</H3>
-      <PartsList parts={CAT.pinned("engine")} />
+      <PartsList cat={CAT} sys="engine" />
     </>
   );
 }
 
 export function Propeller() {
-  useTicker(150);
+  const snapshot = useLiveSnapshot(live, 150);
   const s = useM20C((x) => x.s),
     up = useM20C((x) => x.update);
   const gov = govRpm(s);
@@ -389,10 +402,10 @@ export function Propeller() {
         />
         <Readouts
           items={[
-            ["Governor target", s.eng.fail.governor || live.oilP < 20 ? ["NONE", "bad"] : gov.toLocaleString()],
-            ["RPM", [rpm10(), live.rpm > 2700 ? "bad" : ""]],
-            ["Blade angle", bladeAngle(s, live.rpm).toFixed(0) + "° at 30 in"],
-            ["Man press", live.map.toFixed(1) + " in"],
+            ["Governor target", s.eng.fail.governor || snapshot.oilP < 20 ? ["NONE", "bad"] : gov.toLocaleString()],
+            ["RPM", [rpm10(snapshot.rpm), snapshot.rpm > 2700 ? "bad" : ""]],
+            ["Blade angle", bladeAngle(s, snapshot.rpm, snapshot).toFixed(0) + "° at 30 in"],
+            ["Man press", snapshot.map.toFixed(1) + " in"],
           ]}
         />
       </Ctl>
@@ -402,7 +415,7 @@ export function Propeller() {
         20). The low-RPM end of the control is not in the manual (≈1,800 here); blade angle is illustrative between 13°
         and 29°.
       </Small>
-      {(s.eng.fail.governor || live.oilP < 20) && s.eng.running && (
+      {(s.eng.fail.governor || snapshot.oilP < 20) && s.eng.running && (
         <Caution title="Governor or oil failure">
           The blades have gone to low pitch: control RPM with the throttle and keep it under 2,700. A wavering
           tachometer with the prop control full in and RPM below 2,700 is the tach, not the governor (OM p. 26).
@@ -439,13 +452,13 @@ export function Propeller() {
       />
       <DepthDetail system="propeller" />
       <H3>Propeller — tap to locate</H3>
-      <PartsList parts={CAT.pinned("propeller")} />
+      <PartsList cat={CAT} sys="propeller" />
     </>
   );
 }
 
 export function Fuel() {
-  useTicker(250);
+  const snapshot = useLiveSnapshot(live, 250);
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
@@ -565,10 +578,12 @@ export function Fuel() {
                       : ["NO PWR", "bad"]
                 : "OFF",
             ],
-            ["Fuel pressure", [live.fuelP.toFixed(1) + " psi", live.fuelP < 0.5 ? "bad" : ""]],
+            ["Fuel pressure", [snapshot.fuelP.toFixed(1) + " psi", snapshot.fuelP < 0.5 ? "bad" : ""]],
             [
               "Endurance",
-              live.ff > 0.5 ? `≈ ${((f.qL + f.qR) / live.ff).toFixed(1)} h at ${live.ff.toFixed(1)} gph` : "—",
+              snapshot.ff > 0.5
+                ? `≈ ${((f.qL + f.qR) / snapshot.ff).toFixed(1)} h at ${snapshot.ff.toFixed(1)} gph`
+                : "—",
             ],
           ]}
         />
@@ -628,7 +643,7 @@ export function Fuel() {
       />
       <DepthDetail system="fuel" />
       <H3>Components — tap to locate</H3>
-      <PartsList parts={CAT.pinned("fuel")} />
+      <PartsList cat={CAT} sys="fuel" />
     </>
   );
 }

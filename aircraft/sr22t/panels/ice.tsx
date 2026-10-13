@@ -1,15 +1,16 @@
 "use client";
-import { Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider, useTicker } from "@/components/ui/controls";
+import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
+import { Check, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Slider } from "@/components/ui/controls";
 import { TKS_USABLE, icePumps, live, pumpDuty } from "../model";
 import { CAT } from "../parts";
 import { useSR22T } from "../store";
 
 export function Ice() {
-  useTicker(100);
+  const snapshot = useLiveSnapshot(live, 100);
   const { s, E, update } = useSR22T();
   if (!s.equip.fiki) return <p className="lead">Not installed on this configuration</p>;
   const i = s.ice,
-    pumps = icePumps(s, live.icePhase);
+    pumps = icePumps(s, snapshot.icePhase);
   return (
     <>
       <p className="lead">
@@ -187,7 +188,7 @@ export function Ice() {
           "Do not wax porous panels or use acetone; maximum 158 °F (70 °C) (AMM 30-10, PDF 1226; POH 8-21).",
         ]}
       />
-      <PartsList parts={CAT.pinned("ice")} />
+      <PartsList cat={CAT} sys="ice" />
     </>
   );
 }
