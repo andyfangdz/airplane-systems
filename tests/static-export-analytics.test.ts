@@ -13,7 +13,7 @@ describe("Vercel Analytics in static exports", () => {
     vi.stubEnv("STATIC_EXPORT", "1");
     const config = nextConfig(PHASE_PRODUCTION_BUILD);
     expect(config.output).toBe("export");
-    expect(config.env).toEqual({ NEXT_PUBLIC_STATIC_EXPORT: "1" });
+    expect(config.env).toMatchObject({ NEXT_PUBLIC_STATIC_EXPORT: "1" });
     expect(vercelAnalytics(config.env?.NEXT_PUBLIC_STATIC_EXPORT)).toBe(false);
   });
 

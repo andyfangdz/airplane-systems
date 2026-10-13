@@ -166,14 +166,33 @@ function hookThree() {
 
 /** The scene is complete: a frame has rendered, and no load is still building (the stage carries no data-building). */
 async function sceneComplete(page) {
+  // Updating a final-scene baseline does not measure progressive ordering; finish through the visible user control.
+  if (update) {
+    await page.waitForFunction(
+      () =>
+        window.__three?.camera &&
+        (!document.querySelector("[data-building]") || document.querySelector(".loader-skip")),
+      null,
+      { timeout: 120_000 },
+    );
+    const addAll = page.getByRole("button", { name: "Add all the remaining parts now", exact: true });
+    if (await addAll.isVisible()) {
+      try {
+        await addAll.click({ timeout: 30000 });
+      } catch (error) {
+        if (await page.locator("[data-building]").count()) throw error;
+      }
+    }
+  }
   await page.waitForFunction(() => window.__three?.camera && !document.querySelector("[data-building]"), null, {
     timeout: 120_000,
   });
 }
 
-/** Clipped skin patches whose triangulation changes with the runtime (see tests/scene-snapshot.test.ts): compared by area
- * and area centroid, not by their vertices. */
-const REMESHED = ["Fuselage", "Left cabin door", "Right cabin door", "Baggage door"];
+/** Clipped skins and the extruded front-baffle outline can triangulate differently in Node and Chromium.
+ * Compare their surface area and centroid instead of sums weighted by repeated triangle vertices.
+ * The front baffle's measured area/centroid difference across those runtimes is below 1e-10. */
+const REMESHED = ["Fuselage", "Left cabin door", "Right cabin door", "Baggage door", "Front baffle"];
 /** Absolute tolerances of the scene sums (m for positions); measured noise across runtimes: 7.2e-7, 2.3e-6, 1.5e-8. */
 const TOL = {
   position: 5e-6,
@@ -196,7 +215,8 @@ const objectSummaries = (page, remeshed) =>
     const out = [];
     scene.traverse((o) => {
       if (!o.isMesh && !o.isLine) return;
-      const g = o.geometry,
+      // Compare the original triangle stream: exact indexing changes storage, not the reviewed surface.
+      const g = o.geometry.userData.unindexedSource ? o.geometry.toNonIndexed() : o.geometry,
         p = g.attributes.position.array,
         n = p.length / 3,
         name = o.userData.pick?.name ?? "",
@@ -244,6 +264,7 @@ const objectSummaries = (page, remeshed) =>
         transform,
         area,
       });
+      if (g !== o.geometry) g.dispose();
     });
     return out;
   }, remeshed);

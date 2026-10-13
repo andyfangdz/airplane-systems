@@ -41,3 +41,5 @@ export { MANIFOLD } from "./cabin";
 import "./engine-depth";
 import "./systems-depth";
 import "./walk-inspection";
+
+import "./hardware-detail";

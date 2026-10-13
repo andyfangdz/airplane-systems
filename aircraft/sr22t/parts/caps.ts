@@ -89,6 +89,7 @@ const tearOut: PartAnim = (m) => {
     },
     ["caps"],
     {
+      dynamicGeo: true,
       anim: tearOut,
       name: "Forward harness strap",
       note: "Two forward harness straps run from the canister immediately beneath the fuselage skin to attach points on the firewall and pull through their covering on deployment (POH 7-96; AMM Figure 95-00-1). Fitting heights and offsets are illustrative.",

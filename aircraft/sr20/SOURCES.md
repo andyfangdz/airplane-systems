@@ -101,3 +101,18 @@ These member discussions were **fetched and read**, including later clarificatio
 ## Cabin routing verification
 
 Cabin RF/data paths and passenger ventilation ducts follow sidewall/underfloor lanes clear of the modeled seat meshes. Fuel feeds enter the selector vertically inside the console, and the static line reaches its floor trap below the rear seat. Source endpoints and pressure/fuel/air topology are retained; the bends remain schematic. Complete tube vertices, triangle centers and edge midpoints are checked against occupied cabin space and actual seat meshes, alongside the existing skin-containment checks.
+
+## Shared component and geometry pipeline
+
+`parts/hardware-detail.ts` explicitly selects existing source-cited equipment for more legible
+cases, covers, actuator housings and filter media. Their installation envelopes, system roles
+and optional-equipment rules remain those of the cited parts. Surface seams, internal finish,
+pleat spacing and displayed mechanism travel are illustrative, not manufacturer measurements.
+No connector counts, terminal layouts or new equipment ratings are inferred.
+
+Mechanical throttle/mixture/governor sheath routes retain this aircraft's control architecture
+and cite the applicable POH/AFM in their part notes. Bend radii, ferrules and attachment offsets
+are schematic. The control details respond to the existing simulation state; no new dynamics
+or electrical dependencies are introduced. Geometry is built through the same source catalogue
+and lossless meshoptimizer pipeline as the SR22T. Tests check envelope containment, independent
+control operation, route clearance and byte-exact encoded/decoded geometry.
