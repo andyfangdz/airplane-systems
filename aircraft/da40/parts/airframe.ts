@@ -28,7 +28,7 @@ import {
   onSkin,
   paintSkin,
   stabSec,
-  topY,
+  doorHingeY,
   wingSec,
 } from "../geometry";
 import { shell, rel } from "./catalogue";
@@ -123,8 +123,14 @@ shell(
 export const CANOPY_HINGE = CANOPY.hinge;
 export const DOOR_HINGE: Vec3 = (() => {
   const x = (DOOR.x0 + DOOR.x1) / 2;
-  const p = onSkin(x, Math.min(0.42, topY(x) - 0.05), -1, 1);
-  return [x, p.y, p.z];
+  // A straight hinge axis must clear the curved roof edge over the whole door span.
+  // The former midpoint at y=0.42 sat below the door's y=0.46 top edge.
+  // Ten-millimetre bracket stand-off is illustrative (AFM 7-18), not a rigging dimension.
+  const edge = Array.from({ length: 33 }, (_, i) => {
+    const at = DOOR.x0 + ((DOOR.x1 - DOOR.x0) * i) / 32;
+    return onSkin(at, doorHingeY(at), -1, 1);
+  });
+  return [x, Math.max(...edge.map((p) => p.y)) + 0.01, Math.min(...edge.map((p) => p.z)) - 0.01];
 })();
 export const CANOPY_SHELL: ShellSpec = {
   id: "da40/canopy",

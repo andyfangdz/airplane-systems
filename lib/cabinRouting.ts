@@ -35,12 +35,12 @@ export function cabinHarness(
     if (p[1] <= floor[1] + 0.08) return [p, floor];
     const section = shape.fus(p[0]);
     const roof = p[1] > section.cy + section.hh * 0.45;
-    let y = roof ? Math.min(p[1], shape.topY(p[0]) - 0.055) : p[1];
+    let y = roof ? shape.topY(p[0]) - 0.035 : p[1];
     const pts: Vec3[] = [p];
     if (roof) pts.push([p[0], y, p[2]]);
     const wall = (at: number, h: number) => side * Math.max(0, Math.abs(shape.onSkin(at, h, side, 1).z) - wallInset);
     // Roof equipment first reaches a headliner rail; wall fittings stay outboard before descending.
-    pts.push([x, y, wall(x, y)]);
+    if (!roof || !sidewallPost) pts.push([x, y, wall(x, y)]);
     // A narrow cabin may have no clearance between the cushion edge and the lower sidewall.
     // Reach a clear forward post before descending, keeping the lateral run behind the trim.
     if (sidewallPost && x >= sidewallPost.from && x <= sidewallPost.to) {
@@ -48,12 +48,13 @@ export function cabinHarness(
       const start = x;
       for (let i = 1; i <= count; i++) {
         x = start + ((sidewallPost.x - start) * i) / count;
-        const h = Math.min(y, shape.topY(x) - 0.055);
-        pts.push([x, h, wall(x, h)]);
+        const h = roof ? shape.topY(x) - 0.035 : Math.min(y, shape.topY(x) - 0.035);
+        pts.push([x, h, roof ? p[2] : wall(x, h)]);
       }
-      y = Math.min(y, shape.topY(x) - 0.055);
+      y = roof ? shape.topY(x) - 0.035 : Math.min(y, shape.topY(x) - 0.035);
       floor = cabinFloorLane(shape, x, side);
     }
+    pts.push([x, y, wall(x, y)]);
     const sill = floor[1];
     const steps = Math.max(1, Math.ceil((y - sill) / 0.08));
     for (let i = 1; i <= steps; i++) {

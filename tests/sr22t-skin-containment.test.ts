@@ -113,6 +113,12 @@ const EXTERNAL: { name: string | RegExp; max: number; reason: string; terminalOn
     max: 0.03,
     reason: "overboard drain tube exits below the cowl",
   },
+  {
+    name: "Gascolator preflight drain valve",
+    max: 0.009,
+    reason:
+      "short outlet from the internal manifold to the lower-cowl preflight valve; 8 mm illustrative stub (POH 7-40 / Fig 7-8, AMM Fig 28-20-1 items 7–11)",
+  },
   // flows whose only outside vertices are the end at an external part
   {
     name: /^(Left|Right) tank vent line$/,
@@ -143,9 +149,7 @@ const EXTERNAL: { name: string | RegExp; max: number; reason: string; terminalOn
  * Issue-tracked debt: name → largest allowed depth (m), measured when filed (main 912db0b, rounded up to the mm) and
  * re-checked on 1a77f16. Shrink only; delete an issue's lines in the PR that fixes it (see the header).
  */
-const DEBT: Record<string, { max: number; issue: string; reason?: string }> = {
-  "Gascolator preflight drain valve": { max: 0.092, issue: "#215" },
-};
+const DEBT: Record<string, { max: number; issue: string; reason?: string }> = {};
 
 const matches = (name: string) =>
   EXTERNAL.find((e) => (typeof e.name === "string" ? e.name === name : e.name.test(name)));
@@ -404,5 +408,17 @@ it("front cowl fasteners stay within their illustrative 2 mm external allowance"
   const displaced = { ...fastener, geo: () => fastener.geo().translate(0, 0, 0.01) };
   expect(sweep([displaced], []).failures).toEqual([
     expect.stringMatching(/^Front cowl fastener: .* mm outside, budget 2 mm/),
+  ]);
+});
+
+it("the gascolator outlet has only its short external valve stub, not the old 92 mm debt allowance", () => {
+  const outlet = FLOWS.find((f) => f.key === "fuelDrainOutlet")!;
+  const original = sweep([], [outlet]);
+  expect(original.failures).toEqual([]);
+  expect(original.found.get(outlet.name!)).toBeLessThanOrEqual(0.009);
+  const end = toV(outlet.pts.at(-1)!);
+  const displaced = { ...outlet, pts: [...outlet.pts.slice(0, -1), end.add(new THREE.Vector3(0, -0.01, 0))] };
+  expect(sweep([], [displaced]).failures).toEqual([
+    expect.stringMatching(/^Gascolator preflight drain valve: .* mm outside, budget 9 mm/),
   ]);
 });

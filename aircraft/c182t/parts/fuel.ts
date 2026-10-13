@@ -11,9 +11,10 @@ export const TANK_BL = [24, 100] as const;
 /** Schematic aft-doorpost route, shared by the pipe and its fuel particles; the upper elbow enters under the wing root. */
 export const fuelManifoldPath = (s: number): Vec3[] => [
   wp(s * 24.5, 0.62, -1, 0.02),
-  P3(65, s * 16, 80.3),
-  P3(65, s * 16, 76),
-  P3(65, s * 19.4, 30),
+  P3(68, s * 16, 80.3),
+  P3(68, s * 16, 76),
+  P3(68, s * 19.4, 30),
+  P3(68, s * 8, 26.8),
   P3(40, s * 8, 26.8),
   P3(27.5, s * 2.5, 25.4),
 ];

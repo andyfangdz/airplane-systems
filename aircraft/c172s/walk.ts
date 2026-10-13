@@ -1,3 +1,4 @@
+import { DOORS } from "./geometry";
 /** Approximate neutral ramp transforms shared with the guided walk and containment audit. */
 import * as THREE from "three";
 import { createFleetWalk, fleetGroupMatrix } from "@/lib/fleet-walk";
@@ -31,6 +32,7 @@ export function rampState(prior: Sim): Sim {
 }
 /** Full neutral parent matrix; unknown names fail instead of silently placing a pin at the origin. */
 export function groupMatrix(parent: string): THREE.Matrix4 {
+  if (DOORS.some((door) => parent === `door:${door.key}`)) return new THREE.Matrix4();
   if (parent.startsWith("surf:")) return fleetGroupMatrix(CAT.surfacePivot(parent.slice(5)));
   if (parent === "noseGear") return fleetGroupMatrix(NOSE);
   if (parent === "caster") return groupMatrix("noseGear").multiply(fleetGroupMatrix(NOSE_CASTER));

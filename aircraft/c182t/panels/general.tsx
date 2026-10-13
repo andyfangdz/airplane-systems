@@ -236,6 +236,29 @@ export function Cabin() {
       </p>
       <H3>Try it</H3>
       <Ctl>
+        {(
+          [
+            ["doorL", "Left cabin door open"],
+            ["doorR", "Right cabin door open"],
+            ["bag", "Baggage door open"],
+            ["windowL", "Left door window open"],
+            ["windowR", "Right door window open"],
+          ] as const
+        ).map(([key, label]) => (
+          <Check
+            key={key}
+            id={`cabin-${key}`}
+            label={label}
+            checked={c[key]}
+            onChange={(v) =>
+              up((d) => {
+                d.cabin[key] = v;
+              })
+            }
+          />
+        ))}
+        <Small>Door opening angles and latch travel illustrate operation; they are not rigging dimensions.</Small>
+
         <Check
           id="lock"
           label="Control lock installed (flag over the ignition switch)"

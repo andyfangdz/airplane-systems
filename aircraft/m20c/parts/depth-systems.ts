@@ -193,7 +193,7 @@ add(
     [
       "ALT output breaker (1968 side panel)",
       DEPTH.outputBreaker,
-      "Main alternator output breaker is on the right-side upholstery panel on 1968 models; moved to main panel from 1969 (1968 OM scan p. 14 item 44; MAN 106 § 9-3).",
+      "Main alternator output breaker is on the right-side upholstery panel on 1968 models; shown on the fixed forward side trim with illustrative mounting offsets; moved to main panel from 1969 (1968 OM scan p. 14 item 44; MAN 106 § 9-3).",
     ],
     [
       "Airframe ground connection",

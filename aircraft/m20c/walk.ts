@@ -1,3 +1,4 @@
+import { DOORS } from "./geometry";
 import * as THREE from "three";
 import { createFleetWalk, fleetGroupMatrix } from "@/lib/fleet-walk";
 import { toVec3 } from "@/lib/math";
@@ -29,6 +30,7 @@ export function rampState(prior: Sim): Sim {
 const tailMatrix = () => fleetGroupMatrix(TAIL_PIVOT);
 /** The study airplane remains down and locked with neutral controls; includes open gear doors and the whole-tail offset. */
 export function groupMatrix(parent: string): THREE.Matrix4 {
+  if (DOORS.some((door) => parent === `door:${door.key}`)) return new THREE.Matrix4();
   if (parent.startsWith("surf:")) {
     const key = parent.slice(5);
     return (TAIL_SURFACE_KEYS.includes(key) ? tailMatrix() : new THREE.Matrix4()).multiply(

@@ -18,6 +18,7 @@ import { PANEL_X, canopyOutlines, doorOutlines, loft, windowOutlines, wingSec } 
 import { sided } from "@/lib/geometry";
 import { bladeAngle, extLit, live } from "./model";
 import {
+  DOOR_POSE,
   CANOPY_HINGE,
   CANOPY_SHELL,
   CAT,
@@ -130,7 +131,8 @@ function Openings() {
     const k = Math.min(1, dt * 3);
     can.current.rotation.z = lerp(can.current.rotation.z, -ct * D2R, k);
     door.current.rotation.x = lerp(door.current.rotation.x, dtg * D2R, k);
-  });
+    DOOR_POSE.rear = door.current.rotation.x / (82 * D2R);
+  }, -1);
   return (
     <>
       <group ref={can} position={CANOPY_HINGE}>

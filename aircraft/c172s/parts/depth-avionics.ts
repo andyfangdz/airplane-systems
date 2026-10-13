@@ -111,7 +111,7 @@ part(() => box(0.045, 0.012, 0.07), ["avionics", "cabin"], {
 for (const side of [-1, 1])
   for (const fs of [40, 76])
     part(() => box(0.012, 0.022, 0.035), ["avionics", "cabin"], {
-      pos: P3(fs, side * 16, 50),
+      pos: P3(fs === 40 ? 27 : fs, side * 16, 50),
       name: fs < 50 ? "Front headset jacks" : "Rear headset jacks",
       color: "#444D53",
       pin: side < 0,

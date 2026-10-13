@@ -22,7 +22,7 @@ export const RIG_SPEC: RigSpec = {
   },
   ail: {
     lower: [13, 16.5, 31.5],
-    postFs: 30.6,
+    postFs: 28,
     postBl: 16.5,
     postLow: 31.5,
     postHigh: 76.5,

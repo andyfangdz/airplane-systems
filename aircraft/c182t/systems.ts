@@ -60,9 +60,10 @@ export const SYS: SysDef[] = [
     id: "cabin",
     name: "Cabin & safety",
     pg: "7-21",
+    // Look under the high wing so the door/window mechanisms remain visible with X-ray off.
     cam: [
-      [3.3, 5.1, 5.8],
-      [0.3, 0.25, 0],
+      [-1.6, 1, 5.8],
+      [0.3, 0.05, 0],
     ],
     blurb: "Seats, doors, baggage, ELT, CO",
   },

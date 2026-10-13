@@ -72,6 +72,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const focused = (!!focus && focus === spec.name) || spotted;
   // fairings (wheel pants) ghost in X-ray like the skin, so what they cover stays visible
   const ghost = !!spec.fairing && xray && !focused && act;
+  const solid = !xray && spec.solidMaterial ? spec.solidMaterial() : mats(color).on;
   const material = spotted
     ? mats(SPOT_COLOR).hi
     : focused
@@ -85,10 +86,12 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
             ? shellMat
             : ghostMat(sysColor(spec.sys[0], theme))
           : !xray && spot
-            ? dimSolidMat(mats(color).on)
-            : act || !xray
-              ? mats(color).on
-              : mats(color).dim;
+            ? dimSolidMat(solid)
+            : !xray
+              ? solid
+              : act
+                ? mats(color).on
+                : mats(color).dim;
   // a ghosted fairing picks like the skin, so the wheel or brake seen through it gets the tooltip
   const pick: PickInfo | undefined = spec.name
     ? { name: spec.name, note: spec.note ?? "", color, sys: spec.sys, shell: ghost || undefined }

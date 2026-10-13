@@ -1,8 +1,8 @@
 /** SR20 G6 door mechanisms: POH 11934-005 7-26, 7-33; AMM 12137-002 RA/A1 ch. 52.
- * Closed-door hardware study. No moving-door geometry or measured installation coordinates implied. */
-import { densify, roundPoly } from "@/lib/geometry";
+ * Door hardware rides with the shared hinged-panel assembly; installation coordinates remain illustrative. */
+import { densify } from "@/lib/geometry";
 import { toVec3, type Vec3 } from "@/lib/math";
-import { DOOR, box, cyl, onSkin, tubeGeo } from "../geometry";
+import { DOOR, BAGGAGE_DOOR, box, cyl, onSkin, tubeGeo } from "../geometry";
 import { part } from "./catalogue";
 
 /** Inset below the surface keeps internal mechanisms inside the approximate fuselage. */
@@ -14,15 +14,7 @@ export const doorHardwarePoint = (x: number, y: number, side: number, inset = 0.
 export const DOOR_HANDLE = (side: number) => doorHardwarePoint(1.28, -0.04, side, 0.05);
 export const DOOR_LATCH = (side: number, upper: boolean) =>
   doorHardwarePoint(upper ? 0.855 : 0.87, upper ? 0.51 : -0.26, side);
-export const BAGGAGE_DOOR = roundPoly(
-  [
-    [-0.36, -0.31],
-    [-0.36, 0.09],
-    [0.06, 0.09],
-    [0.08, -0.31],
-  ],
-  0.07,
-);
+export { BAGGAGE_DOOR } from "../geometry";
 export const BAGGAGE_HANDLE = doorHardwarePoint(-0.28, -0.12, -1, 0.02);
 
 for (const side of [-1, 1]) {
@@ -66,7 +58,7 @@ for (const side of [-1, 1]) {
     name: "Cabin door gas strut",
     pin: side < 0,
     pinIn: ["doors"],
-    note: "Gas-charged strut assists opening and holds the forward-hinged door open against gusts (POH 7-33; AMM 52-10 p. 1 and Fig 52-10-1). Closed-position strut and attachment stations schematic; the static model does not demonstrate its extension or loads.",
+    note: "Gas-charged strut assists opening and holds the forward-hinged door open against gusts (POH 7-33; AMM 52-10 p. 1 and Fig 52-10-1). Attachment stations and extension are schematic; no loads are calculated.",
   });
   part(() => box(0.035, 0.025, 0.025), ["doors"], {
     pos: strutA,
@@ -89,7 +81,7 @@ for (const side of [-1, 1]) {
     name: "Interior cabin door handle",
     pin: side < 0,
     pinIn: ["doors"],
-    note: "Centered beneath the window, in the door armrest. Lifting either handle operates the pull cable and linkage to release both upper and lower aft latches; either handle can also draw a partly closed door into positive engagement (AMM 52-10 p. 1, Fig 52-10-3). Closed position shown; dimensions approximate.",
+    note: "Centered beneath the window, in the door armrest. Lifting either handle operates the pull cable and linkage to release both upper and lower aft latches; either handle can also draw a partly closed door into positive engagement (AMM 52-10 p. 1, Fig 52-10-3). Handle travel and dimensions approximate.",
   });
   part(() => box(0.15, 0.026, 0.008), ["doors"], {
     pos: doorHardwarePoint(1.28, 0.02, side, 0.008),
@@ -144,7 +136,7 @@ part(
     color: "#85939C",
     pin: true,
     pinIn: ["doors"],
-    note: "Left fuselage aft of the wing, hinged on its forward edge and latched/locked at its rear edge (POH 7-26; AMM 52-30). Pre-2901 G6 manual key lock represented; later serial 8500 power-lock equipment is not used. Only the outline and hardware are shown; panel outline and station approximate.",
+    note: "Left fuselage aft of the wing, hinged on its forward edge and latched/locked at its rear edge (POH 7-26; AMM 52-30). Pre-2901 G6 manual key lock represented; later serial 8500 power-lock equipment is not used. Panel outline and station approximate.",
   },
 );
 part(() => cyl(0.012, 0.008, "z", 16), ["doors"], {
@@ -159,5 +151,5 @@ part(() => cyl(0.011, 0.14, "y"), ["doors"], {
   name: "Baggage door forward hinge",
   color: "#85939C",
   pin: true,
-  note: "Forward-edge baggage-door hinge (POH 7-26; AMM 52-30). Static closed-position hardware; size approximate.",
+  note: "Forward-edge baggage-door hinge (POH 7-26; AMM 52-30). Hinge hardware; size approximate.",
 });

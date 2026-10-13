@@ -2,20 +2,35 @@ import { sidePaintUV } from "@/lib/livery";
 import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /** C182T catalogue: airframe shells — fuselage, spinner, wings and tips, horizontal and vertical stabilizers. */
 import * as THREE from "three";
-import { AF, AIL_C, BL, EF, FLAP_C, HF, HZ, X, Y, Z, finCut, finSec, loft, sided, stabSec, wingSec } from "../geometry";
+import {
+  AF,
+  fuselageGeo,
+  AIL_C,
+  BL,
+  EF,
+  FLAP_C,
+  HF,
+  HZ,
+  X,
+  Y,
+  Z,
+  finCut,
+  finSec,
+  loft,
+  sided,
+  stabSec,
+  wingSec,
+} from "../geometry";
 import { IN } from "../../cessna/airframe";
 import { shell } from "./catalogue";
 
 /* ---------- airframe shells ---------- */
 shell(
-  fuselageGeoOf(),
+  fuselageGeo,
   "Fuselage",
   "All-metal semimonocoque: formed bulkheads, stringers and skin. Front and rear carry-through spars take the wings; a bulkhead and forgings at the base of the rear door posts take the main gear; a bulkhead with fittings at the base of the forward door posts takes the struts; four engine mount stringers run from the forward door posts to the firewall (POH 7-5).",
   true,
 );
-function fuselageGeoOf() {
-  return AF.fuselageGeo;
-}
 shell(
   () => {
     // long pointed spinner: tip FS −64 (scaled from Fig 1-1), base ≈ FS −44.5, D-7261-2 (arm −49.9, POH 6-24)

@@ -4,6 +4,7 @@
  * supplies track/wheelbase. Unspecified case/well envelopes remain schematic. */
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { MeshBVH, acceleratedRaycast } from "three-mesh-bvh";
 import type { PartSpec } from "@/lib/catalogue";
 import { D2R, V } from "@/lib/math";
 import { FUSE, GROUND_Y, IN, PANEL_X, SSPAN, SY, TAIL_PIVOT, fuselageGeo, wingP } from "@/aircraft/m20c/geometry";
@@ -103,9 +104,13 @@ function gearMatrix(parent: string, fraction: number, yaw = 0) {
     .setPosition(MG.trunnion[0], MG.trunnion[1], side * MG.trunnion[2]);
 }
 function crosses(geometry: THREE.BufferGeometry, mesh: THREE.Mesh) {
+  // Keep every edge/pose check, but avoid scanning the complete refined hull for each ray.
+  mesh.geometry.boundsTree ??= new MeshBVH(mesh.geometry);
+  mesh.raycast = acceleratedRaycast;
   const ps = points(geometry),
     ix = geometry.index!.array,
     ray = new THREE.Raycaster();
+  ray.firstHitOnly = true;
   const seen = new Set<string>();
   const keys = ps.map((p) =>
     p
@@ -352,7 +357,7 @@ describe("M20C gear wells and occupied cabin (OM pp. 6–7)", () => {
     } finally {
       material.dispose();
     }
-  });
+  }, 30_000); // Builds the refined source hull in addition to both wing skins.
 
   it("puts the Johnson-bar handle in the matching lock socket at both ends", () => {
     const handle = namedPart(CAT, "Gear handle safety latch (thumb button)");

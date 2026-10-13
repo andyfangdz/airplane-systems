@@ -33,16 +33,23 @@ export function inletSkins(source: THREE.BufferGeometry, inlets: CowlInlet[], pl
   return inletGeometry(source, inlets, true, planes);
 }
 
+/** Exact rectangular apertures. Their rim does not grow when the surrounding mesh is coarsened. */
+export function cutBoxes(source: THREE.BufferGeometry, boxes: THREE.Box3[]) {
+  return inletGeometry(source, [], false, [], boxes).setIndex(null);
+}
+
 function inletGeometry(
   source: THREE.BufferGeometry,
   inlets: CowlInlet[],
   retain: boolean,
   extraPlanes: THREE.Plane[] = [],
+  boxes: THREE.Box3[] = [],
 ) {
   const attrs = Object.entries(source.attributes);
   const sizes = attrs.map(([, attr]) => attr.itemSize);
   const offsets = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
   const pOffset = offsets[attrs.findIndex(([name]) => name === "position")];
+  const normalIndex = attrs.findIndex(([name]) => name === "normal");
   type Vertex = number[];
   const vertex = (i: number): Vertex =>
     attrs.flatMap(([, attr]) => Array.from({ length: attr.itemSize }, (_, k) => attr.getComponent(i, k)));
@@ -66,6 +73,24 @@ function inletGeometry(
     );
     return { inlet, planes };
   });
+  for (const box of boxes) {
+    const min = box.min.toArray(),
+      max = box.max.toArray();
+    cutters.push({
+      inlet: {
+        minX: min[0],
+        y: (min[1] + max[1]) / 2,
+        z: (min[2] + max[2]) / 2,
+        height: max[1] - min[1],
+        width: max[2] - min[2],
+        exponent: 2,
+      },
+      planes: [0, 1, 2].flatMap((axis) => [
+        (v: Vertex) => min[axis] - v[pOffset + axis],
+        (v: Vertex) => v[pOffset + axis] - max[axis],
+      ]),
+    });
+  }
   const emit = (poly: Vertex[]) => {
     for (let i = 1; i + 1 < poly.length; i++) {
       const tri = [poly[0], poly[i], poly[i + 1]];
@@ -107,6 +132,11 @@ function inletGeometry(
             if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
               const t = da / (da - db),
                 intersection = a.map((v, k) => v + t * (b[k] - v));
+              if (boxes.length && normalIndex >= 0) {
+                const o = offsets[normalIndex],
+                  length = Math.hypot(...intersection.slice(o, o + 3));
+                if (length) for (let k = o; k < o + 3; k++) intersection[k] /= length;
+              }
               next.push(intersection);
               outside.push(intersection);
             }
@@ -124,7 +154,7 @@ function inletGeometry(
   const g = new THREE.BufferGeometry();
   attrs.forEach(([name], i) => g.setAttribute(name, new THREE.Float32BufferAttribute(output[i], sizes[i])));
   g.setIndex(Array.from({ length: g.attributes.position.count }, (_, i) => i));
-  if (g.attributes.normal) g.normalizeNormals();
+  if (g.attributes.normal && !boxes.length) g.normalizeNormals();
   source.dispose();
   return g;
 }

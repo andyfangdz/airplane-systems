@@ -3,7 +3,7 @@
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import { cabinHarness } from "@/lib/cabinRouting";
+import { cessnaCabinHarness as cabinHarness } from "../cessna/cabin-routing";
 import { DEPTH as D } from "./depth-anchors";
 import { AF } from "./geometry";
 import { RIG, RIG_SPEC } from "./rig";
@@ -342,7 +342,7 @@ wire(
 );
 add(
   "staticAltimeter",
-  [D.staticTee, P(18, 3, 48), D.standbyAlt],
+  [D.staticTee, P(14, 3, 48), D.standbyAlt],
   ["pitot"],
   "Static tee → standby altimeter",
   "POH 7-64: independent standby-altimeter pressure branch.",
@@ -390,7 +390,7 @@ for (const side of [-1, 1])
     wire(
       "headset" + side + fs,
       D.audio,
-      P(fs, side * 16, 50),
+      P(fs === 40 ? 27 : fs, side * 16, 50),
       (fs < 50 ? "Front" : "Rear") + " headset audio/intercom",
       bool("audio"),
       ["avionics", "cabin"],

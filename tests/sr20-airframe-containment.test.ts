@@ -1,3 +1,4 @@
+import { DOORS } from "@/aircraft/sr20/geometry";
 /** Internal installation consistency with the modeled skin; this does not assert surveyed maintenance dimensions. */
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
@@ -9,11 +10,12 @@ import { CABIN_ENVIRONMENT_SKIN_PORTS } from "@/aircraft/sr20/cabin-environment-
 import { AIL_SECTOR, CARR, ETT, PULLEYS, RUD_HORN } from "@/aircraft/sr20/rig";
 import { toV } from "@/lib/math";
 import { curveOf } from "@/lib/geometry";
-import { worldGeometry, points } from "./placement-helpers";
+import { worldGeometry, firstSurfaceSample } from "./placement-helpers";
 import { insideSR20Airframe } from "./sr20-airframe-helpers";
 
 function parentMatrix(parent: string | undefined) {
   if (!parent) return undefined;
+  if (DOORS.some((door) => parent === `door:${door.key}`)) return new THREE.Matrix4();
   if (parent.startsWith("cyl:")) {
     const c = CYLS.find((c) => `cyl:${c.n}` === parent)!;
     return new THREE.Matrix4().makeTranslation(c.x, -0.14, c.s * 0.25);
@@ -53,15 +55,15 @@ describe("SR20 internal hardware and routing containment", () => {
   it("keeps every internal catalogue mesh within the fuselage, wing or tail skin", () => {
     const failures: string[] = [];
     for (const part of CAT.parts.filter((part) => !part.ext)) {
-      const g = worldGeometry(part, parentMatrix(part.parent));
+      const g = worldGeometry({ ...part, geo: () => part.geo().clone() }, parentMatrix(part.parent));
       try {
-        const outside = points(g).find((p) => !contained(p));
+        const outside = firstSurfaceSample(g, (p) => !contained(p));
         if (outside) failures.push(`${part.name ?? part.id}: ${describePoint(outside)}`);
       } finally {
         g.dispose();
       }
     }
-    expect(failures, "Internal mesh vertices outside the airframe").toEqual([]);
+    expect(failures, "Internal mesh vertices, edges or faces outside the airframe").toEqual([]);
   });
 
   it("keeps complete internal flow curves and rendered tube walls within the skin", () => {
@@ -82,7 +84,7 @@ describe("SR20 internal hardware and routing containment", () => {
       // Match the actual rendered tube, including its radius, not just the route's declared control points.
       const g = new THREE.TubeGeometry(curve, Math.max(24, Math.round(curve.getLength() * 28)), f.r ?? 0.012, 6, false);
       try {
-        const outside = points(g).find((p) => !inside(p));
+        const outside = firstSurfaceSample(g, (p) => !inside(p));
         if (outside) failures.push(`${f.key} tube wall: ${describePoint(outside)}`);
       } finally {
         g.dispose();

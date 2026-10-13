@@ -580,7 +580,9 @@ it("exhaust cuts retain non-indexed skin attributes and leave distant door skin 
   expect(g.getAttribute("position").count).toBe(6);
   for (const [name, a] of Object.entries(g.attributes)) expect(Array.from(a.array)).toEqual(expected[name]);
   openExhaustExits(indexed);
-  expect(Array.from(indexed.getIndex()!.array)).toEqual([6, 7, 8, 9, 10, 11]);
+  const expanded = indexed.toNonIndexed();
+  for (const [name, a] of Object.entries(expanded.attributes)) expect(Array.from(a.array)).toEqual(expected[name]);
+  expanded.dispose();
   g.dispose();
   indexed.dispose();
 });

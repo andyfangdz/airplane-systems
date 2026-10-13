@@ -180,6 +180,7 @@ describe("SR22T rear passenger station", () => {
     }
   }, 120000);
 
+  // Dense 5 mm sampling of every route needs the same explicit budget as other geometry audits.
   it("keeps moved interior parts inside the skin and all moved solids clear of flows (POH 7-28; approximate routes)", () => {
     for (const seat of moved.filter((p) => !p.ext)) {
       const m = meshOf(seat);
@@ -212,5 +213,5 @@ describe("SR22T rear passenger station", () => {
         }
       }
     }
-  });
+  }, 30_000);
 });

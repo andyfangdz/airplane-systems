@@ -1,6 +1,9 @@
 import { COWL_INLETS } from "../cowl-inlets";
 import { drawLivery, liveryLabels, tailTexture } from "../liveries";
-import { paintAtlas } from "@/lib/livery";
+import { cutCowlInlets } from "@/lib/cowl";
+import { fuselageOpenings } from "@/lib/fuselage-openings";
+import { studyDoor } from "@/lib/doors";
+import { sidePaintUV, paintAtlas } from "@/lib/livery";
 /**
  * Airframe geometry for the Cessna 182T Skylane NAV III (Paramus Flying Club N8050J, s/n 18281633, and N21200,
  * s/n 18281732), built with the shared Cessna high-wing builder (aircraft/cessna/airframe.ts).
@@ -160,7 +163,6 @@ export const {
   strutGeo,
   springLegGeo,
   projectLoop,
-  fuselageGeo,
   roundPoly,
 } = AF;
 export const GROUND_Y = groundY;
@@ -254,13 +256,65 @@ export const WIN = {
   ),
 };
 
+/** Forward cabin hinges (POH 7-25). Door outlines retained from the
+ * reference airframe; hinge coordinates, edge clearance and opening travel are illustrative. */
+export const DOOR_SKIN = fuselageOpenings(FUSE);
+const doorXY = (xy: number[][]) => xy.map(([fs, h]) => [X(fs), Y(h)]);
+export const DOORS = [-1, 1].map((side) =>
+  studyDoor(DOOR_SKIN, {
+    key: side < 0 ? "L" : "R",
+    name: side < 0 ? "Left cabin door" : "Right cabin door",
+    side,
+    outline: doorXY(WIN.door),
+    window: doorXY(WIN.doorWin),
+    windowKey: side < 0 ? "windowL" : "windowR",
+    hinge: [onSkin(X(31), Y(30), side, 1), onSkin(X(31), Y(75), side, 1)],
+    hingeStandOff: 0.03,
+    angle: (side * 65 * Math.PI) / 180,
+    note: "Forward-hinged cabin door with handle-operated aft latch (POH 7-25). Mesh, hinge coordinates and opening travel illustrate operation; not maintenance dimensions.",
+  }),
+);
+DOORS.push(
+  studyDoor(DOOR_SKIN, {
+    key: "bag",
+    name: "Baggage door panel",
+    side: -1,
+    outline: doorXY(WIN.bagDoor),
+    hinge: [onSkin(X(95.0), Y(31), -1, 1), onSkin(X(95.0), Y(52), -1, 1)],
+    hingeStandOff: 0.03,
+    angle: (-85 * Math.PI) / 180,
+    note: "Left-side lockable baggage door (POH 7-21). Outline, hinge placement and opening travel illustrative.",
+  }),
+);
+for (const side of [-1, 1]) {
+  const xy = doorXY(WIN.doorWin),
+    top = Math.max(...xy.map((p) => p[1]));
+  const front = Math.max(...xy.map((p) => p[0])),
+    rear = Math.min(...xy.map((p) => p[0]));
+  DOORS.push(
+    studyDoor(DOOR_SKIN, {
+      key: side < 0 ? "windowL" : "windowR",
+      parent: side < 0 ? "L" : "R",
+      glazing: true,
+      name: side < 0 ? "Left door window" : "Right door window",
+      side,
+      outline: xy,
+      hinge: [onSkin(rear, top, side, 1), onSkin(front, top, side, 1)],
+      angle: (-side * 35 * Math.PI) / 180,
+      note: "Top-hinged door window with a lower-edge latch (POH 7-26). Window hinge and open travel illustrative; follows the cabin door when both are open.",
+    }),
+  );
+}
+export const fuselageGeo = () =>
+  sidePaintUV(cutCowlInlets(DOOR_SKIN.hull(DOORS.filter((door) => !door.parent)), SPEC.cowlInlets), AF.UV).setIndex(
+    null,
+  );
+export const doorPaint = (g: THREE.BufferGeometry) => sidePaintUV(g, AF.UV).setIndex(null);
+
 /** Window / door outline loops projected onto the skin (WindowOutlines). */
 export function windowOutlines(): THREE.Vector3[][] {
   const loops: THREE.Vector3[][] = [];
-  [1, -1].forEach((s) =>
-    [WIN.doorWin, WIN.rearSide, WIN.rearWrap, WIN.door].forEach((w) => loops.push(projectLoop(w, s))),
-  );
-  loops.push(projectLoop(WIN.bagDoor, -1));
+  [1, -1].forEach((s) => [WIN.rearSide, WIN.rearWrap].forEach((w) => loops.push(projectLoop(w, s))));
   // windshield: both side edges joined across the roof (under the wing LE) and across the cowl deck
   const side = (s: number) =>
     densify(

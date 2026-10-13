@@ -7,6 +7,8 @@
  * traced from an SR20 G6 side photo (OO-CBB, s/n 2347, Wikimedia Commons).
  */
 import * as THREE from "three";
+import { fuselageNormal } from "@/lib/fuselage-openings";
+import { curvedSkinPatch } from "@/lib/skin-patch";
 import { CRANK_Y } from "./engine-datum";
 import { densify, finSurface, fuselage, interp, liftingSurface, roundPoly, type Ring } from "@/lib/geometry";
 import { clamp, lerp } from "@/lib/math";
@@ -269,13 +271,14 @@ const arcCache = new Map<number, SkinArc>();
  * each arc about 20 times; doorHullGeo empties it when done. */
 const ARC_CACHE_SIZE = 8192; // approximate: a cache size, not a source value
 function skinArc(x: number) {
-  // Keep the short, steep lip blend smooth; cabin cuts retain their existing 1-mm lookup stations.
-  const resolution = x > COWL_NOSE_BLEND_X ? 10000 : 1000;
-  x = Math.round(x * resolution) / resolution;
+  // Micrometre keys keep the surface continuous at the sampled chord-error tolerance.
+  x = Math.round(x * 1e6) / 1e6;
   let arc = arcCache.get(x);
   if (!arc) {
     const points = fRing(x, 1, 240, -Math.PI / 2, Math.PI / 2, false),
       n = points.length;
+    // Share an exact centerline between the mirrored halves, despite cos(π/2) roundoff.
+    points[0].z = points[n - 1].z = 0;
     arc = { ys: new Float64Array(n), zs: new Float64Array(n), lengths: new Float64Array(n), total: 0 };
     for (let i = 0; i < n; i++) {
       arc.ys[i] = points[i].y;
@@ -291,6 +294,7 @@ function skinArc(x: number) {
 export function doorSkin(x: number, q: number, side: number) {
   const { ys, zs, lengths, total } = skinArc(x),
     target = ((q + 1) * total) / 2;
+  if (q <= -1 || q >= 1) return new THREE.Vector3(x, ys[q <= -1 ? 0 : ys.length - 1], 0);
   // the first segment end at or past the target (the last one at most): lengths only grow
   let i = 1,
     hi = lengths.length - 1;
@@ -469,119 +473,24 @@ export const doorEdge = (key: DoorKey) =>
   offsetOutline(key === "bag" ? bagCut : cabinCut, -DOOR_GAP).map((p) => doorSkin(p.x, p.y, key === "R" ? 1 : -1));
 export const doorCutParam = (key: DoorKey) => (key === "bag" ? bagCut : cabinCut);
 
-/** Triangulate the unwrapped skin with apertures, then refine before mapping it onto the loft.
- * Hole edges are shared with the door panels, so a coarse centroid mask cannot leave a jagged seam. */
+const skinNormal = (p: THREE.Vector3) => fuselageNormal(FUSE, p);
+
 function skinPatch(outline: THREE.Vector2[], holes: THREE.Vector2[][], side: number) {
-  const shape = new THREE.Shape(outline);
-  shape.holes = holes.map((p) => new THREE.Path(p));
-  const flat = new THREE.ShapeGeometry(shape).toNonIndexed();
-  const pos: number[] = [],
-    uv: number[] = [],
-    normals: number[] = [];
-  // Neighbouring triangles share their corners: map each corner onto the skin, and work out its normal, once.
-  const corners = new Map<number, Map<number, { p: THREE.Vector3; normal?: THREE.Vector3 }>>();
-  const corner = (v: THREE.Vector2) => {
-    let row = corners.get(v.x);
-    if (!row) corners.set(v.x, (row = new Map()));
-    let c = row.get(v.y);
-    if (!c) row.set(v.y, (c = { p: doorSkin(v.x, v.y, side) }));
-    return c;
-  };
-  const emit = (a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2, depth = 0) => {
-    const abLength = a.distanceToSquared(b),
-      bcLength = b.distanceToSquared(c),
-      caLength = c.distanceToSquared(a);
-    // Resolve the short nose-lip blend; coarse triangles would bridge it and cut into the cowl cheeks.
-    const step = Math.max(a.x, b.x, c.x) > COWL_NOSE_BLEND_X ? 0.002 : 0.04;
-    if (depth < 24 && Math.max(abLength, bcLength, caLength) > step ** 2) {
-      if (abLength >= bcLength && abLength >= caLength) {
-        const m = a.clone().lerp(b, 0.5);
-        emit(a, m, c, depth + 1);
-        emit(m, b, c, depth + 1);
-      } else if (bcLength >= caLength) {
-        const m = b.clone().lerp(c, 0.5);
-        emit(a, b, m, depth + 1);
-        emit(a, m, c, depth + 1);
-      } else {
-        const m = c.clone().lerp(a, 0.5);
-        emit(a, b, m, depth + 1);
-        emit(m, b, c, depth + 1);
-      }
-    } else {
-      const mapped = [a, b, c].map((p) => {
-        const v = corner(p).p;
-        return new THREE.Vector3(Math.fround(v.x), Math.fround(v.y), Math.fround(v.z));
-      });
-      // Refinement at a curved cut can collapse a Float32 triangle into a zero-area sliver.
-      if (mapped[1].clone().sub(mapped[0]).cross(mapped[2].clone().sub(mapped[0])).lengthSq() < 1e-20) return;
-      const center = mapped.reduce((sum, p) => sum.add(p), new THREE.Vector3()).divideScalar(3);
-      const cp = doorParam(center);
-      const inHole = holes.some((poly) => {
-        let inside = false;
-        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-          const u = poly[i],
-            v = poly[j];
-          if (u.y > cp.y !== v.y > cp.y && cp.x < ((v.x - u.x) * (cp.y - u.y)) / (v.y - u.y) + u.x) inside = !inside;
-        }
-        return inside;
-      });
-      if (inHole) {
-        // Curvature can put the chord's centroid just inside a cut: refine at that edge,
-        // and discard only sub-millimetre slivers rather than retaining fixed skin in an aperture.
-        if (depth < 24 && Math.max(abLength, bcLength, caLength) > 0.001 ** 2) {
-          const ab = a.clone().lerp(b, 0.5),
-            bc = b.clone().lerp(c, 0.5),
-            ca = c.clone().lerp(a, 0.5);
-          emit(a, ab, ca, depth + 1);
-          emit(ab, b, bc, depth + 1);
-          emit(ca, bc, c, depth + 1);
-          emit(ab, bc, ca, depth + 1);
-        }
-        return;
-      }
-      for (const v of side > 0 ? [a, b, c] : [c, b, a]) {
-        const at = corner(v),
-          p = at.p;
-        pos.push(p.x, p.y, p.z);
-        at.normal ??= skinNormal(p);
-        normals.push(at.normal.x, at.normal.y, at.normal.z);
-        uv.push((p.x - SK.x0) / (SK.x1 - SK.x0), (p.y - SK.y0) / (SK.y1 - SK.y0));
-      }
-    }
-  };
-  /** Smooth loft normal at skin point `p`, from the implicit superellipse, independent of triangle size. */
-  const skinNormal = (p: THREE.Vector3) => {
-    const field = (x: number) => {
-      const { hw, hh, cy, nTop, nBot, tumble } = FUSE.section(x),
-        py = (p.y - cy) / hh;
-      const n = py >= 0 ? nTop : nBot,
-        w = hw * (1 - tumble * Math.max(0, py));
-      return Math.pow(Math.abs(p.z) / w, n) + Math.pow(Math.abs(py), n);
-    };
-    const { hw, hh, cy, nTop, nBot, tumble } = FUSE.section(p.x),
-      py = (p.y - cy) / hh;
-    const n = py >= 0 ? nTop : nBot,
-      w = hw * (1 - tumble * Math.max(0, py));
-    const ny =
-      (n * Math.sign(py) * Math.pow(Math.abs(py), n - 1)) / hh +
-      (py > 0 ? (n * Math.pow(Math.abs(p.z) / w, n) * tumble) / (hh * (1 - tumble * py)) : 0);
-    const nz = (n * Math.sign(p.z) * Math.pow(Math.abs(p.z) / w, n - 1)) / w;
-    // approximate: a central-difference step along x, not a source value
-    return new THREE.Vector3((field(p.x + 0.0001) - field(p.x - 0.0001)) / 0.0002, ny, nz).normalize();
-  };
-  const a = flat.attributes.position;
-  for (let i = 0; i < a.count; i += 3)
-    emit(
-      new THREE.Vector2(a.getX(i), a.getY(i)),
-      new THREE.Vector2(a.getX(i + 1), a.getY(i + 1)),
-      new THREE.Vector2(a.getX(i + 2), a.getY(i + 2)),
-    );
-  flat.dispose();
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  g.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
-  return g;
+  return curvedSkinPatch({
+    outline,
+    holes,
+    side,
+    splitX: [...FUSE.stations, COWL_NOSE_BLEND_X],
+    // The lip needs fine fore/aft sampling, not an equally fine circumference grid.
+    parameterStep: (a, b) => {
+      const dx = Math.max(a.x, b.x) > COWL_NOSE_BLEND_X ? 0.002 : 0.06;
+      return ((a.x - b.x) / dx) ** 2 + ((a.y - b.y) / 0.06) ** 2;
+    },
+    point: (p) => doorSkin(p.x, p.y, side),
+    parameter: doorParam,
+    normal: skinNormal,
+    uv: (p) => [(p.x - SK.x0) / (SK.x1 - SK.x0), (p.y - SK.y0) / (SK.y1 - SK.y0)],
+  });
 }
 export function doorPanelGeo(key: DoorKey) {
   const outline = offsetOutline(doorCutParam(key), -DOOR_GAP);

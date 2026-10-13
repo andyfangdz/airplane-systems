@@ -5,7 +5,8 @@
  * an illustrative fit to the study model, not an aircraft installation dimension.
  * Side-effect-free anchors let the cowl, parts and flows share the same exits.
  */
-import { BufferAttribute } from "three";
+import { Box3, Vector3 } from "three";
+import { cutBoxes } from "@/lib/cowl";
 import { GATE_TRANSITION, TURBINE_INLET, TURBINE_OUTLET, TURBO_X, WASTEGATE } from "./turbo-layout";
 import { ACCESSORY_FACE_X, REAR_CYL_X } from "./engine-datum";
 import { bentPoints } from "@/lib/geometry";
@@ -146,55 +147,24 @@ export const WASTEGATE_BYPASS: Vec3[] = [
 ];
 
 /** Two lower-cowl apertures around the swept exits (POH 7-38; AMM Fig 78-20-4).
- * Remove intersecting loft triangles conservatively; the coarse loft makes the rims
- * schematic. Upper skin and unrelated stations are retained byte for byte. */
+ * Clip their boundaries exactly; removing entire intersecting triangles made the openings
+ * depend on mesh density. The illustrative exit envelope and clearance remain unchanged. */
 export function openExhaustExits(g: import("three").BufferGeometry) {
-  const index = g.getIndex();
-  const positions = g.getAttribute("position");
-  const retained: number[] = [];
-  const count = index?.count ?? positions.count;
-  const margin = TAILPIPE_RADIUS + 0.012; // unchanged illustrative exit clearance
-  const exits = [-1, 1].map((s) => {
-    const path = TAILPIPE(s),
-      bend = path.at(-3)!;
-    return {
-      x0: path.at(-1)![0] - margin,
-      x1: bend[0] + margin,
-      y: bend[1],
-      z0: bend[2] - margin,
-      z1: bend[2] + margin,
-    };
-  });
-  for (let i = 0; i < count; i += 3) {
-    const a = index ? index.getX(i) : i,
-      b = index ? index.getX(i + 1) : i + 1,
-      c = index ? index.getX(i + 2) : i + 2;
-    const minY = Math.min(positions.getY(a), positions.getY(b), positions.getY(c));
-    let opening = false;
-    if (minY < exits[0].y) {
-      const minX = Math.min(positions.getX(a), positions.getX(b), positions.getX(c)),
-        maxX = Math.max(positions.getX(a), positions.getX(b), positions.getX(c));
-      if (maxX >= exits[0].x0 && minX <= exits[0].x1) {
-        const minZ = Math.min(positions.getZ(a), positions.getZ(b), positions.getZ(c)),
-          maxZ = Math.max(positions.getZ(a), positions.getZ(b), positions.getZ(c));
-        for (const exit of exits) if (maxZ >= exit.z0 && minZ <= exit.z1) opening = true;
-      }
-    }
-    if (!opening) retained.push(a, b, c);
-  }
-  if (index) g.setIndex(retained);
-  else {
-    // Main's door hull is non-indexed. Remove complete triangles from every
-    // attribute together, preserving the normals/UVs of all retained skin.
-    for (const [name, attribute] of Object.entries(g.attributes)) {
-      const array = new (attribute.array.constructor as typeof Float32Array)(retained.length * attribute.itemSize);
-      for (let i = 0; i < retained.length; i++)
-        for (let c = 0; c < attribute.itemSize; c++)
-          array[i * attribute.itemSize + c] = attribute.array[retained[i] * attribute.itemSize + c];
-      g.setAttribute(name, new BufferAttribute(array, attribute.itemSize, attribute.normalized));
-    }
-  }
-  g.boundingBox = null;
-  g.boundingSphere = null;
+  const indexed = !!g.index;
+  const margin = TAILPIPE_RADIUS + 0.012;
+  const clipped = cutBoxes(
+    g,
+    [-1, 1].map((side) => {
+      const path = TAILPIPE(side),
+        bend = path.at(-3)!;
+      return new Box3(
+        new Vector3(path.at(-1)![0] - margin, -10, bend[2] - margin),
+        new Vector3(bend[0] + margin, bend[1], bend[2] + margin),
+      );
+    }),
+  );
+  g.copy(clipped);
+  if (indexed) g.setIndex(Array.from({ length: g.getAttribute("position").count }, (_, i) => i));
+  clipped.dispose();
   return g;
 }

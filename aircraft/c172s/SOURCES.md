@@ -97,3 +97,26 @@ are schematic. The control details respond to the existing simulation state; no 
 or electrical dependencies are introduced. Geometry is built through the same source catalogue
 and lossless meshoptimizer pipeline as the SR22T. Tests check envelope containment, independent
 control operation, route clearance and byte-exact encoded/decoded geometry.
+
+## Working openings and mechanisms
+
+POH 7-27–28 and 172RPC24 52-10/52-10-02 support the front-hinged cabin doors, handle/latch linkage and top-hinged opening windows; 52-30 covers the baggage door. Existing outlines now cut real apertures. Window groups are children of their cabin doors, so either can operate independently while the handles and latches stay attached. The bolt retracts and the linkage/handle move with the opening command.
+
+The shared curved-skin triangulation, panel parenting and strut helpers use the same source catalogue and
+lossless prebuilt pipeline as the SR22T. Opening angles, hinge/anchor offsets, clearances, hardware shapes and
+mechanism travel are illustrative, not manufacturer rigging dimensions. Existing station profiles and traced
+outlines are retained. Functional/surface checks and remaining fleet gaps are listed in [MODELING.md](../../MODELING.md).
+
+### Cabin finishes and open-door clearance
+
+The same cabin/door sources above support the fixed cabin enclosure; floor height, lining inset and jamb thickness
+are illustrative drawing offsets. Solid mode covers systems behind the floor and trim; X-ray retains their visibility.
+Roof wiring uses fixed structure around the entrance rather than descending through the door aperture. Endpoint and
+connection topology are retained; approximate mounting positions are adjusted where necessary to stay on fixed trim.
+See `MODELING.md` and the doorway-clearance regression tests for the limits of this spatial check.
+
+Opening-clearance follow-up uses the same door sources above. Hinge stand-off, seal inset and jamb subdivision
+are illustrative model corrections verified against the unchanged exterior loft; see `MODELING.md`.
+
+Forward-post trim encloses the Figure 7-1 control runs (and the C172 fuel feeds); its section is illustrative.
+The lining ends at the traced wraparound roof glazing and cuts both rear side-window regions.

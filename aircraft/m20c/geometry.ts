@@ -15,6 +15,8 @@
  * dorsal fin — the 1968 model dropped the small dorsal fin of 1962–67). The short-body M20C fuselage was otherwise unchanged 1962–77. Wing area 167 ft² (TCDS 2A3), MAC 59.18 in.
  */
 import * as THREE from "three";
+import { fuselageOpenings } from "@/lib/fuselage-openings";
+import { studyDoor } from "@/lib/doors";
 import { densify, finSurface, fuselage, liftingSurface, roundPoly, type Ring } from "@/lib/geometry";
 import { clamp, lerp } from "@/lib/math";
 
@@ -207,11 +209,46 @@ export const WIN = {
   ),
 };
 
+/** Opening hardware: 1968 OM p. 15; MAN205 Figs 15–16. Placement/travel illustrative. */
+export const DOOR_SKIN = fuselageOpenings(FUSE);
+export const DOORS = [
+  studyDoor(DOOR_SKIN, {
+    key: "cabin",
+    name: "Cabin door panel",
+    side: 1,
+    outline: WIN.door,
+    window: WIN.front,
+    hinge: [onSkin(1.535, -0.3, 1, 1), onSkin(1.515, 0.22, 1, 1)],
+    hingeStandOff: 0.03,
+    angle: (65 * Math.PI) / 180,
+    note: "Forward-opening right cabin door, closed with the pull strap and handle, without slamming (1968 OM p. 15; MAN205 Fig 15). Outline, hinge stations and travel illustrative.",
+  }),
+  studyDoor(DOOR_SKIN, {
+    key: "baggage",
+    name: "Baggage door panel",
+    side: 1,
+    outline: WIN.bag,
+    hinge: [onSkin(-0.22, 0.13, 1, 1), onSkin(0.1, 0.13, 1, 1)],
+    hingeStandOff: 0.03,
+    angle: (-85 * Math.PI) / 180,
+    note: "Top-hinged right baggage door with two lock pins and a handle/linkage assembly (MAN205 Fig 16, pp. 94–95). Outline, hinge coordinates and opening travel illustrative; no later interior-release retrofit is assumed.",
+  }),
+];
+export const doorPaint = (g: THREE.BufferGeometry) => {
+  const p = g.getAttribute("position"),
+    uv = g.getAttribute("uv");
+  for (let i = 0; i < p.count; i++)
+    uv.setXY(i, (p.getX(i) - SK.x0) / (SK.x1 - SK.x0), (p.getY(i) - SK.y0) / (SK.y1 - SK.y0));
+  return g;
+};
+
 export function windowOutlines(): THREE.Vector3[][] {
   const loops: THREE.Vector3[][] = [];
-  [1, -1].forEach((s) => [WIN.front, WIN.rear].forEach((w) => loops.push(densify(w).map(([x, y]) => onSkin(x, y, s)))));
-  loops.push(densify(WIN.door).map(([x, y]) => onSkin(x, y, 1, 1.008)));
-  loops.push(densify(WIN.bag).map(([x, y]) => onSkin(x, y, 1, 1.008)));
+  [1, -1].forEach((s) =>
+    (s < 0 ? [WIN.front, WIN.rear] : [WIN.rear]).forEach((w) =>
+      loops.push(densify(w).map(([x, y]) => onSkin(x, y, s))),
+    ),
+  );
   const side = (s: number) => densify(WIN.windLower, 0.03, false).map(([x, y]) => onSkin(x, y, s));
   const [topX, topHeight] = WIN.windLower.at(-1)!,
     [bottomX, bottomHeight] = WIN.windLower[0];
@@ -228,7 +265,7 @@ export function windowOutlines(): THREE.Vector3[][] {
 }
 
 /** Fuselage loft with side-projected UVs for the painted skin texture. */
-export const fuselageGeo = () => FUSE.geo({ step: 0.06, N: 48, uv: SK });
+export const fuselageGeo = () => doorPaint(DOOR_SKIN.hull(DOORS));
 
 export const NAVY = "#1B2A5E",
   LIGHT_BLUE = "#7FA9D6";

@@ -36,7 +36,7 @@ import {
   GTS_800,
   KN_63,
 } from "./parts/avionics";
-import { FUSE, HH, botY, fLE, fus, hingeX, onSkin, topY } from "./geometry";
+import { FUSE, HH, botY, fLE, fus, hingeX } from "./geometry";
 
 const CB: Vec3 = [1.8, -0.42, -0.115];
 const F: FlowSpec[] = [];
@@ -346,15 +346,7 @@ const rfEnd = (p: Vec3, side: number): Vec3[] => {
   if (p === MICROPHONE) return [p, [p[0], p[1], -0.1], [p[0], lane[1], -0.1], lane];
   if (p[1] <= lane[1] + 0.08) return [p, [p[0], lane[1], p[2]], lane];
   if (p[1] > 0.3) {
-    const y = Math.min(p[1] - 0.045, topY(p[0]) - 0.065);
-    const points: Vec3[] = [p, [p[0], y, p[2]]];
-    const steps = Math.max(1, Math.ceil((y - lane[1] - 0.06) / 0.08));
-    for (let i = 0; i <= steps; i++) {
-      const h = y + ((lane[1] + 0.06 - y) * i) / steps;
-      points.push([p[0], h, side * Math.max(0, Math.abs(onSkin(p[0], h, side, 1).z) - 0.02)]);
-    }
-    points.push(lane);
-    return points;
+    return cabinHarness(FUSE, p, lane, 2.48, side, 0.02, { x: 2.02, from: 0.76, to: 2.02 });
   }
   // Move across the widest section before descending: a diagonal from a side LRU toward a belly port cuts the skin.
   return [p, [p[0], middle, p[2]], [p[0], middle, lane[2]], lane];
