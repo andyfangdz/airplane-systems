@@ -70,8 +70,8 @@ for (const { v, camera } of views.flatMap((v) => cameras.map((camera) => ({ v, c
     const name = shotFilename(v, phone, camera);
     const file = join(out, name);
     const png = await page.screenshot({ fullPage: phone, timeout: 120_000 });
-    writeFileSync(file, png);
     expect(pageErrors, "No application runtime errors").toEqual([]);
+    writeFileSync(file, png);
     if (!compare) return;
     if (!existsSync(join(resolve(compare), name))) {
       console.log(`No reference ${name}`);
