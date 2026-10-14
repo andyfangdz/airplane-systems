@@ -7,6 +7,10 @@ import * as THREE from "three";
 import { airplaneBounds, cameraFitDistance, FRAME_FILL, viewPresetCamera } from "../lib/camera";
 import { V, clamp, ease } from "../lib/math";
 
+// Read through fs below. Listing it to Vite (never loading it) makes it a dependency, so `vitest --changed` reruns this
+// file when it changes.
+import.meta.glob("../components/scene/Scene.tsx");
+
 // Execute the actual frame callback with real Three geometry; hooks only provide its scene/state inputs.
 function rig() {
   const source = readFileSync(process.env.CAMERA_RIG_SOURCE || resolve("components/scene/Scene.tsx"), "utf8");

@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { AIRCRAFT_IDS } from "@/lib/systems";
 import { VIEW_PATHS } from "@/lib/viewPaths";
 
+// Read through fs below. Listing it to Vite (never loading it) makes it a dependency, so `vitest --changed` reruns this
+// file when it changes.
+import.meta.glob("../infra/cloudfront/view-rewrite.js");
 const source = readFileSync(new URL("../infra/cloudfront/view-rewrite.js", import.meta.url), "utf8");
 type Query = Record<string, { value: string; multiValue?: { value: string }[] }>;
 const run = (uri: string, querystring: Query = {}) => {

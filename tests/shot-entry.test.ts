@@ -3,6 +3,15 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+// The Playwright shot config and scripts these spawn, and the source files the config reads. Listing them to Vite (never
+// loading them) makes them dependencies, so `vitest --changed` reruns this file when they change.
+import.meta.glob([
+  "../playwright.shots.config.mjs",
+  "../scripts/shot*.mjs",
+  "../lib/systems.ts",
+  "../aircraft/*/systems.ts",
+]);
+
 describe("shot script entry point", () => {
   it("enumerates each requested camera once through the Playwright config", () => {
     const root = resolve(import.meta.dirname, "..");
