@@ -39,10 +39,9 @@ import type { FlowSpec } from "@/lib/catalogue";
 import { curveOf, loft } from "@/lib/geometry";
 import { toV, type Vec3 } from "@/lib/math";
 import * as THREE from "three";
-import { MeshBVH } from "three-mesh-bvh";
 import { expect, it } from "vitest";
 import { patched } from "./helpers";
-import { windingNumberOf } from "./winding-number";
+import { ballIntruder } from "./helpers/ballIntruder";
 
 const DATA_KEYS = [
   "magData",
@@ -89,12 +88,6 @@ const SECOND_LINKS = [
   ["adahrs2Gia1", GIA_1, ADAHRS_2],
   ["adahrs2Gia2", ADAHRS_2, GIA_2],
 ] as const;
-/**
- * Whether a ball of radius `r` at a world point reaches a part's rendered mesh at rest: its nearest triangle is closer
- * than `r` (a BVH query), or the point is inside the part (generalised winding number above ¾, which overlapping merged
- * pieces and either winding order keep; an open plate never reaches it). The solid lies within its own bounding box, so
- * the winding sum, which visits every triangle, runs only for points inside that box.
- */
 // Neutral parent transforms match Airplane.tsx/ControlRig.tsx; include every part and control surface.
 const parents: Record<string, THREE.Matrix4> = {};
 const translate = (v: Vec3 | THREE.Vector3) => new THREE.Matrix4().makeTranslation(...toV(v).toArray());
@@ -162,15 +155,7 @@ const solids = [
     expect(parents[p.parent], `missing neutral transform: ${p.parent}`).toBeDefined();
     toWorld.premultiply(parents[p.parent]);
   }
-  g.applyMatrix4(toWorld);
-  const xyz = g.getAttribute("position").array;
-  const bvh = new MeshBVH(g),
-    nearest = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
-  const world = new THREE.Box3().setFromBufferAttribute(g.getAttribute("position") as THREE.BufferAttribute);
-  const inside = (w: THREE.Vector3) => Math.abs(windingNumberOf(w, xyz)) > 0.75;
-  // Stops at the first triangle nearer than r and skips nodes farther than r (a non-null result can still be farther).
-  const intrudes = (w: THREE.Vector3, r: number) =>
-    (bvh.closestPointToPoint(w, nearest, r, r)?.distance ?? Infinity) < r || (world.containsPoint(w) && inside(w));
+  const { world, intrudes } = ballIntruder(g.applyMatrix4(toWorld));
   return { name: p.name ?? ("id" in p ? p.id : "unnamed surface"), world, intrudes, moving: !!p.parent };
 });
 // Conservative envelopes over full control travel, using the same poses as
