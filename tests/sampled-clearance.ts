@@ -94,9 +94,12 @@ export const sampledClearance = (curve: Curve<Vector3>, r: number, obstacles: Ob
   let worst = { gap: Infinity, name: "", at: new Vector3() };
   for (const { p, r: reach } of probes)
     for (const o of obstacles) {
-      const hit = o.bvh.closestPointToPoint(p);
+      // Outside an obstacle, a surface farther than the worst gap plus this probe's reach cannot become the worst,
+      // so the BVH may skip it; inside, the depth needs the true distance.
+      const within = o.closed && inside(o, p);
+      const hit = o.bvh.closestPointToPoint(p, {}, 0, within ? Infinity : Math.max(0, worst.gap + reach));
       if (!hit) continue;
-      const gap = o.closed && inside(o, p) ? -hit.distance - reach : hit.distance - reach;
+      const gap = within ? -hit.distance - reach : hit.distance - reach;
       if (gap < worst.gap) worst = { gap, name: o.name, at: p };
     }
   return worst;

@@ -85,6 +85,10 @@ export function curvedSkinPatch({
     if (!c) row.set(v.y, (c = { p: point(v) }));
     return c;
   };
+  // Scratch vectors for the leaf tests below; emit recurses only after it is done with them.
+  const chord = new THREE.Vector3(),
+    e1 = new THREE.Vector3(),
+    e2 = new THREE.Vector3();
   const emit = (a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2, depth = 0) => {
     const vertices = [a, b, c];
     // Preserve loft station creases exactly instead of letting a chord bridge a concave station.
@@ -123,7 +127,9 @@ export function curvedSkinPatch({
     });
     const center = mapped[0].clone().add(mapped[1]).add(mapped[2]).divideScalar(3);
     const mids = vertices.map((v, i) => v.clone().lerp(vertices[(i + 1) % 3], 0.5));
-    const errors = mids.map((v, i) => corner(v).p.distanceToSquared(mapped[i].clone().lerp(mapped[(i + 1) % 3], 0.5)));
+    const errors = mids.map((v, i) =>
+      corner(v).p.distanceToSquared(chord.copy(mapped[i]).lerp(mapped[(i + 1) % 3], 0.5)),
+    );
     const centerError = point(a.clone().add(b).add(c).divideScalar(3)).distanceToSquared(center);
     if (depth < 26 && Math.max(...errors, centerError) > tolerance ** 2) {
       const edge =
@@ -147,7 +153,7 @@ export function curvedSkinPatch({
       return;
     }
     const f = mapped;
-    if (f[1].clone().sub(f[0]).cross(f[2].clone().sub(f[0])).lengthSq() < 1e-20) return;
+    if (e1.subVectors(f[1], f[0]).cross(e2.subVectors(f[2], f[0])).lengthSq() < 1e-20) return;
     for (const v of side > 0 ? vertices : [...vertices].reverse()) {
       const at = corner(v),
         p = at.p;

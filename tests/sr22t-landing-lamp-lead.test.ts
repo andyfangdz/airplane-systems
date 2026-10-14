@@ -53,12 +53,24 @@ describe("SR22T landing light lamp lead (POH 7-57)", () => {
 
   it("stays inside the cowl: 5 mm inside the skin, except where it enters the lamp seated in the skin", () => {
     const r = LEAD.r ?? 0.012;
-    const skin = tris(FUSE.geo({ step: 0.01, N: 160 }), new THREE.Matrix4());
+    // Sorted by first-vertex x, so each query visits only the triangles within 50 mm fore and aft of it.
+    const skin = tris(FUSE.geo({ step: 0.01, N: 160 }), new THREE.Matrix4()).sort((a, b) => a[0].x - b[0].x);
+    const firstAtLeast = (x: number) => {
+      let lo = 0,
+        hi = skin.length;
+      while (lo < hi) {
+        const m = (lo + hi) >> 1;
+        if (skin[m][0].x < x) lo = m + 1;
+        else hi = m;
+      }
+      return lo;
+    };
     const depth = (p: THREE.Vector3) => {
       let d = Infinity;
       const t = new THREE.Triangle(),
         q = new THREE.Vector3();
-      for (const s of skin)
+      for (let i = firstAtLeast(p.x - 0.05); i < skin.length && skin[i][0].x <= p.x + 0.05; i++) {
+        const s = skin[i];
         if (Math.abs(s[0].x - p.x) < 0.05)
           d = Math.min(
             d,
@@ -67,6 +79,7 @@ describe("SR22T landing light lamp lead (POH 7-57)", () => {
               .closestPointToPoint(p, q)
               .distanceTo(p),
           );
+      }
       return inFus(p) ? d : -d;
     };
     // the lamp's seat: its box and the last 30 mm of the lead above it

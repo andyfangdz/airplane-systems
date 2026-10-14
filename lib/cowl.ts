@@ -51,8 +51,14 @@ function inletGeometry(
   const pOffset = offsets[attrs.findIndex(([name]) => name === "position")];
   const normalIndex = attrs.findIndex(([name]) => name === "normal");
   type Vertex = number[];
-  const vertex = (i: number): Vertex =>
-    attrs.flatMap(([, attr]) => Array.from({ length: attr.itemSize }, (_, k) => attr.getComponent(i, k)));
+  const width = sizes.reduce((a, b) => a + b, 0);
+  // Plain loops: this runs for every corner of every skin triangle, nearly all of them far from any inlet.
+  const vertex = (i: number): Vertex => {
+    const v: Vertex = new Array(width);
+    let o = 0;
+    for (const [, attr] of attrs) for (let k = 0; k < attr.itemSize; k++) v[o++] = attr.getComponent(i, k);
+    return v;
+  };
   const output = attrs.map(() => [] as number[]);
   const cutters = inlets.map((inlet) => {
     const contour = inletContour(inlet);
@@ -92,13 +98,29 @@ function inletGeometry(
     });
   }
   const emit = (poly: Vertex[]) => {
+    const p0 = poly[0],
+      ax = p0[pOffset],
+      ay = p0[pOffset + 1],
+      az = p0[pOffset + 2];
     for (let i = 1; i + 1 < poly.length; i++) {
-      const tri = [poly[0], poly[i], poly[i + 1]];
-      const a = new THREE.Vector3().fromArray(tri[0], pOffset);
-      const b = new THREE.Vector3().fromArray(tri[1], pOffset).sub(a);
-      const c = new THREE.Vector3().fromArray(tri[2], pOffset).sub(a);
-      if (b.cross(c).lengthSq() < 1e-20) continue;
-      for (const v of tri) attrs.forEach((_, k) => output[k].push(...v.slice(offsets[k], offsets[k] + sizes[k])));
+      const p1 = poly[i],
+        p2 = poly[i + 1];
+      // (b - a) × (c - a), as Vector3.cross computes it: skip slivers the clip leaves behind
+      const bx = p1[pOffset] - ax,
+        by = p1[pOffset + 1] - ay,
+        bz = p1[pOffset + 2] - az,
+        cx = p2[pOffset] - ax,
+        cy = p2[pOffset + 1] - ay,
+        cz = p2[pOffset + 2] - az;
+      const x = by * cz - bz * cy,
+        y = bz * cx - bx * cz,
+        z = bx * cy - by * cx;
+      if (x * x + y * y + z * z < 1e-20) continue;
+      for (const v of [p0, p1, p2])
+        for (let k = 0; k < attrs.length; k++) {
+          const out = output[k];
+          for (let j = offsets[k]; j < offsets[k] + sizes[k]; j++) out.push(v[j]);
+        }
     }
   };
   const count = source.index?.count ?? source.attributes.position.count;
