@@ -8,6 +8,7 @@
  *   npm run shot -- all --out .shots/after --compare .shots/before    and report which views changed
  *
  * Options: --out <dir> (default .shots), --theme light|dark, --phone (390×844, full page), --solid (X-ray off),
+ * --cam top|side|front|below|iso (comma-separated presets; PNGs suffixed with the preset),
  * --no-labels, --url <base> (use a running server instead of starting `next dev`), --wait <ms> (settle time, default 2500),
  * --compare <dir> (diff against same-named PNGs there; exits 1 when any view differs by more than --tolerance percent, default
  * 0.5, and writes <view>.diff.png with the differing pixels in red). Views with the engine running differ a little between

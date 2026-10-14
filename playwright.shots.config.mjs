@@ -1,8 +1,9 @@
 import { defineConfig } from "@playwright/test";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
+import { parseShotCameras } from "./scripts/shot-camera.mjs";
 const ROOT = import.meta.dirname;
-const args = JSON.parse(process.env.SHOT_ARGS || "[]");
+const { args, cameras } = parseShotCameras(JSON.parse(process.env.SHOT_ARGS || "[]"));
 const opt = (name, dflt) => {
   const i = args.indexOf(name);
   if (i < 0) return dflt;
@@ -70,7 +71,7 @@ const views = [
   ),
 ];
 
-export const shot = { out, theme, wait, compare, tolerance, phone, solid, noLabels, views };
+export const shot = { out, theme, wait, compare, tolerance, phone, solid, noLabels, views, cameras };
 export default defineConfig({
   testDir: "./scripts",
   testMatch: "shot.spec.mjs",

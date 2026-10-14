@@ -13,8 +13,8 @@ import { palette } from "@/lib/systems";
 import { nextFrame, setBuild, useBuild } from "@/lib/build";
 import { advanceSimulation } from "@/lib/simulationClock";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
-import { CAMERA_FOV, cameraFitDistance as fitDist } from "@/lib/camera";
-import { useView } from "@/lib/view";
+import { airplaneBounds, CAMERA_FOV, cameraFitDistance as fitDist, viewPresetCamera } from "@/lib/camera";
+import { useView, type CamRequest } from "@/lib/view";
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
 
@@ -32,12 +32,22 @@ function clearDamping(controls: OrbitControlsImpl) {
   controls.enableDamping = true;
 }
 
-/** Animates the camera to the latest requested view; any user drag cancels the flight. */
+/**
+ * Animates the camera to the latest requested view before OrbitControls updates; any user drag cancels the flight.
+ * Saved restores wait for the stage measurement. While an airplane is building, an overview preset waits for the
+ * complete model bounds; a real user camera move meanwhile drops it, while a tap leaves it pending.
+ */
 function CameraRig() {
   const cam = useView((x) => x.cam);
+  const building = useBuild((b) => b.stage !== "ready");
+  // An overview preset waits for complete bounds; a user drag consumes the held request.
+  const held = useRef<CamRequest | null>(null);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
+  const scene = useThree((s) => s.scene);
+  // Only an untouched, applied overview preset follows viewport changes.
+  const presetSize = useRef<{ request: CamRequest; width: number; height: number } | null>(null);
   const applied = useRef<[typeof cam, typeof controls, typeof camera] | null>(null);
   const flight = useRef<{
     fp: THREE.Vector3;
@@ -48,6 +58,9 @@ function CameraRig() {
   } | null>(null);
   /** Camera and target at the user's last press (re-noted after a viewport fit), until the camera moves or is moved. */
   const press = useRef<{ p: THREE.Vector3; t: THREE.Vector3 } | null>(null);
+
+  // Expected pose after programmatic fits/flights; also detects wheel/keyboard moves without a press.
+  const pose = useRef<{ p: THREE.Vector3; t: THREE.Vector3 } | null>(null);
 
   const fit = fitDist(size.width / size.height);
   const previousFit = useRef(1);
@@ -61,6 +74,7 @@ function CameraRig() {
       .multiplyScalar(ratio)
       .clampLength(controls.minDistance, controls.maxDistance)
       .add(controls.target);
+    pose.current = { p: camera.position.clone(), t: controls.target.clone() };
     const f = flight.current;
     if (f) {
       f.fp.sub(f.ft).multiplyScalar(ratio).add(f.ft);
@@ -80,7 +94,35 @@ function CameraRig() {
     const prev = applied.current;
     applied.current = cam && controls ? prev : null;
     if (!cam || !controls || previousFit.current !== fit) return;
-    if (prev && prev[0] === cam && prev[1] === controls && prev[2] === camera) return;
+    if (presetSize.current?.request !== cam) presetSize.current = null;
+    if (prev && prev[0] === cam && prev[1] === controls && prev[2] === camera) {
+      const last = presetSize.current;
+      if (last && (last.width !== size.width || last.height !== size.height)) {
+        const model = scene.getObjectByName("aircraft-model");
+        if (!building && model && cam.preset && camera instanceof THREE.PerspectiveCamera) {
+          const [p, t] = viewPresetCamera(
+            cam.preset,
+            cam.p,
+            cam.t,
+            airplaneBounds(model),
+            camera.fov,
+            size.width / size.height,
+          );
+          flight.current = null;
+          clearDamping(controls);
+          camera.position.set(...p);
+          controls.target.set(...t);
+          press.current = null;
+          pose.current = { p: camera.position.clone(), t: controls.target.clone() };
+          presetSize.current = { request: cam, width: size.width, height: size.height };
+        }
+      }
+      return;
+    }
+    if (building && cam.preset && useView.getState().sys === "overview") {
+      held.current = cam;
+      return;
+    }
     // A saved restore must wait for the canvas to measure the stage, before any orbit-limit clamp.
     if (cam.restore) {
       const rect = controls.domElement?.parentElement?.getBoundingClientRect();
@@ -92,6 +134,7 @@ function CameraRig() {
       }
     }
     applied.current = [cam, controls, camera];
+    held.current = null;
     press.current = null;
     // drop any momentum left from a drag (damping would keep turning the camera after the jump or flight);
     // an update with damping off zeroes it, then the camera is put back where it was
@@ -100,15 +143,33 @@ function CameraRig() {
     clearDamping(controls);
     camera.position.copy(p0);
     controls.target.copy(t0);
-    const tt = V(...cam.t),
-      tp = V(...cam.p)
+    const model = scene.getObjectByName("aircraft-model");
+    const fitted =
+      cam.preset && model && camera instanceof THREE.PerspectiveCamera
+        ? viewPresetCamera(
+            cam.preset,
+            cam.p,
+            cam.t,
+            useView.getState().sys === "overview" ? airplaneBounds(model) : null,
+            camera.fov,
+            size.width / size.height,
+          )
+        : null;
+    presetSize.current =
+      fitted && cam.preset && useView.getState().sys === "overview"
+        ? { request: cam, width: size.width, height: size.height }
+        : null;
+    const [p, t] = fitted ?? [cam.p, cam.t];
+    const tt = V(...t),
+      tp = V(...p)
         .sub(tt)
-        .multiplyScalar(cam.exact ? 1 : fitDist(size.width / size.height))
+        .multiplyScalar(fitted || cam.exact ? 1 : fitDist(size.width / size.height))
         .add(tt);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       flight.current = null;
       camera.position.copy(tp);
       controls.target.copy(tt);
+      pose.current = { p: camera.position.clone(), t: controls.target.clone() };
       return;
     }
     flight.current = { fp: camera.position.clone(), ft: controls.target.clone(), tp, tt, t0: performance.now() };
@@ -124,15 +185,18 @@ function CameraRig() {
     if (!controls) return;
     // a press stops a flight; it counts as a camera move only once the camera moves (a tap just shows a part's note)
     const start = () => {
-      applied.current = [useView.getState().cam, controls, camera];
       flight.current = null;
       press.current = { p: camera.position.clone(), t: controls.target.clone() };
     };
     const change = () => {
-      const was = press.current;
+      const was = press.current ?? (held.current || presetSize.current ? pose.current : null);
       if (!was) return;
       if (camera.position.distanceToSquared(was.p) < MOVED && controls.target.distanceToSquared(was.t) < MOVED) return;
       press.current = null;
+      pose.current = { p: camera.position.clone(), t: controls.target.clone() };
+      presetSize.current = null;
+      applied.current = [useView.getState().cam, controls, camera];
+      held.current = null;
       view.moves++;
     };
     controls.addEventListener("start", start);
@@ -150,6 +214,7 @@ function CameraRig() {
       e = ease(u);
     camera.position.lerpVectors(f.fp, f.tp, e);
     controls.target.lerpVectors(f.ft, f.tt, e);
+    pose.current = { p: camera.position.clone(), t: controls.target.clone() };
     if (u >= 1) flight.current = null;
   });
   return null;
@@ -243,6 +308,7 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
             materials (passed as props, which R3F never disposes); R3F disposes JSX-created geometry and materials, and
             Flows, Screens, Tanks, LightFX, Links and WindowOutlines free what they build. */}
         <group
+          name="aircraft-model"
           ref={modelRef}
           position={[-def.pivotX, 0, 0]}
           onPointerMove={onMove}

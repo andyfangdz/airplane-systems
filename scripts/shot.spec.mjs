@@ -2,10 +2,11 @@ import { test, expect, errors } from "@playwright/test";
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { shot } from "../playwright.shots.config.mjs";
-const { out, theme, wait, compare, tolerance, phone, solid, noLabels, views } = shot;
+import { shotFilename, shotQuery } from "./shot-camera.mjs";
+const { out, theme, wait, compare, tolerance, phone, solid, noLabels, views, cameras } = shot;
 
-for (const v of views) {
-  test(v, async ({ page, context, baseURL: base }, info) => {
+for (const { v, camera } of views.flatMap((v) => cameras.map((camera) => ({ v, camera })))) {
+  test(camera ? `${v} (${camera})` : v, async ({ page, context, baseURL: base }, info) => {
     await context.addInitScript((theme) => {
       try {
         localStorage.setItem("tourDone", "1");
@@ -22,8 +23,13 @@ for (const v of views) {
       )
         console.log(`  [${m.type()}] ${m.text()}`);
     });
-    page.on("pageerror", (e) => console.log(`  [pageerror] ${e.message}`));
-    await page.goto(`${base}/${v}`, { waitUntil: "domcontentloaded" });
+    const pageErrors = [];
+    page.on("pageerror", (e) => {
+      pageErrors.push(e.message);
+      console.log(`  [pageerror] ${e.message}`);
+    });
+    const query = shotQuery("", camera);
+    await page.goto(`${base}/${v}${query ? "?" + query : ""}`, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("canvas", { timeout: 60000 });
     // A progressive scene can show its cabin while hundreds of other parts are still absent.
     // Finish the build through the same control available to the user before taking review evidence.
@@ -61,9 +67,10 @@ for (const v of views) {
     );
     await page.waitForTimeout(wait);
 
-    const name = v.replace("/", "-") + (phone ? "-phone" : "") + ".png";
+    const name = shotFilename(v, phone, camera);
     const file = join(out, name);
     const png = await page.screenshot({ fullPage: phone, timeout: 120_000 });
+    expect(pageErrors, "No application runtime errors").toEqual([]);
     writeFileSync(file, png);
     if (!compare) return;
     if (!existsSync(join(resolve(compare), name))) {
