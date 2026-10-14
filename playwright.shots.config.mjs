@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 const ROOT = import.meta.dirname;
 const args = JSON.parse(process.env.SHOT_ARGS || "[]");
 const opt = (name, dflt) => {
@@ -21,10 +21,23 @@ const theme = opt("--theme", "light");
 const baseArg = opt("--url", "").replace(/\/$/, "");
 const wait = Number(opt("--wait", "2500"));
 const compare = opt("--compare", "");
-if (
-  compare &&
-  (existsSync(out) ? realpathSync(out) : out) === (existsSync(compare) ? realpathSync(compare) : resolve(compare))
-)
+// Resolve existing ancestors too, so an uncreated directory beneath a symlink cannot bypass the guard.
+const canonicalPath = (path) => {
+  const absolute = resolve(path);
+  return existsSync(absolute) ? realpathSync(absolute) : join(canonicalPath(dirname(absolute)), basename(absolute));
+};
+const outputDir = resolve(ROOT, ".shots/test-results");
+const artifacts = canonicalPath(outputDir);
+for (const [option, directory] of [
+  ["--out", out],
+  ["--compare", compare],
+]) {
+  if (!directory) continue;
+  const canonical = canonicalPath(directory);
+  if (canonical === artifacts || canonical.startsWith(artifacts.endsWith(sep) ? artifacts : artifacts + sep))
+    throw new Error(`${option} cannot use Playwright's artifact directory or its descendants: ${outputDir}`);
+}
+if (compare && canonicalPath(out) === canonicalPath(compare))
   throw new Error("--out and --compare must use different directories to preserve reference images");
 const tolerance = Number(opt("--tolerance", "0.5"));
 const phone = flag("--phone");
@@ -64,7 +77,7 @@ export default defineConfig({
   workers: 1,
   timeout: 180_000,
   reporter: "list",
-  outputDir: ".shots/test-results",
+  outputDir,
   snapshotPathTemplate: `${resolve(compare || out)}/{arg}{ext}`,
   updateSnapshots: "none",
   use: {

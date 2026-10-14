@@ -41,6 +41,7 @@ Set `UI_SHOTS=<directory>` for walk-around screenshot output, `DOOR_SHOTS=1` for
 existing camera and scene comparisons. `npm run test:ui:tour` checks tour positioning, keyboard navigation and persistence.
 `npm run shot` keeps its view/options interface and now uses Playwright's server lifecycle and perceptual image matcher;
 `--tolerance` still specifies the allowed percentage of differing pixels. Comparisons never overwrite reference images.
+Keep captures and references outside `.shots/test-results/`, which the runner clears for its own artifacts.
 
 ### Production geometry
 

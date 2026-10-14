@@ -50,6 +50,36 @@ test("tour follows targets, fits the viewport and remembers completion", async (
       await page.setViewportSize(original);
       await fits();
     }
+    if (i === 6) {
+      const previousAlerts = await page.locator(".cas").elementHandle();
+      await page.getByRole("button", { name: /^Switch Airplanes/ }).click();
+      await page
+        .getByRole("dialog", { name: "Choose an airplane" })
+        .getByRole("button", { name: /^C172S/ })
+        .click();
+      await expect(heading).toHaveText(titles[i]);
+      await expect.poll(() => previousAlerts.evaluate((element) => element.isConnected)).toBe(false);
+      await page.locator(".cas").scrollIntoViewIfNeeded();
+      await expect
+        .poll(() =>
+          page.locator(".tour-spot").evaluate((element) => {
+            const spot = element.getBoundingClientRect();
+            const alerts = document.querySelector(".cas").getBoundingClientRect();
+            return (
+              !element.hidden &&
+              spot.width > 0 &&
+              spot.height > 0 &&
+              spot.left <= alerts.left &&
+              spot.top <= alerts.top &&
+              spot.right >= alerts.right &&
+              spot.bottom >= alerts.bottom
+            );
+          }),
+        )
+        .toBe(true);
+      await fits();
+      await page.screenshot({ path: `.shots/tour/${isMobile ? "phone" : "desktop"}-alerts-switched.png` });
+    }
     if ([1, 3, 5].includes(i))
       await page.screenshot({ path: `.shots/tour/${isMobile ? "phone" : "desktop"}-${i}.png` });
     await card
