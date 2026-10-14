@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:changed": "vitest run --changed origin/main --passWithNoTests",
     "test:ui:m20c": "playwright test scripts/test-m20c-ui.mjs",
     "test:ui:fleet": "playwright test scripts/test-fleet-ui.mjs",
     "test:ui:load": "playwright test scripts/test-load-ui.mjs",

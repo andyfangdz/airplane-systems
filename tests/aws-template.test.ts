@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 // The CloudFormation template for the S3 + CloudFront site. It is plain JSON so
 // this test parses it without a YAML library.
 type Node = Record<string, any>; // untyped CloudFormation JSON
+// Read through fs below. Listing them to Vite (never loading it) makes them dependencies, so `vitest --changed` reruns this
+// file when they change.
+import.meta.glob(["../infra/aws/site.json", "../infra/cloudfront/view-rewrite.js"]);
 const root = new URL("..", import.meta.url);
 const template: Node = JSON.parse(readFileSync(new URL("infra/aws/site.json", root), "utf8"));
 const res = (id: string): Node => template.Resources[id].Properties;

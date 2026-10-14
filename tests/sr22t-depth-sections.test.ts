@@ -1,5 +1,5 @@
 /** Registration-order contract: AGENTS.md "Part order". */
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
@@ -7,6 +7,10 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const partsDir = fileURLToPath(new URL("../aircraft/sr22t/parts/", import.meta.url));
+// The section files, read as text below. Listing them through Vite (never loading them) also makes them this file's
+// dependencies, so `vitest --changed` reruns it when a section changes or appears.
+const sections = import.meta.glob("../aircraft/sr22t/parts/*.ts");
+const sectionFiles = Object.keys(sections).map((path) => path.split("/").pop()!);
 
 /** The barrel, `parts/index.ts`: a section importing it reaches every section. */
 const BARREL = "index";
@@ -94,7 +98,7 @@ it("no SR22T section imports a section registered at or after it (AGENTS.md Part
   expect(order[0]).toBe("catalogue");
   expect(new Set(order).size).toBe(order.length);
   const positions = new Map(order.map((section, index) => [section, index]));
-  for (const file of readdirSync(partsDir).filter((file) => file.endsWith(".ts") && file !== "index.ts")) {
+  for (const file of sectionFiles.filter((file) => file !== "index.ts")) {
     const section = file.slice(0, -3);
     const position = positions.get(section);
     expect(position, `${file} must be registered in parts/index.ts`).toBeDefined();

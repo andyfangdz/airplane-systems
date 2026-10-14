@@ -27,6 +27,9 @@ import { CAT as SR22T } from "@/aircraft/sr22t/parts";
 import { useSR22T } from "@/aircraft/sr22t/store";
 import type { Catalogue } from "@/lib/catalogue";
 
+// Read through fs below. Listing it to Vite (never loading it) makes it a dependency, so `vitest --changed` reruns this
+// file when it changes.
+import.meta.glob("./scene-snapshot.baseline.json");
 const BASELINE = new URL("./scene-snapshot.baseline.json", import.meta.url);
 
 /** Absolute tolerances, and the step each is stored to. Measured noise: position sums 4.8e-7 m, samples 9e-8 m;

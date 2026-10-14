@@ -4,6 +4,15 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
+// The Playwright shot config and scripts these spawn, and the source files the config reads. Listing them to Vite (never
+// loading them) makes them dependencies, so `vitest --changed` reruns this file when they change.
+import.meta.glob([
+  "../playwright.shots.config.mjs",
+  "../scripts/shot*.mjs",
+  "../lib/systems.ts",
+  "../aircraft/*/systems.ts",
+]);
+
 const root = resolve(import.meta.dirname, "..");
 const artifacts = join(root, ".shots/test-results");
 let temporary: string, references: string, alias: string;

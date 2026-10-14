@@ -6,8 +6,11 @@ Interactive 3D study models of airplane systems (POH/AFM Section 7): Next.js 16,
 
 ## Commands
 
-- `npm run check`: formatting, typecheck and tests. Run it before you call a change done; CI runs it plus `npm run build`.
+- `npm run check`: formatting, typecheck and tests. Run it before you call a change done; CI runs it plus `npm run build` and
+  the browser tests.
 - `npm test` (Vitest, `tests/`), `npm run typecheck`, `npm run build`.
+- `npm run test:changed`: only the test files whose imports reach a file changed since `origin/main` (committed or
+  not), which is also all a pull request's CI runs; pushes to main run every test.
 - `npm run format`: Prettier. A Claude Code hook formats each file you edit and the pre-commit hook formats staged files,
   so you rarely need it; don't hand-format or fight the formatter.
 - `npm run shot -- <view>…`: screenshots into `.shots/` (starts `next dev` itself). A view is `c172s/electrical`, an
@@ -29,6 +32,10 @@ Interactive 3D study models of airplane systems (POH/AFM Section 7): Next.js 16,
   Vitest workers with other files (`vitest.config.mts`), so they must leave module state as they found it; add
   `// vitest: isolate` to a file that can't. Shells and surfaces are built once per worker or file and handed out as
   clones (`tests/setup/geometry-cache.ts`); compare factories with `factoryOf(spec)`, not `spec.geo`.
+- A test that reads a repo file through fs (`readFileSync`, a spawned script) lists it with a lazy
+  `import.meta.glob("../path")` that it never calls, so `--changed` sees the dependency (see
+  `tests/cloudfront-view-rewrite.test.ts`). Don't wrap it in `Object.keys(...)`: Vite then compiles in the keys alone
+  and the dependency is lost.
 
 ## Things that are easy to get wrong
 

@@ -19,6 +19,9 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["tests/setup/geometry-cache.ts"],
+    // `vitest run --changed <ref>` runs the test files whose imports reach a changed file (a test that reads files
+    // through fs lists them with `import.meta.glob`); a change to one of these runs them all.
+    forceRerunTriggers: [...configDefaults.forceRerunTriggers, "**/package-lock.json", "**/vendor/**"],
     projects: [
       { extends: true, test: { name: "isolated", include: isolated, exclude } },
       {
