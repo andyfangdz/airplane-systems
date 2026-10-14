@@ -63,5 +63,21 @@ function solidAngle(
   return 2 * Math.atan2(num, den);
 }
 
-/** Inside the solid volume a mesh bounds. The ½ threshold excludes the near side of a single open plate. */
-export const insideSolid = (p: THREE.Vector3, mesh: readonly Tri[]) => Math.abs(windingNumber(p, mesh)) > 0.5 + 1e-6;
+/** Each mesh's corners as one flat array, built on its first query: the same values, read without object hops. */
+const flat = new WeakMap<readonly Tri[], Float64Array>();
+const flatOf = (mesh: readonly Tri[]) => {
+  let xyz = flat.get(mesh);
+  if (!xyz) {
+    xyz = new Float64Array(mesh.length * 9);
+    mesh.forEach(([a, b, c], i) => xyz!.set([a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z], i * 9));
+    flat.set(mesh, xyz);
+  }
+  return xyz;
+};
+
+/**
+ * Inside the solid volume a mesh bounds. The ½ threshold excludes the near side of a single open plate.
+ * Treat the mesh and its vertices as immutable once queried: the flat copy is cached per mesh array.
+ */
+export const insideSolid = (p: THREE.Vector3, mesh: readonly Tri[]) =>
+  Math.abs(windingNumberOf(p, flatOf(mesh))) > 0.5 + 1e-6;
