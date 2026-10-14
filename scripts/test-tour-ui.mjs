@@ -59,7 +59,10 @@ test("tour follows targets, fits the viewport and remembers completion", async (
         .click();
       await expect(heading).toHaveText(titles[i]);
       await expect.poll(() => previousAlerts.evaluate((element) => element.isConnected)).toBe(false);
-      await page.locator(".cas").scrollIntoViewIfNeeded();
+      // Finish the tour's smooth scroll before checking the replacement target and capturing it.
+      await page
+        .locator(".cas")
+        .evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
       await expect
         .poll(() =>
           page.locator(".tour-spot").evaluate((element) => {
@@ -78,7 +81,10 @@ test("tour follows targets, fits the viewport and remembers completion", async (
         )
         .toBe(true);
       await fits();
-      await page.screenshot({ path: `.shots/tour/${isMobile ? "phone" : "desktop"}-alerts-switched.png` });
+      await page.screenshot({
+        path: `.shots/tour/${isMobile ? "phone" : "desktop"}-alerts-switched.png`,
+        animations: "disabled",
+      });
     }
     if ([1, 3, 5].includes(i))
       await page.screenshot({ path: `.shots/tour/${isMobile ? "phone" : "desktop"}-${i}.png` });
