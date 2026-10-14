@@ -174,9 +174,10 @@ const ENDS: Record<string, [End, End]> = Object.fromEntries<[End, End]>([
   ["staticAlt", ["Alternate static valve", { flow: "staticAdahrs" }]],
   ["stall", ["Stall warning inlet", "Stall warning pressure switch"]],
   ["stallWire", ["Stall warning lift transducer", "Stall warning computer"]],
-  // flaps
-  ["flapPush", ["Flap actuator", "Right flap"]],
-  ["flapPush2", ["Flap actuator", "Left flap"]],
+  // flaps: the torque tube turns both flaps; the actuator under the baggage floor drives it through the coupler crank
+  // (AMM 27-50 p. 1, PDF p. 1050; Fig 27-50-2 item 18, PDF p. 1060)
+  ["flapPush", ["Flap torque tube", "Right flap"]],
+  ["flapPush2", ["Flap torque tube", "Left flap"]],
   // control cables (rig.ts), at rest: each strand leaves a sector or horn and ends on a sheave rim
   ["elA", [ELEV_SECTOR, pulley("ea")]],
   ["elB", [ELEV_SECTOR, pulley("ea")]],
