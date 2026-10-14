@@ -25,6 +25,10 @@ Interactive 3D study models of airplane systems (POH/AFM Section 7): Next.js 16,
   little (propeller, strobes, spark plugs, flow particles).
 - `tests/fleet.test.ts` checks every airplane definition and catalogue: rail order, colours, panels, unique part ids,
   and that label lists name pinned parts.
+- Test files that don't mock, stub, touch a store (`getState`, `setState`, `update`) or an airplane's `live` object share
+  Vitest workers with other files (`vitest.config.mts`), so they must leave module state as they found it; add
+  `// vitest: isolate` to a file that can't. Shells and surfaces are built once per worker or file and handed out as
+  clones (`tests/setup/geometry-cache.ts`); compare factories with `factoryOf(spec)`, not `spec.geo`.
 
 ## Things that are easy to get wrong
 

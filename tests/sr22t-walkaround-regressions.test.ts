@@ -19,13 +19,13 @@ import {
   useWalk,
   walkNow,
 } from "@/aircraft/sr22t/walk-store";
-import { primeGeo } from "@/lib/catalogue";
+import { factoryOf, primeGeo } from "@/lib/catalogue";
 import { useView } from "@/lib/view";
 
 afterEach(() => vi.restoreAllMocks());
 
 it("frames the walk with the hull already supplied by the worker, without rebuilding it", () => {
-  const hull = CAT.shells.find((s) => s.geo === fuselageGeo)!;
+  const hull = CAT.shells.find((s) => factoryOf(s) === fuselageGeo)!;
   // A worker's transferred geometry is placed in the same shared cache before the walk opens.
   primeGeo(hull, new BoxGeometry(2, 2, 2));
   const build = vi.spyOn(hull, "geo").mockImplementation(() => {
