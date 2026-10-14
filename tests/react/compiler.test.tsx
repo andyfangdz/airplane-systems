@@ -1,5 +1,5 @@
-import { act, StrictMode, type ReactNode } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { StrictMode } from "react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshLiveSnapshot, useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { beginParts, endParts, publishParts } from "@/lib/build";
@@ -30,8 +30,6 @@ import { useSR22T } from "@/aircraft/sr22t/store";
 import { CAT as sr20Parts } from "@/aircraft/sr20/parts";
 import { CAT as da40Parts } from "@/aircraft/da40/parts";
 
-let host: HTMLDivElement;
-let root: Root;
 const sources = [sr20, sr22t, c172, c182, da40, m20c];
 const initial = sources.map((source) => structuredClone(source));
 function resetter<T>(store: StoreApi<T>) {
@@ -49,7 +47,6 @@ const resetStores = [
 ];
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("matchMedia", (media: string) => ({
     media,
     matches: false,
@@ -59,24 +56,18 @@ beforeEach(() => {
   vi.useFakeTimers();
   // jsdom has no canvas renderer; browser checks cover the instrument displays.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
-  host = document.createElement("div");
-  document.body.append(host);
-  root = createRoot(host);
 });
 afterEach(() => {
-  act(() => root.unmount());
-  host.remove();
+  cleanup();
   sources.forEach((source, i) => Object.assign(source, structuredClone(initial[i])));
   resetStores.forEach((reset) => reset());
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-const render = (node: ReactNode) => act(() => root.render(node));
 const sample = (ms = 500) => act(() => vi.advanceTimersByTime(ms));
 const reading = (label: string) =>
-  [...host.querySelectorAll(".ro")].find((row) => row.querySelector("span")?.textContent === label)?.querySelector("b")
-    ?.textContent;
+  screen.getByText(label, { selector: ".ro > span", exact: true }).parentElement?.querySelector("b")?.textContent;
 
 describe("compiled fleet panels", () => {
   for (const [aircraft, live, store] of [
@@ -103,15 +94,10 @@ describe("compiled fleet panels", () => {
           <Playback />
         </>,
       );
-      const timeline = host.querySelector<HTMLInputElement>("#capsT")!;
-      const output = () => host.querySelector('label[for="capsT"] output')?.textContent;
-      const click = (name: string) =>
-        act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === name)!.click());
-      const scrub = (value: number) =>
-        act(() => {
-          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(timeline, String(value));
-          timeline.dispatchEvent(new Event("input", { bubbles: true }));
-        });
+      const timeline = screen.getByRole<HTMLInputElement>("slider", { name: /Timeline/ });
+      const output = () => document.body.querySelector('label[for="capsT"] output')?.textContent;
+      const click = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
+      const scrub = (value: number) => fireEvent.input(timeline, { target: { value: String(value) } });
       scrub(6);
       expect(live.capsT).toBe(6);
       expect(Number(timeline.value)).toBe(6);
@@ -120,16 +106,16 @@ describe("compiled fleet panels", () => {
       expect(output()).toBe("T+9.0 s");
       click("Pull the handle");
       expect(output()).toBe("T+0.0 s");
-      expect(host.querySelector("[data-playback]")?.textContent).toBe("playing");
+      expect(document.body.querySelector("[data-playback]")?.textContent).toBe("playing");
       click("Pause / play");
-      expect(host.querySelector("[data-playback]")?.textContent).toBe("paused");
+      expect(document.body.querySelector("[data-playback]")?.textContent).toBe("paused");
       scrub(4);
       click("Reset");
       expect(output()).toBe("T+0.0 s");
-      expect(host.querySelector(".caps-hud b")?.textContent).toBe("Ready");
+      expect(document.body.querySelector(".caps-hud b")?.textContent).toBe("Ready");
       click("Pause / play");
-      expect(host.querySelector(".caps-hud b")?.textContent).not.toBe("Ready");
-      expect(host.querySelector("[data-playback]")?.textContent).toBe("playing");
+      expect(document.body.querySelector(".caps-hud b")?.textContent).not.toBe("Ready");
+      expect(document.body.querySelector("[data-playback]")?.textContent).toBe("playing");
     });
   }
 
@@ -137,10 +123,9 @@ describe("compiled fleet panels", () => {
     da40.afcs.trim = 0.8;
     const Panel = DA40.panels.controls!;
     render(<Panel />);
-    const trim = host.querySelector<HTMLInputElement>("#trimW")!;
+    const trim = screen.getByRole<HTMLInputElement>("slider", { name: /trim/i });
     expect(Number(trim.value)).toBe(0.8);
-    const takeoff = [...host.querySelectorAll("button")].find((button) => button.textContent === "Trim to takeoff")!;
-    act(() => takeoff.click());
+    fireEvent.click(screen.getByRole("button", { name: "Trim to takeoff" }));
     expect(da40.afcs.trim).toBe(TO_TRIM);
     expect(Number(trim.value)).toBe(TO_TRIM);
   });
@@ -154,10 +139,10 @@ describe("compiled fleet panels", () => {
       live.fs.hdgBug = 180;
       const Panel = aircraft.panels.autopilot!;
       render(<Panel />);
-      const knob = [...host.querySelectorAll(".avx-knob")].find((node) => node.textContent?.startsWith("HDG knob"))!;
-      const increment = [...knob.querySelectorAll("button")].find((button) => button.textContent === "+1")!;
-      act(() => increment.click());
-      act(() => increment.click());
+      const knob = screen.getByText("HDG knob", { exact: true }).closest<HTMLElement>(".avx-knob")!;
+      const increment = within(knob).getByRole("button", { name: "+1" });
+      fireEvent.click(increment);
+      fireEvent.click(increment);
       expect(live.fs.hdgBug).toBe(182);
       expect(knob.querySelector("b")?.textContent).toBe("182°");
     });
@@ -191,11 +176,11 @@ describe("compiled fleet panels", () => {
       powerUp();
       const state = store.getState();
       render(<aircraft.Alerts />);
-      expect(host.textContent).not.toContain("CO LVL HIGH");
+      expect(document.body.textContent).not.toContain("CO LVL HIGH");
       live.coPpm = 100;
       sample();
       expect(store.getState()).toBe(state);
-      expect(host.textContent).toContain("CO LVL HIGH");
+      expect(document.body.textContent).toContain("CO LVL HIGH");
     });
   }
 
@@ -203,10 +188,10 @@ describe("compiled fleet panels", () => {
     da40.oilP = 60;
     useDA40.setState({ E: { ...useDA40.getState().E, pfd: true, gea: true, gia1: true } });
     render(<DA40.Alerts />);
-    expect(host.textContent).not.toContain("OIL PRES LO");
+    expect(document.body.textContent).not.toContain("OIL PRES LO");
     da40.oilP = 10;
     sample();
-    expect(host.textContent).toContain("OIL PRES LO");
+    expect(document.body.textContent).toContain("OIL PRES LO");
   });
 
   it("M20C refreshes gear lamps as the mechanism moves (OM p. 6)", () => {
@@ -216,11 +201,11 @@ describe("compiled fleet panels", () => {
     });
     useM20C.setState({ E: { ...useM20C.getState().E, bus: 12, gearWarn: true } });
     render(<M20C.Alerts />);
-    expect(host.textContent).toContain("GEAR DOWN (green)");
+    expect(document.body.textContent).toContain("GEAR DOWN (green)");
     m20c.gearFrac = 0.5;
     sample();
-    expect(host.textContent).toContain("GEAR UNSAFE (red)");
-    expect(host.textContent).not.toContain("GEAR DOWN (green)");
+    expect(document.body.textContent).toContain("GEAR UNSAFE (red)");
+    expect(document.body.textContent).not.toContain("GEAR DOWN (green)");
   });
 
   it("updates the CAPS timeline HUD while the view state stays fixed", () => {
@@ -229,10 +214,10 @@ describe("compiled fleet panels", () => {
     sr20.capsT = 1;
     const Hud = SR20.Hud!;
     render(<Hud />);
-    expect(host.textContent).toContain("1.0 s");
+    expect(document.body.textContent).toContain("1.0 s");
     sr20.capsT = 8;
     sample(100);
-    expect(host.textContent).toContain("8.0 s");
+    expect(document.body.textContent).toContain("8.0 s");
     act(() => useView.setState(previous));
   });
 });
@@ -244,15 +229,15 @@ describe("simulation snapshots", () => {
       s.avx.dualAdahrs = true;
     });
     render(<PartsList cat={sr20Parts} sys="avionics" />);
-    expect(host.textContent).toContain("GSU 75 ADAHRS 2 (optional)");
+    expect(document.body.textContent).toContain("GSU 75 ADAHRS 2 (optional)");
     act(() =>
       useSR20.getState().update((s) => {
         s.avx.dualAdahrs = false;
       }),
     );
-    expect(host.textContent).not.toContain("GSU 75 ADAHRS 2 (optional)");
+    expect(document.body.textContent).not.toContain("GSU 75 ADAHRS 2 (optional)");
     act(() => useSR20.setState(previous, true));
-    expect(host.textContent).toContain("GSU 75 ADAHRS 2 (optional)");
+    expect(document.body.textContent).toContain("GSU 75 ADAHRS 2 (optional)");
   });
 
   it("updates DA40 optional ventilation lists when equipment changes", () => {
@@ -260,13 +245,13 @@ describe("simulation snapshots", () => {
       s.env.extraVents = false;
     });
     render(<PartsList cat={da40Parts} sys="environment" />);
-    expect(host.textContent).not.toContain("Panel air nozzle");
+    expect(document.body.textContent).not.toContain("Panel air nozzle");
     act(() =>
       useDA40.getState().update((s) => {
         s.env.extraVents = true;
       }),
     );
-    expect(host.textContent).toContain("Panel air nozzle");
+    expect(document.body.textContent).toContain("Panel air nozzle");
   });
 
   it("detaches nested state, shares a timer, publishes edits, and stops after the last subscriber", () => {
@@ -277,7 +262,7 @@ describe("simulation snapshots", () => {
       first ??= snapshot;
       return <span>{snapshot.fs.altitude}</span>;
     }
-    render(
+    const { rerender } = render(
       <StrictMode>
         <Probe />
         <Probe />
@@ -286,16 +271,16 @@ describe("simulation snapshots", () => {
     expect(vi.getTimerCount()).toBe(1);
     source.fs.altitude = 2000;
     sample(100);
-    expect(host.textContent).toBe("20002000");
+    expect(document.body.textContent).toBe("20002000");
     expect(first!.fs.altitude).toBe(1000);
     source.fs.altitude = 3000;
     act(() => refreshLiveSnapshot(source));
-    expect(host.textContent).toBe("30003000");
-    render(null);
+    expect(document.body.textContent).toBe("30003000");
+    rerender(null);
     expect(vi.getTimerCount()).toBe(0);
     source.fs.altitude = 4000;
-    render(<Probe />);
-    expect(host.textContent).toBe("4000");
+    rerender(<Probe />);
+    expect(document.body.textContent).toBe("4000");
   });
 
   it("publishes successive part batches and restores all parts after a progressive build", () => {
@@ -304,14 +289,14 @@ describe("simulation snapshots", () => {
     const b = cat.part(() => box(1, 1, 1), ["fuel"], { name: "B" });
     const building = beginParts(cat);
     render(<BuiltPartNames cat={cat} />);
-    expect(host.textContent).toBe("");
+    expect(document.body.textContent).toBe("");
     building.add(a);
     act(() => publishParts(cat, building));
-    expect(host.textContent).toBe("A");
+    expect(document.body.textContent).toBe("A");
     building.add(b);
     act(() => publishParts(cat, building));
-    expect(host.textContent).toBe("A,B");
+    expect(document.body.textContent).toBe("A,B");
     act(() => endParts(cat));
-    expect(host.textContent).toBe("A,B");
+    expect(document.body.textContent).toBe("A,B");
   });
 });

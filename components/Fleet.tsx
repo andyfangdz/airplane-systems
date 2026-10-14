@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useLayoutEffect, useId, useRef, useState } from "react";
+import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/react";
 import { FLEET, selectAircraft, useAircraft } from "@/aircraft";
 
 /** An explicit switch control and current airplane share a compact picker. */
@@ -10,26 +11,23 @@ export function Fleet() {
   const id = useId();
   const [open, setOpen] = useState(false);
 
-  function position() {
+  useLayoutEffect(() => {
     const panel = menu.current,
       button = trigger.current;
-    if (!panel || !button) return;
-    const r = button.getBoundingClientRect();
-    const width = panel.offsetWidth,
-      height = panel.offsetHeight;
-    const below = innerHeight - r.bottom - 8;
-    const top = below >= height || below >= r.top ? r.bottom + 8 : r.top - height - 8;
-    panel.style.left = `${Math.max(12, Math.min(r.left, innerWidth - width - 12))}px`;
-    panel.style.top = `${Math.max(12, Math.min(top, innerHeight - height - 12))}px`;
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    window.addEventListener("resize", position);
-    window.addEventListener("scroll", position, true);
+    if (!open || !panel || !button) return;
+    let active = true;
+    const stop = autoUpdate(button, panel, () => {
+      void computePosition(button, panel, {
+        strategy: "fixed",
+        placement: "bottom-start",
+        middleware: [offset(8), flip({ padding: 12, crossAxis: false }), shift({ padding: 12, crossAxis: true })],
+      }).then(({ x, y }) => {
+        if (active) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
+      });
+    });
     return () => {
-      window.removeEventListener("resize", position);
-      window.removeEventListener("scroll", position, true);
+      active = false;
+      stop();
     };
   }, [open]);
 
@@ -55,7 +53,6 @@ export function Fleet() {
             event.preventDefault();
             if (menu.current?.matches(":popover-open")) return close();
             menu.current?.showPopover();
-            position();
             setOpen(true);
             menu.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus({ preventScroll: true });
           }}

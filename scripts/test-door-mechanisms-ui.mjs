@@ -1,15 +1,8 @@
-#!/usr/bin/env node
 /** Exercise controls -> rendered assemblies, including nested Cessna windows and repeatable return poses. */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { setTimeout as delay } from "node:timers/promises";
-import { chromium, errors as playwrightErrors } from "playwright-core";
-const port = 4100 + Math.floor(Math.random() * 800);
-const url = process.argv.slice(2).find((arg) => /^https?:/.test(arg));
-const base = url || `http://localhost:${port}`;
-const phone = process.argv.includes("--phone");
-const shots = process.argv.includes("--shots");
+import { test, errors as playwrightErrors } from "@playwright/test";
+const shots = process.env.DOOR_SHOTS === "1";
 const cases = [
   {
     id: "sr20",
@@ -47,39 +40,12 @@ const cases = [
     checked: false,
   },
 ];
-let server, browser;
-try {
-  if (!url) {
-    server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let log = "",
-      ready = false;
-    server.stdout.on("data", (d) => {
-      log = (log + d).slice(-8000);
-    });
-    server.stderr.on("data", (d) => {
-      log = (log + d).slice(-8000);
-    });
-    for (let i = 0; i < 120; i++) {
-      assert.equal(server.exitCode, null, log);
-      try {
-        ready = (await fetch(base, { signal: AbortSignal.timeout(1000) })).ok;
-      } catch {}
-      if (ready) break;
-      await delay(500);
-    }
-    assert.ok(ready, log);
-  }
-  if (shots) await mkdir(".shots/mechanisms", { recursive: true });
-  browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-  for (const test of cases.filter(
-    (c) => !process.env.DOOR_AIRCRAFT || process.env.DOOR_AIRCRAFT.split(",").includes(c.id),
-  )) {
-    const context = await browser.newContext({
-      viewport: phone ? { width: 390, height: 844 } : { width: 1100, height: 800 },
-      reducedMotion: "reduce",
-    });
+for (const scenario of cases.filter(
+  (c) => !process.env.DOOR_AIRCRAFT || process.env.DOOR_AIRCRAFT.split(",").includes(c.id),
+)) {
+  test(`${scenario.id} moving door assemblies`, async ({ page, context, baseURL: base, isMobile: phone }) => {
+    if (shots) await mkdir(".shots/mechanisms", { recursive: true });
+    if (!phone) await page.setViewportSize({ width: 1100, height: 800 });
     await context.route("**/_vercel/**", (r) => r.fulfill({ status: 204, body: "" }));
     await context.addInitScript(() => {
       localStorage.setItem("tourDone", "1");
@@ -97,10 +63,9 @@ try {
       });
       window.__THREE_DEVTOOLS__ = dev;
     });
-    const page = await context.newPage(),
-      errors = [];
+    const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(`${base}/${test.id}/${test.view}`);
+    await page.goto(`${base}/${scenario.id}/${scenario.view}`);
     await page.waitForFunction(
       () => !document.querySelector("[data-building]") || document.querySelector(".loader-skip"),
       null,
@@ -120,7 +85,7 @@ try {
       null,
       { timeout: 120_000 },
     );
-    if (test.id === "da40") {
+    if (scenario.id === "da40") {
       // AFM ground opening: the existing model deliberately limits an unlatched door in flight.
       await page
         .getByRole("navigation", { name: "Systems" })
@@ -147,7 +112,7 @@ try {
         if (!result) throw new Error(`Missing rendered part: ${name}`);
         return result;
       }, name);
-    const settle = async (name = test.door) => {
+    const settle = async (name = scenario.door) => {
       let last = await pose(name),
         stable = 0;
       for (let i = 0; i < 120; i++) {
@@ -159,16 +124,16 @@ try {
         if (stable >= 3) return;
         last = next;
       }
-      throw new Error(`${test.id}: door never settled`);
+      throw new Error(`${scenario.id}: door never settled`);
     };
     await settle();
-    const bagClosed = test.bag && (await pose("Baggage door panel"));
-    const closed = await pose(test.door),
-      glassClosed = test.glass && (await pose(test.glass));
+    const bagClosed = scenario.bag && (await pose("Baggage door panel"));
+    const closed = await pose(scenario.door),
+      glassClosed = scenario.glass && (await pose(scenario.glass));
     const delta = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));
-    const control = page.getByRole("checkbox", { name: test.control, exact: true });
-    if (test.window) {
-      await page.getByRole("checkbox", { name: test.window, exact: true }).check();
+    const control = page.getByRole("checkbox", { name: scenario.control, exact: true });
+    if (scenario.window) {
+      await page.getByRole("checkbox", { name: scenario.window, exact: true }).check();
       await page.waitForFunction(
         ({ name, original }) => {
           let changed = false;
@@ -178,49 +143,52 @@ try {
           });
           return changed;
         },
-        { name: test.glass, original: glassClosed },
+        { name: scenario.glass, original: glassClosed },
         { timeout: 120_000 },
       );
-      assert.ok(delta(await pose(test.door), closed) < 1e-6, `${test.id}: window must operate independently`);
+      assert.ok(delta(await pose(scenario.door), closed) < 1e-6, `${scenario.id}: window must operate independently`);
     }
-    await control.setChecked(test.checked);
+    await control.setChecked(scenario.checked);
     await settle();
-    const opened = await pose(test.door);
-    assert.ok(delta(opened, closed) > 0.2, `${test.id}: panel must open`);
-    if (test.glass) assert.ok(delta(await pose(test.glass), glassClosed) > 0.2, `${test.id}: glazing follows assembly`);
-    if (test.bag) {
-      await page.getByRole("checkbox", { name: test.bag, exact: true }).setChecked(test.checked);
+    const opened = await pose(scenario.door);
+    assert.ok(delta(opened, closed) > 0.2, `${scenario.id}: panel must open`);
+    if (scenario.glass)
+      assert.ok(delta(await pose(scenario.glass), glassClosed) > 0.2, `${scenario.id}: glazing follows assembly`);
+    if (scenario.bag) {
+      await page.getByRole("checkbox", { name: scenario.bag, exact: true }).setChecked(scenario.checked);
       await settle("Baggage door panel");
-      assert.ok(delta(await pose("Baggage door panel"), bagClosed) > 0.2, `${test.id}: baggage panel must open`);
+      assert.ok(delta(await pose("Baggage door panel"), bagClosed) > 0.2, `${scenario.id}: baggage panel must open`);
     }
     if (shots) {
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({
-        path: `.shots/mechanisms/${test.id}-open${phone ? "-phone" : ""}.png`,
+        path: `.shots/mechanisms/${scenario.id}-open${phone ? "-phone" : ""}.png`,
         timeout: 120_000,
       });
     }
-    if (test.bag) {
-      await page.getByRole("checkbox", { name: test.bag, exact: true }).setChecked(!test.checked);
+    if (scenario.bag) {
+      await page.getByRole("checkbox", { name: scenario.bag, exact: true }).setChecked(!scenario.checked);
       await settle("Baggage door panel");
-      assert.ok(delta(await pose("Baggage door panel"), bagClosed) < 1e-5, `${test.id}: baggage panel must return`);
+      assert.ok(delta(await pose("Baggage door panel"), bagClosed) < 1e-5, `${scenario.id}: baggage panel must return`);
     }
-    if (test.window) await page.getByRole("checkbox", { name: test.window, exact: true }).uncheck();
-    await control.setChecked(!test.checked);
+    if (scenario.window) await page.getByRole("checkbox", { name: scenario.window, exact: true }).uncheck();
+    await control.setChecked(!scenario.checked);
     await settle();
-    assert.ok(delta(await pose(test.door), closed) < 1e-5, `${test.id}: close restores initial pose`);
-    if (test.glass)
-      assert.ok(delta(await pose(test.glass), glassClosed) < 1e-5, `${test.id}: nested glazing restores initial pose`);
-    await control.setChecked(test.checked);
+    assert.ok(delta(await pose(scenario.door), closed) < 1e-5, `${scenario.id}: close restores initial pose`);
+    if (scenario.glass)
+      assert.ok(
+        delta(await pose(scenario.glass), glassClosed) < 1e-5,
+        `${scenario.id}: nested glazing restores initial pose`,
+      );
+    await control.setChecked(scenario.checked);
     await settle();
-    assert.ok(delta(await pose(test.door), opened) < 1e-5, `${test.id}: second opening does not accumulate transforms`);
-    assert.deepEqual(errors, [], `${test.id}: runtime errors`);
-    console.log(
-      `${test.id}: open, close, reopen${test.window ? ", independent nested window" : ""} passed (${phone ? "phone" : "desktop"})`,
+    assert.ok(
+      delta(await pose(scenario.door), opened) < 1e-5,
+      `${scenario.id}: second opening does not accumulate transforms`,
     );
-    await context.close();
-  }
-} finally {
-  await browser?.close();
-  server?.kill();
+    assert.deepEqual(errors, [], `${scenario.id}: runtime errors`);
+    console.log(
+      `${scenario.id}: open, close, reopen${scenario.window ? ", independent nested window" : ""} passed (${phone ? "phone" : "desktop"})`,
+    );
+  });
 }

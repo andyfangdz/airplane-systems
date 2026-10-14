@@ -28,9 +28,11 @@ jobs:
       - run: npm run test:trusted-preview
       - run: npm run build
       - name: Install browsers for interaction tests
-        run: npx playwright-core install --with-deps chromium webkit
+        run: npx playwright install --with-deps chromium webkit
       - run: npm run test:ui:geometry
-      - run: npm run test:ui:doors -- --shots
+      - run: npm run test:ui:doors
+        env:
+          DOOR_SHOTS: "1"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -40,3 +42,10 @@ jobs:
       - run: npm run test:ui:m20c
       - run: npm run test:ui:fleet
       - run: npm run test:ui:depth
+      - run: npm run test:ui:tour
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-details
+          path: test-results/
+          if-no-files-found: ignore

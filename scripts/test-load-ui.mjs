@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Airplane load in the browser, on the production build. Once each airplane's scene is complete, its final scene must equal
  * the reviewed baseline (main a1d3cdf0 plus PR47 seat placement): every mesh and line, compared as a sorted multiset of exact keys (kind, part name, attribute
@@ -10,47 +9,20 @@
  * first; a part that mounts late is still found by "tap to locate"; a walk-around begun while the fuselage worker still
  * builds doesn't build the hull on the main thread and frames its first item as when the hull was there, but keeps a
  * camera move the user made meanwhile; a browser that refuses the fuselage worker builds the same scene; no build-in
- * glow under prefers-reduced-motion. Run after npm run build (it starts next start), or pass an existing server URL.
- * `--update` rewrites the baseline (scripts/test-load-ui.baseline.json): only on main before this change, or for an
+ * glow under prefers-reduced-motion. Run after npm run build (it starts next start), or set UI_BASE_URL for an existing server.
+ * `UPDATE_LOAD_BASELINE=1` rewrites the baseline (scripts/test-load-ui.baseline.json): only on main before this change, or for an
  * intended model change.
  */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
-import { chromium } from "playwright-core";
+import { resolve } from "node:path";
+import { test } from "@playwright/test";
 
-const args = process.argv.slice(2);
-const update = args.includes("--update");
-const url = args.find((a) => !a.startsWith("--"));
+// This suite measures sub-second camera interactions; tracing would perturb those timings.
+test.use({ trace: "off" });
 
-const root = resolve(import.meta.dirname, "..");
+const update = process.env.UPDATE_LOAD_BASELINE === "1";
 const BASELINE = resolve(import.meta.dirname, "test-load-ui.baseline.json");
-
-/** Starts next start on a free-ish port (as scripts/test-m20c-ui.mjs does) and waits until it answers. */
-async function startServer() {
-  const port = 4100 + Math.floor(Math.random() * 800);
-  const base = `http://localhost:${port}`;
-  const server = spawn(process.execPath, [join(root, "node_modules/next/dist/bin/next"), "start", "-p", String(port)], {
-    cwd: root,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let log = "";
-  server.stdout.on("data", (d) => (log = (log + d).slice(-8000)));
-  server.stderr.on("data", (d) => (log = (log + d).slice(-8000)));
-  let ready = false;
-  for (let i = 0; i < 120; i++) {
-    assert.equal(server.exitCode, null, `Server exited: ${log}`);
-    try {
-      ready = (await fetch(base, { signal: AbortSignal.timeout(1000) })).ok;
-    } catch {}
-    if (ready) break;
-    await delay(500);
-  }
-  assert.ok(ready, `Server did not start: ${log}`);
-  return { server, base };
-}
 
 /** Before any page script: catch the three.js scene and the camera each frame renders with (three's devtools hook). */
 function hookThree() {
@@ -367,11 +339,8 @@ const ROUTES = ["/sr22t", "/sr22t/electrical", "/sr20", "/c172s", "/c182t", "/da
 // explicit views: a bare /sr22t reopens the last system viewed in this browser
 const CAMERAS = ["/sr22t/overview", "/sr22t/electrical"];
 
-let server, browser;
-try {
-  let base = url;
-  if (!url) ({ server, base } = await startServer());
-  browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
+test("loading, scene fingerprints and exact camera behavior", async ({ browser, baseURL: base }) => {
+  test.setTimeout(20 * 60_000);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   await context.addInitScript(hookThree);
   // analytics has no bearing on the scene and need not contact a deployment
@@ -829,7 +798,4 @@ try {
       assert.ok(!cameraDiff(got.cameras[k], v), `camera for ${k}: ${got.cameras[k]} vs ${v}`);
     console.log("Final scenes and camera framing match the reviewed baseline");
   }
-} finally {
-  await browser?.close();
-  server?.kill();
-}
+});
