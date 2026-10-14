@@ -1,38 +1,10 @@
-#!/usr/bin/env node
 /** Production mesh download/decode and procedural fallback, including animation-owned geometry. */
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import { chromium, errors as playwrightErrors } from "playwright-core";
-const port = 4100 + Math.floor(Math.random() * 800);
-const base = process.argv[2] || `http://localhost:${port}`;
+import { test, errors as playwrightErrors } from "@playwright/test";
 const ids = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
-let server, browser;
-try {
-  if (!process.argv[2]) {
-    server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let log = "",
-      ready = false;
-    server.stdout.on("data", (d) => {
-      log = (log + d).slice(-8000);
-    });
-    server.stderr.on("data", (d) => {
-      log = (log + d).slice(-8000);
-    });
-    for (let i = 0; i < 120; i++) {
-      assert.equal(server.exitCode, null, log);
-      try {
-        ready = (await fetch(base, { signal: AbortSignal.timeout(1000) })).ok;
-      } catch {}
-      if (ready) break;
-      await delay(500);
-    }
-    assert.ok(ready, `Production server did not start: ${log}`);
-  }
-  browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-  for (const id of ids) {
+for (const id of ids) {
+  test(`${id} prebuilt geometry and fallback`, async ({ browser, baseURL: base }) => {
     let downloadedNames, downloadedBaked;
     for (const mode of id === "sr22t" ? ["prebuilt", "delayed", "fallback"] : ["prebuilt", "fallback"]) {
       const fallback = mode === "fallback";
@@ -155,8 +127,5 @@ try {
       );
       await context.close();
     }
-  }
-} finally {
-  await browser?.close();
-  server?.kill();
+  });
 }

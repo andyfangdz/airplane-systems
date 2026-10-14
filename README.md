@@ -14,7 +14,7 @@ npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run test:ui:fleet # airplane picker: desktop, phone, keyboard and switching (after build)
 npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
-npm run test:ui:sr20 -- http://localhost:3000 # SR20 guided preflight, against a running server
+UI_BASE_URL=http://localhost:3000 npm run test:ui:sr20 # SR20 guided preflight, against a running server
 npm run test:ui:depth # C172S, C182T, DA40 and M20C preflight browser checks (after build; also run in CI)
 npm run test:ui:geometry # production asset loading, animation compatibility and procedural fallback for every airplane
 npm run test:ui:doors # door/window controls move the rendered assemblies and return to their initial poses
@@ -25,9 +25,23 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 ```
 
 `npm install` also sets up a pre-commit hook that formats staged files. `npm run shot` needs Chromium for Playwright
-(`npx playwright-core install chromium`); with `--compare <dir>` it reports which views changed against an earlier set.
-`npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright-core install chromium webkit`); it tests desktop input
+(`npx playwright install chromium`); with `--compare <dir>` it reports which views changed against an earlier set.
+`npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright install chromium webkit`); it tests desktop input
 and touch taps with Android and iPhone device profiles.
+
+Browser regressions use **Playwright Test**. `npm run test:ui` runs all suites; the existing `test:ui:*` commands select
+one suite. The runner starts and stops the production server after `npm run build`. Set `UI_BASE_URL` to test an
+already-running server. Use standard runner options such as `-- --project=phone` or `-- --grep=c172s` to narrow a run.
+The projects retain the fleet picker's Chromium/WebKit, viewport, theme and touch combinations; tests run one at a time
+because software WebGL and camera timing need an uncontended renderer. Failures retain traces and screenshots under
+`test-results/` (`npx playwright show-trace <trace.zip>`). The load and SR22T walk-around suites disable tracing to preserve their camera timing measurements.
+
+Set `UI_SHOTS=<directory>` for walk-around screenshot output, `DOOR_SHOTS=1` for door screenshots, and
+`UPDATE_LOAD_BASELINE=1` only when intentionally updating the reviewed load/geometry baseline. The load suite keeps its
+existing camera and scene comparisons. `npm run test:ui:tour` checks tour positioning, keyboard navigation and persistence.
+`npm run shot` keeps its view/options interface and now uses Playwright's server lifecycle and perceptual image matcher;
+`--tolerance` still specifies the allowed percentage of differing pixels. Comparisons never overwrite reference images.
+Keep captures and references outside `.shots/test-results/`, which the runner clears for its own artifacts.
 
 ### Production geometry
 

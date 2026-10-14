@@ -6,7 +6,8 @@
  */
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { create } from "zustand";
-import { narrowLayout } from "@/lib/view";
+import { autoUpdate, computePosition, flip, offset, shift, type Placement } from "@floating-ui/react";
+import { narrowLayout, useView } from "@/lib/view";
 
 const DONE_KEY = "tourDone";
 
@@ -118,39 +119,9 @@ function go(i: number) {
 const M = 12,
   GAP = 12,
   PAD = 6;
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi));
-
-/** Top-left of a w×h card beside target `t`: the preferred side if it fits, else another side, else inside the target. */
-function placeCard(t: DOMRect | null, w: number, h: number, pref?: Place): [number, number] {
-  const vw = innerWidth,
-    vh = innerHeight;
-  const cx = (x: number) => clamp(x, M, vw - w - M),
-    cy = (y: number) => clamp(y, M, vh - h - M);
-  if (!t) return [cx((vw - w) / 2), cy((vh - h) / 2)];
-  const mid = cx(t.left + t.width / 2 - w / 2);
-  const sides: Record<Exclude<Place, "inside">, [number, number, boolean]> = {
-    right: [t.right + GAP, cy(t.top), t.right + GAP + w <= vw - M],
-    left: [t.left - GAP - w, cy(t.top), t.left - GAP - w >= M],
-    bottom: [mid, t.bottom + GAP, t.bottom + GAP + h <= vh - M],
-    top: [mid, t.top - GAP - h, t.top - GAP - h >= M],
-  };
-  // phones stack everything full width, so only above or below can work
-  const order =
-    pref === "inside"
-      ? []
-      : narrowLayout()
-        ? (["bottom", "top"] as const)
-        : ([pref ?? "right", "right", "left", "bottom", "top"] as const);
-  for (const k of order) {
-    const [x, y, fits] = sides[k];
-    if (fits) return [x, y];
-  }
-  // inside, at the bottom of the target's visible part
-  return [mid, cy(Math.min(t.bottom, vh) - h - 2 * M)];
-}
-
 export function Tour() {
   const step = useTour((x) => x.step);
+  const aircraftId = useView((x) => x.ac);
   const spot = useRef<HTMLDivElement>(null),
     card = useRef<HTMLDivElement>(null),
     next = useRef<HTMLButtonElement>(null);
@@ -166,41 +137,66 @@ export function Tour() {
 
   const s = step === null ? null : STEPS[step];
 
-  // follow the target as the page lays out, scrolls (phones) or resizes; written straight to the DOM, no re-render per frame
+  // Follow layout changes and reconnect targets (such as keyed alerts) when the airplane changes.
   useLayoutEffect(() => {
-    if (!s) return;
-    let raf = 0;
-    const tick = () => {
-      const el = s.sel ? document.querySelector(s.sel) : null,
-        sp = spot.current,
-        cd = card.current;
-      const t = el?.getBoundingClientRect() ?? null;
-      if (sp) {
-        sp.hidden = !t;
-        if (t) {
-          // clip to the viewport: the panel can be far taller than the screen on phones
-          const l = Math.max(t.left - PAD, 2),
-            tp = Math.max(t.top - PAD, 2);
-          const r = Math.min(t.right + PAD, innerWidth - 2),
-            b = Math.min(t.bottom + PAD, innerHeight - 2);
-          Object.assign(sp.style, {
-            left: `${l}px`,
-            top: `${tp}px`,
-            width: `${Math.max(r - l, 0)}px`,
-            height: `${Math.max(b - tp, 0)}px`,
-          });
-        }
-      }
-      if (cd) {
-        const [x, y] = placeCard(t, cd.offsetWidth, cd.offsetHeight, s.place);
-        cd.style.left = `${x}px`;
-        cd.style.top = `${y}px`;
-      }
-      raf = requestAnimationFrame(tick);
+    const cd = card.current,
+      sp = spot.current;
+    if (!s || !cd || !sp) return;
+    const el = s.sel ? document.querySelector(s.sel) : null;
+    let active = true;
+    const reference = {
+      contextElement: el ?? document.documentElement,
+      getBoundingClientRect: () => {
+        const t = el?.getBoundingClientRect();
+        if (!t) return new DOMRect(innerWidth / 2, innerHeight / 2, 0, 0);
+        // Keep the model's card inside the visible portion of its scene.
+        return s.place === "inside"
+          ? new DOMRect(t.x, t.y, t.width, Math.max(0, Math.min(t.bottom, innerHeight) - t.y))
+          : t;
+      },
     };
-    tick();
-    return () => cancelAnimationFrame(raf);
-  }, [s]);
+    const update = () => {
+      const t = el?.getBoundingClientRect();
+      sp.hidden = !t;
+      if (t) {
+        const left = Math.max(t.left - PAD, 2),
+          top = Math.max(t.top - PAD, 2);
+        Object.assign(sp.style, {
+          left: `${left}px`,
+          top: `${top}px`,
+          width: `${Math.max(Math.min(t.right + PAD, innerWidth - 2) - left, 0)}px`,
+          height: `${Math.max(Math.min(t.bottom + PAD, innerHeight - 2) - top, 0)}px`,
+        });
+      }
+      const inside = s.place === "inside";
+      const side = narrowLayout() ? "bottom" : (s.place ?? "right");
+      const placement: Placement =
+        !t || inside ? "bottom" : side === "left" || side === "right" ? `${side}-start` : (side as Placement);
+      void computePosition(reference, cd, {
+        strategy: "fixed",
+        placement,
+        middleware: [
+          offset(({ rects }) => (!t ? -rects.floating.height / 2 : inside ? -rects.floating.height - 2 * M : GAP)),
+          ...(t && !inside
+            ? [
+                flip({
+                  padding: M,
+                  fallbackPlacements: narrowLayout() ? ["top"] : ["right-start", "left-start", "bottom", "top"],
+                }),
+              ]
+            : []),
+          shift({ padding: M, crossAxis: true }),
+        ],
+      }).then(({ x, y }) => {
+        if (active) Object.assign(cd.style, { left: `${x}px`, top: `${y}px` });
+      });
+    };
+    const stop = autoUpdate(reference, cd, update);
+    return () => {
+      active = false;
+      stop();
+    };
+  }, [s, aircraftId]);
 
   // phones: the page scrolls, so bring each target into view
   useEffect(() => {
@@ -209,7 +205,7 @@ export function Tour() {
     const tall = el.getBoundingClientRect().height > innerHeight * 0.6;
     const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ block: tall ? "start" : "center", behavior: smooth ? "smooth" : "auto" });
-  }, [s]);
+  }, [s, aircraftId]);
 
   // focus the card's main button; give focus back to where it was when the tour closes
   const open = step !== null;

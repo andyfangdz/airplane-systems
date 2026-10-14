@@ -13,3 +13,5 @@ next-env.d.ts
 !.claude/skills/
 .shots/
 public/geometry/
+test-results/
+playwright-report/
