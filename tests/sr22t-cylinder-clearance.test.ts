@@ -79,6 +79,7 @@ const intersects = (a: ReturnType<typeof solid>, b: ReturnType<typeof solid>) =>
 };
 
 describe("SR22T cylinder clearance (AMM Fig 72-00-2 PDF 2574; M-18 Fig 5-34 p. 5-54)", () => {
+  // Builds and checks every catalogue solid it audits: seconds on a busy runner, so an explicit budget.
   it("audits every non-cylinder engine-bay solid against barrels, fins and heads", () => {
     const cylinders = CAT.parts
       .filter((p) => /^cyl:/.test(p.parent ?? "") && (!p.name || /^Cylinder/.test(p.name)))
@@ -95,7 +96,7 @@ describe("SR22T cylinder clearance (AMM Fig 72-00-2 PDF 2574; M-18 Fig 5-34 p. 5
       for (const s of [...cylinders, ...others]) s.g.dispose();
       material.dispose();
     }
-  });
+  }, 30_000);
 
   it("seats all 12 plugs on their own head and clears every other cylinder", () => {
     const cylinders = CAT.parts.filter((p) => /^cyl:/.test(p.parent ?? "")).map(solid);

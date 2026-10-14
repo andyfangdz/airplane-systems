@@ -34,6 +34,21 @@ export function primeGeo(spec: { geo: () => THREE.BufferGeometry }, g: THREE.Buf
   return true;
 }
 
+/**
+ * Test-only hook: a test setup may set `globalThis.__geometrySource` to substitute shell and surface geometry factories
+ * as they register (tests/setup/geometry-cache.ts). A global, so the setup imports nothing a test might mock.
+ */
+type GeometrySource = (geo: () => THREE.BufferGeometry) => () => THREE.BufferGeometry;
+const factories = new WeakMap<() => THREE.BufferGeometry, () => THREE.BufferGeometry>();
+const sourced = (geo: () => THREE.BufferGeometry) => {
+  const g = (globalThis as { __geometrySource?: GeometrySource }).__geometrySource?.(geo);
+  if (!g) return geo;
+  factories.set(g, geo);
+  return g;
+};
+/** The factory a spec registered with, under any test substitution: for identity checks such as isFuselage. */
+export const factoryOf = (spec: { geo: () => THREE.BufferGeometry }) => factories.get(spec.geo) ?? spec.geo;
+
 /** Rejects a `groups` tag outside `allowed` at registration, for specs the types don't reach (casts, JSON). */
 export function checkGroups(id: string, groups: readonly string[] | undefined, allowed: readonly string[]) {
   const bad = groups?.find((group) => !allowed.includes(group));
@@ -232,7 +247,7 @@ export class Catalogue {
   ) => {
     const spec: ShellSpec = {
       id: this.uid(name),
-      geo,
+      geo: sourced(geo),
       name,
       note,
       skin: skin === true ? this.paintSkin : skin || undefined,
@@ -242,7 +257,7 @@ export class Catalogue {
   };
 
   surface = (spec: SurfaceSpec) => {
-    this.surfaces.push({ chan: chanOfKey(spec.key), ...spec });
+    this.surfaces.push({ chan: chanOfKey(spec.key), ...spec, geo: sourced(spec.geo) });
     return spec;
   };
 

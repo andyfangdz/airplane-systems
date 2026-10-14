@@ -61,6 +61,7 @@ describe("SR22T door hardware and the skin", () => {
       for (const d of outermost(name)) expect(d, name).toBeLessThanOrEqual(FLUSH);
   });
 
+  // Builds and checks every catalogue solid it audits: seconds on a busy runner, so an explicit budget.
   it("latches, strikers, seal and jamb return arm stay inside the closed skin (AMM Figs 52-10-1, -6, -8; 52-30-1)", () => {
     for (const name of [
       "Door latch",
@@ -71,7 +72,7 @@ describe("SR22T door hardware and the skin", () => {
       "Baggage door seal",
     ])
       for (const d of outermost(name)) expect(d, name).toBeLessThanOrEqual(FLUSH);
-  });
+  }, 30_000);
 
   it("exterior handle, housing and locks lie flush with the door skin, visible but not proud (Figs 52-10-3, -5; 52-30-1)", () => {
     for (const name of ["Exterior door handle", "Exterior handle housing", "Door lock cylinder", "Baggage door lock"]) {

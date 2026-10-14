@@ -84,6 +84,7 @@ describe("SR22T engine oil", () => {
     }
   });
 
+  // Builds and checks every catalogue solid it audits: seconds on a busy runner, so an explicit budget.
   it("the checked turbo tee hangs at the cooler base, clear of the separate wastegate supply and nearby hardware (POH 7-38; AMM Fig 79-30-2 sheet 3 PDF 2787)", () => {
     const cooler = bounds("Oil cooler");
     const bottom = cooler.getCenter(new Vector3());
@@ -123,7 +124,7 @@ describe("SR22T engine oil", () => {
       expect(atCheck).toBeGreaterThan(0);
       expect(atTee).toBe(atCheck + 1);
     }
-  });
+  }, 30_000);
 
   it("the LH and RH hoses branch at the tee's opposite outlets within 1 mm (AMM Fig 79-30-2 sheet 3 Detail C PDF 2787)", () => {
     const tee = position("Turbo oil tee");

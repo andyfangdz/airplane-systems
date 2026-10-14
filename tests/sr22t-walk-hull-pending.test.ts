@@ -24,7 +24,7 @@ async function page() {
     const station = walkaround.WALK.find((s) => s.items.some((i) => i.id === id))!;
     return { station, item: station.items.find((i) => i.id === id)! };
   };
-  const hull = parts.CAT.shells.find((s) => s.geo === geometry.fuselageGeo)!;
+  const hull = parts.CAT.shells.find((s) => catalogue.factoryOf(s) === geometry.fuselageGeo)!;
   return { walk: walk as Walk, worker, step, hull, fuselageGeo: geometry.fuselageGeo, specGeo: catalogue.specGeo };
 }
 
