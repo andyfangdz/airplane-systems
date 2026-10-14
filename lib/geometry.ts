@@ -528,18 +528,38 @@ export function fuselage({ table, nTop, nBot, tumble, section: sectionOf, profil
   const topY = (x: number) => fus(x).cy + fus(x).hh;
   const botY = (x: number) => fus(x).cy - fus(x).hh;
 
+  /** The unit superellipse's (py, pz) around a ring: they depend only on the angles and exponents, not the station, so
+   * skin builders that sample thousands of stations with the same section shape compute them once. */
+  const shapes = new Map<string, Float64Array>();
+  function shape(N: number, th0: number, th1: number, closed: boolean, nTop: number, nBot: number) {
+    const key = `${N} ${th0} ${th1} ${closed} ${nTop} ${nBot}`;
+    let unit = shapes.get(key);
+    if (!unit) {
+      const cnt = closed ? N : N + 1;
+      unit = new Float64Array(2 * cnt);
+      for (let j = 0; j < cnt; j++) {
+        const th = closed ? (j / N) * Math.PI * 2 : th0 + ((th1 - th0) * j) / N;
+        const c = Math.cos(th),
+          sn = Math.sin(th),
+          n = sn >= 0 ? nTop : nBot;
+        unit[2 * j] = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n);
+        unit[2 * j + 1] = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+      }
+      // A section that varies continuously (a cowl transition) would otherwise grow this without bound.
+      if (shapes.size >= 256) shapes.clear();
+      shapes.set(key, unit);
+    }
+    return unit;
+  }
+
   /** Ring of N points around the section at x, scaled by s; optionally an open arc th0..th1 (0 = right side, π/2 = top). */
   function ring(x: number, s = 1, N = 40, th0 = 0, th1 = Math.PI * 2, closed = true): Ring {
     const { hw, hh, cy, nTop, nBot, tumble } = section(x),
-      pts: Ring = [],
-      cnt = closed ? N : N + 1;
-    for (let j = 0; j < cnt; j++) {
-      const th = closed ? (j / N) * Math.PI * 2 : th0 + ((th1 - th0) * j) / N;
-      const c = Math.cos(th),
-        sn = Math.sin(th),
-        n = sn >= 0 ? nTop : nBot;
-      const py = Math.sign(sn) * Math.pow(Math.abs(sn), 2 / n),
-        pz = Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+      unit = shape(N, th0, th1, closed, nTop, nBot),
+      pts: Ring = [];
+    for (let j = 0; j < unit.length; j += 2) {
+      const py = unit[j],
+        pz = unit[j + 1];
       pts.push(V(x, cy + s * hh * py, s * hw * (1 - tumble * Math.max(0, py)) * pz));
     }
     return pts;
