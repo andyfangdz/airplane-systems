@@ -42,6 +42,7 @@ import * as THREE from "three";
 import { MeshBVH } from "three-mesh-bvh";
 import { expect, it } from "vitest";
 import { patched } from "./helpers";
+import { windingNumberOf } from "./winding-number";
 
 const DATA_KEYS = [
   "magData",
@@ -166,32 +167,7 @@ const solids = [
   const bvh = new MeshBVH(g),
     nearest = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
   const world = new THREE.Box3().setFromBufferAttribute(g.getAttribute("position") as THREE.BufferAttribute);
-  /** Sum of every triangle's signed solid angle at the point (Van Oosterom & Strackee), over 4π. */
-  const inside = ({ x, y, z }: THREE.Vector3) => {
-    let wind = 0;
-    for (let i = 0; i < xyz.length; i += 9) {
-      const ax = xyz[i] - x,
-        ay = xyz[i + 1] - y,
-        az = xyz[i + 2] - z,
-        bx = xyz[i + 3] - x,
-        by = xyz[i + 4] - y,
-        bz = xyz[i + 5] - z,
-        cx = xyz[i + 6] - x,
-        cy = xyz[i + 7] - y,
-        cz = xyz[i + 8] - z;
-      const la = Math.sqrt(ax * ax + ay * ay + az * az),
-        lb = Math.sqrt(bx * bx + by * by + bz * bz),
-        lc = Math.sqrt(cx * cx + cy * cy + cz * cz);
-      const num = ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
-      const den =
-        la * lb * lc +
-        (ax * bx + ay * by + az * bz) * lc +
-        (bx * cx + by * cy + bz * cz) * la +
-        (cx * ax + cy * ay + cz * az) * lb;
-      wind += 2 * Math.atan2(num, den);
-    }
-    return Math.abs(wind) / (4 * Math.PI) > 0.75;
-  };
+  const inside = (w: THREE.Vector3) => Math.abs(windingNumberOf(w, xyz)) > 0.75;
   // Stops at the first triangle nearer than r and skips nodes farther than r (a non-null result can still be farther).
   const intrudes = (w: THREE.Vector3, r: number) =>
     (bvh.closestPointToPoint(w, nearest, r, r)?.distance ?? Infinity) < r || (world.containsPoint(w) && inside(w));
