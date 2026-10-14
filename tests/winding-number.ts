@@ -2,11 +2,6 @@ import * as THREE from "three";
 
 export type Tri = readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3];
 
-const A = new THREE.Vector3(),
-  B = new THREE.Vector3(),
-  C = new THREE.Vector3(),
-  X = new THREE.Vector3();
-
 /**
  * Generalized winding number of a triangle soup about `p` (Jacobson et al. 2013): the summed signed solid angle of
  * every triangle over 4π. It is 1 inside a closed outward-wound mesh and 0 outside, with no ray, so shared edges and
@@ -16,22 +11,57 @@ const A = new THREE.Vector3(),
  * - a single open plate never exceeds ½ on either side.
  * Mirrored (negative-scale) parts reverse the winding, so callers compare the magnitude.
  */
-export const windingNumber = (p: THREE.Vector3, mesh: readonly Tri[]) => {
+export const windingNumber = ({ x, y, z }: THREE.Vector3, mesh: readonly Tri[]) => {
   let sum = 0;
-  for (const [a, b, c] of mesh) {
-    A.subVectors(a, p);
-    B.subVectors(b, p);
-    C.subVectors(c, p);
-    const la = A.length(),
-      lb = B.length(),
-      lc = C.length();
-    // Van Oosterom & Strackee's solid angle of one triangle
-    const num = A.dot(X.crossVectors(B, C));
-    const den = la * lb * lc + A.dot(B) * lc + A.dot(C) * lb + B.dot(C) * la;
-    sum += 2 * Math.atan2(num, den);
-  }
+  for (const [a, b, c] of mesh)
+    sum += solidAngle(a.x - x, a.y - y, a.z - z, b.x - x, b.y - y, b.z - z, c.x - x, c.y - y, c.z - z);
   return sum / (4 * Math.PI);
 };
+
+/** `windingNumber` over a flat non-indexed position array (x, y, z per corner, three corners per triangle). */
+export const windingNumberOf = ({ x, y, z }: THREE.Vector3, xyz: ArrayLike<number>) => {
+  let sum = 0;
+  for (let i = 0; i < xyz.length; i += 9)
+    sum += solidAngle(
+      xyz[i] - x,
+      xyz[i + 1] - y,
+      xyz[i + 2] - z,
+      xyz[i + 3] - x,
+      xyz[i + 4] - y,
+      xyz[i + 5] - z,
+      xyz[i + 6] - x,
+      xyz[i + 7] - y,
+      xyz[i + 8] - z,
+    );
+  return sum / (4 * Math.PI);
+};
+
+/**
+ * Van Oosterom & Strackee's signed solid angle of the triangle (a, b, c) seen from the origin. Scalar arithmetic with
+ * Math.sqrt (not Vector3 or Math.hypot): this runs for every triangle and every query point.
+ */
+function solidAngle(
+  ax: number,
+  ay: number,
+  az: number,
+  bx: number,
+  by: number,
+  bz: number,
+  cx: number,
+  cy: number,
+  cz: number,
+) {
+  const la = Math.sqrt(ax * ax + ay * ay + az * az),
+    lb = Math.sqrt(bx * bx + by * by + bz * bz),
+    lc = Math.sqrt(cx * cx + cy * cy + cz * cz);
+  const num = ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+  const den =
+    la * lb * lc +
+    (ax * bx + ay * by + az * bz) * lc +
+    (ax * cx + ay * cy + az * cz) * lb +
+    (bx * cx + by * cy + bz * cz) * la;
+  return 2 * Math.atan2(num, den);
+}
 
 /** Inside the solid volume a mesh bounds. The ½ threshold excludes the near side of a single open plate. */
 export const insideSolid = (p: THREE.Vector3, mesh: readonly Tri[]) => Math.abs(windingNumber(p, mesh)) > 0.5 + 1e-6;

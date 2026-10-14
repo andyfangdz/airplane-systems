@@ -1,0 +1,8 @@
+{
+  "name": "robust-in-sphere",
+  "version": "1.2.1-adaptive",
+  "private": true,
+  "license": "MIT",
+  "description": "Drop-in for cdt2d's robust-in-sphere: the 2-D in-circle test from robust-predicates (see index.js).",
+  "main": "index.js"
+}
