@@ -18,6 +18,7 @@ import {
 import { FW, inFus, wingP, wLE, wC, WR, WTIP, doorHinge, type DoorKey } from "@/aircraft/sr22t/geometry";
 import { ETT, CARR, AIL_SECTOR, RUD_HORN, PULLEYS } from "@/aircraft/sr22t/rig";
 import type { PartSpec } from "@/lib/catalogue";
+import { bvhRaycast } from "./helpers/bvhRaycast";
 
 const parts = (name: string) => CAT.parts.filter((p) => p.name === name);
 const sidePart = (name: string, s: number) => parts(name).find((p) => Math.sign(p.pos![2]) === s)!;
@@ -251,7 +252,7 @@ it("brake solids and plumbing clear every other world-space solid and expose the
     return directions.every((d) => {
       ray.set(q, d);
       const distances = ray
-        .intersectObject(s.mesh, false)
+        .intersectObject(bvhRaycast(s.mesh), false)
         .map((hit) => hit.distance)
         .filter((v) => v > 1e-5);
       const unique = distances.filter((v, i) => i === 0 || Math.abs(v - distances[i - 1]) > 1e-5);

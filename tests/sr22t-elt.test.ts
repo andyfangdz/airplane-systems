@@ -30,6 +30,7 @@ import { ETT, CARR, AIL_SECTOR, RUD_HORN, PULLEYS } from "@/aircraft/sr22t/rig";
 import { FLOWS } from "@/aircraft/sr22t/flows";
 import { curveOf } from "@/lib/geometry";
 import type { PartSpec } from "@/lib/catalogue";
+import { bvhRaycast } from "./helpers/bvhRaycast";
 const only = (name: string) => {
   const parts = CAT.parts.filter((p) => p.name === name);
   expect(parts, name).toHaveLength(1);
@@ -255,7 +256,7 @@ it("ELT hardware and cables clear every solid and rendered flow tube (AMM Fig 25
     dirs.every((d) => {
       ray.set(q, d);
       const hits = ray
-        .intersectObject(s.mesh)
+        .intersectObject(bvhRaycast(s.mesh))
         .map((h) => h.distance)
         .filter((d) => d > 1e-5);
       return hits.filter((d, i) => i === 0 || Math.abs(d - hits[i - 1]) > 1e-5).length % 2 === 1;
@@ -328,7 +329,7 @@ it("ELT hardware and cables clear every solid and rendered flow tube (AMM Fig 25
             ray.set(from, direction.divideScalar(length));
             ray.near = 1e-5;
             ray.far = length - 1e-5;
-            if (ray.intersectObject(b.mesh).some((h) => !joined(a, b, h.point))) {
+            if (ray.intersectObject(bvhRaycast(b.mesh)).some((h) => !joined(a, b, h.point))) {
               crossing = true;
               break outerEdges;
             }

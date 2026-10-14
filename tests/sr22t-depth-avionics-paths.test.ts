@@ -310,7 +310,7 @@ describe("SR22T avionics data, power and cooling paths", () => {
           // Its own data lead intentionally terminates at the mounting base.
           if (other.name === `flow:oatData${n}` && point.distanceTo(toV(part.pos!)) < 0.02) continue;
           if (other.world.distanceToPoint(point) >= g.parameters.radius) continue;
-          if (other.dist(point) < g.parameters.radius) hits.add(`${probe.name} in ${other.name}`);
+          if (other.intrudes(point, g.parameters.radius)) hits.add(`${probe.name} in ${other.name}`);
         }
       }
       g.dispose();

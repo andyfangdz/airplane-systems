@@ -64,7 +64,9 @@ pipeline. Shared hardware detail in `lib/hardware.ts` adds enclosure seams, filt
 cable sheaths within explicitly selected aircraft-specific envelopes; it does not infer certified component dimensions.
 
 Curved fuselage panels use a shared constrained triangulator (`cdt2d`, MIT) with interior seeds, loft-station splits,
-analytic normals and adaptive curvature sampling. The SR22T's former dense triangle fans are replaced at the source,
+analytic normals and adaptive curvature sampling. Its in-circle test comes from `vendor/robust-in-sphere`, an npm
+override that answers with `robust-predicates`' adaptive test: the same exact signs, so the same triangles, about twice
+as fast to bake. The SR22T's former dense triangle fans are replaced at the source,
 so both production assets and procedural fallback benefit. Doors have actual skin apertures, moving glazing and
 attached hardware. See [MODELING.md](MODELING.md) for measured costs, coverage, sources and remaining limitations.
 
@@ -109,6 +111,7 @@ lib/
   avionics/           G1000 / Perspective+ display drawing, flight-state integrator, GFC 700 and KAP 140 logic (pure functions)
   geometry.ts, materials.ts, math.ts, registry.ts, canvas.ts
 tests/                Vitest: fleet-wide invariants, electrical solvers, scenarios, GFC 700 and KAP 140 logic
+vendor/               robust-in-sphere: package.json overrides cdt2d's exact in-circle test with an adaptive one
 scripts/shot.mjs      Screenshots of any view (npm run shot), with a comparison mode
 AGENTS.md             Working notes for coding agents (CLAUDE.md points to it)
 ```

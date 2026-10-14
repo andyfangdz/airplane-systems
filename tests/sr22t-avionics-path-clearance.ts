@@ -39,6 +39,7 @@ import type { FlowSpec } from "@/lib/catalogue";
 import { curveOf, loft } from "@/lib/geometry";
 import { toV, type Vec3 } from "@/lib/math";
 import * as THREE from "three";
+import { MeshBVH } from "three-mesh-bvh";
 import { expect, it } from "vitest";
 import { patched } from "./helpers";
 
@@ -87,32 +88,11 @@ const SECOND_LINKS = [
   ["adahrs2Gia1", GIA_1, ADAHRS_2],
   ["adahrs2Gia2", ADAHRS_2, GIA_2],
 ] as const;
-/** Solid angle (steradians) a triangle subtends at the origin (Van Oosterom & Strackee). */
-const solidAngle = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, w: THREE.Vector3) => {
-  const ax = a.x - w.x,
-    ay = a.y - w.y,
-    az = a.z - w.z,
-    bx = b.x - w.x,
-    by = b.y - w.y,
-    bz = b.z - w.z,
-    cx = c.x - w.x,
-    cy = c.y - w.y,
-    cz = c.z - w.z;
-  const la = Math.hypot(ax, ay, az),
-    lb = Math.hypot(bx, by, bz),
-    lc = Math.hypot(cx, cy, cz);
-  const num = ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
-  const den =
-    la * lb * lc +
-    (ax * bx + ay * by + az * bz) * lc +
-    (bx * cx + by * cy + bz * cz) * la +
-    (cx * ax + cy * ay + cz * az) * lb;
-  return 2 * Math.atan2(num, den);
-};
 /**
- * Signed distance from a world point to a part's rendered mesh at rest: the distance to its nearest triangle, negative when
- * the point is inside (generalised winding number above ¾, which overlapping merged pieces and either winding order keep;
- * an open plate never reaches it, so only its surface distance counts).
+ * Whether a ball of radius `r` at a world point reaches a part's rendered mesh at rest: its nearest triangle is closer
+ * than `r` (a BVH query), or the point is inside the part (generalised winding number above ¾, which overlapping merged
+ * pieces and either winding order keep; an open plate never reaches it). The solid lies within its own bounding box, so
+ * the winding sum, which visits every triangle, runs only for points inside that box.
  */
 // Neutral parent transforms match Airplane.tsx/ControlRig.tsx; include every part and control surface.
 const parents: Record<string, THREE.Matrix4> = {};
@@ -181,32 +161,41 @@ const solids = [
     expect(parents[p.parent], `missing neutral transform: ${p.parent}`).toBeDefined();
     toWorld.premultiply(parents[p.parent]);
   }
-  const pos = g.getAttribute("position"),
-    tris: THREE.Triangle[] = [];
-  for (let i = 0; i < pos.count; i += 3)
-    tris.push(
-      new THREE.Triangle(
-        ...([0, 1, 2].map((k) => new THREE.Vector3().fromBufferAttribute(pos, i + k).applyMatrix4(toWorld)) as [
-          THREE.Vector3,
-          THREE.Vector3,
-          THREE.Vector3,
-        ]),
-      ),
-    );
-  g.dispose();
-  const world = new THREE.Box3();
-  for (const t of tris) world.expandByPoint(t.a).expandByPoint(t.b).expandByPoint(t.c);
-  const q = new THREE.Vector3();
-  const dist = (w: THREE.Vector3) => {
-    let d = Infinity,
-      wind = 0;
-    for (const t of tris) {
-      d = Math.min(d, t.closestPointToPoint(w, q).distanceTo(w));
-      wind += solidAngle(t.a, t.b, t.c, w);
+  g.applyMatrix4(toWorld);
+  const xyz = g.getAttribute("position").array;
+  const bvh = new MeshBVH(g),
+    nearest = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+  const world = new THREE.Box3().setFromBufferAttribute(g.getAttribute("position") as THREE.BufferAttribute);
+  /** Sum of every triangle's signed solid angle at the point (Van Oosterom & Strackee), over 4π. */
+  const inside = ({ x, y, z }: THREE.Vector3) => {
+    let wind = 0;
+    for (let i = 0; i < xyz.length; i += 9) {
+      const ax = xyz[i] - x,
+        ay = xyz[i + 1] - y,
+        az = xyz[i + 2] - z,
+        bx = xyz[i + 3] - x,
+        by = xyz[i + 4] - y,
+        bz = xyz[i + 5] - z,
+        cx = xyz[i + 6] - x,
+        cy = xyz[i + 7] - y,
+        cz = xyz[i + 8] - z;
+      const la = Math.sqrt(ax * ax + ay * ay + az * az),
+        lb = Math.sqrt(bx * bx + by * by + bz * bz),
+        lc = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      const num = ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx);
+      const den =
+        la * lb * lc +
+        (ax * bx + ay * by + az * bz) * lc +
+        (bx * cx + by * cy + bz * cz) * la +
+        (cx * ax + cy * ay + cz * az) * lb;
+      wind += 2 * Math.atan2(num, den);
     }
-    return Math.abs(wind) / (4 * Math.PI) > 0.75 ? -d : d;
+    return Math.abs(wind) / (4 * Math.PI) > 0.75;
   };
-  return { name: p.name ?? ("id" in p ? p.id : "unnamed surface"), world, dist, moving: !!p.parent };
+  // Stops at the first triangle nearer than r and skips nodes farther than r (a non-null result can still be farther).
+  const intrudes = (w: THREE.Vector3, r: number) =>
+    (bvh.closestPointToPoint(w, nearest, r, r)?.distance ?? Infinity) < r || (world.containsPoint(w) && inside(w));
+  return { name: p.name ?? ("id" in p ? p.id : "unnamed surface"), world, intrudes, moving: !!p.parent };
 });
 // Conservative envelopes over full control travel, using the same poses as
 // ControlRig.tsx/Airplane.tsx. AMM 6-00 PDF 117 gives the surface stops;
@@ -496,7 +485,7 @@ export const auditPathClearance = (keys: string[]) => {
           if (f.pts.some((q) => toV(q).distanceTo(p) < TERMINAL && otherConnectionPoints.some((e) => same(q, e))))
             continue;
           if (s.name === "Instrument panel" && inCutout(p, r)) continue;
-          if (s.dist(p) < r && !hits.some((h) => h.startsWith(`${key} in ${s.name}:`)))
+          if (s.intrudes(p, r) && !hits.some((h) => h.startsWith(`${key} in ${s.name}:`)))
             hits.push(
               `${key} in ${s.name}: ${p
                 .toArray()
