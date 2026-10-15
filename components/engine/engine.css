@@ -377,3 +377,15 @@
   gap: 2px;
   margin-bottom: 8px;
 }
+
+/* the carburetor page's readout: the monitor's look, without the cylinder bars */
+.carb-mon {
+  grid-template-columns: auto;
+  grid-template-areas: "big" "small";
+}
+.carb-mon .mon-big {
+  grid-template-columns: repeat(4, auto auto auto);
+}
+.carb-mon .mon-small {
+  grid-template-columns: repeat(4, auto auto);
+}

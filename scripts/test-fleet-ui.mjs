@@ -91,6 +91,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   ]);
   const components = dialog.getByRole("group", { name: "Components" }).getByRole("link");
   assert.deepEqual(await components.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
+    "/components/carburetor",
     "/components/fuel-injector",
   ]);
   for (const link of await components.all()) assert.ok((await link.boundingBox()).height >= 44);
@@ -230,11 +231,11 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   // and a component page the same way
   await activate(trigger);
   await activate(components.first());
-  await page.waitForURL("**/components/fuel-injector");
-  const componentTrigger = page.getByRole("button", { name: /^Switch Airplanes, current component Fuel injection/ });
+  await page.waitForURL("**/components/carburetor");
+  const componentTrigger = page.getByRole("button", { name: /^Switch Airplanes, current component Carburetor/ });
   await componentTrigger.waitFor();
   await activate(componentTrigger);
-  assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /Fuel injection/);
+  assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /Carburetor/);
   await page.keyboard.press("Escape");
   assert.deepEqual(errors, []);
   console.log(

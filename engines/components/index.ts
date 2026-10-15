@@ -15,6 +15,12 @@ export interface ComponentEntry {
 
 export const COMPONENTS: ComponentEntry[] = [
   {
+    id: "carburetor",
+    name: "Carburetor",
+    sub: "Marvel-Schebler MA-4-5 float carburetor",
+    lead: "The float carburetor of a Lycoming O-360-A1D in cutaway, running: float chamber, venturi and nozzle, idle system, accelerating pump, mixture valve and carburetor ice.",
+  },
+  {
     id: "fuel-injector",
     name: "Fuel injection",
     sub: "Precision RSA servo, flow divider, nozzles",

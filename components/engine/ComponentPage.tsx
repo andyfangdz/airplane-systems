@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 
 const PAGES: Record<string, ComponentType> = {
+  carburetor: dynamic(() => import("./carburetor/CarburetorApp")),
   "fuel-injector": dynamic(() => import("./fuel-injector/FuelInjectorApp")),
 };
 
