@@ -26,7 +26,7 @@ import { startScenario, type EngineSim } from "./store";
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 
-function StartFrom({ sim }: { sim: EngineSim }) {
+export function StartFrom({ sim }: { sim: EngineSim }) {
   const note = sim.useUi((x) => x.view.scenario),
     loading = sim.useUi((x) => x.view.loading);
   const spec = sim.spec,
@@ -51,7 +51,7 @@ function StartFrom({ sim }: { sim: EngineSim }) {
   );
 }
 
-function Controls({ sim }: { sim: EngineSim }) {
+export function Controls({ sim }: { sim: EngineSim }) {
   const c = sim.useUi((x) => x.controls),
     set = sim.useUi((x) => x.setControls);
   const spec = sim.spec,
@@ -219,7 +219,7 @@ function Readings({ sim }: { sim: EngineSim }) {
   );
 }
 
-function Environment({ sim }: { sim: EngineSim }) {
+export function Environment({ sim }: { sim: EngineSim }) {
   const e = sim.useUi((x) => x.env),
     set = sim.useUi((x) => x.setEnv);
   const L = sim.spec.limits;

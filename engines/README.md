@@ -25,6 +25,14 @@ components/engine/  The page: store (zustand UI + per-frame loop), 3D scene (sce
 app/engines/[engine]/page.tsx  One static page per engine id
 ```
 
+## Component simulations
+
+Single engine accessories on their own, at `/components/<id>`: the registry is `engines/components/index.ts` (picker
+order), each component's model and `SOURCES.md` sit in `engines/components/<id>/`, and its page in
+`components/engine/<id>/`, listed in `components/engine/ComponentPage.tsx`. A page wraps its scene and panel in
+`ComponentShell` (picker, toolbar with the theme switch, the engine page's layout). Adding one: an entry in
+`COMPONENTS`, one in `ComponentPage`'s `PAGES`, and the id in `COMPONENT_IDS` in `infra/cloudfront/view-rewrite.js`.
+
 ## Adding an engine
 
 1. Make `engines/<id>/spec.ts` exporting an `EngineSpec`, and a `SOURCES.md` beside it. Published numbers cite the

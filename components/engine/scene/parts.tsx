@@ -32,9 +32,9 @@ export interface HoverInfo {
 export const useHover = create<{ hover: HoverInfo | null }>(() => ({ hover: null }));
 
 const over = (name: string, note: string) => (e: ThreeEvent<PointerEvent>) => {
-  // a part turned see-through by X-ray lets the pointer reach what is inside it
+  // a part turned see-through by X-ray lets the pointer reach what is inside it, unless its material says otherwise
   const m = (e.object as THREE.Mesh).material as THREE.Material;
-  if (m.transparent && m.opacity < 0.5) return;
+  if (m.transparent && m.opacity < 0.5 && !m.userData.hoverWhenClear) return;
   e.stopPropagation();
   useHover.setState({ hover: { name, note, x: e.nativeEvent.clientX, y: e.nativeEvent.clientY } });
 };
@@ -95,4 +95,16 @@ export function Group({ sim, id, children }: { sim: EngineSim; id: GroupId; chil
   const hidden = sim.useUi((x) => x.view.hidden.includes(id));
   // unmounted rather than invisible, so hidden parts don't catch the pointer
   return hidden ? null : <group>{children}</group>;
+}
+
+/** The hovered part's name and note, next to the pointer. */
+export function HoverTip() {
+  const h = useHover((x) => x.hover);
+  if (!h) return null;
+  return (
+    <div className="eng-tip" style={{ left: h.x + 14, top: h.y + 14 }}>
+      <b>{h.name}</b>
+      {h.note && <span>{h.note}</span>}
+    </div>
+  );
 }
