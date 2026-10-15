@@ -199,10 +199,10 @@ button {
 .fleet-option {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   width: 100%;
   min-height: 52px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: none;
@@ -248,7 +248,7 @@ button {
   color: var(--muted);
   font-size: 11px;
 }
-/* a compact group (the component simulations): two to a row, the name only, still touch-sized */
+/* a compact group (the engines, the component simulations): two to a row, the name only, still touch-sized */
 .fleet-compact {
   grid-template-columns: 1fr 1fr;
 }
