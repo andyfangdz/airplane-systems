@@ -15,7 +15,7 @@ import type { EngineSim } from "./store";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
-import { Group, PartNotesProvider, useHover } from "./scene/parts";
+import { Group, HoverTip, PartNotesProvider, useHover } from "./scene/parts";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
@@ -111,18 +111,6 @@ function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
         </Html>
       ))}
     </>
-  );
-}
-
-/** The hovered part's name and note, next to the pointer. */
-function HoverTip() {
-  const h = useHover((x) => x.hover);
-  if (!h) return null;
-  return (
-    <div className="eng-tip" style={{ left: h.x + 14, top: h.y + 14 }}>
-      <b>{h.name}</b>
-      {h.note && <span>{h.note}</span>}
-    </div>
   );
 }
 

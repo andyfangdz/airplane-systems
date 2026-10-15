@@ -96,3 +96,15 @@ export function Group({ sim, id, children }: { sim: EngineSim; id: GroupId; chil
   // unmounted rather than invisible, so hidden parts don't catch the pointer
   return hidden ? null : <group>{children}</group>;
 }
+
+/** The hovered part's name and note, next to the pointer. */
+export function HoverTip() {
+  const h = useHover((x) => x.hover);
+  if (!h) return null;
+  return (
+    <div className="eng-tip" style={{ left: h.x + 14, top: h.y + 14 }}>
+      <b>{h.name}</b>
+      {h.note && <span>{h.note}</span>}
+    </div>
+  );
+}
