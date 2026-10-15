@@ -176,7 +176,7 @@ export const SCENARIOS: Scenario[] = [
     label: "Carburetor icing",
     only: carbureted,
     note: (spec) =>
-      `Cruise descent in cloudy, humid air: 15 °C, 80 % humidity, part throttle. Ice is building in the carburetor and manifold pressure is falling; apply full carburetor heat and open the throttle (${spec.refs.carbHeat ?? spec.doc}).`,
+      `Cruise descent in cloudy, humid air: about 9 °C (standard at 3,000 ft), 80 % humidity, part throttle. Ice is building in the carburetor and manifold pressure is falling; apply full carburetor heat and open the throttle (${spec.refs.carbHeat ?? spec.doc}).`,
     run: (spec, f = noFailures(spec)) => {
       const x = warmStart(spec, { tasKt: 130, altFt: 3000 }, f);
       x.c.prop = propFor(spec, 2350);

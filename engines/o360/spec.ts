@@ -141,7 +141,7 @@ export const O360: EngineSpec = {
     maxDropSrc: `${OM} p. 3-8`,
     bowlLb: 0.6,
     idleLbH: 12.5,
-    accelLb: 0.0012,
+    accelLb: 0.0003,
     primeLb: 0.0004,
     heatRiseC: 50,
     iceKg: 0.1,

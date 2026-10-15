@@ -397,6 +397,7 @@ describe("failures", () => {
     ["one nozzle", (f) => (f.nozzle[0] = 1)],
     ["every nozzle", (f) => f.nozzle.fill(1)],
     ["starter stuck engaged", (f) => (f.starterStuck = true)],
+    ["intake leak", (f) => (f.intakeLeak[1] = 1)],
   ];
   /** Paths of non-finite numbers in the state; a cylinder with no fuel has λ = ∞, which is the one allowed. */
   const nonFinite = (o: unknown, path = ""): string[] =>
@@ -426,6 +427,14 @@ describe("failures", () => {
       }
       expect(first).toEqual([]);
     }
+  });
+
+  test("a leaking intake runner leans its own cylinder at idle, which shows which one leaks", () => {
+    const f = { ...noFailures(S), intakeLeak: [0, 0, 0.6, 0] };
+    const { s, c, env } = SCENARIOS.find((x) => x.id === "idle")!.run(S, f);
+    settle(S, s, c, env, f, 10);
+    const lam = s.cyl.map((cy) => cy.lambda);
+    expect(lam[2]).toBeGreaterThan(Math.max(lam[0], lam[1], lam[3]) * 1.3);
   });
 
   test("with every nozzle blocked no fuel flows, and the engine stops on the ground", () => {

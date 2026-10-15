@@ -277,6 +277,14 @@ describe("fuel supply and failures", () => {
     expect(to.s.hp).toBeGreaterThan(0.95 * run("takeoff").s.hp);
   });
 
+  test("a fully leaking intake pipe at idle adds air but no fuel: the cylinders burn what the carburetor meters", () => {
+    const f = { ...noFailures(S), intakeLeak: [0, 1, 0, 0] };
+    const x = run("idle", f);
+    const burned = x.s.cyl.reduce((a, cy) => a + cy.fuel, 0);
+    expect(burned).toBeLessThan(x.s.fuel * 1.02);
+    expect(x.s.cyl[1].lambda).toBeGreaterThan(Math.max(x.s.cyl[0].lambda, x.s.cyl[2].lambda, x.s.cyl[3].lambda));
+  });
+
   test("pumping the throttle with the engine stopped puts fuel into the intake (the accelerator pump)", () => {
     const e = defaultEnvironment();
     const s = initialState(S, e);
@@ -287,6 +295,9 @@ describe("fuel supply and failures", () => {
     }
     expect(s.cyl.every((cy) => cy.puddle > 0)).toBe(true);
     expect(s.bowl).toBeLessThan(carb.bowlLb);
+    // what leaves the bowl reaches the ports (the bowl can't refill with the engine stopped)
+    const puddles = s.cyl.reduce((a, cy) => a + cy.puddle, 0);
+    expect(puddles).toBeCloseTo(carb.bowlLb - s.bowl, 4);
   });
 
   const FAILURES: [string, (f: Failures) => void][] = [

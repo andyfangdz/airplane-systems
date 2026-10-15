@@ -347,15 +347,10 @@ function substep(
     s.bowl = Math.max(0, inBowl - squirt - (metered / 3600) * dt);
     s.fuel = metered;
     s.nozzlePsi = 0;
-    // fuel follows the metered air, so a cylinder whose pipe leaks gets less of it
+    // the metered air carries the fuel and divides evenly among the cylinders (with their trims)
     const nominal = spec.geometry.cylinders.map((_, i) => cal.fuelTrim[i]);
     const sum = nominal.reduce((a, x) => a + x, 0);
-    const share = nominal.map((x, i) => {
-      const own = airLbH / nCyl;
-      const meteredHere = leakArea > 0 ? Math.max(0, own - (airLbH * leaks[i]) / (cdA + leakArea)) : own;
-      return (x / sum) * nCyl * (meteredAir > 0 ? meteredHere / meteredAir : 1 / nCyl);
-    });
-    dist = { share, areaMean: 1 };
+    dist = { share: nominal.map((x) => x / sum), areaMean: 1 };
 
     // mixture chamber temperature and ice
     const far = meteredAir > 1 ? metered / meteredAir : 0;
@@ -393,9 +388,10 @@ function substep(
     const into = (metered * dist.share[i]) / 3600; // lb/s into the port
     const evap = s.rpm > 20 ? cy.puddle / tau : 0;
     const drain = cy.puddle / 120; // pooled fuel slowly drains overboard
-    cy.puddle = Math.max(0, cy.puddle + (into - evap - drain) * dt + (squirt * dist.share[i]) / nCyl);
+    cy.puddle = Math.max(0, cy.puddle + (into - evap - drain) * dt + squirt * dist.share[i]);
     cy.fuel = evap * 3600;
-    const airCyl = airLbH / nCyl;
+    // each cylinder takes an even share of the metered air, and a leaking pipe adds its unmetered air to its own
+    const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
     cy.lambda = cy.fuel > 1e-4 ? airCyl / (cy.fuel * AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
     let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower) : 0;
