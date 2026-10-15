@@ -20,6 +20,12 @@ export const COMPONENTS: ComponentEntry[] = [
     sub: "Marvel-Schebler MA-4-5 float carburetor",
     lead: "The float carburetor of a Lycoming O-360-A1D in cutaway, running: float chamber, venturi and nozzle, idle system, accelerating pump, mixture valve and carburetor ice.",
   },
+  {
+    id: "surefly",
+    name: "SureFly SIM",
+    sub: "Electronic ignition",
+    lead: "SureFly SIM4P electronic ignition module: dip switch timing, advance with rpm and manifold pressure, the timing light and wasted spark.",
+  },
 ];
 
 export const COMPONENT_IDS = COMPONENTS.map((c) => c.id);
