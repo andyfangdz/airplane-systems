@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AIRCRAFT_IDS } from "@/lib/systems";
 import { VIEW_PATHS } from "@/lib/viewPaths";
 import { ENGINE_IDS } from "@/engines";
+import { COMPONENT_IDS } from "@/engines/components";
 
 // Read through fs below. Listing it to Vite (never loading it) makes it a dependency, so `vitest --changed` reruns this
 // file when it changes.
@@ -37,6 +38,16 @@ describe("CloudFront viewer-request view rule", () => {
     expect(runInNewContext(source + "\nENGINE_IDS;")).toEqual(ENGINE_IDS);
     for (const id of ENGINE_IDS) expect(run(`/engines/${id}`).result.uri).toBe(`/engines/${id}.html`);
     expect(run("/engines/nope").result.uri).toBe("/engines/nope");
+  });
+
+  it("serves each component page's exported .html and keeps the copied component list current", () => {
+    expect(runInNewContext(source + "\nCOMPONENT_IDS;")).toEqual(COMPONENT_IDS);
+    for (const id of COMPONENT_IDS) {
+      expect(run(`/components/${id}`).result.uri).toBe(`/components/${id}.html`);
+      expect(run(`/components/${id}/`).result.headers.location.value).toBe(`/components/${id}`);
+    }
+    expect(run("/components/nope").result.uri).toBe("/components/nope");
+    expect(run("/components/io390").result.uri).toBe("/components/io390");
   });
 
   it("keeps the existing any-single-system-segment behavior", () => {

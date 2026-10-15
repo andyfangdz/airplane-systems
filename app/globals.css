@@ -248,6 +248,23 @@ button {
   color: var(--muted);
   font-size: 11px;
 }
+/* a compact group (the component simulations): two to a row, the name only, still touch-sized */
+.fleet-compact {
+  grid-template-columns: 1fr 1fr;
+}
+.fleet-compact .fleet-group {
+  grid-column: 1 / -1;
+}
+.fleet-compact .fleet-option {
+  justify-content: center;
+  min-height: 44px;
+}
+.fleet-compact .fleet-name {
+  font-size: 14px;
+}
+.fleet-compact .fleet-equipment {
+  display: none;
+}
 .brand p {
   margin: 0;
   font-size: 13px;

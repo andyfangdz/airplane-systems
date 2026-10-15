@@ -3,7 +3,7 @@ import { useLayoutEffect, useId, useRef, useState } from "react";
 import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/react";
 import Link from "next/link";
 
-/** One choice: a button that acts on this page, or a link to another page (an engine from an airplane, or back). */
+/** One choice: a button that acts on this page, or a link to another page (an engine or component from an airplane, or back). */
 export interface PickerEntry {
   id: string;
   name: string;
@@ -16,7 +16,8 @@ export interface PickerEntry {
 
 /**
  * The airplane picker: an explicit switch control and what is shown share one compact button, and its menu lists the
- * airplanes and then the engine simulations, so an engine is chosen the way an airplane is.
+ * airplanes, then the engine simulations and the component simulations, so each is chosen the way an airplane is. A
+ * `compact` group lays its entries out two to a row (name only, the type as a tooltip) to keep the menu short.
  */
 export function Picker({
   current,
@@ -24,8 +25,8 @@ export function Picker({
   groups,
 }: {
   current: { name: string; sub: string };
-  kind: "airplane" | "engine";
-  groups: { label: string; entries: PickerEntry[] }[];
+  kind: "airplane" | "engine" | "component";
+  groups: { label: string; entries: PickerEntry[]; compact?: boolean }[];
 }) {
   const menu = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -96,7 +97,7 @@ export function Picker({
         className="fleet-menu"
         popover="auto"
         role="dialog"
-        aria-label="Choose an airplane or engine"
+        aria-label="Choose an airplane, engine or component"
         onToggle={(event) => setOpen(event.newState === "open")}
         onBlur={(event) => {
           // Safari can blur a tapped option without focusing its replacement. Hiding now would swallow the click.
@@ -127,50 +128,63 @@ export function Picker({
           options[next]?.focus();
         }}
       >
-        {groups.map((g) => (
-          <div key={g.label} className="fleet-options" role="group" aria-label={g.label}>
-            <div className="fleet-group" aria-hidden="true">
-              {g.label}
-            </div>
-            {g.entries.map((a) => {
-              const body = (
-                <>
-                  <span className="fleet-option-heading">
-                    <span className="fleet-name">{a.name}</span>
-                    {a.walk && (
-                      <span className="fleet-walk" title="Preflight walk-around available">
-                        Walk-around
+        {groups
+          .filter((g) => g.entries.length)
+          .map((g) => (
+            <div
+              key={g.label}
+              className={g.compact ? "fleet-options fleet-compact" : "fleet-options"}
+              role="group"
+              aria-label={g.label}
+            >
+              <div className="fleet-group" aria-hidden="true">
+                {g.label}
+              </div>
+              {g.entries.map((a) => {
+                const body = (
+                  <>
+                    <span className="fleet-option-heading">
+                      <span className="fleet-name">{a.name}</span>
+                      {a.walk && (
+                        <span className="fleet-walk" title="Preflight walk-around available">
+                          Walk-around
+                        </span>
+                      )}
+                      <span className="fleet-check" aria-hidden="true">
+                        {a.current ? "✓" : ""}
                       </span>
-                    )}
-                    <span className="fleet-check" aria-hidden="true">
-                      {a.current ? "✓" : ""}
                     </span>
-                  </span>
-                  <span className="fleet-equipment">{a.sub}</span>
-                </>
-              );
-              return a.href && !a.current ? (
-                <Link key={a.id} className="fleet-option" href={a.href} onClick={close}>
-                  {body}
-                </Link>
-              ) : (
-                <button
-                  key={a.id}
-                  type="button"
-                  className="fleet-option"
-                  aria-pressed={a.current}
-                  onClick={() => {
-                    close();
-                    // Re-selecting what is shown preserves its system, camera and walk-around.
-                    if (!a.current) a.onPick?.();
-                  }}
-                >
-                  {body}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                    <span className="fleet-equipment">{a.sub}</span>
+                  </>
+                );
+                return a.href && !a.current ? (
+                  <Link
+                    key={a.id}
+                    className="fleet-option"
+                    href={a.href}
+                    title={g.compact ? a.sub : undefined}
+                    onClick={close}
+                  >
+                    {body}
+                  </Link>
+                ) : (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className="fleet-option"
+                    aria-pressed={a.current}
+                    onClick={() => {
+                      close();
+                      // Re-selecting what is shown preserves its system, camera and walk-around.
+                      if (!a.current) a.onPick?.();
+                    }}
+                  >
+                    {body}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
       </div>
     </div>
   );

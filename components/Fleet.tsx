@@ -1,10 +1,11 @@
 "use client";
 import { FLEET, selectAircraft, useAircraft } from "@/aircraft";
 import { ENGINES } from "@/engines";
+import { COMPONENTS } from "@/engines/components";
 import { Picker } from "./Picker";
-import { engineEntries } from "./pickerEntries";
+import { componentEntries, engineEntries } from "./pickerEntries";
 
-/** The airplane pages' picker: airplanes switch in place, engines open their own page. */
+/** The airplane pages' picker: airplanes switch in place, engines and components open their own page. */
 export function Fleet() {
   const current = useAircraft();
   return (
@@ -24,6 +25,7 @@ export function Fleet() {
           })),
         },
         { label: "Engines", entries: engineEntries(ENGINES) },
+        { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
       ]}
     />
   );

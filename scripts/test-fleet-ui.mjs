@@ -69,7 +69,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     await trigger.getByText("Switch Airplanes", { exact: true }).isVisible(),
     "The control explicitly names the switching action",
   );
-  const dialog = page.getByRole("dialog", { name: "Choose an airplane or engine" });
+  const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
   const choices = dialog.getByRole("group", { name: "Airplanes" }).getByRole("button");
   const waitForClosed = async () => {
     await dialog.waitFor({ state: "hidden" });
