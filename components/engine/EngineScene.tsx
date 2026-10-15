@@ -10,11 +10,13 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { CylinderDef, EngineSpec } from "@/engines/types";
-import { phaseOf, pistonDistance, valveLift } from "@/engines/model/cycle";
+import { phaseOf, rodEnds, valveLift } from "@/engines/model/cycle";
 import { sparks } from "@/engines/model/engine";
 import type { EngineSim } from "./store";
 
 const IN = 0.0254;
+/** Half the width of one crank throw along the shaft (cheeks and crankpin), m. */
+const THROW_HALF = 0.032;
 const D2R = Math.PI / 180;
 
 /** Dimensions in metres, from the spec where it publishes them. */
@@ -155,17 +157,14 @@ function EngineModel({ sim }: { sim: EngineSim }) {
       const refs = cyls.current[i];
       if (!refs) return;
       const ph = phaseOf(spec, c.n, crankDeg);
-      const axis = c.side === "R" ? 90 : 270;
-      const pinWorld = (c.pin + crankDeg) % 360;
-      const alpha = pinWorld - axis;
-      const dist = pistonDistance(spec, alpha);
+      // rod ends in this cylinder's frame (+z along its axis; the left bank's frame is turned 180° about y)
+      const { pin, piston } = rodEnds(spec, c, crankDeg);
+      const k = c.side === "R" ? 1 : -1;
+      const dist = piston.z * k,
+        py = pin.y,
+        pz = pin.z * k;
       refs.piston.position.z = dist + d.crown / 2;
-      // rod from crankpin (in this cylinder's frame: along +z is the cylinder axis) to the piston pin
-      const a = alpha * D2R;
-      const py = c.side === "R" ? -Math.sin(a) * d.r : Math.sin(a) * d.r; // pin offset across the axis
-      const pz = Math.cos(a) * d.r;
-      const mid = new THREE.Vector3(0, py / 2, (pz + dist) / 2);
-      refs.rod.position.copy(mid);
+      refs.rod.position.set(0, py / 2, (pz + dist) / 2);
       refs.rod.rotation.x = Math.atan2(py, dist - pz);
       const lift = valveLift(spec, ph);
       refs.valves[0].position.z = d.deck + 0.012 - lift.intake * 0.012;
@@ -204,7 +203,9 @@ function EngineModel({ sim }: { sim: EngineSim }) {
       <mesh geometry={geo.sump} material={mats.sump} />
       {/* crankshaft: main journal and a throw per cylinder */}
       <group ref={crank}>
-        <mesh geometry={geo.shaft} material={mats.crank} />
+        {geo.shaft.map((g, i) => (
+          <mesh key={i} geometry={g} material={mats.crank} />
+        ))}
         {spec.geometry.cylinders.map((c) => (
           <group key={c.n} position={[c.x, 0, 0]} rotation={[(c.pin - 90) * D2R, 0, 0]}>
             <mesh geometry={geo.cheek} material={mats.crank} position={[0.025, 0, d.r / 2]} />
@@ -341,8 +342,19 @@ function buildGeometry(spec: EngineSpec, d: ReturnType<typeof dims>) {
   caseG.translate(mid, 0.0, 0);
   const sump = new THREE.BoxGeometry(length * 0.8, 0.1, d.caseHalf * 1.6);
   sump.translate(mid - 0.03, -0.18, 0);
-  const shaft = new THREE.CylinderGeometry(0.028, 0.028, front - rear + 0.12, 16);
-  shaft.rotateZ(Math.PI / 2).translate(mid + 0.06, 0, 0);
+  // main journals only between the throws: at a throw the rod passes the axis between the cheeks, where a solid
+  // shaft would run through it near bottom centre
+  const half = THROW_HALF;
+  const throwsAt = [...xs].sort((a, b) => b - a);
+  const edges = [front + 0.12, ...throwsAt.flatMap((x) => [x + half, x - half]), rear];
+  const shaft: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < edges.length; i += 2) {
+    const len = edges[i] - edges[i + 1];
+    if (len <= 0.002) continue;
+    const seg = new THREE.CylinderGeometry(0.028, 0.028, len, 16);
+    seg.rotateZ(Math.PI / 2).translate((edges[i] + edges[i + 1]) / 2, 0, 0);
+    shaft.push(seg);
+  }
   const cheek = new THREE.BoxGeometry(0.014, 0.05, d.r + 0.05);
   const crankpin = new THREE.CylinderGeometry(0.026, 0.026, 0.064, 14);
   crankpin.rotateZ(Math.PI / 2);
@@ -407,7 +419,7 @@ function buildGeometry(spec: EngineSpec, d: ReturnType<typeof dims>) {
   const all = [
     caseG,
     sump,
-    shaft,
+    ...shaft,
     cheek,
     crankpin,
     ...barrel,

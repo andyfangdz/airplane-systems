@@ -37,6 +37,21 @@ export function pistonDistance(spec: EngineSpec, fromTdcDeg: number) {
   return r * Math.cos(a) + Math.sqrt(l * l - (r * Math.sin(a)) ** 2);
 }
 
+/**
+ * Crankpin and piston-pin centres (m) at a crank angle, in the plane normal to the crank (y up, z right): the two ends
+ * of the connecting rod, always one rod length apart.
+ */
+export function rodEnds(spec: EngineSpec, c: CylinderDef, crank: number) {
+  const r = (spec.geometry.strokeIn * IN_M) / 2;
+  const phi = pinAngle(c, crank) * D2R,
+    axis = sideAngle(c) * D2R;
+  const dist = pistonDistance(spec, pinAngle(c, crank) - sideAngle(c));
+  return {
+    pin: { y: r * Math.cos(phi), z: r * Math.sin(phi) },
+    piston: { y: dist * Math.cos(axis), z: dist * Math.sin(axis) },
+  };
+}
+
 /** Cylinder volume (m³) at a phase: clearance plus swept volume to the piston. */
 export function volume(spec: EngineSpec, phase: number) {
   const g = spec.geometry;

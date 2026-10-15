@@ -6,7 +6,7 @@ import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { ENGINES } from "@/engines";
 import { atmosphere } from "@/engines/model/atmosphere";
-import { firingAngle, phaseOf, pinAngle, pressureTrace, sideAngle, stroke } from "@/engines/model/cycle";
+import { firingAngle, phaseOf, pinAngle, pressureTrace, rodEnds, sideAngle, stroke } from "@/engines/model/cycle";
 import {
   defaultControls,
   defaultEnvironment,
@@ -57,6 +57,17 @@ describe("IO-390-C specifications (IOM Table A-1, p. 51; System Description p. 6
     for (const c of S.geometry.cylinders) expect(pinAngle(c, firingAngle(S, c.n)) % 360).toBe(sideAngle(c));
     // opposed pairs move in opposite directions (1 and 2 share a bank position, 180° apart)
     expect(Math.abs(S.geometry.cylinders[0].pin - S.geometry.cylinders[1].pin)).toBe(180);
+  });
+
+  test("each connecting rod stays one rod length from its crankpin to its piston pin, and the piston stays on its bore axis", () => {
+    const rod = S.geometry.rodIn * 0.0254;
+    for (const c of S.geometry.cylinders)
+      for (let crank = 0; crank < 720; crank += 5) {
+        const { pin, piston } = rodEnds(S, c, crank);
+        expect(Math.hypot(piston.y - pin.y, piston.z - pin.z)).toBeCloseTo(rod, 9);
+        expect(piston.y).toBeCloseTo(0, 9); // both banks are horizontal
+        expect(Math.sign(piston.z)).toBe(c.side === "R" ? 1 : -1);
+      }
   });
 
   test("strokes follow the phase: power, exhaust, intake, compression", () => {
