@@ -59,28 +59,53 @@ export interface EngineSim {
   useUi: ReturnType<typeof createUi>;
 }
 
+/** The scenario worker, made on first use, and the number of the latest "Start from" request. */
+let worker: Worker | null | undefined;
+let seq = 0;
+
 const createUi = (spec: EngineSpec) =>
-  create<EngineUi>((set) => ({
-    controls: defaultControls(),
-    env: defaultEnvironment(),
-    failures: noFailures(spec),
-    view: {
-      thermal: 1,
-      slow: false,
-      xray: true,
-      labels: true,
-      prop: true,
-      cyl: 0,
-      paused: false,
-      scenario: null,
-      loading: null,
-      hidden: [],
-    },
-    setControls: (p) => set((x) => ({ controls: { ...x.controls, ...p } })),
-    setEnv: (p) => set((x) => ({ env: { ...x.env, ...p } })),
-    setFailures: (p) => set((x) => ({ failures: { ...x.failures, ...p } })),
-    setView: (p) => set((x) => ({ view: { ...x.view, ...p } })),
-  }));
+  create<EngineUi>((set, get) => {
+    // a change made while a "Start from" setup is still running wins: the setup is dropped, not applied over it
+    const cancel = () => {
+      if (get().view.loading) {
+        seq++;
+        set((x) => ({ view: { ...x.view, loading: null } }));
+      }
+    };
+    return {
+      controls: defaultControls(),
+      env: defaultEnvironment(),
+      failures: noFailures(spec),
+      view: {
+        thermal: 1,
+        slow: false,
+        xray: true,
+        labels: true,
+        prop: true,
+        cyl: 0,
+        paused: false,
+        scenario: null,
+        loading: null,
+        hidden: [],
+      },
+      setControls: (p) => {
+        cancel();
+        set((x) => ({ controls: { ...x.controls, ...p } }));
+      },
+      setEnv: (p) => {
+        cancel();
+        set((x) => ({ env: { ...x.env, ...p } }));
+      },
+      setFailures: (p) => {
+        cancel();
+        set((x) => ({ failures: { ...x.failures, ...p } }));
+      },
+      setView: (p) => {
+        if ("paused" in p) cancel();
+        set((x) => ({ view: { ...x.view, ...p } }));
+      },
+    };
+  });
 
 const sims = new Map<string, EngineSim>();
 
@@ -100,8 +125,6 @@ export function replaceState(sim: EngineSim, next: EngineState) {
   refreshLiveSnapshot(sim.s);
 }
 
-let worker: Worker | null | undefined;
-let seq = 0;
 function scenarioWorker() {
   if (worker === undefined)
     try {
@@ -125,8 +148,11 @@ export function startScenario(sim: EngineSim, id: string) {
   const apply = (x: Setup) => {
     if (n !== seq) return;
     replaceState(sim, x.s);
-    sim.useUi.setState({ controls: x.c, env: x.env });
-    sim.useUi.getState().setView({ scenario: id, loading: null, paused: false });
+    sim.useUi.setState((u) => ({
+      controls: x.c,
+      env: x.env,
+      view: { ...u.view, scenario: id, loading: null, paused: false },
+    }));
   };
   const runHere = () => {
     const sc = SCENARIOS.find((x) => x.id === id);
@@ -134,7 +160,7 @@ export function startScenario(sim: EngineSim, id: string) {
   };
   const w = scenarioWorker();
   if (!w) return runHere();
-  sim.useUi.getState().setView({ loading: id });
+  sim.useUi.setState((u) => ({ view: { ...u.view, loading: id } }));
   w.onmessage = ({ data }: MessageEvent<{ seq: number; setup?: Setup; error?: string }>) => {
     if (data.seq !== n) return;
     if (data.setup) apply(data.setup);
