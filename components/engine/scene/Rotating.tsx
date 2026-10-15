@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { rodEnds } from "@/engines/model/cycle";
 import type { CylinderDef } from "@/engines/types";
 import type { EngineSim } from "../store";
-import { D2R, gear, merge, rod, STARTER_TEETH, zrod, type Dims, type Mats } from "./kit";
+import { D2R, gear, GEAR_TEETH, merge, rod, STARTER_TEETH, zrod, type Dims, type Mats } from "./kit";
 import { P } from "./parts";
 
 /** Half the width of one crank throw along the shaft (cheeks and crankpin), m. */
@@ -40,7 +40,7 @@ function crankGeometry(sim: EngineSim, d: Dims) {
   const counterweight = new THREE.ExtrudeGeometry(cw, { depth: 0.016, bevelEnabled: false, curveSegments: 16 })
     .translate(0, 0, -0.008)
     .rotateY(Math.PI / 2);
-  const crankGear = gear(d.crankGearR, 24, 0.014, 0.01).translate(d.caseRear - 0.018, 0, 0);
+  const crankGear = gear(d.crankGearR, GEAR_TEETH.crank, 0.014, 0.01).translate(d.caseRear - 0.018, 0, 0);
   // propeller flange with its drive bushings, the starter ring gear and the alternator pulley behind it
   const flange = merge([
     rod(0.088, 0.014, 32).translate(d.flangeX, 0, 0),

@@ -17,6 +17,7 @@ import {
   gear,
   headPoints,
   IN,
+  magDrive,
   merge,
   rod,
   STARTER_TEETH,
@@ -29,12 +30,13 @@ import { P } from "./parts";
 
 type V3 = [number, number, number];
 
-/** Magneto layout: on the accessory housing, top, left and right. */
-const MAG = { y: 0.13, z: 0.08, r: 0.04, len: 0.1 };
-const magZ = (side: "L" | "R") => (side === "R" ? MAG.z : -MAG.z);
+/** Magneto bodies: on the rear of the accessory housing, top left and right, above their drive gears (`magDrive`). */
+const MAG = { r: 0.04, len: 0.1 };
 
 export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
+  const drive = useMemo(() => magDrive(spec, d), [spec, d]);
+  const magZ = (side: "L" | "R") => (side === "R" ? drive.z : -drive.z);
   const geo = useMemo(() => {
     const hp = headPoints(d);
     const leads: THREE.BufferGeometry[] = [];
@@ -42,12 +44,12 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       const k = bank(c);
       const topMag = spec.ignition.topPlugMag[c.n];
       const botMag = topMag === "L" ? "R" : "L";
-      const cap = (m: "L" | "R", dy: number): V3 => [d.accRear - MAG.len - 0.02, MAG.y + dy, magZ(m)];
+      const cap = (m: "L" | "R", dy: number): V3 => [d.accRear - MAG.len - 0.02, drive.y + dy, magZ(m)];
       const top = toWorld(c, hp.topLead),
         bot = toWorld(c, hp.botLead);
       leads.push(
         tube(
-          [cap(topMag, 0.02), [d.caseRear - 0.02, 0.215, magZ(topMag)], [top[0], 0.2, k * 0.17], top],
+          [cap(topMag, 0.02), [d.caseRear - 0.02, drive.y + 0.04, magZ(topMag)], [top[0], 0.2, k * 0.17], top],
           0.0042,
           40,
           8,
@@ -70,17 +72,22 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       body: rod(MAG.r, MAG.len, 24).translate(d.accRear - MAG.len / 2, 0, 0),
       flange: rod(MAG.r + 0.008, 0.008, 24).translate(d.accRear - 0.004, 0, 0),
       cap: rod(MAG.r + 0.003, 0.022, 24).translate(d.accRear - MAG.len - 0.009, 0, 0),
-      gear: gear(0.03, 20, 0.01, 0.006),
+      // drive gear in the camshaft gear's plane, its shaft running aft to the magneto
+      gear: merge([
+        gear(drive.r, drive.teeth, 0.01, 0.006).translate(drive.x, 0, 0),
+        rod(0.007, drive.x - d.accRear, 10).translate((drive.x + d.accRear) / 2, 0, 0),
+      ]),
       leads: merge(leads),
     };
-  }, [spec, d]);
+  }, [spec, d, drive]);
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
   const gears = useRef<(THREE.Mesh | null)[]>([]);
   useFrame(() => {
-    // Table A-1 magneto drive ratio
+    // geared to the camshaft gear (which turns at −crank/2), so the other way at the Table A-1 magneto drive ratio
     const a = ((sim.anim.crank * spec.accessories.magnetoRatio) % 360) * D2R;
     gears.current.forEach((g) => {
-      if (g) g.rotation.x = a;
+      if (!g) return;
+      g.rotation.x = a + Math.PI / drive.teeth;
     });
   });
   const mags = spec.accessories.magnetos;
@@ -89,7 +96,7 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       {(["L", "R"] as const).map((m, k) => {
         const retard = m === spec.ignition.retardMag;
         return (
-          <group key={m} position={[0, MAG.y, magZ(m)]}>
+          <group key={m} position={[0, drive.y, magZ(m)]}>
             <P
               name={`${m === "L" ? "Left" : "Right"} magneto${retard ? " (retard breaker)" : ""}`}
               note={
@@ -109,10 +116,9 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
             />
             <P
               name="Magneto drive gear"
-              note="Driven from the accessory gear train at crankshaft speed (magneto drive ratio 1:1, Table A-1)."
+              note={`Meshes with the camshaft gear: half as many teeth, so the magneto turns at crankshaft speed (magneto drive ratio ${spec.accessories.magnetoRatio}:1, Table A-1).`}
               geometry={geo.gear}
               material={mats.gear}
-              position={[d.caseRear - 0.04, 0, 0]}
               meshRef={(g) => {
                 gears.current[k] = g;
               }}

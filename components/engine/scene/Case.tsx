@@ -9,7 +9,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { EngineSim } from "../store";
-import { D2R, gear, merge, rod, slab, toWorld, tube, zrod, type Dims, type Mats } from "./kit";
+import { D2R, gear, merge, oilPump, rod, slab, toWorld, tube, zrod, type Dims, type Mats } from "./kit";
 import { P } from "./parts";
 
 export function Crankcase({ d, mats }: { d: Dims; mats: Mats }) {
@@ -30,7 +30,7 @@ export function Crankcase({ d, mats }: { d: Dims; mats: Mats }) {
       bolts: merge(bolts),
       nose: rod(0.05, 0.034, 28).translate(d.front + 0.017, 0, 0),
       mounts: merge(mounts),
-      acc: slab(d.accRear, d.caseRear, -0.13, 0.205, -0.125, 0.125, 0.03),
+      acc: slab(d.accRear, d.caseRear, -0.13, 0.235, -0.125, 0.125, 0.03),
       sump: slab(d.caseRear + 0.005, d.front - 0.04, d.sumpBottom, d.caseBottom + 0.01, -0.12, 0.12, 0.03),
     };
   }, [d]);
@@ -85,6 +85,7 @@ export function Crankcase({ d, mats }: { d: Dims; mats: Mats }) {
 }
 
 export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const PUMP = useMemo(() => oilPump(d), [d]);
   const geo = useMemo(() => {
     const top = d.caseRear - 0.005;
     return {
@@ -97,8 +98,21 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         rod(0.045, 0.1, 28).translate(d.accRear - 0.05, 0.015, 0),
         rod(0.012, 0.014, 6).translate(d.accRear - 0.107, 0.015, 0),
       ]),
-      pumpGear: gear(0.018, 10, 0.016, 0.004),
-      pumpBody: rod(0.04, 0.03, 20).translate(d.caseRear - 0.035, -0.075, 0),
+      // driven off the crankshaft gear: a drive gear meshing below it, its shaft running aft to the pumping gears
+      pumpDrive: merge([
+        gear(PUMP.driveR, PUMP.driveTeeth, 0.014, 0.004),
+        rod(0.006, PUMP.x0 - PUMP.x1 + 0.012, 10).translate((PUMP.x1 - PUMP.x0) / 2, 0, 0),
+      ]),
+      pumpGear: gear(PUMP.gearR, 10, 0.012, 0.004),
+      pumpBody: slab(
+        PUMP.x1 - 0.01,
+        PUMP.x1 + 0.01,
+        PUMP.y - 0.026,
+        PUMP.y + 0.026,
+        -0.024,
+        2 * PUMP.gearR + 0.024,
+        0.012,
+      ).translate(d.caseRear, 0, 0),
       screen: rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
       screenPlug: rod(0.012, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.025, 0),
       drain: new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6).translate(-0.04, d.sumpBottom - 0.007, 0.06),
@@ -114,19 +128,35 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       ),
       dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(top, 0.209, 0.13),
       nozzle: zrod(0.0035, d.caseHalf - 0.04, d.caseHalf - 0.008, 8).translate(0, -0.05, 0),
-      lines: merge([
-        tube(
-          [
-            [d.accRear - 0.004, -0.06, 0.03],
-            [d.accRear - 0.03, -0.11, 0.09],
-            [d.accRear - 0.06, -0.05, 0.08],
-            [d.accRear - 0.06, 0.0, 0.045],
-          ],
-          0.006,
-        ),
-      ]),
+      suction: tube(
+        [
+          [d.caseRear + 0.012, d.sumpBottom + 0.025, 0],
+          [d.caseRear - 0.004, d.sumpBottom + 0.03, 0.01],
+          [d.caseRear + PUMP.x1 - 0.004, PUMP.y - 0.05, PUMP.gearR],
+          [d.caseRear + PUMP.x1, PUMP.y - 0.026, PUMP.gearR],
+        ],
+        0.007,
+      ),
+      pressure: tube(
+        [
+          [d.caseRear + PUMP.x1, PUMP.y + 0.026, PUMP.gearR],
+          [d.caseRear + PUMP.x1 - 0.004, PUMP.y + 0.05, 0.05],
+          [d.accRear + 0.006, 0.0, 0.05],
+          [d.accRear - 0.004, 0.015, 0.03],
+        ],
+        0.006,
+      ),
+      supply: tube(
+        [
+          [d.accRear - 0.004, 0.015, -0.03],
+          [d.accRear + 0.012, 0.035, -0.05],
+          [d.caseRear - 0.004, 0.05, -0.06],
+          [d.caseRear + 0.04, 0.05, -0.06],
+        ],
+        0.006,
+      ),
     };
-  }, [d]);
+  }, [d, PUMP]);
   const oilMat = useMemo(() => {
     const m = mats.oil.clone();
     m.transparent = true;
@@ -141,7 +171,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
     [geo, oilMat],
   );
   const level = useRef<THREE.Mesh>(null);
-  const gears = useRef<(THREE.Mesh | null)[]>([]);
+  const gears = useRef<(THREE.Mesh | null)[]>([]); // drive, pumping gear on its shaft, idler
   const tmp = useMemo(() => new THREE.Color(), []);
   const full = sim.spec.limits.oilSumpQt.value;
   useFrame(() => {
@@ -150,9 +180,12 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       level.current.scale.y = Math.max(0.001, Math.min(1.25, qt / full) * (d.caseBottom - d.sumpBottom - 0.01));
     tmp.setRGB(0.55 + Math.min(0.35, (sim.s.oilT - 60) / 500), 0.32, 0.17);
     oilMat.color.copy(tmp);
-    const a = (sim.anim.crank % 360) * D2R;
-    if (gears.current[0]) gears.current[0].rotation.x = a;
-    if (gears.current[1]) gears.current[1].rotation.x = -a + Math.PI / 10;
+    // the drive gear turns the other way from the crankshaft gear, faster by their tooth ratio
+    const a = -((sim.anim.crank * PUMP.ratio) % 360) * D2R;
+    const [drive, pump, idler] = gears.current;
+    if (drive) drive.rotation.x = a + Math.PI / 12;
+    if (pump) pump.rotation.x = a;
+    if (idler) idler.rotation.x = -a + Math.PI / 10;
   });
   return (
     <>
@@ -171,19 +204,30 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       />
       <P
         name="Oil pump"
-        note="Draws oil from the sump through the suction screen and sends it to the filter (IOM Figure 8)."
+        note="Draws oil from the sump through the suction screen and sends it to the filter (IOM p. 5, Figure 8)."
         geometry={geo.pumpBody}
         material={mats.acc}
       />
-      {[0.017, -0.017].map((z, k) => (
+      <P
+        name="Oil pump drive gear"
+        note="Meshes with the crankshaft gear and turns the pump through its shaft. Drawn at twice crankshaft speed: the IOM doesn't give the oil pump's drive ratio."
+        geometry={geo.pumpDrive}
+        material={mats.gear}
+        position={[d.caseRear - 0.018, PUMP.y, 0]}
+        meshRef={(m) => {
+          gears.current[0] = m;
+        }}
+      />
+      {[0, 2 * PUMP.gearR].map((z, k) => (
         <P
           key={z}
-          name="Oil pump gear"
+          name="Oil pump gears"
+          note="Two meshing gears carry oil around the outside of the pump body from the suction side to the pressure side."
           geometry={geo.pumpGear}
           material={mats.gear}
-          position={[d.caseRear - 0.035, -0.075, z]}
+          position={[d.caseRear + PUMP.x1, PUMP.y, z]}
           meshRef={(m) => {
-            gears.current[k] = m;
+            gears.current[k + 1] = m;
           }}
         />
       ))}
@@ -217,7 +261,19 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         geometry={geo.dipCap}
         material={mats.magCap}
       />
-      <P name="Oil line" geometry={geo.lines} material={mats.oil} />
+      <P
+        name="Oil suction line"
+        note="From the suction screen in the sump to the pump."
+        geometry={geo.suction}
+        material={mats.oil}
+      />
+      <P name="Oil pressure line" note="From the pump to the oil filter." geometry={geo.pressure} material={mats.oil} />
+      <P
+        name="Filtered oil line"
+        note="From the filter into the crankcase, where the oil feeds the engine and the four piston-cooling nozzles."
+        geometry={geo.supply}
+        material={mats.oil}
+      />
       {sim.spec.geometry.cylinders.map((c) => (
         <group key={c.n} position={toWorld(c, [0, 0, 0])} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
           <P

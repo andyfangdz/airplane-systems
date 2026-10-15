@@ -12,7 +12,7 @@ import * as THREE from "three";
 import { phaseOf, valveLift } from "@/engines/model/cycle";
 import type { CylinderDef } from "@/engines/types";
 import type { EngineSim } from "../store";
-import { bank, coil, D2R, lobeAngle, gear, merge, rod, VT, zrod, type Dims, type Mats } from "./kit";
+import { bank, coil, D2R, GEAR_TEETH, lobeAngle, gear, merge, rod, VT, zrod, type Dims, type Mats } from "./kit";
 import { P } from "./parts";
 
 /** A cam lobe, nose along +z, axis along x: base circle plus a cos² nose as wide as the valve's open window. */
@@ -49,7 +49,7 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       lobeI: lobeGeometry((180 + v.ivo + v.ivc) / 4),
       lobeE: lobeGeometry((180 + v.evo + v.evc) / 4),
       gear: merge([
-        gear(d.camGearR, 48, 0.014, 0.012).translate(d.caseRear - 0.018, 0, 0),
+        gear(d.camGearR, GEAR_TEETH.cam, 0.014, 0.012).translate(d.caseRear - 0.018, 0, 0),
         rod(0.025, 0.02, 20).translate(d.caseRear - 0.008, 0, 0),
       ]),
       govGear: gear(0.03, 18, 0.012, 0.01).translate(d.front - 0.03, 0, 0),

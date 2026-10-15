@@ -302,3 +302,32 @@ export const lobeAngle = (spec: EngineSpec, c: CylinderDef, intake: boolean) =>
 
 /** Starter ring gear and pinion teeth: not published, chosen so their ratio is the starter drive ratio (16.556:1). */
 export const STARTER_TEETH = { ring: 149, pinion: 9 };
+
+/** Teeth on the camshaft gear (twice the crankshaft gear's 24: the camshaft turns at half speed). */
+export const GEAR_TEETH = { crank: 24, cam: 48 };
+
+/**
+ * Magneto drive gears: each meshes with the camshaft gear, sized so the magneto turns at the published magneto drive
+ * ratio (Table A-1), and sits behind the accessory housing at ±z from the centreline.
+ */
+export function magDrive(spec: EngineSpec, d: Dims) {
+  const z = 0.1;
+  const ratio = spec.accessories.magnetoRatio;
+  const r = (d.camGearR * 0.5) / ratio,
+    teeth = Math.round((GEAR_TEETH.cam * 0.5) / ratio);
+  return { r, teeth, z, y: d.camY + Math.sqrt((d.camGearR + r) ** 2 - z * z), x: d.caseRear - 0.018 };
+}
+
+/** Oil pump: a drive gear meshing below the crankshaft gear, its shaft running aft to two pumping gears. */
+export function oilPump(d: Dims) {
+  const driveR = d.crankGearR / 2;
+  return {
+    driveR,
+    driveTeeth: GEAR_TEETH.crank / 2,
+    y: -(d.crankGearR + driveR),
+    gearR: 0.018,
+    x0: -0.018, // drive gear, in the crankshaft gear's plane (from the crankcase's rear face)
+    x1: -0.042, // pumping gears
+    ratio: 2,
+  };
+}

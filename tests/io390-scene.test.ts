@@ -5,7 +5,18 @@
 import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { mod, phaseOf, sideAngle, valveLift } from "@/engines/model/cycle";
-import { bank, dims, IN, lobeAngle, peakCrank, STARTER_TEETH, VT } from "@/components/engine/scene/kit";
+import {
+  bank,
+  dims,
+  GEAR_TEETH,
+  IN,
+  lobeAngle,
+  magDrive,
+  oilPump,
+  peakCrank,
+  STARTER_TEETH,
+  VT,
+} from "@/components/engine/scene/kit";
 
 const S = IO390;
 const d = dims(S);
@@ -47,5 +58,19 @@ describe("IO-390 3D model", () => {
   test("the alternator pulley gives the alternator drive ratio (Table A-4, 3.20:1 with a 3.10 in pulley)", () => {
     expect(d.altPulleyR * 2).toBeCloseTo(3.1 * IN, 4);
     expect(d.pulleyR / d.altPulleyR).toBeCloseTo(S.accessories.alternatorRatio, 6);
+  });
+
+  test("every gear meshes with the one that drives it", () => {
+    // camshaft gear on the crankshaft gear, twice the teeth: half speed
+    expect(d.camY).toBeCloseTo(d.crankGearR + d.camGearR, 6);
+    expect(GEAR_TEETH.cam / GEAR_TEETH.crank).toBeCloseTo(d.camGearR / d.crankGearR, 6);
+    // magneto gears on the camshaft gear, at the magneto drive ratio (Table A-1, 1:1)
+    const m = magDrive(S, d);
+    expect(Math.hypot(m.y - d.camY, m.z)).toBeCloseTo(d.camGearR + m.r, 6);
+    expect((0.5 * GEAR_TEETH.cam) / m.teeth).toBeCloseTo(S.accessories.magnetoRatio, 6);
+    // oil pump drive gear under the crankshaft gear
+    const p = oilPump(d);
+    expect(-p.y).toBeCloseTo(d.crankGearR + p.driveR, 6);
+    expect(GEAR_TEETH.crank / p.driveTeeth).toBeCloseTo(p.ratio, 6);
   });
 });
