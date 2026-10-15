@@ -2,9 +2,9 @@
 /** The engine page's side panel: start-from scenarios, controls, environment, failures, cylinders, and the documents. */
 import type { ReactNode } from "react";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
-import { governedRpm, type MagSwitch } from "@/engines/model/engine";
+import { governedRpm, prime, type MagSwitch } from "@/engines/model/engine";
 import { egtOffset } from "@/engines/model/mixture";
-import { SCENARIOS } from "@/engines/model/scenarios";
+import { labelOf, scenariosFor } from "@/engines/model/scenarios";
 import {
   BtnRow,
   Check,
@@ -29,20 +29,23 @@ const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 function StartFrom({ sim }: { sim: EngineSim }) {
   const note = sim.useUi((x) => x.view.scenario),
     loading = sim.useUi((x) => x.view.loading);
+  const spec = sim.spec,
+    list = scenariosFor(spec),
+    find = (id: string) => list.find((x) => x.id === id);
   return (
     <>
       <H3>Start from</H3>
       <BtnRow>
-        {SCENARIOS.map((sc) => (
+        {list.map((sc) => (
           <ScenarioButton key={sc.id} onClick={() => startScenario(sim, sc.id)}>
-            {sc.label}
+            {labelOf(sc, spec)}
           </ScenarioButton>
         ))}
       </BtnRow>
       {loading ? (
-        <Small>Setting up {SCENARIOS.find((x) => x.id === loading)?.label.toLowerCase()} …</Small>
+        <Small>Setting up {labelOf(find(loading) ?? list[0], spec).toLowerCase()} …</Small>
       ) : (
-        note && <Small>{SCENARIOS.find((x) => x.id === note)?.note}</Small>
+        note && <Small>{find(note)?.note(spec)}</Small>
       )}
     </>
   );
@@ -51,7 +54,8 @@ function StartFrom({ sim }: { sim: EngineSim }) {
 function Controls({ sim }: { sim: EngineSim }) {
   const c = sim.useUi((x) => x.controls),
     set = sim.useUi((x) => x.setControls);
-  const spec = sim.spec;
+  const spec = sim.spec,
+    carb = spec.fuelSystem.kind === "carburetor";
   const mags: [MagSwitch, string][] = [
     ["OFF", "Off"],
     ["R", "R"],
@@ -108,14 +112,56 @@ function Controls({ sim }: { sim: EngineSim }) {
         onChange={(v) => set({ mixture: v })}
         fmt={(v) => (v < 0.03 ? "idle cut-off" : v > 0.995 ? "full rich" : pct(v))}
       />
-      <Check id="boost" label="Boost pump" checked={c.boost} onChange={(v) => set({ boost: v })} />
-      <Check id="altair" label="Alternate air" checked={c.altAir} onChange={(v) => set({ altAir: v })} />
+      {carb && (
+        <Slider
+          id="carbheat"
+          label="Carburetor heat"
+          min={0}
+          max={1}
+          step={0.05}
+          value={c.carbHeat}
+          onChange={(v) => set({ carbHeat: v })}
+          fmt={(v) => (v < 0.03 ? "cold" : v > 0.97 ? "full hot" : pct(v))}
+        />
+      )}
+      <div className="eng-checks">
+        <Check id="boost" label="Boost pump" checked={c.boost} onChange={(v) => set({ boost: v })} />
+        {carb ? (
+          <button
+            type="button"
+            className="btn eng-prime"
+            title={`One stroke of the primer: fuel straight into the intake ports (${spec.refs.start})`}
+            onClick={() => prime(spec, sim.s)}
+          >
+            Prime
+          </button>
+        ) : (
+          <Check id="altair" label="Alternate air" checked={c.altAir} onChange={(v) => set({ altAir: v })} />
+        )}
+      </div>
     </>
   );
 }
 
 function Readings({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 250);
+  const spec = sim.spec,
+    carb = spec.fuelSystem.kind === "carburetor";
+  const fuel: [string, string][] = carb
+    ? [
+        ["Carb inlet", `${s.fuelPsi.toFixed(1)} psi`],
+        ["Float bowl", spec.fuelSystem.kind === "carburetor" ? pct(s.bowl / spec.fuelSystem.bowlLb) : "–"],
+        ["Mixture chamber", `${f0((s.carbC * 9) / 5 + 32)} °F`],
+        ["Carb ice", pct(s.ice)],
+      ]
+    : [["Nozzle", `${s.nozzlePsi.toFixed(1)} psi`]];
+  const cooler: [string, string][] =
+    spec.oil.coolerMaxBtuMin !== undefined
+      ? [
+          ["Oil cooler", `${f0(s.coolerBtu)} Btu/min`],
+          ["Through cooler", `${f0(s.coolerValve * 100)} %`],
+        ]
+      : [];
   return (
     <>
       <H3>Engine</H3>
@@ -127,12 +173,12 @@ function Readings({ sim }: { sim: EngineSim }) {
           ["Friction", `${f0(s.frictionHp)} hp`],
           ["Air", `${f0(s.air)} lb/h`],
           ["Fuel", `${(s.fuel / AVGAS_LB_GAL).toFixed(1)} gph`],
-          ["Nozzle", `${s.nozzlePsi.toFixed(1)} psi`],
+          ...fuel,
           ["Blade", `${s.beta.toFixed(1)}°`],
           ["Governor", s.governing ? "governing" : "not governing"],
-          ["Oil cooler", `${f0(s.coolerBtu)} Btu/min`],
-          ["Through cooler", `${f0(s.coolerValve * 100)} %`],
+          ...cooler,
           ["Inlet", `${s.inletInHg.toFixed(1)} inHg`],
+          ...(carb ? ([["Inlet air", `${f0((s.inletC * 9) / 5 + 32)} °F`]] as [string, string][]) : []),
         ]}
       />
       <table className="eng-table">
@@ -150,7 +196,7 @@ function Readings({ sim }: { sim: EngineSim }) {
         <tbody>
           {s.cyl.map((c, i) => (
             <tr key={i}>
-              <td>{sim.spec.geometry.cylinders[i].n}</td>
+              <td>{spec.geometry.cylinders[i].n}</td>
               <td>{Number.isFinite(c.lambda) ? c.lambda.toFixed(2) : "–"}</td>
               <td>{(c.fuel / AVGAS_LB_GAL).toFixed(2)}</td>
               <td>
@@ -220,6 +266,18 @@ function Environment({ sim }: { sim: EngineSim }) {
         onChange={(v) => set({ oilQt: v })}
         fmt={(v) => `${v} qt`}
       />
+      {sim.spec.fuelSystem.kind === "carburetor" && (
+        <Slider
+          id="humidity"
+          label="Relative humidity"
+          min={0}
+          max={1}
+          step={0.05}
+          value={e.humidity}
+          onChange={(v) => set({ humidity: v })}
+          fmt={pct}
+        />
+      )}
     </>
   );
 }
@@ -227,7 +285,8 @@ function Environment({ sim }: { sim: EngineSim }) {
 function Failures({ sim }: { sim: EngineSim }) {
   const f = sim.useUi((x) => x.failures),
     set = sim.useUi((x) => x.setFailures);
-  const cyls = sim.spec.geometry.cylinders;
+  const cyls = sim.spec.geometry.cylinders,
+    injected = sim.spec.fuelSystem.kind === "injected";
   return (
     <>
       <H3>Failures</H3>
@@ -255,7 +314,8 @@ function Failures({ sim }: { sim: EngineSim }) {
             <th>Cyl</th>
             <th>Top plug</th>
             <th>Bottom plug</th>
-            <th>Nozzle blocked</th>
+            {injected && <th>Nozzle blocked</th>}
+            <th>Intake leak</th>
           </tr>
         </thead>
         <tbody>
@@ -278,17 +338,31 @@ function Failures({ sim }: { sim: EngineSim }) {
                   />
                 </td>
               ))}
+              {injected && (
+                <td>
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.9}
+                    step={0.05}
+                    aria-label={`Cylinder ${c.n} nozzle blockage`}
+                    value={f.nozzle[i]}
+                    onChange={(e) => set({ nozzle: f.nozzle.map((x, j) => (j === i ? +e.target.value : x)) })}
+                  />
+                  <output>{pct(f.nozzle[i])}</output>
+                </td>
+              )}
               <td>
                 <input
                   type="range"
                   min={0}
-                  max={0.9}
+                  max={1}
                   step={0.05}
-                  aria-label={`Cylinder ${c.n} nozzle blockage`}
-                  value={f.nozzle[i]}
-                  onChange={(e) => set({ nozzle: f.nozzle.map((x, j) => (j === i ? +e.target.value : x)) })}
+                  aria-label={`Cylinder ${c.n} intake pipe leak`}
+                  value={f.intakeLeak[i]}
+                  onChange={(e) => set({ intakeLeak: f.intakeLeak.map((x, j) => (j === i ? +e.target.value : x)) })}
                 />
-                <output>{pct(f.nozzle[i])}</output>
+                <output>{pct(f.intakeLeak[i])}</output>
               </td>
             </tr>
           ))}
@@ -334,7 +408,7 @@ function Parts({ sim }: { sim: EngineSim }) {
           <Check
             key={g.id}
             id={`part-${g.id}`}
-            label={g.name}
+            label={g.id === "fuel" && sim.spec.fuelSystem.kind === "carburetor" ? "Carburetor and fuel pump" : g.name}
             checked={!hidden.includes(g.id)}
             onChange={(v) => setView({ hidden: v ? hidden.filter((h) => h !== g.id) : [...hidden, g.id] })}
           />
@@ -358,7 +432,7 @@ function Specs({ sim }: { sim: EngineSim }) {
     ["Firing order", g.firingOrder.join("-")],
     ["Ignition timing", `${spec.ignition.advanceBTC}° BTC`],
     ["Magnetos", a.magnetos],
-    ["Fuel injector", a.injector],
+    [spec.fuelSystem.kind === "carburetor" ? "Carburetor" : "Fuel injector", spec.fuelSystem.unit],
     ["Dry weight", `${a.weightLb} lb`],
     ...spec.rating.cruise.map((c): [ReactNode, ReactNode] => [
       c.label,
@@ -367,7 +441,10 @@ function Specs({ sim }: { sim: EngineSim }) {
   ];
   const limits: [ReactNode, ReactNode][] = [
     ["Maximum rpm", `${f0(L.rpmMax.value)}`],
-    ["Idle", `${L.idleRpm.min}–${L.idleRpm.max} rpm`],
+    [
+      "Idle",
+      `${L.idleRpm.min}–${L.idleRpm.max} rpm${L.idleRpm.assumed ? " (assumed: the airframe maker sets it)" : ""}`,
+    ],
     [
       "CHT",
       `${L.chtMax.value} °F maximum; ${L.chtBestAbove75.value} °F above 75 % and ${L.chtBestAt75.value} °F at or below 75 % for maximum life`,
@@ -379,8 +456,23 @@ function Specs({ sim }: { sim: EngineSim }) {
     ],
     ["Oil", `${L.oilSumpQt.value} qt sump, ${L.oilMinQt.value} qt minimum`],
     ["Magneto check", `drop ≤ ${L.magDropMax.value} rpm, within ${L.magDiffMax.value} rpm of each other`],
-    ["Starter", `${L.starterMaxS.value} s at a time`],
-    ["Oil cooler", `≤ ${spec.oil.coolerMaxBtuMin} Btu/min; thermostat closes at ${spec.oil.thermostatF} °F`],
+    ...(L.starterMaxS ? [["Starter", `${L.starterMaxS.value} s at a time`] as [ReactNode, ReactNode]] : []),
+    ...(spec.oil.coolerMaxBtuMin !== undefined
+      ? [
+          ["Oil cooler", `≤ ${spec.oil.coolerMaxBtuMin} Btu/min; thermostat closes at ${spec.oil.thermostatF} °F`] as [
+            ReactNode,
+            ReactNode,
+          ],
+        ]
+      : []),
+    ...(spec.fuelSystem.kind === "carburetor"
+      ? [
+          [
+            "Carburetor inlet",
+            `${spec.fuelSystem.inletPsi.min}–${spec.fuelSystem.inletPsi.max} psi, ${spec.fuelSystem.inletPsi.desired} psi desired`,
+          ] as [ReactNode, ReactNode],
+        ]
+      : []),
   ];
   return (
     <>
@@ -388,28 +480,16 @@ function Specs({ sim }: { sim: EngineSim }) {
       <Facts rows={rows} />
       <H3>Operating limits</H3>
       <Facts rows={limits} />
-      <Small>
-        Lycoming IOM, Table A-1 (p. 51), Table A-2 (p. 53), Table 2 (p. 14) and the operating procedures (pp. 26–40).
-      </Small>
+      <Small>{spec.refs.tables}</Small>
     </>
   );
 }
 
-function Model() {
+function Model({ sim }: { sim: EngineSim }) {
   return (
     <>
       <H3>How the model works</H3>
-      <Notes
-        items={[
-          "Power comes from Lycoming's own performance chart (Figure C-1), digitized: sea-level power against manifold pressure for each rpm, and the altitude correction to 20,000 ft. The running engine is calibrated so its full-throttle point and part-throttle lines land on that chart.",
-          "Air flows through the throttle as a compressible orifice into the manifold; the cylinders draw it by speed and density. Fuel follows the fuel injector's metering (richer as the air thins), the fuel manifold and the nozzle curve (Figure C-2).",
-          "Each cylinder's mixture sets its power, EGT and head heat: best power is about 150 °F rich of peak EGT (the IOM's leanest setting for maximum-power cruise, p. 39), power at peak EGT about 3.5 % lower, and the engine runs rough and quits far rich or lean. Fuel flow reproduces Figure C-3 and the Table A-1 cruise figures.",
-          "Friction and pumping losses, starter torque, a constant-speed propeller with an oil-driven governor, and lumped thermal models for heads and oil (the thermostat and cooler from Table 2) complete the loop.",
-          "The cylinder-pressure trace is drawn from the model's own work per cycle, with an assumed burn duration; it is illustrative, not measured data.",
-          "The 3D engine: bore, stroke and the overall envelope (Table A-1) set its scale, and where each part sits follows the IOM's System Description figures (Figures 1B–9). The shapes and sizes of individual parts, the cylinders' spacing along the crankshaft, and the valve lift are schematic; the valves are drawn parallel to the cylinder where the real guides are angled.",
-          "Not published, so chosen to fit the documented points: valve timing, rod length, the propeller's pitch range and inertia, the cooling and thermal constants, and the per-cylinder spread. The propeller is the SR20's Hartzell, used only as the load.",
-        ]}
-      />
+      <Notes items={sim.spec.modelNotes} />
     </>
   );
 }
@@ -440,7 +520,7 @@ export function EnginePanel({ sim }: { sim: EngineSim }) {
   const spec = sim.spec;
   return (
     <div className="panel-inner">
-      <div className="ref">Engine simulation · Lycoming IOM</div>
+      <div className="ref">Engine simulation · Lycoming {spec.doc}</div>
       <p className="lead">{spec.lead}</p>
       <StartFrom sim={sim} />
       <Controls sim={sim} />
@@ -451,7 +531,7 @@ export function EnginePanel({ sim }: { sim: EngineSim }) {
       <Simulation sim={sim} />
       <Parts sim={sim} />
       <Specs sim={sim} />
-      <Model />
+      <Model sim={sim} />
       <Sources sim={sim} />
     </div>
   );

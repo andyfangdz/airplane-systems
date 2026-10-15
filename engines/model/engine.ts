@@ -11,11 +11,12 @@
 import type { EngineSpec, Side } from "../types";
 import { atmosphere, cToF, HP_W, INHG_PA, KT_MS, LB_KG, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
+import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
 import { distribution, nozzleFlow, nozzlePressure, servoFuelFlow } from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
-import { frictionHp, grossIndicatedHp, pumpingHp } from "./performance";
-import { governor, propTorque } from "./propeller";
+import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp } from "./performance";
+import { governor, inducedVelocity, propTorque } from "./propeller";
 
 export type MagSwitch = "OFF" | "R" | "L" | "BOTH" | "START";
 
@@ -28,8 +29,10 @@ export interface Controls {
   prop: number;
   mags: MagSwitch;
   boost: boolean;
-  /** Alternate induction air (unfiltered, from inside the cowling). */
+  /** Alternate induction air (unfiltered, from inside the cowling): injected engines. */
   altAir: boolean;
+  /** Carburetor heat 0 (cold, filtered ram air) … 1 (full hot, from the exhaust heater muff): carbureted engines. */
+  carbHeat: number;
 }
 
 export interface Environment {
@@ -41,6 +44,8 @@ export interface Environment {
   tasKt: number;
   /** Oil in the sump, US quarts. */
   oilQt: number;
+  /** Relative humidity of the outside air, 0 … 1 (carburetor icing). */
+  humidity: number;
 }
 
 export interface Failures {
@@ -58,6 +63,8 @@ export interface Failures {
   starter: boolean;
   /** Starter stuck engaged: its solenoid stays closed and the pinion in mesh after the switch leaves START. */
   starterStuck: boolean;
+  /** Leak in an intake pipe (a split hose, a loose clamp), by cylinder index, 0 … 1: unmetered air into that cylinder. */
+  intakeLeak: number[];
 }
 
 export interface CylState {
@@ -117,6 +124,13 @@ export interface EngineState {
   inletInHg: number;
   inletC: number;
   oatC: number;
+  /** Carburetor: fuel in the float bowl (lb), mixture-chamber temperature (°C), fraction of the bore iced, and melt
+   * water being ingested (0 … 1); the throttle position last step (the accelerator pump acts on its change). */
+  bowl: number;
+  carbC: number;
+  ice: number;
+  melt: number;
+  lastThrottle: number;
 }
 
 export const defaultControls = (): Controls => ({
@@ -126,9 +140,10 @@ export const defaultControls = (): Controls => ({
   mags: "OFF",
   boost: false,
   altAir: false,
+  carbHeat: 0,
 });
 
-export const defaultEnvironment = (): Environment => ({ altFt: 0, isaDevC: 0, tasKt: 0, oilQt: 7 });
+export const defaultEnvironment = (): Environment => ({ altFt: 0, isaDevC: 0, tasKt: 0, oilQt: 7, humidity: 0 });
 
 export const noFailures = (spec: EngineSpec): Failures => ({
   magL: false,
@@ -139,6 +154,7 @@ export const noFailures = (spec: EngineSpec): Failures => ({
   filter: false,
   starter: false,
   starterStuck: false,
+  intakeLeak: spec.geometry.cylinders.map(() => 0),
 });
 
 /** A cold engine, stopped, soaked to the outside air. */
@@ -184,7 +200,32 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     inletInHg: air.p,
     inletC: air.t,
     oatC: air.t,
+    bowl: spec.fuelSystem.kind === "carburetor" ? spec.fuelSystem.bowlLb : 0,
+    carbC: air.t,
+    ice: 0,
+    melt: 0,
+    lastThrottle: 0,
   };
+}
+
+/** One stroke of the primer: fuel straight into each cylinder's intake port (carbureted engines, OM p. 1-3). */
+export function prime(spec: EngineSpec, s: EngineState, strokes = 1) {
+  if (spec.fuelSystem.kind !== "carburetor") return s;
+  const lb = spec.fuelSystem.primeLb * strokes;
+  s.cyl.forEach((cy) => (cy.puddle += lb));
+  return s;
+}
+
+const ratedAirCache = new WeakMap<EngineSpec, number>();
+/** Air flow (lb/h) at rated power, best-power mixture, from the fuel the manual gives for it. */
+export function ratedAirLbH(spec: EngineSpec) {
+  let v = ratedAirCache.get(spec);
+  if (v === undefined) {
+    v =
+      chartFuelFlow(spec, spec.rating.rpm, spec.rating.hp, "bestPower") * AFR_STOICH * spec.calibration.lambdaBestPower;
+    ratedAirCache.set(spec, v);
+  }
+  return v;
 }
 
 /** Oil viscosity relative to 180 °F (Andrade fit to a multigrade aviation oil: ~120 cSt at 40 °C, ~18 at 100 °C). */
@@ -227,6 +268,7 @@ export function step(
   dt: number,
   thermal = 1,
 ) {
+  if (!(dt > 0)) return s;
   const n = Math.max(1, Math.ceil(dt / (1 / 120)));
   for (let i = 0; i < n; i++) substep(spec, s, c, env, f, dt / n, thermal);
   return s;
@@ -250,36 +292,90 @@ function substep(
   s.t += dt;
   s.oatC = air.t;
 
-  // ---- induction: ram air through the filter, or unfiltered cowl air through the alternate door
+  // ---- induction: ram air through the filter, or unfiltered cowl air (alternate air, or carburetor heat from the muff)
+  const carb = spec.fuelSystem.kind === "carburetor" ? spec.fuelSystem : null;
   const v = env.tasKt * KT_MS;
   const ram = ramPressure(air.p, air.t, env.tasKt);
-  const source = c.altAir ? air.p : ram;
-  const inletC = air.t + (c.altAir ? 15 : 0); // alternate air is warmer (assumed +15 °C)
-  const open = throttleArea(c.throttle, cal.idleArea);
-  // a blocked filter is a restriction in series with the throttle; the alternate air door bypasses it
-  const cdA = ind.cdAFull * (f.filter && !c.altAir ? series(open, 0.12) : open);
+  let source: number, inletC: number, cdA: number;
+  if (carb) {
+    const heat = clamp(c.carbHeat, 0, 1);
+    source = ram + (air.p - ram) * heat; // heated air comes from inside the cowling: no ram
+    // the muff's heat follows the exhaust (assumed: full heatRiseC with the exhaust at cruise heat)
+    const egtMean = s.cyl.reduce((a, cy) => a + cy.egt, 0) / nCyl;
+    inletC = air.t + carb.heatRiseC * heat * clamp((egtMean - cToF(air.t)) / 1100, 0, 1.1);
+    // ice narrows the bore at the butterfly; heated air bypasses the filter
+    const open = throttleArea(c.throttle, cal.idleArea) * (1 - 0.92 * s.ice);
+    cdA = ind.cdAFull * (f.filter ? series(open, 0.12 + 0.88 * heat) : open);
+  } else {
+    source = c.altAir ? air.p : ram;
+    inletC = air.t + (c.altAir ? 15 : 0); // alternate air is warmer (assumed +15 °C)
+    const open = throttleArea(c.throttle, cal.idleArea);
+    // a blocked filter is a restriction in series with the throttle; the alternate air door bypasses it
+    cdA = ind.cdAFull * (f.filter && !c.altAir ? series(open, 0.12) : open);
+  }
+  // a leaking intake pipe is an orifice in parallel with the throttle, its air unmetered (assumed: a full leak is 3 % of
+  // the wide-open area)
+  const leaks = f.intakeLeak.map((l) => ind.cdAFull * 0.03 * clamp(l, 0, 1));
+  const leakArea = leaks.reduce((a, x) => a + x, 0);
   const exhaust = air.p * 1.02;
-  const { map, air: airKgS } = solveManifold(spec, ind, cdA, source, inletC, s.rpm, exhaust);
+  const { map, air: airKgS } = solveManifold(spec, ind, cdA + leakArea, source, inletC, s.rpm, exhaust);
   s.map = map;
   s.inletInHg = source;
   s.inletC = inletC;
   const airLbH = (airKgS / LB_KG) * 3600;
   s.air = airLbH;
+  const meteredAir = leakArea > 0 ? (airLbH * cdA) / (cdA + leakArea) : airLbH;
 
-  // ---- fuel: boost pump or engine-driven pump to the servo, metered against air flow, split by nozzle area
-  const enginePump = f.fuelPump ? 0 : clamp((s.rpm - 60) / 160, 0, 1);
-  const supply = Math.max(c.boost ? 1 : 0, enginePump);
-  s.fuelPsi = Math.max(c.boost ? 26 : 0, enginePump * clamp(s.rpm / 900, 0, 1) * 28);
+  // ---- fuel
   const inletRho = (source * INHG_PA) / (287.05 * (inletC + 273.15));
-  const dist = distribution(spec, f.nozzle);
-  // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
-  // nothing flows however much the servo meters
-  const metered = Math.min(
-    servoFuelFlow(spec, airLbH, c.mixture, inletRho, supply),
-    nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
-  );
-  s.fuel = metered;
-  s.nozzlePsi = metered > 0.5 ? Math.min(nozzlePressure(spec, metered, dist.areaMean), s.fuelPsi) : 0;
+  const enginePump = f.fuelPump ? 0 : clamp((s.rpm - 60) / 160, 0, 1);
+  let dist: { share: number[]; areaMean: number };
+  let metered: number;
+  let squirt = 0;
+  if (carb) {
+    // engine-driven or boost pump to the carburetor inlet; the float valve keeps the bowl full while there is pressure
+    const desired = carb.inletPsi.desired;
+    s.fuelPsi = Math.max(c.boost ? desired : 0, enginePump * clamp(s.rpm / 900, 0, 1) * desired);
+    const refill = s.fuelPsi > 0.3 ? Math.min((carb.bowlLb - s.bowl) / 0.5, 0.05 * Math.sqrt(s.fuelPsi / desired)) : 0;
+    const flow = carbFuelFlow(spec, carb, meteredAir, ratedAirLbH(spec), c.mixture, inletRho, map, source, s.ice);
+    // the accelerator pump squirts as the throttle opens (also how the M20C primes, pumping the throttle)
+    const opened = Math.max(0, c.throttle - s.lastThrottle);
+    s.lastThrottle = c.throttle;
+    const inBowl = Math.max(0, s.bowl + refill * dt);
+    squirt = Math.min(carb.accelLb * opened, inBowl);
+    metered = Math.min(flow.main + flow.idle, ((inBowl - squirt) / dt) * 3600);
+    s.bowl = Math.max(0, inBowl - squirt - (metered / 3600) * dt);
+    s.fuel = metered;
+    s.nozzlePsi = 0;
+    // the metered air carries the fuel and divides evenly among the cylinders (with their trims)
+    const nominal = spec.geometry.cylinders.map((_, i) => cal.fuelTrim[i]);
+    const sum = nominal.reduce((a, x) => a + x, 0);
+    dist = { share: nominal.map((x) => x / sum), areaMean: 1 };
+
+    // mixture chamber temperature and ice
+    const far = meteredAir > 1 ? metered / meteredAir : 0;
+    s.carbC = approach(s.carbC, s.rpm > 20 ? mixtureChamberC(carb, inletC, far, map, source) : inletC, dt, 3);
+    const kPa = INHG_PA / 1000;
+    const water = condensedWater(air.t, env.humidity, air.p * kPa, s.carbC, map * kPa);
+    const rate = iceRate(carb, airKgS, water, s.carbC, inletC, air.t);
+    const before = s.ice;
+    s.ice = clamp(s.ice + rate * dtT, 0, 1);
+    // melt water going through the engine makes it run rough for a while
+    s.melt = approach(s.melt, s.rpm > 100 ? clamp(((before - s.ice) / Math.max(dt, 1e-6)) * 25, 0, 1) : 0, dt, 2);
+  } else {
+    // boost pump or engine-driven pump to the servo, metered against air flow, split by nozzle area
+    const supply = Math.max(c.boost ? 1 : 0, enginePump);
+    s.fuelPsi = Math.max(c.boost ? 26 : 0, enginePump * clamp(s.rpm / 900, 0, 1) * 28);
+    dist = distribution(spec, f.nozzle);
+    // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
+    // nothing flows however much the servo meters
+    metered = Math.min(
+      servoFuelFlow(spec, meteredAir, c.mixture, inletRho, supply),
+      nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
+    );
+    s.fuel = metered;
+    s.nozzlePsi = metered > 0.5 ? Math.min(nozzlePressure(spec, metered, dist.areaMean), s.fuelPsi) : 0;
+  }
 
   // ---- each cylinder: port fuel film, mixture, spark, work
   const plugs = sparks(spec, c.mags, f, s.rpm);
@@ -292,9 +388,10 @@ function substep(
     const into = (metered * dist.share[i]) / 3600; // lb/s into the port
     const evap = s.rpm > 20 ? cy.puddle / tau : 0;
     const drain = cy.puddle / 120; // pooled fuel slowly drains overboard
-    cy.puddle = Math.max(0, cy.puddle + (into - evap - drain) * dt);
+    cy.puddle = Math.max(0, cy.puddle + (into - evap - drain) * dt + squirt * dist.share[i]);
     cy.fuel = evap * 3600;
-    const airCyl = airLbH / nCyl;
+    // each cylinder takes an even share of the metered air, and a leaking pipe adds its unmetered air to its own
+    const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
     cy.lambda = cy.fuel > 1e-4 ? airCyl / (cy.fuel * AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
     let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower) : 0;
@@ -309,7 +406,7 @@ function substep(
   });
   const mean = work / nCyl;
   const spread = Math.sqrt(s.cyl.reduce((a, cy) => a + (cy.work - mean) ** 2, 0) / nCyl);
-  s.rough = clamp(spread * 2.5 + worst * 0.5, 0, 1);
+  s.rough = clamp(spread * 2.5 + Math.max(worst, s.melt) * 0.5, 0, 1);
   s.running = mean > 0.05 && s.rpm > 100;
 
   // ---- shaft: engine, starter and propeller torques
@@ -333,7 +430,9 @@ function substep(
   const d = (spec.propeller.diameterIn * 2.54) / 100;
   s.govRpm = governedRpm(spec, c.prop);
   governorStep(spec, s, s.govRpm, dt);
-  const propQ = propTorque(s.beta, v, s.rpm, d, air.rho);
+  // the inflow the propeller induces, where the spec asks for it (the IO-390's load was calibrated without)
+  const vi = spec.propeller.inducedInflow ? inducedVelocity(Math.max(s.hp, 0) * HP_W, v, air.rho, d) : 0;
+  const propQ = propTorque(s.beta, v + vi, s.rpm, d, air.rho) * (spec.propeller.cpScale ?? 1);
   const breakaway = s.rpm < 1 && grossTorque + starterTorque < 40;
   const net = breakaway ? 0 : grossTorque + starterTorque - fricTorque - propQ;
   s.rpm = Math.max(0, s.rpm + ((net / spec.propeller.inertia) * dt * 60) / (2 * Math.PI));

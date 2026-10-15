@@ -2,7 +2,7 @@
  * The standalone engine model against what Lycoming documents for the IO-390-C (IOM-IO-390-C, January 2017).
  * Chart values were digitized (engines/io390/SOURCES.md); tolerances allow for that and for model shape.
  */
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { ENGINES } from "@/engines";
 import { atmosphere } from "@/engines/model/atmosphere";
@@ -31,7 +31,7 @@ import {
 import { egtOffset, mixturePower } from "@/engines/model/mixture";
 import { chartHp, fullThrottleHp, fullThrottleMap, seaLevelHp } from "@/engines/model/performance";
 import { meanLambda, settle } from "@/engines/model/trim";
-import { SCENARIOS } from "@/engines/model/scenarios";
+import { SCENARIOS, scenariosFor, type Setup } from "@/engines/model/scenarios";
 import { limitFlags } from "@/engines/model/alerts";
 
 const S = IO390;
@@ -190,7 +190,7 @@ describe("operation (IOM Engine Initiation and Operation)", () => {
       t += 0.25;
     }
     expect(s.running).toBe(true);
-    expect(t).toBeLessThan(S.limits.starterMaxS.value);
+    expect(t).toBeLessThan(S.limits.starterMaxS!.value);
     c.mags = "BOTH";
     c.boost = false;
     settle(S, s, c, e, f, 60, { rpm: 1000 }, 20);
@@ -244,7 +244,7 @@ describe("operation (IOM Engine Initiation and Operation)", () => {
     expect(s.oilT).toBeGreaterThan(S.limits.oilTempBest.value);
     expect(s.oilP).toBeGreaterThanOrEqual(S.limits.oilPressNormal.min);
     expect(s.oilP).toBeLessThanOrEqual(S.limits.oilPressNormal.max);
-    expect(s.coolerBtu).toBeLessThan(S.oil.coolerMaxBtuMin);
+    expect(s.coolerBtu).toBeLessThan(S.oil.coolerMaxBtuMin!);
     expect(s.coolerValve).toBe(1); // above 185 °F the thermostat routes all oil through the cooler
   });
 
@@ -397,6 +397,7 @@ describe("failures", () => {
     ["one nozzle", (f) => (f.nozzle[0] = 1)],
     ["every nozzle", (f) => f.nozzle.fill(1)],
     ["starter stuck engaged", (f) => (f.starterStuck = true)],
+    ["intake leak", (f) => (f.intakeLeak[1] = 1)],
   ];
   /** Paths of non-finite numbers in the state; a cylinder with no fuel has λ = ∞, which is the one allowed. */
   const nonFinite = (o: unknown, path = ""): string[] =>
@@ -408,9 +409,15 @@ describe("failures", () => {
         ? Object.entries(o).flatMap(([k, v]) => nonFinite(v, `${path}.${k}`))
         : [];
 
+  // each scenario is set up once, then every failure starts from a copy of it
+  let setups: { id: string; setup: Setup }[] = [];
+  beforeAll(() => {
+    setups = scenariosFor(S).map((sc) => ({ id: sc.id, setup: sc.run(S) }));
+  }, 60_000);
+
   test.each(FAILURES)("every scenario keeps a finite state with this failure: %s", (_, fail) => {
-    for (const sc of SCENARIOS) {
-      const { s, c, env } = sc.run(S);
+    for (const sc of setups) {
+      const { s, c, env } = structuredClone(sc.setup);
       const f = noFailures(S);
       fail(f);
       let first: string[] = [];
@@ -420,6 +427,14 @@ describe("failures", () => {
       }
       expect(first).toEqual([]);
     }
+  });
+
+  test("a leaking intake runner leans its own cylinder at idle, which shows which one leaks", () => {
+    const f = { ...noFailures(S), intakeLeak: [0, 0, 0.6, 0] };
+    const { s, c, env } = SCENARIOS.find((x) => x.id === "idle")!.run(S, f);
+    settle(S, s, c, env, f, 10);
+    const lam = s.cyl.map((cy) => cy.lambda);
+    expect(lam[2]).toBeGreaterThan(Math.max(lam[0], lam[1], lam[3]) * 1.3);
   });
 
   test("with every nozzle blocked no fuel flows, and the engine stops on the ground", () => {
@@ -466,9 +481,9 @@ describe("starter", () => {
     for (let i = 0; i < 15 * 60; i++) step(S, s, c, e, f, 1 / 60, 1);
     expect(c.mags).toBe("BOTH");
     expect(s.starterEngaged).toBe(true);
-    expect(s.starterS).toBeGreaterThan(S.limits.starterMaxS.value);
+    expect(s.starterS).toBeGreaterThan(S.limits.starterMaxS!.value);
     expect(s.rpm).toBeCloseTo(rpm, -1);
-    expect(limitFlags(S, s, e).map((x) => x.src)).toContain(S.limits.starterMaxS.src);
+    expect(limitFlags(S, s, e).map((x) => x.src)).toContain(S.limits.starterMaxS!.src);
   });
 });
 

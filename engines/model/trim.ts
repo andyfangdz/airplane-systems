@@ -17,7 +17,12 @@ export interface Hold {
 }
 
 /** Mixture position that gives a mean λ at the current air flow (inverts the servo's metering). */
-export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, lambda: number) {
+export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, lambda: number, current = 1) {
+  // a carburetor's mixture valve scales main and idle flow alike: step the position by the λ error
+  if (spec.fuelSystem.kind === "carburetor") {
+    const now = meanLambda(s);
+    return Number.isFinite(now) ? Math.max(0.03, Math.min(1, current * Math.pow(now / lambda, 0.5))) : current;
+  }
   const air = atmosphere(env.altFt, env.isaDevC);
   const rho = (s.inletInHg * INHG_PA) / (287.05 * (s.inletC + 273.15));
   const far = 1 / (AFR_STOICH * spec.calibration.lambdaFullRich);
@@ -41,7 +46,7 @@ export function settle(
   for (let t = 0; t < seconds; t += dt) {
     if (hold.map !== undefined) c.throttle = Math.max(0, Math.min(1, c.throttle + (hold.map - s.map) * 0.012));
     if (hold.rpm !== undefined) c.throttle = Math.max(0, Math.min(1, c.throttle + (hold.rpm - s.rpm) * 0.00005));
-    if (hold.lambda !== undefined && s.air > 1) c.mixture = mixtureFor(spec, s, env, hold.lambda);
+    if (hold.lambda !== undefined && s.air > 1) c.mixture = mixtureFor(spec, s, env, hold.lambda, c.mixture);
     step(spec, s, c, env, f, dt, thermal);
   }
   return s;

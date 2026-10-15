@@ -28,6 +28,24 @@ export function powerCoeff(alpha: number) {
   return Math.max(0.004, 0.012 + 0.0045 * a + stall);
 }
 
+/**
+ * Induced velocity through the disc (m/s) from momentum theory: the propeller turns ~70 % of the shaft power into
+ * the air's kinetic energy, 0.7 P = 2 ρ A vᵢ (v + vᵢ)². Large standing still (it lowers the blades' angle of attack, so
+ * a fine-pitch propeller lets the engine turn faster on the ground), small in flight.
+ */
+export function inducedVelocity(powerW: number, v: number, rho: number, d: number) {
+  if (powerW <= 0) return 0;
+  const k = (0.7 * powerW) / (2 * rho * Math.PI * (d / 2) ** 2);
+  let lo = 0,
+    hi = 80;
+  for (let i = 0; i < 30; i++) {
+    const m = (lo + hi) / 2;
+    if (m * (v + m) ** 2 < k) lo = m;
+    else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+
 /** Torque (N·m) the propeller absorbs. Windmilling (negative α) can drive the engine. */
 export function propTorque(beta: number, v: number, rpm: number, d: number, rho: number) {
   const n = Math.max(rpm, 0) / 60;

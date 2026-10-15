@@ -141,7 +141,7 @@ export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
                 material={mats.steel}
                 position={[0, 0, d.r]}
               />
-              {at !== null && (
+              {at !== null && sim.spec.geometry.pendulumCounterweights && (
                 <P
                   name="Dynamic counterweight"
                   note="Counterweights decrease torsional vibrations as the crankshaft turns the propeller (IOM p. 2, Figure 4)."

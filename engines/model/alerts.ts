@@ -61,11 +61,18 @@ export function limitFlags(spec: EngineSpec, s: EngineState, env: Environment): 
 
   if (env.oilQt < L.oilMinQt.value)
     add("warn", `Oil quantity ${env.oilQt} qt: below the ${L.oilMinQt.value} qt minimum`, L.oilMinQt.src);
-  if (s.starterS > L.starterMaxS.value)
+  const starter = L.starterMaxS;
+  if (starter && s.starterS > starter.value)
     add(
       "caut",
-      `Starter engaged ${Math.floor(s.starterS)} s: release after ${L.starterMaxS.value} s and let it cool`,
-      L.starterMaxS.src,
+      `Starter engaged ${Math.floor(s.starterS)} s: release after ${starter.value} s and let it cool`,
+      starter.src,
+    );
+  if (spec.fuelSystem.kind === "carburetor" && s.ice > 0.08 && s.running)
+    add(
+      "caut",
+      `Carburetor ice: ${Math.round(s.ice * 100)} % of the bore. Apply full carburetor heat`,
+      spec.refs.carbHeat ?? spec.doc,
     );
   return out;
 }

@@ -87,7 +87,7 @@ export function Crankcase({ d, mats }: { d: Dims; mats: Mats }) {
 export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const PUMP = useMemo(() => oilPump(d), [d]);
   const geo = useMemo(() => {
-    const top = d.caseRear - 0.005;
+    const top = d.caseRear - 0.025;
     return {
       oil: new THREE.BoxGeometry(d.front - 0.05 - (d.caseRear + 0.015), 1, 0.22).translate(
         (d.front - 0.05 + d.caseRear + 0.015) / 2,
@@ -118,15 +118,17 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       drain: new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6).translate(-0.04, d.sumpBottom - 0.007, 0.06),
       dipTube: tube(
         [
-          [d.caseRear + 0.04, d.caseBottom - 0.02, 0.105],
-          [d.caseRear + 0.02, 0.06, 0.13],
-          [top, 0.2, 0.13],
+          // out of the sump's rear face and up behind the crankcase, outboard of the accessory housing and mounts
+          [d.caseRear + 0.04, d.caseBottom - 0.02, 0.1],
+          [d.caseRear - 0.025, d.caseBottom - 0.025, 0.15],
+          [d.caseRear - 0.025, 0.06, 0.155],
+          [top, 0.2, 0.16],
         ],
         0.009,
         24,
         10,
       ),
-      dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(top, 0.209, 0.13),
+      dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(top, 0.209, 0.16),
       nozzle: zrod(0.0035, d.caseHalf - 0.04, d.caseHalf - 0.008, 8).translate(0, -0.05, 0),
       suction: tube(
         [
@@ -274,16 +276,17 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         geometry={geo.supply}
         material={mats.oil}
       />
-      {sim.spec.geometry.cylinders.map((c) => (
-        <group key={c.n} position={toWorld(c, [0, 0, 0])} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
-          <P
-            name="Piston cooling oil nozzle"
-            note="Four oil nozzles supply oil for internal piston cooling (IOM p. 2)."
-            geometry={geo.nozzle}
-            material={mats.oil}
-          />
-        </group>
-      ))}
+      {sim.spec.oil.pistonCoolingJets &&
+        sim.spec.geometry.cylinders.map((c) => (
+          <group key={c.n} position={toWorld(c, [0, 0, 0])} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
+            <P
+              name="Piston cooling oil nozzle"
+              note="Four oil nozzles supply oil for internal piston cooling (IOM p. 2)."
+              geometry={geo.nozzle}
+              material={mats.oil}
+            />
+          </group>
+        ))}
     </>
   );
 }

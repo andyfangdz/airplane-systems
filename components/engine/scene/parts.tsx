@@ -4,9 +4,10 @@
  * can be hidden from the panel to see what is behind it.
  */
 import type { ThreeEvent } from "@react-three/fiber";
-import type { ReactNode, Ref } from "react";
+import { createContext, useContext, type ReactNode, type Ref } from "react";
 import * as THREE from "three";
 import { create } from "zustand";
+import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
 
 export const GROUPS = [
@@ -43,10 +44,17 @@ const move = (e: ThreeEvent<PointerEvent>) => {
 };
 const out = () => useHover.setState({ hover: null });
 
+/**
+ * The engine's own names and notes for parts the scene draws for every engine (`EngineSpec.parts`), so each cites its
+ * own manual. A key matches a part's default name exactly, or with its numbers written as "#" ("Cylinder # head").
+ */
+const PartNotes = createContext<EngineSpec["parts"]>(undefined);
+export const PartNotesProvider = PartNotes.Provider;
+
 /** A mesh with a name and a note for the hover tooltip. */
 export function P({
-  name,
-  note = "",
+  name: given,
+  note: givenNote = "",
   geometry,
   material,
   position,
@@ -63,6 +71,10 @@ export function P({
   scale?: [number, number, number];
   meshRef?: Ref<THREE.Mesh>;
 }) {
+  const parts = useContext(PartNotes);
+  const own = parts?.[given] ?? parts?.[given.replace(/\d+/g, "#")];
+  const name = own?.name ? own.name.replace(/#/g, () => given.match(/\d+/)?.[0] ?? "#") : given,
+    note = own ? own.note : givenNote;
   return (
     <mesh
       ref={meshRef}

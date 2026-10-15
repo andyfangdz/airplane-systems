@@ -272,15 +272,16 @@ export function headPoints(d: Dims) {
     c = Math.cos(PLUG_TILT);
   return {
     tilt: PLUG_TILT,
-    topPlug: [-0.045, 0.088, z] as V3,
-    topLead: [-0.045 - 0.06 * s, 0.088 + 0.06 * c, z] as V3,
+    // the top plug sits outboard of the rocker box
+    topPlug: [-0.06, 0.078, z] as V3,
+    topLead: [-0.06 - 0.06 * s, 0.078 + 0.06 * c, z] as V3,
     botPlug: [-0.045, -0.088, z] as V3,
     botLead: [-0.045 - 0.06 * s, -0.088 - 0.06 * c, z] as V3,
     /** Where each spark shows in the combustion chamber. */
     topSpark: [-0.03, 0.04, d.deck - 0.004] as V3,
     botSpark: [-0.03, -0.04, d.deck - 0.004] as V3,
-    nozzle: [0.045, 0.098, d.deck + 0.035] as V3,
-    nozzleTop: [0.045, 0.125, d.deck + 0.035] as V3,
+    nozzle: [0.062, 0.078, d.deck + 0.035] as V3,
+    nozzleTop: [0.062, 0.105, d.deck + 0.035] as V3,
     intakePort: [0.035, -0.1, d.deck + 0.07] as V3,
     exhaustPort: [-0.035, -0.1, d.deck + 0.075] as V3,
   };

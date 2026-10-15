@@ -11,7 +11,8 @@ engines/
     atmosphere.ts ISA and unit constants
     performance.ts  The manufacturer's power chart (the reference the model is calibrated to), friction, pumping
     induction.ts  Throttle as a compressible orifice, manifold pressure, volumetric efficiency from the chart
-    fuel.ts       Servo metering, flow divider and nozzles, per-cylinder distribution
+    fuel.ts       Servo metering, flow divider and nozzles, per-cylinder distribution (injected engines)
+    carburetor.ts Float carburetor: venturi and idle metering, mixture-chamber cooling, carburetor ice
     mixture.ts    Power, EGT and head heat against excess-air ratio λ
     propeller.ts  Constant-speed propeller and governor
     cycle.ts      Crank kinematics, valve events, firing order, the cylinder-pressure trace
@@ -19,6 +20,7 @@ engines/
     scenarios.ts  "Start from" setups for the page
     alerts.ts     Limit flags from the spec's limits
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
+  o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md
 components/engine/  The page: store (zustand UI + per-frame loop), 3D scene (scene/: dims, materials and builders in kit.ts, one file per part group), monitor, panel, pressure chart
 app/engines/[engine]/page.tsx  One static page per engine id
 ```
@@ -31,12 +33,19 @@ app/engines/[engine]/page.tsx  One static page per engine id
 2. Add it to `ENGINES` in `engines/index.ts` and to `ENGINE_IDS` in `infra/cloudfront/view-rewrite.js` (a test checks
    the copy).
 3. Calibrate against the manufacturer's numbers, then write tests named after them in `tests/` (see
-   `tests/io390-engine.test.ts`): rated power at full throttle, cruise fuel flows, idle, magneto drop, limits in a climb.
+   `tests/io390-engine.test.ts`, `tests/o360-engine.test.ts`): rated power at full throttle, cruise fuel flows, idle,
+   magneto drop, limits in a climb.
 4. Check the page with a browser at desktop and phone widths.
 
-The model reads the spec only, so a new engine of the same kind (air-cooled, injected, constant-speed propeller) needs
-no model changes. A carbureted, turbocharged or fixed-pitch engine needs those pieces added to `model/` behind a spec
-field, keeping the existing engines' behaviour (their tests guard it).
+The model reads the spec only, so a new engine of a kind already modelled (air-cooled, injected or float-carbureted,
+constant-speed propeller) needs no model changes: `fuelSystem.kind` picks the injector or the carburetor, and
+`fuelFlow.kind` takes either a fuel-flow chart or, when the manual has none, a specific consumption from a cruise point.
+A turbocharged or fixed-pitch engine needs those pieces added to `model/` behind a spec field, keeping the existing
+engines' behaviour (their tests guard it).
+
+The 3D scene is shared and its part notes cite the IO-390's manual; an engine's `parts` replaces a part's name and note
+with its own manual's words (keyed by the default name, numbers written `#`), and `modelNotes` is its "How the model
+works" text.
 
 ## Conventions
 

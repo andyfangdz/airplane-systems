@@ -129,13 +129,34 @@ export function grossIndicatedHp(
   return Math.max(0, gross) * (rpm / r) * (ve(rpm) / ve(r));
 }
 
-/** Lycoming part-throttle fuel consumption (lb/h) at a brake hp, best-power or best-economy mixture (Figure C-3). */
+/**
+ * Lycoming fuel consumption (lb/h) at a brake hp, best-power or best-economy mixture: the part-throttle chart where the
+ * manual has one (IO-390 Figure C-3), else a constant best-power specific consumption from a published cruise point.
+ * Best economy (peak EGT) then takes the same power from air the mixture model says it needs: λ at peak is 1, power
+ * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower.
+ */
 export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture: "bestPower" | "bestEconomy") {
-  const pts = spec.fuelFlow[mixture];
+  const ff = spec.fuelFlow;
+  if (ff.kind === "bsfc") {
+    const bp = ff.bsfc * hp;
+    const cal = spec.calibration;
+    return mixture === "bestPower" ? bp : (bp * cal.lambdaBestPower) / cal.peakEgtPower;
+  }
+  const pts = ff[mixture];
   let i = 0;
   while (i < pts.length - 2 && rpm > pts[i + 1].rpm) i++;
   const a = pts[i],
     b = pts[i + 1];
   const base = a.base + ((b.base - a.base) * (rpm - a.rpm)) / (b.rpm - a.rpm);
-  return base + spec.fuelFlow.slope * hp;
+  return base + ff.slope * hp;
+}
+
+/** The minimum allowable fuel flow (US gal/h) at a % of rated power, where the manual gives that curve. */
+export function minimumFuelFlow(spec: EngineSpec, pct: number) {
+  if (spec.fuelFlow.kind !== "bsfc") return undefined;
+  const P = spec.fuelFlow.minimum.points;
+  if (pct <= P[0][0]) return P[0][1];
+  for (let i = 1; i < P.length; i++)
+    if (pct <= P[i][0]) return P[i - 1][1] + ((P[i][1] - P[i - 1][1]) * (pct - P[i - 1][0])) / (P[i][0] - P[i - 1][0]);
+  return P[P.length - 1][1];
 }

@@ -186,8 +186,8 @@ export function advance(sim: EngineSim, dt: number) {
   const ui = sim.useUi.getState();
   if (ui.view.paused) return;
   // keep real time on slow frames (step splits a long frame into short steps), but don't try to catch up a pause
-  // such as a hidden tab
-  const d = Math.min(dt, 0.5);
+  // such as a hidden tab; the first frame's timestamp can come before the loop's start, so never step backwards
+  const d = Math.min(Math.max(dt, 0), 0.5);
   step(sim.spec, sim.s, ui.controls, ui.env, ui.failures, d, ui.view.thermal);
   sim.anim.crank = ui.view.slow ? (sim.anim.crank + slowRpm(sim.s.rpm) * 6 * d) % 720 : sim.s.crank;
 }

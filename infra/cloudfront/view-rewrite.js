@@ -2,7 +2,7 @@
 // AIRCRAFT_IDS is copied from lib/systems.ts and ENGINE_IDS from engines/index.ts; the offline test prevents drift.
 // Event/query format: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/functions-event-structure.html
 var AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
-var ENGINE_IDS = ["io390"];
+var ENGINE_IDS = ["io390", "o360"];
 
 // AWS recommends percent encoding; UTF-8 request values are forwarded unchanged:
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/edge-function-restrictions-all.html
