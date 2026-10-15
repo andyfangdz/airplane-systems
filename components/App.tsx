@@ -1,7 +1,5 @@
 "use client";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { ENGINES } from "@/engines";
 import { parseCameraPreset } from "@/lib/camera";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -63,15 +61,6 @@ function Rail() {
       </ul>
       <div className="foot">
         Drag to orbit · scroll or pinch to zoom · right-drag to pan. Hover a part for its note.
-        <p className="foot-engines">
-          Engine simulations:{" "}
-          {ENGINES.map((e, i) => (
-            <span key={e.id}>
-              {i ? ", " : ""}
-              <Link href={`/engines/${e.id}`}>{e.name}</Link>
-            </span>
-          ))}
-        </p>
       </div>
     </nav>
   );

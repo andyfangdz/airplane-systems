@@ -141,7 +141,7 @@ test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }
   if (phone) await page.getByRole("button", { name: "Exit the SR20 study walk", exact: true }).click();
   await page.getByRole("button", { name: /^Switch Airplanes, current airplane/ }).click();
   await page
-    .getByRole("dialog", { name: "Choose an airplane" })
+    .getByRole("dialog", { name: "Choose an airplane or engine" })
     .getByRole("button", { name: /^Cirrus SR22T|^SR22T G6/ })
     .click();
   await page.locator(".walk").waitFor({ state: "detached" });

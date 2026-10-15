@@ -5,9 +5,10 @@
  * frames (store.ts); React reads it through low-rate snapshots.
  */
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useEffect } from "react";
-import { engineById } from "@/engines";
+import { ENGINES, engineById } from "@/engines";
+import { Picker } from "../Picker";
+import { airplaneLinks, engineEntries, engineSub } from "../pickerEntries";
 import { useView } from "@/lib/view";
 import { simFor, useEngineLoop, type EngineSim } from "./store";
 import { EnginePanel } from "./EnginePanel";
@@ -84,13 +85,20 @@ export default function EngineApp({ id }: { id: string }) {
   return (
     <div className="eng-app">
       <title>{`${spec.name} engine · Airplane Systems`}</title>
+      <div className="brand eng-brand">
+        <Picker
+          current={{ name: spec.name, sub: engineSub(spec) }}
+          kind="engine"
+          groups={[
+            { label: "Airplanes", entries: airplaneLinks() },
+            { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
+          ]}
+        />
+      </div>
       <main className="stage eng-stage">
         <div className="eng-view">
           <Scene sim={sim} />
         </div>
-        <Link className="tb eng-back" href="/">
-          ← Airplanes
-        </Link>
         <Toolbar sim={sim} />
         <div className="eng-foot">
           <Monitor sim={sim} />
