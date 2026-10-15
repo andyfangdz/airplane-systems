@@ -76,8 +76,8 @@ describe("running", () => {
     for (const cyl of [1, 2, 3, 4]) expect(fired[cyl]).toBeLessThanOrEqual(21);
   });
 
-  test("no spark with the switch off or the supply below 8.5 V", () => {
-    for (const p of [{ ignition: false }, { volts: 8 }]) {
+  test("no spark with the switch off, the supply below 8.5 V or the SIM off the engine", () => {
+    for (const p of [{ ignition: false }, { volts: 8 }, { mounted: false }]) {
       set({ stage: "run", ignition: true, volts: 13.8, rpm: 1200, ...p });
       bench.rpm = 1200;
       bench.spark = [9, 9, 9, 9, 9];

@@ -153,12 +153,14 @@ export function advance(dt: number) {
   b.rpm += (target - b.rpm) * Math.min(1, d * 3);
   if (Math.abs(target - b.rpm) < 1) b.rpm = target;
   const f = firing(inputsOf(u));
+  // off the engine, nothing turns the shaft and the plug leads go nowhere
+  if (!u.mounted) Object.assign(f, { fires: false, why: "Not mounted: mount it under Install and time" });
   Object.assign(b, { fires: f.fires, btdc: f.btdc, why: f.why, sensed: f.map });
   const prev = b.crank;
   const shown = u.view.slow ? Math.min(b.rpm, SLOW_RPM) : b.rpm;
   const dist = shown * 6 * d;
   b.crank = (prev + dist) % 720;
-  b.shaft = (((b.crank - b.err) % 360) + 360) % 360;
+  b.shaft = u.mounted ? (((b.crank - b.err) % 360) + 360) % 360 : u.gear;
   if (f.fires && b.rpm > 0)
     for (const [cyl, partner] of sparksBetween(prev, dist, f.btdc, b.err)) {
       b.spark[cyl] = 0;

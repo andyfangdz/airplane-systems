@@ -199,6 +199,7 @@ function Run() {
   return (
     <>
       <H3>Run</H3>
+      {!u.mounted && <Small>The SIM is off the engine: mount and time it under Install and time first.</Small>}
       <div className="eng-mags">
         <Seg
           id="sf-ign"

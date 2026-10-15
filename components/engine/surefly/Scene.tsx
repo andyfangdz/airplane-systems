@@ -445,7 +445,7 @@ function Sim() {
           position={[0.036, 0, 0]}
         />
       </group>
-      {(mounted || stage === "run") && (
+      {mounted && (
         <>
           <P
             name="Engine accessory housing (schematic)"
