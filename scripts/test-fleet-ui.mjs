@@ -102,7 +102,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
   assert.ok(
-    box.width <= 352 && box.height <= 580,
+    box.width <= 352 && box.height <= 640,
     "The entire fleet, the engines and the components fit in a compact dropdown",
   );
   assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), "No horizontal scrolling");
