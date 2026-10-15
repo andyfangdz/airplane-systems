@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { parseShotCameras } from "./scripts/shot-camera.mjs";
+import { softwareGL } from "./scripts/software-gl.mjs";
 const ROOT = import.meta.dirname;
 const { args, cameras } = parseShotCameras(JSON.parse(process.env.SHOT_ARGS || "[]"));
 const opt = (name, dflt) => {
@@ -86,7 +87,7 @@ export default defineConfig({
     viewport: phone ? { width: 390, height: 844 } : { width: 1440, height: 900 },
     deviceScaleFactor: 1,
     reducedMotion: "reduce",
-    launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] },
+    launchOptions: { args: softwareGL },
   },
   webServer: baseArg
     ? undefined
