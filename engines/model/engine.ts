@@ -11,7 +11,7 @@
 import type { EngineSpec, Side } from "../types";
 import { atmosphere, cToF, HP_W, INHG_PA, KT_MS, LB_KG, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
-import { distribution, nozzlePressure, servoFuelFlow } from "./fuel";
+import { distribution, nozzleFlow, nozzlePressure, servoFuelFlow } from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
 import { frictionHp, grossIndicatedHp, pumpingHp } from "./performance";
@@ -265,10 +265,15 @@ function substep(
   const supply = Math.max(c.boost ? 1 : 0, enginePump);
   s.fuelPsi = Math.max(c.boost ? 26 : 0, enginePump * clamp(s.rpm / 900, 0, 1) * 28);
   const inletRho = (source * INHG_PA) / (287.05 * (inletC + 273.15));
-  const metered = servoFuelFlow(spec, airLbH, c.mixture, inletRho, supply);
-  s.fuel = metered;
   const dist = distribution(spec, f.nozzle);
-  s.nozzlePsi = metered > 0.5 ? nozzlePressure(spec, metered, dist.areaMean) : 0;
+  // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
+  // nothing flows however much the servo meters
+  const metered = Math.min(
+    servoFuelFlow(spec, airLbH, c.mixture, inletRho, supply),
+    nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
+  );
+  s.fuel = metered;
+  s.nozzlePsi = metered > 0.5 ? Math.min(nozzlePressure(spec, metered, dist.areaMean), s.fuelPsi) : 0;
 
   // ---- each cylinder: port fuel film, mixture, spark, work
   const plugs = sparks(spec, c.mags, f, s.rpm);
@@ -323,7 +328,8 @@ function substep(
   const breakaway = s.rpm < 1 && grossTorque + starterTorque < 40;
   const net = breakaway ? 0 : grossTorque + starterTorque - fricTorque - propQ;
   s.rpm = Math.max(0, s.rpm + ((net / spec.propeller.inertia) * dt * 60) / (2 * Math.PI));
-  if (s.rpm < 0.5 && !cranking && grossTorque < 1) s.rpm = 0;
+  // friction stops a crankshaft that is barely turning (it would otherwise creep down forever)
+  if (s.rpm < 5 && !cranking && grossTorque < 1) s.rpm = 0;
   s.crank = (s.crank + s.rpm * 6 * dt) % 720;
   s.torque = s.rpm > 1 ? grossTorque - fricTorque : 0;
   s.hp = s.rpm > 1 ? ((grossTorque - lossTorque) * omega) / HP_W : 0;

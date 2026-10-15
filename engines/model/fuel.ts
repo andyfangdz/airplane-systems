@@ -52,6 +52,7 @@ export function nozzlePressure(spec: EngineSpec, lbH: number, areaMean: number) 
 /** Each cylinder's share of the metered flow: all nozzles see one pressure, so flow ∝ open area. */
 export function distribution(spec: EngineSpec, blockage: number[]) {
   const a = spec.geometry.cylinders.map((_, i) => spec.calibration.nozzleTrim[i] * (1 - (blockage[i] ?? 0)));
-  const sum = a.reduce((s, x) => s + x, 0) || 1;
-  return { share: a.map((x) => x / sum), areaMean: sum / a.length };
+  const sum = a.reduce((s, x) => s + x, 0);
+  // with every nozzle blocked nothing flows: no share, no open area
+  return { share: a.map((x) => (sum > 0 ? x / sum : 0)), areaMean: sum / a.length };
 }

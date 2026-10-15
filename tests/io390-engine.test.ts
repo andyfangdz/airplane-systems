@@ -13,6 +13,7 @@ import {
   initialState,
   noFailures,
   sparks,
+  step,
   type Controls,
   type EngineState,
   type Environment,
@@ -373,5 +374,60 @@ describe("the page's starting points and limit flags", () => {
   test("low oil quantity is flagged below the 3.5 qt minimum (Table A-1)", () => {
     const x = run("idle");
     expect(limitFlags(S, x.s, { ...x.env, oilQt: 3 }).map((f) => f.src)).toContain(S.limits.oilMinQt.src);
+  });
+});
+
+describe("failures", () => {
+  const FAILURES: [string, (f: Failures) => void][] = [
+    ["left magneto", (f) => (f.magL = true)],
+    ["both magnetos", (f) => ((f.magL = true), (f.magR = true))],
+    ["engine-driven fuel pump", (f) => (f.fuelPump = true)],
+    ["air filter", (f) => (f.filter = true)],
+    ["starter", (f) => (f.starter = true)],
+    ["every spark plug", (f) => f.plugs.forEach((p) => p.fill(true))],
+    ["one nozzle", (f) => (f.nozzle[0] = 1)],
+    ["every nozzle", (f) => f.nozzle.fill(1)],
+  ];
+  /** Paths of non-finite numbers in the state; a cylinder with no fuel has λ = ∞, which is the one allowed. */
+  const nonFinite = (o: unknown, path = ""): string[] =>
+    typeof o === "number"
+      ? Number.isFinite(o) || (path.endsWith(".lambda") && o === Infinity)
+        ? []
+        : [`${path}=${o}`]
+      : o && typeof o === "object"
+        ? Object.entries(o).flatMap(([k, v]) => nonFinite(v, `${path}.${k}`))
+        : [];
+
+  test.each(FAILURES)("every scenario keeps a finite state with this failure: %s", (_, fail) => {
+    for (const sc of SCENARIOS) {
+      const { s, c, env } = sc.run(S);
+      const f = noFailures(S);
+      fail(f);
+      let first: string[] = [];
+      for (let i = 0; i < 20 * 60 && !first.length; i++) {
+        step(S, s, c, env, f, 1 / 60, 1);
+        if (i % 6 === 0) first = nonFinite(s).map((p) => `${sc.id} at ${(i / 60).toFixed(1)} s: ${p}`);
+      }
+      expect(first).toEqual([]);
+    }
+  });
+
+  test("with every nozzle blocked no fuel flows, and the engine stops on the ground", () => {
+    const { s, c, env } = SCENARIOS.find((x) => x.id === "runup")!.run(S);
+    const f = noFailures(S);
+    f.nozzle.fill(1);
+    for (let i = 0; i < 20 * 60; i++) step(S, s, c, env, f, 1 / 60, 1);
+    expect(s.fuel).toBe(0);
+    expect(s.rpm).toBe(0);
+  });
+
+  test("the boost pump, switched on, keeps the engine running when the engine-driven pump fails", () => {
+    const { s, c, env } = SCENARIOS.find((x) => x.id === "cruise75")!.run(S);
+    const before = s.hp;
+    const f = noFailures(S);
+    f.fuelPump = true;
+    c.boost = true;
+    for (let i = 0; i < 20 * 60; i++) step(S, s, c, env, f, 1 / 60, 1);
+    expect(s.hp).toBeGreaterThan(0.9 * before);
   });
 });

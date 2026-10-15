@@ -20,7 +20,8 @@ export function stability(lambda: number) {
 
 /** Indicated power relative to best-power mixture (1.0). */
 export function mixturePower(lambda: number, lambdaBP: number, peakPower: number) {
-  if (lambda <= 0) return 0;
+  // no fuel (λ = ∞) or too lean to burn at all
+  if (lambda <= 0 || stability(lambda) === 0) return 0;
   let p: number;
   if (lambda <= lambdaBP) p = 1 - 1.5 * (lambdaBP - lambda) ** 2;
   else if (lambda <= 1) {
