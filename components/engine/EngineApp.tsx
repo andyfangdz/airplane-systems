@@ -53,7 +53,7 @@ export default function EngineApp({ id }: { id: string }) {
           kind="engine"
           groups={[
             { label: "Airplanes", entries: airplaneLinks() },
-            { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
+            { label: "Engines", entries: engineEntries(ENGINES, spec.id), compact: true },
             { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
           ]}
         />
