@@ -3,6 +3,8 @@
  * an engine, with its own controls. Each folder here holds a component's model and its SOURCES.md; its page is in
  * `components/engine/<id>/`, listed in `components/engine/ComponentPage.tsx`. This list is the picker order.
  */
+import { GOVERNOR } from "./governor/spec";
+
 export interface ComponentEntry {
   id: string;
   /** Short name for the picker and tab title. */
@@ -26,6 +28,7 @@ export const COMPONENTS: ComponentEntry[] = [
     sub: "Electronic ignition",
     lead: "SureFly SIM4P electronic ignition module: dip switch timing, advance with rpm and manifold pressure, the timing light and wasted spark.",
   },
+  { id: GOVERNOR.id, name: GOVERNOR.name, sub: GOVERNOR.sub, lead: GOVERNOR.lead },
 ];
 
 export const COMPONENT_IDS = COMPONENTS.map((c) => c.id);

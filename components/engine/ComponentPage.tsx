@@ -9,6 +9,7 @@ import type { ComponentType } from "react";
 const PAGES: Record<string, ComponentType> = {
   carburetor: dynamic(() => import("./carburetor/CarburetorApp")),
   surefly: dynamic(() => import("./surefly/App")),
+  governor: dynamic(() => import("./governor/GovernorApp")),
 };
 
 export default function ComponentPage({ id }: { id: string }) {
