@@ -3,6 +3,7 @@ import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { AIRCRAFT_IDS } from "@/lib/systems";
 import { VIEW_PATHS } from "@/lib/viewPaths";
+import { ENGINE_IDS } from "@/engines";
 
 // Read through fs below. Listing it to Vite (never loading it) makes it a dependency, so `vitest --changed` reruns this
 // file when it changes.
@@ -30,6 +31,12 @@ describe("CloudFront viewer-request view rule", () => {
     expect(result.uri).toBe("/index.html");
     expect(result.querystring).toBe(query);
     expect(result.method).toBe("GET");
+  });
+
+  it("serves each engine page's exported .html and keeps the copied engine list current", () => {
+    expect(runInNewContext(source + "\nENGINE_IDS;")).toEqual(ENGINE_IDS);
+    for (const id of ENGINE_IDS) expect(run(`/engines/${id}`).result.uri).toBe(`/engines/${id}.html`);
+    expect(run("/engines/nope").result.uri).toBe("/engines/nope");
   });
 
   it("keeps the existing any-single-system-segment behavior", () => {

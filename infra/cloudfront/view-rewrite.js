@@ -1,7 +1,8 @@
 // Viewer request, cloudfront-js-2.0. Mirrors next.config.ts's development view rule.
-// AIRCRAFT_IDS is copied from lib/systems.ts; the offline test prevents drift.
+// AIRCRAFT_IDS is copied from lib/systems.ts and ENGINE_IDS from engines/index.ts; the offline test prevents drift.
 // Event/query format: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/functions-event-structure.html
 var AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
+var ENGINE_IDS = ["io390"];
 
 // AWS recommends percent encoding; UTF-8 request values are forwarded unchanged:
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/edge-function-restrictions-all.html
@@ -18,6 +19,12 @@ function encodeQueryComponent(value) {
 
 function handler(event) {
   var request = event.request;
+  // the static export writes each engine page as engines/<id>.html
+  var engine = /^\/engines\/([^/]+)$/.exec(request.uri);
+  if (engine && ENGINE_IDS.indexOf(engine[1]) !== -1) {
+    request.uri = request.uri + ".html";
+    return request;
+  }
   var match = /^\/([^/]+)(?:\/([^/]+))?(\/)?$/.exec(request.uri);
   if (!match || AIRCRAFT_IDS.indexOf(match[1]) === -1) return request;
 

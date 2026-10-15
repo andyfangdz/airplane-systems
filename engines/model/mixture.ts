@@ -1,0 +1,56 @@
+/**
+ * How the fuel–air ratio changes what one cylinder does, as functions of the excess-air ratio λ (1 = chemically
+ * correct). Shapes are the textbook spark-ignition curves; the two anchors that matter for Lycoming's data are
+ * set per engine: λ at the chart's "best power" mixture and the power left at peak EGT ("best economy" in the IOM).
+ * Nothing here is manufacturer data.
+ */
+
+/** Stoichiometric air–fuel ratio for 100LL by mass (iso-octane is 15.1, motor gasoline 14.7). */
+export const AFR_STOICH = 15.0;
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/** Combustion stability, 1 = every cycle burns, 0 = misfiring (rich and lean flammability limits). */
+export function stability(lambda: number) {
+  if (lambda <= 0) return 0;
+  if (lambda < 0.55) return clamp01((lambda - 0.4) / 0.15);
+  if (lambda > 1.35) return clamp01((1.75 - lambda) / 0.4);
+  return 1;
+}
+
+/** Indicated power relative to best-power mixture (1.0). */
+export function mixturePower(lambda: number, lambdaBP: number, peakPower: number) {
+  if (lambda <= 0) return 0;
+  let p: number;
+  if (lambda <= lambdaBP) p = 1 - 1.5 * (lambdaBP - lambda) ** 2;
+  else if (lambda <= 1) {
+    // Hermite from (λbp, 1, flat) to (1, peakPower, slope −peakPower) so the fuel-limited lean side joins smoothly
+    const h = 1 - lambdaBP,
+      t = (lambda - lambdaBP) / h,
+      m1 = -peakPower * h;
+    p = 2 * t ** 3 - 3 * t ** 2 + 1 + (-2 * t ** 3 + 3 * t ** 2) * peakPower + (t ** 3 - t ** 2) * m1;
+  } else {
+    // lean of peak: all the fuel burns, so power follows fuel flow; slower burning costs a little more far lean
+    p = (peakPower / lambda) * (1 - 0.8 * Math.max(0, lambda - 1.2) ** 2);
+  }
+  return p * stability(lambda);
+}
+
+/**
+ * EGT relative to peak (°F, ≤ 0). Peak at λ = 1; falls faster on the rich side (excess fuel cools the charge). The rich
+ * slope puts best power (λ ≈ 0.85) at about 150 °F rich of peak, the IOM's leanest mixture for maximum-power cruise.
+ */
+export function egtOffset(lambda: number) {
+  const w = 0.04,
+    d = lambda - 1,
+    b = d < 0 ? 1310 : 600;
+  const off = -b * (Math.sqrt(d * d + w * w) - w);
+  // misfiring cycles send unburned charge through: the probe cools
+  return off - (1 - stability(lambda)) * 500;
+}
+
+/** Heat into the cylinder head relative to best power: peaks about 50 °F rich of peak EGT (λ ≈ 0.93). */
+export function headHeat(lambda: number, lambdaBP: number) {
+  const shape = (l: number) => Math.exp(-(((l - 0.93) / (l < 0.93 ? 0.45 : 0.35)) ** 2));
+  return (shape(lambda) / shape(lambdaBP)) * stability(lambda);
+}
