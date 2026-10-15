@@ -69,7 +69,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     await trigger.getByText("Switch Airplanes", { exact: true }).isVisible(),
     "The control explicitly names the switching action",
   );
-  const dialog = page.getByRole("dialog", { name: "Choose an airplane" });
+  const dialog = page.getByRole("dialog", { name: "Choose an airplane or engine" });
   const choices = dialog.getByRole("group", { name: "Airplanes" }).getByRole("button");
   const waitForClosed = async () => {
     await dialog.waitFor({ state: "hidden" });
@@ -84,6 +84,9 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   }
   await dialog.waitFor();
   assert.equal(await choices.count(), 6);
+  const engines = dialog.getByRole("group", { name: "Engines" }).getByRole("link");
+  assert.equal(await engines.count(), 1);
+  assert.equal(await engines.first().getAttribute("href"), "/engines/io390");
   for (const name of ["SR20 G6", "SR22T G6"])
     assert.match(await choices.filter({ hasText: name }).innerText(), /Walk-around/);
   assert.equal(await trigger.getAttribute("aria-expanded"), "true");
@@ -91,7 +94,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  assert.ok(box.width <= 352 && box.height <= 400, "The entire fleet fits in a compact dropdown");
+  assert.ok(box.width <= 352 && box.height <= 520, "The entire fleet and the engines fit in a compact dropdown");
   assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), "No horizontal scrolling");
   assert.ok((await trigger.boundingBox()).height >= 44, "Touch-sized trigger");
   assert.ok((await page.locator(".brand").boundingBox()).height < 140, "The picker adds no separate button row");
@@ -102,11 +105,12 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await page.keyboard.press("ArrowDown");
   assert.ok(await choices.nth(1).evaluate((el) => el === document.activeElement));
   await page.keyboard.press("End");
-  assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));
-  await page.keyboard.press("ArrowDown");
-  assert.ok(await choices.nth(0).evaluate((el) => el === document.activeElement));
+  assert.ok(await engines.first().evaluate((el) => el === document.activeElement), "The engines follow the airplanes");
   await page.keyboard.press("ArrowUp");
   assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  assert.ok(await choices.nth(0).evaluate((el) => el === document.activeElement));
   await page.keyboard.press("Home");
   await page.keyboard.press("Enter");
   await waitForClosed();
@@ -197,6 +201,19 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   }
   await page.reload();
   await page.waitForFunction(() => document.querySelector(".fleet-current-name")?.textContent === "M20C Ranger");
+  assert.deepEqual(errors, []);
+
+  // the engines are picked the same way, and the engine page's picker leads back to an airplane
+  await activate(trigger);
+  await activate(engines.first());
+  await page.waitForURL("**/engines/io390");
+  const engineTrigger = page.getByRole("button", { name: /^Switch Airplanes, current engine IO-390/ });
+  await engineTrigger.waitFor();
+  await activate(engineTrigger);
+  assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /IO-390/);
+  await activate(dialog.getByRole("group", { name: "Airplanes" }).getByRole("link", { name: /C172S Skyhawk/ }));
+  await page.waitForURL(/\/c172s/);
+  await page.waitForFunction(() => document.querySelector(".fleet-current-name")?.textContent === "C172S Skyhawk");
   assert.deepEqual(errors, []);
   console.log(
     `${browserName} ${width}×${height} ${theme} ${touch ? "touch" : "mouse"}: selection, walk-around, persistence, keyboard, dismissal and compact layout passed`,

@@ -1,7 +1,8 @@
 // Viewer request, cloudfront-js-2.0. Mirrors next.config.ts's development view rule.
-// AIRCRAFT_IDS is copied from lib/systems.ts; the offline test prevents drift.
+// AIRCRAFT_IDS is copied from lib/systems.ts and ENGINE_IDS from engines/index.ts; the offline test prevents drift.
 // Event/query format: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/functions-event-structure.html
 var AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
+var ENGINE_IDS = ["io390"];
 
 // AWS recommends percent encoding; UTF-8 request values are forwarded unchanged:
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/edge-function-restrictions-all.html
@@ -16,28 +17,37 @@ function encodeQueryComponent(value) {
     .join("+");
 }
 
+/** A permanent redirect to `uri`, keeping the request's query (every value of a repeated key, re-encoded). */
+function redirect(request, uri) {
+  var query = [];
+  Object.keys(request.querystring).forEach(function (key) {
+    var item = request.querystring[key];
+    var values = item.multiValue || [item];
+    values.forEach(function (entry) {
+      query.push(encodeQueryComponent(key) + "=" + encodeQueryComponent(entry.value));
+    });
+  });
+  return {
+    statusCode: 308,
+    statusDescription: "Permanent Redirect",
+    headers: {
+      location: { value: uri + (query.length ? "?" + query.join("&") : "") },
+    },
+  };
+}
+
 function handler(event) {
   var request = event.request;
+  // the static export writes each engine page as engines/<id>.html; the trailing-slash form redirects to it
+  var engine = /^\/engines\/([^/]+)(\/)?$/.exec(request.uri);
+  if (engine && ENGINE_IDS.indexOf(engine[1]) !== -1) {
+    if (engine[2]) return redirect(request, request.uri.slice(0, -1));
+    request.uri = request.uri + ".html";
+    return request;
+  }
   var match = /^\/([^/]+)(?:\/([^/]+))?(\/)?$/.exec(request.uri);
   if (!match || AIRCRAFT_IDS.indexOf(match[1]) === -1) return request;
-
-  if (match[3]) {
-    var query = [];
-    Object.keys(request.querystring).forEach(function (key) {
-      var item = request.querystring[key];
-      var values = item.multiValue || [item];
-      values.forEach(function (entry) {
-        query.push(encodeQueryComponent(key) + "=" + encodeQueryComponent(entry.value));
-      });
-    });
-    return {
-      statusCode: 308,
-      statusDescription: "Permanent Redirect",
-      headers: {
-        location: { value: request.uri.slice(0, -1) + (query.length ? "?" + query.join("&") : "") },
-      },
-    };
-  }
+  if (match[3]) return redirect(request, request.uri.slice(0, -1));
 
   request.uri = "/index.html";
   return request;

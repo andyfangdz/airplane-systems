@@ -4,12 +4,17 @@
  */
 import { describe, expect, it } from "vitest";
 import { FLEET } from "@/aircraft";
+import { FLEET_INDEX } from "@/lib/fleet-index";
 import { AIRCRAFT_IDS, sysColor, type SysId } from "@/lib/systems";
 
 const finite = (v: number[]) => v.length === 3 && v.every(Number.isFinite);
 
 it("lists every airplane id exactly once", () => {
   expect(FLEET.map((a) => a.id).sort()).toEqual([...AIRCRAFT_IDS].sort());
+});
+
+it("the engine pages' airplane list matches the fleet, in picker order", () => {
+  expect(FLEET_INDEX).toEqual(FLEET.map((a) => ({ id: a.id, name: a.name, sub: a.sub, walk: !!a.walk })));
 });
 
 describe.each(FLEET.map((a) => [a.id, a] as const))("%s", (_, def) => {

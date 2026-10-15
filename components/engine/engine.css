@@ -1,0 +1,375 @@
+/* The standalone engine page (components/engine/EngineApp.tsx): the airplane pages' stage and panel, without the rail. */
+.eng-app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+/* the picker heads the panel column, as it heads the rail on the airplane pages */
+.eng-app .eng-brand {
+  grid-column: 2;
+  grid-row: 1;
+  border-left: 1px solid var(--rule);
+  background: var(--panel);
+}
+.eng-app .eng-stage {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+.eng-app .panel {
+  grid-column: 2;
+  grid-row: 2;
+}
+.eng-label {
+  font: 600 11px/1.2 var(--f-body);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+/* foot of the view: engine monitor and limit flags, over the bottom of the 3D view */
+.eng-foot {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: end;
+  position: relative;
+  z-index: 1;
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+.eng-mon {
+  pointer-events: auto;
+  background: var(--cas-bg);
+  color: #e6edf2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: "big bars" "small small";
+  gap: 8px 16px;
+  font-family: var(--f-mono);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+}
+.mon-big {
+  grid-area: big;
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 2px 8px;
+  align-content: center;
+}
+.mon-big > div,
+.mon-small > div {
+  display: contents;
+}
+.mon-big span,
+.mon-small span {
+  color: #8fa1ae;
+  font-size: 11px;
+  align-self: baseline;
+}
+.mon-big b {
+  font-size: 22px;
+  font-weight: 500;
+  text-align: right;
+  color: #6be675;
+}
+.mon-big i {
+  font-style: normal;
+  font-size: 11px;
+  color: #8fa1ae;
+  align-self: baseline;
+}
+.mon-small {
+  grid-area: small;
+  display: grid;
+  grid-template-columns: repeat(5, auto auto);
+  gap: 2px 6px;
+  border-top: 1px solid #23313b;
+  padding-top: 6px;
+}
+.mon-small b {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e6edf2;
+  margin-right: 8px;
+}
+.eng-mon b.bad,
+.eng-mon small.bad {
+  color: var(--warn);
+}
+.eng-mon b.warnc,
+.eng-mon small.warnc {
+  color: var(--caut);
+}
+.mon-bars {
+  grid-area: bars;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.mon-cyl {
+  display: grid;
+  grid-template-columns: 11px 11px;
+  gap: 2px 3px;
+  justify-items: center;
+}
+.mon-cyl .bar {
+  height: 70px;
+  width: 11px;
+  background: #1b252d;
+  display: flex;
+  align-items: flex-end;
+}
+.mon-cyl .bar > div {
+  width: 100%;
+}
+.mon-cyl .egt > div {
+  background: #49a7f2;
+}
+.mon-cyl .cht > div {
+  background: #6be675;
+}
+.mon-cyl .cht > div.warnc {
+  background: var(--caut);
+}
+.mon-cyl .cht > div.bad {
+  background: var(--warn);
+}
+.mon-cyl span {
+  grid-column: 1 / 3;
+  font-size: 11px;
+  color: #c7d2da;
+}
+.mon-cyl small {
+  grid-column: 1 / 3;
+  font-size: 10px;
+  line-height: 1.1;
+  color: #8fa1ae;
+}
+.mon-key {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: #8fa1ae;
+  align-self: center;
+}
+.mon-key i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 3px;
+}
+.mon-key i.egt {
+  background: #49a7f2;
+}
+.mon-key i.cht {
+  background: #6be675;
+}
+.eng-flags {
+  pointer-events: auto;
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--cas-bg);
+  border-radius: 8px;
+  font: 500 12px/1.35 var(--f-mono);
+  max-width: 360px;
+}
+.eng-flags li.warn {
+  color: var(--warn);
+}
+.eng-flags li.caut {
+  color: var(--caut);
+}
+
+/* panel */
+/* the START button sits in line with the ignition switch positions, as tall as they are */
+.eng-mags {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 10px;
+  margin-bottom: 12px;
+}
+.eng-mags .row {
+  display: contents;
+}
+.eng-mags .lbl {
+  grid-column: 1 / -1;
+}
+.eng-start {
+  grid-row: 2;
+  grid-column: 2;
+  touch-action: none;
+}
+.eng-start.on,
+.eng-start[data-down="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.eng-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 10px;
+  margin-bottom: 8px;
+}
+.eng-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0 4px;
+}
+.eng-table th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.eng-table td {
+  text-align: right;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.eng-table th:first-child,
+.eng-table td:first-child {
+  text-align: left;
+}
+.eng-fail td {
+  text-align: center;
+}
+.eng-fail th {
+  text-align: center;
+}
+.eng-fail input[type="range"] {
+  width: 90px;
+  vertical-align: middle;
+}
+.eng-fail output {
+  display: inline-block;
+  width: 3.2em;
+  font-size: 12px;
+  color: var(--muted);
+}
+.eng-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 6px 0;
+  background: var(--panel2);
+  border-radius: 6px;
+}
+.eng-chart text {
+  font: 10px var(--f-mono);
+  fill: var(--muted);
+}
+.eng-chart text.stroke {
+  font-size: 9px;
+}
+.eng-chart .grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.eng-chart .trace {
+  fill: none;
+  stroke: var(--hot);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.eng-chart .spark {
+  stroke: var(--accent);
+  stroke-dasharray: 3 3;
+}
+.eng-chart .now {
+  stroke: var(--ink);
+  stroke-opacity: 0.35;
+}
+
+@media (max-width: 1100px) {
+  .eng-app {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+@media (max-width: 860px) {
+  .eng-app {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+  /* the 3D view stays at the top of the screen while the controls scroll under it, so the engine is in sight while
+     you hold START or move a lever; the monitor goes under the view instead of over it */
+  .eng-app .eng-stage {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: 42vh;
+    min-height: 260px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .eng-app .eng-foot {
+    padding: 10px;
+  }
+  .eng-mon,
+  .eng-flags {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .eng-app .panel {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    overflow: visible;
+  }
+  .eng-app .eng-brand {
+    border-left: 0;
+  }
+  .eng-mon {
+    grid-template-areas: "big bars" "small small";
+    padding: 8px;
+  }
+  .mon-big b {
+    font-size: 17px;
+  }
+  .mon-small {
+    grid-template-columns: repeat(3, auto auto);
+  }
+  .mon-cyl .bar {
+    height: 50px;
+  }
+}
+
+/* hovered part: name and note by the pointer */
+.eng-tip {
+  position: fixed;
+  z-index: 30;
+  max-width: 280px;
+  pointer-events: none;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: 12px/1.35 var(--f-body);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.2);
+}
+.eng-tip b {
+  display: block;
+  font-weight: 600;
+}
+.eng-tip span {
+  color: var(--muted);
+}
+.eng-parts {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 8px;
+}
