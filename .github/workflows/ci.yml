@@ -31,25 +31,52 @@ jobs:
       - run: npm run test:react
       - run: npm run test:trusted-preview
       - run: npm run build
-      - name: Install browsers for interaction tests
-        run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:ui:geometry
-      - run: npm run test:ui:doors
+
+  # The browser tests, split into jobs of a few minutes each that run alongside `check`; each builds the site itself.
+  ui:
+    name: ui (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: geometry, M20C, tour
+            tests: scripts/test-geometry-ui.mjs scripts/test-m20c-ui.mjs scripts/test-tour-ui.mjs
+          - name: doors
+            tests: scripts/test-door-mechanisms-ui.mjs
+          - name: fleet picker
+            tests: scripts/test-fleet-ui.mjs
+            webkit: true
+          - name: study walks, desktop
+            tests: scripts/test-fleet-depth-ui.mjs --project=desktop
+          - name: study walks, phone
+            tests: scripts/test-fleet-depth-ui.mjs --project=phone
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # Mesa's EGL (not among Chromium's own dependencies) lets Chromium render WebGL with llvmpipe: scripts/software-gl.mjs
+      - name: Install browsers and Mesa's EGL
+        run: |
+          npx playwright install --with-deps chromium ${{ matrix.webkit && 'webkit' || '' }}
+          sudo apt-get install -y --no-install-recommends libegl1 libegl-mesa0
+          test -f /usr/share/glvnd/egl_vendor.d/50_mesa.json
+      - run: npx playwright test ${{ matrix.tests }}
         env:
           DOOR_SHOTS: "1"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.name == 'doors'
         with:
           name: fleet-door-review
           path: .shots/mechanisms
           if-no-files-found: ignore
-      - run: npm run test:ui:m20c
-      - run: npm run test:ui:fleet
-      - run: npm run test:ui:depth
-      - run: npm run test:ui:tour
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: browser-failure-details
+          name: browser-failure-details-${{ strategy.job-index }}
           path: test-results/
           if-no-files-found: ignore

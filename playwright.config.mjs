@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { softwareGL } from "./scripts/software-gl.mjs";
 
 const baseURL = process.env.UI_BASE_URL || "http://127.0.0.1:4100";
-const launchOptions = { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] };
+const launchOptions = { args: softwareGL };
 const phoneTests = /test-(m20c|fleet-depth|sr20-walkaround|walkaround|door-mechanisms|tour)-ui\.mjs/;
 const fleetTests = /test-fleet-ui\.mjs/;
 
