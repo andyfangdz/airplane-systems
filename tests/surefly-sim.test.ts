@@ -17,6 +17,7 @@ import {
   MAX_ADVANCE,
   readDip,
   sensedMap,
+  sparkAngle,
   sparksBetween,
   START_RPM,
   syncLight,
@@ -114,20 +115,30 @@ describe("operation (SF1001 §1.1–1.2, tech page)", () => {
 
 describe("wasted spark (tech page) with the 1-3-2-4 firing order", () => {
   test("one revolution fires two events, each a cylinder on compression with its partner on exhaust", () => {
-    const events = sparksBetween(0.5, 360.5, 0);
+    const events = sparksBetween(0.5, 360, 0);
     expect(events).toEqual([
       [3, 4],
       [2, 1],
     ]);
     // a full cycle fires every cylinder on compression once, and every plug twice
-    const all = [...sparksBetween(0.5, 360.5, 0), ...sparksBetween(360.5, 0.5, 0)];
+    const all = [...sparksBetween(0.5, 360, 0), ...sparksBetween(360.5, 360, 0)];
     expect(all.map((e) => e[0]).sort()).toEqual([1, 2, 3, 4]);
   });
 
   test("timing moves the spark before top centre", () => {
     // 25° BTDC: #1 fires at 695° (25° before its compression top centre at 0/720)
-    expect(sparksBetween(694, 696, 25)).toEqual([[1, 2]]);
-    expect(sparksBetween(696, 719, 25)).toEqual([]);
+    expect(sparksBetween(694, 2, 25)).toEqual([[1, 2]]);
+    expect(sparksBetween(696, 23, 25)).toEqual([]);
+    // clocked 5° late, a SIM set for 25° fires #1 at 20° before top centre
+    expect(720 - sparkAngle(1, 25, 5)).toBe(20);
+  });
+
+  test("events come in firing order across the wrap, and a frame of a whole cycle or more misses none", () => {
+    // from 600°: #4 (TDC 540) has passed, so #1 at 720 fires first, then #3, #2, #4
+    expect(sparksBetween(600, 720, 0).map((e) => e[0])).toEqual([1, 3, 2, 4]);
+    // 2,400 rpm over a 50 ms frame turns exactly 720°
+    expect(sparksBetween(10, 2400 * 6 * 0.05, 25)).toHaveLength(4);
+    expect(sparksBetween(10, 1440, 25).map((e) => e[0])).toEqual([3, 2, 4, 1, 3, 2, 4, 1]);
   });
 });
 

@@ -156,10 +156,11 @@ export function advance(dt: number) {
   Object.assign(b, { fires: f.fires, btdc: f.btdc, why: f.why, sensed: f.map });
   const prev = b.crank;
   const shown = u.view.slow ? Math.min(b.rpm, SLOW_RPM) : b.rpm;
-  b.crank = (b.crank + shown * 6 * d) % 720;
+  const dist = shown * 6 * d;
+  b.crank = (prev + dist) % 720;
   b.shaft = (((b.crank - b.err) % 360) + 360) % 360;
   if (f.fires && b.rpm > 0)
-    for (const [cyl, partner] of sparksBetween(prev, b.crank, f.btdc, b.err)) {
+    for (const [cyl, partner] of sparksBetween(prev, dist, f.btdc, b.err)) {
       b.spark[cyl] = 0;
       b.live[cyl] = true;
       b.spark[partner] = 0;

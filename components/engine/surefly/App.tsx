@@ -50,7 +50,8 @@ function Dial({ crank, btdc, fires, plate }: { crank: number; btdc: number; fire
   };
   const ticks = Array.from({ length: 36 }, (_, i) => tick(i * 10, i % 9 ? 41 : 37, 45)).join("");
   const a = crank % 360;
-  const stroke = crank < 360 ? "compression" : "exhaust";
+  // #1's compression top centre is at 0 (720): power, exhaust, intake, then compression
+  const stroke = ["power", "exhaust", "intake", "compression"][Math.floor((((crank % 720) + 720) % 720) / 180)];
   return (
     <svg className="sf-dial" viewBox="0 0 100 100" role="img" aria-label={`Crank ${f0(a)}° after #1 top centre`}>
       <circle cx="50" cy="50" r="45" className="face" />
@@ -78,13 +79,15 @@ function Readout() {
   const { mode, timing } = readDip(dip);
   // the LED changes faster than the snapshot: it gets its own fast sample
   const fast = useLiveSnapshot(bench, 40);
+  // the spark the crank sees: the SIM's timing less its sync error when it is clocked off
+  const actual = b.btdc - b.err;
   return (
     <div className="eng-mon sf-mon" aria-label="SIM readout">
-      <Dial crank={b.crank} btdc={b.btdc} fires={b.fires} plate={timing} />
+      <Dial crank={b.crank} btdc={actual} fires={b.fires} plate={timing} />
       <div className="mon-big">
         <div>
           <span>Timing</span>
-          <b className={b.fires ? "" : "warnc"}>{b.fires ? b.btdc.toFixed(1) : "–"}</b>
+          <b className={b.fires ? "" : "warnc"}>{b.fires ? actual.toFixed(1) : "–"}</b>
           <i>° BTDC</i>
         </div>
         <div>

@@ -156,20 +156,17 @@ const wrap = (a: number, m: number) => ((a % m) + m) % m;
  */
 export const sparkAngle = (cyl: number, btdc: number, err = 0) => wrap(TDC[cyl] - btdc + err, 720);
 
-/** True when the crank passed `a` going from `prev` to `next` (forward, 0 … 720, wrapping). */
-export function passed(prev: number, next: number, a: number) {
-  const d = wrap(next - prev, 720);
-  return d > 0 && wrap(a - prev, 720) < d;
-}
-
 /**
- * The sparks between two crank angles: each event fires a cylinder on compression and its partner on exhaust.
- * Returns [cylinder on compression, wasted partner] pairs.
+ * The sparks while the crank turns `dist` degrees forward from `prev` (0 … 720), in the order they fire, a whole cycle
+ * or more included: each event fires a cylinder on compression and its partner on exhaust. Returns [cylinder on
+ * compression, wasted partner] pairs.
  */
-export function sparksBetween(prev: number, next: number, btdc: number, err = 0): [number, number][] {
-  const out: [number, number][] = [];
-  for (const cyl of [1, 3, 2, 4]) if (passed(prev, next, sparkAngle(cyl, btdc, err))) out.push([cyl, PARTNER[cyl]]);
-  return out;
+export function sparksBetween(prev: number, dist: number, btdc: number, err = 0): [number, number][] {
+  const events: [number, number, number][] = [];
+  for (const cyl of [1, 3, 2, 4])
+    for (let ahead = wrap(sparkAngle(cyl, btdc, err) - prev, 720); ahead < dist; ahead += 720)
+      events.push([ahead, cyl, PARTNER[cyl]]);
+  return events.sort((a, b) => a[0] - b[0]).map(([, cyl, partner]) => [cyl, partner]);
 }
 
 /**
