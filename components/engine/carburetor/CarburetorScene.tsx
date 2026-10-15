@@ -45,13 +45,17 @@ const L = {
 
 function useMats() {
   const mats = useMemo(() => {
-    const std = (color: string, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
-      new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.35, ...extra });
+    const std = (color: string, extra: Partial<THREE.MeshStandardMaterialParameters> = {}, hover = false) => {
+      const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.35, ...extra });
+      if (hover) m.userData.hoverWhenClear = true;
+      return m;
+    };
     return {
       casting: std("#a7b0b6", { transparent: true, side: THREE.DoubleSide }),
       throttleBody: std("#b7bfc4", { transparent: true, side: THREE.DoubleSide }),
       box: std("#7f8b93", { transparent: true, side: THREE.DoubleSide }),
-      riser: std("#149c94", { transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }),
+      // always see-through, but nothing is drawn inside it to point at, so it keeps its tooltip
+      riser: std("#149c94", { transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }, true),
       venturi: std("#c3c9cd", { metalness: 0.6, roughness: 0.3, side: THREE.DoubleSide, transparent: true }),
       brass: std("#c99a45", { metalness: 0.8, roughness: 0.3 }),
       steel: std("#a9b2ba", { metalness: 0.85, roughness: 0.3 }),
@@ -691,7 +695,8 @@ function Flow() {
       fuel: Array.from({ length: N_FUEL }, () => [rnd(), rnd(), rnd()] as const),
     };
   }, [N_FUEL]);
-  const t = useRef(0);
+  const t = useRef(0),
+    tPump = useRef(0);
   const g = useMemo(
     () => ({
       air: new THREE.SphereGeometry(0.0011, 6, 4),
@@ -713,8 +718,10 @@ function Flow() {
     if (!a || !f) return;
     const turning = live.rpm > 30;
     // drawing speed: a gentle function of the air flow (lb/h), not to scale
-    if (!carbSim().useUi.getState().view.paused && turning)
-      t.current += Math.min(dt, 0.1) * (0.04 + 0.5 * Math.min(1, live.air / 1100));
+    const paused = carbSim().useUi.getState().view.paused;
+    if (!paused && turning) t.current += Math.min(dt, 0.1) * (0.04 + 0.5 * Math.min(1, live.air / 1100));
+    // the pump's stream has its own clock: pumping the throttle primes a stopped engine too
+    if (!paused && live.squirt > 0.02) tPump.current += Math.min(dt, 0.1) * 0.3;
     const y0 = L.boxBottom + 0.01,
       span = L.riserTop - y0;
     for (let i = 0; i < N_AIR; i++) {
@@ -754,12 +761,12 @@ function Flow() {
           z = (th - 0.5) * 0.012;
         } else {
           // the pump's stream from its jet up into the bore
-          const kk = (u + t.current * 60) % 1;
+          const kk = (u + tPump.current * 60) % 1;
           y = -0.008 + kk * 0.04;
           x = L.R - 0.006 - kk * 0.016;
           z = 0.006 - kk * 0.006 + (r - 0.5) * 0.003;
         }
-        const vis = j < shown && turning ? 1 : 0;
+        const vis = j < shown && (turning || pool.id === "pump") ? 1 : 0;
         m.makeScale(vis, vis, vis);
         m.setPosition(x, y, z);
         f.setMatrixAt(i, m);

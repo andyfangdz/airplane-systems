@@ -79,7 +79,7 @@ export function useCarbLoop(sim: EngineSim) {
       last = now;
       advance(sim, dt);
       if (carb && !sim.useUi.getState().view.paused)
-        pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt);
+        pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
       read(sim, pump);
       raf = requestAnimationFrame(tick);
     };

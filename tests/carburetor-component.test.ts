@@ -111,4 +111,10 @@ describe("accelerating pump (FAA-H-8083-32B p. 2-13; OI ¶3-3 b)", () => {
   test("closing the throttle lifts the plunger and squirts nothing", () => {
     expect(stroke(1, 0, 0).fuel).toBe(0);
   });
+
+  test("with the float chamber empty the plunger still moves but has no fuel to discharge", () => {
+    const p = pumpStep(carb, { plunger: 0, squirt: 0 }, 1, 1 / 60, 0);
+    expect(p.plunger).toBeGreaterThan(0);
+    expect(p.squirt).toBe(0);
+  });
 });

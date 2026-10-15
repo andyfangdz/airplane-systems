@@ -115,11 +115,12 @@ export interface Pump {
  * once when the throttle opens; here it is spread over the spring's travel for the drawing. The spring's time constant
  * is a display constant, not published.
  */
-export function pumpStep(carb: Carburetor, p: Pump, throttle: number, dt: number): Pump {
+export function pumpStep(carb: Carburetor, p: Pump, throttle: number, dt: number, bowlLb = Infinity): Pump {
   if (!(dt > 0)) return p;
   const target = Math.max(0, Math.min(1, throttle));
   const tau = target > p.plunger ? 0.6 : 0.15;
   const plunger = p.plunger + (target - p.plunger) * (1 - Math.exp(-dt / tau));
   const down = Math.max(0, plunger - p.plunger);
-  return { plunger, squirt: ((carb.accelLb * down) / dt) * 3600 };
+  // the plunger still moves with an empty bowl, but can only push out the fuel there is (as the engine model does)
+  return { plunger, squirt: (Math.min(carb.accelLb * down, Math.max(0, bowlLb)) / dt) * 3600 };
 }

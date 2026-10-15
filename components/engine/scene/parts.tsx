@@ -32,9 +32,9 @@ export interface HoverInfo {
 export const useHover = create<{ hover: HoverInfo | null }>(() => ({ hover: null }));
 
 const over = (name: string, note: string) => (e: ThreeEvent<PointerEvent>) => {
-  // a part turned see-through by X-ray lets the pointer reach what is inside it
+  // a part turned see-through by X-ray lets the pointer reach what is inside it, unless its material says otherwise
   const m = (e.object as THREE.Mesh).material as THREE.Material;
-  if (m.transparent && m.opacity < 0.5) return;
+  if (m.transparent && m.opacity < 0.5 && !m.userData.hoverWhenClear) return;
   e.stopPropagation();
   useHover.setState({ hover: { name, note, x: e.nativeEvent.clientX, y: e.nativeEvent.clientY } });
 };
