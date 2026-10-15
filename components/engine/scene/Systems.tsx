@@ -144,8 +144,13 @@ const manifoldAt = (sim: EngineSim, d: Dims): V3 => {
 };
 const PUMP: V3 = [0, -0.06, -0.09]; // x from the accessory housing
 
-export function FuelSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+export function FuelSystem(p: { sim: EngineSim; d: Dims; mats: Mats }) {
+  return p.sim.spec.fuelSystem.kind === "carburetor" ? <CarburetorSystem {...p} /> : <InjectedFuel {...p} />;
+}
+
+function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
+  const unit = spec.fuelSystem.unit;
   const geo = useMemo(() => {
     const hp = headPoints(d);
     const [ix, iy] = injectorAt(d);
@@ -215,7 +220,7 @@ export function FuelSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
     <>
       <P
         name="Fuel injector"
-        note={`Meters fuel in proportion to the air through the throttle body: ${spec.accessories.injector} (IOM p. 4, Table A-1).`}
+        note={`Meters fuel in proportion to the air through the throttle body: ${unit} (IOM p. 4, Table A-1).`}
         geometry={geo.injector}
         material={mats.fuelBody}
       />
@@ -249,6 +254,120 @@ export function FuelSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
       <P
         name="Fuel lines"
         note="Pump to injector, injector to manifold, manifold to the four nozzles (IOM p. 4). They glow with fuel flow."
+        geometry={geo.lines}
+        material={mats.fuel}
+      />
+    </>
+  );
+}
+
+/**
+ * Float carburetor on its pad under the sump (OM p. 1-2): the float bowl, an updraft bore with the throttle valve, the
+ * mixture arm, and below it the air box whose valve picks filtered ram air or heated air (carburetor heat). The
+ * engine-driven pump feeds the bowl. Shapes and sizes are schematic.
+ */
+function CarburetorSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const spec = sim.spec;
+  const carb = spec.fuelSystem.kind === "carburetor" ? spec.fuelSystem : null;
+  const [ix, iy] = injectorAt(d);
+  const bowlX = ix + 0.07;
+  const geo = useMemo(() => {
+    const px = d.accRear - 0.03;
+    return {
+      bore: merge([
+        new THREE.CylinderGeometry(0.032, 0.032, 0.06, 24, 1, true).translate(ix, iy - 0.005, 0),
+        new THREE.CylinderGeometry(0.044, 0.044, 0.006, 24).translate(ix, iy + 0.025, 0),
+      ]),
+      bowl: new THREE.BoxGeometry(0.08, 0.075, 0.085).translate(bowlX, iy - 0.012, 0),
+      throttlePlate: rod(0.03, 0.003, 24).rotateZ(Math.PI / 2),
+      arm: new THREE.BoxGeometry(0.008, 0.006, 0.04).translate(0, 0, 0.02),
+      airbox: merge([
+        new THREE.BoxGeometry(0.1, 0.05, 0.1).translate(ix, iy - 0.06, 0),
+        rod(0.028, 0.06, 20).translate(ix + 0.08, iy - 0.06, 0),
+        new THREE.CylinderGeometry(0.02, 0.02, 0.05, 16).rotateX(Math.PI / 2).translate(ix - 0.02, iy - 0.06, 0.07),
+      ]),
+      flapper: new THREE.BoxGeometry(0.003, 0.044, 0.09),
+      pump: merge([
+        rod(0.036, 0.055, 24).translate(px, PUMP[1], PUMP[2]),
+        rod(0.02, 0.02, 12).translate(px - 0.035, PUMP[1], PUMP[2]),
+      ]),
+      lines: tube(
+        [
+          [px, PUMP[1] - 0.035, PUMP[2]],
+          [d.caseRear - 0.01, -0.17, -0.125],
+          [bowlX - 0.06, iy, -0.08],
+          [bowlX, iy, -0.045],
+        ],
+        0.005,
+      ),
+    };
+  }, [d, ix, iy, bowlX]);
+  useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
+  const plate = useRef<THREE.Group>(null),
+    mix = useRef<THREE.Group>(null),
+    flap = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const c = sim.useUi.getState().controls;
+    if (plate.current) plate.current.rotation.z = (8 + 77 * c.throttle) * D2R;
+    if (mix.current) mix.current.rotation.y = (-40 + 80 * c.mixture) * D2R;
+    // the valve swings from closing the hot-air duct (cold) to closing the ram-air inlet (hot)
+    if (flap.current) flap.current.rotation.z = (-35 + 70 * c.carbHeat) * D2R;
+    mats.fuel.emissiveIntensity = Math.min(1, sim.s.fuel / 60);
+  });
+  const psi = carb ? `${carb.inletPsi.min}–${carb.inletPsi.max} psi` : "";
+  return (
+    <>
+      <P
+        name="Carburetor float bowl"
+        note={`${spec.fuelSystem.unit}: single-barrel float type with manual mixture control and idle cut-off (OM p. 1-2). A float valve keeps the bowl full; the venturi's suction draws fuel through the main jet in proportion to the air.`}
+        geometry={geo.bowl}
+        material={mats.fuelBody}
+      />
+      <P
+        name="Carburetor throttle body"
+        note="Updraft bore: air enters from below, through the venturi and past the throttle valve, into the intake riser in the sump (OM p. 1-2)."
+        geometry={geo.bore}
+        material={mats.fuelBody}
+      />
+      <group ref={plate} position={[ix, iy - 0.005, 0]}>
+        <P
+          name="Throttle valve"
+          note="Butterfly valve: its angle follows the panel's throttle. Ice forms around it first (OM p. 3-8)."
+          geometry={geo.throttlePlate}
+          material={mats.steel}
+        />
+      </group>
+      <group ref={mix} position={[bowlX + 0.04, iy - 0.03, 0.03]}>
+        <P
+          name="Mixture control arm"
+          note="Manual mixture: full rich to idle cut-off, which stops all fuel (OM p. 1-2)."
+          geometry={geo.arm}
+          material={mats.darkSteel}
+        />
+      </group>
+      <P
+        name="Air box"
+        note="Part of the airframe: filtered ram air comes in at the front, air heated by a jacket around the exhaust at the side (OM p. 3-9). On some installations the heated air bypasses the filter (p. 3-9), as it does in this model."
+        geometry={geo.airbox}
+        material={mats.intake}
+      />
+      <group ref={flap} position={[ix, iy - 0.06, 0]}>
+        <P
+          name="Carburetor heat valve"
+          note="Follows the panel's carburetor heat: cold takes filtered ram air, hot takes air warmed around the exhaust (OM pp. 3-8–3-9)."
+          geometry={geo.flapper}
+          material={mats.steel}
+        />
+      </group>
+      <P
+        name="Engine-driven fuel pump"
+        note={`On the accessory housing; feeds the carburetor's float bowl, which wants ${psi} at its inlet (OM p. 3-10).`}
+        geometry={geo.pump}
+        material={mats.fuelBody}
+      />
+      <P
+        name="Fuel line"
+        note="Pump to the carburetor's float bowl. It glows with fuel flow."
         geometry={geo.lines}
         material={mats.fuel}
       />

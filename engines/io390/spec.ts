@@ -16,6 +16,25 @@ export const IO390: EngineSpec = {
     "A 389 cu in, four-cylinder, horizontally opposed, air-cooled engine with continuous-flow fuel injection and " +
     "dual magnetos: 215 hp at 2,700 rpm, driving the propeller directly (IOM Table A-1, p. 51). The C3B6 is the " +
     "front-governor model the Cirrus SR20 G6 uses.",
+  doc: "IOM",
+  refs: {
+    start: "IOM p. 30",
+    idle: "IOM p. 26",
+    magCheck: "IOM pp. 31–32",
+    cruise: "IOM Table A-1, p. 39",
+    tables:
+      "Lycoming IOM, Table A-1 (p. 51), Table A-2 (p. 53), Table 2 (p. 14) and the operating procedures (pp. 26–40).",
+    leaning: "IOM p. 39",
+  },
+  modelNotes: [
+    "Power comes from Lycoming's own performance chart (Figure C-1), digitized: sea-level power against manifold pressure for each rpm, and the altitude correction to 20,000 ft. The running engine is calibrated so its full-throttle point and part-throttle lines land on that chart.",
+    "Air flows through the throttle as a compressible orifice into the manifold; the cylinders draw it by speed and density. Fuel follows the fuel injector's metering (richer as the air thins), the fuel manifold and the nozzle curve (Figure C-2).",
+    "Each cylinder's mixture sets its power, EGT and head heat: best power is about 150 °F rich of peak EGT (the IOM's leanest setting for maximum-power cruise, p. 39), power at peak EGT about 3.5 % lower, and the engine runs rough and quits far rich or lean. Fuel flow reproduces Figure C-3 and the Table A-1 cruise figures.",
+    "Friction and pumping losses, starter torque, a constant-speed propeller with an oil-driven governor, and lumped thermal models for heads and oil (the thermostat and cooler from Table 2) complete the loop.",
+    "The cylinder-pressure trace is drawn from the model's own work per cycle, with an assumed burn duration; it is illustrative, not measured data.",
+    "The 3D engine: bore, stroke and the overall envelope (Table A-1) set its scale, and where each part sits follows the IOM's System Description figures (Figures 1B–9). The shapes and sizes of individual parts, the cylinders' spacing along the crankshaft, and the valve lift are schematic; the valves are drawn parallel to the cylinder where the real guides are angled.",
+    "Not published, so chosen to fit the documented points: valve timing, rod length, the propeller's pitch range and inertia, the cooling and thermal constants, and the per-cylinder spread. The propeller is the SR20's Hartzell, used only as the load.",
+  ],
   sources: [
     {
       title: "Lycoming IO-390-C Series Installation and Operation Manual, January 2017",
@@ -45,6 +64,7 @@ export const IO390: EngineSpec = {
     rodIn: 6.75, // not published: drawing and pressure-trace kinematics only
     envelopeIn: { length: 32.56, width: 34.37, height: 22.19 }, // Table A-1
     valves: { ivo: 25, ivc: 60, evo: 60, evc: 20 }, // not published: animation and pressure trace only
+    pendulumCounterweights: true, // IOM p. 2, Figure 4
   },
 
   ignition: {
@@ -82,6 +102,7 @@ export const IO390: EngineSpec = {
 
   // Figure C-3 (curve 13602, p. 59): parallel straight lines, 0.40 lb/h per hp; offsets read at 110 and 130 hp.
   fuelFlow: {
+    kind: "chart",
     curve: "Lycoming curve 13602 (IOM Figure C-3)",
     slope: 0.4,
     bestPower: [
@@ -108,24 +129,28 @@ export const IO390: EngineSpec = {
 
   // Figure C-2 (p. 58), nominal curve. The figure is titled for the RSA-5AD1 injector although Table A-1 lists the
   // RSA-10AD1/-10AD2 for the IO-390-C; the manual prints it as the IO-390's nozzle curve, and so do we.
-  nozzle: {
-    curve: "Fuel flow vs nozzle pressure, C-12855B (IOM Figure C-2)",
-    points: [
-      [0, 0],
-      [0.5, 22],
-      [1, 33],
-      [2, 49.5],
-      [3, 60],
-      [4, 70],
-      [5, 79],
-      [6, 87],
-      [7, 94],
-      [8, 100.5],
-      [9, 106],
-      [10, 111.5],
-      [11, 117],
-      [11.5, 120],
-    ],
+  fuelSystem: {
+    kind: "injected",
+    unit: "AVStar RSA-10AD1 or -10AD2", // Table A-1
+    nozzle: {
+      curve: "Fuel flow vs nozzle pressure, C-12855B (IOM Figure C-2)",
+      points: [
+        [0, 0],
+        [0.5, 22],
+        [1, 33],
+        [2, 49.5],
+        [3, 60],
+        [4, 70],
+        [5, 79],
+        [6, 87],
+        [7, 94],
+        [8, 100.5],
+        [9, 106],
+        [10, 111.5],
+        [11, 117],
+        [11.5, 120],
+      ],
+    },
   },
 
   limits: {
@@ -156,6 +181,7 @@ export const IO390: EngineSpec = {
     thermostatF: 185, // IOM Table 2 p. 14: "The valve closes at 185ºF (85ºC) routing all engine oil flow through the cooler"
     coolerFlowGpm: 7.5, // IOM Table 2 p. 14
     coolerMaxBtuMin: 925, // IOM Table 2 p. 14: "heat rejection will not exceed 925 Btu per minute"
+    pistonCoolingJets: true, // IOM p. 2
   },
 
   accessories: {
@@ -166,7 +192,6 @@ export const IO390: EngineSpec = {
     governorRatio: 0.895, // Table A-4 (C1B6/C3B6)
     rotation: "Clockwise, viewed from the anti-propeller end", // Table A-1 and its notice
     magnetos: "Slick 4345 retard (left), 4370 plain (right)", // Table A-1
-    injector: "AVStar RSA-10AD1 or -10AD2", // Table A-1
     weightLb: 301, // Table A-1, C1B6 and C3B6, ±2 %
   },
 
@@ -189,7 +214,7 @@ export const IO390: EngineSpec = {
     singlePlug: 0.93,
     egtBase: 1000,
     egtGain: 550,
-    nozzleTrim: [1.0, 0.985, 1.012, 0.995],
+    fuelTrim: [1.0, 0.985, 1.012, 0.995],
     coolingTrim: [1.04, 1.0, 0.97, 0.99],
     chtRise: 400,
     chtTau: 150,

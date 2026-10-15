@@ -136,14 +136,16 @@ function Cylinder({
       <P name="Intake port" note="Tuned induction runner flange." geometry={geo.intakePort} material={mats.darkSteel} />
       <P name="Exhaust port" note="Exhaust pipe flange." geometry={geo.exhaustPort} material={mats.darkSteel} />
       {/* the nozzle and plugs sit in the head but hide with their own systems' groups */}
-      <Group sim={sim} id="fuel">
-        <P
-          name={`Fuel injection nozzle, cylinder ${n}`}
-          note="Four injection nozzles, one per cylinder, fed from the fuel manifold (IOM p. 4)."
-          geometry={geo.nozzle}
-          material={mats.gear}
-        />
-      </Group>
+      {sim.spec.fuelSystem.kind === "injected" && (
+        <Group sim={sim} id="fuel">
+          <P
+            name={`Fuel injection nozzle, cylinder ${n}`}
+            note="Four injection nozzles, one per cylinder, fed from the fuel manifold (IOM p. 4)."
+            geometry={geo.nozzle}
+            material={mats.gear}
+          />
+        </Group>
+      )}
       <Group sim={sim} id="ignition">
         {[
           { at: hp.topPlug, rot: hp.tilt, s: hp.topSpark, which: "top" },

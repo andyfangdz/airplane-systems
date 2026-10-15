@@ -27,7 +27,8 @@ export function servoFuelFlow(spec: EngineSpec, airLbH: number, mixture: number,
 
 /** Nominal fuel flow (lb/h) at a nozzle pressure (psig), interpolated on the injector chart. */
 export function nozzleFlow(spec: EngineSpec, psig: number) {
-  const P = spec.nozzle.points;
+  if (spec.fuelSystem.kind !== "injected") return 0;
+  const P = spec.fuelSystem.nozzle.points;
   if (psig <= 0) return 0;
   for (let i = 1; i < P.length; i++)
     if (psig <= P[i][0])
@@ -51,7 +52,7 @@ export function nozzlePressure(spec: EngineSpec, lbH: number, areaMean: number) 
 
 /** Each cylinder's share of the metered flow: all nozzles see one pressure, so flow ∝ open area. */
 export function distribution(spec: EngineSpec, blockage: number[]) {
-  const a = spec.geometry.cylinders.map((_, i) => spec.calibration.nozzleTrim[i] * (1 - (blockage[i] ?? 0)));
+  const a = spec.geometry.cylinders.map((_, i) => spec.calibration.fuelTrim[i] * (1 - (blockage[i] ?? 0)));
   const sum = a.reduce((s, x) => s + x, 0);
   // with every nozzle blocked nothing flows: no share, no open area
   return { share: a.map((x) => (sum > 0 ? x / sum : 0)), areaMean: sum / a.length };

@@ -34,8 +34,12 @@ export function Monitor({ sim }: { sim: EngineSim }) {
       f0(s.oilP),
       s.rpm > 100 && s.oilP < L.oilPressMinIdle.value ? "bad" : s.oilP > L.oilPressNormal.max ? "warnc" : "",
     ],
-    ["Fuel psi", s.nozzlePsi.toFixed(1)],
-    ["hp", f0(s.hp)],
+    ["Fuel psi", (spec.fuelSystem.kind === "carburetor" ? s.fuelPsi : s.nozzlePsi).toFixed(1)],
+    ...(spec.fuelSystem.kind === "carburetor"
+      ? ([["Carb °F", f0((s.carbC * 9) / 5 + 32), s.carbC < 0 ? "warnc" : ""]] as [string, string, string][])
+      : []),
+    // the carburetor's temperature takes the place of brake hp (the panel shows it) to keep the row on one line
+    ...(spec.fuelSystem.kind === "carburetor" ? [] : ([["hp", f0(s.hp)]] as [string, string][])),
     ["Peak", Number.isFinite(peak) ? (side === "peak" ? "at peak" : `${f0(peak)} ${side}`) : "–"],
   ];
   return (

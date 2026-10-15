@@ -215,6 +215,10 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+.eng-prime {
+  justify-self: start;
+  align-self: center;
+}
 .eng-checks {
   display: grid;
   grid-template-columns: 1fr 1fr;

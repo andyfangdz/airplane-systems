@@ -1,10 +1,11 @@
 "use client";
 /**
  * The engine drawn part by part (scene/): crankcase and accessory housing, crankshaft with counterweights, rods and
- * pistons, camshaft and valve train, cylinders, ignition, fuel injection, induction and exhaust, lubrication, the
- * drives and the propeller. Every part names itself on hover; each group can be hidden from the panel. Everything
- * moves from the simulation's mutable state in `useFrame`. Published dimensions set the scale; placement follows the
- * IOM's figures and the shapes are schematic.
+ * pistons, camshaft and valve train, cylinders, ignition, fuel injection or the carburetor, induction and exhaust,
+ * lubrication, the drives and the propeller. Every part names itself on hover (in the engine's own words where its
+ * spec gives them); each group can be hidden from the panel. Everything moves from the simulation's mutable state in
+ * `useFrame`. Published dimensions set the scale; placement follows the IO-390 IOM's figures and the shapes are
+ * schematic.
  */
 import { Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -14,7 +15,7 @@ import type { EngineSim } from "./store";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
-import { Group, useHover } from "./scene/parts";
+import { Group, PartNotesProvider, useHover } from "./scene/parts";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
@@ -40,39 +41,41 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   });
   const p = { sim, d, mats };
   return (
-    <group ref={body}>
-      <Group sim={sim} id="rotating">
-        <Crankshaft {...p} />
-        <RodsAndPistons {...p} />
-      </Group>
-      <Group sim={sim} id="valvetrain">
-        <Camshaft {...p} />
-        <ValveTrain {...p} />
-      </Group>
-      <Group sim={sim} id="cylinders">
-        <Cylinders {...p} />
-      </Group>
-      <Group sim={sim} id="case">
-        <Crankcase d={d} mats={mats} />
-      </Group>
-      <Group sim={sim} id="oil">
-        <Lubrication {...p} />
-      </Group>
-      <Group sim={sim} id="ignition">
-        <Ignition {...p} />
-      </Group>
-      <Group sim={sim} id="fuel">
-        <FuelSystem {...p} />
-      </Group>
-      <Group sim={sim} id="induction">
-        <Induction {...p} />
-      </Group>
-      <Group sim={sim} id="drives">
-        <Drives {...p} />
-      </Group>
-      <Propeller {...p} />
-      <Labels sim={sim} d={d} />
-    </group>
+    <PartNotesProvider value={sim.spec.parts}>
+      <group ref={body}>
+        <Group sim={sim} id="rotating">
+          <Crankshaft {...p} />
+          <RodsAndPistons {...p} />
+        </Group>
+        <Group sim={sim} id="valvetrain">
+          <Camshaft {...p} />
+          <ValveTrain {...p} />
+        </Group>
+        <Group sim={sim} id="cylinders">
+          <Cylinders {...p} />
+        </Group>
+        <Group sim={sim} id="case">
+          <Crankcase d={d} mats={mats} />
+        </Group>
+        <Group sim={sim} id="oil">
+          <Lubrication {...p} />
+        </Group>
+        <Group sim={sim} id="ignition">
+          <Ignition {...p} />
+        </Group>
+        <Group sim={sim} id="fuel">
+          <FuelSystem {...p} />
+        </Group>
+        <Group sim={sim} id="induction">
+          <Induction {...p} />
+        </Group>
+        <Group sim={sim} id="drives">
+          <Drives {...p} />
+        </Group>
+        <Propeller {...p} />
+        <Labels sim={sim} d={d} />
+      </group>
+    </PartNotesProvider>
   );
 }
 
@@ -89,8 +92,12 @@ function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
     ]),
     ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
     ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
-    ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0]],
-    ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
+    ...((sim.spec.fuelSystem.kind === "carburetor"
+      ? [["Carburetor", [d.front + 0.02, d.sumpBottom - 0.13, 0]]]
+      : [
+          ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0]],
+          ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
+        ]) as [string, [number, number, number]][]),
     ["Starter", [d.flangeX - 0.02, -0.17, -0.22]],
     ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
     ["Governor", [d.front + 0.04, 0.16, -0.07]],

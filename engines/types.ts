@@ -42,6 +42,24 @@ export interface EngineSpec {
   model: string;
   /** One-paragraph description for the panel. */
   lead: string;
+  /** Short name of the engine maker's manual, as the page cites it ("IOM", "OM"). */
+  doc: string;
+  /** Where the page's notes point in that manual. */
+  refs: {
+    start: string;
+    idle: string;
+    magCheck: string;
+    cruise: string;
+    /** Specifications and limits, for the panel's footnote. */
+    tables: string;
+    leaning: string;
+    /** Carburetor heat and icing (carbureted engines). */
+    carbHeat?: string;
+  };
+  /** Engine-specific names and notes for 3D parts, keyed by the part's default name (scene/parts.tsx). */
+  parts?: Record<string, { name?: string; note: string }>;
+  /** "How the model works" notes for the panel: what is charted, what is fitted, what is schematic. */
+  modelNotes: string[];
   /** Where the data comes from, shown in the panel. */
   sources: { title: string; href?: string; note: string }[];
 
@@ -58,6 +76,8 @@ export interface EngineSpec {
     envelopeIn: { length: number; width: number; height: number };
     /** Valve events, degrees from the nearest dead centre. Not published; animation and pressure trace only. */
     valves: { ivo: number; ivc: number; evo: number; evc: number };
+    /** Pendulum (dynamic) counterweights on the crankshaft. */
+    pendulumCounterweights: boolean;
   };
 
   ignition: {
@@ -90,20 +110,16 @@ export interface EngineSpec {
   /** Brake hp map (sea-level lines and full-throttle altitude points). */
   performance: { curve: string; lines: SeaLevelLine[] };
 
-  /** Part-throttle fuel consumption chart: lb/h = base(rpm) + slope × bhp. */
-  fuelFlow: {
-    curve: string;
-    slope: number;
-    bestPower: { rpm: number; base: number }[];
-    bestEconomy: { rpm: number; base: number }[];
-  };
+  /** Best-power fuel consumption: what the engine burns, used to size its air flow (volumetric efficiency). */
+  fuelFlow: FuelFlowChart | FuelFlowBsfc;
 
-  /** Injector: fuel flow (lb/h) against nozzle pressure (psig), nominal curve. */
-  nozzle: { curve: string; points: [number, number][] };
+  /** How fuel is metered: a servo fuel injector with nozzles, or a float carburetor. */
+  fuelSystem: InjectedFuel | Carburetor;
 
   limits: {
     rpmMax: Limit;
-    idleRpm: { min: number; max: number; src: string };
+    /** `assumed`: the engine maker leaves idle speed to the airframe; the range is the model's, not a document's. */
+    idleRpm: { min: number; max: number; src: string; assumed?: boolean };
     oilPressMinIdle: Limit;
     oilPressNormal: { min: number; max: number; unit: string; src: string };
     oilPressMaxStart: Limit;
@@ -117,17 +133,22 @@ export interface EngineSpec {
     magCheckRpm: { min: number; max: number; src: string };
     oilSumpQt: Limit;
     oilMinQt: Limit;
-    starterMaxS: Limit;
+    /** Not every manual gives a starter duty limit. */
+    starterMaxS?: Limit;
     leanMaxPowerROP: Limit;
   };
 
   oil: {
     /** Thermostatic valve: closes at this oil temperature, routing all oil through the cooler, °F. */
     thermostatF: number;
-    /** Oil flow through the cooler at rated power, US gal/min. */
-    coolerFlowGpm: number;
-    /** Cooler heat rejection must not exceed this, Btu/min. */
-    coolerMaxBtuMin: number;
+    /** The thermostat setting is a model assumption (the manual doesn't give one). */
+    thermostatAssumed?: boolean;
+    /** Oil flow through the cooler at rated power, US gal/min (where published). */
+    coolerFlowGpm?: number;
+    /** Cooler heat rejection must not exceed this, Btu/min (where published). */
+    coolerMaxBtuMin?: number;
+    /** Oil jets in the crankcase cool the pistons from inside (drawn only where the manual describes them). */
+    pistonCoolingJets: boolean;
   };
 
   accessories: {
@@ -138,7 +159,6 @@ export interface EngineSpec {
     governorRatio: number;
     rotation: string;
     magnetos: string;
-    injector: string;
     weightLb: number;
   };
 
@@ -153,6 +173,10 @@ export interface EngineSpec {
     coarseDeg: number;
     governorMinRpm: number;
     inertia: number;
+    /** Scales the model's power coefficient (blade count and planform); 1 if absent. */
+    cpScale?: number;
+    /** Lower the blades' angle of attack by the inflow the propeller induces (momentum theory, propeller.ts). */
+    inducedInflow?: boolean;
   };
 
   /** Constants the documents don't give, chosen to reproduce the documented points. Each says what it does. */
@@ -170,8 +194,8 @@ export interface EngineSpec {
     /** Peak EGT, °F = egtBase + egtGain × √(load fraction). */
     egtBase: number;
     egtGain: number;
-    /** Per-cylinder nozzle flow (tolerance) and cooling, illustrative. */
-    nozzleTrim: number[];
+    /** Per-cylinder fuel share (nozzle tolerance, or a carburetor's intake-pipe distribution) and cooling, illustrative. */
+    fuelTrim: number[];
     coolingTrim: number[];
     /** Cylinder head: steady rise over outside air (°F) at rated power, best power, reference cooling; time constant (s). */
     chtRise: number;
@@ -183,4 +207,59 @@ export interface EngineSpec {
     oilPressPerRpm: number;
     oilRelief: number;
   };
+}
+
+/** A part-throttle fuel consumption chart: lb/h = base(rpm) + slope × bhp (Lycoming's injected-engine charts). */
+export interface FuelFlowChart {
+  kind: "chart";
+  curve: string;
+  slope: number;
+  bestPower: { rpm: number; base: number }[];
+  bestEconomy: { rpm: number; base: number }[];
+}
+
+/**
+ * Where the manual gives only a table of cruise fuel flows and a minimum-fuel-flow curve: best-power fuel is a
+ * constant specific consumption taken from a published cruise point.
+ */
+export interface FuelFlowBsfc {
+  kind: "bsfc";
+  /** lb per brake hp per hour at best-power mixture, and the point it comes from. */
+  bsfc: number;
+  src: string;
+  /** Minimum allowable fuel flow against % rated power: [%, US gal/h]. */
+  minimum: { curve: string; points: [number, number][] };
+}
+
+export interface InjectedFuel {
+  kind: "injected";
+  /** Model name(s), as the manual lists them. */
+  unit: string;
+  /** Injector: fuel flow (lb/h) against nozzle pressure (psig), nominal curve. */
+  nozzle: { curve: string; points: [number, number][] };
+}
+
+/** A float carburetor with manual mixture and idle cut-off, an accelerator pump, and a carburetor heat valve. */
+export interface Carburetor {
+  kind: "carburetor";
+  unit: string;
+  /** Fuel pressure at the carburetor inlet, psi. */
+  inletPsi: { min: number; desired: number; max: number; src: string };
+  /** The mixture chamber can run this much colder than the incoming air (°F), from fuel evaporation and the venturi. */
+  maxDropF: number;
+  maxDropSrc: string;
+  /** Below: not published; chosen so the documented behaviour comes out. Each says what it does. */
+  /** Fuel in a full float bowl, lb. */
+  bowlLb: number;
+  /** Idle circuit flow at full manifold vacuum, lb/h (sets the idle mixture). */
+  idleLbH: number;
+  /** Accelerator pump: fuel for one full closed-to-open throttle stroke, lb. */
+  accelLb: number;
+  /** One stroke of the primer, lb of fuel into each cylinder's intake port. */
+  primeLb: number;
+  /** Full carburetor heat raises the induction air this much (°C) with the exhaust at cruise heat. */
+  heatRiseC: number;
+  /** Ice that blocks the venturi completely, kg, and the fraction of the condensed water that sticks. */
+  iceKg: number;
+  iceCapture: number;
 }

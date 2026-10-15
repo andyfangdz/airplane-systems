@@ -274,16 +274,17 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         geometry={geo.supply}
         material={mats.oil}
       />
-      {sim.spec.geometry.cylinders.map((c) => (
-        <group key={c.n} position={toWorld(c, [0, 0, 0])} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
-          <P
-            name="Piston cooling oil nozzle"
-            note="Four oil nozzles supply oil for internal piston cooling (IOM p. 2)."
-            geometry={geo.nozzle}
-            material={mats.oil}
-          />
-        </group>
-      ))}
+      {sim.spec.oil.pistonCoolingJets &&
+        sim.spec.geometry.cylinders.map((c) => (
+          <group key={c.n} position={toWorld(c, [0, 0, 0])} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
+            <P
+              name="Piston cooling oil nozzle"
+              note="Four oil nozzles supply oil for internal piston cooling (IOM p. 2)."
+              geometry={geo.nozzle}
+              material={mats.oil}
+            />
+          </group>
+        ))}
     </>
   );
 }
