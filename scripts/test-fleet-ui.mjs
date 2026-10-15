@@ -89,6 +89,10 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     "/engines/io390",
     "/engines/o360",
   ]);
+  const components = dialog.getByRole("group", { name: "Components" }).getByRole("link");
+  assert.deepEqual(await components.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
+    "/parts/fuel-injector",
+  ]);
   for (const name of ["SR20 G6", "SR22T G6"])
     assert.match(await choices.filter({ hasText: name }).innerText(), /Walk-around/);
   assert.equal(await trigger.getAttribute("aria-expanded"), "true");
@@ -96,7 +100,10 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  assert.ok(box.width <= 352 && box.height <= 580, "The entire fleet and the engines fit in a compact dropdown");
+  assert.ok(
+    box.width <= 352 && box.height <= 580,
+    "The entire fleet, the engines and the components fit in a compact dropdown",
+  );
   assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), "No horizontal scrolling");
   assert.ok((await trigger.boundingBox()).height >= 44, "Touch-sized trigger");
   assert.ok((await page.locator(".brand").boundingBox()).height < 140, "The picker adds no separate button row");
@@ -107,7 +114,15 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await page.keyboard.press("ArrowDown");
   assert.ok(await choices.nth(1).evaluate((el) => el === document.activeElement));
   await page.keyboard.press("End");
-  assert.ok(await engines.last().evaluate((el) => el === document.activeElement), "The engines follow the airplanes");
+  assert.ok(
+    await components.last().evaluate((el) => el === document.activeElement),
+    "The engines and components follow the airplanes",
+  );
+  for (let k = 0; k < (await components.count()); k++) await page.keyboard.press("ArrowUp");
+  assert.ok(
+    await engines.last().evaluate((el) => el === document.activeElement),
+    "The engines come before the components",
+  );
   await page.keyboard.press("ArrowUp");
   await page.keyboard.press("ArrowUp");
   assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));

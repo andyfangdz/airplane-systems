@@ -24,7 +24,7 @@ export function Picker({
   groups,
 }: {
   current: { name: string; sub: string };
-  kind: "airplane" | "engine";
+  kind: "airplane" | "engine" | "component";
   groups: { label: string; entries: PickerEntry[] }[];
 }) {
   const menu = useRef<HTMLDivElement>(null);

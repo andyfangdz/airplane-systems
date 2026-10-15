@@ -1,5 +1,6 @@
 import type { EngineSpec } from "@/engines/types";
 import { FLEET_INDEX } from "@/lib/fleet-index";
+import { PARTS } from "@/parts";
 import type { PickerEntry } from "./Picker";
 
 /** An engine's line under its name: model and rated power. */
@@ -17,3 +18,7 @@ export const engineEntries = (engines: EngineSpec[], current?: string): PickerEn
 
 /** The airplanes as links, for pages that don't load them (the engine pages). */
 export const airplaneLinks = (): PickerEntry[] => FLEET_INDEX.map((a) => ({ ...a, current: false, href: `/${a.id}` }));
+
+/** The component simulations as picker entries, each a link to its page. */
+export const partEntries = (current?: string): PickerEntry[] =>
+  PARTS.map((p) => ({ id: p.id, name: p.name, sub: p.sub, current: p.id === current, href: `/parts/${p.id}` }));

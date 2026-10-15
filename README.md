@@ -76,6 +76,11 @@ The SR20 is described below. The SR22T covers its own POH Section 7 the same way
 
 Standalone **engine simulations** sit beside the airplanes at `/engines/<id>`, the Lycoming IO-390-C (215 hp, as in the SR20 G6) and the carbureted O-360-A1D (180 hp, as in the 1968 Mooney M20C). The model is calibrated to Lycoming's own performance and fuel-flow charts and cruise figures: throttle, propeller, mixture, carburetor heat and icing, magnetos with a held START position, altitude, temperature and airspeed, failures (magnetos, fouled plugs, blocked nozzles, intake leaks, fuel pump, air filter, starter), an engine monitor with per-cylinder EGT and CHT, limit flags from the engine manual, and a cylinder-pressure chart. The 3D engine is drawn part by part (crankshaft and counterweights, rods and pistons, camshaft and valve train, cylinders, magnetos and harness, fuel injection or the carburetor, induction and exhaust, lubrication, starter, alternator and governor); every part names itself on hover and each group can be hidden. See [engines/README.md](engines/README.md).
 
+**Component simulations** at `/parts/<id>` take one accessory at a time, cut away and drawn large, running on one of the
+engine simulations: so far the Precision RSA fuel injection system (servo injector, flow divider and air-bleed nozzles)
+on the IO-390, with its regulator forces, valves, nozzle flows and nozzle-pressure gauge. See
+[parts/README.md](parts/README.md).
+
 | SR20 system          | Interactive                                                                                                                                                                                                                 |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Flight controls      | Cable runs from POH Figs 7-1/7-2/7-3: torque tube, sectors, pulleys, push-pull tubes and bellcranks move with the yokes and pedals; per-channel focus (elevator / aileron / rudder); horn balances, trim tabs, static wicks |
@@ -105,6 +110,8 @@ components/
 aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) — see aircraft/README.md
 engines/              Standalone engine simulations: EngineSpec per engine, shared model/ — see engines/README.md
 components/engine/    The /engines/<id> page: 3D engine (scene/: one file per part group), engine monitor, controls, pressure chart
+parts/                Component simulations (one accessory on an engine): registry and per-component model — see parts/README.md
+components/parts/     The /parts/<id> pages
 lib/
   view.ts             View state shared by every airplane (airplane, system, toggles, theme, camera); phone breakpoint
   fleet.ts            Airplane / system selection, remembered view, URL path

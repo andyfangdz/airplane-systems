@@ -109,12 +109,15 @@ const createUi = (spec: EngineSpec) =>
 
 const sims = new Map<string, EngineSim>();
 
-/** The one simulation per engine: kept across remounts so leaving and coming back finds it as it was. */
-export function simFor(spec: EngineSpec): EngineSim {
-  let sim = sims.get(spec.id);
+/**
+ * The one simulation per engine: kept across remounts so leaving and coming back finds it as it was. A component page
+ * (`/parts/<id>`) runs its own copy of its engine under its own `key`.
+ */
+export function simFor(spec: EngineSpec, key = spec.id): EngineSim {
+  let sim = sims.get(key);
   if (!sim) {
     sim = { spec, s: initialState(spec), anim: { crank: 0 }, useUi: createUi(spec) };
-    sims.set(spec.id, sim);
+    sims.set(key, sim);
   }
   return sim;
 }
