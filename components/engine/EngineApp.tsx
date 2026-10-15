@@ -91,7 +91,7 @@ export default function EngineApp({ id }: { id: string }) {
           kind="engine"
           groups={[
             { label: "Airplanes", entries: airplaneLinks() },
-            { label: "Engines", entries: engineEntries(ENGINES, spec.id), columns: 2 },
+            { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
           ]}
         />
       </div>

@@ -189,13 +189,6 @@ button {
   padding-top: 4px;
   border-top: 1px solid var(--rule);
 }
-/* short lists (the engines) sit two to a row so the whole menu stays compact */
-.fleet-options-2 {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-.fleet-options-2 .fleet-group {
-  grid-column: 1 / -1;
-}
 .fleet-group {
   padding: 4px 10px 2px;
   color: var(--muted);

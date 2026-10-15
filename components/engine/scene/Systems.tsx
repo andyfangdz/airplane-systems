@@ -49,7 +49,15 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         bot = toWorld(c, hp.botLead);
       leads.push(
         tube(
-          [cap(topMag, 0.02), [d.caseRear - 0.02, drive.y + 0.04, magZ(topMag)], [top[0], 0.2, k * 0.17], top],
+          // up off the cap and forward over the magneto and the accessory housing
+          [
+            cap(topMag, 0.02),
+            [d.accRear - MAG.len - 0.025, drive.y + 0.055, magZ(topMag)],
+            [d.accRear - 0.04, 0.26, magZ(topMag)],
+            [d.caseRear + 0.02, 0.25, k * 0.12],
+            [top[0], 0.2, k * 0.17],
+            top,
+          ],
           0.0042,
           40,
           8,
@@ -57,8 +65,8 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         tube(
           [
             cap(botMag, -0.02),
-            [d.accRear - 0.03, 0.04, k * 0.14],
-            [d.caseRear + 0.03, -0.135, k * 0.165],
+            [d.accRear - 0.03, 0.04, k * 0.175],
+            [d.caseRear + 0.03, -0.135, k * 0.18],
             [bot[0], -0.16, k * 0.23],
             bot,
           ],
@@ -161,8 +169,11 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
       tube(
         [
           [px, PUMP[1] - 0.035, PUMP[2]],
+          [px + 0.005, -0.155, -0.11],
           [d.caseRear - 0.01, -0.17, -0.125],
-          [ix - 0.12, iy - 0.005, -0.08],
+          // under the intake runners
+          [d.caseRear + 0.06, iy - 0.035, -0.11],
+          [ix - 0.12, iy - 0.035, -0.09],
           [ix - 0.04, iy, -0.055],
         ],
         0.005,
@@ -172,7 +183,9 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
         [
           [ix, iy + 0.03, 0.04],
           [d.front + 0.012, -0.05, 0.11],
-          [d.front + 0.0, 0.15, 0.06],
+          [d.front + 0.006, 0.15, 0.07],
+          // over the top of the case to the manifold
+          [d.front - 0.03, 0.2, 0.03],
           [m[0] + 0.03, m[1] + 0.005, 0.015],
         ],
         0.005,
@@ -294,8 +307,11 @@ function CarburetorSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
       lines: tube(
         [
           [px, PUMP[1] - 0.035, PUMP[2]],
+          [px + 0.005, -0.155, -0.11],
           [d.caseRear - 0.01, -0.17, -0.125],
-          [bowlX - 0.06, iy, -0.08],
+          // under the intake pipes
+          [d.caseRear + 0.06, iy - 0.035, -0.11],
+          [bowlX - 0.08, iy - 0.035, -0.09],
           [bowlX, iy, -0.045],
         ],
         0.005,
@@ -565,8 +581,9 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       .rotateY(Math.PI / 2)
       .translate(L.pulleyX, 0, 0);
     return {
-      motor: rod(0.04, 0.06, 24).translate(-0.05, 0, 0),
-      solenoid: rod(0.017, 0.045, 14).translate(-0.045, 0.045, 0),
+      // ends just forward of the crankcase
+      motor: rod(0.04, 0.045, 24).translate(-0.0425, 0, 0),
+      solenoid: rod(0.017, 0.045, 14).translate(-0.04, 0.045, 0),
       drive: rod(0.022, 0.025, 16).translate(-0.016, 0, 0),
       pinion: gear(L.pinionR, STARTER_TEETH.pinion, 0.012, 0),
       // short enough to stay forward of cylinder 1's intake pipe

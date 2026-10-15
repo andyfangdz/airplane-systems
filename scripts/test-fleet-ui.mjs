@@ -96,7 +96,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  assert.ok(box.width <= 352 && box.height <= 520, "The entire fleet and the engines fit in a compact dropdown");
+  assert.ok(box.width <= 352 && box.height <= 580, "The entire fleet and the engines fit in a compact dropdown");
   assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), "No horizontal scrolling");
   assert.ok((await trigger.boundingBox()).height >= 44, "Touch-sized trigger");
   assert.ok((await page.locator(".brand").boundingBox()).height < 140, "The picker adds no separate button row");

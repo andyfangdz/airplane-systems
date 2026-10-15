@@ -23,7 +23,7 @@ export function Fleet() {
             onPick: () => selectAircraft(a.id),
           })),
         },
-        { label: "Engines", entries: engineEntries(ENGINES), columns: 2 },
+        { label: "Engines", entries: engineEntries(ENGINES) },
       ]}
     />
   );
