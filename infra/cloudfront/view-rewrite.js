@@ -1,10 +1,10 @@
 // Viewer request, cloudfront-js-2.0. Mirrors next.config.ts's development view rule.
-// AIRCRAFT_IDS is copied from lib/systems.ts, ENGINE_IDS from engines/index.ts and PART_IDS from parts/index.ts; the
-// offline test prevents drift.
+// AIRCRAFT_IDS is copied from lib/systems.ts, ENGINE_IDS from engines/index.ts and COMPONENT_IDS from
+// engines/components/index.ts; the offline test prevents drift.
 // Event/query format: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/functions-event-structure.html
 var AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
 var ENGINE_IDS = ["io390", "o360"];
-var PART_IDS = ["fuel-injector"];
+var COMPONENT_IDS = ["fuel-injector"];
 
 // AWS recommends percent encoding; UTF-8 request values are forwarded unchanged:
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/edge-function-restrictions-all.html
@@ -40,11 +40,11 @@ function redirect(request, uri) {
 
 function handler(event) {
   var request = event.request;
-  // the static export writes each engine page as engines/<id>.html and each component page as parts/<id>.html; the
-  // trailing-slash form redirects to it
-  var engine = /^\/(engines|parts)\/([^/]+)(\/)?$/.exec(request.uri);
-  if (engine && (engine[1] === "engines" ? ENGINE_IDS : PART_IDS).indexOf(engine[2]) !== -1) {
-    if (engine[3]) return redirect(request, request.uri.slice(0, -1));
+  // the static export writes each engine page as engines/<id>.html; the trailing-slash form redirects to it
+  // (and each component page as components/<id>.html)
+  var page = /^\/(engines|components)\/([^/]+)(\/)?$/.exec(request.uri);
+  if (page && (page[1] === "engines" ? ENGINE_IDS : COMPONENT_IDS).indexOf(page[2]) !== -1) {
+    if (page[3]) return redirect(request, request.uri.slice(0, -1));
     request.uri = request.uri + ".html";
     return request;
   }

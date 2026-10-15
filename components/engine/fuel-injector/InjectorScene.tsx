@@ -13,10 +13,10 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
-import type { EngineSim } from "@/components/engine/store";
-import { coil, D2R, makeMats, merge, rod, tube, XRAY_MATS } from "@/components/engine/scene/kit";
-import { P, useHover } from "@/components/engine/scene/parts";
-import { injectorView, type InjectorView } from "@/parts/fuel-injector/model";
+import type { EngineSim } from "../store";
+import { coil, D2R, makeMats, merge, rod, tube, XRAY_MATS } from "../scene/kit";
+import { P, useHover } from "../scene/parts";
+import { injectorView, type InjectorView } from "@/engines/components/fuel-injector/model";
 import { PRESSURE } from "./colors";
 
 type V3 = [number, number, number];

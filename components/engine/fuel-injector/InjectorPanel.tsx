@@ -5,12 +5,22 @@
  */
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import { Check, Facts, H3, Notes, Readouts, Small } from "@/components/ui/controls";
-import { Controls, Environment, StartFrom } from "@/components/engine/EnginePanel";
-import type { EngineSim } from "@/components/engine/store";
+import { Controls, Environment, StartFrom } from "../EnginePanel";
+import type { EngineSim } from "../store";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
-import type { PartSim } from "@/parts";
-import { DIVIDER_FULL_LBH, injectorView, NOZZLE_LIMITS, type InjectorView } from "@/parts/fuel-injector/model";
+import {
+  DIVIDER_FULL_LBH,
+  injectorView,
+  NOZZLE_LIMITS,
+  type InjectorView,
+} from "@/engines/components/fuel-injector/model";
 import { PRESSURE } from "./colors";
+
+const LEAD =
+  "The Precision (Bendix) RSA continuous-flow fuel injection system as fitted to the Lycoming IO-390-C: a servo fuel " +
+  "injector that meters fuel against the air flowing through its throttle body, a flow divider that keeps the metered " +
+  "fuel under pressure and splits it four ways, and an air-bleed nozzle in each cylinder head. It runs on the IO-390 " +
+  "engine simulation, so the fuel flows and nozzle pressures are the engine's own.";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 const f1 = (v: number) => v.toFixed(1);
@@ -297,11 +307,11 @@ function Sources() {
   );
 }
 
-export function InjectorPanel({ sim, part }: { sim: EngineSim; part: PartSim }) {
+export function InjectorPanel({ sim }: { sim: EngineSim }) {
   return (
     <div className="panel-inner">
       <div className="ref">Component simulation · Precision RSA on the Lycoming IO-390-C</div>
-      <p className="lead">{part.lead}</p>
+      <p className="lead">{LEAD}</p>
       <StartFrom sim={sim} />
       <Controls sim={sim} />
       <Injector sim={sim} />

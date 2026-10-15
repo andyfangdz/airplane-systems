@@ -1,7 +1,7 @@
 # Fuel injection (RSA) sources and how the numbers were read
 
 The page runs its own copy of the IO-390-C engine simulation (`engines/io390`), so every flow, pressure and power it
-shows comes from that model and its sources (`engines/io390/SOURCES.md`). This folder adds only what the injector's
+shows comes from that model and its sources (`engines/io390/SOURCES.md`). This folder (`model.ts`) adds only what the injector's
 parts are doing and the limits of the nozzle curve.
 
 ## How the parts work

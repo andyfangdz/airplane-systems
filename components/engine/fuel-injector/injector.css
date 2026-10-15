@@ -23,7 +23,7 @@
   margin-right: 6px;
   vertical-align: -1px;
 }
-/* the same colours as components/parts/fuel-injector/colors.ts */
+/* the same colours as components/engine/fuel-injector/colors.ts */
 .inj-inlet-air {
   background: #f2c230;
 }

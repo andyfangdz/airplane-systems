@@ -5,25 +5,17 @@
  * frames (store.ts); React reads it through low-rate snapshots.
  */
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
 import { ENGINES, engineById } from "@/engines";
+import { COMPONENTS } from "@/engines/components";
 import { Picker } from "../Picker";
-import { airplaneLinks, engineEntries, engineSub, partEntries } from "../pickerEntries";
-import { useView } from "@/lib/view";
+import { airplaneLinks, componentEntries, engineEntries, engineSub } from "../pickerEntries";
+import { ThemeButton, Toggle, useTheme } from "./chrome";
 import { simFor, useEngineLoop, type EngineSim } from "./store";
 import { EnginePanel } from "./EnginePanel";
 import { Monitor, Flags } from "./Monitor";
 import "./engine.css";
 
 const Scene = dynamic(() => import("./EngineScene"), { ssr: false, loading: () => <div /> });
-
-const SUN = (
-  <>
-    <circle cx="8" cy="8" r="3" />
-    <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3" />
-  </>
-);
-const MOON = <path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z" />;
 
 function Toolbar({ sim }: { sim: EngineSim }) {
   const view = sim.useUi((x) => x.view),
@@ -38,50 +30,13 @@ function Toolbar({ sim }: { sim: EngineSim }) {
   return (
     <div className="toolbar">
       {toggles.map(([k, t, title]) => (
-        <button
-          key={k}
-          className="tb"
-          title={title}
-          aria-pressed={!!view[k]}
-          onClick={() => setView({ [k]: !view[k] })}
-        >
+        <Toggle key={k} on={!!view[k]} title={title} onClick={() => setView({ [k]: !view[k] })}>
           {t}
-        </button>
+        </Toggle>
       ))}
       <ThemeButton />
     </div>
   );
-}
-
-/** The toolbar's light/dark switch (also on the component pages). */
-export function ThemeButton() {
-  const theme = useView((x) => x.theme),
-    setTheme = useView((x) => x.setTheme);
-  const dark = theme === "dark";
-  return (
-    <button
-      className="tb tb-theme"
-      title={dark ? "Switch to light mode" : "Switch to dark mode"}
-      onClick={() => setTheme(dark ? "light" : "dark")}
-    >
-      <svg className="ico" viewBox="0 0 16 16" aria-hidden="true">
-        {dark ? SUN : MOON}
-      </svg>
-      <span>{dark ? "Light" : "Dark"}</span>
-    </button>
-  );
-}
-
-/** Follow the saved theme, else the system setting (the same key the airplane pages use). */
-export function useTheme() {
-  useEffect(() => {
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem("sr20theme");
-    } catch {}
-    const os = window.matchMedia("(prefers-color-scheme: dark)");
-    useView.getState().setTheme(saved === "light" || saved === "dark" ? saved : os.matches ? "dark" : "light", false);
-  }, []);
 }
 
 export default function EngineApp({ id }: { id: string }) {
@@ -99,7 +54,7 @@ export default function EngineApp({ id }: { id: string }) {
           groups={[
             { label: "Airplanes", entries: airplaneLinks() },
             { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
-            { label: "Components", entries: partEntries() },
+            { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
           ]}
         />
       </div>

@@ -1,5 +1,5 @@
 /**
- * The RSA fuel injection component page's model (parts/fuel-injector/model.ts), against how the FAA handbook says the
+ * The RSA fuel injection component page's model (engines/components/fuel-injector/model.ts), against how the FAA handbook says the
  * system works (FAA-H-8083-32B pp. 2-21–2-24), the IO-390 IOM's nozzle curve (Figure C-2, p. 58) and Precision's
  * troubleshooting chart (Form 15-901C). The flows themselves are the IO-390 engine model's (tests/io390-engine.test.ts).
  */
@@ -9,8 +9,8 @@ import { noFailures, step, type Failures } from "@/engines/model/engine";
 import { nozzleFlow } from "@/engines/model/fuel";
 import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
 import { settle } from "@/engines/model/trim";
-import { curveAt, DIVIDER_FULL_LBH, injectorView, NOZZLE_LIMITS } from "@/parts/fuel-injector/model";
-import { PART_IDS, partById } from "@/parts";
+import { curveAt, DIVIDER_FULL_LBH, injectorView, NOZZLE_LIMITS } from "@/engines/components/fuel-injector/model";
+import { COMPONENT_IDS, componentById } from "@/engines/components";
 
 const S = IO390;
 const nominal = S.fuelSystem.kind === "injected" ? S.fuelSystem.nozzle.points : [];
@@ -22,8 +22,8 @@ const viewOf = ({ s, c }: Setup, f: Failures = noFailures(S)) => injectorView(S,
 
 describe("component registry", () => {
   test("the fuel injection page is listed under its id", () => {
-    expect(PART_IDS).toContain("fuel-injector");
-    expect(partById("fuel-injector")?.name).toBe("Fuel injection");
+    expect(COMPONENT_IDS).toContain("fuel-injector");
+    expect(componentById("fuel-injector")?.name).toBe("Fuel injection");
   });
 });
 
