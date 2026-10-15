@@ -10,7 +10,7 @@
  */
 import { carbFuelFlow, mainSystem } from "@/engines/model/carburetor";
 import { INHG_PA } from "@/engines/model/atmosphere";
-import { ratedAirLbH, type Controls, type EngineState } from "@/engines/model/engine";
+import { prime, ratedAirLbH, type Controls, type EngineState } from "@/engines/model/engine";
 import type { Carburetor, EngineSpec } from "@/engines/types";
 
 const OI = "MA-4-5 Overhaul Instructions";
@@ -177,4 +177,11 @@ export function primerStep(p: Primer, dt: number): { primer: Primer; fire: boole
   const knob =
     t < 0 ? 0 : t < STROKE.out ? t / STROKE.out : t < pushAt ? 1 : Math.max(0, 1 - (t - pushAt) / STROKE.push);
   return { primer: { t, queued, knob, discharging: t >= pushAt }, fire };
+}
+
+/** Advance the primer and, as each stroke's plunger starts in, put its fuel into the engine's cylinders. */
+export function runPrimer(spec: EngineSpec, s: EngineState, p: Primer, dt: number): Primer {
+  const r = primerStep(p, dt);
+  if (r.fire) prime(spec, s);
+  return r.primer;
 }

@@ -12,10 +12,11 @@ import {
   primerStroke,
   pumpStep,
   readCarb,
+  runPrimer,
   type Primer,
   type Pump,
 } from "@/engines/components/carburetor/carburetor";
-import { noFailures, prime, step } from "@/engines/model/engine";
+import { noFailures, step } from "@/engines/model/engine";
 import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
 import { O360 } from "@/engines/o360/spec";
 
@@ -165,10 +166,15 @@ describe("primer (OM pp. 1-3, 3-1; FAA-H-8083-25B p. 7-25)", () => {
     expect(strokes(p, 10).fired).toBe(3);
   });
 
-  test("each stroke puts the engine model's primer charge into every cylinder", () => {
+  test("pressing Prime puts no fuel in until the plunger is pushed, then one charge per stroke into every cylinder", () => {
     const x = run("cold");
-    const before = x.s.cyl.map((c) => c.puddle);
-    prime(S, x.s);
-    x.s.cyl.forEach((c, i) => expect(c.puddle - before[i]).toBeCloseTo(carb.primeLb, 9));
+    const puddles = () => x.s.cyl.map((c) => c.puddle);
+    const before = puddles();
+    let p = primerStroke(primerStroke(PRIMER_IDLE));
+    // pulling the knob out only fills the barrel
+    for (let t = 0; t < 0.5; t += 1 / 60) p = runPrimer(S, x.s, p, 1 / 60);
+    expect(puddles()).toEqual(before);
+    for (let t = 0; t < 6; t += 1 / 60) p = runPrimer(S, x.s, p, 1 / 60);
+    puddles().forEach((v, i) => expect(v - before[i]).toBeCloseTo(2 * carb.primeLb, 9));
   });
 });

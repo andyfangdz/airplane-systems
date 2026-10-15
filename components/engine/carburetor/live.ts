@@ -9,15 +9,14 @@ import { create } from "zustand";
 import { O360 } from "@/engines/o360/spec";
 import {
   PRIMER_IDLE,
-  primerStep,
   primerStroke,
   pumpStep,
+  runPrimer,
   readCarb,
   type CarbReading,
   type Primer,
   type Pump,
 } from "@/engines/components/carburetor/carburetor";
-import { prime } from "@/engines/model/engine";
 import { advance, simFor, startScenario, type EngineSim } from "../store";
 
 export type CarbLive = CarbReading &
@@ -90,16 +89,20 @@ export function useCarbLoop(sim: EngineSim) {
     const carb = sim.spec.fuelSystem.kind === "carburetor" ? sim.spec.fuelSystem : null;
     let pump: Pump = { plunger: sim.useUi.getState().controls.throttle, squirt: 0 };
     let raf = 0,
-      last = performance.now();
+      last = performance.now(),
+      resets = sim.resets;
     const tick = (now: number) => {
       const dt = Math.min(Math.max((now - last) / 1000, 0), 0.5);
       last = now;
       advance(sim, dt);
+      // a scenario replaced the engine: strokes asked for before don't carry over to it
+      if (sim.resets !== resets) {
+        resets = sim.resets;
+        live.primer = PRIMER_IDLE;
+      }
       if (carb && !sim.useUi.getState().view.paused) {
         pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
-        const p = primerStep(live.primer, dt);
-        live.primer = p.primer;
-        if (p.fire) prime(sim.spec, sim.s);
+        live.primer = runPrimer(sim.spec, sim.s, live.primer, dt);
       }
       read(sim, pump);
       raf = requestAnimationFrame(tick);
