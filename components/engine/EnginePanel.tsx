@@ -246,6 +246,12 @@ function Failures({ sim }: { sim: EngineSim }) {
         />
         <Check id="f-filter" label="Air filter blocked" checked={f.filter} onChange={(v) => set({ filter: v })} />
         <Check id="f-starter" label="Starter" checked={f.starter} onChange={(v) => set({ starter: v })} />
+        <Check
+          id="f-starter-stuck"
+          label="Starter stuck engaged"
+          checked={f.starterStuck}
+          onChange={(v) => set({ starterStuck: v })}
+        />
       </div>
       <table className="eng-table eng-fail">
         <thead>
@@ -439,7 +445,6 @@ export function EnginePanel({ sim }: { sim: EngineSim }) {
   return (
     <div className="panel-inner">
       <div className="ref">Engine simulation · Lycoming IOM</div>
-      <h2>{spec.name}</h2>
       <p className="lead">{spec.lead}</p>
       <StartFrom sim={sim} />
       <Controls sim={sim} />

@@ -393,6 +393,10 @@ export function Induction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   );
 }
 
+/** How far the starter pinion slides to mesh, and how far in it starts to engage the ring gear's teeth (m). */
+const PINION_TRAVEL = 0.022,
+  PINION_MESH = 0.012;
+
 /** Starter at the front lower left, its pinion on the ring gear; alternator lower right on a belt; governor up front. */
 export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
@@ -462,14 +466,15 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     altRot = useRef<THREE.Mesh>(null),
     govRot = useRef<THREE.Mesh>(null);
   useFrame(() => {
-    const ui = sim.useUi.getState();
     const crank = sim.anim.crank;
-    const engaged = ui.controls.mags === "START" && !ui.failures.starter;
-    if (pinion.current) {
-      // the pinion slides forward into the ring gear while the starter turns
-      const target = engaged ? 0 : -0.022;
-      pinion.current.position.x += (target - pinion.current.position.x) * 0.3;
-      pinion.current.rotation.x = engaged ? (-(crank * acc.starterRatio) % 360) * D2R : pinion.current.rotation.x;
+    const p = pinion.current;
+    if (p) {
+      // the solenoid slides the pinion forward into the ring gear while the starter is engaged, and back out of mesh
+      // when it lets go; only in mesh does it turn, geared to the crankshaft
+      const target = sim.s.starterEngaged ? 0 : -PINION_TRAVEL;
+      p.position.x += (target - p.position.x) * 0.3;
+      if (Math.abs(p.position.x - target) < 1e-4) p.position.x = target;
+      if (p.position.x > -PINION_MESH) p.rotation.x = (-(crank * acc.starterRatio) % 360) * D2R;
     }
     if (altRot.current) altRot.current.rotation.x = ((crank * acc.alternatorRatio) % 360) * D2R;
     if (govRot.current) govRot.current.rotation.x = ((crank * acc.governorRatio) % 360) * D2R;
@@ -479,16 +484,16 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       <group position={L.starter}>
         <P
           name="Starter"
-          note={`12 V or 24 V starter (IOM p. 3); drive ratio ${acc.starterRatio}:1 (Table A-1). Engages on START.`}
+          note={`12 V or 24 V starter (IOM p. 3); drive ratio ${acc.starterRatio}:1 (Table A-1). Engaged while the switch is held at START.`}
           geometry={geo.motor}
           material={mats.black}
         />
         <P name="Starter solenoid" geometry={geo.solenoid} material={mats.black} />
         <P name="Starter drive housing" geometry={geo.drive} material={mats.alt} />
-        <group ref={pinion} position={[-0.022, 0, 0]}>
+        <group ref={pinion} position={[-PINION_TRAVEL, 0, 0]}>
           <P
             name="Starter pinion"
-            note="Slides into mesh with the ring gear while the starter turns."
+            note="The solenoid slides it into mesh with the ring gear while the starter is engaged and withdraws it on release; out of mesh it stands still while the ring gear turns."
             geometry={geo.pinion}
             material={mats.gear}
           />

@@ -387,6 +387,7 @@ describe("failures", () => {
     ["every spark plug", (f) => f.plugs.forEach((p) => p.fill(true))],
     ["one nozzle", (f) => (f.nozzle[0] = 1)],
     ["every nozzle", (f) => f.nozzle.fill(1)],
+    ["starter stuck engaged", (f) => (f.starterStuck = true)],
   ];
   /** Paths of non-finite numbers in the state; a cylinder with no fuel has λ = ∞, which is the one allowed. */
   const nonFinite = (o: unknown, path = ""): string[] =>
@@ -429,5 +430,35 @@ describe("failures", () => {
     c.boost = true;
     for (let i = 0; i < 20 * 60; i++) step(S, s, c, env, f, 1 / 60, 1);
     expect(s.hp).toBeGreaterThan(0.9 * before);
+  });
+});
+
+describe("starter", () => {
+  test("the starter is engaged only while the switch is held at START, and an inoperative one never", () => {
+    const { s, c, e, f } = warm();
+    expect(s.starterEngaged).toBe(false);
+    c.mags = "START";
+    step(S, s, c, e, f, 1 / 60, 1);
+    expect(s.starterEngaged).toBe(true);
+    c.mags = "BOTH";
+    step(S, s, c, e, f, 1 / 60, 1);
+    expect(s.starterEngaged).toBe(false);
+    expect(s.starterS).toBe(0);
+    f.starter = true;
+    c.mags = "START";
+    step(S, s, c, e, f, 1 / 60, 1);
+    expect(s.starterEngaged).toBe(false);
+  });
+
+  test("a starter stuck engaged stays in after release; the running engine outruns it and the 10 s limit is flagged (IOM p. 30)", () => {
+    const { s, c, e, f } = warm();
+    const rpm = s.rpm;
+    f.starterStuck = true;
+    for (let i = 0; i < 15 * 60; i++) step(S, s, c, e, f, 1 / 60, 1);
+    expect(c.mags).toBe("BOTH");
+    expect(s.starterEngaged).toBe(true);
+    expect(s.starterS).toBeGreaterThan(S.limits.starterMaxS.value);
+    expect(s.rpm).toBeCloseTo(rpm, -1);
+    expect(limitFlags(S, s, e).map((x) => x.src)).toContain(S.limits.starterMaxS.src);
   });
 });

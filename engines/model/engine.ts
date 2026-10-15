@@ -56,6 +56,8 @@ export interface Failures {
   filter: boolean;
   /** Starter inoperative. */
   starter: boolean;
+  /** Starter stuck engaged: its solenoid stays closed and the pinion in mesh after the switch leaves START. */
+  starterStuck: boolean;
 }
 
 export interface CylState {
@@ -100,6 +102,8 @@ export interface EngineState {
   coolerValve: number;
   beta: number;
   propInteg: number;
+  /** Starter energized, its pinion in mesh with the ring gear. */
+  starterEngaged: boolean;
   /** Seconds the starter has been engaged in the current attempt. */
   starterS: number;
   /** Something is burning. */
@@ -134,6 +138,7 @@ export const noFailures = (spec: EngineSpec): Failures => ({
   fuelPump: false,
   filter: false,
   starter: false,
+  starterStuck: false,
 });
 
 /** A cold engine, stopped, soaked to the outside air. */
@@ -170,6 +175,7 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     coolerValve: 0,
     beta: spec.propeller.fineDeg,
     propInteg: 0,
+    starterEngaged: false,
     starterS: 0,
     running: false,
     rough: 0,
@@ -318,7 +324,10 @@ function substep(
   // below ~10 rpm friction is static: it holds the engine rather than reversing it
   const fricTorque = lossTorque * Math.min(1, s.rpm / 10);
   const grossTorque = omega > 0.5 ? (gross * HP_W) / omega : 0;
-  const cranking = c.mags === "START" && !f.starter;
+  // the starter is engaged while the switch is at START, or all the time once stuck; an inoperative one never is. Its
+  // torque falls to nothing at its own free speed, so a running engine outruns it rather than being held back.
+  const cranking = (c.mags === "START" || f.starterStuck) && !f.starter;
+  s.starterEngaged = cranking;
   s.starterS = cranking ? s.starterS + dt : 0;
   const starterTorque = cranking ? 230 * Math.max(0, 1 - s.rpm / 380) : 0;
   const d = (spec.propeller.diameterIn * 2.54) / 100;

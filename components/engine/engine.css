@@ -31,12 +31,14 @@
   white-space: nowrap;
 }
 
-/* foot of the view: engine monitor and limit flags */
+/* foot of the view: engine monitor and limit flags, over the bottom of the 3D view */
 .eng-foot {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: end;
+  position: relative;
+  z-index: 1;
+  padding: 12px;
   display: flex;
   gap: 10px;
   align-items: flex-end;
@@ -298,20 +300,18 @@
     flex-direction: column;
     height: auto;
   }
-  /* the monitor goes under the 3D view instead of over it */
+  /* the 3D view stays at the top of the screen while the controls scroll under it, so the engine is in sight while
+     you hold START or move a lever; the monitor goes under the view instead of over it */
   .eng-app .eng-stage {
-    height: auto;
-    min-height: 0;
-  }
-  .eng-app .eng-stage > .eng-view {
-    position: relative !important;
-    inset: auto;
-    height: 56vh;
-    min-height: 340px;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: 42vh;
+    min-height: 260px;
+    border-bottom: 1px solid var(--rule);
   }
   .eng-app .eng-foot {
-    position: static;
-    padding: 0 10px 10px;
+    padding: 10px;
   }
   .eng-mon,
   .eng-flags {

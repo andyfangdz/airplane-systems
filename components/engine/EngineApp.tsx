@@ -98,13 +98,13 @@ export default function EngineApp({ id }: { id: string }) {
       <main className="stage eng-stage">
         <div className="eng-view">
           <Scene sim={sim} />
-        </div>
-        <Toolbar sim={sim} />
-        <div className="eng-foot">
-          <Monitor sim={sim} />
-          <Flags sim={sim} />
+          <Toolbar sim={sim} />
         </div>
       </main>
+      <div className="eng-foot">
+        <Monitor sim={sim} />
+        <Flags sim={sim} />
+      </div>
       <aside className="panel">
         <EnginePanel sim={sim} />
       </aside>
