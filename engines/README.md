@@ -19,7 +19,7 @@ engines/
     scenarios.ts  "Start from" setups for the page
     alerts.ts     Limit flags from the spec's limits
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
-components/engine/  The page: store (zustand UI + per-frame loop), 3D scene, monitor, panel, pressure chart
+components/engine/  The page: store (zustand UI + per-frame loop), 3D scene (scene/: dims, materials and builders in kit.ts, one file per part group), monitor, panel, pressure chart
 app/engines/[engine]/page.tsx  One static page per engine id
 ```
 

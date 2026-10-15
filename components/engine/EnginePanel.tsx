@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/controls";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { PressureChart } from "./PressureChart";
+import { GROUPS } from "./scene/parts";
 import { replaceState, type EngineSim } from "./store";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
@@ -74,7 +75,7 @@ function Controls({ sim }: { sim: EngineSim }) {
         />
         <HoldButton
           className={`btn eng-start${c.mags === "START" ? " on" : ""}`}
-          title="Hold to crank: the starter turns the engine and only the left (impulse-coupled, retard) magneto fires"
+          title="Hold to crank: the starter turns the engine and only the left (retard-breaker) magneto fires"
           onDown={() => set({ mags: "START" })}
           onUp={() => set({ mags: "BOTH" })}
         >
@@ -319,6 +320,28 @@ function Simulation({ sim }: { sim: EngineSim }) {
   );
 }
 
+function Parts({ sim }: { sim: EngineSim }) {
+  const hidden = sim.useUi((x) => x.view.hidden),
+    setView = sim.useUi((x) => x.setView);
+  return (
+    <>
+      <H3>Parts</H3>
+      <Small>Point at any part for its name and what it does. Untick a group to see what it hides.</Small>
+      <div className="eng-parts">
+        {GROUPS.map((g) => (
+          <Check
+            key={g.id}
+            id={`part-${g.id}`}
+            label={g.name}
+            checked={!hidden.includes(g.id)}
+            onChange={(v) => setView({ hidden: v ? hidden.filter((h) => h !== g.id) : [...hidden, g.id] })}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 function Specs({ sim }: { sim: EngineSim }) {
   const spec = sim.spec,
     g = spec.geometry,
@@ -377,10 +400,11 @@ function Model() {
       <Notes
         items={[
           "Power comes from Lycoming's own performance chart (Figure C-1), digitized: sea-level power against manifold pressure for each rpm, and the altitude correction to 20,000 ft. The running engine is calibrated so its full-throttle point and part-throttle lines land on that chart.",
-          "Air flows through the throttle as a compressible orifice into the manifold; the cylinders draw it by speed and density. Fuel follows the servo's metering (richer as the air thins), the flow divider and the nozzle curve (Figure C-2).",
+          "Air flows through the throttle as a compressible orifice into the manifold; the cylinders draw it by speed and density. Fuel follows the fuel injector's metering (richer as the air thins), the fuel manifold and the nozzle curve (Figure C-2).",
           "Each cylinder's mixture sets its power, EGT and head heat: best power is about 150 °F rich of peak EGT (the IOM's leanest setting for maximum-power cruise, p. 39), power at peak EGT about 3.5 % lower, and the engine runs rough and quits far rich or lean. Fuel flow reproduces Figure C-3 and the Table A-1 cruise figures.",
           "Friction and pumping losses, starter torque, a constant-speed propeller with an oil-driven governor, and lumped thermal models for heads and oil (the thermostat and cooler from Table 2) complete the loop.",
           "The cylinder-pressure trace is drawn from the model's own work per cycle, with an assumed burn duration; it is illustrative, not measured data.",
+          "The 3D engine: bore, stroke and the overall envelope (Table A-1) set its scale, and where each part sits follows the IOM's System Description figures (Figures 1B–9). The shapes and sizes of individual parts, the cylinders' spacing along the crankshaft, and the valve lift are schematic; the valves are drawn parallel to the cylinder where the real guides are angled.",
           "Not published, so chosen to fit the documented points: valve timing, rod length, the propeller's pitch range and inertia, the cooling and thermal constants, and the per-cylinder spread. The propeller is the SR20's Hartzell, used only as the load.",
         ]}
       />
@@ -424,6 +448,7 @@ export function EnginePanel({ sim }: { sim: EngineSim }) {
       <Environment sim={sim} />
       <Failures sim={sim} />
       <Simulation sim={sim} />
+      <Parts sim={sim} />
       <Specs sim={sim} />
       <Model />
       <Sources sim={sim} />

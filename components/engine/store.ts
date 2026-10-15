@@ -31,6 +31,8 @@ export interface EngineView {
   /** Cylinder index shown in the pressure chart. */
   cyl: number;
   paused: boolean;
+  /** Part groups hidden from the 3D view (scene/parts.tsx GROUPS). */
+  hidden: string[];
   /** The last "Start from" scenario, for its note. */
   scenario: string | null;
 }
@@ -59,7 +61,17 @@ const createUi = (spec: EngineSpec) =>
     controls: defaultControls(),
     env: defaultEnvironment(),
     failures: noFailures(spec),
-    view: { thermal: 1, slow: false, xray: true, labels: true, prop: true, cyl: 0, paused: false, scenario: null },
+    view: {
+      thermal: 1,
+      slow: false,
+      xray: true,
+      labels: true,
+      prop: true,
+      cyl: 0,
+      paused: false,
+      scenario: null,
+      hidden: [],
+    },
     setControls: (p) => set((x) => ({ controls: { ...x.controls, ...p } })),
     setEnv: (p) => set((x) => ({ env: { ...x.env, ...p } })),
     setFailures: (p) => set((x) => ({ failures: { ...x.failures, ...p } })),
