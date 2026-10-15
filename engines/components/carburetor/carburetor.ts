@@ -32,6 +32,16 @@ export const MA45 = {
   fuelBelowNozzle: { value: "about 1/8 in below the discharge nozzle holes", src: `${AMT} p. 2-10` },
   liftToNozzle: { value: "0.5 inHg", src: `${AMT} p. 2-11 (to raise fuel to the discharge level)` },
   icingRange: { value: "20 to 90 °F outside air, humidity 50 % or more", src: "OM p. 3-8" },
+  primer: {
+    value: "provision for a primer system on all engines with a carburetor; fuel-injected engines need none",
+    src: "OM p. 1-3",
+  },
+  priming: { value: "1 to 3 strokes of the manual priming pump", src: "OM p. 3-1 (starting, float carburetor)" },
+  primerUse: {
+    value:
+      "draws fuel from the tanks and vaporizes it directly into the cylinders before starting; lock it when not in use, or it can vibrate out and richen the mixture",
+    src: "FAA-H-8083-25B p. 7-25",
+  },
 } as const;
 
 /** What the carburetor is doing, read from the running engine. */
@@ -123,4 +133,48 @@ export function pumpStep(carb: Carburetor, p: Pump, throttle: number, dt: number
   const down = Math.max(0, plunger - p.plunger);
   // the plunger still moves with an empty bowl, but can only push out the fuel there is (as the engine model does)
   return { plunger, squirt: (Math.min(carb.accelLb * down, Math.max(0, bowlLb)) / dt) * 3600 };
+}
+
+/**
+ * The manual primer: a plunger in a barrel on the panel. Pulling the knob out draws fuel into the barrel from the
+ * fuel line; pushing it in sends that fuel down the primer lines to the cylinders (FAA-H-8083-25B p. 7-25), and the
+ * knob is locked in. Strokes asked for while one is under way follow it. The stroke's timing is a display constant.
+ */
+export interface Primer {
+  /** Seconds into the current stroke (< 0: none under way). */
+  t: number;
+  /** Strokes still to make after this one. */
+  queued: number;
+  /** Knob travel, 0 (in, locked) … 1 (pulled out). */
+  knob: number;
+  /** The plunger is pushing fuel to the cylinders. */
+  discharging: boolean;
+}
+
+export const PRIMER_IDLE: Primer = { t: -1, queued: 0, knob: 0, discharging: false };
+
+/** Pull out, hold, push in, seconds (display). */
+const STROKE = { out: 0.5, hold: 0.25, push: 0.9 } as const;
+const STROKE_S = STROKE.out + STROKE.hold + STROKE.push;
+
+/** Ask for one more stroke. */
+export const primerStroke = (p: Primer): Primer => (p.t < 0 ? { ...p, t: 0 } : { ...p, queued: p.queued + 1 });
+
+/**
+ * Advance the primer by `dt` seconds. `fire` is true on the frame the plunger starts pushing, when the stroke's fuel
+ * goes to the cylinders (the engine model's `prime`).
+ */
+export function primerStep(p: Primer, dt: number): { primer: Primer; fire: boolean } {
+  if (p.t < 0 || !(dt > 0)) return { primer: p, fire: false };
+  const pushAt = STROKE.out + STROKE.hold;
+  let t = p.t + dt,
+    queued = p.queued;
+  const fire = p.t < pushAt && t >= pushAt;
+  if (t >= STROKE_S) {
+    t = queued > 0 ? 0 : -1;
+    queued = Math.max(0, queued - 1);
+  }
+  const knob =
+    t < 0 ? 0 : t < STROKE.out ? t / STROKE.out : t < pushAt ? 1 : Math.max(0, 1 - (t - pushAt) / STROKE.push);
+  return { primer: { t, queued, knob, discharging: t >= pushAt }, fire };
 }

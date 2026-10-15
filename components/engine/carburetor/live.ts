@@ -7,7 +7,17 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { O360 } from "@/engines/o360/spec";
-import { pumpStep, readCarb, type CarbReading, type Pump } from "@/engines/components/carburetor/carburetor";
+import {
+  PRIMER_IDLE,
+  primerStep,
+  primerStroke,
+  pumpStep,
+  readCarb,
+  type CarbReading,
+  type Primer,
+  type Pump,
+} from "@/engines/components/carburetor/carburetor";
+import { prime } from "@/engines/model/engine";
 import { advance, simFor, startScenario, type EngineSim } from "../store";
 
 export type CarbLive = CarbReading &
@@ -18,6 +28,7 @@ export type CarbLive = CarbReading &
     inletC: number;
     chamberC: number;
     ice: number;
+    primer: Primer;
   };
 
 export const carbSim = (): EngineSim => simFor(O360);
@@ -32,6 +43,12 @@ export const live: CarbLive = {
   inletC: 15,
   chamberC: 15,
   ice: 0,
+  primer: PRIMER_IDLE,
+};
+
+/** Pull and push the primer once more (the loop sends the fuel to the cylinders as the plunger goes in). */
+export const primeStroke = () => {
+  live.primer = primerStroke(live.primer);
 };
 
 export interface CarbView {
@@ -78,8 +95,12 @@ export function useCarbLoop(sim: EngineSim) {
       const dt = Math.min(Math.max((now - last) / 1000, 0), 0.5);
       last = now;
       advance(sim, dt);
-      if (carb && !sim.useUi.getState().view.paused)
+      if (carb && !sim.useUi.getState().view.paused) {
         pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
+        const p = primerStep(live.primer, dt);
+        live.primer = p.primer;
+        if (p.fire) prime(sim.spec, sim.s);
+      }
       read(sim, pump);
       raf = requestAnimationFrame(tick);
     };

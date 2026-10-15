@@ -5,8 +5,17 @@
  */
 import { describe, expect, test } from "vitest";
 import { COMPONENT_IDS, componentById } from "@/engines/components";
-import { MA45, pumpStep, readCarb, type Pump } from "@/engines/components/carburetor/carburetor";
-import { noFailures, step } from "@/engines/model/engine";
+import {
+  MA45,
+  PRIMER_IDLE,
+  primerStep,
+  primerStroke,
+  pumpStep,
+  readCarb,
+  type Primer,
+  type Pump,
+} from "@/engines/components/carburetor/carburetor";
+import { noFailures, prime, step } from "@/engines/model/engine";
 import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
 import { O360 } from "@/engines/o360/spec";
 
@@ -116,5 +125,50 @@ describe("accelerating pump (FAA-H-8083-32B p. 2-13; OI ¶3-3 b)", () => {
     const p = pumpStep(carb, { plunger: 0, squirt: 0 }, 1, 1 / 60, 0);
     expect(p.plunger).toBeGreaterThan(0);
     expect(p.squirt).toBe(0);
+  });
+});
+
+describe("primer (OM pp. 1-3, 3-1; FAA-H-8083-25B p. 7-25)", () => {
+  const strokes = (p: Primer, seconds: number) => {
+    let fired = 0,
+      maxKnob = 0,
+      early = false;
+    for (let t = 0; t < seconds; t += 1 / 60) {
+      const r = primerStep(p, 1 / 60);
+      if (r.fire) {
+        fired++;
+        // fuel goes in only as the plunger is pushed, after the knob has been pulled out
+        early ||= maxKnob < 0.99;
+      }
+      p = r.primer;
+      maxKnob = Math.max(maxKnob, p.knob);
+    }
+    return { fired, p, pulledFirst: !early };
+  };
+
+  test("the documented priming is offered: a primer on the carbureted engine, 1 to 3 strokes", () => {
+    expect(MA45.primer.src).toBe("OM p. 1-3");
+    expect(MA45.priming.value).toMatch(/1 to 3 strokes/);
+  });
+
+  test("one press pulls the knob out, then pushes it in and sends one stroke of fuel; the knob ends in", () => {
+    const r = strokes(primerStroke(PRIMER_IDLE), 5);
+    expect(r.fired).toBe(1);
+    expect(r.pulledFirst).toBe(true);
+    expect(r.p.t).toBe(-1);
+    expect(r.p.knob).toBe(0);
+  });
+
+  test("three presses make three strokes, one after another", () => {
+    let p = primerStroke(PRIMER_IDLE);
+    p = primerStroke(primerStroke(p));
+    expect(strokes(p, 10).fired).toBe(3);
+  });
+
+  test("each stroke puts the engine model's primer charge into every cylinder", () => {
+    const x = run("cold");
+    const before = x.s.cyl.map((c) => c.puddle);
+    prime(S, x.s);
+    x.s.cyl.forEach((c, i) => expect(c.puddle - before[i]).toBeCloseTo(carb.primeLb, 9));
   });
 });

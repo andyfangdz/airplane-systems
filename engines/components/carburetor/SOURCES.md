@@ -12,6 +12,8 @@ the engine's numbers.
 - **AMT**: FAA-H-8083-32B, Aviation Maintenance Technician Handbook—Powerplant (2023), Chapter 2, Engine Fuel and Fuel
   Metering Systems ([PDF](https://www.faa.gov/sites/faa.gov/files/04_amtp_ch2.pdf)). Page numbers are the handbook's.
 - **OM**: Lycoming O-360 series Operator's Manual, P/N 60297-12, as cited in `engines/o360/SOURCES.md`.
+- **PHAK**: FAA-H-8083-25B, Pilot's Handbook of Aeronautical Knowledge (2016), Chapter 7, Aircraft Systems
+  ([PDF](https://www.faa.gov/sites/faa.gov/files/09_phak_ch7.pdf)), for the primer.
 
 ## Taken as printed
 
@@ -34,13 +36,17 @@ the engine's numbers.
 | Icing range, mixture cooled up to 70 °F, falling MAP with a constant-speed propeller, heat from an exhaust jacket                                                                                                                                       | OM pp. 3-8–3-9                 |
 | Carburetor inlet pressure 0.5–8.0 psi, 3.0 desired                                                                                                                                                                                                      | OM p. 3-10                     |
 | Idle mixture check: a momentary rise of about 50 rpm leaning to cut-off                                                                                                                                                                                 | OM pp. 5-4–5-5                 |
+| Provision for a primer system on all engines with a carburetor; fuel-injected engines need none                                                                                                                                                         | OM p. 1-3                      |
+| Prime with 1 to 3 strokes of the manual priming pump (float carburetor start); overpriming keeps the engine from starting                                                                                                                               | OM p. 3-1, p. 6-1              |
+| The primer draws fuel from the tanks and vaporizes it directly into the cylinders; lock it when not in use; in a fuel-pump system it is fed beside the carburetor                                                                                       | PHAK p. 7-25, Figure 7-30      |
 
 ## Not published: model and drawing constants
 
 The engine model's carburetor constants (bowl contents, idle circuit flow, accelerating charge, where the main system
 takes over from the idle jet, heat rise, how fast ice builds and how much it blocks) are in `engines/o360/spec.ts` and
-are model constants, not Marvel-Schebler data. This page adds only display constants: the pump plunger spring's speed
-and the needle's drawn lift. The 3D shapes, sizes and spacing are schematic, arranged after the OI's exploded views.
+are model constants, not Marvel-Schebler data. This page adds only display constants: the pump plunger spring's speed,
+the needle's drawn lift and the primer stroke's timing. The primer's fuel per stroke is the engine model's (`primeLb`),
+not published; where its tee, pump, line and nozzle sit is the airframe's, drawn schematically. The 3D shapes, sizes and spacing are schematic, arranged after the OI's exploded views.
 
 The OI lists a power jet and an air metering pin; the documents in hand don't say how they act in this model, so they
 are not drawn or modelled.
