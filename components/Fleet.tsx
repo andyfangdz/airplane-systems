@@ -24,7 +24,7 @@ export function Fleet() {
             onPick: () => selectAircraft(a.id),
           })),
         },
-        { label: "Engines", entries: engineEntries(ENGINES), compact: true },
+        { label: "Engines", entries: engineEntries(ENGINES) },
         { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
       ]}
     />

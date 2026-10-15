@@ -248,7 +248,7 @@ button {
   color: var(--muted);
   font-size: 11px;
 }
-/* a compact group (the engines, the component simulations): two to a row, the name only, still touch-sized */
+/* a compact group (the component simulations): two to a row, the name only, still touch-sized */
 .fleet-compact {
   grid-template-columns: 1fr 1fr;
 }

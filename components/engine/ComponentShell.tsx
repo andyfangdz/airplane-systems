@@ -39,7 +39,7 @@ export function ComponentShell({
           kind="component"
           groups={[
             { label: "Airplanes", entries: airplaneLinks() },
-            { label: "Engines", entries: engineEntries(ENGINES), compact: true },
+            { label: "Engines", entries: engineEntries(ENGINES) },
             { label: "Components", entries: componentEntries(COMPONENTS, id), compact: true },
           ]}
         />
