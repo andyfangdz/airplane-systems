@@ -8,12 +8,12 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
-import { phaseOf } from "@/engines/model/cycle";
+import { phaseOf, sparkBTC } from "@/engines/model/cycle";
 import { sparks } from "@/engines/model/engine";
 import type { CylinderDef } from "@/engines/types";
 import type { EngineSim } from "../store";
 import { chtColor, finned, headPoints, merge, slab, zrod, type Dims, type Mats } from "./kit";
-import { P } from "./parts";
+import { Group, P } from "./parts";
 
 function cylinderGeometry(d: Dims) {
   const hp = headPoints(d);
@@ -91,7 +91,7 @@ function Cylinder({
     head.color.copy(tmp);
     // the plugs flash from the spark through early combustion
     const ph = phaseOf(spec, c.n, sim.anim.crank);
-    const since = (ph + spec.ignition.advanceBTC + 720) % 720;
+    const since = (ph + sparkBTC(spec, ui.controls.mags) + 720) % 720;
     const lit = since < 40 && s.rpm > 30;
     const fl = lit ? (s.cyl[i]?.work > 0.02 ? 1 - since / 40 : 0.35) : 0;
     const top = spec.ignition.topPlugMag[c.n];
@@ -135,29 +135,34 @@ function Cylinder({
       />
       <P name="Intake port" note="Tuned induction runner flange." geometry={geo.intakePort} material={mats.darkSteel} />
       <P name="Exhaust port" note="Exhaust pipe flange." geometry={geo.exhaustPort} material={mats.darkSteel} />
-      <P
-        name={`Fuel injection nozzle, cylinder ${n}`}
-        note="Four injection nozzles, one per cylinder, fed from the fuel manifold (IOM p. 4)."
-        geometry={geo.nozzle}
-        material={mats.gear}
-      />
-      {[
-        { at: hp.topPlug, rot: hp.tilt, s: hp.topSpark, which: "top" },
-        { at: hp.botPlug, rot: Math.PI - hp.tilt, s: hp.botSpark, which: "bottom" },
-      ].map((p, k) => (
-        <group key={p.which}>
-          <group position={p.at} rotation={[0, 0, p.rot]}>
-            <P
-              name={`Spark plug, cylinder ${n} ${p.which}`}
-              note="Eight spark plugs, two per cylinder (IOM p. 2); each magneto fires one plug in every cylinder."
-              geometry={geo.plug}
-              material={mats.plug}
-            />
-            <P name="Shielded lead terminal" geometry={geo.plugShield} material={mats.lead} />
+      {/* the nozzle and plugs sit in the head but hide with their own systems' groups */}
+      <Group sim={sim} id="fuel">
+        <P
+          name={`Fuel injection nozzle, cylinder ${n}`}
+          note="Four injection nozzles, one per cylinder, fed from the fuel manifold (IOM p. 4)."
+          geometry={geo.nozzle}
+          material={mats.gear}
+        />
+      </Group>
+      <Group sim={sim} id="ignition">
+        {[
+          { at: hp.topPlug, rot: hp.tilt, s: hp.topSpark, which: "top" },
+          { at: hp.botPlug, rot: Math.PI - hp.tilt, s: hp.botSpark, which: "bottom" },
+        ].map((p, k) => (
+          <group key={p.which}>
+            <group position={p.at} rotation={[0, 0, p.rot]}>
+              <P
+                name={`Spark plug, cylinder ${n} ${p.which}`}
+                note="Eight spark plugs, two per cylinder (IOM p. 2); each magneto fires one plug in every cylinder."
+                geometry={geo.plug}
+                material={mats.plug}
+              />
+              <P name="Shielded lead terminal" geometry={geo.plugShield} material={mats.lead} />
+            </group>
+            <mesh geometry={geo.spark} material={spark[k]} position={p.s} raycast={() => null} />
           </group>
-          <mesh geometry={geo.spark} material={spark[k]} position={p.s} raycast={() => null} />
-        </group>
-      ))}
+        ))}
+      </Group>
     </group>
   );
 }

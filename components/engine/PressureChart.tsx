@@ -4,7 +4,7 @@
  * volume (the indicator diagram, whose loop area is the work per cycle). Drawn from `pressureTrace` with the model's
  * own gross work, so it follows throttle, mixture and plugs.
  */
-import { pressureTrace, phaseOf } from "@/engines/model/cycle";
+import { pressureTrace, phaseOf, sparkBTC } from "@/engines/model/cycle";
 import { H3, Seg, Small } from "@/components/ui/controls";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { HP_W } from "@/engines/model/atmosphere";
@@ -16,9 +16,13 @@ const W = 330,
 
 export function PressureChart({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 200);
+  // the cursor follows the drawn crank, which slow motion turns slower than the engine
+  const anim = useLiveSnapshot(sim.anim, 100);
   const sel = sim.useUi((x) => x.view.cyl),
     setView = sim.useUi((x) => x.setView);
+  const mags = sim.useUi((x) => x.controls.mags);
   const spec = sim.spec;
+  const advance = sparkBTC(spec, mags);
   const cyl = s.cyl[sel],
     def = spec.geometry.cylinders[sel];
   const firing = s.rpm > 30 && cyl.work > 0.02;
@@ -27,7 +31,7 @@ export function PressureChart({ sim }: { sim: EngineSim }) {
     map: s.rpm > 30 ? s.map : s.inletInHg,
     exhaust: s.inletInHg * 1.02,
     grossWork: work,
-    advance: spec.ignition.advanceBTC,
+    advance,
     // one flame front burns slower (model assumption, see the notes)
     burnDeg: cyl.plugs >= 2 ? 55 : 70,
     firing,
@@ -40,7 +44,7 @@ export function PressureChart({ sim }: { sim: EngineSim }) {
   const path = pts.map(([d, p], i) => `${i ? "L" : "M"}${x(d).toFixed(1)},${y(p).toFixed(1)}`).join("");
   const vx = (v: number) => PAD.l + v * (W - PAD.l - PAD.r);
   const loop = t.vol.map((v, i) => `${i ? "L" : "M"}${vx(v).toFixed(1)},${y(t.psi[i]).toFixed(1)}`).join("") + "Z";
-  const now = phaseOf(spec, def.n, s.crank);
+  const now = phaseOf(spec, def.n, anim.crank);
   const nowX = x(now >= 360 ? now - 720 : now);
   const ticks = [0, top / 2, top];
   return (
@@ -72,13 +76,7 @@ export function PressureChart({ sim }: { sim: EngineSim }) {
             {d === 0 ? "TC" : d === 360 || d === -360 ? "TC" : "BC"}
           </text>
         ))}
-        <line
-          x1={x(-spec.ignition.advanceBTC)}
-          x2={x(-spec.ignition.advanceBTC)}
-          y1={PAD.t}
-          y2={H - PAD.b}
-          className="spark"
-        />
+        <line x1={x(-advance)} x2={x(-advance)} y1={PAD.t} y2={H - PAD.b} className="spark" />
         <path d={path} className="trace" />
         <line x1={nowX} x2={nowX} y1={PAD.t} y2={H - PAD.b} className="now" />
         <text x={x(-270)} y={PAD.t + 10} textAnchor="middle" className="stroke">
@@ -113,7 +111,11 @@ export function PressureChart({ sim }: { sim: EngineSim }) {
       </svg>
       <Small>
         {firing
-          ? `Peak ${Math.round(t.peakPsi)} psia at ${Math.round(t.peakAtdc)}° after top centre, spark at ${spec.ignition.advanceBTC}° before (IOM Table A-1). `
+          ? `Peak ${Math.round(t.peakPsi)} psia at ${Math.round(t.peakAtdc)}° after top centre, ${
+              mags === "START"
+                ? `spark retarded to ${-advance}° after top centre for the start (an assumed angle: the IOM does not give one). `
+                : `spark at ${advance}° before (IOM Table A-1). `
+            }`
           : "Not firing: the trace is compression and expansion of the charge alone. "}
         The trace is the model&apos;s work per cycle drawn as pressure, with an assumed burn duration; it is not
         measured Lycoming data.

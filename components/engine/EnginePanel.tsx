@@ -21,33 +21,29 @@ import {
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { PressureChart } from "./PressureChart";
 import { GROUPS } from "./scene/parts";
-import { replaceState, type EngineSim } from "./store";
+import { startScenario, type EngineSim } from "./store";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 
 function StartFrom({ sim }: { sim: EngineSim }) {
-  const note = sim.useUi((x) => x.view.scenario);
+  const note = sim.useUi((x) => x.view.scenario),
+    loading = sim.useUi((x) => x.view.loading);
   return (
     <>
       <H3>Start from</H3>
       <BtnRow>
         {SCENARIOS.map((sc) => (
-          <ScenarioButton
-            key={sc.id}
-            onClick={() => {
-              const ui = sim.useUi.getState();
-              const x = sc.run(sim.spec, ui.failures);
-              replaceState(sim, x.s);
-              sim.useUi.setState({ controls: x.c, env: x.env });
-              ui.setView({ scenario: sc.id, paused: false });
-            }}
-          >
+          <ScenarioButton key={sc.id} onClick={() => startScenario(sim, sc.id)}>
             {sc.label}
           </ScenarioButton>
         ))}
       </BtnRow>
-      {note && <Small>{SCENARIOS.find((x) => x.id === note)?.note}</Small>}
+      {loading ? (
+        <Small>Setting up {SCENARIOS.find((x) => x.id === loading)?.label.toLowerCase()} …</Small>
+      ) : (
+        note && <Small>{SCENARIOS.find((x) => x.id === note)?.note}</Small>
+      )}
     </>
   );
 }

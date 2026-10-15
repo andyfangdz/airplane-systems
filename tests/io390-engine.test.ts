@@ -6,7 +6,16 @@ import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { ENGINES } from "@/engines";
 import { atmosphere } from "@/engines/model/atmosphere";
-import { firingAngle, phaseOf, pinAngle, pressureTrace, rodEnds, sideAngle, stroke } from "@/engines/model/cycle";
+import {
+  firingAngle,
+  phaseOf,
+  pinAngle,
+  pressureTrace,
+  rodEnds,
+  sideAngle,
+  sparkBTC,
+  stroke,
+} from "@/engines/model/cycle";
 import {
   defaultControls,
   defaultEnvironment,
@@ -460,5 +469,21 @@ describe("starter", () => {
     expect(s.starterS).toBeGreaterThan(S.limits.starterMaxS.value);
     expect(s.rpm).toBeCloseTo(rpm, -1);
     expect(limitFlags(S, s, e).map((x) => x.src)).toContain(S.limits.starterMaxS.src);
+  });
+});
+
+describe("ignition timing", () => {
+  test("the spark is at 20° BTC normally and at the start retard while START is held (Table A-1; retard assumed)", () => {
+    expect(sparkBTC(S, "BOTH")).toBe(S.ignition.advanceBTC);
+    expect(sparkBTC(S, "START")).toBe(-S.ignition.startRetardATC);
+    const t = pressureTrace(S, {
+      map: 29.9,
+      exhaust: 30.5,
+      grossWork: 0,
+      advance: sparkBTC(S, "START"),
+      burnDeg: 55,
+      firing: false,
+    });
+    expect(t.psi.every(Number.isFinite)).toBe(true);
   });
 });

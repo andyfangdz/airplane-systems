@@ -18,6 +18,7 @@ import {
   type Environment,
   type Failures,
 } from "@/engines/model/engine";
+import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
 
 export interface EngineView {
@@ -35,6 +36,8 @@ export interface EngineView {
   hidden: string[];
   /** The last "Start from" scenario, for its note. */
   scenario: string | null;
+  /** A "Start from" scenario still being set up. */
+  loading: string | null;
 }
 
 export interface EngineUi {
@@ -70,6 +73,7 @@ const createUi = (spec: EngineSpec) =>
       cyl: 0,
       paused: false,
       scenario: null,
+      loading: null,
       hidden: [],
     },
     setControls: (p) => set((x) => ({ controls: { ...x.controls, ...p } })),
@@ -96,6 +100,58 @@ export function replaceState(sim: EngineSim, next: EngineState) {
   refreshLiveSnapshot(sim.s);
 }
 
+let worker: Worker | null | undefined;
+let seq = 0;
+function scenarioWorker() {
+  if (worker === undefined)
+    try {
+      worker =
+        typeof Worker === "undefined"
+          ? null
+          : new Worker(new URL("./scenario.worker.ts", import.meta.url), { type: "module" });
+    } catch {
+      worker = null;
+    }
+  return worker;
+}
+
+/**
+ * Set the engine up as a "Start from" scenario describes. Settling to cruise takes thousands of model steps, so a
+ * worker does it while the page keeps running; without one it runs here. Only the latest request applies.
+ */
+export function startScenario(sim: EngineSim, id: string) {
+  const failures = sim.useUi.getState().failures;
+  const n = ++seq;
+  const apply = (x: Setup) => {
+    if (n !== seq) return;
+    replaceState(sim, x.s);
+    sim.useUi.setState({ controls: x.c, env: x.env });
+    sim.useUi.getState().setView({ scenario: id, loading: null, paused: false });
+  };
+  const runHere = () => {
+    const sc = SCENARIOS.find((x) => x.id === id);
+    if (sc) apply(sc.run(sim.spec, failures));
+  };
+  const w = scenarioWorker();
+  if (!w) return runHere();
+  sim.useUi.getState().setView({ loading: id });
+  w.onmessage = ({ data }: MessageEvent<{ seq: number; setup?: Setup; error?: string }>) => {
+    if (data.seq !== n) return;
+    if (data.setup) apply(data.setup);
+    else {
+      console.warn("Scenario worker failed; setting up here", data.error);
+      runHere();
+    }
+  };
+  w.onerror = (e) => {
+    console.warn("Scenario worker unavailable; setting up here", e.message);
+    w.terminate();
+    worker = null;
+    runHere();
+  };
+  w.postMessage({ seq: n, engine: sim.spec.id, scenario: id, failures });
+}
+
 /** Slow motion turns the drawn crank at this fraction of engine speed (at most ~20 rpm on screen). */
 const slowRpm = (rpm: number) => Math.min(rpm, 20);
 
@@ -103,7 +159,9 @@ const slowRpm = (rpm: number) => Math.min(rpm, 20);
 export function advance(sim: EngineSim, dt: number) {
   const ui = sim.useUi.getState();
   if (ui.view.paused) return;
-  const d = Math.min(dt, 0.1);
+  // keep real time on slow frames (step splits a long frame into short steps), but don't try to catch up a pause
+  // such as a hidden tab
+  const d = Math.min(dt, 0.5);
   step(sim.spec, sim.s, ui.controls, ui.env, ui.failures, d, ui.view.thermal);
   sim.anim.crank = ui.view.slow ? (sim.anim.crank + slowRpm(sim.s.rpm) * 6 * d) % 720 : sim.s.crank;
 }

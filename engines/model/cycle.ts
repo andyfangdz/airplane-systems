@@ -14,6 +14,13 @@ export function firingAngle(spec: EngineSpec, n: number) {
   return (k * 720) / spec.geometry.firingOrder.length;
 }
 
+/**
+ * Spark timing, degrees before top centre, for a switch position: at START only the retard-breaker magneto fires, at
+ * its start retard (after top centre, so negative here); otherwise the normal advance.
+ */
+export const sparkBTC = (spec: EngineSpec, mags: string) =>
+  mags === "START" ? -spec.ignition.startRetardATC : spec.ignition.advanceBTC;
+
 /** The cylinder's phase at an engine crank angle. */
 export const phaseOf = (spec: EngineSpec, n: number, crank: number) => mod(crank - firingAngle(spec, n), 720);
 
