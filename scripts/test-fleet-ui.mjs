@@ -85,8 +85,10 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await dialog.waitFor();
   assert.equal(await choices.count(), 6);
   const engines = dialog.getByRole("group", { name: "Engines" }).getByRole("link");
-  assert.equal(await engines.count(), 1);
-  assert.equal(await engines.first().getAttribute("href"), "/engines/io390");
+  assert.deepEqual(await engines.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
+    "/engines/io390",
+    "/engines/o360",
+  ]);
   for (const name of ["SR20 G6", "SR22T G6"])
     assert.match(await choices.filter({ hasText: name }).innerText(), /Walk-around/);
   assert.equal(await trigger.getAttribute("aria-expanded"), "true");
@@ -105,9 +107,11 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await page.keyboard.press("ArrowDown");
   assert.ok(await choices.nth(1).evaluate((el) => el === document.activeElement));
   await page.keyboard.press("End");
-  assert.ok(await engines.first().evaluate((el) => el === document.activeElement), "The engines follow the airplanes");
+  assert.ok(await engines.last().evaluate((el) => el === document.activeElement), "The engines follow the airplanes");
+  await page.keyboard.press("ArrowUp");
   await page.keyboard.press("ArrowUp");
   assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));
+  await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
   assert.ok(await choices.nth(0).evaluate((el) => el === document.activeElement));

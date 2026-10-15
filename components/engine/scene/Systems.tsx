@@ -569,7 +569,8 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       solenoid: rod(0.017, 0.045, 14).translate(-0.045, 0.045, 0),
       drive: rod(0.022, 0.025, 16).translate(-0.016, 0, 0),
       pinion: gear(L.pinionR, STARTER_TEETH.pinion, 0.012, 0),
-      alt: merge([rod(0.06, 0.11, 28).translate(-0.075, 0, 0), rod(0.05, 0.012, 28).translate(-0.016, 0, 0)]),
+      // short enough to stay forward of cylinder 1's intake pipe
+      alt: merge([rod(0.06, 0.08, 28).translate(-0.06, 0, 0), rod(0.05, 0.012, 28).translate(-0.016, 0, 0)]),
       altPulley: merge([gear(d.altPulleyR, 16, 0.016, 0), rod(0.012, 0.03, 10).translate(-0.012, 0, 0)]),
       belt,
       gov: merge([

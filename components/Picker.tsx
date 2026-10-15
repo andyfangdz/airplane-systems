@@ -25,7 +25,7 @@ export function Picker({
 }: {
   current: { name: string; sub: string };
   kind: "airplane" | "engine";
-  groups: { label: string; entries: PickerEntry[] }[];
+  groups: { label: string; entries: PickerEntry[]; /** Lay the entries out side by side. */ columns?: 2 }[];
 }) {
   const menu = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -128,7 +128,12 @@ export function Picker({
         }}
       >
         {groups.map((g) => (
-          <div key={g.label} className="fleet-options" role="group" aria-label={g.label}>
+          <div
+            key={g.label}
+            className={`fleet-options${g.columns === 2 ? " fleet-options-2" : ""}`}
+            role="group"
+            aria-label={g.label}
+          >
             <div className="fleet-group" aria-hidden="true">
               {g.label}
             </div>
