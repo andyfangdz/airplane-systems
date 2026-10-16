@@ -333,8 +333,13 @@ export const TSIO550K: EngineSpec = {
     // wide-open area. The door opens at full power (about 5 inH₂O at 10,000 ft, 120 KIAS) and closes again once power
     // is reduced to 30.5 in.Hg (about 1 inH₂O; POH 3A-11 "likely close the alternate air door").
     filterBlockedArea: 0.85,
-    doorOpenInH2O: 4, // not published: the suction that overcomes the strip of magnets holding the flap (AMM 71-60)
-    throttleLossInHg: 0.5, // not published: open throttle-body loss at rated flow
+    // Not published: the suction that overcomes the strip of magnets holding the flap (AMM 71-60). The starting
+    // value kept: with `filterBlockedArea` the door opens at full power and closes at 30.5 in.Hg (POH 3A-11, T-42),
+    // and it stays shut in every unblocked run (the relief-valve and door test).
+    doorOpenInH2O: 4,
+    // Not published: open throttle-body loss at rated flow. With `turbo` it sets the deck the controller holds for
+    // 36.0 in.Hg at rated (T-1; deck − MAP 0.5 ± 0.1) and sizes the throttle (induction.ts).
+    throttleLossInHg: 0.5,
     ramEta: 0.7, // not published: the model's default inlet recovery
   },
 
@@ -364,8 +369,9 @@ export const TSIO550K: EngineSpec = {
     rpmRef: 105000,
     prRef: 2.45,
     // A 14–30 psi actuator band and a negative controller slope hold MAP through the climb and against warm-oil
-    // pressure (36.0 ± 0.2 from 150 to 240 °F oil, POH 3-29) while 100 °F oil still raises it (POH 4-17); see turbo.ts.
-    // The wide band and an area scaled to the turbines keep the regulating gate from hunting at full throttle.
+    // pressure (36.0 ± 0.2 from 150 to about 225 °F oil, POH 3-29; T-8) while 100 °F oil still raises it (POH 4-17);
+    // see turbo.ts. The wide band and an area scaled to the turbines keep the regulating gate from hunting at full
+    // throttle.
     wastegate: { pCrackPsi: 14, pFullPsi: 30, tauS: 0.7, area: 1.5e-3 },
     // misadjustInHg: the "controller misadjusted" failure's set-point shift. The sloped controller multiplies it about
     // threefold at full throttle, so 0.35 puts sea-level full power at about 37.0 in.Hg with warm oil (37.3 with 100 °F
@@ -575,13 +581,16 @@ export const TSIO550K: EngineSpec = {
   calibration: {
     // the idle stop: 700 ± 25 rpm at idle with the mixture as leaned for taxi (AMM 73-20 PDF 2589 (ab); POH 4-15)
     idleArea: 0.013,
+    // the IO-390 value kept: Figure 2-36's 236 bhp best-power flow holds with it (T-14)
     lambdaBestPower: 0.85,
     // not read for this engine, which meters from `fuelSystem.fullRichLambda`: its rated end, 0.582, to two places
     lambdaFullRich: 0.58,
     // power at peak EGT relative to best power: lean of peak the power follows the fuel flow at 13.3–14.8 hp/GPH, the
     // POH 5-32 to 5-34 cruise table within 3 %
     peakEgtPower: 0.955,
+    // the IO-390 value kept: the POH 4-15 magneto drop, more than 25 and at most 150 rpm, holds with it (T-16)
     singlePlug: 0.93,
+    // the IO-390 values kept: with `titGain` below they give the TIT targets (T-22 to T-25)
     egtBase: 1000,
     egtGain: 550,
     fuelTrim: [1.0, 0.985, 1.012, 0.995, 1.006, 0.992],
@@ -590,10 +599,14 @@ export const TSIO550K: EngineSpec = {
     // under 420 °F on a standard day and above it at ISA +30 °C (POH 5-33 shading), and a static full-power run past
     // 460 °F (POH 4-14, 2-9)
     chtRise: 420,
+    // the IO-390 value kept: the CHT targets hold with it (T-21, T-26, T-27)
     chtTau: 150,
     // the oil's rise at rated power: 180 °F or more in the 120 KIAS climb at 15,000 ft (POH 2-9 green from 100)
     oilRise: 170,
+    // the IO-390 value kept: the oil temperatures hold with it (T-26, T-28)
     oilTau: 270,
+    // the IO-390 values kept: the POH 2-6/2-9 oil pressures hold with them, at least 10 psi at a hot idle, 30–60 psi in
+    // cruise and the climb, 60–100 psi cold (T-15, T-26, T-29)
     oilPressPerRpm: 24,
     oilRelief: 60,
     // Not published: volumetric efficiency, flat (no data on how it varies with rpm). 0.863 meters 36.9 GPH at full

@@ -234,7 +234,8 @@ export interface TurboPoint {
  * of the substep in engine.ts, lags removed: with the gate where the controller holds it for a deck pressure, the
  * turbines' power gives a deck pressure of its own, and the operating point is the deck where the two agree. Solved
  * as a root in deck pressure rather than by iterating, so a point the closed gate alone could not hold (below the
- * critical altitude the gate holds it) is found too: the root nearest the rated deck from above.
+ * critical altitude the gate holds it) is found too: the root nearest the rated deck from above. A steady-point
+ * oracle: only the tests call it, to check the running engine against the balance it should settle to.
  */
 export function fullThrottleMapTurbo(
   spec: EngineSpec,
