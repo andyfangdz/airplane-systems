@@ -1,0 +1,148 @@
+/* The SureFly SIM page (components/engine/surefly/App.tsx), on top of the engine page's layout (engine.css). */
+.sf-mon {
+  grid-template-columns: auto auto;
+  grid-template-areas: "dial big" "why why";
+  align-items: center;
+}
+.sf-mon .mon-big b:not(.sf-led) {
+  min-width: 3.2em;
+}
+.sf-dial {
+  grid-area: dial;
+  width: 112px;
+  height: 112px;
+}
+.sf-dial .face {
+  fill: #0d151b;
+  stroke: #23313b;
+}
+.sf-dial .ticks {
+  stroke: #5b6b77;
+  stroke-width: 0.8;
+}
+.sf-dial .tdc {
+  stroke: #e6edf2;
+  stroke-width: 1.6;
+}
+.sf-dial .plate {
+  stroke: var(--caut);
+  stroke-width: 1.4;
+}
+.sf-dial .max {
+  stroke: var(--warn);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 1.5;
+}
+.sf-dial .spark {
+  stroke: #9fd8ff;
+  stroke-width: 2.4;
+}
+.sf-dial .needle {
+  stroke: #6be675;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.sf-dial .hub {
+  fill: #6be675;
+}
+.sf-dial text {
+  fill: #8fa1ae;
+  font: 8px var(--f-mono);
+}
+.sf-dial text.small {
+  font-size: 6.5px;
+}
+.sf-led {
+  justify-self: end;
+  align-self: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1d3322;
+  border: 1px solid #2c4733;
+}
+.sf-led.on {
+  background: #3dff6a;
+  box-shadow: 0 0 10px #3dff6a;
+}
+.eng-mon .mon-big i {
+  white-space: nowrap;
+}
+.sf-why {
+  grid-area: why;
+  border-top: 1px solid #23313b;
+  padding-top: 6px;
+  font-size: 12px;
+  color: #c3ced6;
+  max-width: 420px;
+}
+
+/* the dip switch: four slide switches, ON up (toward the shaft) */
+.sf-dip {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 8px;
+}
+.sf-sw {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 34px;
+  min-height: 64px;
+  padding: 4px 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--panel2);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+}
+.sf-sw .knob {
+  position: relative;
+  width: 14px;
+  height: 34px;
+  border-radius: 3px;
+  background: #c0392b;
+}
+.sf-sw .knob::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 14px;
+  bottom: 2px;
+  border-radius: 2px;
+  background: #f2f2ee;
+  transition: bottom 0.12s;
+}
+.sf-sw.on .knob::after {
+  bottom: 18px;
+}
+.sf-sw b {
+  font-size: 11px;
+}
+.sf-dip-read {
+  display: grid;
+  gap: 2px;
+  margin-left: 6px;
+  font-size: 13px;
+}
+.sf-dip-read b {
+  text-transform: capitalize;
+}
+.sf-dip-read span {
+  color: var(--muted);
+}
+.sf-dip-read code {
+  font: 600 14px var(--f-mono);
+  letter-spacing: 1px;
+  color: var(--ink);
+}
+@media (max-width: 860px) {
+  .sf-dial {
+    width: 92px;
+    height: 92px;
+  }
+}

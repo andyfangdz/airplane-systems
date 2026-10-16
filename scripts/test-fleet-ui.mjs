@@ -92,6 +92,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   const components = dialog.getByRole("group", { name: "Components" }).getByRole("link");
   assert.deepEqual(await components.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
     "/components/carburetor",
+    "/components/surefly",
   ]);
   for (const link of await components.all()) assert.ok((await link.boundingBox()).height >= 44);
   for (const name of ["SR20 G6", "SR22T G6"])
