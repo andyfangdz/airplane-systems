@@ -215,6 +215,9 @@ export interface EngineState {
   oilLossQt?: number;
   /** HIGH BOOST actually running (after the lockout). Neutral: false. */
   highBoostOn?: boolean;
+  /** The manifold pressure a turbocharged spec's metering reads as its throttle-angle stand-in (turbo.ts
+   * `turboMetering`): the MAP without an intake leak. Set by `step` for a turbocharged spec only; absent, `map`. */
+  meterMapInHg?: number;
 }
 
 export const defaultControls = (): Controls => ({
@@ -554,7 +557,11 @@ function substep(
     const valve = c.mixture > 0.02 ? Math.min(1, c.mixture) : 0;
     const prime = continental && highBoost && s.rpm < continental.highBoost.belowRpm ? HIGH_BOOST_PRIME_LBH * valve : 0;
     dist = distribution(spec, f.nozzle);
-    const tm = spec.turbo ? turboMetering(spec, ind.ve, s.rpm, map, deck) : undefined;
+    // the -K meters on throttle angle (turbo.ts), which an intake leak does not move: the leak is downstream of the
+    // throttle and unmetered, so the schedule reads the MAP the throttle alone would give
+    if (spec.turbo)
+      s.meterMapInHg = leakArea > 0 ? solveManifold(spec, ind, cdA, deck, deckC, s.rpm, exhaust).map : map;
+    const tm = spec.turbo ? turboMetering(spec, ind.ve, s.rpm, s.meterMapInHg!, deck) : undefined;
     meterLbH = tm?.airLbH ?? meteredAir;
     meterScale = tm?.scale ?? 1;
     scheduleLbH = tm?.scheduleLbH ?? meterLbH;

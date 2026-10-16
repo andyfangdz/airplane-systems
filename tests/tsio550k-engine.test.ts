@@ -1379,6 +1379,63 @@ describe("T-35: the -K keeps a finite state under every failure the model runs",
   });
 });
 
+describe("T-48: an intake leak is downstream of the throttle and unmetered (POH 3-27; POH 7-38)", () => {
+  /** The same setup run 20 s at 60 Hz with no failure and with cylinder 2's intake pipe fully leaking. */
+  const pair = (x: Setup) => {
+    const clean = structuredClone(x),
+      leak = structuredClone(x);
+    const f = noFailures(K);
+    f.intakeLeak[1] = 1;
+    for (let i = 0; i < 20 * 60; i++) {
+      step(K, clean.s, clean.c, clean.env, noFailures(K), 1 / 60);
+      step(K, leak.s, leak.c, leak.env, f, 1 / 60);
+    }
+    const others = (s: EngineState) => mean(s.cyl.filter((_, i) => i !== 1).map((cy) => cy.lambda));
+    return { clean: clean.s, leak: leak.s, others: others(leak.s) / others(clean.s) };
+  };
+  const cruise = () => {
+    const x = cruise10k();
+    return { s: x.s, c: x.c, env: x.e };
+  };
+
+  // At part throttle the metering's inputs barely move: the throttle angle is the same, the deck moves under 0.2 % and
+  // the rpm under 3 %, the higher rpm reading a lower leak-free MAP, so the scheduled fuel stays within 1 % (0.4 % at
+  // run-up, 0.1 % in cruise). The others' λ follows their share of the throttle's air, which the leak, raising the MAP,
+  // cuts by about 5 %: richer by under 8 %, where reading the leak as throttle made them 27 % richer at run-up.
+  test.each([
+    ["run-up, 1,700 rpm", runup],
+    ["10,000 ft cruise, 30.5 in.Hg", cruise],
+  ])("%s: the fuel stays within 1 % and only the leaking cylinder goes lean", (_, setup) => {
+    const { clean, leak, others } = pair(setup());
+    expect(leak.rpm).toBeGreaterThan(0.95 * clean.rpm);
+    expect(Math.abs(leak.fuel / clean.fuel - 1)).toBeLessThanOrEqual(0.01);
+    for (const [i, cy] of leak.cyl.entries()) if (i !== 1) expect(leak.cyl[1].lambda).toBeGreaterThan(cy.lambda);
+    expect(others).toBeGreaterThanOrEqual(0.92);
+    expect(leak.air).toBeGreaterThan(leak.meteredAir);
+  });
+
+  // At idle the leak is a second throttle several times the idle opening: the air rises more than threefold and the
+  // rpm by about two thirds, and the schedule follows the rpm at the throttle's own (lower) MAP, so the fuel rises
+  // 3.3 %, inside 5 %. The engine keeps running.
+  test("warm idle: the engine keeps running, the air rises threefold and the fuel by under 5 %", () => {
+    const { clean, leak, others } = pair(idle());
+    expect(leak.rpm).toBeGreaterThan(clean.rpm);
+    expect(leak.air).toBeGreaterThan(3 * clean.air);
+    expect(Math.abs(leak.fuel / clean.fuel - 1)).toBeLessThanOrEqual(0.05);
+    for (const [i, cy] of leak.cyl.entries()) if (i !== 1) expect(leak.cyl[1].lambda).toBeGreaterThan(cy.lambda);
+    expect(others).toBeGreaterThanOrEqual(0.92);
+  });
+
+  test("holding λ with the leak settles at that λ: mixtureFor reads the metering's leak-free MAP too (trim.ts)", () => {
+    const x = runup();
+    const f = noFailures(K);
+    f.intakeLeak[1] = 1;
+    settle(K, x.s, x.c, x.env, f, 20, { lambda: 1.0 });
+    expect(x.s.air / (15 * x.s.fuel)).toBeGreaterThan(0.98);
+    expect(x.s.air / (15 * x.s.fuel)).toBeLessThan(1.02);
+  });
+});
+
 // ---- calibration. The metering's full-rich schedule is read at the throttle-angle stand-in, rated rpm
 // (engines/model/turbo.ts turboMetering), so a change of rpm moves the flow in proportion and not the schedule
 // (POH 7-38).

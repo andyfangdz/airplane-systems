@@ -27,9 +27,10 @@ export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, l
   const air = atmosphere(env.altFt, env.isaDevC);
   const rho = (s.inletInHg * INHG_PA) / (287.05 * (s.inletC + 273.15));
   // a turbocharged -K meters on throttle angle and deck pressure, not the air it takes (turbo.ts): ask for the λ that,
-  // at the metered air and deck scale, gives this λ at the actual air
+  // at the metered air and deck scale, gives this λ at the actual air. The angle's stand-in is the MAP without an
+  // intake leak, as the running engine reads it (engine.ts `meterMapInHg`).
   if (spec.turbo && s.air > 0) {
-    const m = turboMetering(spec, inductionCal(spec).ve, s.rpm, s.map, s.deckInHg!);
+    const m = turboMetering(spec, inductionCal(spec).ve, s.rpm, s.meterMapInHg ?? s.map, s.deckInHg!);
     return mixtureForFlow(spec, m.airLbH, (lambda * m.airLbH * m.scale) / s.air, rho || air.rho, m.scheduleLbH);
   }
   return mixtureForFlow(spec, s.air, lambda, rho || air.rho);
