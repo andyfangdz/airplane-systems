@@ -49,6 +49,30 @@ export function Toggle({
   );
 }
 
+/** One view toggle: the key it flips, its label and its tooltip. */
+export type ToggleItem<K extends string> = readonly [key: K, label: string, title: string];
+
+/** A row of toolbar toggles over a page's view settings. */
+export function ViewToggles<K extends string>({
+  items,
+  view,
+  set,
+}: {
+  items: readonly ToggleItem<K>[];
+  view: { readonly [k in K]?: unknown };
+  set: (p: { [k in K]?: boolean }) => void;
+}) {
+  return (
+    <>
+      {items.map(([k, label, title]) => (
+        <Toggle key={k} on={!!view[k]} title={title} onClick={() => set({ [k]: !view[k] } as { [k in K]?: boolean })}>
+          {label}
+        </Toggle>
+      ))}
+    </>
+  );
+}
+
 /** Follow the saved theme, else the system setting (the same key the airplane pages use). */
 export function useTheme() {
   useEffect(() => {

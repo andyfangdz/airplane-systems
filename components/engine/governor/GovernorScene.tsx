@@ -5,15 +5,16 @@
  * (FAA-H-8083-32B Figures 7-15 to 7-19) and its non-feathering hub (Figure 7-24); sizes and shapes are schematic, and
  * the pilot valve's movement is drawn four times larger than it is. Everything moves from the simulation in `useFrame`.
  */
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { makeMats, coil, gear, merge, rod, slab, tube, type Mats } from "../../engine/scene/kit";
-import { P, useHover } from "../../engine/scene/parts";
+import { P } from "../../engine/scene/parts";
+import { ComponentStage } from "../ComponentStage";
 import { springSet } from "@/engines/components/governor/model";
 import { AMT } from "@/engines/components/governor/spec";
-import { anim, s, spec, useGov } from "./store";
+import { anim, s, spec, useGov, useGovView } from "./store";
 
 type V3 = [number, number, number];
 
@@ -64,7 +65,7 @@ function Flow({ points, mat, rate }: { points: V3[]; mat: THREE.Material; rate: 
   const phase = useRef(0);
   const N = 9;
   useFrame((_, dt) => {
-    const r = useGov.getState().view.paused ? 0 : rate();
+    const r = useGovView.getState().paused ? 0 : rate();
     phase.current = (phase.current + r * Math.min(dt, 0.1) + 1) % 1;
     refs.current.forEach((m, i) => {
       if (!m) return;
@@ -433,7 +434,7 @@ function Model() {
   const mats = useMemo(makeMats, []);
   useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
   useFrame(() => {
-    const xray = useGov.getState().view.xray;
+    const xray = useGovView.getState().xray;
     for (const k of ["case", "sump", "acc", "shroud", "cover"] as const) {
       mats[k].transparent = true;
       mats[k].opacity = xray ? (k === "shroud" || k === "cover" ? 0.3 : 0.18) : 1;
@@ -454,7 +455,7 @@ function Model() {
 }
 
 function Labels() {
-  const show = useGov((x) => x.view.labels);
+  const show = useGovView((x) => x.labels);
   const gl = useThree((x) => x.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
@@ -479,35 +480,15 @@ function Labels() {
   );
 }
 
-function HoverTip() {
-  const h = useHover((x) => x.hover);
-  if (!h) return null;
-  return (
-    <div className="eng-tip" style={{ left: h.x + 14, top: h.y + 14 }}>
-      <b>{h.name}</b>
-      {h.note && <span>{h.note}</span>}
-    </div>
-  );
-}
-
 export default function GovernorScene() {
-  useEffect(() => () => useHover.setState({ hover: null }), []);
   return (
-    <>
-      <Canvas
-        camera={{ position: [0.5, 0.26, 0.86], fov: 36, near: 0.01, far: 20 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => useHover.setState({ hover: null })}
-      >
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[3, 4, 2]} intensity={1.6} />
-        <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
-        <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
-        <Model />
-        <OrbitControls makeDefault target={[0.16, -0.02, 0]} enableDamping minDistance={0.2} maxDistance={3} />
-      </Canvas>
-      <HoverTip />
-    </>
+    <ComponentStage
+      camera={{ position: [0.5, 0.26, 0.86], fov: 36, near: 0.01, far: 20 }}
+      target={[0.16, -0.02, 0]}
+      minDistance={0.2}
+      maxDistance={3}
+    >
+      <Model />
+    </ComponentStage>
   );
 }

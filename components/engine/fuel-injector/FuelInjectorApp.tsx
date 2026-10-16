@@ -7,7 +7,7 @@
 import dynamic from "next/dynamic";
 import { IO390 } from "@/engines/io390/spec";
 import { ComponentShell } from "../ComponentShell";
-import { Toggle } from "../chrome";
+import { ViewToggles } from "../chrome";
 import { Flags, Monitor } from "../Monitor";
 import { simFor, useEngineLoop, type EngineSim } from "../store";
 import { InjectorPanel } from "./InjectorPanel";
@@ -17,23 +17,16 @@ const Scene = dynamic(() => import("./InjectorScene"), { ssr: false, loading: ()
 
 const ID = "fuel-injector";
 
+const TOGGLES = [
+  ["xray", "X-ray", "See through the housings"],
+  ["labels", "Labels", "Name the main parts"],
+  ["paused", "Pause", "Freeze the simulation"],
+] as const;
+
 function Toggles({ sim }: { sim: EngineSim }) {
   const view = sim.useUi((x) => x.view),
     setView = sim.useUi((x) => x.setView);
-  const toggles: ["xray" | "labels" | "paused", string, string][] = [
-    ["xray", "X-ray", "See through the housings"],
-    ["labels", "Labels", "Name the main parts"],
-    ["paused", "Pause", "Freeze the simulation"],
-  ];
-  return (
-    <>
-      {toggles.map(([k, t, title]) => (
-        <Toggle key={k} on={!!view[k]} title={title} onClick={() => setView({ [k]: !view[k] })}>
-          {t}
-        </Toggle>
-      ))}
-    </>
-  );
+  return <ViewToggles items={TOGGLES} view={view} set={setView} />;
 }
 
 function Legend() {

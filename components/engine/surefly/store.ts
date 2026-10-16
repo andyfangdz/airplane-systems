@@ -1,10 +1,9 @@
 "use client";
 /**
- * The SureFly page's state. What the user sets lives in a zustand store; the bench itself (crank angle, speed, the
- * LED, the last spark at each plug) is a mutable object advanced every animation frame and read by the scene in
- * `useFrame` and by panels through `useLiveSnapshot`.
+ * The SureFly page's state. What the user sets lives in a zustand store, the view toggles in another; the bench itself
+ * (crank angle, speed, the LED, the last spark at each plug) is a mutable object advanced every animation frame and
+ * read by the scene in `useFrame` and by panels through `useLiveSnapshot`.
  */
-import { useEffect } from "react";
 import { create } from "zustand";
 import {
   codeLight,
@@ -17,6 +16,7 @@ import {
   type Dip,
   type Inputs,
 } from "@/engines/components/surefly/model";
+import { createViewStore, useSimLoop } from "../sim";
 
 /** Speed the starter turns the engine on the bench, rpm (an assumption; below `START_RPM`). */
 export const CRANK_RPM = 150;
@@ -53,10 +53,11 @@ export interface Ui {
   map: number;
   hose: boolean;
   fault: boolean;
-  view: { xray: boolean; labels: boolean; slow: boolean; paused: boolean };
-  set: (p: Partial<Omit<Ui, "set" | "setView">>) => void;
-  setView: (p: Partial<Ui["view"]>) => void;
+  set: (p: Partial<Omit<Ui, "set">>) => void;
 }
+
+/** `slow` draws the crank slowly enough to see each spark (the bench runs at full speed). */
+export const useSfView = createViewStore({ xray: true, labels: true, slow: false, paused: false });
 
 const o360 = ENGINES[0];
 
@@ -77,14 +78,12 @@ export const useUi = create<Ui>((set, get) => ({
   map: 22,
   hose: true,
   fault: false,
-  view: { xray: true, labels: true, slow: false, paused: false },
   set: (p) => {
     const before = get();
     // switching on with power starts the LED code over (SF1001 §3.3 d: cycle the switch to see it again)
     if (p.ignition && !before.ignition) bench.onAt = bench.t;
     set(p);
   },
-  setView: (p) => set((x) => ({ view: { ...x.view, ...p } })),
 }));
 
 /** The bench, advanced every frame. */
@@ -130,10 +129,10 @@ export const syncError = (u: Pick<Ui, "mesh" | "clock">) => ((((u.clock - u.mesh
 /** Slow motion draws the crank at most this fast, rpm. */
 const SLOW_RPM = 12;
 
-export function advance(dt: number) {
-  const u = useUi.getState();
-  if (u.view.paused) return;
-  const d = Math.min(Math.max(dt, 0), 0.25);
+export function advance(d: number) {
+  const u = useUi.getState(),
+    view = useSfView.getState();
+  if (view.paused) return;
   const b = bench;
   b.t += d;
   b.spark = b.spark.map((x) => x + d);
@@ -157,7 +156,7 @@ export function advance(dt: number) {
   if (!u.mounted) Object.assign(f, { fires: false, why: "Not mounted: mount it under Install and time" });
   Object.assign(b, { fires: f.fires, btdc: f.btdc, why: f.why, sensed: f.map });
   const prev = b.crank;
-  const shown = u.view.slow ? Math.min(b.rpm, SLOW_RPM) : b.rpm;
+  const shown = view.slow ? Math.min(b.rpm, SLOW_RPM) : b.rpm;
   const dist = shown * 6 * d;
   b.crank = (prev + dist) % 720;
   b.shaft = u.mounted ? (((b.crank - b.err) % 360) + 360) % 360 : u.gear;
@@ -175,16 +174,4 @@ export function advance(dt: number) {
 export const startRpm = START_RPM;
 
 /** Run the bench on animation frames while the page is mounted. */
-export function useBenchLoop() {
-  useEffect(() => {
-    let raf = 0,
-      last = performance.now();
-    const tick = (now: number) => {
-      advance((now - last) / 1000);
-      last = now;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-}
+export const useBenchLoop = () => useSimLoop(advance, 0.25);

@@ -6,11 +6,12 @@
  * carburetor is an updraft unit under the sump). Air and fuel move through it from the running engine (`live`).
  * Part names follow the overhaul instructions' figures; shapes, sizes and spacing are schematic.
  */
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { HoverTip, P, useHover } from "../scene/parts";
+import { P } from "../scene/parts";
+import { ComponentStage } from "../ComponentStage";
 import { merge, tube, zrod } from "../scene/kit";
 import { MA45 } from "@/engines/components/carburetor/carburetor";
 import { carbSim, live, useCarbView } from "./live";
@@ -1027,23 +1028,14 @@ function Carburetor() {
 }
 
 export default function CarburetorScene() {
-  useEffect(() => () => useHover.setState({ hover: null }), []);
   return (
-    <>
-      <Canvas
-        camera={{ position: [0.36, 0.08, 0.59], fov: 38, near: 0.005, far: 10 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => useHover.setState({ hover: null })}
-      >
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[3, 4, 2]} intensity={1.6} />
-        <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
-        <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
-        <Carburetor />
-        <OrbitControls makeDefault target={[0.045, -0.025, 0]} enableDamping minDistance={0.12} maxDistance={1.2} />
-      </Canvas>
-      <HoverTip />
-    </>
+    <ComponentStage
+      camera={{ position: [0.36, 0.08, 0.59], fov: 38, near: 0.005, far: 10 }}
+      target={[0.045, -0.025, 0]}
+      minDistance={0.12}
+      maxDistance={1.2}
+    >
+      <Carburetor />
+    </ComponentStage>
   );
 }

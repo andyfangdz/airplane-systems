@@ -8,14 +8,15 @@
  * the handbook colours them, fuel and air move at the engine's flows, and every part names itself on hover.
  * Proportions are schematic: the units are drawn several times their size and spread out so each part shows.
  */
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import type { EngineSim } from "../store";
 import { coil, D2R, makeMats, merge, rod, tube, XRAY_MATS } from "../scene/kit";
-import { P, useHover } from "../scene/parts";
+import { P } from "../scene/parts";
+import { ComponentStage } from "../ComponentStage";
 import { injectorView, type InjectorView } from "@/engines/components/fuel-injector/model";
 import { PRESSURE } from "./colors";
 
@@ -1074,36 +1075,17 @@ function InjectorModel({ sim }: { sim: EngineSim }) {
   );
 }
 
-/** The hovered part's name and note, next to the pointer. */
-function HoverTip() {
-  const h = useHover((x) => x.hover);
-  if (!h) return null;
-  return (
-    <div className="eng-tip" style={{ left: h.x + 14, top: h.y + 14 }}>
-      <b>{h.name}</b>
-      {h.note && <span>{h.note}</span>}
-    </div>
-  );
-}
-
 export default function InjectorScene({ sim }: { sim: EngineSim }) {
-  useEffect(() => () => useHover.setState({ hover: null }), []);
   return (
-    <>
-      <Canvas
-        camera={{ position: [0.2, 0.3, 1.55], fov: 40, near: 0.02, far: 40 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => useHover.setState({ hover: null })}
-      >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[2, 4, 3]} intensity={1.5} />
-        <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
-        <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
-        <InjectorModel sim={sim} />
-        <OrbitControls makeDefault target={[0.04, 0.02, 0]} enableDamping minDistance={0.4} maxDistance={4} />
-      </Canvas>
-      <HoverTip />
-    </>
+    <ComponentStage
+      camera={{ position: [0.2, 0.3, 1.55], fov: 40, near: 0.02, far: 40 }}
+      target={[0.04, 0.02, 0]}
+      minDistance={0.4}
+      maxDistance={4}
+      ambient={0.6}
+      keyLight={{ position: [2, 4, 3], intensity: 1.5 }}
+    >
+      <InjectorModel sim={sim} />
+    </ComponentStage>
   );
 }

@@ -17,6 +17,7 @@ import {
   Slider,
   Small,
 } from "@/components/ui/controls";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   HIST_S,
@@ -29,13 +30,12 @@ import {
 import { AMT } from "@/engines/components/governor/spec";
 import { IO390 } from "@/engines/io390/spec";
 import { ComponentShell } from "../ComponentShell";
-import { Toggle } from "../chrome";
-import { s, spec, useGov, useGovLoop } from "./store";
+import { ViewToggles } from "../chrome";
+import { s, spec, useGov, useGovLoop, useGovView } from "./store";
 import "./governor.css";
 
 const Scene = dynamic(() => import("./GovernorScene"), { ssr: false, loading: () => <div /> });
 
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 const MODE: Record<GovState["mode"], string> = { under: "Underspeed", on: "On speed", over: "Overspeed" };
 
 const leverFor = (rpm: number) =>
@@ -397,25 +397,21 @@ function Panel() {
   );
 }
 
+const TOGGLES = [
+  ["xray", "X-ray", "See through the governor body, the engine and the hub"],
+  ["labels", "Labels", "Name the main parts"],
+  ["slow", "Slow motion", "Turn the drawn shafts slowly (the simulation runs at full speed)"],
+  ["paused", "Pause", "Freeze the simulation"],
+] as const;
+
 export default function GovernorApp() {
   useGovLoop();
-  const view = useGov((x) => x.view),
-    setView = useGov((x) => x.setView);
-  const toggles: [keyof typeof view, string, string][] = [
-    ["xray", "X-ray", "See through the governor body, the engine and the hub"],
-    ["labels", "Labels", "Name the main parts"],
-    ["slow", "Slow motion", "Turn the drawn shafts slowly (the simulation runs at full speed)"],
-    ["paused", "Pause", "Freeze the simulation"],
-  ];
+  const view = useGovView();
   return (
     <ComponentShell
       id={spec.id}
       scene={<Scene />}
-      toolbar={toggles.map(([k, label, title]) => (
-        <Toggle key={k} on={view[k]} title={title} onClick={() => setView({ [k]: !view[k] })}>
-          {label}
-        </Toggle>
-      ))}
+      toolbar={<ViewToggles items={TOGGLES} view={view} set={view.set} />}
       foot={<Monitor />}
       panel={<Panel />}
     />

@@ -2,10 +2,9 @@
 /**
  * The carburetor page's state. The engine is the O-360's own simulation (the engine page's store, so both pages show
  * the same engine); each frame advances it and then reads the carburetor's side of it into `live` (the scene reads it
- * in `useFrame`, the panel through `useLiveSnapshot`). View toggles are a small zustand store.
+ * in `useFrame`, the panel through `useLiveSnapshot`). View toggles are a small zustand store (`createViewStore`).
  */
-import { useEffect } from "react";
-import { create } from "zustand";
+import { useEffect, useMemo } from "react";
 import { O360 } from "@/engines/o360/spec";
 import {
   PRIMER_IDLE,
@@ -17,7 +16,8 @@ import {
   type Primer,
   type Pump,
 } from "@/engines/components/carburetor/carburetor";
-import { advance, simFor, startScenario, type EngineSim } from "../store";
+import { createViewStore, useSimLoop } from "../sim";
+import { advance, ENGINE_MAX_DT, simFor, startScenario, type EngineSim } from "../store";
 
 export type CarbLive = CarbReading &
   Pump & {
@@ -50,21 +50,8 @@ export const primeStroke = () => {
   live.primer = primerStroke(live.primer);
 };
 
-export interface CarbView {
-  /** See through the castings. */
-  xray: boolean;
-  labels: boolean;
-  /** Draw the air and fuel moving through the carburetor. */
-  flow: boolean;
-  set: (p: Partial<Omit<CarbView, "set">>) => void;
-}
-
-export const useCarbView = create<CarbView>((set) => ({
-  xray: true,
-  labels: true,
-  flow: true,
-  set: (p) => set(p),
-}));
+/** `flow` draws the air and fuel moving through the carburetor. */
+export const useCarbView = createViewStore({ xray: true, labels: true, flow: true });
 
 function read(sim: EngineSim, pump: Pump) {
   const s = sim.s;
@@ -78,6 +65,26 @@ function read(sim: EngineSim, pump: Pump) {
   });
 }
 
+/** One frame of the page: the engine, then the accelerating pump and the primer, then the carburetor's readings. */
+function carbTick(sim: EngineSim) {
+  const carb = sim.spec.fuelSystem.kind === "carburetor" ? sim.spec.fuelSystem : null;
+  let pump: Pump = { plunger: sim.useUi.getState().controls.throttle, squirt: 0 },
+    resets = sim.resets;
+  return (dt: number) => {
+    advance(sim, dt);
+    // a scenario replaced the engine: strokes asked for before don't carry over to it
+    if (sim.resets !== resets) {
+      resets = sim.resets;
+      live.primer = PRIMER_IDLE;
+    }
+    if (carb && !sim.useUi.getState().view.paused) {
+      pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
+      live.primer = runPrimer(sim.spec, sim.s, live.primer, dt);
+    }
+    read(sim, pump);
+  };
+}
+
 /**
  * Run the engine and read the carburetor on animation frames while the page is mounted. An engine nobody has set up
  * yet starts from performance cruise, so the main metering system is flowing when the page opens.
@@ -86,28 +93,7 @@ export function useCarbLoop(sim: EngineSim) {
   useEffect(() => {
     const ui = sim.useUi.getState();
     if (sim.s.rpm === 0 && !ui.view.scenario && !ui.view.loading) startScenario(sim, "cruise75");
-    const carb = sim.spec.fuelSystem.kind === "carburetor" ? sim.spec.fuelSystem : null;
-    let pump: Pump = { plunger: sim.useUi.getState().controls.throttle, squirt: 0 };
-    let raf = 0,
-      last = performance.now(),
-      resets = sim.resets;
-    const tick = (now: number) => {
-      const dt = Math.min(Math.max((now - last) / 1000, 0), 0.5);
-      last = now;
-      advance(sim, dt);
-      // a scenario replaced the engine: strokes asked for before don't carry over to it
-      if (sim.resets !== resets) {
-        resets = sim.resets;
-        live.primer = PRIMER_IDLE;
-      }
-      if (carb && !sim.useUi.getState().view.paused) {
-        pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
-        live.primer = runPrimer(sim.spec, sim.s, live.primer, dt);
-      }
-      read(sim, pump);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
   }, [sim]);
+  const tick = useMemo(() => carbTick(sim), [sim]);
+  useSimLoop(tick, ENGINE_MAX_DT);
 }

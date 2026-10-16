@@ -5,36 +5,27 @@
  */
 import dynamic from "next/dynamic";
 import { ComponentShell } from "../ComponentShell";
-import { Toggle } from "../chrome";
+import { ViewToggles } from "../chrome";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { MAX_ADVANCE, readDip, ledCodeText } from "@/engines/components/surefly/model";
-import { bench, useBenchLoop, useUi } from "./store";
+import { bench, useBenchLoop, useSfView, useUi } from "./store";
 import { SureFlyPanel } from "./Panel";
 import "./surefly.css";
 
 const Scene = dynamic(() => import("./Scene"), { ssr: false, loading: () => <div /> });
 
-function Toolbar() {
-  const view = useUi((x) => x.view),
-    setView = useUi((x) => x.setView);
-  const toggles: [keyof typeof view, string, string][] = [
-    ["xray", "X-ray", "See through the case to the shaft, sensors and coils"],
-    ["labels", "Labels", "Name the main parts"],
-    ["slow", "Slow motion", "Turn the drawn shaft slowly enough to see each spark"],
-    ["paused", "Pause", "Freeze the bench"],
-  ];
-  return (
-    <>
-      {toggles.map(([k, t, title]) => (
-        <Toggle key={k} on={view[k]} title={title} onClick={() => setView({ [k]: !view[k] })}>
-          {t}
-        </Toggle>
-      ))}
-    </>
-  );
-}
+const TOGGLES = [
+  ["xray", "X-ray", "See through the case to the shaft, sensors and coils"],
+  ["labels", "Labels", "Name the main parts"],
+  ["slow", "Slow motion", "Turn the drawn shaft slowly enough to see each spark"],
+  ["paused", "Pause", "Freeze the bench"],
+] as const;
 
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
+function Toolbar() {
+  const view = useSfView();
+  return <ViewToggles items={TOGGLES} view={view} set={view.set} />;
+}
 
 /** The crank angle on a degree wheel: #1's top centre, where it fires now, data-plate timing and the 38° ceiling. */
 function Dial({ crank, btdc, fires, plate }: { crank: number; btdc: number; fires: boolean; plate: number }) {

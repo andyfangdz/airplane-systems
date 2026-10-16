@@ -13,6 +13,7 @@ import {
   Slider,
   Small,
 } from "@/components/ui/controls";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   ADVANCE_SHAPE,
@@ -229,7 +230,7 @@ function Run() {
         step={10}
         value={u.rpm}
         onChange={(v) => u.set({ rpm: v })}
-        fmt={(v) => `${Math.round(v).toLocaleString("en-US")} rpm`}
+        fmt={(v) => `${f0(v)} rpm`}
       />
       <Slider
         id="sf-map"

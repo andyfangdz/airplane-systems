@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function Page({ params }: Params) {
-  const { component } = await params;
-  if (!componentById(component)) notFound();
-  return <ComponentPage id={component} />;
+  const c = componentById((await params).component);
+  if (!c) notFound();
+  return <ComponentPage id={c.id} />;
 }
