@@ -15,7 +15,9 @@ To add one:
 - `geometry.ts`: Airframe shape: fuselage station table, wing/tail/fin functions, window outlines, painted skin.
 - `parts/`: The parts catalogue, one file per system group. `catalogue.ts` creates `CAT = new Catalogue(id, labelLists?)` and the helpers the sections share; each section file (`engine.ts`, `fuel.ts`, …) registers its parts, shells and control surfaces; `index.ts` imports the sections in order and re-exports the anchor positions other files use. Registration order sets part ids and which part carries a name's label pin, so add a part to the section it belongs to and keep the import order in `index.ts`.
 - `rig.ts`: Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` or `Airplane.tsx`.
-- `flows.ts`: Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)`.
+- `flows.ts`: Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)`. The SR20 and SR22T split theirs into
+  `*-depth-flow.ts` section files, each exporting its `FlowSpec[]` and its rates; `flows.ts` concatenates them in a fixed
+  order and merges the rates.
 - `model.ts`: Sim state type, `initialSim`, the pure solver `solve(s, prev?) → E` (buses, powered loads; `prev` is the last solution, for state that latches), alerts and annunciation list, breaker table, autopilot configuration (`AFCS_CFG`), and `live` (per-frame values, with their initial values).
 - `store.ts`: `createSimStore(initialSim, solve)` and the scenarios ("Start from" buttons).
 - `tick.ts`: Per-frame step: engine, RPM, flap motor, timers, flight state and autopilot. Writes `live`; discrete changes go through the store. No side effects at import.
