@@ -12,7 +12,10 @@ import {
   showInUrl,
   sysOf,
   useAircraft,
-} from "@/aircraft";
+  useAircraftDef,
+  whenLoaded,
+} from "@/aircraft/lazy";
+import { FLEET_INDEX } from "@/lib/fleet-index";
 import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
 import { revealStage, useView } from "@/lib/view";
 import { Loader } from "./Loader";
@@ -67,17 +70,18 @@ function Rail() {
 }
 
 function Panel() {
-  const def = useAircraft();
+  const def = useAircraft(),
+    code = useAircraftDef();
   const sys = useView((x) => x.sys),
     theme = useView((x) => x.theme),
     walking = useView((x) => x.walking);
   const s = sysOf(def, sys),
-    Body = def.panels[s.id];
+    Body = code?.panels[s.id];
   // phones: after picking a system from far down the panel, bring the 3D view back up
   useEffect(() => {
     if (!walking) revealStage();
   }, [sys, def, walking]);
-  const Walk = walking ? def.walk?.Panel : undefined;
+  const Walk = walking ? code?.walk?.Panel : undefined;
   if (Walk)
     return (
       <aside className="panel">
@@ -94,7 +98,8 @@ function Panel() {
           {s.ref ?? `${def.doc} · p. ${s.pg}`}
         </div>
         <h2>{s.id === "overview" ? "Airplane & Systems" : s.name}</h2>
-        {Body ? <Body /> : <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
+        {/* while the airplane's code loads, the heading alone (the Loader is up over the 3D view) */}
+        {Body ? <Body /> : code && <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
       </div>
     </aside>
   );
@@ -109,7 +114,8 @@ const SUN = (
 const MOON = <path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z" />;
 
 function Toolbar() {
-  const def = useAircraft();
+  const def = useAircraft(),
+    code = useAircraftDef();
   const xray = useView((x) => x.xray),
     labels = useView((x) => x.labels),
     spin = useView((x) => x.spin),
@@ -119,15 +125,18 @@ function Toolbar() {
     setTheme = useView((v) => v.setTheme),
     flyTo = useView((v) => v.flyTo);
   const dark = theme === "dark";
-  const walk = def.walk;
+  // the button is there from the first paint (FLEET_INDEX says which airplanes have a walk); it works once the code is in
+  const walk = code?.walk,
+    hasWalk = FLEET_INDEX.some((a) => a.id === def.id && a.walk);
   return (
     <div className="toolbar">
-      {walk && (
+      {hasWalk && (
         <button
           className="tb"
+          disabled={!walk}
           aria-pressed={walking}
           title={walking ? "Leave the preflight walk-around" : "Guided preflight walk-around"}
-          onClick={() => (walking ? walk.close() : walk.open())}
+          onClick={() => (walking ? walk?.close() : walk?.open())}
         >
           Preflight
         </button>
@@ -173,7 +182,7 @@ function Toolbar() {
 }
 
 function Hud() {
-  const { Hud: H } = useAircraft();
+  const H = useAircraftDef()?.Hud;
   return H ? <H /> : null;
 }
 
@@ -266,13 +275,21 @@ function useBoot() {
       saved = read("fleetAc");
     if (u) show(...u);
     else show(isAircraftId(saved) ? saved : "sr20");
-    aircraft(useView.getState().ac).prepare?.();
-    const preset = parseCameraPreset(new URLSearchParams(location.search).get("cam"));
+    const search = location.search,
+      preset = parseCameraPreset(new URLSearchParams(search).get("cam"));
     if (preset) applyCameraPreset(preset);
-    // the airplane's walk-around: a ?walk= deep link, or saved progress to resume
-    aircraft(useView.getState().ac).walk?.boot(location.search);
+    // the airplane's walk-around: a ?walk= deep link, or saved progress to resume. Its code loads (if `show` didn't
+    // start that already) and this runs before its Model mounts, unless the user has switched airplanes meanwhile.
+    whenLoaded(useView.getState().ac, (def) => {
+      if (useView.getState().ac === def.id) def.walk?.boot(search);
+    });
     return () => os.removeEventListener("change", onOs);
   }, []);
+}
+
+function Alerts() {
+  const code = useAircraftDef();
+  return code ? <code.Alerts key={code.id} /> : null;
 }
 
 export default function App() {
@@ -292,7 +309,7 @@ export default function App() {
         <Loader />
         <Toolbar />
         <div className="stage-foot">
-          <def.Alerts key={def.id} />
+          <Alerts />
           <Hud />
           <div id="walk-scene" className="walk-scene" />
         </div>

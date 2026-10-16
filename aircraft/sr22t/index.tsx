@@ -17,7 +17,8 @@ import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Ice } from "./panels/ice";
 import { Environment, Pitot } from "./panels/air";
 import { resetCaps, useSR22T } from "./store";
-import { CAPS_CAM, SYS } from "./systems";
+import { CAPS_CAM } from "./systems";
+import { SR22T_META } from "./meta";
 import { simTick } from "./tick";
 import { useView } from "@/lib/view";
 import { WalkPanel } from "./panels/walkaround";
@@ -58,12 +59,7 @@ function Alerts() {
 }
 
 export const SR22T: AircraftDef = {
-  id: "sr22t",
-  short: "SR22T",
-  name: "SR22T G6",
-  sub: "Perspective+ · GFC 700 · TSIO-550-K",
-  doc: "POH §7",
-  systems: SYS,
+  ...SR22T_META,
   groundY: GROUND_Y,
   pivotX: 1,
   Model: SceneModel,

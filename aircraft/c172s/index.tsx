@@ -13,7 +13,7 @@ import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
 import { useC172 } from "./store";
-import { SYS } from "./systems";
+import { C172S_META } from "./meta";
 import { simTick } from "./tick";
 import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
@@ -28,12 +28,7 @@ function Alerts() {
 }
 
 export const C172S: AircraftDef = {
-  id: "c172s",
-  short: "C172S",
-  name: "C172S Skyhawk",
-  sub: "NAV III G1000 · GFC 700 · IO-360",
-  doc: "POH §7",
-  systems: SYS,
+  ...C172S_META,
   groundY: GROUND_Y,
   pivotX: 0,
   Model,

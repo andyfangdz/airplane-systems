@@ -1,4 +1,7 @@
-/** The fleet, in picker order. Importing this module registers it with lib/fleet. */
+/**
+ * The whole fleet, every airplane's full definition, in picker order: for tests and scripts. Importing this module
+ * registers it with lib/fleet, all loaded. The app imports aircraft/lazy.ts instead, which loads each airplane on demand.
+ */
 import { registerFleet } from "@/lib/fleet";
 import { C172S } from "./c172s";
 import { C182T } from "./c182t";

@@ -104,12 +104,12 @@ components/
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)
   ui/controls.tsx     Seg, Slider, Check, Rocker, Readouts, Facts, HoldButton, …
   ui/wiring.tsx       Symbols for the live single-line electrical diagrams (breaker, switch, diode, bus box, key)
-aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) — see aircraft/README.md
+aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base); lazy.ts loads each airplane on demand — see aircraft/README.md
 engines/              Standalone engine simulations: EngineSpec per engine, shared model/ — see engines/README.md
 components/engine/    The /engines/<id> page: 3D engine (scene/: one file per part group), engine monitor, controls, pressure chart
 lib/
   view.ts             View state shared by every airplane (airplane, system, toggles, theme, camera); phone breakpoint
-  fleet.ts            Airplane / system selection, remembered view, URL path
+  fleet.ts            Airplane / system selection, loading an airplane's code, remembered view, URL path
   systems.ts          Airplane ids, system ids, palette
   catalogue.ts        Declarative part catalogue: parts, shells, lofted control surfaces and the parts riding on them, label lists
   anims.ts            Part animations shared by every airplane (spark plugs, magnetos, brakes, glow, push-pull knobs)

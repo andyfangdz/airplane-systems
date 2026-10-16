@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { sysOf, useAircraft } from "@/aircraft";
+import { sysOf, useAircraft, useAircraftDef } from "@/lib/fleet";
 import type { AircraftDef } from "@/aircraft/types";
 import { outlineMat, shellUniforms } from "@/lib/materials";
 import { V, clamp, ease } from "@/lib/math";
@@ -328,7 +328,9 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
 }
 
 export default function Scene() {
-  const def = useAircraft();
+  // the canvas, lights and camera come up with the airplane's meta; its grid, model and clock once its code has loaded
+  const def = useAircraft(),
+    code = useAircraftDef();
   const theme = useView((x) => x.theme);
   const spin = useView((x) => x.spin);
   const pal = palette(theme);
@@ -358,19 +360,21 @@ export default function Scene() {
       <hemisphereLight args={["#ffffff", "#445566", 0.85 * Math.PI]} />
       <directionalLight position={[6, 10, 5]} intensity={0.9 * Math.PI} />
       <directionalLight position={[-6, 3, -6]} intensity={0.35 * Math.PI} />
-      <gridHelper
-        ref={gridRef}
-        args={[40, 40, "#ffffff", "#ffffff"]}
-        position-y={def.groundY}
-        onUpdate={(g) => {
-          const m = g.material as THREE.LineBasicMaterial;
-          m.transparent = true;
-          m.opacity = 0.5;
-          m.color.set(pal.grid);
-        }}
-      />
+      {code && (
+        <gridHelper
+          ref={gridRef}
+          args={[40, 40, "#ffffff", "#ffffff"]}
+          position-y={code.groundY}
+          onUpdate={(g) => {
+            const m = g.material as THREE.LineBasicMaterial;
+            m.transparent = true;
+            m.opacity = 0.5;
+            m.color.set(pal.grid);
+          }}
+        />
+      )}
       <MaterialSync />
-      <AircraftScene key={def.id} def={def} gridRef={gridRef} />
+      {code && <AircraftScene key={code.id} def={code} gridRef={gridRef} />}
       <OrbitControls
         makeDefault
         enableDamping
@@ -382,7 +386,7 @@ export default function Scene() {
         target={startTarget}
       />
       <CameraRig />
-      <SimClock tick={def.tick} />
+      {code && <SimClock tick={code.tick} />}
     </Canvas>
   );
 }

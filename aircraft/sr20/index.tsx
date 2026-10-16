@@ -14,7 +14,8 @@ import { Airframe, Avionics, Cabin, Doors, Lighting, Overview } from "./panels/g
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Environment, Pitot } from "./panels/air";
 import { resetCaps, useSR20 } from "./store";
-import { CAPS_CAM, SYS } from "./systems";
+import { CAPS_CAM } from "./systems";
+import { SR20_META } from "./meta";
 import { simTick } from "./tick";
 import { useView } from "@/lib/view";
 import { WalkPanel } from "./panels/walkaround";
@@ -54,12 +55,7 @@ function Alerts() {
 }
 
 export const SR20: AircraftDef = {
-  id: "sr20",
-  short: "SR20",
-  name: "SR20 G6",
-  sub: "Perspective+ · GFC 700 · IO-390",
-  doc: "POH §7",
-  systems: SYS,
+  ...SR20_META,
   groundY: GROUND_Y,
   pivotX: 1,
   Model,
