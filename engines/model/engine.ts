@@ -33,6 +33,8 @@ export interface Controls {
   altAir: boolean;
   /** Carburetor heat 0 (cold, filtered ram air) … 1 (full hot, from the exhaust heater muff): carbureted engines. */
   carbHeat: number;
+  /** HIGH BOOST/PRIME selected on a three-position pump switch (which sets `boost` too); subject to the spec's lockout. */
+  highBoost?: boolean;
 }
 
 export interface Environment {
@@ -65,6 +67,25 @@ export interface Failures {
   starterStuck: boolean;
   /** Leak in an intake pipe (a split hose, a loose clamp), by cylinder index, 0 … 1: unmetered air into that cylinder. */
   intakeLeak: number[];
+  // Turbo-system failures: present (false or null) only for a spec with `turbo` (see noFailures).
+  /** Wastegate seized open or closed (null: free). */
+  wastegateSeized?: "open" | "closed" | null;
+  /** Wastegate actuator oil supply lost (the spring opens the gate). */
+  wastegateOil?: boolean;
+  /** Oil leaking overboard from the turbocharger oil system. */
+  oilLeak?: boolean;
+  /** Leak between the compressors and the throttle. */
+  inductionLeak?: boolean;
+  /** Intercooler leak, by side [L, R]. */
+  intercoolerLeak?: [boolean, boolean];
+  /** Exhaust leak upstream of the turbines. */
+  exhaustLeak?: boolean;
+  /** Turbocharger internal failure, by side [L, R]. */
+  turboInternal?: [boolean, boolean];
+  /** Differential controller misadjusted (set point shifted by `turbo.controller.misadjustInHg`). */
+  controllerMisadjust?: boolean;
+  /** TIT probe failed, by side [L, R]. */
+  titProbe?: [boolean, boolean];
 }
 
 export interface CylState {
@@ -122,7 +143,7 @@ export interface EngineState {
   /** Governor set speed and whether it is governing. */
   govRpm: number;
   governing: boolean;
-  /** Induction source pressure and temperature. */
+  /** Induction source pressure and temperature (the compressor inlet for a turbocharged spec). */
   inletInHg: number;
   inletC: number;
   oatC: number;
@@ -133,6 +154,33 @@ export interface EngineState {
   ice: number;
   melt: number;
   lastThrottle: number;
+  // Turbocharged engines. initialState sets the neutral value each comment gives; an engine without `turbo` keeps it.
+  /** Upper-deck (throttle-inlet) pressure, inHg. Neutral: the inlet pressure. */
+  deckInHg?: number;
+  /** Wastegate position, 0 closed … 1 open; 1 when stopped or without oil. Neutral: 1. */
+  gate?: number;
+  /** Controller bleed (0 … 1) and wastegate actuator oil pressure (psi). Neutral: 0. */
+  bleed?: number;
+  pActPsi?: number;
+  /** Turbocharger shaft speed by side [L, R], rpm, display only. Neutral: [0, 0]. */
+  turboRpm?: [number, number];
+  /** Compressor discharge and manifold air (after the intercooler), °C. Neutral: the inlet temperature. */
+  compressorOutC?: number;
+  matC?: number;
+  /** Turbine-inlet (exhaust) pressure, inHg. Neutral: outside air pressure. */
+  turbineInletInHg?: number;
+  /** Turbine inlet temperature by side [L, R], °F. Neutral: outside air. */
+  tit?: [number, number];
+  /** Seconds above the continuous TIT limit (the transient timer). Neutral: 0. */
+  titOverS?: number;
+  /** Overboost relief valve open. Neutral: false. */
+  reliefOpen?: boolean;
+  /** Automatic alternate-air door open. Neutral: false. */
+  altAirOpen?: boolean;
+  /** Oil lost to leaks this run, qt. Neutral: 0. */
+  oilLossQt?: number;
+  /** HIGH BOOST actually running (after the lockout). Neutral: false. */
+  highBoostOn?: boolean;
 }
 
 export const defaultControls = (): Controls => ({
@@ -157,6 +205,17 @@ export const noFailures = (spec: EngineSpec): Failures => ({
   starter: false,
   starterStuck: false,
   intakeLeak: spec.geometry.cylinders.map(() => 0),
+  ...(spec.turbo && {
+    wastegateSeized: null,
+    wastegateOil: false,
+    oilLeak: false,
+    inductionLeak: false,
+    intercoolerLeak: [false, false],
+    exhaustLeak: false,
+    turboInternal: [false, false],
+    controllerMisadjust: false,
+    titProbe: [false, false],
+  }),
 });
 
 /** A cold engine, stopped, soaked to the outside air. */
@@ -208,6 +267,20 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     ice: 0,
     melt: 0,
     lastThrottle: 0,
+    deckInHg: air.p,
+    gate: 1,
+    bleed: 0,
+    pActPsi: 0,
+    turboRpm: [0, 0],
+    compressorOutC: air.t,
+    matC: air.t,
+    turbineInletInHg: air.p,
+    tit: [f, f],
+    titOverS: 0,
+    reliefOpen: false,
+    altAirOpen: false,
+    oilLossQt: 0,
+    highBoostOn: false,
   };
 }
 
@@ -297,8 +370,9 @@ function substep(
 
   // ---- induction: ram air through the filter, or unfiltered cowl air (alternate air, or carburetor heat from the muff)
   const carb = spec.fuelSystem.kind === "carburetor" ? spec.fuelSystem : null;
+  const intake = spec.induction;
   const v = env.tasKt * KT_MS;
-  const ram = ramPressure(air.p, air.t, env.tasKt);
+  const ram = ramPressure(air.p, air.t, env.tasKt, intake?.ramEta ?? 0.7);
   let source: number, inletC: number, cdA: number;
   if (carb) {
     const heat = clamp(c.carbHeat, 0, 1);
@@ -311,10 +385,10 @@ function substep(
     cdA = ind.cdAFull * (f.filter ? series(open, 0.12 + 0.88 * heat) : open);
   } else {
     source = c.altAir ? air.p : ram;
-    inletC = air.t + (c.altAir ? 15 : 0); // alternate air is warmer (assumed +15 °C)
+    inletC = air.t + (c.altAir ? (intake?.altAirDeltaC ?? 15) : 0); // alternate air is warmer (assumed +15 °C)
     const open = throttleArea(c.throttle, cal.idleArea);
     // a blocked filter is a restriction in series with the throttle; the alternate air door bypasses it
-    cdA = ind.cdAFull * (f.filter && !c.altAir ? series(open, 0.12) : open);
+    cdA = ind.cdAFull * (f.filter && !c.altAir ? series(open, intake?.filterBlockedArea ?? 0.12) : open);
   }
   // a leaking intake pipe is an orifice in parallel with the throttle, its air unmetered (assumed: a full leak is 3 % of
   // the wide-open area)
@@ -369,7 +443,11 @@ function substep(
   } else {
     // boost pump or engine-driven pump to the servo, metered against air flow, split by nozzle area
     const supply = Math.max(c.boost ? 1 : 0, enginePump);
-    s.fuelPsi = Math.max(c.boost ? 26 : 0, enginePump * clamp(s.rpm / 900, 0, 1) * 28);
+    const servo = spec.fuelSystem.kind === "injected" ? spec.fuelSystem : undefined;
+    s.fuelPsi = Math.max(
+      c.boost ? (servo?.boostPsi ?? 26) : 0,
+      enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28),
+    );
     dist = distribution(spec, f.nozzle);
     // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
     // nothing flows however much the servo meters
@@ -430,7 +508,10 @@ function substep(
   const cranking = (c.mags === "START" || f.starterStuck) && !f.starter;
   s.starterEngaged = cranking;
   s.starterS = cranking ? s.starterS + dt : 0;
-  const starterTorque = cranking ? 230 * Math.max(0, 1 - s.rpm / 380) : 0;
+  const acc = spec.accessories;
+  const starterTorque = cranking
+    ? (acc.starterTorque ?? 230) * Math.max(0, 1 - s.rpm / (acc.starterFreeRpm ?? 380))
+    : 0;
   const d = (spec.propeller.diameterIn * 2.54) / 100;
   s.govRpm = governedRpm(spec, c.prop);
   governorStep(spec, s, s.govRpm, dt);
@@ -448,7 +529,7 @@ function substep(
   s.pct = (s.hp / rated.hp) * 100;
 
   // ---- cooling air over the cylinders: airspeed plus propeller slipstream (actuator disk, ∝ P^⅓)
-  const slipKt = 55 * Math.cbrt(Math.max(s.hp, 0) / rated.hp);
+  const slipKt = (cal.slipKt ?? 55) * Math.cbrt(Math.max(s.hp, 0) / rated.hp);
   const coolKt = Math.sqrt(env.tasKt ** 2 + slipKt ** 2);
   const cooling = Math.max(0.15, Math.pow(((air.rho / RHO0) * coolKt) / 100, 0.4));
   const oatF = cToF(air.t);
@@ -482,7 +563,8 @@ function substep(
   // ---- oil pressure: positive-displacement pump, resistance ∝ viscosity, relief valve
   let oilP = s.rpm > 0 ? cal.oilPressPerRpm * Math.pow(s.rpm / 1000, 0.7) * Math.sqrt(visc) : 0;
   if (oilP > cal.oilRelief) oilP = cal.oilRelief + (oilP - cal.oilRelief) * 0.12;
-  const sump = clamp((env.oilQt - 1.5) / 1.5, 0, 1); // the pickup uncovers below ~3 qt
+  const [bare, covered] = spec.oil.pickupQt ?? [1.5, 3];
+  const sump = clamp((env.oilQt - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
   oilP *= sump < 1 ? sump * (0.85 + 0.15 * Math.sin(s.t * 7)) : 1;
   s.oilP = approach(s.oilP, oilP, dt, 0.4);
 }
