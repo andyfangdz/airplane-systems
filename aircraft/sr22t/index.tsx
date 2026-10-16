@@ -1,5 +1,6 @@
 "use client";
 import { AlertWindow } from "@/components/AlertWindow";
+import { fleetWalkUi } from "@/components/FleetWalkaround";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef, ModelRefs } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
@@ -21,9 +22,7 @@ import { CAPS_CAM } from "./systems";
 import { SR22T_META } from "./meta";
 import { simTick } from "./tick";
 import { useView } from "@/lib/view";
-import { WalkPanel } from "./panels/walkaround";
-import { WalkMarker } from "./WalkMarker";
-import { bootWalk, closeWalk, openWalk } from "./walk-store";
+import { walkController } from "./walk-store";
 
 /** CAPS timeline readout in the viewport while the CAPS view is open. */
 function CapsHud() {
@@ -41,12 +40,14 @@ function CapsHud() {
   );
 }
 
+const WALK = fleetWalkUi(walkController);
+
 /** Scene effects: the CAPS deployment and the walk-around's item marker. */
 function Overlay(refs: ModelRefs) {
   return (
     <>
       <Parachute {...refs} />
-      <WalkMarker />
+      <WALK.Marker />
     </>
   );
 }
@@ -94,5 +95,5 @@ export const SR22T: AircraftDef = {
   },
   labels: { cat: CAT, inside: inFus },
   resetCam: () => (useSR22T.getState().s.capsOn ? CAPS_CAM : null),
-  walk: { Panel: WalkPanel, open: () => openWalk(), close: closeWalk, boot: bootWalk },
+  walk: WALK.walk,
 };

@@ -32,6 +32,11 @@ To add one:
 - `ControlRig.tsx`: Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (DA40, M20C; the SR20 and SR22T render `cirrus/ControlRig.tsx` with their catalogue, rig and store; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`).
 - `Parachute.tsx` (SR20, SR22T): The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment). Each binds `cirrus/Parachute.tsx` to its own harness geometry, store and `live` timeline.
 - `displays.ts`: Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000/`; the SR20 and SR22T call it with `style: "perspective"` and draw their MD302 standby with `lib/avionics/md302.ts`.
+- `walkaround.ts`, `walk.ts`, `walk-store.ts`: The preflight study walk. `walkaround.ts` holds the data (`FleetWalkData`:
+  stations, items and wording from the POH/AFM, and the panel copy where the airplane's walk differs from the default);
+  `walk.ts` builds its logic with `createFleetWalk` (ramp state, moving-group transforms) and `walk-store.ts` its session
+  with `createFleetWalkStore` (how `live` is reset and follows the steps). `index.tsx` gets the panel and scene marker
+  from `fleetWalkUi(walkController)` (`components/FleetWalkaround.tsx`).
 - `panels/*.tsx`: Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH.
 - `panels/distribution.tsx` (DA40): The electrical panel's live single-line power distribution diagram, drawn from the solution `E` with the symbols in `components/ui/wiring.tsx` (the Cirrus airplanes share theirs, `PowerDiagram` in `cirrus/distribution.tsx`; the Cessnas theirs, `Nav3Diagram` in `cessna/panels.tsx`).
 

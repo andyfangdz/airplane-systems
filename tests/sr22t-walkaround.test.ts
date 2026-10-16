@@ -15,13 +15,19 @@ import { useEngineGroups } from "@/aircraft/sr22t/engine-group-store";
 import { useSR22T } from "@/aircraft/sr22t/store";
 import { simTick } from "@/aircraft/sr22t/tick";
 import { SYS } from "@/aircraft/sr22t/systems";
-import {
+import { walk } from "@/aircraft/sr22t/walk";
+import { walkController } from "@/aircraft/sr22t/walk-store";
+import { isPoh, NOT_MODELLED, WALK } from "@/aircraft/sr22t/walkaround";
+import { partSide, spotsPart } from "@/lib/spot";
+import { useView } from "@/lib/view";
+import { patched } from "./helpers";
+import { WALK_MAP_MARK_R as MAP_MARK_R } from "@/lib/fleet-walk";
+const {
   inCatalogue,
   loadProgress,
-  MAP_MARK_R,
   nameCentres,
   parseProgress,
-  PROGRESS_KEY,
+  progressKey: PROGRESS_KEY,
   saveProgress,
   simAt,
   stationCentroid,
@@ -29,27 +35,23 @@ import {
   stepParts,
   stepPose,
   stepSide,
-  underAirplane as poseClear,
+  underAirplane: poseClear,
   walkParam,
   walkSteps,
-  type Step,
-} from "@/aircraft/sr22t/walk";
-import {
-  beginWalk,
-  bootWalk,
-  closeWalk,
+} = walk;
+type Step = (typeof walk.steps)[number];
+const {
+  begin: beginWalk,
+  boot: bootWalk,
+  close: closeWalk,
   goStep,
-  markStep,
-  openWalk,
-  resetWalk,
-  resumeWalk,
-  useWalk,
-  walkNow,
-} from "@/aircraft/sr22t/walk-store";
-import { isPoh, NOT_MODELLED, WALK } from "@/aircraft/sr22t/walkaround";
-import { partSide, spotsPart } from "@/lib/spot";
-import { useView } from "@/lib/view";
-import { patched } from "./helpers";
+  mark: markStep,
+  open: openWalk,
+  reset: resetWalk,
+  resume: resumeWalk,
+  session: walkNow,
+} = walkController;
+const useWalk = walkController.store;
 
 /** POH Figure 4-1 stations, in walk-around order (POH 4-5 – 4-9 headings). */
 const POH_STATIONS = [
@@ -469,8 +471,8 @@ describe("optional equipment", () => {
     const steps = walkSteps(none);
     const s = simAt(
       none,
-      steps,
       steps.findIndex((x: Step) => x.item.id === "1r"),
+      steps,
     );
     expect(s.pitot.heat).toBe(true);
     expect(s.oxy.on).toBe(false);

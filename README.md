@@ -99,6 +99,7 @@ app/                  Next.js App Router entry (layout, page, icon, global CSS)
 components/
   App.tsx             Shell: fleet picker, system rail, toolbar, alert window, HUD, tooltip, panel; URL and tab title
   Tour.tsx            Welcome tour shown on a first visit (skipping or finishing it is remembered; the toolbar's ? replays it)
+  FleetWalkaround.tsx Preflight study walk panel and scene markers shared by every airplane (walkaround.css)
   scene/              Shared React Three Fiber scene: Scene (canvas, camera flights, sim clock), Part / Shells,
                       ControlSurface, Flows, Links, Tanks, Screens, LightFX, WindowOutlines, PinDeclutter
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)
@@ -114,6 +115,8 @@ lib/
   catalogue.ts        Declarative part catalogue: parts, shells, lofted control surfaces and the parts riding on them, label lists
   anims.ts            Part animations shared by every airplane (spark plugs, magnetos, brakes, glow, push-pull knobs)
   simStore.ts         createSimStore: one zustand store per airplane (discrete state + derived solution)
+  fleet-walk.ts       Preflight study walk: data types and pure logic (steps, part locations, camera framing, progress)
+  fleet-walk-store.ts Preflight study walk session: reversible model and view state, saved progress, ?walk=N deep links
   avionics/           G1000 / Perspective+ display drawing, flight-state integrator, GFC 700 and KAP 140 logic (pure functions)
   geometry.ts, materials.ts, math.ts, registry.ts, canvas.ts
 tests/                Vitest: fleet-wide invariants, electrical solvers, scenarios, GFC 700 and KAP 140 logic
