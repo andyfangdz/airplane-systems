@@ -154,7 +154,10 @@ function NozzleChart({ sim }: { sim: EngineSim }) {
   const x = (psi: number) => L + (psi / 12) * (W - L - R);
   const y = (lbh: number) => H - B - (lbh / 120) * (H - B - T);
   const path = (pts: [number, number][]) => pts.map(([p, f], k) => `${k ? "L" : "M"}${x(p)},${y(f)}`).join("");
+  // past the printed chart (a badly blocked nozzle) the points stay on its edge and say so
+  const off = v.nozzlePsi > 12 || v.indicated > 120 || v.metered > 120;
   const px = x(Math.min(v.nozzlePsi, 12)),
+    yy = (lbh: number) => y(Math.min(lbh, 120)),
     on = v.metered > 0.5;
   return (
     <>
@@ -181,10 +184,15 @@ function NozzleChart({ sim }: { sim: EngineSim }) {
         <path d={path(nominal)} className="nom" />
         {on && (
           <>
-            <line x1={px} x2={px} y1={y(v.metered)} y2={y(v.indicated)} className="gap" />
-            <line x1={L} x2={px} y1={y(v.indicated)} y2={y(v.indicated)} className="gap" />
-            <circle cx={px} cy={y(v.indicated)} r={3.5} fill="none" stroke={PRESSURE.nozzle} strokeWidth={2} />
-            <circle cx={px} cy={y(v.metered)} r={4} fill={PRESSURE.metered} />
+            <line x1={px} x2={px} y1={yy(v.metered)} y2={yy(v.indicated)} className="gap" />
+            <line x1={L} x2={px} y1={yy(v.indicated)} y2={yy(v.indicated)} className="gap" />
+            <circle cx={px} cy={yy(v.indicated)} r={3.5} fill="none" stroke={PRESSURE.nozzle} strokeWidth={2} />
+            <circle cx={px} cy={yy(v.metered)} r={4} fill={PRESSURE.metered} />
+            {off && (
+              <text x={px - 6} y={H - B - 6} textAnchor="end" className="off">
+                off scale: {v.nozzlePsi.toFixed(1)} psig
+              </text>
+            )}
           </>
         )}
         <text x={W - R} y={H - 2} textAnchor="end">

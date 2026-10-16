@@ -106,6 +106,21 @@ describe("how the RSA system works (FAA-H-8083-32B pp. 2-21–2-24)", () => {
     expect(v.nozzles.reduce((a, x) => a + x, 0)).toBeCloseTo(v.metered, 9);
   });
 
+  test("an intake leak's air bypasses the venturi: the air force follows only the air through the throttle body", () => {
+    const clean = scenario("cruise75");
+    const before = viewOf(clean);
+    const f = noFailures(S);
+    f.intakeLeak[0] = 1;
+    settle(S, clean.s, clean.c, clean.env, f, 10);
+    const after = viewOf(clean, f);
+    expect(after.totalAir).toBeGreaterThan(after.air);
+    expect(after.air).toBeCloseTo(clean.s.meteredAir, 9);
+    // same square law on the throttle-body air as without the leak (the density barely moves)
+    expect(after.airForce / after.air ** 2).toBeCloseTo(before.airForce / before.air ** 2, 9);
+    // the servo meters fuel for the throttle-body air only, so the engine as a whole runs leaner
+    expect(after.far).toBeLessThan(before.far);
+  });
+
   test("at a fixed mixture setting the fuel–air ratio follows the air flow: about the same at cruise and in the climb", () => {
     const setup = scenario("climb"),
       f = noFailures(S);

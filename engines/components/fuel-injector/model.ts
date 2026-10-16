@@ -102,8 +102,10 @@ export interface InjectorView {
   /** Nozzle pressure (psig) and the pressure at the injector inlet (psi). */
   nozzlePsi: number;
   inletPsi: number;
-  /** Air through the throttle body, lb/h, and the overall fuel–air ratio. */
+  /** Air through the throttle body (what the servo meters), lb/h; all the air the engine takes, leaks included; and the
+   * overall fuel–air ratio. */
   air: number;
+  totalAir: number;
   far: number;
 }
 
@@ -114,7 +116,7 @@ export function injectorView(spec: EngineSpec, s: EngineState, c: Controls, f: F
   const rated = ratedAirLbH(spec);
   const rho = (s.inletInHg * INHG_PA) / (287.05 * (s.inletC + 273.15));
   // the venturi's pressure drop goes as the square of the air flow over the density (Bernoulli)
-  const airForce = (s.air / rated) ** 2 * (RHO0 / Math.max(rho, 0.2));
+  const airForce = (s.meteredAir / rated) ** 2 * (RHO0 / Math.max(rho, 0.2));
   const ratedFuel = rated / (AFR_STOICH * spec.calibration.lambdaFullRich);
   const springForce = s.fuel > 0 ? (IDLE_SPRING_LBH / ratedFuel) ** 2 : 0;
   const cutoff = c.mixture <= 0.02;
@@ -135,7 +137,8 @@ export function injectorView(spec: EngineSpec, s: EngineState, c: Controls, f: F
     indicated: nozzleFlow(spec, s.nozzlePsi),
     nozzlePsi: s.nozzlePsi,
     inletPsi: s.fuelPsi,
-    air: s.air,
+    air: s.meteredAir,
+    totalAir: s.air,
     far: s.air > 1 ? metered / s.air : 0,
   };
 }

@@ -199,15 +199,17 @@ function makeMaterials() {
 }
 type Mats = ReturnType<typeof makeMaterials>;
 
-/** Things that move each frame read this: the injector's state, computed once per frame. */
-type ViewRef = { current: InjectorView | null };
+/** Things that move each frame read this: the injector's state, computed once per frame, and whether the page is paused
+ * (the flows' particles stand still then). */
+type Frame = InjectorView & { paused: boolean };
+type ViewRef = { current: Frame | null };
 
 function useInjectorFrame(sim: EngineSim) {
-  const view = useRef<InjectorView | null>(null);
+  const view = useRef<Frame | null>(null);
   // runs before the parts' own frame callbacks (lower priority numbers run first)
   useFrame(() => {
     const ui = sim.useUi.getState();
-    view.current = injectorView(sim.spec, sim.s, ui.controls, ui.failures);
+    view.current = { ...injectorView(sim.spec, sim.s, ui.controls, ui.failures), paused: !!ui.view.paused };
   }, -1);
   return view;
 }
@@ -335,7 +337,7 @@ function AirFlow({ v }: { v: ViewRef }) {
     seeds.forEach((p) => {
       const rr = radiusAt(TB.y0 + p.y * (TB.y1 - TB.y0));
       // continuity: speed ∝ 1 / area
-      p.y = (p.y + (rate * dt * (TB.R / rr) ** 2) / 4.5) % 1;
+      p.y = (p.y + (rate * (s.paused ? 0 : dt) * (TB.R / rr) ** 2) / 4.5) % 1;
       const y = TB.y0 + p.y * (TB.y1 - TB.y0);
       const r = radiusAt(y) * p.r;
       m.makeTranslation(r * Math.cos(p.a), y, r * Math.sin(p.a));
@@ -662,7 +664,7 @@ function Divider({ v, mats, sim }: { v: ViewRef; mats: Mats; sim: EngineSim }) {
     const s = v.current;
     if (!s) return;
     const lift = 0.012 * s.divider;
-    if (moving.current) moving.current.position.y = lift;
+    if (moving.current) moving.current.position.y = DIV[1] + lift;
     if (spring.current) {
       spring.current.position.set(DIV[0], DIV[1] + 0.004 + lift, DIV[2]);
       spring.current.scale.y = (0.04 - lift) / 0.04;
@@ -817,7 +819,7 @@ function Spray({ x, i, v }: { x: number; i: number; v: ViewRef }) {
     // visible drops ∝ flow (a quarter of rated flow per nozzle shows all of them)
     const shown = Math.round(Math.min(1, flow / 25) * N);
     seeds.forEach((p, k) => {
-      p.t = (p.t + dt * (1.2 + flow / 15)) % 1;
+      p.t = (p.t + (s.paused ? 0 : dt) * (1.2 + flow / 15)) % 1;
       if (k >= shown) {
         m.makeScale(0, 0, 0);
       } else {
@@ -974,7 +976,7 @@ function Stream({
     const flow = rate(s);
     me.visible = flow > 0.3;
     // ~0.12 m/s at idle flows to ~0.5 m/s at rated (drawn)
-    phase.current = (phase.current + (dt * (0.08 + Math.sqrt(flow) * 0.045)) / len) % 1;
+    phase.current = (phase.current + ((s.paused ? 0 : dt) * (0.08 + Math.sqrt(flow) * 0.045)) / len) % 1;
     for (let k = 0; k < count; k++) {
       curve.getPointAt((k / count + phase.current) % 1, p);
       m.makeTranslation(p.x, p.y, p.z);
