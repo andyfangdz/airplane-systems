@@ -73,6 +73,9 @@ const SYS_COLOR: Record<SysId, ColorKey> = {
   caps: "caps",
 };
 
+/** Crew-alerting level: red warning, amber caution, white advisory. */
+export type CasLevel = "w" | "c" | "a";
+
 export type Theme = "light" | "dark";
 type Palette = Record<ColorKey, string> & { scene: string; grid: string; shell: string };
 
