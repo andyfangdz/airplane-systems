@@ -747,6 +747,34 @@ for (const [name, path, ref, group] of [
 }
 
 /* ---------- Inlet ducts, intake pipes, joint clamps, controller sensing lines ---------- */
+/** A tube with each end ring fanned to a centre vertex on its path, so the clearance audits' inside tests see a closed
+ * body (an open tube's ends let a ray leave without crossing the wall). */
+const capEnds = (tube: THREE.TubeGeometry) => {
+  const { path, tubularSegments, radialSegments } = tube.parameters;
+  const ring = radialSegments + 1,
+    pos = Array.from(tube.getAttribute("position").array),
+    nor = Array.from(tube.getAttribute("normal").array),
+    uv = Array.from(tube.getAttribute("uv").array),
+    index = Array.from(tube.index!.array);
+  for (const [u, first, flip] of [
+    [0, 0, true],
+    [1, tubularSegments * ring, false],
+  ] as const) {
+    const centre = pos.length / 3,
+      at = path.getPointAt(u),
+      n = path.getTangentAt(u).multiplyScalar(flip ? -1 : 1);
+    pos.push(at.x, at.y, at.z);
+    nor.push(n.x, n.y, n.z);
+    uv.push(0, 0);
+    for (let i = 0; i < radialSegments; i++)
+      index.push(...(flip ? [centre, first + i + 1, first + i] : [centre, first + i, first + i + 1]));
+  }
+  tube.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  tube.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  tube.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  tube.setIndex(index);
+  return tube;
+};
 const CLAMP_COLOR = "#B4B8BC";
 const clamp = (geo: () => THREE.BufferGeometry, where: string) =>
   part(geo, ["engine"], {
@@ -951,35 +979,12 @@ part(() => bentTubeGeo(WASTEGATE_DRAIN, DRAIN_LINE_R, OIL_BEND), ["engine"], {
 });
 
 /* ---------- The compressor → intercooler inlet ducts ---------- */
-/** The duct as a closed solid: its tube with each end ring fanned to a centre vertex, where coupler 9 and the intercooler
- * close it (so the clearance audits' inside tests see a closed body). It stays a `TubeGeometry`, so audits that bound a
- * tube segment by segment still can; `userData` repeats the centreline and radius for the tests. */
+/** The duct as a closed solid: its tube with each end ring capped (`capEnds`), where coupler 9 and the intercooler
+ * close it. It stays a `TubeGeometry`, so audits that bound a tube segment by segment still can; `userData` repeats the
+ * centreline and radius for the tests. */
 const cappedDuctGeo = (s: number) => {
-  const tube = bentTubeGeo(COMPRESSOR_DUCT(s), COMPRESSOR_DUCT_R, COMPRESSOR_DUCT_BEND, 16);
-  const { path, tubularSegments, radialSegments } = tube.parameters;
-  const ring = radialSegments + 1,
-    pos = Array.from(tube.getAttribute("position").array),
-    nor = Array.from(tube.getAttribute("normal").array),
-    uv = Array.from(tube.getAttribute("uv").array),
-    index = Array.from(tube.index!.array);
-  for (const [u, first, flip] of [
-    [0, 0, true],
-    [1, tubularSegments * ring, false],
-  ] as const) {
-    const centre = pos.length / 3,
-      at = path.getPointAt(u),
-      n = path.getTangentAt(u).multiplyScalar(flip ? -1 : 1);
-    pos.push(at.x, at.y, at.z);
-    nor.push(n.x, n.y, n.z);
-    uv.push(0, 0);
-    for (let i = 0; i < radialSegments; i++)
-      index.push(...(flip ? [centre, first + i + 1, first + i] : [centre, first + i, first + i + 1]));
-  }
-  tube.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  tube.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-  tube.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  tube.setIndex(index);
-  tube.userData = { path, radius: COMPRESSOR_DUCT_R };
+  const tube = capEnds(bentTubeGeo(COMPRESSOR_DUCT(s), COMPRESSOR_DUCT_R, COMPRESSOR_DUCT_BEND, 16));
+  tube.userData = { path: tube.parameters.path, radius: COMPRESSOR_DUCT_R };
   return tube;
 };
 for (const s of [-1, 1]) {
