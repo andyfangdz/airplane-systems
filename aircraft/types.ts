@@ -4,8 +4,8 @@ import type { Catalogue } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import type { AircraftId, SysDef, SysId } from "@/lib/systems";
 
-/** Crew-alerting level: red warning, amber caution, white advisory. */
-export type CasLevel = "w" | "c" | "a";
+/** Crew-alerting level (defined in lib/systems.ts, re-exported for the airplanes). */
+export type { CasLevel } from "@/lib/systems";
 
 /** Groups the scene builds around the airplane model (used by effects like the CAPS deployment). */
 export interface ModelRefs {
