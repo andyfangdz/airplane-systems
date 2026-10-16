@@ -1,29 +1,23 @@
 "use client";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
-import {
-  BtnRow,
-  Caution,
-  Check,
-  Ctl,
-  Facts,
-  H3,
-  Notes,
-  PartsList,
-  Readouts,
-  Rocker,
-  Seg,
-  Slider,
-  Small,
-} from "@/components/ui/controls";
-import { FEEDER, NAV3_BUSES, nav3Init, stbyAhOf } from "../../cessna/electrical";
+import { Caution, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Small } from "@/components/ui/controls";
+import { NAV3_BUSES } from "../../cessna/electrical";
 import { BreakerBoard, Nav3Diagram, Nav3Meters, Nav3Switches } from "../../cessna/panels";
+import {
+  Nav3BatteryReadouts,
+  Nav3Dimmer,
+  Nav3GroundAndOutlet,
+  Nav3LightSwitches,
+  Nav3Scenarios,
+  Nav3TripButtons,
+} from "../../cessna/electrical-panel";
 import { BREAKERS, elecCfg, live, type Sim } from "../model";
 import { CAT } from "../parts";
 import { scenarioColdDark, useC182 } from "../store";
 
-const reset = (d: Sim) => {
-  const k = { socMain: d.elec.socMain, socStby: d.elec.socStby };
-  d.elec = { ...nav3Init(), ...k };
+/** Scenarios restart the standby battery timer. */
+const resetTimers = () => {
+  live.timers.stby = 0;
 };
 
 export function Electrical() {
@@ -34,32 +28,12 @@ export function Electrical() {
   const e = s.elec,
     cfg = elecCfg(s);
   const upE = (fn: (d: Sim["elec"]) => void) => up((d) => fn(d.elec));
-  // `pre` runs as its own update first (e.g. putting the airplane on the ramp), so this one builds on it
-  const scen = (label: string, fn: (d: Sim) => void, pre?: () => void) => (
-    <button
-      key={label}
-      type="button"
-      className="btn"
-      onClick={() => {
-        pre?.();
-        live.timers.stby = 0;
-        up((d) => {
-          reset(d);
-          fn(d);
-        });
-      }}
-    >
-      {label}
-    </button>
-  );
   const run = (d: Sim) => {
     d.eng.running = true;
     d.eng.mags = "BOTH";
     if (d.eng.mix < 0.1) d.eng.mix = 0.85;
     if (d.eng.throttle < 0.3 && !d.ground) d.eng.throttle = 0.82;
   };
-  const mins = (Ah: number, soc: number, amps: number) =>
-    amps < -0.2 ? `${Math.round(((Ah * soc) / -amps) * 60)} min` : "—";
   return (
     <>
       <p className="lead">
@@ -73,33 +47,7 @@ export function Electrical() {
       <H3>Switches</H3>
       <Ctl>
         <Nav3Switches e={e} E={E} up={upE} testHeld={snapshot.testHeld} testSeconds={20} />
-        <Check
-          id="ext"
-          label="External power connected (28 V regulated)"
-          checked={e.ext}
-          onChange={(v) =>
-            upE((d) => {
-              d.ext = v;
-            })
-          }
-        />
-        <div className="row">
-          <div className="lbl">
-            <span>Switch panel</span>
-            <span>12 V outlet {E.outlet12 ? "live" : s.lights.cabinPwr ? "— no power" : "off"}</span>
-          </div>
-          <div className="switches">
-            <Rocker
-              label="CABIN PWR 12V"
-              on={s.lights.cabinPwr}
-              onToggle={() =>
-                up((d) => {
-                  d.lights.cabinPwr = !d.lights.cabinPwr;
-                })
-              }
-            />
-          </div>
-        </div>
+        <Nav3GroundAndOutlet e={e} outlet12={E.outlet12} cabinPwr={s.lights.cabinPwr} upE={upE} up={up} />
         <Seg
           id="altA"
           label="Alternator fitted"
@@ -117,26 +65,7 @@ export function Electrical() {
           }
         />
         <Nav3Meters E={E} />
-        <Readouts
-          items={[
-            ["Alternator", E.altOn ? `${E.altAmps.toFixed(1)} A` : ["OFF", "bad"]],
-            ["Bus load", `${E.load.toFixed(1)} A`],
-            [
-              "Main battery",
-              e.fail.bat
-                ? ["FAILED", "bad"]
-                : `${Math.round(e.socMain * 100)}% · ${mins(cfg.mainAh, e.socMain, E.mBatt)}`,
-            ],
-            [
-              "Standby battery",
-              e.stby !== "ARM" || e.cb["ESS:STDBY BATT"]
-                ? [e.stby !== "ARM" ? "OFF" : "C/B OUT (STDBY BATT)", "warnc"]
-                : E.stbyOnline
-                  ? [`Supplying · ${mins(stbyAhOf(e, cfg), e.socStby, E.sBatt)}`, "warnc"]
-                  : `${Math.round(e.socStby * 100)}% · ${E.sBatt > 0 ? "charging" : "standing by"}`,
-            ],
-          ]}
-        />
+        <Nav3BatteryReadouts e={e} E={E} cfg={cfg} />
       </Ctl>
       <Small>
         Hold TEST for 20 seconds with the MASTER off — the green lamp must not go off — then ARM: the PFD comes up on
@@ -147,141 +76,7 @@ export function Electrical() {
       </Small>
       <H3>Failures &amp; scenarios</H3>
       <Ctl>
-        <BtnRow>
-          <Check
-            id="fAlt"
-            label="Alternator fails (belt)"
-            checked={e.fail.alt}
-            onChange={(v) =>
-              upE((d) => {
-                d.fail.alt = v;
-              })
-            }
-          />
-          <Check
-            id="fOv"
-            label="Regulator runaway (over-voltage)"
-            checked={e.fail.ov}
-            onChange={(v) =>
-              upE((d) => {
-                d.fail.ov = v;
-              })
-            }
-          />
-          <Check
-            id="fOvS"
-            label="ACU over-voltage sensor dead"
-            checked={e.fail.ovSense}
-            onChange={(v) =>
-              upE((d) => {
-                d.fail.ovSense = v;
-              })
-            }
-          />
-          <Check
-            id="fBat"
-            label="Main battery failed"
-            checked={e.fail.bat}
-            onChange={(v) =>
-              upE((d) => {
-                d.fail.bat = v;
-              })
-            }
-          />
-          <Check
-            id="fSb"
-            label="Standby battery weak / cold"
-            checked={e.fail.stby}
-            onChange={(v) =>
-              upE((d) => {
-                d.fail.stby = v;
-              })
-            }
-          />
-        </BtnRow>
-        <div className="row">
-          <div className="lbl">
-            <span>Scenarios</span>
-          </div>
-          <BtnRow>
-            {scen("Normal", (d) => {
-              run(d);
-            })}
-            {scen("Alternator failure", (d) => {
-              run(d);
-              d.elec.fail.alt = true;
-            })}
-            {scen("ACU over-voltage trip", (d) => {
-              run(d);
-              d.elec.fail.ov = true;
-            })}
-            {scen("HIGH VOLTS (ACU failed)", (d) => {
-              run(d);
-              d.elec.fail.ov = true;
-              d.elec.fail.ovSense = true;
-            })}
-            {scen("Feeder A trips (BUS 2)", (d) => {
-              run(d);
-              d.elec.cb[FEEDER.E2] = true;
-            })}
-            {scen("Standby battery only", (d) => {
-              run(d);
-              d.elec.bat = false;
-              d.elec.alt = false;
-            })}
-            {scen(
-              "Pre-start STBY BATT check",
-              (d) => {
-                d.elec.bat = d.elec.alt = d.elec.avn1 = d.elec.avn2 = false;
-                d.elec.stby = "ARM";
-              },
-              scenarioColdDark,
-            )}
-          </BtnRow>
-        </div>
-        <Seg
-          id="warp"
-          label="Battery clock"
-          options={[
-            [1, "×1"],
-            [10, "×10"],
-            [60, "×60"],
-          ]}
-          value={s.warp}
-          onChange={(v) =>
-            up((d) => {
-              d.warp = v;
-            })
-          }
-        />
-        <Slider
-          id="socM"
-          label="Main battery charge"
-          min={0}
-          max={1}
-          step={0.01}
-          value={e.socMain}
-          onChange={(v) =>
-            upE((d) => {
-              d.socMain = v;
-            })
-          }
-          fmt={(v) => Math.round(v * 100) + "%"}
-        />
-        <Slider
-          id="socS"
-          label="Standby battery charge"
-          min={0}
-          max={1}
-          step={0.01}
-          value={e.socStby}
-          onChange={(v) =>
-            upE((d) => {
-              d.socStby = v;
-            })
-          }
-          fmt={(v) => Math.round(v * 100) + "%"}
-        />
+        <Nav3Scenarios s={s} up={up} run={run} coldDark={scenarioColdDark} onScenario={resetTimers} />
       </Ctl>
       <Small>
         With the alternator failed the main battery carries both main buses until M BUS falls below 20 V; then the
@@ -313,68 +108,7 @@ export function Electrical() {
         source.
       </Small>
       <BreakerBoard breakers={BREAKERS} buses={NAV3_BUSES} E={E} cb={e.cb} up={upE} />
-      <BtnRow>
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            upE((d) => {
-              d.cb["E1:LAND LT"] = true;
-            })
-          }
-        >
-          Trip LAND LT
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            upE((d) => {
-              d.cb["XF:ALT FIELD"] = true;
-            })
-          }
-        >
-          Trip ALT FIELD
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            upE((d) => {
-              d.cb["XF:WARN"] = !d.cb["XF:WARN"];
-            })
-          }
-        >
-          {e.cb["XF:WARN"] ? "Reset" : "Trip"} WARN
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            upE((d) => {
-              d.cb[FEEDER.E1] = !d.cb[FEEDER.E1];
-            })
-          }
-        >
-          {e.cb[FEEDER.E1] ? "Reset" : "Trip"} feeder B (BUS 1)
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() =>
-            upE((d) => {
-              d.cb[FEEDER.E2] = !d.cb[FEEDER.E2];
-            })
-          }
-        >
-          {e.cb[FEEDER.E2] ? "Reset" : "Trip"} feeder A (BUS 2)
-        </button>
-      </BtnRow>
-      <Small>
-        WARN feeds the stall warning, autopilot warning (PITCH TRIM and the disconnect horn), ELT warning, main bus
-        voltmeter, hour meter, starter relay, standby battery controller and main bus sense — trip it and watch the
-        starter, Hobbs, stall horn and M BUS reading go (Fig. 7-7).
-      </Small>
+      <Nav3TripButtons cb={e.cb} up={upE} warn />
       <H3>Monitoring (POH 7-53 – 7-55)</H3>
       <Facts
         rows={[
@@ -419,28 +153,6 @@ export function Lighting() {
     up = useC182((x) => x.update);
   const L = s.lights,
     lit = E.lit;
-  type Sw = "beacon" | "land" | "taxi" | "nav" | "strobe";
-  const flip = (k: Sw) =>
-    up((d) => {
-      d.lights[k] = !d.lights[k];
-    });
-  const st = (sw: boolean, on: boolean): [string, "" | "bad"] | string => (on ? "ON" : sw ? ["NO PWR", "bad"] : "off");
-  const dim = (k: "flood" | "swcb" | "pedestal" | "avionics" | "stbyInd", label: string) => (
-    <Slider
-      id={"dim" + k}
-      label={label}
-      min={0}
-      max={1}
-      step={0.05}
-      value={L[k]}
-      onChange={(v) =>
-        up((d) => {
-          d.lights[k] = v;
-        })
-      }
-      fmt={(v) => (v < 0.03 ? "OFF" : Math.round(v * 100) + "%")}
-    />
-  );
   return (
     <>
       <p className="lead">
@@ -451,30 +163,7 @@ export function Lighting() {
       </p>
       <H3>LIGHTS switches (up = ON)</H3>
       <Ctl>
-        <div className="switches">
-          {(["beacon", "land", "taxi", "nav", "strobe"] as Sw[]).map((k) => (
-            <Rocker key={k} label={k.toUpperCase()} on={L[k]} onToggle={() => flip(k)} />
-          ))}
-          <Rocker
-            label="DOME"
-            on={L.dome}
-            onToggle={() =>
-              up((d) => {
-                d.lights.dome = !d.lights.dome;
-              })
-            }
-          />
-        </div>
-        <Readouts
-          items={[
-            ["Beacon", st(L.beacon, lit.beacon)],
-            ["Landing", st(L.land, lit.land)],
-            ["Taxi", st(L.taxi, lit.taxi)],
-            ["Nav + tail", st(L.nav, lit.nav)],
-            ["Strobes", st(L.strobe, lit.strobe)],
-            ["Dome + courtesy", st(L.dome, lit.dome)],
-          ]}
-        />
+        <Nav3LightSwitches L={L} lit={lit} up={up} />
       </Ctl>
       <Small>
         Exterior glows show in the Overview and Lighting views. Trip LAND LT on the Electrical page, or lose BUS 1 or
@@ -483,11 +172,11 @@ export function Lighting() {
       </Small>
       <H3>Dimmers</H3>
       <Ctl>
-        {dim("flood", "FLOOD LIGHT (overhead console)")}
-        {dim("swcb", "SW/CB PANELS")}
-        {dim("pedestal", "PEDESTAL")}
-        {dim("avionics", "AVIONICS (off = photocell)")}
-        {dim("stbyInd", "STDBY IND")}
+        <Nav3Dimmer k="flood" label="FLOOD LIGHT (overhead console)" L={L} up={up} />
+        <Nav3Dimmer k="swcb" label="SW/CB PANELS" L={L} up={up} />
+        <Nav3Dimmer k="pedestal" label="PEDESTAL" L={L} up={up} />
+        <Nav3Dimmer k="avionics" label="AVIONICS (off = photocell)" L={L} up={up} />
+        <Nav3Dimmer k="stbyInd" label="STDBY IND" L={L} up={up} />
         <Readouts
           items={[
             ["Panel lights", lit.panel ? "ON" : "off"],
