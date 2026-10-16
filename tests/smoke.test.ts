@@ -20,11 +20,17 @@ const INDEX_HTML = [
   '<link rel="icon" href="/icon.svg"/>',
   "</head><body><div>airplane systems</div></body></html>",
 ].join("");
+// An airplane route's page: its own title, and its own chunk next to the shared ones.
+const VIEW_HTML = INDEX_HTML.replace("<head>", "<head><title>SR22T G6 Systems</title>").replace(
+  "</head>",
+  '<script src="/_next/static/chunks/sr22t_page.js" async=""></script></head>',
+);
 const ASSETS = [
   "/_next/static/media/inter.p.woff2",
   "/_next/static/css/app.css",
   "/_next/static/chunks/089cv_5n2ifmm.js",
 ];
+const VIEW_ASSETS = [...ASSETS, "/_next/static/chunks/sr22t_page.js"];
 const NOT_FOUND_HTML = "<!DOCTYPE html><html><body><h1>404</h1>This page could not be found.</body></html>";
 const HTML = "text/html; charset=utf-8";
 const IMMUTABLE = "public, max-age=31536000, immutable";
@@ -153,8 +159,10 @@ function answer(mode: Mode, path: string): [number, Record<string, string>, stri
     { "content-type": HTML, "cache-control": mode === "bad" ? "s-maxage=31536000" : "public, max-age=60" },
     INDEX_HTML,
   ];
-  if (path === "/" || ["/sr22t", "/sr22t/electrical", "/sr22t/bogus"].includes(path)) return page;
-  if (ASSETS.includes(path))
+  if (path === "/") return page;
+  // a host that serves the root's HTML for every view (as before each airplane had its own route)
+  if (["/sr22t", "/sr22t/electrical"].includes(path)) return mode === "bad" ? page : [page[0], page[1], VIEW_HTML];
+  if (VIEW_ASSETS.includes(path))
     return [
       200,
       {
@@ -217,18 +225,20 @@ describe("scripts/smoke.mjs end to end", () => {
       "/",
       "/sr22t",
       "/sr22t/electrical",
-      "/sr22t/bogus",
-      ...ASSETS,
+      ...VIEW_ASSETS,
       "/sr22t/",
       "/nope",
+      "/sr22t/bogus",
       "/sr22t/electrical/extra",
     ])
       expect(urls).toContain(path);
+    // each asset once, though several pages reference it
+    expect(urls.filter((url: string) => url === ASSETS[0])).toHaveLength(1);
     // Plain HTTP base: the HTTP-to-HTTPS row is recorded as skipped.
     expect(summary.checks.at(-1)).toMatchObject({ url: `${baseOf("good")}/`, ok: true, skipped: true, status: null });
   });
 
-  it("fails against the bad server: exit 1, naming the /nope status, the / cache header and the 404 body", async () => {
+  it("fails against the bad server: exit 1, naming the root's page served for views, /nope, the / cache header and the 404 body", async () => {
     const base = baseOf("bad");
     const { code, stdout, stderr } = await smoke(base);
     const summary = JSON.parse(stdout);
@@ -239,10 +249,15 @@ describe("scripts/smoke.mjs end to end", () => {
       .map((c: { url: string; status: number }) => [c.url.replace(base, ""), c.status]);
     expect(failing).toEqual([
       ["/", 200], // cache-control
+      ["/sr22t", 200],
+      ["/sr22t/electrical", 200],
       ["/nope", 200],
       ["/sr22t/electrical/extra", 404],
     ]);
     expect(stderr).toContain(`FAIL ${base}/ (cache-control: public, max-age=60): cache-control "s-maxage=31536000"`);
+    expect(stderr).toContain(
+      `FAIL ${base}/sr22t (200 text/html, body contains <title>SR22T G6 Systems</title>): body lacks "<title>SR22T G6 Systems</title>"`,
+    );
     expect(stderr).toContain(`FAIL ${base}/nope (404 text/html, body equals /404.html): status 200, want 404`);
     expect(stderr).toContain(
       `FAIL ${base}/sr22t/electrical/extra (404 text/html, body equals /404.html): body differs from /404.html`,
@@ -259,6 +274,7 @@ describe("scripts/smoke.mjs end to end", () => {
       .map((c: { url: string; status: number }) => [c.url.replace(base, ""), c.status]);
     expect(failing).toEqual([
       ["/nope", 404],
+      ["/sr22t/bogus", 404],
       ["/sr22t/electrical/extra", 404],
     ]);
     expect(stderr).toContain(`FAIL ${base}/nope (404 text/html, body equals /404.html): body differs from /404.html`);
@@ -285,7 +301,7 @@ describe("scripts/smoke.mjs end to end", () => {
     const { code, stdout, stderr } = await smoke(baseOf("badmime"));
     expect(code).toBe(1);
     const failed = JSON.parse(stdout).checks.filter((c: { ok: boolean }) => !c.ok);
-    expect(failed.map((c: { url: string }) => new URL(c.url).pathname)).toEqual(ASSETS);
+    expect(failed.map((c: { url: string }) => new URL(c.url).pathname)).toEqual(VIEW_ASSETS);
     expect(stderr).toContain("content-type");
   });
 

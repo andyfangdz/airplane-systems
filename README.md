@@ -1,6 +1,6 @@
 # Airplane Systems
 
-Interactive 3D study models of six airplanes' systems, built from **POH/AFM Section 7 – Airplane and Systems** (or, for the Mooney, the Owner's Manual's Part I): the Cirrus SR20 G6, the Cirrus SR22T G6 (turbocharged TSIO-550-K, TKS ice protection, built-in oxygen, guided preflight walk-around), the Cessna 172S NAV III (G1000 + GFC 700), the Cessna 182T NAV III (G1000 + KAP 140), the Diamond DA40 XLS (G1000 + GFC 700) and a 1968 Mooney M20C Ranger (N6947N: Johnson-bar gear, hand-pumped flaps, Brittain PC, steam gauges). Pick an airplane and a system to fly the camera to it, hover parts for notes, and operate switches, levers and failures. The systems are linked: pull an alternator and the buses, displays and alert window respond. Each airplane keeps its own switch positions when you switch to another, and the URL path (`/c172s/electrical`) names the view shown.
+Interactive 3D study models of six airplanes' systems, built from **POH/AFM Section 7 – Airplane and Systems** (or, for the Mooney, the Owner's Manual's Part I): the Cirrus SR20 G6, the Cirrus SR22T G6 (turbocharged TSIO-550-K, TKS ice protection, built-in oxygen, guided preflight walk-around), the Cessna 172S NAV III (G1000 + GFC 700), the Cessna 182T NAV III (G1000 + KAP 140), the Diamond DA40 XLS (G1000 + GFC 700) and a 1968 Mooney M20C Ranger (N6947N: Johnson-bar gear, hand-pumped flaps, Brittain PC, steam gauges). Pick an airplane and a system to fly the camera to it, hover parts for notes, and operate switches, levers and failures. The systems are linked: pull an alternator and the buses, displays and alert window respond. Each airplane keeps its own switch positions when you switch to another, and the URL path (`/c172s/electrical`) names the view shown: each airplane is its own route, so a page ships only the airplane it shows.
 
 Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zustand**.
 
@@ -95,9 +95,14 @@ Standalone **component simulations** sit at `/components/<id>`: the Marvel-Scheb
 ## Project structure
 
 ```
-app/                  Next.js App Router entry (layout, page, icon, global CSS)
+app/                  Next.js App Router: layout, icon, global CSS; page.tsx (/) opens the last-viewed airplane
+  (fleet)/<id>/       One route per airplane, [[...sys]]/page.tsx: /<id> and /<id>/<system>, importing only that
+                      airplane (airplane-route.ts: static paths, title, 404s); layout.tsx keeps the tour across switches;
+                      error.tsx says an airplane didn't load and offers Retry (the Loader does on a failed first load)
 components/
-  App.tsx             Shell: fleet picker, system rail, toolbar, alert window, HUD, tooltip, panel; URL and tab title
+  App.tsx             Shell for one airplane (its route passes the definition): fleet picker, system rail, toolbar,
+                      alert window, HUD, tooltip, panel; boots the view from the URL
+  Loader.tsx          Loading overlay over the 3D view (build stage, part count; LoadFailed.tsx: didn't load + Retry)
   Tour.tsx            Welcome tour shown on a first visit (skipping or finishing it is remembered; the toolbar's ? replays it)
   FleetWalkaround.tsx Preflight study walk panel and scene markers shared by every airplane (walkaround.css)
   scene/              Shared React Three Fiber scene: Scene (canvas, camera flights, sim clock), Part / Shells,
@@ -105,12 +110,12 @@ components/
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)
   ui/controls.tsx     Seg, Slider, Check, Rocker, Readouts, Facts, HoldButton, …
   ui/wiring.tsx       Symbols for the live single-line electrical diagrams (breaker, switch, diode, bus box, key)
-aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) and cirrus/ (shared Cirrus G6 parts); lazy.ts loads each airplane on demand — see aircraft/README.md
+aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) and cirrus/ (shared Cirrus G6 parts); metas.ts lists the light metas and view paths — see aircraft/README.md
 engines/              Standalone engine simulations: EngineSpec per engine, shared model/ — see engines/README.md
 components/engine/    The /engines/<id> page: 3D engine (scene/: one file per part group), engine monitor, controls, pressure chart
 lib/
   view.ts             View state shared by every airplane (airplane, system, toggles, theme, camera); phone breakpoint
-  fleet.ts            Airplane / system selection, loading an airplane's code, remembered view, URL path
+  fleet.ts            The shown airplane (route context and registry), system selection, remembered view, URL path
   systems.ts          Airplane ids, system ids, palette
   catalogue.ts        Declarative part catalogue: parts, shells, lofted control surfaces and the parts riding on them, label lists
   anims.ts            Part animations shared by every airplane (spark plugs, magnetos, brakes, glow, push-pull knobs)

@@ -40,8 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: geometry, M20C, tour
-            tests: scripts/test-geometry-ui.mjs scripts/test-m20c-ui.mjs scripts/test-tour-ui.mjs
+          - name: geometry, M20C, tour, load failure
+            tests: scripts/test-geometry-ui.mjs scripts/test-m20c-ui.mjs scripts/test-tour-ui.mjs scripts/test-load-failure-ui.mjs
           - name: doors
             tests: scripts/test-door-mechanisms-ui.mjs
           - name: fleet picker

@@ -1,4 +1,4 @@
-// Viewer request, cloudfront-js-2.0. Mirrors next.config.ts's development view rule.
+// Viewer request, cloudfront-js-2.0. Serves each page of the static export by its path, as the Next server does.
 // AIRCRAFT_IDS is copied from lib/systems.ts, ENGINE_IDS from engines/index.ts and COMPONENT_IDS from
 // engines/components/index.ts; the offline test prevents drift.
 // Event/query format: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/functions-event-structure.html
@@ -48,10 +48,12 @@ function handler(event) {
     request.uri = request.uri + ".html";
     return request;
   }
-  var match = /^\/([^/]+)(?:\/([^/]+))?(\/)?$/.exec(request.uri);
+  // and each airplane view as <id>.html and <id>/<system>.html (an unknown system has no file: the origin 404s); a
+  // segment with a dot is one of the route's own files (e.g. sr22t/__next._tree.txt, fetched on a client navigation)
+  var match = /^\/([^/]+)(?:\/([^/.]+))?(\/)?$/.exec(request.uri);
   if (!match || AIRCRAFT_IDS.indexOf(match[1]) === -1) return request;
   if (match[3]) return redirect(request, request.uri.slice(0, -1));
 
-  request.uri = "/index.html";
+  request.uri = request.uri + ".html";
   return request;
 }

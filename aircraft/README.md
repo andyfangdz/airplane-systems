@@ -4,17 +4,21 @@ Each airplane lives in `aircraft/<id>/` and exports one `AircraftDef` (see `type
 spreads its light `AircraftMeta` from `meta.ts` (id, names, document, systems). The shell (`components/App.tsx`,
 `components/scene/Scene.tsx`) knows nothing airplane-specific. `aircraft/sr20/` is the reference implementation.
 
-The app ships only the metas: `aircraft/lazy.ts` lists them and loads an airplane's `index.tsx` with a dynamic `import()`
-when it is first shown (the loader says "Loading" meanwhile; `useAircraftDef()` and `loaded(id)` in `lib/fleet.ts` are
-undefined until then, while `useAircraft()` and `aircraft(id)` give the meta at once). `aircraft/index.ts` imports every
-full definition, for tests and scripts; the app must not import it (`tests/fleet-lazy.test.ts` checks).
+Each airplane is its own route, `app/(fleet)/<id>/[[...sys]]/page.tsx`: the page imports that airplane's `index.tsx` and
+renders the shell with it, so each airplane's code is its own route chunk, and switching airplanes is a navigation that
+remounts the shell and its scene. Its static paths (`/<id>` and `/<id>/<system>`) and tab title come from the meta
+(`app/(fleet)/airplane-route.ts`). In the shell, `useAircraft()` gives the route's definition and `aircraft(id)` in
+`lib/fleet.ts` a registered one. `aircraft/metas.ts` lists the metas (the root page and the static paths use them);
+`aircraft/index.ts` imports every full definition, for tests and scripts. No route may reach another airplane's code, and
+the shell none (`tests/fleet-routes.test.ts` follows the imports).
 
 To add one:
 
 1. Add its id to `AIRCRAFT_IDS` in `lib/systems.ts` (and any new system ids to `SysId`, with their rail and part colour in `SYS_COLOR`).
 2. Create `aircraft/<id>/` with the files below: its meta in `meta.ts`, and its `AircraftDef` exported from `index.tsx`.
-3. List it in `FLEET` in `aircraft/index.ts`, and its meta and loader in `aircraft/lazy.ts` (picker order), and add it to
-   `FLEET_INDEX` in `lib/fleet-index.ts`. The fleet picker sizes itself to the number of airplanes.
+3. List it in `FLEET` in `aircraft/index.ts` and its meta in `aircraft/metas.ts` (picker order), add it to `FLEET_INDEX`
+   in `lib/fleet-index.ts`, and give it a route: copy another airplane's `app/(fleet)/<id>/[[...sys]]/page.tsx` and name
+   its own definition and meta. The fleet picker sizes itself to the number of airplanes.
 
 ## Files
 

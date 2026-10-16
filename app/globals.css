@@ -386,6 +386,19 @@ button {
   color: var(--ink);
   cursor: pointer;
 }
+/* the page's code didn't download (app/layout.tsx marks <html>): "didn't load" and Retry instead of the spinner */
+.loader-failed {
+  display: none;
+  align-items: center;
+  gap: 10px;
+}
+[data-load-failed] .loader-failed,
+.loader-failed-shown {
+  display: flex;
+}
+[data-load-failed] .loader-card > :not(.loader-failed) {
+  display: none;
+}
 .loader progress {
   width: 120px;
   height: 6px;

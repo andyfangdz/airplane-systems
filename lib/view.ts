@@ -9,7 +9,7 @@ import { useSyncExternalStore } from "react";
 import type { CameraPreset } from "./camera";
 import type { Spot } from "./spot";
 import type { Vec3 } from "./math";
-import type { AircraftId, Chan, SysId, Theme } from "./systems";
+import { DEFAULT_AIRCRAFT, type AircraftId, type Chan, type SysId, type Theme } from "./systems";
 
 export interface HoverInfo {
   name: string;
@@ -92,7 +92,7 @@ let camId = 0;
 let focusTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useView = create<ViewStore>((set) => ({
-  ac: "sr20",
+  ac: DEFAULT_AIRCRAFT,
   sys: "overview",
   xray: true,
   labels: true,
