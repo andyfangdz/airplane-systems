@@ -92,6 +92,7 @@ export const O360: EngineSpec = {
   // Figure 3-42 (curve 13358, p. 3-56): sea-level panel lines read at 20 and 29 inHg, each line's full-throttle end,
   // and the altitude panel's full-throttle power at 20,000 ft. Read to about ±1 hp, ±0.05 inHg.
   performance: {
+    kind: "lycoming",
     curve: "Lycoming curve 13358 (OM Figure 3-42)",
     lines: [
       { rpm: 2000, a: [20, 77.7], b: [29, 138.8], ftMap: 29.08, hp20k: 67.4 },

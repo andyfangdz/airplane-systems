@@ -87,6 +87,7 @@ export const IO390: EngineSpec = {
   // Figure C-1 (curve 13601, p. 57): sea-level panel lines read at 20 and 29 inHg, each line's full-throttle end,
   // and the altitude panel's full-throttle power at 20,000 ft. Read to about ±1 hp, ±0.05 inHg.
   performance: {
+    kind: "lycoming",
     curve: "Lycoming curve 13601 (IOM Figure C-1)",
     lines: [
       { rpm: 2000, a: [20, 84.3], b: [29, 155.7], ftMap: 29.6, hp20k: 72.1 },
