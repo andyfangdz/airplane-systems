@@ -18,7 +18,7 @@ import {
   type Environment,
   type Failures,
 } from "@/engines/model/engine";
-import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
+import { scenarioById, type Setup } from "@/engines/model/scenarios";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useSimLoop } from "./sim";
 
@@ -162,7 +162,7 @@ export function startScenario(sim: EngineSim, id: string) {
     }));
   };
   const runHere = () => {
-    const sc = SCENARIOS.find((x) => x.id === id);
+    const sc = scenarioById(sim.spec, id);
     if (sc) apply(sc.run(sim.spec, failures));
   };
   const w = scenarioWorker();
