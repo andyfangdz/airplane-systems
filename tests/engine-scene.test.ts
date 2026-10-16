@@ -25,6 +25,9 @@ import {
   IN,
   lobeAngle,
   magDrive,
+  magnetoPose,
+  oilFiller,
+  oilFilterPose,
   oilPump,
   peakCrank,
   STARTER_TEETH,
@@ -125,10 +128,12 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     // magneto gears on the camshaft gear, or on the idler the crankshaft gear drives
     const m = magDrive(S, d, L);
     if (m.idler) {
+      // the idler's front gear on the crankshaft gear, its rear gear (the same gear, or one on its shaft) on the magnetos'
       expect(m.idler.y).toBeCloseTo(d.crankGearR + m.idler.r, 6);
-      expect(Math.hypot(m.y - m.idler.y, m.z)).toBeCloseTo(m.idler.r + m.r, 6);
-      expect(GEAR_TEETH.crank / m.teeth).toBeCloseTo(acc.magnetoRatio, 6);
-      expect(m.r / d.crankGearR).toBeCloseTo(m.teeth / GEAR_TEETH.crank, 6);
+      expect(m.idler.r / d.crankGearR).toBeCloseTo(m.idler.teeth / GEAR_TEETH.crank, 6);
+      expect(Math.hypot(m.y - m.idler.y, m.z)).toBeCloseTo(m.idler.rearR + m.r, 6);
+      expect(m.r / m.idler.rearR).toBeCloseTo(m.teeth / m.idler.rearTeeth, 6);
+      expect((GEAR_TEETH.crank / m.idler.teeth) * (m.idler.rearTeeth / m.teeth)).toBeCloseTo(acc.magnetoRatio, 6);
     } else {
       expect(Math.hypot(m.y - d.camY, m.z)).toBeCloseTo(d.camGearR + m.r, 6);
       expect((0.5 * GEAR_TEETH.cam) / m.teeth).toBeCloseTo(acc.magnetoRatio, 6);
@@ -157,7 +162,11 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
       if (a.gear) {
         expect(a.gear.driveTeeth / a.gear.drivenTeeth).toBeCloseTo(a.ratio, 6);
         expect(a.gear.driveR / a.gear.drivenR).toBeCloseTo(a.ratio, 6);
-        expect(Math.hypot(a.at[1], a.at[2])).toBeCloseTo(a.gear.driveR + a.gear.drivenR, 6);
+        if (a.gear.bevel) {
+          // a bevel pinion across the shaft: beside the drive gear's rim, its aft face just forward of the drive gear
+          expect(Math.hypot(a.at[1], a.at[2])).toBeCloseTo(a.gear.driveR + 0.006, 6);
+          expect(a.x - a.gear.drivenR - a.gear.driveX).toBeCloseTo(0.007, 6);
+        } else expect(Math.hypot(a.at[1], a.at[2])).toBeCloseTo(a.gear.driveR + a.gear.drivenR, 6);
       } else expect(d.pulleyR / d.altPulleyR).toBeCloseTo(a.ratio, 6);
     }
   });
@@ -262,7 +271,16 @@ describe("IO-390 scene layout defaults", () => {
     ]);
     expect(cl.bearings).toHaveLength(3);
     expect(IO390_DEFAULTS.camera).toEqual({ position: [1.15, 0.62, 1.35], target: [0, -0.02, 0], maxDistance: 6 });
-    // the label pins EngineScene placed before the layouts
+    // magnetos aft of the accessory housing on the camshaft gear, filter on its rear, filler on the right, the
+    // propeller on the flange
+    expect(IO390_DEFAULTS.magnetos).toEqual({ mount: "aft", r: 0.04, len: 0.1, z: 0.1, y: null });
+    const mag = magnetoPose(IO390, d, "R");
+    expect(mag.capEnd[0]).toBeLessThan(mag.driveEnd[0]);
+    expect(oilFilterPose(d)).toEqual({ centre: [d.accRear - 0.05, 0.015, 0], axis: [1, 0, 0], r: 0.045, len: 0.1 });
+    expect(oilFiller(d).cap).toEqual([d.caseRear - 0.025, 0.209, 0.16]);
+    expect(IO390_DEFAULTS.propSpacer).toBe(0);
+    expect(driveLayout(IO390, d).alternators.map((a) => a.transverse)).toEqual([null]);
+    // the label pins EngineScene placed before the layouts, none hidden by the parts in front of them
     expect(IO390_DEFAULTS.labels(d, IO390)).toEqual([
       ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
       ["Oil filter", [d.accRear - 0.12, -0.04, 0]],

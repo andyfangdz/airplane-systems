@@ -8,7 +8,7 @@
 import { useFrame } from "@react-three/fiber";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { CylinderDef } from "@/engines/types";
+import type { CylinderDef, EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
 import {
   bank,
@@ -20,9 +20,11 @@ import {
   headPoints,
   IN,
   magDrive,
+  magnetoPose,
   magsAtStart,
   merge,
   rod,
+  slab,
   STARTER_TEETH,
   toWorld,
   tube,
@@ -30,38 +32,35 @@ import {
   type Dims,
   type Mats,
 } from "./kit";
-import { layoutFor } from "./layout";
+import { layoutFor, type EngineLayout } from "./layout";
 import { P } from "./parts";
 
 type V3 = [number, number, number];
 
-/** Magneto bodies: on the rear of the accessory housing, top left and right, above their drive gears (`magDrive`). */
-const MAG = { r: 0.04, len: 0.1 };
-
-export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
-  const spec = sim.spec;
-  const L = layoutFor(spec);
-  const drive = useMemo(() => magDrive(spec, d, L), [spec, d, L]);
+/** The ignition's geometries: magneto bodies and drive gears in their magneto's frame, the harness in engine coordinates. */
+export function ignitionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const M = L.magnetos;
+  const drive = magDrive(spec, d, L);
   const magZ = (side: "L" | "R") => (side === "R" ? drive.z : -drive.z);
-  const geo = useMemo(() => {
-    const hp = headPoints(d, L);
-    const leads: THREE.BufferGeometry[] = [];
+  const hp = headPoints(d, L);
+  const leads: THREE.BufferGeometry[] = [];
+  if (M.mount === "forward") {
+    // out of the cap's forward face: over the magnetos to the top plugs, and outboard, down behind the rear cylinders
+    // and forward under them to the bottom plugs
+    const capFront = d.accRear + M.len + 0.022;
+    const cap = (m: "L" | "R", dy: number): V3 => [capFront, drive.y + dy, magZ(m)];
     spec.geometry.cylinders.forEach((c) => {
       const k = bank(c);
       const topMag = spec.ignition.topPlugMag[c.n];
       const botMag = topMag === "L" ? "R" : "L";
-      const cap = (m: "L" | "R", dy: number): V3 => [d.accRear - MAG.len - 0.02, drive.y + dy, magZ(m)];
       const top = toWorld(c, hp.topLead),
         bot = toWorld(c, hp.botLead);
       leads.push(
         tube(
-          // up off the cap and forward over the magneto and the accessory housing
           [
             cap(topMag, 0.02),
-            [d.accRear - MAG.len - 0.025, drive.y + 0.055, magZ(topMag)],
-            [d.accRear - 0.04, 0.26, magZ(topMag)],
-            [d.caseRear + 0.02, 0.25, k * 0.12],
-            [top[0], 0.2, k * 0.17],
+            [capFront + 0.03, drive.y + M.r, magZ(topMag)],
+            [top[0], drive.y + M.r + 0.015, k * 0.17],
             top,
           ],
           0.0042,
@@ -71,8 +70,9 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         tube(
           [
             cap(botMag, -0.02),
-            [d.accRear - 0.03, 0.04, k * 0.175],
-            [d.caseRear + 0.03, -0.135, k * 0.18],
+            [capFront + 0.025, drive.y - M.r + 0.01, k * 0.125],
+            [d.caseRear - 0.01, 0.05, k * 0.175],
+            [d.caseRear - 0.01, -0.13, k * 0.18],
             [bot[0], -0.16, k * 0.23],
             bot,
           ],
@@ -82,19 +82,98 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         ),
       );
     });
+    const p = magnetoPose(spec, d, "R", L);
+    const I = drive.idler;
     return {
-      body: rod(MAG.r, MAG.len, 24).translate(d.accRear - MAG.len / 2, 0, 0),
-      flange: rod(MAG.r + 0.008, 0.008, 24).translate(d.accRear - 0.004, 0, 0),
-      cap: rod(MAG.r + 0.003, 0.022, 24).translate(d.accRear - MAG.len - 0.009, 0, 0),
-      // drive gear in the camshaft gear's plane, its shaft running aft to the magneto
+      body: rod(p.r, p.len, 24).translate(p.centre[0], 0, 0),
+      flange: rod(p.r + 0.008, 0.008, 24).translate(p.driveEnd[0] + 0.004, 0, 0),
+      cap: rod(p.r + 0.003, 0.022, 24).translate(p.capEnd[0] + 0.011, 0, 0),
+      // drive gear behind the accessory face on the magneto's own axis, its coupling forward into the drive end
       gear: merge([
         gear(drive.r, drive.teeth, 0.01, 0.006).translate(drive.x, 0, 0),
-        rod(0.007, drive.x - d.accRear, 10).translate((drive.x + d.accRear) / 2, 0, 0),
+        rod(0.007, p.driveEnd[0] - drive.x, 10).translate((drive.x + p.driveEnd[0]) / 2, 0, 0),
       ]),
       leads: merge(leads),
-      idler: drive.idler ? gear(drive.idler.r, drive.idler.teeth, 0.012, 0.01).translate(drive.x, 0, 0) : null,
+      // front gear on the crankshaft gear, rear gear on the magneto gears, one shaft through the accessory face
+      idler: I
+        ? merge([
+            gear(I.r, I.teeth, 0.012, 0.01).translate(I.x, 0, 0),
+            gear(I.rearR, I.rearTeeth, 0.012, 0.01).translate(I.rearX, 0, 0),
+            rod(0.008, I.x - I.rearX, 10).translate((I.x + I.rearX) / 2, 0, 0),
+          ])
+        : null,
+      // the accessory case over the gears behind the face, from the idler's rear gear to the magneto gears' tops
+      cover: slab(
+        drive.x - 0.012,
+        d.accRear,
+        (I ? I.y - I.rearR : drive.y - drive.r) - 0.008,
+        drive.y + drive.r + 0.008,
+        -(drive.z + drive.r + 0.008),
+        drive.z + drive.r + 0.008,
+        0.02,
+      ),
     };
-  }, [spec, d, drive, L]);
+  }
+  spec.geometry.cylinders.forEach((c) => {
+    const k = bank(c);
+    const topMag = spec.ignition.topPlugMag[c.n];
+    const botMag = topMag === "L" ? "R" : "L";
+    const cap = (m: "L" | "R", dy: number): V3 => [d.accRear - M.len - 0.02, drive.y + dy, magZ(m)];
+    const top = toWorld(c, hp.topLead),
+      bot = toWorld(c, hp.botLead);
+    leads.push(
+      tube(
+        // up off the cap and forward over the magneto and the accessory housing
+        [
+          cap(topMag, 0.02),
+          [d.accRear - M.len - 0.025, drive.y + 0.055, magZ(topMag)],
+          [d.accRear - 0.04, 0.26, magZ(topMag)],
+          [d.caseRear + 0.02, 0.25, k * 0.12],
+          [top[0], 0.2, k * 0.17],
+          top,
+        ],
+        0.0042,
+        40,
+        8,
+      ),
+      tube(
+        [
+          cap(botMag, -0.02),
+          [d.accRear - 0.03, 0.04, k * 0.175],
+          [d.caseRear + 0.03, -0.135, k * 0.18],
+          [bot[0], -0.16, k * 0.23],
+          bot,
+        ],
+        0.0042,
+        48,
+        8,
+      ),
+    );
+  });
+  return {
+    body: rod(M.r, M.len, 24).translate(d.accRear - M.len / 2, 0, 0),
+    flange: rod(M.r + 0.008, 0.008, 24).translate(d.accRear - 0.004, 0, 0),
+    cap: rod(M.r + 0.003, 0.022, 24).translate(d.accRear - M.len - 0.009, 0, 0),
+    // drive gear in the camshaft gear's plane, its shaft running aft to the magneto
+    gear: merge([
+      gear(drive.r, drive.teeth, 0.01, 0.006).translate(drive.x, 0, 0),
+      rod(0.007, drive.x - d.accRear, 10).translate((drive.x + d.accRear) / 2, 0, 0),
+    ]),
+    leads: merge(leads),
+    idler: drive.idler ? gear(drive.idler.r, drive.idler.teeth, 0.012, 0.01).translate(drive.x, 0, 0) : null,
+    cover: null,
+  };
+}
+
+/**
+ * The magnetos, top left and right on their drive gears (`magDrive`, `magnetoPose`): on the rear of the accessory housing
+ * with the caps aft, or (`magnetos.mount: "forward"`) lying forward over the crankcase with the caps and leads forward.
+ */
+export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const spec = sim.spec;
+  const L = layoutFor(spec);
+  const drive = useMemo(() => magDrive(spec, d, L), [spec, d, L]);
+  const geo = useMemo(() => ignitionGeometry(spec, d, L), [spec, d, L]);
   useEffect(
     () => () =>
       Object.values(geo).forEach((g) => {
@@ -123,7 +202,7 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       {(["L", "R"] as const).map((m, k) => {
         const retard = startMags.length === 1 && m === startMags[0];
         return (
-          <group key={m} position={[0, drive.y, magZ(m)]}>
+          <group key={m} position={[0, ...magnetoPose(spec, d, m, L).centre.slice(1)] as V3}>
             <P
               name={`${m === "L" ? "Left" : "Right"} magneto${retard ? " (retard breaker)" : ""}`}
               note={
@@ -162,6 +241,9 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         <group position={[0, drive.idler?.y ?? 0, 0]}>
           <P name="Idler gear" note={L.notes.idler} geometry={geo.idler} material={mats.gear} meshRef={idler} />
         </group>
+      )}
+      {geo.cover && (
+        <P name="Magneto drive housing" note={L.notes.magDriveHousing} geometry={geo.cover} material={mats.acc} />
       )}
       <P
         name="Ignition harness"
@@ -591,6 +673,110 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
 const PINION_TRAVEL = 0.022,
   PINION_MESH = 0.012;
 
+/** The drives' geometries, each in its part's own frame (`driveLayout` places them). */
+export function drivesGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const D = driveLayout(spec, d, L);
+  // belt: the hull of the two pulleys, in the plane of the crankshaft pulley
+  const beltGeometry = (x: number, ay: number, az: number) => {
+    const beltShape = (r1: number, r2: number) => {
+      // shape coordinates: x = −z, y = y (the extrusion is turned to run along +x)
+      const cx = -az,
+        cy = ay;
+      const D = Math.hypot(cx, cy),
+        phi = Math.atan2(cy, cx),
+        beta = Math.acos((r1 - r2) / D);
+      const p = new THREE.Path();
+      p.absarc(0, 0, r1, phi + beta, phi - beta + Math.PI * 2, false);
+      p.absarc(cx, cy, r2, phi - beta, phi + beta, false);
+      p.closePath();
+      return p;
+    };
+    const outer = new THREE.Shape(beltShape(d.pulleyR + 0.005, d.altPulleyR + 0.005).getPoints(48));
+    outer.holes.push(beltShape(d.pulleyR - 0.001, d.altPulleyR - 0.001));
+    return new THREE.ExtrudeGeometry(outer, { depth: 0.012, bevelEnabled: false, curveSegments: 24 })
+      .translate(0, 0, -0.006)
+      .rotateY(Math.PI / 2)
+      .translate(x, 0, 0);
+  };
+  const st = D.starter;
+  const starter =
+    st.kind === "front-ring"
+      ? {
+          kind: st.kind,
+          // ends just forward of the crankcase
+          motor: rod(0.04, 0.045, 24).translate(-0.0425, 0, 0),
+          solenoid: rod(0.017, 0.045, 14).translate(-0.04, 0.045, 0),
+          drive: rod(0.022, 0.025, 16).translate(-0.016, 0, 0),
+          pinion: gear(st.pinionR, STARTER_TEETH.pinion, 0.012, 0),
+        }
+      : {
+          // motor across the engine on the worm's axis; the worm, the wheel and the shaft down to the shaft gear
+          kind: st.kind,
+          motor: zrod(0.04, 0, 0.1, 24),
+          solenoid: zrod(0.017, 0.01, 0.055, 14).translate(0, 0.045, 0),
+          worm: merge([zrod(st.worm.r, -0.03, 0.03, 12), ...[-1, 1].map((k) => zrod(0.007, k * 0.04, k * 0.03, 8))]),
+          wheel: gear(st.wheel.r, st.wheel.teeth, 0.01, 0.008),
+          shaftGear: gear(st.shaft.r, st.shaft.teeth, 0.012, 0.008),
+          shaft: rod(0.008, st.shaft.x - st.wheel.x, 10).translate((st.shaft.x + st.wheel.x) / 2, 0, 0),
+        };
+  const alternators = D.alternators.map((a) => {
+    // the default is short enough to stay forward of the IO-390's cylinder 1 intake pipe
+    const len = a.def.bodyLen ?? 0.08;
+    const t = a.transverse;
+    if (t && a.gear) {
+      // across the engine, in its own frame (+z outboard along the shaft): the housing from the pad face to the end
+      // face, the drive pad on the crankcase side, the shaft in to the bevel pinion (drawn in the pinion's frame) and
+      // the terminal block on the end face
+      const [pad, end] = [t.padAt, t.endAt].map((p) => Math.hypot(p[1], p[2]));
+      const pin = Math.hypot(a.at[1], a.at[2]);
+      return {
+        body: merge([
+          zrod(t.r, pad, end, 32),
+          new THREE.BoxGeometry(0.035, 0.035, 0.012).translate(0, 0.03, end + 0.006),
+        ]),
+        pad: zrod(0.04, d.caseHalf, pad, 24),
+        shaft: zrod(0.008, pin + 0.006, pad, 10),
+        wheel: gear(a.gear.drivenR, a.gear.drivenTeeth, 0.012, 0),
+        belt: null,
+      };
+    }
+    return a.gear
+      ? {
+          // the body runs forward of its gear, on the front of the crankcase
+          body: merge([
+            rod(0.055, len, 28).translate(len / 2 + 0.02, 0, 0),
+            rod(0.045, 0.012, 28).translate(0.016, 0, 0),
+          ]),
+          wheel: gear(a.gear.drivenR, a.gear.drivenTeeth, 0.012, 0),
+          belt: null,
+          pad: null,
+          shaft: null,
+        }
+      : {
+          body: merge([
+            rod(0.06, len, 28).translate(-(len / 2 + 0.02), 0, 0),
+            rod(0.05, 0.012, 28).translate(-0.016, 0, 0),
+          ]),
+          wheel: merge([gear(d.altPulleyR, 16, 0.016, 0), rod(0.012, 0.03, 10).translate(-0.012, 0, 0)]),
+          belt: beltGeometry(a.x, a.at[1], a.at[2]),
+          pad: null,
+          shaft: null,
+        };
+  });
+  const gv = D.governor;
+  return {
+    starter,
+    alternators,
+    gov: merge([
+      rod(0.032, 0.035, 22).translate(0.0475, 0, 0),
+      rod(0.04, 0.008, 22).translate(0.034, 0, 0),
+      rod(0.012, 0.03, 10).translate(0.079, 0, 0),
+    ]),
+    govGear: gear(gv.govR, gv.teeth, 0.012, 0.004),
+    govShaft: gv.gearAt ? zrod(0.006, gv.at[2], gv.gearAt[2], 10).translate(gv.at[0], gv.at[1], 0) : null,
+  };
+}
+
 /**
  * The drives, placed by `driveLayout`: the starter (front lower left, its pinion on the ring gear; or on a right-angle
  * adapter at the rear, a worm turning the shaft gear on the crankshaft gear), the alternators (on a belt from the
@@ -603,90 +789,12 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
   const L = layoutFor(spec);
   const D = useMemo(() => driveLayout(spec, d, L), [spec, d, L]);
   const { spins } = useMemo(() => gearSpins(spec, d, L), [spec, d, L]);
-  const geo = useMemo(() => {
-    // belt: the hull of the two pulleys, in the plane of the crankshaft pulley
-    const beltGeometry = (x: number, ay: number, az: number) => {
-      const beltShape = (r1: number, r2: number) => {
-        // shape coordinates: x = −z, y = y (the extrusion is turned to run along +x)
-        const cx = -az,
-          cy = ay;
-        const D = Math.hypot(cx, cy),
-          phi = Math.atan2(cy, cx),
-          beta = Math.acos((r1 - r2) / D);
-        const p = new THREE.Path();
-        p.absarc(0, 0, r1, phi + beta, phi - beta + Math.PI * 2, false);
-        p.absarc(cx, cy, r2, phi - beta, phi + beta, false);
-        p.closePath();
-        return p;
-      };
-      const outer = new THREE.Shape(beltShape(d.pulleyR + 0.005, d.altPulleyR + 0.005).getPoints(48));
-      outer.holes.push(beltShape(d.pulleyR - 0.001, d.altPulleyR - 0.001));
-      return new THREE.ExtrudeGeometry(outer, { depth: 0.012, bevelEnabled: false, curveSegments: 24 })
-        .translate(0, 0, -0.006)
-        .rotateY(Math.PI / 2)
-        .translate(x, 0, 0);
-    };
-    const st = D.starter;
-    const starter =
-      st.kind === "front-ring"
-        ? {
-            kind: st.kind,
-            // ends just forward of the crankcase
-            motor: rod(0.04, 0.045, 24).translate(-0.0425, 0, 0),
-            solenoid: rod(0.017, 0.045, 14).translate(-0.04, 0.045, 0),
-            drive: rod(0.022, 0.025, 16).translate(-0.016, 0, 0),
-            pinion: gear(st.pinionR, STARTER_TEETH.pinion, 0.012, 0),
-          }
-        : {
-            // motor across the engine on the worm's axis; the worm, the wheel and the shaft down to the shaft gear
-            kind: st.kind,
-            motor: zrod(0.04, 0, 0.1, 24),
-            solenoid: zrod(0.017, 0.01, 0.055, 14).translate(0, 0.045, 0),
-            worm: merge([zrod(st.worm.r, -0.03, 0.03, 12), ...[-1, 1].map((k) => zrod(0.007, k * 0.04, k * 0.03, 8))]),
-            wheel: gear(st.wheel.r, st.wheel.teeth, 0.01, 0.008),
-            shaftGear: gear(st.shaft.r, st.shaft.teeth, 0.012, 0.008),
-            shaft: rod(0.008, st.shaft.x - st.wheel.x, 10).translate((st.shaft.x + st.wheel.x) / 2, 0, 0),
-          };
-    const alternators = D.alternators.map((a) => {
-      // the default is short enough to stay forward of the IO-390's cylinder 1 intake pipe
-      const len = a.def.bodyLen ?? 0.08;
-      return a.gear
-        ? {
-            // the body runs forward of its gear, on the front of the crankcase
-            body: merge([
-              rod(0.055, len, 28).translate(len / 2 + 0.02, 0, 0),
-              rod(0.045, 0.012, 28).translate(0.016, 0, 0),
-            ]),
-            wheel: gear(a.gear.drivenR, a.gear.drivenTeeth, 0.012, 0),
-            belt: null,
-          }
-        : {
-            body: merge([
-              rod(0.06, len, 28).translate(-(len / 2 + 0.02), 0, 0),
-              rod(0.05, 0.012, 28).translate(-0.016, 0, 0),
-            ]),
-            wheel: merge([gear(d.altPulleyR, 16, 0.016, 0), rod(0.012, 0.03, 10).translate(-0.012, 0, 0)]),
-            belt: beltGeometry(a.x, a.at[1], a.at[2]),
-          };
-    });
-    const gv = D.governor;
-    return {
-      starter,
-      alternators,
-      gov: merge([
-        rod(0.032, 0.035, 22).translate(0.0475, 0, 0),
-        rod(0.04, 0.008, 22).translate(0.034, 0, 0),
-        rod(0.012, 0.03, 10).translate(0.079, 0, 0),
-      ]),
-      govGear: gear(gv.govR, gv.teeth, 0.012, 0.004),
-      govShaft: gv.gearAt ? zrod(0.006, gv.at[2], gv.gearAt[2], 10).translate(gv.at[0], gv.at[1], 0) : null,
-    };
-  }, [d, D]);
+  const geo = useMemo(() => drivesGeometry(spec, d, L), [spec, d, L]);
   useEffect(
     () => () => {
       const all = [
         ...Object.values(geo.starter).filter((g) => g instanceof THREE.BufferGeometry),
-        ...geo.alternators.flatMap((a) => [a.body, a.wheel, a.belt]),
+        ...geo.alternators.flatMap((a) => [a.body, a.wheel, a.belt, a.pad, a.shaft]),
         geo.gov,
         geo.govGear,
         geo.govShaft,
@@ -788,6 +896,34 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       ) : null}
       {D.alternators.map((a, k) => {
         const g = geo.alternators[k];
+        const t = a.transverse;
+        if (t)
+          // turned about the crankshaft so its +z runs out along the shaft; the pinion's frame turns +x onto it
+          return (
+            <group key={a.def.name} position={[a.x, 0, 0]} rotation={[a.def.angleDeg * D2R - Math.PI / 2, 0, 0]}>
+              <P name={a.def.name} note={a.def.note} geometry={g.body} material={mats.alt} />
+              {g.pad && (
+                <P
+                  name={`${a.def.name} drive pad`}
+                  note={`${a.def.name} bolts to the drive pad on the crankcase, its face outboard (${a.def.src}).`}
+                  geometry={g.pad}
+                  material={mats.case}
+                />
+              )}
+              {g.shaft && <P name={`${a.def.name} shaft`} geometry={g.shaft} material={mats.steel} />}
+              <group position={[0, 0, Math.hypot(a.at[1], a.at[2])]} rotation={[0, -Math.PI / 2, 0]}>
+                <P
+                  name={`${a.def.name} drive pinion`}
+                  note={`Bevel pinion on ${a.def.name}'s shaft, turned by the alternator drive gear on the crankshaft at ${a.ratio}:1.`}
+                  geometry={g.wheel}
+                  material={mats.gear}
+                  meshRef={(m) => {
+                    altRot.current[k] = m;
+                  }}
+                />
+              </group>
+            </group>
+          );
         return (
           <Fragment key={a.def.name}>
             <group position={a.at}>
@@ -859,11 +995,12 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   const prop = useRef<THREE.Group>(null),
     disc = useRef<THREE.Mesh>(null);
   const blades = useRef<(THREE.Group | null)[]>([]);
+  // unmounted rather than invisible while switched off, so the blades don't catch the pointer
+  const on = sim.useUi((x) => x.view.prop);
   useFrame(() => {
     const s = sim.s,
       ui = sim.useUi.getState();
     if (!prop.current) return;
-    prop.current.visible = ui.view.prop;
     prop.current.rotation.x = (sim.anim.crank % 360) * D2R;
     const blur = !ui.view.slow && s.rpm > 500;
     blades.current.forEach((b) => {
@@ -874,8 +1011,9 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
     if (disc.current) disc.current.visible = blur;
   });
   const n = spec.propeller.blades;
+  if (!on) return null;
   return (
-    <group ref={prop} position={[d.flangeX + 0.008, 0, 0]}>
+    <group ref={prop} position={[d.flangeX + 0.008 + layoutFor(spec).propSpacer, 0, 0]}>
       <P name="Spinner" geometry={geo.spinner} material={mats.spinner} />
       <P name="Spinner bulkhead" geometry={geo.bulkhead} material={mats.spinner} />
       {Array.from({ length: n }, (_, k) => (

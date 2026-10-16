@@ -1,7 +1,7 @@
 /**
  * The TSIO-550-K in the engine page's 3D model: stations, crankshaft, ports and drives as the Continental M-18 manual,
- * the SR22T POH and AMM give them (engines/tsio550k/layout.ts cites each). The engine is not on the engine pages yet,
- * so its scene is mounted here directly, stopped.
+ * the SR22T POH and AMM give them, and the accessories where the SR22T installs them (engines/tsio550k/layout.ts cites
+ * each). The engine is not on the engine pages yet, so its scene is mounted here directly, stopped.
  */
 // vitest: isolate (mounts the scene with React Three Fiber)
 import { createElement as h } from "react";
@@ -11,25 +11,37 @@ import { mod, sideAngle } from "@/engines/model/cycle";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
 import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
+import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
 import {
   crankLayout,
   D2R,
   dims,
   driveLayout,
   GEAR_TEETH,
+  gearSpins,
   headPoints,
   IN,
   magDrive,
+  magnetoPose,
   makeMats,
+  oilFiller,
+  oilFilterPose,
   oilPump,
   throwRotation,
   valveLayout,
 } from "@/components/engine/scene/kit";
-import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
-import { layoutFor } from "@/components/engine/scene/layout";
+import { layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
-import { Drives, FuelSystem, Ignition, Induction, Propeller } from "@/components/engine/scene/Systems";
+import {
+  Drives,
+  drivesGeometry,
+  FuelSystem,
+  Ignition,
+  ignitionGeometry,
+  Induction,
+  Propeller,
+} from "@/components/engine/scene/Systems";
 import { Camshaft, ValveTrain } from "@/components/engine/scene/Valvetrain";
 import { mountScene } from "./engine-mount";
 
@@ -88,10 +100,10 @@ describe("TSIO-550-K 3D model", () => {
   });
 
   test("drawn ratios equal M-18 Table 2-9", () => {
-    // magneto 1.5: through the idler, 24 crankshaft-gear teeth to 16
+    // magneto 1.5: through the idler, 24 crankshaft-gear teeth to its 16, then its rear gear to the magneto gear
     const m = magDrive(S, d, L);
     expect(m.idler).not.toBeNull();
-    expect(GEAR_TEETH.crank / m.teeth).toBe(1.5);
+    expect((GEAR_TEETH.crank / m.idler!.teeth) * (m.idler!.rearTeeth / m.teeth)).toBe(1.5);
     const D = driveLayout(S, d, L);
     // gear-driven alternator 3
     const alt1 = D.alternators.find((a) => a.def.name === "ALT 1")!;
@@ -181,5 +193,204 @@ describe("TSIO-550-K 3D model", () => {
     expect(names).toEqual(expect.arrayContaining(["Left magneto", "Right magneto"]));
     expect(count(/retard breaker/)).toBe(0);
     await unmount();
+  });
+});
+
+describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", () => {
+  /** Inches forward of the accessory face, above the crankshaft axis and right of the centreline, in scene metres. */
+  const at = (s: number, y: number, z: number): V3 => [d.accRear + s * IN, y * IN, z * IN];
+  /** Within half a millimetre. */
+  const near = (got: V3, want: V3) => got.forEach((v, i) => expect(v, `[${i}]`).toBeCloseTo(want[i], 3));
+
+  test("magnetos forward of the accessory face, drive aft and caps forward (AMM Fig 74-20-1 detail A)", () => {
+    for (const m of ["R", "L"] as const) {
+      const p = magnetoPose(S, d, m, L);
+      const k = m === "R" ? 1 : -1;
+      expect(p.capEnd[0]).toBeGreaterThan(p.driveEnd[0]);
+      // the drive end on the accessory face, the pads 2.7 in either side of the centreline (M-18 Fig 5-33, scaled)
+      near(p.driveEnd, [d.accRear, 0.16, k * 2.7 * IN]);
+      near(p.capEnd, [d.accRear + 0.09, 0.16, k * 2.7 * IN]);
+      expect(p.r).toBeCloseTo(0.05, 6);
+      // the magneto drive gear turns on the magneto's own axis
+      const g = magDrive(S, d, L);
+      expect(g.y).toBeCloseTo(p.centre[1], 9);
+      expect(g.z).toBeCloseTo(Math.abs(p.centre[2]), 9);
+    }
+    // the accessory housing stops under them
+    expect(d.accTop).toBeLessThanOrEqual(magnetoPose(S, d, "R", L).centre[1] - 0.05 + 1e-9);
+  });
+
+  test("ALT 1 across the engine on the right crankcase-nose pad, terminal end outboard (AMM Fig 24-30-3)", () => {
+    const a = driveLayout(S, d, L).alternators.find((x) => x.def.name === "ALT 1")!;
+    const t = a.transverse!;
+    expect(t).not.toBeNull();
+    near(t.axis, [0, 0, 1]);
+    // scaled from M-18 Figures 5-35 and 5-34 view D-D: station 27.3 in, pad 6.7 in and end 9.45 in from the centreline
+    expect(station(t.padAt[0])).toBeCloseTo(27.3, 6);
+    near(t.padAt, at(27.3, 0, 6.7));
+    near(t.endAt, at(27.3, 0, 9.45));
+    expect(t.r).toBeCloseTo((5.75 / 2) * IN, 6);
+    // turned by a bevel pinion on the crankshaft's drive gear, at the gear-driven alternator's 3:1 (M-18 Table 2-9)
+    expect(gearSpins(S, d, L).meshes).toContainEqual({ a: "crank", b: "ALT 1", kind: "bevel" });
+    expect(a.gear!.driveTeeth / a.gear!.drivenTeeth).toBe(3);
+  });
+
+  test("ALT 2 below and outboard of the crankshaft on the left, its pulley forward (AMM Fig 24-30-4)", () => {
+    const a = driveLayout(S, d, L).alternators.find((x) => x.def.name === "ALT 2")!;
+    expect(a.def.drive).toBe("belt");
+    // the pulley centre 2.95 in below and 8.46 in left of the crankshaft centreline
+    expect(a.at[1] / IN).toBeCloseTo(-2.95, 1);
+    expect(a.at[2] / IN).toBeCloseTo(-8.46, 1);
+    // the drive sheave on its adapter at the propeller flange, under the propeller (items 5, 6)
+    expect(a.x).toBeGreaterThan(d.flangeX);
+    expect(a.x).toBeLessThan(d.flangeX + L.propSpacer);
+  });
+
+  // ALT 2 lower down sits beside the governor: its body stays forward of it
+  test("ALT 2's body clears the propeller governor", () => {
+    const D = driveLayout(S, d, L);
+    const geo = drivesGeometry(S, d, L);
+    const k = D.alternators.findIndex((x) => x.def.name === "ALT 2");
+    const bounds = (g: THREE.BufferGeometry, m: THREE.Matrix4) => {
+      g.computeBoundingBox();
+      return g.boundingBox!.clone().applyMatrix4(m);
+    };
+    const alt = bounds(geo.alternators[k].body, new THREE.Matrix4().makeTranslation(...D.alternators[k].at));
+    const gv = D.governor;
+    const gov = bounds(
+      geo.gov,
+      new THREE.Matrix4().compose(
+        new THREE.Vector3(...gv.at),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...gv.rotation)),
+        new THREE.Vector3(1, 1, 1),
+      ),
+    );
+    expect(alt.intersectsBox(gov)).toBe(false);
+  });
+
+  test("oil filter standing vertically at the left rear (M-18 Figs 5-33, 13-10; AMM Fig 71-00-2 sheet 3)", () => {
+    const f = oilFilterPose(d, L);
+    near(f.axis, [0, 1, 0]);
+    // 4.0 in left, Ø 3.65 in, its bottom ≈ 2.1 in below the crankshaft; the station is approximate
+    near(f.centre, at(-2.96, 0.16, -4.0));
+    expect(f.r).toBeCloseTo((3.65 / 2) * IN, 6);
+    expect(f.len).toBeCloseTo((2.42 + 2.1) * IN, 6);
+    // top 2.42 in above the crankshaft (M-18 Fig 5-33, dimensioned)
+    expect((f.centre[1] + f.len / 2) / IN).toBeCloseTo(2.42, 6);
+  });
+
+  test("oil filler and dipstick at the left rear (POH 7-37)", () => {
+    const { cap, tube } = oilFiller(d, L);
+    expect(cap[2]).toBeLessThan(0);
+    expect(cap[0]).toBeLessThan(d.caseRear);
+    for (const p of tube) expect(p[2]).toBeLessThan(0);
+  });
+
+  test("the starter motor starts at its right-angle adapter (AMM Fig 71-00-2 sheet 3, Fig 80-10-1)", () => {
+    const st = driveLayout(S, d, L).starter;
+    if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+    // the worm is drawn 0.04 m either side of its centre; the motor runs outboard from its end
+    expect(st.at[2] - st.worm.at[2]).toBeCloseTo(0.04, 9);
+  });
+
+  test("labels sit on their parts", () => {
+    const at = Object.fromEntries(L.labels(d, S));
+    const mag = magnetoPose(S, d, "R", L);
+    expect(at.Magnetos[0]).toBeGreaterThan(mag.driveEnd[0]);
+    expect(at.Magnetos[0]).toBeLessThan(mag.capEnd[0]);
+    const alt1 = driveLayout(S, d, L).alternators.find((x) => x.def.name === "ALT 1")!;
+    expect(at["ALT 1"][0]).toBeCloseTo(alt1.x, 6);
+    expect(at["ALT 1"][2]).toBeGreaterThan(alt1.transverse!.padAt[2]);
+    const f = oilFilterPose(d, L);
+    expect(at["Oil filter"][0]).toBeCloseTo(f.centre[0], 6);
+    expect(at["Oil filter"][2]).toBeCloseTo(f.centre[2], 6);
+    expect(at["ALT 2"][2]).toBeLessThan(0);
+  });
+
+  test("the oil filter's label sits over the canister", () => {
+    const [, at] = L.labels(d, S).find(([t]) => t === "Oil filter")!;
+    const f = oilFilterPose(d, L);
+    expect(at[1]).toBeGreaterThan(f.centre[1] + f.len / 2);
+    expect(Math.hypot(at[0] - f.centre[0], at[2] - f.centre[2])).toBeLessThan(f.r);
+  });
+});
+
+describe("TSIO-550-K magneto drive train (M-18 2-2.2; AMM Fig 74-20-1 detail A)", () => {
+  const m = magDrive(S, d, L);
+  const I = m.idler!;
+  const mag = (side: "L" | "R") => magnetoPose(S, d, side, L);
+
+  test("the idler's front gear meshes the crankshaft gear inside the accessory housing, clear of the magnetos", () => {
+    expect(I.x).toBeCloseTo(d.caseRear - 0.018, 9); // the crankshaft gear's plane
+    expect(I.y).toBeCloseTo(d.crankGearR + I.r, 9);
+    expect(I.y + I.r).toBeLessThanOrEqual(d.accTop);
+    const p = mag("R");
+    expect(Math.hypot(p.centre[1] - I.y, p.centre[2])).toBeGreaterThan(I.r + p.r);
+  });
+
+  test("the magneto gears and the idler's rear gear sit behind the accessory face, under its drive housing", () => {
+    const cover = ignitionGeometry(S, d, L).cover!;
+    cover.computeBoundingBox();
+    const box = cover.boundingBox!;
+    for (const side of ["R", "L"] as const) {
+      const [, y, z] = mag(side).centre;
+      expect(m.y).toBeCloseTo(y, 9);
+      expect(Math.sign(z) * m.z).toBeCloseTo(z, 9);
+      expect(m.x + 0.005).toBeLessThan(d.accRear); // half the gear's width
+      expect(
+        box.containsBox(
+          new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(m.x, y, z),
+            new THREE.Vector3(0.01, 2 * m.r, 2 * m.r),
+          ),
+        ),
+      ).toBe(true);
+    }
+    expect(I.rearX).toBe(m.x);
+    expect(Math.hypot(m.y - I.y, m.z)).toBeCloseTo(I.rearR + m.r, 9);
+    expect(box.containsPoint(new THREE.Vector3(I.rearX, I.y - I.rearR, 0))).toBe(true);
+    expect(box.max.x).toBeCloseTo(d.accRear, 6); // geometry is float32
+  });
+
+  test("each magneto drive gear can be seen and hovered from the iso and rear cameras", () => {
+    // the ignition's opaque parts; the drive housing is see-through in X-ray and lets the pointer through (parts.tsx)
+    const geo = ignitionGeometry(S, d, L);
+    const solid = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const root = new THREE.Group();
+    const gears: Record<string, THREE.Mesh> = {};
+    for (const side of ["R", "L"] as const) {
+      const g = new THREE.Group();
+      g.position.set(0, mag(side).centre[1], mag(side).centre[2]);
+      for (const k of ["body", "flange", "cap"] as const) g.add(new THREE.Mesh(geo[k], solid));
+      gears[side] = new THREE.Mesh(geo.gear, solid);
+      g.add(gears[side]);
+      root.add(g);
+    }
+    root.add(new THREE.Mesh(geo.leads, solid));
+    const idler = new THREE.Mesh(geo.idler!, solid);
+    idler.position.y = I.y;
+    root.add(idler);
+    root.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    // looking from each preset's side (lib/camera.ts directions; the engine page's rear is the front's mirror)
+    for (const [cam, dir, need] of [
+      ["iso", new THREE.Vector3(1, 0.65, 1).normalize(), 3],
+      ["rear", new THREE.Vector3(-1, 0, 0), 28],
+    ] as const)
+      for (const side of ["R", "L"] as const) {
+        const others = root.children
+          .flatMap((o) => (o.children.length ? o.children : [o]))
+          .filter((o) => o !== gears[side]);
+        let seen = 0;
+        for (let k = 0; k < 32; k++) {
+          const a = (k / 32) * 2 * Math.PI;
+          const p = gears[side].localToWorld(
+            new THREE.Vector3(m.x, 0.95 * m.r * Math.cos(a), 0.95 * m.r * Math.sin(a)),
+          );
+          ray.set(p, dir);
+          if (!ray.intersectObjects(others, false).length) seen++;
+        }
+        expect(seen, `${side} magneto gear from ${cam}`).toBeGreaterThanOrEqual(need);
+      }
   });
 });

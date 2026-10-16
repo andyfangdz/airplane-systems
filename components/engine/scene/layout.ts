@@ -37,6 +37,16 @@ export interface AlternatorDef {
   pulleyBehindFlange?: number;
   /** Length of the alternator body, m (default 0.08). */
   bodyLen?: number;
+  /**
+   * Gear drive: the shaft along the crankshaft, the body running forward of its gear (absent), or across it on a pad on
+   * the crankcase nose, turned by a bevel pinion on the crankshaft's drive gear (`"transverse"`, with `transverse`).
+   */
+  axis?: "axial" | "transverse";
+  /**
+   * A transverse alternator's shaft station forward of the accessory mounting face, its pad face and outboard end face
+   * from the crankshaft axis (in the `angleDeg` direction), inches, and its housing radius, m.
+   */
+  transverse?: { stationIn: number; padIn: number; endIn: number; r: number };
   src: string;
   /** Hover note; absent = the IO-390 alternator's. */
   note?: string;
@@ -74,6 +84,7 @@ export type NoteKey =
   | "magCap"
   | "magGear"
   | "idler"
+  | "magDriveHousing"
   | "harness"
   | "fuelManifold"
   | "fuelLines"
@@ -121,8 +132,30 @@ export interface EngineLayout {
   /** Propeller governor: on the front top, spur-driven from the camshaft, or front lower left on a camshaft bevel gear. */
   governor: "front-top" | "front-lower-left";
   alternators: AlternatorDef[];
+  /**
+   * Propeller standoff forward of the flange face, m: the alternator drive sheave and its adapter sandwiched between them
+   * (0: the propeller bolts to the flange).
+   */
+  propSpacer: number;
   /** Magneto drive gears mesh with the camshaft gear, or with an idler gear the crankshaft gear drives. */
   magDrive: "cam" | "idler";
+  /**
+   * The magnetos, side by side on fore-aft axes: drive end on the accessory mounting face with the body and distributor
+   * cap aft of it, or forward of it (drive coupling aft into the accessory case, cap and leads forward). Body radius and
+   * length, pad centres either side of the centreline and height above the crankshaft axis, m (`y` null: on the drive
+   * gear's axis; given, the idler is sized so the magneto drive gear lands on it).
+   */
+  magnetos: { mount: "aft" | "forward"; r: number; len: number; z: number; y: number | null };
+  /**
+   * Oil filter: on the rear of the accessory housing, its axis fore and aft on the centreline, or a spin-on canister
+   * standing vertically on an adapter, its centre (inches aft of the accessory face, above the crankshaft axis, right of
+   * the centreline), radius and length, m.
+   */
+  oilFilter:
+    | { mount: "rear" }
+    | { mount: "vertical"; aftIn: number; yIn: number; zIn: number; r: number; len: number; src: string };
+  /** Oil filler tube and dipstick: up behind the crankcase on the right or the left. */
+  oilFiller: { side: "L" | "R" };
   /** Oil pump drive gear meshes with the crankshaft gear, or turns with the camshaft gear (splined into it). */
   oilPumpDrive: "crank" | "cam";
   /** Label pins: text and position. */
@@ -153,7 +186,11 @@ export const IO390_DEFAULTS: EngineLayout = {
   starterAftIn: null,
   governor: "front-top",
   alternators: [{ name: "Alternator", drive: "belt", ratio: null, angleDeg: 135, r: 0.27, src: "IOM Table A-4" }],
+  propSpacer: 0,
   magDrive: "cam",
+  magnetos: { mount: "aft", r: 0.04, len: 0.1, z: 0.1, y: null },
+  oilFilter: { mount: "rear" },
+  oilFiller: { side: "R" },
   oilPumpDrive: "crank",
   labels: (d, spec) => [
     ["Magnetos", [d.accRear - 0.08, 0.22, 0]],

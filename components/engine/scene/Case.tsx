@@ -8,7 +8,22 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { EngineSim } from "../store";
-import { D2R, gear, gearSpins, merge, oilPump, rod, slab, toWorld, tube, zrod, type Dims, type Mats } from "./kit";
+import {
+  D2R,
+  gear,
+  gearSpins,
+  merge,
+  oilFiller,
+  oilFilterPose,
+  oilPump,
+  rod,
+  slab,
+  toWorld,
+  tube,
+  zrod,
+  type Dims,
+  type Mats,
+} from "./kit";
 import { layoutFor } from "./layout";
 import { P } from "./parts";
 
@@ -102,17 +117,72 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
   const PUMP = useMemo(() => oilPump(d, L), [d, L]);
   const { spins } = useMemo(() => gearSpins(sim.spec, d, L), [sim, d, L]);
   const geo = useMemo(() => {
-    const top = d.caseRear - 0.025;
+    const filler = oilFiller(d, L);
+    const F = oilFilterPose(d, L);
+    const [fx, fy, fz] = F.centre;
+    const vertical = L.oilFilter.mount === "vertical";
+    // a vertical filter's adapter: under the canister, reaching forward to the accessory face
+    const adapterY = fy - F.len / 2 - 0.015;
+    const oilLines = vertical
+      ? {
+          pressure: tube(
+            [
+              [d.caseRear + PUMP.x1, PUMP.y + 0.026, PUMP.gearR],
+              [d.caseRear + PUMP.x1 - 0.004, PUMP.y + 0.04, fz * 0.4],
+              [d.accRear + 0.006, adapterY, fz + 0.012],
+              [d.accRear - 0.004, adapterY, fz + 0.012],
+            ],
+            0.006,
+          ),
+          supply: tube(
+            [
+              [d.accRear - 0.004, adapterY, fz - 0.012],
+              [d.accRear + 0.012, adapterY + 0.03, fz - 0.012],
+              [d.caseRear - 0.004, 0.05, -0.06],
+              [d.caseRear + 0.04, 0.05, -0.06],
+            ],
+            0.006,
+          ),
+        }
+      : {
+          pressure: tube(
+            [
+              [d.caseRear + PUMP.x1, PUMP.y + 0.026, PUMP.gearR],
+              [d.caseRear + PUMP.x1 - 0.004, PUMP.y + 0.05, 0.05],
+              [d.accRear + 0.006, 0.0, 0.05],
+              [d.accRear - 0.004, 0.015, 0.03],
+            ],
+            0.006,
+          ),
+          supply: tube(
+            [
+              [d.accRear - 0.004, 0.015, -0.03],
+              [d.accRear + 0.012, 0.035, -0.05],
+              [d.caseRear - 0.004, 0.05, -0.06],
+              [d.caseRear + 0.04, 0.05, -0.06],
+            ],
+            0.006,
+          ),
+        };
     return {
       oil: new THREE.BoxGeometry(d.front - 0.05 - (d.caseRear + 0.015), 1, 0.22).translate(
         (d.front - 0.05 + d.caseRear + 0.015) / 2,
         0.5,
         0,
       ),
-      filter: merge([
-        rod(0.045, 0.1, 28).translate(d.accRear - 0.05, 0.015, 0),
-        rod(0.012, 0.014, 6).translate(d.accRear - 0.107, 0.015, 0),
-      ]),
+      filter: vertical
+        ? merge([
+            // the canister and the hex on its top
+            new THREE.CylinderGeometry(F.r, F.r, F.len, 28).translate(fx, fy, fz),
+            new THREE.CylinderGeometry(0.012, 0.012, 0.014, 6).translate(fx, fy + F.len / 2 + 0.007, fz),
+          ])
+        : merge([
+            rod(0.045, 0.1, 28).translate(d.accRear - 0.05, 0.015, 0),
+            rod(0.012, 0.014, 6).translate(d.accRear - 0.107, 0.015, 0),
+          ]),
+      filterAdapter: vertical
+        ? slab(fx - 0.03, d.accRear, adapterY - 0.015, adapterY + 0.015, fz - 0.028, fz + 0.028, 0.006)
+        : null,
       // driven off the crankshaft gear: a drive gear meshing below it, its shaft running aft to the pumping gears
       pumpDrive: merge([
         gear(PUMP.driveR, PUMP.driveTeeth, 0.014, 0.004),
@@ -131,19 +201,8 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       screen: rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
       screenPlug: rod(0.012, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.025, 0),
       drain: new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6).translate(-0.04, d.sumpBottom - 0.007, 0.06),
-      dipTube: tube(
-        [
-          // out of the sump's rear face and up behind the crankcase, outboard of the accessory housing and mounts
-          [d.caseRear + 0.04, d.caseBottom - 0.02, 0.1],
-          [d.caseRear - 0.025, d.caseBottom - 0.025, 0.15],
-          [d.caseRear - 0.025, 0.06, 0.155],
-          [top, 0.2, 0.16],
-        ],
-        0.009,
-        24,
-        10,
-      ),
-      dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(top, 0.209, 0.16),
+      dipTube: tube(filler.tube, 0.009, 24, 10),
+      dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(...filler.cap),
       nozzle: zrod(0.0035, d.caseHalf - 0.04, d.caseHalf - 0.008, 8).translate(0, -0.05, 0),
       suction: tube(
         [
@@ -154,26 +213,9 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         ],
         0.007,
       ),
-      pressure: tube(
-        [
-          [d.caseRear + PUMP.x1, PUMP.y + 0.026, PUMP.gearR],
-          [d.caseRear + PUMP.x1 - 0.004, PUMP.y + 0.05, 0.05],
-          [d.accRear + 0.006, 0.0, 0.05],
-          [d.accRear - 0.004, 0.015, 0.03],
-        ],
-        0.006,
-      ),
-      supply: tube(
-        [
-          [d.accRear - 0.004, 0.015, -0.03],
-          [d.accRear + 0.012, 0.035, -0.05],
-          [d.caseRear - 0.004, 0.05, -0.06],
-          [d.caseRear + 0.04, 0.05, -0.06],
-        ],
-        0.006,
-      ),
+      ...oilLines,
     };
-  }, [d, PUMP]);
+  }, [d, PUMP, L]);
   const oilMat = useMemo(() => {
     const m = mats.oil.clone();
     m.transparent = true;
@@ -182,7 +224,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
   }, [mats]);
   useEffect(
     () => () => {
-      Object.values(geo).forEach((g) => g.dispose());
+      Object.values(geo).forEach((g) => g?.dispose());
       oilMat.dispose();
     },
     [geo, oilMat],
@@ -213,12 +255,22 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         position={[0, d.sumpBottom + 0.005, 0]}
         raycast={() => null}
       />
-      <P
-        name="Oil filter"
-        note={L.notes.oilFilter ?? "Full-flow oil filter on the accessory housing (IOM p. 5, Figure 8)."}
-        geometry={geo.filter}
-        material={mats.filter}
-      />
+      <>
+        <P
+          name="Oil filter"
+          note={L.notes.oilFilter ?? "Full-flow oil filter on the accessory housing (IOM p. 5, Figure 8)."}
+          geometry={geo.filter}
+          material={mats.filter}
+        />
+        {geo.filterAdapter && L.oilFilter.mount === "vertical" && (
+          <P
+            name="Oil filter adapter"
+            note={`Bolted to the oil pump housing; the spin-on filter stands on its upward boss (${L.oilFilter.src}). Shape approximate.`}
+            geometry={geo.filterAdapter}
+            material={mats.acc}
+          />
+        )}
+      </>
       <P
         name="Oil pump"
         note={
