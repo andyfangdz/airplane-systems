@@ -26,6 +26,12 @@ export const COMPONENTS: ComponentEntry[] = [
     sub: "Precision RSA servo, flow divider, nozzles",
     lead: "The RSA continuous-flow fuel injection system on the IO-390: servo injector, flow divider and air-bleed nozzles, cut away.",
   },
+  {
+    id: "surefly",
+    name: "SureFly SIM",
+    sub: "Electronic ignition",
+    lead: "SureFly SIM4P electronic ignition module: dip switch timing, advance with rpm and manifold pressure, the timing light and wasted spark.",
+  },
 ];
 
 export const COMPONENT_IDS = COMPONENTS.map((c) => c.id);

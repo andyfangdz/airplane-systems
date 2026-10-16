@@ -7,7 +7,16 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { O360 } from "@/engines/o360/spec";
-import { pumpStep, readCarb, type CarbReading, type Pump } from "@/engines/components/carburetor/carburetor";
+import {
+  PRIMER_IDLE,
+  primerStroke,
+  pumpStep,
+  runPrimer,
+  readCarb,
+  type CarbReading,
+  type Primer,
+  type Pump,
+} from "@/engines/components/carburetor/carburetor";
 import { advance, simFor, startScenario, type EngineSim } from "../store";
 
 export type CarbLive = CarbReading &
@@ -18,6 +27,7 @@ export type CarbLive = CarbReading &
     inletC: number;
     chamberC: number;
     ice: number;
+    primer: Primer;
   };
 
 export const carbSim = (): EngineSim => simFor(O360);
@@ -32,6 +42,12 @@ export const live: CarbLive = {
   inletC: 15,
   chamberC: 15,
   ice: 0,
+  primer: PRIMER_IDLE,
+};
+
+/** Pull and push the primer once more (the loop sends the fuel to the cylinders as the plunger goes in). */
+export const primeStroke = () => {
+  live.primer = primerStroke(live.primer);
 };
 
 export interface CarbView {
@@ -73,13 +89,21 @@ export function useCarbLoop(sim: EngineSim) {
     const carb = sim.spec.fuelSystem.kind === "carburetor" ? sim.spec.fuelSystem : null;
     let pump: Pump = { plunger: sim.useUi.getState().controls.throttle, squirt: 0 };
     let raf = 0,
-      last = performance.now();
+      last = performance.now(),
+      resets = sim.resets;
     const tick = (now: number) => {
       const dt = Math.min(Math.max((now - last) / 1000, 0), 0.5);
       last = now;
       advance(sim, dt);
-      if (carb && !sim.useUi.getState().view.paused)
+      // a scenario replaced the engine: strokes asked for before don't carry over to it
+      if (sim.resets !== resets) {
+        resets = sim.resets;
+        live.primer = PRIMER_IDLE;
+      }
+      if (carb && !sim.useUi.getState().view.paused) {
         pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
+        live.primer = runPrimer(sim.spec, sim.s, live.primer, dt);
+      }
       read(sim, pump);
       raf = requestAnimationFrame(tick);
     };

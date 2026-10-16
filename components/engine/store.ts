@@ -56,6 +56,8 @@ export interface EngineSim {
   s: EngineState;
   /** Visual crank angle (follows the engine, or slowly in slow motion), degrees 0 … 720. */
   anim: { crank: number };
+  /** Counts replacements of `s` (scenarios), so pages can drop what they held for the engine before. */
+  resets: number;
   useUi: ReturnType<typeof createUi>;
 }
 
@@ -116,7 +118,7 @@ const sims = new Map<string, EngineSim>();
 export function simFor(spec: EngineSpec, key = spec.id): EngineSim {
   let sim = sims.get(key);
   if (!sim) {
-    sim = { spec, s: initialState(spec), anim: { crank: 0 }, useUi: createUi(spec) };
+    sim = { spec, s: initialState(spec), anim: { crank: 0 }, resets: 0, useUi: createUi(spec) };
     sims.set(key, sim);
   }
   return sim;
@@ -125,6 +127,7 @@ export function simFor(spec: EngineSpec, key = spec.id): EngineSim {
 /** Replace the engine state (a scenario), keeping the object identity the scene and panels hold. */
 export function replaceState(sim: EngineSim, next: EngineState) {
   Object.assign(sim.s, structuredClone(next));
+  sim.resets++;
   refreshLiveSnapshot(sim.s);
 }
 

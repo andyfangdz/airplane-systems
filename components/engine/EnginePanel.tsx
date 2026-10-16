@@ -51,7 +51,8 @@ export function StartFrom({ sim }: { sim: EngineSim }) {
   );
 }
 
-export function Controls({ sim }: { sim: EngineSim }) {
+/** The engine controls. `onPrime` replaces the instant primer stroke (the carburetor page animates one). */
+export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => void }) {
   const c = sim.useUi((x) => x.controls),
     set = sim.useUi((x) => x.setControls);
   const spec = sim.spec,
@@ -131,7 +132,7 @@ export function Controls({ sim }: { sim: EngineSim }) {
             type="button"
             className="btn eng-prime"
             title={`One stroke of the primer: fuel straight into the intake ports (${spec.refs.start})`}
-            onClick={() => prime(spec, sim.s)}
+            onClick={() => (onPrime ? onPrime() : prime(spec, sim.s))}
           >
             Prime
           </button>

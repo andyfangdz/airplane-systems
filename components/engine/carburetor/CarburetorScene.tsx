@@ -41,6 +41,8 @@ const L = {
   pumpX: 0.08,
   pumpY0: -0.084,
   pumpY1: -0.044,
+  // the primer: a tee in the fuel line beside the inlet, the pump on the panel, its line to an intake pipe
+  primer: { x0: 0.15, x1: 0.18, panelX: 0.184, y: -0.05, pipeY: 0.118, nozzleX: 0.058 },
 };
 
 function useMats() {
@@ -74,6 +76,9 @@ function useMats() {
         emissiveIntensity: 0.35,
       }),
       flap: std("#b5503a", { metalness: 0.4, side: THREE.DoubleSide }),
+      primerLine: std("#2f7fe6", { emissive: "#2f7fe6", emissiveIntensity: 0 }),
+      panel: std("#3a4148", { metalness: 0.2, roughness: 0.7, transparent: true, side: THREE.DoubleSide }),
+      knob: std("#d8dde1", { metalness: 0.1, roughness: 0.5 }),
     };
   }, []);
   useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
@@ -91,6 +96,10 @@ const lathe = (pts: [number, number][], segs = 40) =>
 /** A box from corner to corner. */
 const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
   new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+
+/** A cylinder along x from x0 to x1 on the x axis. */
+const xrod = (r: number, x0: number, x1: number, segs = 16) =>
+  new THREE.CylinderGeometry(r, r, x1 - x0, segs).rotateZ(Math.PI / 2).translate((x0 + x1) / 2, 0, 0);
 
 /** A cylinder along y from y0 to y1 at (x, z). */
 const ycyl = (r: number, y0: number, y1: number, x = 0, z = 0, segs = 20) =>
@@ -625,6 +634,175 @@ function AcceleratingPump({ mats }: { mats: Mats }) {
   );
 }
 
+/**
+ * The primer, which works beside the carburetor rather than through it: a tee in the fuel line ahead of the inlet,
+ * the pump behind the instrument panel and its line to the cylinders, drawn to one intake pipe. Pulling the knob
+ * draws fuel into the barrel; pushing it in sprays it into the cylinders (FAA-H-8083-25B p. 7-25).
+ */
+function PrimerSystem({ mats }: { mats: Mats }) {
+  const knob = useRef<THREE.Group>(null);
+  const spray = useRef<THREE.InstancedMesh>(null);
+  const t = useRef(0);
+  const N = 40;
+  const pr = L.primer;
+  const g = useMemo(() => {
+    const inletX = L.bowl.x1 + 0.024;
+    return {
+      supply: tube(
+        [
+          [inletX, L.bodyTop + 0.007, 0],
+          [pr.x0 + 0.004, L.bodyTop + 0.007, 0],
+          [0.215, L.bodyTop + 0.007, 0],
+        ],
+        0.003,
+        16,
+        10,
+      ),
+      tee: ycyl(0.0045, L.bodyTop - 0.004, L.bodyTop + 0.012, pr.x0 + 0.004, 0, 12),
+      inlet: tube(
+        [
+          [pr.x0 + 0.004, L.bodyTop - 0.004, 0],
+          [pr.x0 + 0.004, pr.y + 0.012, 0],
+          [pr.x0 + 0.004, pr.y + 0.006, 0],
+        ],
+        0.0015,
+        16,
+        8,
+      ),
+      outlet: tube(
+        [
+          [pr.x0, pr.y, 0],
+          [pr.x0 - 0.012, pr.y + 0.006, -0.02],
+          [L.bowl.x1 + 0.006, -0.01, -0.05],
+          [L.bowl.x1 - 0.01, pr.pipeY - 0.02, -0.04],
+          [pr.nozzleX + 0.014, pr.pipeY + 0.018, -0.004],
+          [pr.nozzleX, pr.pipeY + 0.013, 0],
+        ],
+        0.0015,
+        60,
+        8,
+      ),
+      barrel: xrod(0.0065, pr.x0, pr.x1).translate(0, pr.y, 0),
+      panel: box(pr.panelX, pr.panelX + 0.003, pr.y - 0.018, pr.y + 0.018, -0.02, 0.02),
+      rod: xrod(0.0015, pr.x0 + 0.004, pr.panelX + 0.008).translate(0, pr.y, 0),
+      handle: merge([xrod(0.0045, 0, 0.008), box(0.002, 0.007, -0.009, 0.009, -0.003, 0.003)]),
+      pipe: tube(
+        [
+          [0, L.riserTop - 0.012, 0],
+          [0.012, pr.pipeY - 0.003, 0],
+          [0.035, pr.pipeY, 0],
+          [0.09, pr.pipeY, 0],
+        ],
+        0.009,
+        30,
+        16,
+      ),
+      nozzle: ycyl(0.0022, pr.pipeY + 0.006, pr.pipeY + 0.014, pr.nozzleX, 0, 10),
+      drop: new THREE.SphereGeometry(0.0008, 6, 4),
+      dropMat: new THREE.MeshBasicMaterial({ color: "#2f7fe6" }),
+    };
+  }, [pr]);
+  useEffect(() => () => Object.values(g).forEach((x) => x.dispose()), [g]);
+  const seeds = useMemo(() => {
+    let a = 7;
+    const rnd = () => ((a = (a * 16807) % 2147483647) - 1) / 2147483646;
+    return Array.from({ length: N }, () => [rnd(), rnd(), rnd()] as const);
+  }, []);
+  const m = useMemo(() => new THREE.Matrix4(), []);
+  useFrame((_, dt) => {
+    const p = live.primer;
+    // the knob and its rod come out of the panel as the plunger is pulled
+    if (knob.current) knob.current.position.x = p.knob * 0.024;
+    mats.primerLine.emissiveIntensity = p.t >= 0 ? 0.5 : 0;
+    const s = spray.current;
+    if (!s) return;
+    if (p.discharging && !carbSim().useUi.getState().view.paused) t.current += Math.min(dt, 0.1);
+    const on = p.discharging && useCarbView.getState().flow;
+    for (let i = 0; i < N; i++) {
+      const [u, r, th] = seeds[i];
+      const k = (u + t.current * 2.5) % 1;
+      // a cone of spray from the nozzle down the pipe toward the cylinder
+      const x = pr.nozzleX + k * 0.025,
+        y = pr.pipeY + 0.005 - k * 0.006 * (0.5 + r),
+        z = (th - 0.5) * k * 0.01;
+      const v = on ? 1 : 0;
+      m.makeScale(v, v, v);
+      m.setPosition(x, y, z);
+      s.setMatrixAt(i, m);
+    }
+    s.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <>
+      <P
+        name="Fuel line from the pump"
+        note="Fuel under pressure from the engine-driven pump (or the boost pump), on its way to the carburetor inlet."
+        geometry={g.supply}
+        material={mats.passage}
+      />
+      <P
+        name="Primer tee"
+        note="Where the primer takes its fuel from the fuel system; the primer draws from the tanks (FAA-H-8083-25B p. 7-25, Figure 7-30). Its place here is schematic."
+        geometry={g.tee}
+        material={mats.brass}
+      />
+      <P
+        name="Primer supply line"
+        note="Fuel the primer draws into its barrel as the knob is pulled out."
+        geometry={g.inlet}
+        material={mats.primerLine}
+      />
+      <P
+        name="Primer pump"
+        note={`A plunger in a barrel behind the instrument panel. ${MA45.priming.value} before starting a cold engine (${MA45.priming.src}); overpriming keeps it from starting (OM p. 6-1). Pull the knob out, push it in, and lock it: unlocked, it can vibrate out and richen the mixture in flight (FAA-H-8083-25B p. 7-25).`}
+        geometry={g.barrel}
+        material={mats.darkSteel}
+      />
+      <P
+        name="Instrument panel"
+        note="The primer knob is on the panel, within the pilot's reach. Drawn as a small piece."
+        geometry={g.panel}
+        material={mats.panel}
+      />
+      <group ref={knob}>
+        <P
+          name="Primer plunger"
+          note="Pulled out, it fills the barrel; pushed in, it sends the fuel to the cylinders."
+          geometry={g.rod}
+          material={mats.steel}
+        />
+        <group position={[pr.panelX + 0.008, pr.y, 0]}>
+          <P
+            name="Primer knob"
+            note="Pull out, push in: one stroke. Turn to lock when done (FAA-H-8083-25B p. 7-25)."
+            geometry={g.handle}
+            material={mats.knob}
+          />
+        </group>
+      </group>
+      <P
+        name="Primer line"
+        note="Carries the primer's fuel to the cylinders, bypassing the carburetor, so a cold engine has fuel it can burn even though too little would vaporize in the carburetor (FAA-H-8083-25B p. 7-25). One line is drawn."
+        geometry={g.outlet}
+        material={mats.primerLine}
+      />
+      <P
+        name="Intake pipe"
+        note="One of the pipes from the intake riser to the cylinders. Drawn see-through."
+        geometry={g.pipe}
+        material={mats.riser}
+      />
+      <P
+        name="Primer nozzle"
+        note="Sprays the primer's fuel into the cylinder's intake (FAA-H-8083-25B p. 7-25 says directly into the cylinders); where it sits on a given installation is the airframe's. Schematic."
+        geometry={g.nozzle}
+        material={mats.brass}
+      />
+      <instancedMesh ref={spray} args={[g.drop, g.dropMat, N]} frustumCulled={false} raycast={() => null} />
+    </>
+  );
+}
+
 /** Ice in the venturi and on the throttle valve, growing with the engine model's ice fraction. */
 function Ice({ mats }: { mats: Mats }) {
   const ring = useRef<THREE.Mesh>(null);
@@ -806,6 +984,7 @@ function Labels() {
     ["Idle needle", [L.R + 0.01, L.butterflyY + 0.024, 0.05]],
     ["Heat valve", [-0.07, L.boxBottom + 0.02, 0.05]],
     ["To the cylinders", [0, L.riserTop + 0.008, 0]],
+    ["Primer", [L.primer.x0 + 0.015, L.primer.y - 0.022, 0.01]],
   ];
   return (
     <>
@@ -823,7 +1002,7 @@ function Carburetor() {
   useFuelGlow(mats);
   useFrame(() => {
     const xray = useCarbView.getState().xray;
-    for (const k of ["casting", "throttleBody", "box"] as const) {
+    for (const k of ["casting", "throttleBody", "box", "panel"] as const) {
       mats[k].opacity = xray ? 0.16 : 1;
       mats[k].depthWrite = !xray;
     }
@@ -839,6 +1018,7 @@ function Carburetor() {
       <ThrottleAndIdle mats={mats} />
       <FloatChamber mats={mats} />
       <AcceleratingPump mats={mats} />
+      <PrimerSystem mats={mats} />
       <Ice mats={mats} />
       <Flow />
       <Labels />
@@ -851,7 +1031,7 @@ export default function CarburetorScene() {
   return (
     <>
       <Canvas
-        camera={{ position: [0.3, 0.03, 0.46], fov: 38, near: 0.005, far: 10 }}
+        camera={{ position: [0.36, 0.08, 0.59], fov: 38, near: 0.005, far: 10 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
         onPointerMissed={() => useHover.setState({ hover: null })}
@@ -861,7 +1041,7 @@ export default function CarburetorScene() {
         <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
         <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
         <Carburetor />
-        <OrbitControls makeDefault target={[0.035, -0.055, 0]} enableDamping minDistance={0.12} maxDistance={1.2} />
+        <OrbitControls makeDefault target={[0.045, -0.025, 0]} enableDamping minDistance={0.12} maxDistance={1.2} />
       </Canvas>
       <HoverTip />
     </>
