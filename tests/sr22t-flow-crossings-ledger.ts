@@ -135,7 +135,7 @@ export const ENGINE_CROSSINGS: Record<string, [mm: number, why: Why]> = {
   "acSuction / Firewall — FS 100": [8.0, "pass"],
   "alt2 / Cylinder 6": [8.4, "overlap"],
   "alt2 / MCU heat shield": [13.1, "overlap"],
-  "alt2 / sr22t/part-204": [11.5, "overlap"],
+  "alt2 / sr22t/part-8": [11.5, "overlap"],
   "altAirL / Alternate air duct": [43.2, "host"],
   "altAirR / Alternate air duct": [43.2, "host"],
   "cbEss / Firewall — FS 100": [5.0, "pass"],
