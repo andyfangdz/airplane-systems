@@ -105,8 +105,8 @@ describe("route code splitting", () => {
     expect(reach("app/(fleet)/sr22t/[[...sys]]/page.tsx")).toContain("app/(fleet)/sr22t/[[...sys]]/prepare.tsx");
   });
 
-  it("the root page, the airplanes' layout and the shell reach no airplane's code", () => {
-    const entries = ["app/page.tsx", "app/layout.tsx", "app/(fleet)/layout.tsx"];
+  it("the root page, the airplanes' layout and error page, and the shell reach no airplane's code", () => {
+    const entries = ["app/page.tsx", "app/layout.tsx", "app/(fleet)/layout.tsx", "app/(fleet)/error.tsx"];
     for (const entry of [...entries, "components/App.tsx"]) {
       const files = reach(entry);
       expect(airplanesIn(files), entry).toEqual([]);

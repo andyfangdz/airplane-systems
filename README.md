@@ -97,10 +97,12 @@ Standalone **component simulations** sit at `/components/<id>`: the Marvel-Scheb
 ```
 app/                  Next.js App Router: layout, icon, global CSS; page.tsx (/) opens the last-viewed airplane
   (fleet)/<id>/       One route per airplane, [[...sys]]/page.tsx: /<id> and /<id>/<system>, importing only that
-                      airplane (airplane-route.ts: static paths, title, 404s); layout.tsx keeps the tour across switches
+                      airplane (airplane-route.ts: static paths, title, 404s); layout.tsx keeps the tour across switches;
+                      error.tsx says an airplane didn't load and offers Retry (the Loader does on a failed first load)
 components/
   App.tsx             Shell for one airplane (its route passes the definition): fleet picker, system rail, toolbar,
                       alert window, HUD, tooltip, panel; boots the view from the URL
+  Loader.tsx          Loading overlay over the 3D view (build stage, part count; LoadFailed.tsx: didn't load + Retry)
   Tour.tsx            Welcome tour shown on a first visit (skipping or finishing it is remembered; the toolbar's ? replays it)
   FleetWalkaround.tsx Preflight study walk panel and scene markers shared by every airplane (walkaround.css)
   scene/              Shared React Three Fiber scene: Scene (canvas, camera flights, sim clock), Part / Shells,

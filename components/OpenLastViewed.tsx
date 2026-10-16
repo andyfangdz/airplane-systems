@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { FLEET_META } from "@/aircraft/metas";
+import { LoadFailed } from "./LoadFailed";
 import { DEFAULT_AIRCRAFT, isAircraftId, type AircraftId } from "@/lib/systems";
 
 /** Before the fleet, links named the SR20's views by a bare system (#electrical). */
@@ -45,6 +46,7 @@ export function OpenLastViewed() {
       <div className="loader-card">
         <span className="spinner" aria-hidden="true" />
         <span className="loader-text">Loading…</span>
+        <LoadFailed />
       </div>
     </div>
   );
