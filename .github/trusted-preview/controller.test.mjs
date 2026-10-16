@@ -363,6 +363,30 @@ for (const location of ["event", "api"])
     else h.state.comments[0].user.id = 123;
     await fail(h, () => prepare(h.io, h.p, h.runtime, e));
   });
+test("a branch of this repository is not a fork preview: prepare passes with no candidates and writes nothing", async () => {
+  const h = harness();
+  const owner = { id: 3586644, type: "User", login: "andyfangdz" };
+  const own = (pr) => {
+    pr.user = owner;
+    pr.head.repo = { id: h.p.repositoryId, fork: false, owner };
+  };
+  own(h.state.pr);
+  own(h.event.pull_request);
+  h.event.action = "opened";
+  h.event.sender = owner;
+  h.runtime.actorId = owner.id;
+  assert.deepEqual(await prepare(h.io, h.p, h.runtime, h.event), []);
+  h.runtime.eventName = "issue_comment";
+  const e = { ...h.event, action: "created", issue: { number: 40, pull_request: {} }, comment: h.comment };
+  assert.deepEqual(await prepare(h.io, h.p, h.runtime, e), []);
+  assert.equal(h.state.posts.length, 0);
+});
+test("an untrusted fork is still refused", async () => {
+  const h = harness();
+  const stranger = { id: 123, type: "User", login: "stranger" };
+  h.event.pull_request.user = h.event.pull_request.head.repo.owner = stranger;
+  await fail(h, () => prepare(h.io, h.p, h.runtime, h.event));
+});
 test("untrusted status author cannot be corroborated by a genuine bot comment", async () => {
   const h = harness();
   await endorse(h);
