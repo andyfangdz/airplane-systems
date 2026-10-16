@@ -7,15 +7,16 @@
  * `useFrame`. Published dimensions set the scale; placement follows the IO-390 IOM's figures and the shapes are
  * schematic.
  */
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { EngineSim } from "./store";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
-import { Group, HoverTip, PartNotesProvider, useHover } from "./scene/parts";
+import { Group, PartNotesProvider } from "./scene/parts";
+import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
@@ -115,23 +116,14 @@ function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
 }
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
-  useEffect(() => () => useHover.setState({ hover: null }), []);
   return (
-    <>
-      <Canvas
-        camera={{ position: [1.15, 0.62, 1.35], fov: 38, near: 0.02, far: 40 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => useHover.setState({ hover: null })}
-      >
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[3, 4, 2]} intensity={1.6} />
-        <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
-        <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
-        <EngineModel sim={sim} />
-        <OrbitControls makeDefault target={[0, -0.02, 0]} enableDamping minDistance={0.5} maxDistance={6} />
-      </Canvas>
-      <HoverTip />
-    </>
+    <ComponentStage
+      camera={{ position: [1.15, 0.62, 1.35], fov: 38, near: 0.02, far: 40 }}
+      target={[0, -0.02, 0]}
+      minDistance={0.5}
+      maxDistance={6}
+    >
+      <EngineModel sim={sim} />
+    </ComponentStage>
   );
 }

@@ -7,6 +7,7 @@
 import type { ReactNode } from "react";
 import { MA45 } from "@/engines/components/carburetor/carburetor";
 import { Check, Facts, H3, Notes, Readouts, Small } from "@/components/ui/controls";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Controls, Environment, StartFrom } from "../EnginePanel";
 import type { EngineSim } from "../store";
@@ -18,7 +19,6 @@ const PHAK_HREF = "https://www.faa.gov/sites/faa.gov/files/09_phak_ch7.pdf";
 const OM_HREF =
   "https://www.lycoming.com/sites/default/files/file/2025-11/60297-12%20-%20O-360%2C%20HO-360%2C%20IO-360%2C%20AIO-360%2C%20HIO-360%2C%20and%20TIO-360%20Series.pdf";
 
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 const pct = (v: number) => `${Math.round(v * 100)} %`;
 const degF = (c: number) => (c * 9) / 5 + 32;
 

@@ -4,7 +4,7 @@
  * them); the engine itself is a mutable `EngineState` per engine, advanced every animation frame by `useEngineLoop`
  * and read by the scene each frame and by panels through `useLiveSnapshot`.
  */
-import { useEffect } from "react";
+import { useCallback } from "react";
 import { create } from "zustand";
 import type { EngineSpec } from "@/engines/types";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/engines/model/engine";
 import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
+import { useSimLoop } from "./sim";
 
 export interface EngineView {
   /** Temperatures run this many times faster than real time. */
@@ -187,28 +188,19 @@ export function startScenario(sim: EngineSim, id: string) {
 /** Slow motion turns the drawn crank at this fraction of engine speed (at most ~20 rpm on screen). */
 const slowRpm = (rpm: number) => Math.min(rpm, 20);
 
+/** The longest frame the engine runs in one go, s (`step` splits it into short steps). */
+export const ENGINE_MAX_DT = 0.5;
+
 /** Advance one frame: the engine at real time, the drawn crank either with it or in slow motion. */
 export function advance(sim: EngineSim, dt: number) {
   const ui = sim.useUi.getState();
   if (ui.view.paused) return;
-  // keep real time on slow frames (step splits a long frame into short steps), but don't try to catch up a pause
-  // such as a hidden tab; the first frame's timestamp can come before the loop's start, so never step backwards
-  const d = Math.min(Math.max(dt, 0), 0.5);
-  step(sim.spec, sim.s, ui.controls, ui.env, ui.failures, d, ui.view.thermal);
-  sim.anim.crank = ui.view.slow ? (sim.anim.crank + slowRpm(sim.s.rpm) * 6 * d) % 720 : sim.s.crank;
+  step(sim.spec, sim.s, ui.controls, ui.env, ui.failures, dt, ui.view.thermal);
+  sim.anim.crank = ui.view.slow ? (sim.anim.crank + slowRpm(sim.s.rpm) * 6 * dt) % 720 : sim.s.crank;
 }
 
 /** Run the simulation on animation frames while the page is mounted (independent of the 3D view). */
 export function useEngineLoop(sim: EngineSim) {
-  useEffect(() => {
-    let raf = 0,
-      last = performance.now();
-    const tick = (now: number) => {
-      advance(sim, (now - last) / 1000);
-      last = now;
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [sim]);
+  const tick = useCallback((dt: number) => advance(sim, dt), [sim]);
+  useSimLoop(tick, ENGINE_MAX_DT);
 }

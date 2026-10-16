@@ -7,10 +7,9 @@ import { egtOffset } from "@/engines/model/mixture";
 import { limitFlags } from "@/engines/model/alerts";
 import { meanLambda } from "@/engines/model/trim";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { EngineSim } from "./store";
-
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 
 export function Monitor({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 150);

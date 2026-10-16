@@ -18,6 +18,7 @@ import {
 } from "./engine";
 import { fullThrottleMap } from "./performance";
 import { settle } from "./trim";
+import { f0 } from "@/lib/format";
 
 export interface Setup {
   s: EngineState;
@@ -38,7 +39,6 @@ export interface Scenario {
 export const scenariosFor = (spec: EngineSpec) => SCENARIOS.filter((sc) => !sc.only || sc.only(spec));
 export const labelOf = (sc: Scenario, spec: EngineSpec) => (typeof sc.label === "string" ? sc.label : sc.label(spec));
 
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 const carbureted = (spec: EngineSpec) => spec.fuelSystem.kind === "carburetor";
 
 /** Propeller-control position that sets the governor to `rpm`. */

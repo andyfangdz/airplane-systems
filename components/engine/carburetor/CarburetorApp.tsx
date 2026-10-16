@@ -5,37 +5,35 @@
  * conditions, failures and the documented numbers.
  */
 import dynamic from "next/dynamic";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import { ComponentShell } from "../ComponentShell";
-import { Toggle } from "../chrome";
+import { ViewToggles } from "../chrome";
 import { carbSim, live, useCarbLoop, useCarbView } from "./live";
 import { CarburetorPanel } from "./CarburetorPanel";
 
 const Scene = dynamic(() => import("./CarburetorScene"), { ssr: false, loading: () => <div /> });
 
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 const degF = (c: number) => (c * 9) / 5 + 32;
+
+const TOGGLES = [
+  ["xray", "X-ray", "See through the castings"],
+  ["labels", "Labels", "Name the main parts"],
+  ["flow", "Flow", "Show the air and fuel moving through"],
+] as const;
+/** Pausing stops the engine, so it is the engine's own setting. */
+const PAUSE = [["paused", "Pause", "Freeze the simulation"]] as const;
 
 function Toolbar() {
   const v = useCarbView();
   const sim = carbSim();
-  const paused = sim.useUi((x) => x.view.paused),
+  const view = sim.useUi((x) => x.view),
     setView = sim.useUi((x) => x.setView);
   return (
     <>
-      <Toggle on={v.xray} title="See through the castings" onClick={() => v.set({ xray: !v.xray })}>
-        X-ray
-      </Toggle>
-      <Toggle on={v.labels} title="Name the main parts" onClick={() => v.set({ labels: !v.labels })}>
-        Labels
-      </Toggle>
-      <Toggle on={v.flow} title="Show the air and fuel moving through" onClick={() => v.set({ flow: !v.flow })}>
-        Flow
-      </Toggle>
-      <Toggle on={paused} title="Freeze the simulation" onClick={() => setView({ paused: !paused })}>
-        Pause
-      </Toggle>
+      <ViewToggles items={TOGGLES} view={v} set={v.set} />
+      <ViewToggles items={PAUSE} view={view} set={setView} />
     </>
   );
 }

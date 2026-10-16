@@ -9,7 +9,7 @@ import { ENGINES, engineById } from "@/engines";
 import { COMPONENTS } from "@/engines/components";
 import { Picker } from "../Picker";
 import { airplaneLinks, componentEntries, engineEntries, engineSub } from "../pickerEntries";
-import { ThemeButton, Toggle, useTheme } from "./chrome";
+import { ThemeButton, useTheme, ViewToggles } from "./chrome";
 import { simFor, useEngineLoop, type EngineSim } from "./store";
 import { EnginePanel } from "./EnginePanel";
 import { Monitor, Flags } from "./Monitor";
@@ -17,23 +17,20 @@ import "./engine.css";
 
 const Scene = dynamic(() => import("./EngineScene"), { ssr: false, loading: () => <div /> });
 
+const TOGGLES = [
+  ["xray", "X-ray", "See through the case and cylinders"],
+  ["labels", "Labels", "Name the main parts"],
+  ["prop", "Propeller", "Show the propeller"],
+  ["slow", "Slow motion", "Turn the drawn crankshaft slowly enough to follow the four strokes"],
+  ["paused", "Pause", "Freeze the simulation"],
+] as const;
+
 function Toolbar({ sim }: { sim: EngineSim }) {
   const view = sim.useUi((x) => x.view),
     setView = sim.useUi((x) => x.setView);
-  const toggles: [keyof typeof view, string, string][] = [
-    ["xray", "X-ray", "See through the case and cylinders"],
-    ["labels", "Labels", "Name the main parts"],
-    ["prop", "Propeller", "Show the propeller"],
-    ["slow", "Slow motion", "Turn the drawn crankshaft slowly enough to follow the four strokes"],
-    ["paused", "Pause", "Freeze the simulation"],
-  ];
   return (
     <div className="toolbar">
-      {toggles.map(([k, t, title]) => (
-        <Toggle key={k} on={!!view[k]} title={title} onClick={() => setView({ [k]: !view[k] })}>
-          {t}
-        </Toggle>
-      ))}
+      <ViewToggles items={TOGGLES} view={view} set={setView} />
       <ThemeButton />
     </div>
   );

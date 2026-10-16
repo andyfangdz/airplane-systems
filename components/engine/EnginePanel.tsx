@@ -18,13 +18,13 @@ import {
   Slider,
   Small,
 } from "@/components/ui/controls";
+import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { PressureChart } from "./PressureChart";
 import { GROUPS } from "./scene/parts";
 import { startScenario, type EngineSim } from "./store";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
-const f0 = (v: number) => Math.round(v).toLocaleString("en-US");
 
 export function StartFrom({ sim }: { sim: EngineSim }) {
   const note = sim.useUi((x) => x.view.scenario),

@@ -6,13 +6,14 @@
  * coils and circuit board. Axes: x along the shaft towards the engine, y up, z right; metres. SureFly publishes no
  * dimensions or internal layout, so shapes and sizes are schematic.
  */
-import { Html, OrbitControls } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { D2R, gear, makeMats, merge, rod, slab, tube } from "@/components/engine/scene/kit";
-import { P, useHover } from "@/components/engine/scene/parts";
-import { bench, useUi } from "./store";
+import { P } from "@/components/engine/scene/parts";
+import { ComponentStage } from "../ComponentStage";
+import { bench, useSfView, useUi } from "./store";
 
 type V3 = [number, number, number];
 
@@ -249,7 +250,7 @@ function Sim() {
   const engine = useRef<THREE.Group>(null);
   useFrame(() => {
     const u = useUi.getState(),
-      xray = u.view.xray;
+      { xray, slow } = useSfView.getState();
     for (const m of [mats.body, mats.capMat, mats.acc]) {
       m.opacity = xray ? 0.22 : 1;
       m.depthWrite = !xray;
@@ -264,7 +265,6 @@ function Sim() {
     for (const cyl of [1, 2, 3, 4]) {
       const m = mats.flashes[cyl];
       const age = bench.spark[cyl];
-      const slow = u.view.slow;
       const life = slow ? 0.35 : 0.08;
       m.opacity = age < life ? (bench.live[cyl] ? 0.95 : 0.4) * (1 - age / life) : 0;
       m.color.set(bench.live[cyl] ? "#9fd8ff" : "#d0d8e0");
@@ -530,7 +530,7 @@ function Sim() {
 }
 
 function Labels() {
-  const show = useUi((x) => x.view.labels);
+  const show = useSfView((x) => x.labels);
   const hose = useUi((x) => x.hose);
   const gl = useThree((s) => s.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
@@ -555,36 +555,16 @@ function Labels() {
   );
 }
 
-function HoverTip() {
-  const h = useHover((x) => x.hover);
-  if (!h) return null;
-  return (
-    <div className="eng-tip" style={{ left: h.x + 14, top: h.y + 14 }}>
-      <b>{h.name}</b>
-      {h.note && <span>{h.note}</span>}
-    </div>
-  );
-}
-
 export default function SureFlyScene() {
-  useEffect(() => () => useHover.setState({ hover: null }), []);
   return (
-    <>
-      <Canvas
-        camera={{ position: [-0.36, 0.24, 0.62], fov: 38, near: 0.01, far: 20 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true }}
-        onPointerMissed={() => useHover.setState({ hover: null })}
-      >
-        <ambientLight intensity={0.55} />
-        <directionalLight position={[3, 4, 2]} intensity={1.6} />
-        <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
-        <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
-        <Sim />
-        <Labels />
-        <OrbitControls makeDefault target={[-0.13, -0.045, 0]} enableDamping minDistance={0.15} maxDistance={2} />
-      </Canvas>
-      <HoverTip />
-    </>
+    <ComponentStage
+      camera={{ position: [-0.36, 0.24, 0.62], fov: 38, near: 0.01, far: 20 }}
+      target={[-0.13, -0.045, 0]}
+      minDistance={0.15}
+      maxDistance={2}
+    >
+      <Sim />
+      <Labels />
+    </ComponentStage>
   );
 }
