@@ -20,6 +20,9 @@ const canEndorse = (p, id, action) =>
   ((p.approvedUpdateSenderIds ?? []).includes(id) && updateEvents.includes(action));
 const bot = (p, u) => u?.type === "Bot" && u.id === p.vercelBotId && u.login === "vercel[bot]";
 const prefix = (p) => `/repos/${p.repository}`;
+// A branch of this repository gets Vercel's ordinary Preview without approval,
+// so it is not a fork preview and has nothing for this controller to do.
+const ownBranch = (p, pr) => pr?.head?.repo?.id === p.repositoryId;
 const get = (io, p, path) => io.gh("GET", prefix(p) + path);
 
 export function validateRuntime(p, runtime, event) {
@@ -167,7 +170,10 @@ async function endorse(io, p, runtime, event) {
 export async function prepare(io, p, runtime, event) {
   validateRuntime(p, runtime, event);
   await currentPolicy(io, p);
-  if (runtime.eventName === "pull_request_target") return [await endorse(io, p, runtime, event)];
+  if (runtime.eventName === "pull_request_target") {
+    if (ownBranch(p, event.pull_request)) return [];
+    return [await endorse(io, p, runtime, event)];
+  }
   if (runtime.eventName === "issue_comment") {
     insist(
       ["created", "edited"].includes(event.action) && event.issue?.pull_request && integer(event.issue.number),
@@ -182,6 +188,7 @@ export async function prepare(io, p, runtime, event) {
       "SPOOFED_COMMENT_API",
     );
     const pr = await get(io, p, `/pulls/${event.issue.number}`);
+    if (ownBranch(p, pr)) return [];
     return [validatePr(p, pr)];
   }
   if (runtime.eventName === "status") {
