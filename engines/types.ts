@@ -142,6 +142,11 @@ export interface EngineSpec {
   modelNotes: string[];
   /** Where the data comes from, shown in the panel. */
   sources: { title: string; href?: string; note: string }[];
+  /**
+   * The panel's header line, e.g. "Engine simulation · Continental M-18 · Cirrus SR22T POH". Absent: "Engine
+   * simulation · <maker> <doc>", which reads wrongly when `doc` is an airframe's handbook.
+   */
+  ref?: string;
 
   geometry: {
     cylinders: CylinderDef[];

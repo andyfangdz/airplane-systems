@@ -20,6 +20,7 @@ export const TSIO550K: EngineSpec = {
   id: "tsio550k",
   name: "TSIO-550-K",
   model: "Continental TSIO-550-K", // POH 1-7, 7-31
+  ref: "Engine simulation · Continental M-18 · Cirrus SR22T POH",
   lead:
     "A 550 cu in, six-cylinder, horizontally opposed, air-cooled engine with continuous-flow fuel injection, twin " +
     "turbochargers and intercoolers: 315 bhp at 2,500 rpm (POH 2-6, 7-31). The turbochargers hold 36.0 in.Hg for " +
