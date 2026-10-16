@@ -1,6 +1,6 @@
 "use client";
 import { useLayoutEffect, useId, useRef, useState } from "react";
-import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/react";
+import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/react";
 import Link from "next/link";
 
 /** One choice: a button that acts on this page, or a link to another page (an engine or component from an airplane, or back). */
@@ -42,7 +42,18 @@ export function Picker({
       void computePosition(button, panel, {
         strategy: "fixed",
         placement: "bottom-start",
-        middleware: [offset(8), flip({ padding: 12, crossAxis: false }), shift({ padding: 12, crossAxis: true })],
+        middleware: [
+          offset(8),
+          flip({ padding: 12, crossAxis: false }),
+          // a list taller than the room below the trigger scrolls rather than sliding up over the trigger
+          size({
+            padding: 12,
+            apply: ({ availableHeight, elements }) => {
+              elements.floating.style.maxHeight = `${Math.max(240, availableHeight)}px`;
+            },
+          }),
+          shift({ padding: 12, crossAxis: true }),
+        ],
       }).then(({ x, y }) => {
         if (active) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
       });
