@@ -3,10 +3,9 @@
  * mixture, let the temperatures settle. Used by the page's "Start from" buttons and by the tests.
  */
 import type { EngineSpec } from "../types";
-import { atmosphere, INHG_PA, RHO0 } from "./atmosphere";
+import { atmosphere, INHG_PA } from "./atmosphere";
 import { type Controls, type EngineState, type Environment, type Failures, step } from "./engine";
-import { IDLE_SPRING_LBH } from "./fuel";
-import { AFR_STOICH } from "./mixture";
+import { mixtureForFlow } from "./fuel";
 
 export interface Hold {
   /** Throttle holds this manifold pressure (inHg) or this rpm. */
@@ -16,7 +15,7 @@ export interface Hold {
   lambda?: number;
 }
 
-/** Mixture position that gives a mean λ at the current air flow (inverts the servo's metering). */
+/** Mixture position that gives a mean λ at the current air flow (inverts the spec's fuel metering, fuel.ts). */
 export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, lambda: number, current = 1) {
   // a carburetor's mixture valve scales main and idle flow alike: step the position by the λ error
   if (spec.fuelSystem.kind === "carburetor") {
@@ -25,10 +24,7 @@ export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, l
   }
   const air = atmosphere(env.altFt, env.isaDevC);
   const rho = (s.inletInHg * INHG_PA) / (287.05 * (s.inletC + 273.15));
-  const far = 1 / (AFR_STOICH * spec.calibration.lambdaFullRich);
-  const want = s.air / (AFR_STOICH * lambda);
-  const perUnit = s.air * far * Math.sqrt(RHO0 / Math.max(rho || air.rho, 0.2)) + IDLE_SPRING_LBH;
-  return Math.max(0.03, Math.min(1, want / perUnit));
+  return mixtureForFlow(spec, s.air, lambda, rho || air.rho);
 }
 
 /** Run for `seconds` (real time for the shaft, `thermal`× for temperatures), steering the throttle and mixture. */

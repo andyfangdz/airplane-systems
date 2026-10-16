@@ -12,7 +12,18 @@ import type { EngineSpec, Side } from "../types";
 import { atmosphere, cToF, HP_W, INHG_PA, KT_MS, LB_KG, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
 import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
-import { distribution, nozzleFlow, nozzlePressure, servoFuelFlow } from "./fuel";
+import {
+  continentalBoostPsi,
+  continentalNozzleCapacity,
+  continentalNozzlePsid,
+  continentalPumpPsi,
+  continentalSystem,
+  distribution,
+  fullRichLambdaAt,
+  meteredFuelFlow,
+  nozzleFlow,
+  nozzlePressure,
+} from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
 import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
@@ -441,28 +452,35 @@ function substep(
     // melt water going through the engine makes it run rough for a while
     s.melt = approach(s.melt, s.rpm > 100 ? clamp(((before - s.ice) / Math.max(dt, 1e-6)) * 25, 0, 1) : 0, dt, 2);
   } else {
-    // boost pump or engine-driven pump to the servo, metered against air flow, split by nozzle area
+    // boost pump or engine-driven pump to the metering (servo or Continental, fuel.ts), metered against air flow,
+    // split by nozzle area
+    const continental = continentalSystem(spec);
     const supply = Math.max(c.boost ? 1 : 0, enginePump);
     const servo = spec.fuelSystem.kind === "injected" ? spec.fuelSystem : undefined;
-    s.fuelPsi = Math.max(
-      c.boost ? (servo?.boostPsi ?? 26) : 0,
-      enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28),
-    );
+    s.fuelPsi = continental
+      ? Math.max(c.boost ? continentalBoostPsi(spec) : 0, enginePump * continentalPumpPsi(spec, s.rpm))
+      : Math.max(c.boost ? (servo?.boostPsi ?? 26) : 0, enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28));
     dist = distribution(spec, f.nozzle);
     // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
-    // nothing flows however much the servo meters
+    // nothing flows however much the metering asks for
     metered = Math.min(
-      servoFuelFlow(spec, meteredAir, c.mixture, inletRho, supply),
-      nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
+      meteredFuelFlow(spec, meteredAir, c.mixture, inletRho, supply),
+      continental
+        ? continentalNozzleCapacity(spec, s.fuelPsi, dist.areaMean)
+        : nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
     );
     s.fuel = metered;
-    s.nozzlePsi = metered > 0.5 ? Math.min(nozzlePressure(spec, metered, dist.areaMean), s.fuelPsi) : 0;
+    // a Continental nozzle pressure is a differential to the upper deck (M-18 Table 2-4 note 4)
+    const nozzleP = continental ? continentalNozzlePsid : nozzlePressure;
+    s.nozzlePsi = metered > 0.5 ? Math.min(nozzleP(spec, metered, dist.areaMean), s.fuelPsi) : 0;
   }
 
   // ---- each cylinder: port fuel film, mixture, spark, work
   const plugs = sparks(spec, c.mags, f, s.rpm);
   const tau = 0.08 + 250 / Math.max(s.rpm, 20); // film evaporation time, s: slow when cranking
-  const bp = grossIndicatedHp(spec, s.rpm, map, env.altFt, inletC, exhaust, ind.ve);
+  // a Continental chart is full rich above its full-rich manifold pressure: the λ full rich meters there (fuel.ts)
+  const lambdaFR = fullRichLambdaAt(spec, meteredAir);
+  const bp = grossIndicatedHp(spec, s.rpm, map, env.altFt, inletC, exhaust, ind.ve, lambdaFR);
   const ratedGross = ratedGrossHp(spec);
   let work = 0;
   let worst = 0;
@@ -585,7 +603,9 @@ export function ratedGrossHp(spec: EngineSpec) {
   if (v === undefined) {
     const r = spec.rating.rpm;
     const ind = inductionCal(spec);
-    const map = seaLevelLines(spec).find((l) => l.rpm === r)!.ftMap;
+    // the installed full-throttle MAP where the spec gives one (a turbocharged engine), else the chart's at sea level;
+    // best-power basis (no full-rich divisor), so full rich at rated reads a load of about 1
+    const map = spec.rating.map ?? seaLevelLines(spec).find((l) => l.rpm === r)!.ftMap;
     v = grossIndicatedHp(spec, r, map, 0, 15, 29.92126 * 1.02, ind.ve);
     ratedCache.set(spec, v);
   }

@@ -31,7 +31,10 @@ export interface InductionCal {
   /** Volumetric efficiency at each chart rpm (from the fuel-flow and power charts) and an interpolator. */
   vePoints: [number, number][];
   ve: (rpm: number) => number;
-  /** Effective area of the wide-open induction (m²). */
+  /**
+   * Effective area of the wide-open induction (m²): sized from the chart's sea-level full-throttle manifold pressure,
+   * or, with `induction.throttleLossInHg`, from that loss at `rating.map`.
+   */
   cdAFull: number;
 }
 
@@ -41,19 +44,22 @@ const cache = new WeakMap<EngineSpec, InductionCal>();
  * Volumetric efficiency from the charts: at full throttle on each sea-level rpm line, the best-power fuel flow
  * (Figure C-3) divided by the best-power fuel–air ratio is the air the engine took in at the chart's manifold pressure.
  * Below the chart it falls off linearly with speed (an assumption), bounded to a physical range.
+ * An engine without such a chart gives the points as a fit (`calibration.ve`, at least two), used when present.
  */
 export function inductionCal(spec: EngineSpec): InductionCal {
   const hit = cache.get(spec);
   if (hit) return hit;
   const vd = displacementM3(spec);
   const lbp = spec.calibration.lambdaBestPower;
-  const vePoints = seaLevelLines(spec).map((l): [number, number] => {
-    const hp = seaLevelHp(spec, l.rpm, l.ftMap);
-    const fuel = (chartFuelFlow(spec, l.rpm, hp, "bestPower") * LB_KG) / 3600;
-    const air = fuel * AFR_STOICH * lbp;
-    const rho = (l.ftMap * INHG_PA) / (R_AIR * T0);
-    return [l.rpm, air / (rho * ((vd * l.rpm) / 120) * residualFactor(spec.geometry.compressionRatio, l.ftMap, P0))];
-  });
+  const vePoints =
+    spec.calibration.ve ??
+    seaLevelLines(spec).map((l): [number, number] => {
+      const hp = seaLevelHp(spec, l.rpm, l.ftMap);
+      const fuel = (chartFuelFlow(spec, l.rpm, hp, "bestPower") * LB_KG) / 3600;
+      const air = fuel * AFR_STOICH * lbp;
+      const rho = (l.ftMap * INHG_PA) / (R_AIR * T0);
+      return [l.rpm, air / (rho * ((vd * l.rpm) / 120) * residualFactor(spec.geometry.compressionRatio, l.ftMap, P0))];
+    });
   const ve = (rpm: number) => {
     const P = vePoints;
     let i = 0;
@@ -68,11 +74,25 @@ export function inductionCal(spec: EngineSpec): InductionCal {
     }
     return Math.max(0.7, Math.min(1.0, v));
   };
-  // size the open induction so rated rpm at sea level gives the chart's full-throttle manifold pressure
+  // size the open induction so rated rpm at sea level gives the chart's full-throttle manifold pressure; an engine
+  // whose throttle is fed from an upper deck (a turbocharged one) gives the throttle body's loss at the installed
+  // full-throttle MAP instead, at the sea-level standard reference
   const rated = spec.rating.rpm;
-  const ftMap = chartFullThrottleMap(spec, rated);
-  const air = engineAirFlow(spec, ve, rated, ftMap, T0 - 273.15, P0);
-  const cdAFull = air / orificeFlow(1, P0 * INHG_PA, T0, ftMap * INHG_PA);
+  const loss = spec.induction?.throttleLossInHg;
+  let cdAFull: number;
+  if (loss !== undefined) {
+    const map = spec.rating.map;
+    if (map === undefined)
+      throw new Error(
+        `${spec.id}: induction.throttleLossInHg needs rating.map (the installed full-throttle MAP) in engines/${spec.id}/spec.ts`,
+      );
+    const air = engineAirFlow(spec, ve, rated, map, T0 - 273.15, P0 * 1.02);
+    cdAFull = air / orificeFlow(1, (map + loss) * INHG_PA, T0, map * INHG_PA);
+  } else {
+    const ftMap = chartFullThrottleMap(spec, rated);
+    const air = engineAirFlow(spec, ve, rated, ftMap, T0 - 273.15, P0);
+    cdAFull = air / orificeFlow(1, P0 * INHG_PA, T0, ftMap * INHG_PA);
+  }
   const cal = { vePoints, ve, cdAFull };
   cache.set(spec, cal);
   return cal;

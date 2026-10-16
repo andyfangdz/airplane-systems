@@ -1,7 +1,7 @@
 /**
  * The TSIO-550-K spec against the pages it cites: POH 13772-007, AMM 13773-002 Rev 7 and Continental M-18
- * (engines/tsio550k/SOURCES.md). Data only: the model does not run this engine yet, so these check the numbers, their
- * agreement with each other, and how the shared helpers read Continental's charts.
+ * (engines/tsio550k/SOURCES.md): the numbers, their agreement with each other, and how the shared helpers read
+ * Continental's charts. The running engine is checked in tsio550k-engine.test.ts.
  */
 import { describe, expect, test } from "vitest";
 import { TSIO550K } from "@/engines/tsio550k/spec";
@@ -194,11 +194,13 @@ describe("chart data as printed (M-18 Figures 2-36, 2-37)", () => {
       expect(interp(f.richFullRich, hp)).toBe(lbh);
   });
 
-  test("chartFuelFlow refuses the Fig 2-36 chart until the model reads it", () => {
-    for (const mixture of ["bestPower", "bestEconomy"] as const)
-      expect(() => chartFuelFlow(S, 2500, 236, mixture)).toThrow(
-        "tsio550k: the model does not read a continental fuel-flow chart yet",
-      );
+  test("chartFuelFlow reads Fig 2-36 Best Power and Best Economy by brake hp, the same at every rpm", () => {
+    expect(chartFuelFlow(S, 2500, 236, "bestPower")).toBe(103);
+    expect(chartFuelFlow(S, 2300, 236, "bestPower")).toBe(103);
+    expect(chartFuelFlow(S, 2500, 205, "bestEconomy")).toBe(79);
+    // between drawn points it is the straight line through them; beyond 262 bhp it continues the last segment
+    expect(chartFuelFlow(S, 2500, 240, "bestPower")).toBeCloseTo(103 + (4 / 14) * 5, 9);
+    expect(chartFuelFlow(S, 2500, 274, "bestPower")).toBeCloseTo(114 + (12 / 12) * 6, 9);
   });
 });
 

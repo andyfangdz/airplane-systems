@@ -6,19 +6,62 @@
  * and manifold pressure, B on the sea-level curve, carry B to C at sea level, and read the power at the actual
  * altitude D on the straight line A–C; then correct for inlet air temperature with √((460 + Ts) / (460 + T)).
  * The altitude chart's abscissa is linear in density ratio, so "straight line" means straight in 1 − σ.
+ *
+ * Continental's form (`performance.kind: "continental"`, the TSIO-550-K's M-18 Figure 2-37): curved sea-level lines of
+ * brake hp against absolute manifold pressure and no altitude chart. The chart's reference conditions are at the
+ * throttle inlet and exhaust exit (M-18 Table 2-2 note 1), so manifold pressure alone sets the power, corrected about
+ * 1 % per 6 °F of compressor-inlet temperature. Above `fullRichAboveInHg` the chart is at full rich, at or below it at
+ * best power.
  */
-import type { EngineSpec, SeaLevelLine } from "../types";
+import type { ContinentalLine, ContinentalPerformance, EngineSpec, SeaLevelLine } from "../types";
 import { atmosphere, cToF, HP_W, INHG_PA, sigmaStd } from "./atmosphere";
+import { mixturePower } from "./mixture";
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const SIGMA_20K = sigmaStd(20000);
 const P0 = 29.92126;
 
-/** The chart's sea-level rpm lines: Lycoming's form, the only one the model reads so far. */
+/** The chart's sea-level rpm lines in Lycoming's form; a Continental chart is read by `seaLevelHpContinental`. */
 export function seaLevelLines(spec: EngineSpec): SeaLevelLine[] {
   const p = spec.performance;
-  if (p.kind !== "lycoming") throw new Error(`${spec.id}: the model does not read a ${p.kind} performance chart yet`);
+  if (p.kind !== "lycoming")
+    throw new Error(`${spec.id}: a ${p.kind} performance chart has no Lycoming sea-level lines`);
   return p.lines;
+}
+
+/** The spec's Continental chart, or undefined for a Lycoming chart. */
+export const continentalChart = (spec: EngineSpec): ContinentalPerformance | undefined =>
+  spec.performance.kind === "continental" ? spec.performance : undefined;
+
+/** Brake hp on one Continental rpm line: straight between the digitized points, extended past the ends. */
+function onCurve(l: ContinentalLine, map: number) {
+  const P = l.points;
+  let i = 1;
+  while (i < P.length - 1 && map > P[i][0]) i++;
+  const [a, b] = [P[i - 1], P[i]];
+  return a[1] + ((b[1] - a[1]) * (map - a[0])) / (b[0] - a[0]);
+}
+
+/** Sea-level brake hp on the Continental chart (M-18 Figure 2-37): linear in rpm between lines, extrapolated. */
+export function seaLevelHpContinental(spec: EngineSpec, rpm: number, map: number) {
+  const L = continentalChart(spec)!.lines;
+  let i = 0;
+  while (i < L.length - 2 && rpm > L[i + 1].rpm) i++;
+  const lo = L[i],
+    hi = L[i + 1];
+  const f = (rpm - lo.rpm) / (hi.rpm - lo.rpm);
+  return onCurve(lo, map) * (1 - f) + onCurve(hi, map) * f;
+}
+
+/**
+ * Weight of the full-rich basis at a manifold pressure: 0 at or below `fullRichAboveInHg − blendInHg` (best power),
+ * 1 at or above `fullRichAboveInHg + blendInHg` (full rich), linear between so the gross power has no step.
+ */
+export function fullRichWeight(spec: EngineSpec, map: number) {
+  const k = continentalChart(spec);
+  if (!k) return 0;
+  if (k.blendInHg <= 0) return map > k.fullRichAboveInHg ? 1 : 0;
+  return clamp((map - (k.fullRichAboveInHg - k.blendInHg)) / (2 * k.blendInHg), 0, 1);
 }
 
 /** Brake hp on one sea-level rpm line (lines are straight in manifold pressure, extended beyond the chart). */
@@ -80,8 +123,17 @@ export function fullThrottleAltitude(spec: EngineSpec, rpm: number, map: number)
 /**
  * Brake hp from the chart at best-power mixture: rpm, manifold pressure (inHg), pressure altitude (ft) and induction
  * air temperature (°C). `rpm` should be within the chart (callers clamp it, see `grossIndicatedHp`).
+ *
+ * Continental form: the sea-level chart at that manifold pressure, less `tempPctPerF` % per °F that the
+ * compressor-inlet air (`inletC`) is above standard at the pressure altitude (59 °F at sea level, M-18 Table 2-2
+ * note 1). Above `fullRichAboveInHg` this is full-rich power, at or below it best power.
  */
 export function chartHp(spec: EngineSpec, rpm: number, map: number, altFt: number, inletC: number) {
+  const k = continentalChart(spec);
+  if (k) {
+    const dF = cToF(inletC) - cToF(atmosphere(altFt).ts);
+    return seaLevelHpContinental(spec, rpm, map) * (1 - (dF * k.tempPctPerF) / 100);
+  }
   const c = seaLevelHp(spec, rpm, map);
   const hA = fullThrottleAltitude(spec, rpm, map);
   const xA = 1 - sigmaStd(hA),
@@ -119,6 +171,11 @@ export const pumpingHp = (spec: EngineSpec, rpm: number, map: number, exhaust: n
  * Gross indicated hp at best-power mixture: what the burning charge delivers to the pistons before friction and
  * pumping. Inside the chart's rpm range it is the chart's brake hp plus friction and pumping; outside it, the work
  * per cycle at the nearest chart rpm scales with the air each cycle takes in (volumetric efficiency).
+ *
+ * Continental form: where the chart is at full rich, its gross is divided by the power full rich gives relative to
+ * best power, `mixturePower(lambdaFullRich)`, so a cylinder running at full rich reproduces the chart. The divisor is
+ * blended in with `fullRichWeight`. `lambdaFullRich` is the full-rich λ at the current air flow (fuel.ts
+ * `fullRichLambdaAt`); without it the chart is taken as best power throughout.
  */
 export function grossIndicatedHp(
   spec: EngineSpec,
@@ -128,8 +185,19 @@ export function grossIndicatedHp(
   inletC: number,
   exhaust: number,
   ve: (rpm: number) => number,
+  lambdaFullRich?: number,
 ) {
   if (rpm <= 0) return 0;
+  const k = continentalChart(spec);
+  if (k) {
+    const L = k.lines;
+    const r = clamp(rpm, L[0].rpm, L[L.length - 1].rpm);
+    const cal = spec.calibration;
+    const fr = lambdaFullRich === undefined ? 1 : mixturePower(lambdaFullRich, cal.lambdaBestPower, cal.peakEgtPower);
+    const divisor = 1 + (fr - 1) * fullRichWeight(spec, map);
+    const gross = chartHp(spec, r, map, altFt, inletC) + frictionHp(spec, r) + pumpingHp(spec, r, map, exhaust);
+    return (Math.max(0, gross) / Math.max(divisor, 0.05)) * (rpm / r) * (ve(rpm) / ve(r));
+  }
   const L = seaLevelLines(spec);
   const r = clamp(rpm, L[0].rpm, L[L.length - 1].rpm);
   const gross = chartHp(spec, r, map, altFt, inletC) + frictionHp(spec, r) + pumpingHp(spec, r, map, exhaust);
@@ -140,12 +208,12 @@ export function grossIndicatedHp(
  * Lycoming fuel consumption (lb/h) at a brake hp, best-power or best-economy mixture: the part-throttle chart where the
  * manual has one (IO-390 Figure C-3), else a constant best-power specific consumption from a published cruise point.
  * Best economy (peak EGT) then takes the same power from air the mixture model says it needs: λ at peak is 1, power
- * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower.
+ * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower. A Continental chart (M-18 Figure 2-36) has
+ * one curve per mixture for every rpm, read by brake hp and straight on beyond its drawn 173–262 bhp.
  */
 export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture: "bestPower" | "bestEconomy") {
   const ff = spec.fuelFlow;
-  if (ff.kind === "continental")
-    throw new Error(`${spec.id}: the model does not read a continental fuel-flow chart yet`);
+  if (ff.kind === "continental") return lineThrough(ff[mixture], hp);
   if (ff.kind === "bsfc") {
     const bp = ff.bsfc * hp;
     const cal = spec.calibration;
@@ -158,6 +226,15 @@ export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture
     b = pts[i + 1];
   const base = a.base + ((b.base - a.base) * (rpm - a.rpm)) / (b.rpm - a.rpm);
   return base + ff.slope * hp;
+}
+
+/** Linear interpolation on [x, y] points increasing in x, straight on beyond the end segments. */
+function lineThrough(P: [number, number][], x: number) {
+  let i = 0;
+  while (i < P.length - 2 && x > P[i + 1][0]) i++;
+  const [x0, y0] = P[i],
+    [x1, y1] = P[i + 1];
+  return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
 }
 
 /** The minimum allowable fuel flow (US gal/h) at a % of rated power, where the manual gives that curve. */
