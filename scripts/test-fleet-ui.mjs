@@ -94,6 +94,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     "/components/carburetor",
     "/components/fuel-injector",
     "/components/surefly",
+    "/components/governor",
   ]);
   for (const link of await components.all()) assert.ok((await link.boundingBox()).height >= 44);
   for (const name of ["SR20 G6", "SR22T G6"])

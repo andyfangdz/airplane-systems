@@ -10,6 +10,7 @@ const PAGES: Record<string, ComponentType> = {
   carburetor: dynamic(() => import("./carburetor/CarburetorApp")),
   "fuel-injector": dynamic(() => import("./fuel-injector/FuelInjectorApp")),
   surefly: dynamic(() => import("./surefly/App")),
+  governor: dynamic(() => import("./governor/GovernorApp")),
 };
 
 export default function ComponentPage({ id }: { id: string }) {
