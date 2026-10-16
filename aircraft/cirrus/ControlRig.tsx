@@ -1,14 +1,38 @@
 "use client";
+/**
+ * The Cirrus flight-control linkage drawn from an airplane's `rig.ts` (SR20, SR22T): the moving groups of POH Figures 7-1
+ * (elevator), 7-2 (aileron) and 7-3 (rudder) and the links between them. The airplane passes its parts catalogue, its rig
+ * module and a getter for its sim state; the cable runs and pulleys themselves stay in each airplane's `rig.ts`.
+ */
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type * as THREE from "three";
 import { Links, type LinkSpec } from "@/components/scene/Links";
 import { Parts } from "@/components/scene/Part";
-import { CAT } from "./parts";
-import { AIL_SECTOR, CARR, ETT, PULLEYS, RUD_HORN, linkPoints, rigPose } from "./rig";
-import { useSR22T } from "./store";
+import type { Catalogue } from "@/lib/catalogue";
+import type { Axis } from "@/lib/geometry";
+import type { Vec3 } from "@/lib/math";
 
-const P = ({ parent }: { parent: string }) => <Parts cat={CAT} parent={parent} />;
+/** The pose `rigPose` returns: angles of the moving groups, pedal travel and each pulley's turn. */
+export interface CirrusRigPose {
+  ett: number;
+  carr: number;
+  ailSector: number;
+  rudHorn: number;
+  pedal: number;
+  pulley: Record<string, number>;
+}
+
+/** What the drawing needs from an airplane's `rig.ts` (pass the module: `import * as RIG from "./rig"`). */
+export interface CirrusRig<S, P extends CirrusRigPose> {
+  ETT: { c: Vec3 };
+  CARR: { x: number; y: number; z: number };
+  AIL_SECTOR: { c: Vec3 };
+  RUD_HORN: { c: Vec3 };
+  PULLEYS: Record<string, { c: Vec3; axis: Axis }>;
+  rigPose: (s: S) => P;
+  linkPoints: (s: S, p: P) => Record<string, [THREE.Vector3, THREE.Vector3]>;
+}
 
 /** Links whose end points move every frame. */
 const LINKS: Record<string, LinkSpec> = {
@@ -77,21 +101,29 @@ const LINKS: Record<string, LinkSpec> = {
   },
 };
 
-const points = () => {
-  const s = useSR22T.getState().s;
-  return linkPoints(s, rigPose(s));
-};
-
 /** Animated cable-control mechanisms from POH Figures 7-1 (elevator), 7-2 (aileron), 7-3 (rudder). */
-export function ControlRig() {
+export function ControlRig<S, P extends CirrusRigPose>({
+  cat,
+  rig,
+  sim,
+}: {
+  cat: Catalogue;
+  rig: CirrusRig<S, P>;
+  sim: () => S;
+}) {
+  const { AIL_SECTOR, CARR, ETT, PULLEYS, RUD_HORN } = rig;
+  const points = () => {
+    const s = sim();
+    return rig.linkPoints(s, rig.rigPose(s));
+  };
   const g = useRef<Record<string, THREE.Object3D | null>>({});
   const set = (k: string) => (o: THREE.Object3D | null) => {
     g.current[k] = o;
   };
 
   useFrame(() => {
-    const s = useSR22T.getState().s,
-      p = rigPose(s),
+    const s = sim(),
+      p = rig.rigPose(s),
       G = g.current;
     if (G.ett) G.ett.rotation.z = p.ett;
     if (G.carrL) G.carrL.rotation.x = p.carr;
@@ -109,29 +141,29 @@ export function ControlRig() {
   return (
     <>
       <group ref={set("ett")} position={ETT.c}>
-        <P parent="rig:ett" />
+        <Parts cat={cat} parent="rig:ett" />
       </group>
       <group ref={set("carrL")} position={[CARR.x, CARR.y, -CARR.z]}>
-        <P parent="rig:carr:L" />
+        <Parts cat={cat} parent="rig:carr:L" />
       </group>
       <group ref={set("carrR")} position={[CARR.x, CARR.y, CARR.z]}>
-        <P parent="rig:carr:R" />
+        <Parts cat={cat} parent="rig:carr:R" />
       </group>
       <group ref={set("ailSector")} position={AIL_SECTOR.c}>
-        <P parent="rig:ailSector" />
+        <Parts cat={cat} parent="rig:ailSector" />
       </group>
       <group ref={set("rudHorn")} position={RUD_HORN.c}>
-        <P parent="rig:rudHorn" />
+        <Parts cat={cat} parent="rig:rudHorn" />
       </group>
       <group ref={set("pedL")}>
-        <P parent="rig:pedL" />
+        <Parts cat={cat} parent="rig:pedL" />
       </group>
       <group ref={set("pedR")}>
-        <P parent="rig:pedR" />
+        <Parts cat={cat} parent="rig:pedR" />
       </group>
       {Object.entries(PULLEYS).map(([k, d]) => (
         <group key={k} ref={set("pul:" + k)} position={d.c}>
-          <P parent={"rig:pul:" + k} />
+          <Parts cat={cat} parent={"rig:pul:" + k} />
         </group>
       ))}
       <Links links={LINKS} points={points} />
