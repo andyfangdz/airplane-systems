@@ -14,6 +14,7 @@ import {
   type PfdData,
   type SpeedBands,
 } from "@/lib/avionics/g1000";
+import { bandAlert, f0, f1, type GaugeBand } from "@/lib/avionics/g1000/gauges";
 import { gfc700Annunc } from "@/lib/avionics/gfc700";
 import { drawOff } from "@/lib/canvas";
 import { AFCS_CFG, BUSES, SPARE_CB, annunciations, displays, live, type Elec, type Sim } from "./model";
@@ -38,15 +39,7 @@ export const SPEEDS: SpeedBands = {
 /** Standby airspeed indicator markings (basic AFM 2-4): white 49–91, green 52–129, yellow 129–178, red 178. */
 export const STBY_SPEEDS: SpeedBands = { white: [49, 91], green: [52, 129], yellow: [129, 178], red: 178 };
 
-type Band = [number, number, "green" | "yellow" | "red" | "white"];
-const level = (v: number | null, bands: Band[]): "warning" | "caution" | null => {
-  if (v == null) return null;
-  for (const [a, b, c] of bands)
-    if (v >= a && v <= b) return c === "red" ? "warning" : c === "yellow" ? "caution" : null;
-  return null;
-};
-const f0 = (v: number) => String(Math.round(v)),
-  f1 = (v: number) => v.toFixed(1);
+type Band = GaugeBand;
 
 /** EIS strip items, top to bottom (CRG Fig. 3-1). Values are null (red X) when the GEA 71 or both GIAs are lost. */
 export function eisGauges(s: Sim, E: Elec): Gauge[] {
@@ -73,7 +66,7 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
     bands,
     value,
     fmt,
-    alert: alert === undefined ? level(value, bands) : alert,
+    alert: alert === undefined ? bandAlert(value, bands) : alert,
     unit,
   });
   const rpmV = v(rpm);
