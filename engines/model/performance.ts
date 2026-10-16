@@ -140,12 +140,12 @@ export function grossIndicatedHp(
  * Lycoming fuel consumption (lb/h) at a brake hp, best-power or best-economy mixture: the part-throttle chart where the
  * manual has one (IO-390 Figure C-3), else a constant best-power specific consumption from a published cruise point.
  * Best economy (peak EGT) then takes the same power from air the mixture model says it needs: λ at peak is 1, power
- * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower. Continental's chart (TSIO-550-K, M-18
- * Figure 2-36) is one curve set for every rpm, read by brake hp.
+ * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower.
  */
 export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture: "bestPower" | "bestEconomy") {
   const ff = spec.fuelFlow;
-  if (ff.kind === "continental") return lineThrough(ff[mixture], hp);
+  if (ff.kind === "continental")
+    throw new Error(`${spec.id}: the model does not read a continental fuel-flow chart yet`);
   if (ff.kind === "bsfc") {
     const bp = ff.bsfc * hp;
     const cal = spec.calibration;
@@ -158,15 +158,6 @@ export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture
     b = pts[i + 1];
   const base = a.base + ((b.base - a.base) * (rpm - a.rpm)) / (b.rpm - a.rpm);
   return base + ff.slope * hp;
-}
-
-/** Linear interpolation on [x, y] points increasing in x, straight on beyond the end segments. */
-function lineThrough(P: [number, number][], x: number) {
-  let i = 0;
-  while (i < P.length - 2 && x > P[i + 1][0]) i++;
-  const [x0, y0] = P[i],
-    [x1, y1] = P[i + 1];
-  return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
 }
 
 /** The minimum allowable fuel flow (US gal/h) at a % of rated power, where the manual gives that curve. */
