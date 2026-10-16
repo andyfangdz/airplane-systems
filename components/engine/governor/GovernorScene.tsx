@@ -305,12 +305,12 @@ function Hub({ mats }: { mats: Mats }) {
   );
   const spring = useGeo(() => coil(0.024, 0.0018, 0, 1, 5).rotateY(Math.PI / 2));
   const blade = useGeo(() => {
-    // a flat, slightly tapered blade along +y, its chord along x at 0°
-    const g = new THREE.BoxGeometry(0.06, BLADE_LEN, 0.008, 1, 6, 1);
+    // a flat, slightly tapered blade along +y; at 0° its chord lies along z, in the plane of rotation (the shaft is x)
+    const g = new THREE.BoxGeometry(0.008, BLADE_LEN, 0.06, 1, 6, 1);
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const t = (p.getY(i) + BLADE_LEN / 2) / BLADE_LEN;
-      p.setX(i, p.getX(i) * (1 - 0.35 * t));
+      p.setZ(i, p.getZ(i) * (1 - 0.35 * t));
     }
     g.computeVertexNormals();
     return merge([

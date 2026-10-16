@@ -128,6 +128,65 @@ describe.each(["high", "low"] as Hub[])("governor with an oil-to-%s-pitch hub", 
   });
 });
 
+describe("a worn gear pump: the governor is slow wherever the pump's oil does the work", () => {
+  it("oil drives the Hartzell hub to high pitch, so a burst of power overspeeds further before it is caught", () => {
+    const peak = (f: Failures) => {
+      const c: Controls = { lever: lever(2450), throttle: 0.4, kt: 120 };
+      const s = run(G, initialState(G, "high", c), c, "high", f, 40);
+      c.throttle = 1;
+      let hi = 0;
+      for (let t = 0; t < 20; t += 0.05) {
+        step(G, s, c, "high", f, 0.05);
+        hi = Math.max(hi, s.rpm);
+      }
+      return { hi, s };
+    };
+    const a = peak(noFailures()),
+      b = peak({ ...noFailures(), wornPump: true });
+    expect(b.hi).toBeGreaterThan(a.hi + 100);
+    expect(Math.abs(b.s.rpm - 2450)).toBeLessThan(15);
+  });
+
+  it("oil drives a counterweighted hub to low pitch, so it is slow to bring the rpm up to a new setting", () => {
+    const rise = (f: Failures) => {
+      const c: Controls = { lever: lever(2450), throttle: 0.8, kt: 140 };
+      const s = run(G, initialState(G, "low", c), c, "low", f, 40);
+      c.lever = 1;
+      for (let t = 0; t < 20; t += 0.05) {
+        step(G, s, c, "low", f, 0.05);
+        if (s.rpm > 2690) return t;
+      }
+      return Infinity;
+    };
+    expect(rise({ ...noFailures(), wornPump: true })).toBeGreaterThan(3 * rise(noFailures()));
+  });
+});
+
+describe("a relief valve stuck open: the governor can't boost the engine's oil", () => {
+  it("the Hartzell hub can't be held at high pitch against its spring: the blades go to low pitch and the rpm runs away", () => {
+    const { s } = cruise("high", { ...noFailures(), reliefStuck: true });
+    expect(s.pumpPsi).toBeLessThan(G.handbook.reliefPsi.value);
+    expect(s.beta).toBeCloseTo(G.propeller.fineDeg, 1);
+    expect(s.rpm).toBeGreaterThan(G.engine.ratedRpm);
+  });
+
+  it("a counterweighted hub still governs, its counterweights needing no oil to go to high pitch", () => {
+    const { s } = cruise("low", { ...noFailures(), reliefStuck: true });
+    expect(s.pumpPsi).toBeLessThan(G.handbook.reliefPsi.value);
+    expect(Math.abs(s.rpm - 2450)).toBeLessThan(25);
+  });
+});
+
+it("with the blades on the high-pitch stop the piston takes only the leakage: the rest of the pump's oil opens the relief valve", () => {
+  const x = cruise("high");
+  x.f.brokenSpring = true;
+  span("high", x, 20);
+  expect(x.s.beta).toBeCloseTo(G.propeller.coarseDeg, 0);
+  expect(x.s.relief).toBe(true);
+  expect(x.s.pumpPsi).toBe(G.handbook.reliefPsi.value);
+  expect(x.s.hubPsi).toBe(G.handbook.reliefPsi.value);
+});
+
 describe("losing the governor's oil", () => {
   it("the SR20's Hartzell hub goes to low pitch: oil drives it to high pitch, its spring and the blades' twisting moment back (SR20 AMM 61-10 p. 1)", () => {
     const x = cruise("high");

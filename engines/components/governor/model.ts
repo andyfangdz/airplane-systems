@@ -222,6 +222,10 @@ function substep(spec: GovernorSpec, s: GovState, c: Controls, hub: Hub, f: Fail
   const maxPsi = feed > 0 ? Math.max(s.inletPsi, f.reliefStuck ? m.stuckReliefPsi : spec.handbook.reliefPsi.value) : 0;
 
   const ret = returnPsi(spec, hub, s.rpm);
+  const hubPsi = s.p > 0 ? ret : 0;
+  const leak = s.p > 0 ? m.leakStrokesPerS * Math.sqrt(hubPsi / 100) : 0;
+  // the piston takes what fills it to its stop plus what leaks: on the stop, only the leakage
+  const room = (1 - s.p) / dt + leak;
   let qIn = 0,
     qOut = 0;
   s.pumpPsi = maxPsi;
@@ -232,19 +236,18 @@ function substep(spec: GovernorSpec, s: GovState, c: Controls, hub: Hub, f: Fail
   } else if (s.port > 0) {
     // the port passes what the pressure across it allows, up to everything the pump delivers
     const portQ = s.port * m.portStrokesPerS * Math.sqrt(Math.max(0, maxPsi - ret) / 100);
-    qIn = Math.min(pumpQ, portQ);
-    if (portQ >= pumpQ) {
+    qIn = Math.min(pumpQ, portQ, room);
+    if (qIn >= pumpQ) {
       // all the pump's oil goes to the hub: the relief valve closes and pressure falls to what the port needs
       s.relief = false;
       s.pumpPsi = pumpQ > 0 ? ret + 100 * (pumpQ / (s.port * m.portStrokesPerS)) ** 2 : 0;
     }
   } else if (s.port < 0) qOut = -s.port * m.portStrokesPerS * Math.sqrt(ret / 100);
-  const hubPsi = s.p > 0 ? ret : 0;
-  const leak = s.p > 0 ? m.leakStrokesPerS * Math.sqrt(hubPsi / 100) : 0;
   const before = s.p;
   s.p = clamp(s.p + (qIn - qOut - leak) * dt, 0, 1);
   s.flow = (s.p - before) / dt;
-  s.hubPsi = s.p > 0 ? (qIn > 0 ? Math.min(s.pumpPsi, ret + 5) : ret) : 0;
+  // a piston held on its stop with the port open sees the pump's pressure behind it
+  s.hubPsi = s.p > 0 ? (qIn > 0 ? (qIn >= room ? s.pumpPsi : Math.min(s.pumpPsi, ret + 5)) : ret) : 0;
   s.beta = bladeAngle(spec, hub, s.p);
 
   // ---- engine and propeller
