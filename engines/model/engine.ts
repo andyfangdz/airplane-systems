@@ -92,6 +92,8 @@ export interface EngineState {
   /** Air and metered fuel flow, lb/h. */
   air: number;
   fuel: number;
+  /** The part of `air` that came through the throttle body (the rest leaked into the intake unmetered), lb/h. */
+  meteredAir: number;
   nozzlePsi: number;
   fuelPsi: number;
   /** Brake hp, % of rated, torque N·m, gross indicated hp. */
@@ -168,6 +170,7 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     map: air.p,
     air: 0,
     fuel: 0,
+    meteredAir: 0,
     nozzlePsi: 0,
     fuelPsi: 0,
     hp: 0,
@@ -325,6 +328,7 @@ function substep(
   const airLbH = (airKgS / LB_KG) * 3600;
   s.air = airLbH;
   const meteredAir = leakArea > 0 ? (airLbH * cdA) / (cdA + leakArea) : airLbH;
+  s.meteredAir = meteredAir;
 
   // ---- fuel
   const inletRho = (source * INHG_PA) / (287.05 * (inletC + 273.15));

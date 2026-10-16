@@ -23,6 +23,12 @@ export const COMPONENTS: ComponentEntry[] = [
     lead: "The float carburetor of a Lycoming O-360-A1D in cutaway, running: float chamber, venturi and nozzle, idle system, accelerating pump, mixture valve and carburetor ice.",
   },
   {
+    id: "fuel-injector",
+    name: "Fuel injection",
+    sub: "Precision RSA servo, flow divider, nozzles",
+    lead: "The RSA continuous-flow fuel injection system on the IO-390: servo injector, flow divider and air-bleed nozzles, cut away.",
+  },
+  {
     id: "surefly",
     name: "SureFly SIM",
     sub: "Electronic ignition",

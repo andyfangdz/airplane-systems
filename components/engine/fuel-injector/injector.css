@@ -1,0 +1,85 @@
+/* The fuel injection page (FuelInjectorApp.tsx): pressure legend over the view and the nozzle-pressure chart. */
+.inj-legend {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  padding: 6px 9px;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font: 11px/1.3 var(--f-body);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.inj-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+/* the same colours as components/engine/fuel-injector/colors.ts */
+.inj-inlet-air {
+  background: #f2c230;
+}
+.inj-venturi {
+  background: #3fb6e8;
+}
+.inj-unmetered {
+  background: #8b4fc9;
+}
+.inj-metered {
+  background: #e0352b;
+}
+.inj-nozzle {
+  background: #f08fb2;
+}
+.inj-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 6px 0;
+  background: var(--panel2);
+  border-radius: 6px;
+}
+.inj-chart text {
+  font: 10px var(--f-mono);
+  fill: var(--muted);
+}
+.inj-chart .grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+.inj-chart .nom {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.8;
+}
+.inj-chart .lim {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.inj-chart .gap {
+  stroke: #f08fb2;
+  stroke-width: 1.2;
+  stroke-dasharray: 2 2;
+}
+.inj-chart text.off {
+  fill: var(--ink);
+}
+@media (max-width: 860px) {
+  .inj-legend {
+    top: auto;
+    bottom: 8px;
+    grid-template-columns: repeat(3, auto);
+    column-gap: 10px;
+    font-size: 10px;
+  }
+}
