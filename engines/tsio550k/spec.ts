@@ -65,7 +65,7 @@ export const TSIO550K: EngineSpec = {
     },
     {
       title: "Propeller: Hartzell PHC-J3Y1F-1N/N7605(B)",
-      note: "Three composite blades, 78.0 in (POH 1-7, 2-8). The governor is factory-set to 2,500 rpm with no propeller control (POH 7-32, 7-39; AMM 61-20).",
+      note: "Or PHC-J3Y1F-1N/N7605C(B); both three composite blades, 78.0 in (POH 1-7, 2-8). The governor is factory-set to 2,500 rpm with no propeller control (POH 7-32, 7-39; AMM 61-20).",
     },
   ],
 
@@ -321,8 +321,11 @@ export const TSIO550K: EngineSpec = {
     altAir: "automatic", // POH 7-37: the door opens by engine suction; no pilot control
     altAirDeltaC: 12, // not published: alternate air costs 3–5 % power (POH 3A-11) at 1 % per 6 °F
     filterBlockedArea: 0.12, // not published: the model's default; to fit the door closing at cruise power (POH 3A-11)
-    doorOpenInH2O: 4, // not published: magnet hold-closed suction
-    throttleLossInHg: 0.75, // not published: open throttle-body loss at rated flow
+    // Not published, sized guesses: the magnet hold-closed suction, to be fitted to the door opening at full power and
+    // closing at cruise power with a blocked filter (POH 3A-11); the open throttle-body loss at rated flow, to be fitted
+    // with `turbo` to the 36.0 in.Hg full-throttle hold (POH 4-14, 4-17).
+    doorOpenInH2O: 4,
+    throttleLossInHg: 0.75,
     ramEta: 0.7, // not published: the model's default inlet recovery
   },
 
@@ -338,6 +341,11 @@ export const TSIO550K: EngineSpec = {
     spoolTauS: 1.5,
     rpmRef: 105000,
     prRef: 2.45,
+    // Sized guesses, to be fitted: wastegate lag and area, the controller and the intercooler pressure drop and cooling
+    // rise to the 36.0 in.Hg full-throttle hold and the cold-oil 36.0–37.0 (POH 4-14, 4-17); the relief valve's
+    // hysteresis and area to the seized-closed wastegate case (POH 3-29, 3-30); the leak areas and the turbocharger oil
+    // terms to the loss-of-manifold-pressure causes, a reversion to roughly normally aspirated manifold pressure with
+    // declining oil pressure after an internal failure (POH 3-27, 3-28).
     wastegate: { pCrackPsi: 10, pFullPsi: 35, tauS: 0.7, area: 2.0e-3 },
     controller: { c0: 0.75, c1: 0.05, deckRef: 36.75, kBleed: 0.5, b0: 0.5, ratio: 3, misadjustInHg: 1.0 },
     intercooler: { effectiveness: 0.55, dpInHgRated: 0.5, coolRiseC: 10 }, // ε 0.5–0.6: M-18 Figure 2-39 p. 2-47
@@ -487,7 +495,8 @@ export const TSIO550K: EngineSpec = {
     coolerFlowGpm: 7, // M-18 Figure 2-38 p. 2-46: the chart's 7 GPM oil-flow curve
     coolerMaxBtuMin: 650, // M-18 Figure 2-38: 7 GPM curve at its 2,000 cfm end, read ±15 Btu/min
     // M-18 Table D-19 p. D-30 (K and N): six crankcase oil squirt nozzles, not field replaceable (13-9.2 p. 13-24).
-    // M-18 names them squirt nozzles and does not say what they cool; `pistonCoolingJets` is the flag that draws them.
+    // Approximate: M-18 names them squirt nozzles and does not say what they cool; `pistonCoolingJets` is the flag that
+    // draws them.
     pistonCoolingJets: true,
     pickupQt: [2.5, 3.5], // not published: inside the 3.0–3.5 qt left of 8 at the usable 4.5–5.0 (M-18 Table 2-3)
   },
@@ -522,6 +531,10 @@ export const TSIO550K: EngineSpec = {
     inertia: 3.8, // not published: engine and propeller; above M-18 Table 2-7's propeller minimum (1.81 kg·m² at 700)
   },
 
+  // Not published: `idleArea` to `oilTau` (except the trims and `lambdaFullRich`) are the IO-390's starting values, to be
+  // fitted when the model runs this engine to idle 700 ± 25 rpm (AMM 73-20 PDF 2589), magneto drop ≤ 150 rpm with
+  // ≤ 75 rpm between magnetos (POH 4-15), CHT ≤ 420 °F in cruise (POH 4-21, 4-22), oil near 180 °F (AMM 79-00 PDF 2764)
+  // and the lean-of-peak cruise flows (POH 5-32 to 5-34).
   calibration: {
     idleArea: 0.02,
     lambdaBestPower: 0.85,
