@@ -473,9 +473,9 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
     expect(s.hp).toBeLessThanOrEqual(318);
   });
 
-  test("T-12: full-power fuel flow 36.65–39.8 GPH at 36.0 in.Hg (AMM Figure 73-20-2 PDF 2592), every cylinder burning (λ ≥ 0.55 on average)", () => {
+  test("T-12: full-power fuel flow 36.7–39.8 GPH at 36.0 in.Hg (AMM Figure 73-20-2 PDF 2592), every cylinder burning (λ ≥ 0.55 on average)", () => {
     const { s } = rated();
-    expect(gph(s)).toBeGreaterThanOrEqual(36.65);
+    expect(gph(s)).toBeGreaterThanOrEqual(36.7);
     expect(gph(s)).toBeLessThanOrEqual(39.8);
     expect(mean(s.cyl.map((cy) => cy.lambda))).toBeGreaterThanOrEqual(0.55);
     expect(s.rough).toBeLessThan(0.1);
@@ -513,12 +513,19 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
     expect(cold.peak).toBeLessThanOrEqual(37.0);
     expect(gph(cold.s) / gph(warm) / (cold.s.map / warm.map)).toBeGreaterThan(0.985);
     expect(gph(cold.s) / gph(warm) / (cold.s.map / warm.map)).toBeLessThan(1.015);
-    // and inside the AMM band at that MAP (Figure 73-20-2: 36.65–39.8 GPH at 36.0, 37.35–40.45 at 36.5, linear)
+    // and inside the AMM band at that MAP (Figure 73-20-2: 36.7–39.8 GPH at 36.0, 37.35–40.45 at 36.5, linear;
+    // SOURCES.md)
     const k = (cold.s.map - 36) / 0.5;
-    expect(gph(cold.s)).toBeGreaterThanOrEqual(36.65 + 0.7 * k);
+    expect(gph(cold.s)).toBeGreaterThanOrEqual(36.7 + 0.65 * k);
     expect(gph(cold.s)).toBeLessThanOrEqual(39.8 + 0.65 * k);
-    // warm oil anywhere from 150 °F up holds 36.0 ± 0.2 (POH 3-29: above 150 °F a high MAP needs a controller adjustment)
-    for (const oilF of [150, 180]) expect(Math.abs(run(oilF).s.map - 36.0)).toBeLessThanOrEqual(0.2);
+    // warm oil from 150 to about 225 °F holds 36.0 ± 0.2 (POH 3-29: above 150 °F a high MAP needs a controller
+    // adjustment); 225 °F is where the rated run's oil settles (T-1)
+    for (const oilF of [150, 180, 225]) expect(Math.abs(run(oilF).s.map - 36.0)).toBeLessThanOrEqual(0.2);
+    // hotter, the thinner oil lets MAP sag a little: 36.0 − 0.25 at 240 °F, the tolerance the model meets (recorded,
+    // not a POH limit: POH 3-29 concerns a MAP that stays high)
+    const hot = run(240).s.map;
+    expect(hot).toBeGreaterThanOrEqual(35.75);
+    expect(hot).toBeLessThanOrEqual(36.0);
   });
 
   test("engine stopped: the spring opens the wastegate (POH 3-27/3-28)", () => {
