@@ -133,6 +133,8 @@ export interface EngineLayout {
   alternators: AlternatorDef[];
   /** Magneto drive gears mesh with the camshaft gear, or with an idler gear the crankshaft gear drives. */
   magDrive: "cam" | "idler";
+  /** Oil filler tube and dipstick: up behind the crankcase on the right or the left. */
+  oilFiller: { side: "L" | "R" };
   /** Oil pump drive gear meshes with the crankshaft gear, or turns with the camshaft gear (splined into it). */
   oilPumpDrive: "crank" | "cam";
   /** Label pins: text and position. */
@@ -164,6 +166,7 @@ export const IO390_DEFAULTS: EngineLayout = {
   governor: "front-top",
   alternators: [{ name: "Alternator", drive: "belt", ratio: null, angleDeg: 135, r: 0.27, src: "IOM Table A-4" }],
   magDrive: "cam",
+  oilFiller: { side: "R" },
   oilPumpDrive: "crank",
   labels: (d, spec) => [
     ["Magnetos", [d.accRear - 0.08, 0.22, 0]],

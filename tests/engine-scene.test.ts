@@ -27,6 +27,7 @@ import {
   IN,
   lobeAngle,
   magDrive,
+  oilFiller,
   oilPump,
   peakCrank,
   STARTER_TEETH,
@@ -268,6 +269,9 @@ describe("IO-390 scene layout defaults", () => {
     ]);
     expect(cl.bearings).toHaveLength(3);
     expect(IO390_DEFAULTS.camera).toEqual({ position: [1.15, 0.62, 1.35], target: [0, -0.02, 0], maxDistance: 6 });
+    // the oil filler tube and cap on the right, where the scene drew them
+    expect(IO390_DEFAULTS.oilFiller).toEqual({ side: "R" });
+    expect(oilFiller(d).cap).toEqual([d.caseRear - 0.025, 0.209, 0.16]);
     // the label pins EngineScene placed before the layouts
     expect(IO390_DEFAULTS.labels(d, IO390)).toEqual([
       ["Magnetos", [d.accRear - 0.08, 0.22, 0]],

@@ -8,7 +8,21 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { EngineSim } from "../store";
-import { D2R, gear, gearSpins, merge, oilPump, rod, slab, toWorld, tube, zrod, type Dims, type Mats } from "./kit";
+import {
+  D2R,
+  gear,
+  gearSpins,
+  merge,
+  oilFiller,
+  oilPump,
+  rod,
+  slab,
+  toWorld,
+  tube,
+  zrod,
+  type Dims,
+  type Mats,
+} from "./kit";
 import { layoutFor } from "./layout";
 import { P } from "./parts";
 
@@ -102,7 +116,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
   const PUMP = useMemo(() => oilPump(d, L), [d, L]);
   const { spins } = useMemo(() => gearSpins(sim.spec, d, L), [sim, d, L]);
   const geo = useMemo(() => {
-    const top = d.caseRear - 0.025;
+    const filler = oilFiller(d, L);
     return {
       oil: new THREE.BoxGeometry(d.front - 0.05 - (d.caseRear + 0.015), 1, 0.22).translate(
         (d.front - 0.05 + d.caseRear + 0.015) / 2,
@@ -131,19 +145,8 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       screen: rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
       screenPlug: rod(0.012, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.025, 0),
       drain: new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6).translate(-0.04, d.sumpBottom - 0.007, 0.06),
-      dipTube: tube(
-        [
-          // out of the sump's rear face and up behind the crankcase, outboard of the accessory housing and mounts
-          [d.caseRear + 0.04, d.caseBottom - 0.02, 0.1],
-          [d.caseRear - 0.025, d.caseBottom - 0.025, 0.15],
-          [d.caseRear - 0.025, 0.06, 0.155],
-          [top, 0.2, 0.16],
-        ],
-        0.009,
-        24,
-        10,
-      ),
-      dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(top, 0.209, 0.16),
+      dipTube: tube(filler.tube, 0.009, 24, 10),
+      dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(...filler.cap),
       nozzle: zrod(0.0035, d.caseHalf - 0.04, d.caseHalf - 0.008, 8).translate(0, -0.05, 0),
       suction: tube(
         [
@@ -173,7 +176,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         0.006,
       ),
     };
-  }, [d, PUMP]);
+  }, [d, L, PUMP]);
   const oilMat = useMemo(() => {
     const m = mats.oil.clone();
     m.transparent = true;

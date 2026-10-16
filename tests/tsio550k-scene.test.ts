@@ -24,6 +24,7 @@ import {
   IN,
   magDrive,
   makeMats,
+  oilFiller,
   oilPump,
   throwRotation,
   valveLayout,
@@ -280,6 +281,36 @@ describe("TSIO-550-K ALT 1 on its transverse pad (AMM Fig 24-30-3)", () => {
     // the pad bridges the case side to the housing
     expect(pad.min.z).toBeCloseTo(d.caseHalf, 3);
     expect(pad.max.z / IN).toBeCloseTo(6.7, 2);
+    await unmount();
+  });
+});
+
+describe("TSIO-550-K oil filler and dipstick", () => {
+  test("at the left rear, where POH 7-37 and its hover note put it, behind the crankcase", () => {
+    expect(L.oilFiller).toEqual({ side: "L" });
+    expect(L.notes.dipTube).toMatch(/left rear/);
+    const { cap, tube } = oilFiller(d, L);
+    expect(cap[2]).toBeLessThan(0);
+    expect(cap[0]).toBeLessThan(d.caseRear);
+    for (const p of tube) expect(p[2]).toBeLessThan(0);
+  });
+
+  test("as drawn, the tube and its cap stand on the left", async () => {
+    const sim = simFor(S, "tsio550k-filler");
+    const { scene, unmount } = await mountScene(h(Lubrication, { sim, d, mats: makeMats() }));
+    const found: string[] = [];
+    scene.traverse((o) => {
+      const over = (o as { __r3f?: { handlers: Record<string, (e: unknown) => void> } }).__r3f?.handlers.onPointerOver;
+      if (!(o instanceof THREE.Mesh) || !over) return;
+      useHover.setState({ hover: null });
+      over({ object: o, stopPropagation() {}, nativeEvent: { clientX: 0, clientY: 0 } });
+      const name = useHover.getState().hover?.name ?? "";
+      if (name !== "Oil level gage tube" && name !== "Oil filler cap and dipstick") return;
+      found.push(name);
+      expect(new THREE.Box3().setFromObject(o).max.z, name).toBeLessThan(0);
+    });
+    useHover.setState({ hover: null });
+    expect(found.sort()).toEqual(["Oil filler cap and dipstick", "Oil level gage tube"]);
     await unmount();
   });
 });

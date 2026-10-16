@@ -393,6 +393,24 @@ export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(
 }
 
 /**
+ * The oil filler tube, out of the sump's rear face and up behind the crankcase, outboard of the accessory housing and
+ * mounts on the layout's side, and the filler cap on its top.
+ */
+export function oilFiller(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
+  const k = L.oilFiller.side === "R" ? 1 : -1;
+  const top = d.caseRear - 0.025;
+  return {
+    tube: [
+      [d.caseRear + 0.04, d.caseBottom - 0.02, k * 0.1],
+      [d.caseRear - 0.025, d.caseBottom - 0.025, k * 0.15],
+      [d.caseRear - 0.025, 0.06, k * 0.155],
+      [top, 0.2, k * 0.16],
+    ] as V3[],
+    cap: [top, 0.209, k * 0.16] as V3,
+  };
+}
+
+/**
  * Oil pump: a drive gear meshing below the crankshaft gear, its shaft running aft to two pumping gears; or (the layout's
  * `oilPumpDrive: "cam"`) the first pumping gear splined into the camshaft gear, turning at camshaft speed. The crank
  * drive's ratio is drawn, not published.

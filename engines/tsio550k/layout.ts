@@ -98,6 +98,8 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   ],
   // M-18 2-2.2: the crankshaft gear drives an idler gear, which drives the magneto drive gears.
   magDrive: "idler",
+  // POH 7-37: the oil filler and dipstick at the left rear, under the top-left cowl door (AMM Fig 71-00-2 sheet 2 item 21).
+  oilFiller: { side: "L" },
   // M-18 2-2.2: "The splined end of the oil pump drive gear mates with the internal splines of the camshaft gear".
   oilPumpDrive: "cam",
   labels: (d) => [
