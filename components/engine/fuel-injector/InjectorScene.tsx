@@ -515,8 +515,12 @@ function Metering({ v, mats }: { v: ViewRef; mats: Mats }) {
       strainer: new THREE.CylinderGeometry(0.024, 0.024, MET.strainer[1] - MET.strainer[0], 16, 4, true)
         .rotateZ(Math.PI / 2)
         .translate((MET.strainer[0] + MET.strainer[1]) / 2, MET.y, 0),
-      // three quarters of a disc: turning it uncovers the passage
-      plate: new THREE.CylinderGeometry(MET.r - 0.006, MET.r - 0.006, 0.005, 32, 1, false, 0, Math.PI * 1.5).rotateZ(
+      // a fixed port plate with a quarter opening, and the rotary plate: a quarter sector that covers the opening at
+      // idle cut-off and turns off it towards full rich
+      port: new THREE.CylinderGeometry(MET.r - 0.006, MET.r - 0.006, 0.005, 32, 1, false, Math.PI / 2, Math.PI * 1.5)
+        .rotateZ(Math.PI / 2)
+        .translate(MET.mixX + 0.005, MET.y, 0),
+      plate: new THREE.CylinderGeometry(MET.r - 0.006, MET.r - 0.006, 0.005, 16, 1, false, 0, Math.PI / 2).rotateZ(
         Math.PI / 2,
       ),
       mixLever: new THREE.BoxGeometry(0.008, 0.07, 0.008).translate(0, -0.035, 0),
@@ -554,6 +558,12 @@ function Metering({ v, mats }: { v: ViewRef; mats: Mats }) {
         note="Screens the fuel as it enters. The IOM has it removed, cleaned in solvent and reinstalled when a new engine is prepared for service (IOM pp. 11, 13)."
         geometry={geo.strainer}
         material={mats.screen}
+      />
+      <P
+        name="Mixture port plate"
+        note="The fixed plate the rotary plate turns against: the passage through it is open only where the rotary plate does not cover it."
+        geometry={geo.port}
+        material={mats.steel}
       />
       <group ref={plate} position={[MET.mixX, MET.y, 0]}>
         <P
