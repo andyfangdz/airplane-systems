@@ -1,22 +1,72 @@
 "use client";
 import { Box, Cb, Diode, Dot, Fuse, Key, Sw, W } from "@/components/ui/wiring";
-import type { Elec, Sim } from "../model";
+import type { ReactNode } from "react";
 
-const V = (v: number) => (v > 0 ? v.toFixed(2) + " V" : "0 V");
+/** The switches, breakers and failures the diagram reads from the airplane's sim state. */
+export interface DiagramSim {
+  elec: {
+    bat1: boolean;
+    bat2: boolean;
+    alt1: boolean;
+    alt2: boolean;
+    avionics: boolean;
+    fail: { alt1: boolean; alt2: boolean; bat1: boolean };
+  };
+  cb: Record<string, boolean | undefined>;
+}
+/** The bus voltages, source currents and states the diagram reads from the electrical solution. */
+export interface DiagramElec {
+  mdb1: number;
+  mdb2: number;
+  edb: number;
+  ess1: number;
+  ess2: number;
+  main1: number;
+  avx: number;
+  conv: number;
+  a1: number;
+  a2: number;
+  b1: number;
+  alt1: boolean;
+  alt2: boolean;
+  bat1Dead: boolean;
+  bat2Dead: boolean;
+  bat1ok: boolean;
+  bat2ok: boolean;
+  bat2Supplying: boolean;
+}
+
 const amp = (a: number) => (a > 0 ? "+" : "") + a + " A";
 
 /**
- * Live single-line diagram after POH Figure 7-10 (Electrical System Schematic, SR22T POH 13772-007 7-48) and its description (7-49 – 7-54).
+ * Live single-line diagram of the Cirrus G6 power distribution after POH Figure 7-10 (Electrical System Schematic: SR20 POH
+ * 7-50, description 7-49 – 7-56; SR22T POH 13772-007 7-48, description 7-49 – 7-54).
  * In the MCU: ALT 1 and BAT 1 feed Main Dist Bus 1, ALT 2 feeds Main Dist Bus 2, and MDB 1 backs MDB 2 up through the 80 A
  * fuse and a diode (never the reverse). The Ess Dist Bus takes three diode feeds: MDB 1, BAT 1 straight from its relay
  * (ahead of the 125 A fuse; drawn hopping the interconnect, as the figure crosses them) and MDB 2. On the breaker panel,
  * ESS BUS 2 hangs straight off the Ess Dist Bus and ESS BUS 1 through the ESSENTIAL POWER breaker; BAT 2 joins ESS BUS 1
  * through its relay (BAT 2 switch) and the BAT 2 breaker, and BAT 1 feeds the CONV BUS directly through a 5 A fuse.
  * Main and A/C buses are grouped by the distribution bus that feeds them (each through its own 30 A fuse).
+ * The POH text gives an 80 A ALT 2 source fuse, while Fig 7-10 and the AMM give 60 A; each airplane's panel notes preserve
+ * this disagreement. BAT 1 main feed is 125 A in the figure. The simplified diagram leaves both source fuses out.
  * Simplified: the ALT switches are drawn in the alternator output (they switch the field relay), the other MCU fuses are
  * not drawn, and external power and the starter (not modelled) are left out. viewBox 340 wide like the Cessna diagram.
+ * Each airplane gives the volts' decimal places (`digits`), the diagram's accessible name and an optional description.
  */
-export function PowerDiagram({ s, E }: { s: Sim; E: Elec }) {
+export function PowerDiagram({
+  s,
+  E,
+  digits,
+  label,
+  desc,
+}: {
+  s: DiagramSim;
+  E: DiagramElec;
+  digits: number;
+  label: string;
+  desc?: ReactNode;
+}) {
+  const V = (v: number) => (v > 0 ? v.toFixed(digits) + " V" : "0 V");
   const e = s.elec;
   const m1 = E.mdb1 > 0,
     m2 = E.mdb2 > 0,
@@ -35,12 +85,8 @@ export function PowerDiagram({ s, E }: { s: Sim; E: Elec }) {
   const bat1Word = e.fail.bat1 ? "failed" : E.bat1Dead ? "flat" : E.bat1ok ? amp(E.b1) : "0 A";
   const bat2Word = E.bat2Dead ? "flat" : !E.bat2ok ? "isolated" : E.bat2Supplying ? "supplying" : "charging";
   return (
-    <svg
-      className="wiring"
-      viewBox="0 0 340 392"
-      role="img"
-      aria-label="SR22T power distribution single-line diagram after POH Figure 7-10"
-    >
+    <svg className="wiring" viewBox="0 0 340 392" role="img" aria-label={label}>
+      {desc && <desc>{desc}</desc>}
       {/* sources */}
       <Box x={6} y={6} w={58} label="ALT 1" value={E.alt1 ? amp(E.a1) : e.fail.alt1 ? "failed" : "off"} lit={E.alt1} />
       <Box x={72} y={6} w={58} label="BAT 1" value={bat1Word} lit={bat1Charged} />

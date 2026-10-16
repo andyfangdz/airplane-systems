@@ -21,7 +21,7 @@ To add one:
 - `systems.ts`: `SysDef[]` rail entries in POH/AFM Section 7 order: id, name, page, camera `[position, target]`, overview blurb, and `ref` when a system is described in another document (e.g. a supplement). A system's colour comes from `SYS_COLOR` in `lib/systems.ts`, by id.
 - `geometry.ts`: Airframe shape: fuselage station table, wing/tail/fin functions, window outlines, painted skin.
 - `parts/`: The parts catalogue, one file per system group. `catalogue.ts` creates `CAT = new Catalogue(id, labelLists?)` and the helpers the sections share; each section file (`engine.ts`, `fuel.ts`, …) registers its parts, shells and control surfaces; `index.ts` imports the sections in order and re-exports the anchor positions other files use. Registration order sets part ids and which part carries a name's label pin, so add a part to the section it belongs to and keep the import order in `index.ts`.
-- `rig.ts`: Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` or `Airplane.tsx`.
+- `rig.ts`: Flight-control linkage geometry and kinematics: stations, pulleys, cable runs, and the pose and surface deflections for given control inputs. The Cessnas build theirs with `cessnaRig()` from `aircraft/cessna/rig.ts`. Drawn by `ControlRig.tsx` (the SR20 and SR22T pass theirs to `cirrus/ControlRig.tsx`) or `Airplane.tsx`.
 - `flows.ts`: Pipes, wires, ducts and cables (`FlowSpec[]`) and `flowRates(s, E)`. The SR20 and SR22T split theirs into
   `*-depth-flow.ts` section files, each exporting its `FlowSpec[]` and its rates; `flows.ts` concatenates them in a fixed
   order and merges the rates.
@@ -29,11 +29,11 @@ To add one:
 - `store.ts`: `createSimStore(initialSim, solve)` and the scenarios ("Start from" buttons).
 - `tick.ts`: Per-frame step: engine, RPM, flap motor, timers, flight state and autopilot. Writes `live`; discrete changes go through the store. No side effects at import.
 - `Airplane.tsx`: The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>`.
-- `ControlRig.tsx`: Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (SR20, DA40; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`).
-- `Parachute.tsx` (SR20): The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment).
+- `ControlRig.tsx`: Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (DA40, M20C; the SR20 and SR22T render `cirrus/ControlRig.tsx` with their catalogue, rig and store; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`).
+- `Parachute.tsx` (SR20, SR22T): The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment). Each binds `cirrus/Parachute.tsx` to its own harness geometry, store and `live` timeline.
 - `displays.ts`: Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000/`; the SR20 and SR22T call it with `style: "perspective"` and draw their MD302 standby with `lib/avionics/md302.ts`.
 - `panels/*.tsx`: Side panel per system: lead paragraph, controls, readouts, facts and notes from the POH.
-- `panels/distribution.tsx` (SR20, DA40): The electrical panel's live single-line power distribution diagram, drawn from the solution `E` with the symbols in `components/ui/wiring.tsx` (the Cessnas share theirs, `Nav3Diagram` in `cessna/panels.tsx`).
+- `panels/distribution.tsx` (DA40): The electrical panel's live single-line power distribution diagram, drawn from the solution `E` with the symbols in `components/ui/wiring.tsx` (the Cirrus airplanes share theirs, `PowerDiagram` in `cirrus/distribution.tsx`; the Cessnas theirs, `Nav3Diagram` in `cessna/panels.tsx`).
 
 ## Shared code
 
@@ -50,15 +50,33 @@ To add one:
   every GFC 700 function takes the airplane's config, built from `GFC700_BASE`). `components/avionics/` holds their panel controls.
 - `aircraft/cessna/` is the Cessna NAV III base used by the C172S and C182T:
 
-  | File                       | Role                                                                                                               |
-  | -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-  | `airframe.ts`              | Station-table airframe builder (`IN`, stations → scene coordinates, wing, strut, painted skin)                     |
-  | `rig.ts`                   | Figure 7-1 flight-control rig builder; `RigSpec` names the autopilot servos and an optional aft elevator bellcrank |
-  | `yoke.ts`                  | NAV III control wheel ("ram's horn") geometry and the anchors for the switches on the pilot's left horn            |
-  | `electrical.ts`            | NAV III buses, breaker board model, solver, EIS colour rules, `NAV3_BUSES`                                         |
-  | `annunciations.ts`         | Annunciation window and EIS gauges (each airplane passes its own `Nav3AnnDef[]` list)                              |
-  | `panels.tsx`, `cessna.css` | MASTER / AVIONICS / STBY BATT switches, bus diagram, breaker board, meters, annunciation table                     |
-  | `tick.ts`                  | Per-frame models (vacuum pump)                                                                                     |
+  | File                       | Role                                                                                                                                                |
+  | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `airframe.ts`              | Station-table airframe builder (`IN`, stations → scene coordinates, wing, strut, painted skin)                                                      |
+  | `rig.ts`                   | Figure 7-1 flight-control rig builder; `RigSpec` names the autopilot servos and an optional aft elevator bellcrank                                  |
+  | `yoke.ts`                  | NAV III control wheel ("ram's horn") geometry and the anchors for the switches on the pilot's left horn                                             |
+  | `electrical.ts`            | NAV III buses, breaker board model, solver, EIS colour rules, `NAV3_BUSES`                                                                          |
+  | `annunciations.ts`         | Annunciation window and EIS gauges (each airplane passes its own `Nav3AnnDef[]` list)                                                               |
+  | `panels.tsx`, `cessna.css` | MASTER / AVIONICS / STBY BATT switches, bus diagram, breaker board, meters, annunciation table                                                      |
+  | `electrical-panel.tsx`     | Electrical and Lighting panel parts: ground power and 12 V outlet, battery readouts, failures and scenarios, trip buttons, LIGHTS switches, dimmers |
+  | `engine.ts`                | Mixture model (`lambda`, `mixPower`) under each airplane's power and fuel-flow models                                                               |
+  | `tick.ts`                  | Per-frame models (vacuum pump)                                                                                                                      |
+
+- `aircraft/cirrus/` is the Cirrus G6 base used by the SR20 and SR22T. Each airplane keeps its own numbers, text and
+  citations (from its own POH/AFM) and passes them, with its store and `live` values, as props or arguments:
+
+  | File               | Role                                                                                             |
+  | ------------------ | ------------------------------------------------------------------------------------------------ |
+  | `ControlRig.tsx`   | Moving flight-control linkage drawn from the airplane's `rig.ts` (Figures 7-1 – 7-3)             |
+  | `Parachute.tsx`    | CAPS deployment overlay and the HUD phases                                                       |
+  | `displays.ts`      | Perspective+ plumbing: fixed-cruise flight data, UTC clock, reversionary mode, PFD / MFD screens |
+  | `distribution.tsx` | Live Figure 7-10 power distribution diagram                                                      |
+  | `panels.tsx`       | Bolster master switches with failures, scenarios and readouts; circuit-breaker bus card          |
+  | `flight-panel.tsx` | Yoke and pedal inputs, cable-run steps, FLAPS switch                                             |
+
+- `lib/engine-groups.ts` and `lib/engine-group-store.ts` hold the Engine-view study groups and the factory for each
+  airplane's toggle store; `lib/surface-angles.ts` the cached control-surface angles for airplanes whose `live.eff` and
+  `deflections` drive them (DA40, M20C); `lib/avionics/g1000/gauges.ts` the EIS band, alert and format helpers.
 
 ## Conventions
 

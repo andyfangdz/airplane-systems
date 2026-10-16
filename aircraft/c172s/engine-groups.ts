@@ -1,9 +1,7 @@
 /** Local presentation filters: never alter engine/system operation. */
 import type { FlowSpec, PartSpec } from "@/lib/catalogue";
-export const ENGINE_GROUPS = ["ignition", "induction", "exhaust", "fuel", "oil", "sensors"] as const;
-export type EngineGroup = (typeof ENGINE_GROUPS)[number];
-export type ShownGroups = Record<EngineGroup, boolean>;
-export const allGroups = (): ShownGroups => Object.fromEntries(ENGINE_GROUPS.map((k) => [k, true])) as ShownGroups;
+import type { EngineGroup, ShownGroups } from "@/lib/engine-groups";
+export { ENGINE_GROUPS, allGroups, type EngineGroup, type ShownGroups } from "@/lib/engine-groups";
 export function engineGroupsOf(s: PartSpec | FlowSpec): readonly EngineGroup[] {
   if (s.groups) return s.groups as readonly EngineGroup[];
   const n = ((s.name ?? "") + " " + ("key" in s ? s.key : "")).toLowerCase();

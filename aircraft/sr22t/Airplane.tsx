@@ -16,7 +16,7 @@ import { beginParts, endParts, markAdded, nextFrame, publishParts, setBuild, use
 import { specGeo, type PartSpec } from "@/lib/catalogue";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { narrowLayout, useView } from "@/lib/view";
-import { ControlRig } from "./ControlRig";
+import { ControlRig } from "../cirrus/ControlRig";
 import { drawMfdScreen, drawOff, drawPfdScreen, drawStandby } from "./displays";
 import { cabinAirColor, flowRates, flowsFor, isCabinAir } from "./flows";
 import {
@@ -45,6 +45,7 @@ import {
   YOKE_X,
   YOKE_Y,
 } from "./parts";
+import * as RIG from "./rig";
 import { surfDeflection } from "./rig";
 import { useSR22T } from "./store";
 import { useEngineGroups } from "./engine-group-store";
@@ -53,6 +54,7 @@ import { walkFirst } from "./walk-store";
 import { engineHidden } from "./engine-groups";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
+const sim = () => useSR22T.getState().s;
 
 /** Control-surface deflections (radians) from the yokes, pedals and flap motor. */
 function surfaceAngle(key: string) {
@@ -331,7 +333,7 @@ export function Model({ overlays = true }: { overlays?: boolean } = {}) {
       <Propeller />
       <Cylinders />
       <Yokes />
-      <ControlRig />
+      <ControlRig cat={CAT} rig={RIG} sim={sim} />
       {overlays && <Tanks tanks={TANKS} />}
       {overlays && <Flows flows={flows} rates={rates} color={flowColor} />}
       {overlays && <Screens screens={SCREENS} />}

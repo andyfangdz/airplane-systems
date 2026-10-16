@@ -104,7 +104,7 @@ components/
   avionics/           GFC 700 and KAP 140 panel controls (keys, AFCS status strip, G1000 knobs)
   ui/controls.tsx     Seg, Slider, Check, Rocker, Readouts, Facts, HoldButton, …
   ui/wiring.tsx       Symbols for the live single-line electrical diagrams (breaker, switch, diode, bus box, key)
-aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base); lazy.ts loads each airplane on demand — see aircraft/README.md
+aircraft/             One folder per airplane, plus cessna/ (shared Cessna NAV III base) and cirrus/ (shared Cirrus G6 parts); lazy.ts loads each airplane on demand — see aircraft/README.md
 engines/              Standalone engine simulations: EngineSpec per engine, shared model/ — see engines/README.md
 components/engine/    The /engines/<id> page: 3D engine (scene/: one file per part group), engine monitor, controls, pressure chart
 lib/

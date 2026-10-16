@@ -1,15 +1,8 @@
 /** Study filters for the IO-390. These affect presentation, never system operation. */
 import type { FlowSpec, PartSpec } from "@/lib/catalogue";
+import type { EngineGroup, ShownGroups } from "@/lib/engine-groups";
 
-export const ENGINE_GROUPS = ["ignition", "induction", "exhaust", "fuel", "oil", "sensors"] as const;
-export type EngineGroup = (typeof ENGINE_GROUPS)[number];
-export type ShownGroups = Record<EngineGroup, boolean>;
-declare module "@/lib/catalogue" {
-  interface StudyGroups extends Record<EngineGroup, true> {}
-}
-
-export const allGroups = (): ShownGroups =>
-  Object.fromEntries(ENGINE_GROUPS.map((group) => [group, true])) as ShownGroups;
+export { ENGINE_GROUPS, allGroups, type EngineGroup, type ShownGroups } from "@/lib/engine-groups";
 
 /** Shared-system parts inherit a group only when their role is unambiguous. */
 export function engineGroupsOf(spec: PartSpec | FlowSpec): readonly EngineGroup[] {
