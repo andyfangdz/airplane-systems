@@ -40,6 +40,7 @@ import {
   cylExhaust,
   cylIntake,
   GATE_CONTROLLER,
+  GATE_CONTROLLER_SIZE,
   HEAT_X,
   THROTTLE,
   THROTTLE_LEN,
@@ -251,27 +252,43 @@ const deckTapAt = (out: number): Vec3 =>
     .toArray() as Vec3;
 /** The fitting's outer face, where the upper-deck hose starts. */
 export const UPPER_DECK_TAP: Vec3 = deckTapAt(UPPER_DECK_FITTING_LEN - 0.002);
+/** The controller box's faces (engine.ts GATE_CONTROLLER, GATE_CONTROLLER_SIZE): the sensing hoses land on its top
+ * face, the oil hoses on its forward face. */
+const CONTROLLER_TOP_Y = GATE_CONTROLLER[1] + GATE_CONTROLLER_SIZE[1] / 2;
+const CONTROLLER_FRONT_X = GATE_CONTROLLER[0] + GATE_CONTROLLER_SIZE[0] / 2;
 /** Upper-deck reference run (the `deckRef` flow and its drawn hose): from the throttle body fitting, in one straight
  * run above the ignition harness, left of the spider and the magneto pressurization line, inboard of the A/C compressor
- * head; then right across the centreline over the magneto P-lead risers, aft to the firewall and down onto the
- * controller's top face (its box is 0.06 m tall, engine.ts). Corners approximate, under the cowl. */
+ * head; then left and down over the compressor body under the cowl, aft of its head, down outboard of it, outboard
+ * along the firewall bay forward of the oil separator and over the Master Control Unit's heat shield, and aft and down
+ * onto the outboard half of the controller's top face at the left rear. Corners approximate. */
 export const UPPER_DECK_LINE: Vec3[] = [
   UPPER_DECK_TAP,
   [2.75, 0.172, -0.1085], // approximate
-  [2.69, 0.184, GATE_CONTROLLER[2]], // approximate
-  [GATE_CONTROLLER[0], 0.184, GATE_CONTROLLER[2]], // approximate
-  [GATE_CONTROLLER[0], GATE_CONTROLLER[1] + 0.03, GATE_CONTROLLER[2]], // the box's top face, approximate
+  [2.725, 0.166, -0.2], // approximate
+  [2.703, 0.15, -0.262], // approximate
+  [2.703, 0.055, -0.262], // approximate
+  [2.703, 0.055, -0.43], // approximate
+  [2.703, 0.045, -0.452], // approximate
+  [2.632, 0.045, -0.452], // approximate
+  [2.632, CONTROLLER_TOP_Y, -0.452], // the box's top face, outboard half; approximate
 ];
 /** Aft end cap of the manifold, 4 mm thick inside the drawn tube's end: the manifold pressure fitting is on it.
  * Approximate. */
 export const MANIFOLD_CAP_T = 0.004;
 const MANIFOLD_END = INTAKE_MANIFOLD_PATH[INTAKE_MANIFOLD_PATH.length - 1];
-/** Manifold pressure line: down out of the controller's underside, forward of the A/C belt plane and inboard of the belt
- *, left under the magneto P-leads and outboard of the left one's riser, between the two magnetos
+/** Manifold pressure line: up out of the inboard half of the controller's top face, inboard along the firewall bay aft
+ * of and below the upper-deck line, up outboard of the A/C compressor and over its body aft of the upper-deck line, down inboard of it and forward of
+ * the A/C belt plane, left under the magneto P-leads and outboard of the left one's riser, between the two magnetos
  * below their pressurization lines, aft of the harness caps, into a fitting on the manifold's aft end cap. Approximate. */
 export const MANIFOLD_PRESSURE_LINE: Vec3[] = [
-  [GATE_CONTROLLER[0] + 0.02, GATE_CONTROLLER[1] - 0.03, GATE_CONTROLLER[2] - 0.03],
-  [2.69, 0.09, -0.035], // approximate
+  [2.645, CONTROLLER_TOP_Y, -0.418], // the box's top face, inboard half; approximate
+  [2.645, 0.045, -0.418], // approximate
+  [2.685, 0.045, -0.418], // approximate
+  [2.685, 0.045, -0.262], // approximate
+  [2.685, 0.15, -0.262], // approximate
+  [2.685, 0.168, -0.17], // approximate
+  [2.69, 0.15, -0.07], // approximate
+  [2.69, 0.09, -0.04], // approximate
   [2.74, 0.055, -0.015],
   [MANIFOLD_END[0] - MANIFOLD_CAP_T, MANIFOLD_END[1] + 0.01, -0.012], // fitting station on the cap, approximate
 ];
@@ -838,7 +855,7 @@ part(
     groups: ["induction"],
   },
 );
-part(() => tubeGeo(UPPER_DECK_LINE, SENSE_LINE_R, 0), ["engine"], {
+part(() => capEnds(tubeGeo(UPPER_DECK_LINE, SENSE_LINE_R, 0)), ["engine"], {
   name: "Upper-deck pressure line",
   color: "#3A3A3A",
   note: 'Upper-deck (throttle inlet) pressure to the wastegate controller: the hose "TO THROTTLE BODY" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742). The controller senses the differential across the throttle plate (POH 13772-007 7-39; AMM 81-00 PDF p. 2808). It starts on the upper-deck pressure fitting on the throttle body\'s upstream half. Ø11 mm hose, routing approximate.',
@@ -850,10 +867,10 @@ part(() => cyl(INTAKE_MANIFOLD_R, MANIFOLD_CAP_T, "x"), ["engine"], {
   color: INDUCTION_COLOR,
   groups: ["induction"],
 });
-part(() => tubeGeo(MANIFOLD_PRESSURE_LINE, SENSE_LINE_R, 0), ["engine"], {
+part(() => capEnds(tubeGeo(MANIFOLD_PRESSURE_LINE, SENSE_LINE_R, 0)), ["engine"], {
   name: "Manifold pressure line",
   color: "#3A3A3A",
-  note: 'Manifold (below-throttle) pressure to the wastegate controller: the hose "TO MANIFOLD" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742; AMM 81-00 PDF p. 2808: "the difference between the upper deck and manifold pressures"). From the controller\'s underside, between the magnetos, to a fitting on the manifold\'s aft end cap. Ø11 mm hose, fitting station and routing approximate.',
+  note: 'Manifold (below-throttle) pressure to the wastegate controller: the hose "TO MANIFOLD" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742; AMM 81-00 PDF p. 2808: "the difference between the upper deck and manifold pressures"). From the controller\'s top face, along the firewall bay over the Master Control Unit\'s heat shield, up over the A/C compressor and down between the magnetos, to a fitting on the manifold\'s aft end cap. Ø11 mm hose, fitting station and routing approximate.',
   groups: ["induction"],
 });
 
@@ -882,8 +899,6 @@ const ACTUATOR_END: Vec3 = [
   WASTEGATE_ACTUATOR[1],
   WASTEGATE_ACTUATOR[2] - ACTUATOR_LEN / 2 - FACE_GAP,
 ];
-/** Controller box (engine.ts, 0.055 × 0.06 × 0.09 m, approximate): the oil hoses leave its underside. */
-const CONTROLLER_BOTTOM_Y = GATE_CONTROLLER[1] - 0.03;
 /** Oil supply: from the oil cooler's outlet fitting (`OIL_SOURCE`, engine-oil.ts), the separate wastegate hose in
  * AMM Fig 79-30-2 sheet 3 (PDF p. 2787); the turbo check valve and tee hang beside it, forward of the oil circuit's cooler feed, down beside the oil filter and forward of the wastegate, then
  * outboard under it onto the actuator's underside: the LH intercooler inlet duct passes over the actuator. Approximate. */
@@ -901,29 +916,31 @@ export const WASTEGATE_SUPPLY: Vec3[] = [
 ];
 /** Wastegate → controller hose (Fig 78-10-3 item 6, "WASTEGATE (REF)"): out of the actuator's outboard end, up near the
  * firewall outboard of the oil cooler, the lower-lead drops, the landing light feed and the LH intercooler inlet
- * duct, over the MCU, its CONV fuse and heat shield and forward of the oil separator, then inboard along the firewall
- * between it and the A/C pulleys and belt, up into the controller's underside. Approximate. */
+ * duct, then aft into the controller's forward face at the left rear. Approximate. */
 export const WASTEGATE_RETURN: Vec3[] = [
   ACTUATOR_END,
   [ACTUATOR_END[0], ACTUATOR_END[1], -0.46], // approximate
   [2.685, -0.41, -0.46], // approximate
-  [2.68, -0.36, -0.47], // approximate
-  [2.68, 0.01, -0.47], // approximate (Fig 78-10-3 PDF p. 2742)
-  [2.69, 0.039, -0.315], // over the MCU and its fuse, forward of the oil separator; approximate (Fig 78-10-3 PDF p. 2742)
-  [GATE_CONTROLLER[0] - 0.0155, 0.035, -0.255], // approximate
-  [GATE_CONTROLLER[0] - 0.0155, 0.035, GATE_CONTROLLER[2] - 0.03], // approximate
-  [GATE_CONTROLLER[0] - 0.0155, CONTROLLER_BOTTOM_Y, GATE_CONTROLLER[2] - 0.03], // approximate
+  [2.69, -0.36, -0.488], // approximate
+  [2.69, -0.005, -0.488], // approximate (Fig 78-10-3 PDF p. 2742)
+  [2.69, -0.005, -0.46], // approximate
+  [CONTROLLER_FRONT_X, -0.005, -0.46], // the box's forward face, approximate
 ];
-/** Controller → engine hose (Fig 78-10-3 "TO ENGINE"): from the controller's underside, forward over the A/C hoses
- *, down between them and the magneto P-lead risers, then forward under the P-leads and inboard of the oil filter
- * onto the crankcase's aft face above the oil pump. Approximate. */
+/** Controller → engine hose (Fig 78-10-3 "TO ENGINE"): forward out of the controller's forward face, outboard of the
+ * Master Control Unit's heat shield and aft of the LH intercooler, inboard in front of the shield over the oil cooler
+ * and under the A/C compressor, then down inboard of the oil filter onto the crankcase's aft face above the oil pump.
+ * Approximate. */
 export const CONTROLLER_RETURN: Vec3[] = [
-  [GATE_CONTROLLER[0] + 0.015, CONTROLLER_BOTTOM_Y, GATE_CONTROLLER[2] + 0.03], // approximate
-  [2.67, 0.045, 0.06], // approximate
-  [2.7, 0.03, 0.03], // approximate
-  [2.7, -0.065, 0.0], // approximate
-  [2.742, -0.1, -0.012], // approximate
-  [2.742, -0.16, -0.035], // approximate
+  [CONTROLLER_FRONT_X, 0.02, -0.435], // the box's forward face, approximate
+  [2.722, 0.02, -0.435], // approximate
+  [2.722, 0.01, -0.39], // approximate
+  [2.722, 0.01, -0.262], // approximate
+  [2.722, 0.042, -0.232], // over the A/C hoses, under the compressor; approximate
+  [2.722, 0.042, -0.198], // approximate
+  [2.722, 0.0, -0.165], // approximate
+  [2.722, 0.0, -0.12], // approximate
+  [2.735, -0.06, -0.07], // approximate
+  [2.735, -0.16, -0.06], // approximate
   [2.75, -0.16, -0.06], // approximate
 ];
 /** The three oil lines' sampled centrelines, joined through the actuator and the controller: the `gateOil` flow. */

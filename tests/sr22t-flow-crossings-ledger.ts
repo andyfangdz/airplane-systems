@@ -205,6 +205,9 @@ export const ENGINE_CROSSINGS: Record<string, [mm: number, why: Why]> = {
   "gateOil / Wastegate actuator": [17.6, "host"],
   "gateOil / Wastegate controller": [4.5, "host"],
   "gateOil / Wastegate oil line": [10.3, "host"],
+  // the flow's own supply hose: its chord from the hose's end at the actuator's underside grazes the open end ring by
+  // about 1 mm, depending only on where the audit's spaced samples fall along the re-routed flow
+  "gateOil / Wastegate oil supply line": [1.0, "host"],
   "hotIn / Exhaust crossover / heat exchanger": [31.2, "host"],
   "man1 / Intake pipe — cyl 1": [23.5, "host"],
   "man2 / Intake pipe — cyl 2": [23.5, "host"],
