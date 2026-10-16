@@ -143,22 +143,22 @@ function CameraRig() {
     clearDamping(controls);
     camera.position.copy(p0);
     controls.target.copy(t0);
-    const model = scene.getObjectByName("aircraft-model");
+    // only the overview fits the model's bounds; a system's preset needs no model (its code may still be loading)
+    const overview = useView.getState().sys === "overview",
+      model = overview ? scene.getObjectByName("aircraft-model") : undefined;
     const fitted =
-      cam.preset && model && camera instanceof THREE.PerspectiveCamera
+      cam.preset && (model || !overview) && camera instanceof THREE.PerspectiveCamera
         ? viewPresetCamera(
             cam.preset,
             cam.p,
             cam.t,
-            useView.getState().sys === "overview" ? airplaneBounds(model) : null,
+            model ? airplaneBounds(model) : null,
             camera.fov,
             size.width / size.height,
           )
         : null;
     presetSize.current =
-      fitted && cam.preset && useView.getState().sys === "overview"
-        ? { request: cam, width: size.width, height: size.height }
-        : null;
+      fitted && cam.preset && overview ? { request: cam, width: size.width, height: size.height } : null;
     const [p, t] = fitted ?? [cam.p, cam.t];
     const tt = V(...t),
       tp = V(...p)

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useAircraft, useAircraftDef } from "@/lib/fleet";
+import { retryLoad, useAircraft, useAircraftDef, useLoadFailed } from "@/lib/fleet";
 import { skipBuild, useBuild, type BuildStage } from "@/lib/build";
 
 const TEXT: Record<Exclude<BuildStage, "ready">, string> = {
@@ -16,12 +16,13 @@ let completedOnce = false;
 /**
  * Loading overlay over the 3D view, from the first paint (it is in the static HTML) until the scene is complete: the
  * airplane's name, a spinner and the build stage; while systems are added part by part (the camera already responds) it
- * shrinks to a bar with the part count and an Add all button (the rest at once, no build-in glow). It carries `data-building`
- * while shown.
+ * shrinks to a bar with the part count and an Add all button (the rest at once, no build-in glow). If the airplane's code
+ * fails to download it says so and offers Retry. It carries `data-building` while shown.
  */
 export function Loader() {
   const def = useAircraft(),
-    progressive = !!useAircraftDef()?.progressive;
+    progressive = !!useAircraftDef()?.progressive,
+    failed = useLoadFailed();
   const { stage, done, total } = useBuild();
   // every view is served the same static HTML: name the airplane only once mounted (as App does for the tab title)
   const [mounted, setMounted] = useState(false);
@@ -31,6 +32,20 @@ export function Loader() {
   }, [stage]);
   if (stage === "ready") return null;
   const bar = stage === "systems";
+  if (failed && stage === "code")
+    return (
+      <div className="loader" role="alert" data-building="failed">
+        <div className="loader-card">
+          <span className="loader-text">
+            {mounted && <b>{def.name} </b>}
+            didn&apos;t load. Check the connection and try again.
+          </span>
+          <button type="button" className="loader-retry" onClick={retryLoad}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   return (
     <div
       className={`loader${bar ? " loader-bar" : ""}${completedOnce && progressive ? " loader-later" : ""}`}
