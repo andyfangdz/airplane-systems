@@ -158,8 +158,11 @@ export interface EngineLayout {
   oilFiller: { side: "L" | "R" };
   /** Oil pump drive gear meshes with the crankshaft gear, or turns with the camshaft gear (splined into it). */
   oilPumpDrive: "crank" | "cam";
-  /** Label pins: text and position. */
-  labels: (d: Dims, spec: EngineSpec) => [string, V3][];
+  /**
+   * Label pins: text and position. `occlude` hides the label while a solid part stands between it and the camera, other
+   * than the part it names (the scene group of the label's name; kit.ts labelOccluder).
+   */
+  labels: (d: Dims, spec: EngineSpec) => [string, V3, { occlude: true }?][];
   /** Initial camera position and orbit target, and the furthest zoom. */
   camera: { position: V3; target: V3; maxDistance: number };
   notes: Partial<Record<NoteKey, string>>;

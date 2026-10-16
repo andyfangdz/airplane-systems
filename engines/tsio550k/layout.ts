@@ -132,8 +132,9 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   oilPumpDrive: "cam",
   labels: (d) => [
     ["Magnetos", [d.accRear + 0.045, 0.26, 0]],
-    // over the canister's top (2.42 in above the crankshaft)
-    ["Oil filter", [d.accRear - 2.96 * IN, 2.42 * IN + 0.025, -4 * IN]],
+    // over the canister's top (2.42 in above the crankshaft), shown while the canister is in view: hidden by the magnetos
+    // from the default and iso cameras, never by the filter and its adapter
+    ["Oil filter", [d.accRear - 2.96 * IN, 2.42 * IN + 0.025, -4 * IN], { occlude: true }],
     ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
     ["Starter", [d.accRear - 1.78 * IN, -0.2, 0.2]],
     ["ALT 1", [d.accRear + 27.3 * IN, 0.1, 0.26]],

@@ -157,6 +157,27 @@ export type Mats = ReturnType<typeof makeMats>;
 /** Materials that turn translucent in X-ray. */
 export const XRAY_MATS = ["case", "sump", "acc", "barrel", "head", "cover", "shroud"] as const;
 
+/**
+ * What hides an occluding label (drei `Html occlude` takes it as its one target): the parts under `root` the pointer
+ * would stop on, never the part the label names (the group called `own`). Hidden parts and parts X-ray has turned
+ * see-through (the pointer's rule, parts.tsx) don't count, so the label shows from every side its part is seen from.
+ */
+export function labelOccluder(root: THREE.Object3D, own: string): { current: THREE.Object3D } {
+  const target = new THREE.Object3D();
+  target.raycast = (ray, hits) => {
+    const visit = (o: THREE.Object3D) => {
+      if (!o.visible || o.name === own) return;
+      if (o instanceof THREE.Mesh) {
+        const m = o.material as THREE.Material;
+        if (!(m.transparent && m.opacity < 0.5 && !m.userData.hoverWhenClear)) o.raycast(ray, hits);
+      }
+      o.children.forEach(visit);
+    };
+    visit(root);
+  };
+  return { current: target };
+}
+
 /** Cylinder along +x (lathe axis), centred. */
 export function rod(radius: number, length: number, segs = 16) {
   const g = new THREE.CylinderGeometry(radius, radius, length, segs);

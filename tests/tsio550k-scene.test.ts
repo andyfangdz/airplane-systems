@@ -4,9 +4,10 @@
  * each). The engine is not on the engine pages yet, so its scene is mounted here directly, stopped.
  */
 // vitest: isolate (mounts the scene with React Three Fiber)
-import { createElement as h } from "react";
+import { createElement as h, type FC } from "react";
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
+import { presetCamera, type CameraPreset } from "@/lib/camera";
 import { mod, sideAngle } from "@/engines/model/cycle";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
@@ -21,6 +22,7 @@ import {
   gearSpins,
   headPoints,
   IN,
+  labelOccluder,
   magDrive,
   magnetoPose,
   makeMats,
@@ -29,6 +31,7 @@ import {
   oilPump,
   throwRotation,
   valveLayout,
+  XRAY_MATS,
 } from "@/components/engine/scene/kit";
 import { layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
@@ -307,11 +310,12 @@ describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", (
     expect(at["ALT 2"][2]).toBeLessThan(0);
   });
 
-  test("the oil filter's label sits over the canister", () => {
-    const [, at] = L.labels(d, S).find(([t]) => t === "Oil filter")!;
+  test("the oil filter's label sits over the canister and hides while the canister is out of view", () => {
+    const [, at, opts] = L.labels(d, S).find(([t]) => t === "Oil filter")!;
     const f = oilFilterPose(d, L);
     expect(at[1]).toBeGreaterThan(f.centre[1] + f.len / 2);
     expect(Math.hypot(at[0] - f.centre[0], at[2] - f.centre[2])).toBeLessThan(f.r);
+    expect(opts).toEqual({ occlude: true });
   });
 });
 
@@ -392,5 +396,61 @@ describe("TSIO-550-K magneto drive train (M-18 2-2.2; AMM Fig 74-20-1 detail A)"
         }
         expect(seen, `${side} magneto gear from ${cam}`).toBeGreaterThanOrEqual(need);
       }
+  });
+});
+
+describe("TSIO-550-K oil filter label, seen from each side", () => {
+  // the page's model (EngineScene.tsx EngineModel) as it opens: X-ray on, every group shown, propeller on
+  async function model() {
+    const sim = simFor(S);
+    expect(sim.useUi.getState().view).toMatchObject({ xray: true, prop: true, hidden: [] });
+    const mats = makeMats();
+    for (const k of XRAY_MATS) mats[k].opacity = k === "barrel" || k === "head" ? 0.28 : 0.16;
+    const p = { sim, d, mats };
+    const parts: FC<typeof p>[] = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase];
+    parts.push(Lubrication, Ignition, FuelSystem, Induction, Drives);
+    return mountScene(
+      h(
+        "group",
+        { name: "engine-model" },
+        ...parts.map((C, k) => h(C, { ...p, key: k })),
+        h("group", { name: "propeller", key: "prop" }, h(Propeller, p)),
+      ),
+    );
+  }
+
+  test("shows on the canister from the side, top, rear and below; the magnetos hide it from the default and iso views", async () => {
+    const { scene, unmount } = await model();
+    const [, at, opts] = L.labels(d, S).find(([t]) => t === "Oil filter")!;
+    expect(opts).toEqual({ occlude: true });
+    const anchor = new THREE.Vector3(...at);
+    // every mesh but the propeller, framed from each side as lib/camera.ts frames the airplanes' views; the rear is the
+    // front view mirrored through the box centre it aims at
+    const bounds = new THREE.Box3();
+    const fit = (o: THREE.Object3D) => {
+      if (o.name === "propeller") return;
+      if (o instanceof THREE.Mesh) bounds.expandByObject(o);
+      o.children.forEach(fit);
+    };
+    fit(scene.getObjectByName("engine-model")!);
+    const pose = (c: CameraPreset) => new THREE.Vector3(...presetCamera(c, bounds, 38, 1440 / 900)[0]);
+    const [front, centre] = presetCamera("front", bounds, 38, 1440 / 900);
+    const cams: [string, THREE.Vector3][] = [
+      ["default", new THREE.Vector3(...L.camera.position)],
+      ...(["iso", "side", "top", "front", "below"] as const).map((c): [string, THREE.Vector3] => [c, pose(c)]),
+      ["rear", new THREE.Vector3(2 * centre[0] - front[0], front[1], front[2])],
+    ];
+    // drei Html occlude: a ray from the camera through the anchor; shown when nothing is hit before the anchor
+    const occluder = labelOccluder(scene, "Oil filter");
+    const ray = new THREE.Raycaster();
+    const shown = Object.fromEntries(
+      cams.map(([c, eye]) => {
+        ray.set(eye, anchor.clone().sub(eye).normalize());
+        const hits = ray.intersectObjects([occluder.current], true);
+        return [c, !hits.length || eye.distanceTo(anchor) < hits[0].distance];
+      }),
+    );
+    expect(shown).toMatchObject({ default: false, iso: false, side: true, top: true, rear: true, below: true });
+    await unmount();
   });
 });

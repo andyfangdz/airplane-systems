@@ -23,6 +23,7 @@ import {
   gearSpins,
   headPoints,
   IN,
+  labelOccluder,
   lobeAngle,
   magDrive,
   magnetoPose,
@@ -303,5 +304,64 @@ describe("IO-390 scene layout defaults", () => {
       ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
       ["Governor", [d.front + 0.04, 0.16, -0.07]],
     ]);
+  });
+});
+
+describe("label occlusion (kit.ts labelOccluder)", () => {
+  // an eye in front of a label anchor at the origin, and a 0.1 m box half-way between them
+  const eye = new THREE.Vector3(1, 0, 0),
+    anchor = new THREE.Vector3(0, 0, 0);
+  const box = (material: THREE.Material = new THREE.MeshBasicMaterial()) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), material);
+    m.position.set(0.5, 0, 0);
+    return m;
+  };
+  /** Whether the label shows: drei's test, a ray from the camera through the anchor that hits nothing before it. */
+  function shows(root: THREE.Object3D, own = "Oil filter") {
+    root.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(eye, anchor.clone().sub(eye).normalize());
+    const hits = ray.intersectObjects([labelOccluder(root, own).current], true);
+    return !hits.length || hits[0].distance > eye.distanceTo(anchor);
+  }
+
+  test("a solid part between the camera and the label hides it", () => {
+    const root = new THREE.Group();
+    root.add(box());
+    expect(shows(root)).toBe(false);
+  });
+
+  test("nothing under a hidden group hides it, though the meshes themselves are visible", () => {
+    const root = new THREE.Group(),
+      hidden = new THREE.Group();
+    const inner = new THREE.Group();
+    inner.add(box());
+    hidden.add(inner);
+    root.add(hidden);
+    expect(shows(root)).toBe(false);
+    hidden.visible = false;
+    expect(inner.visible && inner.children[0].visible).toBe(true);
+    expect(shows(root)).toBe(true);
+  });
+
+  test("the part the label names never hides it, nor anything inside its group", () => {
+    const root = new THREE.Group(),
+      own = new THREE.Group();
+    own.name = "Oil filter";
+    own.add(box());
+    root.add(own);
+    expect(shows(root)).toBe(true);
+    expect(shows(root, "Magnetos")).toBe(false);
+  });
+
+  test("a part X-ray has made see-through lets the label show, unless it keeps catching the pointer", () => {
+    const clear = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.16 });
+    const root = new THREE.Group();
+    root.add(box(clear));
+    expect(shows(root)).toBe(true);
+    clear.userData.hoverWhenClear = true;
+    expect(shows(root)).toBe(false);
+    clear.userData.hoverWhenClear = false;
+    clear.opacity = 1;
+    expect(shows(root)).toBe(false);
   });
 });

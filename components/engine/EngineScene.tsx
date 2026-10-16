@@ -14,7 +14,7 @@ import * as THREE from "three";
 import type { EngineSim } from "./store";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { Cylinders } from "./scene/Cylinders";
-import { dims, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
+import { dims, labelOccluder, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
 import { layoutFor } from "./scene/layout";
 import { Group, PartNotesProvider } from "./scene/parts";
 import { ComponentStage } from "./ComponentStage";
@@ -84,10 +84,11 @@ function EngineModel({ sim }: { sim: EngineSim }) {
 function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
-  const gl = useThree((s) => s.gl);
+  const gl = useThree((s) => s.gl),
+    scene = useThree((s) => s.scene);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
-  const items: [string, [number, number, number]][] = [
+  const items: [string, [number, number, number], { occlude: true }?][] = [
     ...sim.spec.geometry.cylinders.map((c): [string, [number, number, number]] => [
       `Cyl ${c.n}`,
       [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
@@ -97,8 +98,16 @@ function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   if (propOn) items.push(["Propeller", [d.flangeX + 0.1, 0.55, 0]]);
   return (
     <>
-      {items.map(([t, p]) => (
-        <Html key={t} position={p} portal={portal} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
+      {items.map(([t, p, o]) => (
+        <Html
+          key={t}
+          position={p}
+          portal={portal}
+          center
+          occlude={o?.occlude && [labelOccluder(scene, t)]}
+          zIndexRange={[10, 0]}
+          style={{ pointerEvents: "none" }}
+        >
           <div className="eng-label">{t}</div>
         </Html>
       ))}

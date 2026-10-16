@@ -255,7 +255,8 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         position={[0, d.sumpBottom + 0.005, 0]}
         raycast={() => null}
       />
-      <>
+      {/* named for its label, which the filter's own parts don't hide (kit.ts labelOccluder) */}
+      <group name="Oil filter">
         <P
           name="Oil filter"
           note={L.notes.oilFilter ?? "Full-flow oil filter on the accessory housing (IOM p. 5, Figure 8)."}
@@ -270,7 +271,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
             material={mats.acc}
           />
         )}
-      </>
+      </group>
       <P
         name="Oil pump"
         note={
