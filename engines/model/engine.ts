@@ -327,8 +327,13 @@ export function prime(spec: EngineSpec, s: EngineState, strokes = 1) {
 }
 
 const ratedAirCache = new WeakMap<EngineSpec, number>();
-/** Air flow (lb/h) at rated power, best-power mixture, from the fuel the manual gives for it. */
+/**
+ * Air flow (lb/h) at rated power, best-power mixture, from the fuel the manual gives for it. The carburetor and the
+ * servo injector meter against this; a Continental system meters against `fuel.ts`'s `ratedAirLbH` instead.
+ */
 export function ratedAirLbH(spec: EngineSpec) {
+  if (spec.fuelSystem.kind === "continental")
+    throw new Error(`${spec.id}: a Continental fuel system meters against fuel.ts's ratedAirLbH; call that one`);
   let v = ratedAirCache.get(spec);
   if (v === undefined) {
     v =

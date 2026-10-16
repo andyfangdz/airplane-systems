@@ -18,6 +18,7 @@ import {
   highBoostEnabled,
   initialState,
   noFailures,
+  ratedAirLbH as servoRatedAirLbH,
   sparks,
   startFiringMags,
   step,
@@ -214,6 +215,11 @@ describe("Continental fuel metering (SR22T POH 7-38; M-18 2-1, Figure 2-36 p. 2-
     expect(peak.fuel).toBeLessThanOrEqual(99);
     // recorded, not fitted: M-18 Table 2-6's 41.5 lb/min at 315 bhp would need a volumetric efficiency near 1.2 (C7)
     expect(ratedAirLbH(K) / 60).toBeLessThan(41.5);
+  });
+
+  test("the servo injector's and carburetor's rated air refuses a Continental system; the -K meters against fuel.ts's", () => {
+    expect(() => servoRatedAirLbH(K)).toThrow(/fuel\.ts's ratedAirLbH/);
+    expect(servoRatedAirLbH(IO390)).toBeGreaterThan(0);
   });
 
   test("no density richening: Continental full-rich fuel follows the air flow alone, where the servo richens (POH 7-38)", () => {
