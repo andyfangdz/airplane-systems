@@ -6,6 +6,8 @@ import type { EngineSpec } from "../types";
 import { atmosphere, INHG_PA } from "./atmosphere";
 import { type Controls, type EngineState, type Environment, type Failures, step } from "./engine";
 import { mixtureForFlow } from "./fuel";
+import { inductionCal } from "./induction";
+import { turboMetering } from "./turbo";
 
 export interface Hold {
   /** Throttle holds this manifold pressure (inHg) or this rpm. */
@@ -24,6 +26,12 @@ export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, l
   }
   const air = atmosphere(env.altFt, env.isaDevC);
   const rho = (s.inletInHg * INHG_PA) / (287.05 * (s.inletC + 273.15));
+  // a turbocharged -K meters on throttle angle and deck pressure, not the air it takes (turbo.ts): ask for the λ that,
+  // at the metered air and deck scale, gives this λ at the actual air
+  if (spec.turbo && s.air > 0) {
+    const m = turboMetering(spec, inductionCal(spec).ve, s.rpm, s.map, s.deckInHg!);
+    return mixtureForFlow(spec, m.airLbH, (lambda * m.airLbH * m.scale) / s.air, rho || air.rho, m.scheduleLbH);
+  }
   return mixtureForFlow(spec, s.air, lambda, rho || air.rho);
 }
 

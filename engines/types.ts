@@ -68,6 +68,12 @@ export interface TurboSpec {
   count: 2;
   etaCompressor: number;
   etaTurbine: number;
+  /**
+   * Compressor map edge: [pressure ratio, fraction of `etaCompressor`], linear between points and flat beyond the
+   * ends. No map is published; the efficiency falling toward the edge is what gives a critical altitude. Absent:
+   * `etaCompressor` at every pressure ratio.
+   */
+  compressorEta?: [number, number][];
   /** Turbine nozzle effective area (per side), m². */
   turbineArea: number;
   /** First-order spool lag on the upper-deck pressure, s. */
