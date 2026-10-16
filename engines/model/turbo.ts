@@ -316,9 +316,10 @@ export const reliefFlow = (turbo: TurboSpec, deckInHg: number, tK: number, cowlI
 /**
  * Turbine-inlet temperature (°F) each side's probe settles to, [L, R], from the cylinders' exhaust gas temperatures:
  * that bank's mean (left 2-4-6, right 1-3-5 by `CylinderDef.side`), mixed with the other bank's by `titCrossover`
- * through the crossover pipe, plus `titOffsetF`.
+ * through the crossover pipe, plus `titOffsetF`. With `titGain` and the outside air temperature `oatF`, the rise of that
+ * mix above outside air is scaled by the gain (a cold engine still reads outside air).
  */
-export function titTargets(spec: EngineSpec, egtF: number[]): [number, number] {
+export function titTargets(spec: EngineSpec, egtF: number[], oatF?: number): [number, number] {
   const bank = (side: Side) => {
     const v = spec.geometry.cylinders.flatMap((c, i) => (c.side === side ? [egtF[i]] : []));
     return v.reduce((a, x) => a + x, 0) / v.length;
@@ -326,8 +327,10 @@ export function titTargets(spec: EngineSpec, egtF: number[]): [number, number] {
   const l = bank("L"),
     r = bank("R");
   const x = spec.calibration.titCrossover ?? 0,
-    o = spec.calibration.titOffsetF ?? 0;
-  return [(1 - x) * l + x * r + o, (1 - x) * r + x * l + o];
+    o = spec.calibration.titOffsetF ?? 0,
+    g = spec.calibration.titGain;
+  const read = (mix: number) => (g !== undefined && oatF !== undefined ? oatF + (mix - oatF) * g : mix) + o;
+  return [read((1 - x) * l + x * r), read((1 - x) * r + x * l)];
 }
 
 /** Maximum continuous TIT (°F): where the spec's `tit` marking turns to its warning band (POH 2-9; M-18 Table 2-1). */

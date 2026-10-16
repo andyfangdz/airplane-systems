@@ -175,7 +175,10 @@ export const pumpingHp = (spec: EngineSpec, rpm: number, map: number, exhaust: n
  * Continental form: where the chart is at full rich, its gross is divided by the power full rich gives relative to
  * best power, `mixturePower(lambdaFullRich)`, so a cylinder running at full rich reproduces the chart. The divisor is
  * blended in with `fullRichWeight`. `lambdaFullRich` is the full-rich λ at the current air flow (fuel.ts
- * `fullRichLambdaAt`); without it the chart is taken as best power throughout.
+ * `fullRichLambdaAt`); without it the chart is taken as best power throughout. With `chargeRefC` and a charge
+ * temperature `chargeC` (the intercooled manifold air), the chart's power scales by the charge's density against the
+ * reference, in place of the compressor-inlet law, so the power follows the air the cylinders take (lean of peak, the
+ * fuel they burn).
  */
 export function grossIndicatedHp(
   spec: EngineSpec,
@@ -186,6 +189,7 @@ export function grossIndicatedHp(
   exhaust: number,
   ve: (rpm: number) => number,
   lambdaFullRich?: number,
+  chargeC?: number,
 ) {
   if (rpm <= 0) return 0;
   const k = continentalChart(spec);
@@ -193,9 +197,19 @@ export function grossIndicatedHp(
     const L = k.lines;
     const r = clamp(rpm, L[0].rpm, L[L.length - 1].rpm);
     const cal = spec.calibration;
-    const fr = lambdaFullRich === undefined ? 1 : mixturePower(lambdaFullRich, cal.lambdaBestPower, cal.peakEgtPower);
+    const fr =
+      lambdaFullRich === undefined
+        ? 1
+        : mixturePower(lambdaFullRich, cal.lambdaBestPower, cal.peakEgtPower, cal.richMisfireLambda);
     const divisor = 1 + (fr - 1) * fullRichWeight(spec, map);
-    const gross = chartHp(spec, r, map, altFt, inletC) + frictionHp(spec, r) + pumpingHp(spec, r, map, exhaust);
+    // with a charge reference the charge's density carries the temperature effect in place of the 1 %/6 °F
+    // compressor-inlet law (at a fixed pressure ratio the intercooled charge's kelvin temperature follows the inlet's:
+    // ISA +30 °C costs about 9 % either way, M-18 Table 2-2 note 1)
+    const chart =
+      k.chargeRefC !== undefined && chargeC !== undefined
+        ? (seaLevelHpContinental(spec, r, map) * (k.chargeRefC + 273.15)) / (chargeC + 273.15)
+        : chartHp(spec, r, map, altFt, inletC);
+    const gross = chart + frictionHp(spec, r) + pumpingHp(spec, r, map, exhaust);
     return (Math.max(0, gross) / Math.max(divisor, 0.05)) * (rpm / r) * (ve(rpm) / ve(r));
   }
   const L = seaLevelLines(spec);

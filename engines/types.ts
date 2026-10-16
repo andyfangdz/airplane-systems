@@ -354,12 +354,29 @@ export interface EngineSpec {
     ve?: [number, number][];
     /** λ the page's lean-of-peak setting aims for. */
     lambdaTarget?: number;
-    /** Turbine-inlet temperature: offset over the bank mean EGT (°F), crossover mixing fraction, lag (s). */
+    /**
+     * Turbine-inlet temperature: offset over the bank mean EGT (°F), crossover mixing fraction, lag (s), and `titGain`:
+     * the TIT's rise above outside air over the mixed bank EGT's (absent: 1), so a stopped, cold engine reads outside
+     * air whatever the gain.
+     */
     titOffsetF?: number;
+    titGain?: number;
     titCrossover?: number;
     titTauS?: number;
     /** Propeller slipstream over the cylinders at rated power, kt (∝ power^⅓). Default 55. */
     slipKt?: number;
+    /** The oil cooler's share of the slipstream at rated power, kt. Absent: `slipKt`, the cylinders'. */
+    oilSlipKt?: number;
+    /**
+     * The rich misfire edge, λ: below it cycles start to misfire, gone 0.15 lower (mixture.ts `stability`). Default
+     * 0.55.
+     */
+    richMisfireLambda?: number;
+    /**
+     * The most a cylinder's work may gain over full rich when leaned at a Continental chart's full-rich manifold
+     * pressures, phased in with the full-rich basis (performance.ts `fullRichWeight`). Absent: no cap.
+     */
+    leanGainMax?: number;
   };
 }
 
@@ -404,6 +421,12 @@ export interface ContinentalPerformance {
   fullRichAboveInHg: number;
   blendInHg: number;
   tempPctPerF: number;
+  /**
+   * The charge (manifold air) temperature, °C, the chart's power is read at. With it the running engine's chart power
+   * scales with its intercooled charge's density, the kelvin ratio, in place of the compressor-inlet law. Absent: no
+   * charge correction.
+   */
+  chargeRefC?: number;
 }
 
 /**

@@ -70,7 +70,7 @@ const SHARED: Patch<EngineSpec> = {
   induction: { altAir: "manual", altAirDeltaC: 15, filterBlockedArea: 0.12, ramEta: 0.7 },
   propeller: { control: "lever" },
   accessories: { starterTorque: 230, starterFreeRpm: 380 },
-  calibration: { slipKt: 55 },
+  calibration: { slipKt: 55, oilSlipKt: 55, richMisfireLambda: 0.55 },
   oil: { pickupQt: [1.5, 3] },
 };
 
@@ -80,6 +80,8 @@ const MOVED_SHARED: [string, Patch<EngineSpec>][] = [
   ["accessories.starterTorque", { accessories: { starterTorque: 200 } }],
   ["accessories.starterFreeRpm", { accessories: { starterFreeRpm: 300 } }],
   ["calibration.slipKt", { calibration: { slipKt: 70 } }],
+  ["calibration.oilSlipKt", { calibration: { oilSlipKt: 30 } }],
+  ["calibration.richMisfireLambda", { calibration: { richMisfireLambda: 0.9 } }],
   ["oil.pickupQt", { oil: { pickupQt: [1, 2] } }],
 ];
 

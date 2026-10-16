@@ -26,7 +26,7 @@ import {
 } from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
-import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
+import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
 import { governor, inducedVelocity, propTorque } from "./propeller";
 import {
   actuatorPressure,
@@ -426,6 +426,8 @@ function substep(
 ) {
   const dtT = dt * thermal;
   const cal = spec.calibration;
+  // the rich misfire edge, where the spec sets one (mixture.ts; absent: 0.55)
+  const rich = cal.richMisfireLambda;
   const ind = inductionCal(spec);
   const air = atmosphere(env.altFt, env.isaDevC);
   const nCyl = spec.geometry.cylinders.length;
@@ -571,7 +573,26 @@ function substep(
   // full rich, the cylinders burn at the schedule's λ scaled by the air they take over the air metered for
   const lfr = fullRichLambdaAt(spec, scheduleLbH);
   const lambdaFR = lfr !== undefined && airLbH > 0 && meterLbH > 0 ? (lfr * airLbH) / (meterLbH * meterScale) : lfr;
-  const bp = grossIndicatedHp(spec, s.rpm, map, env.altFt, inletC, exhaust, ind.ve, lambdaFR);
+  // leaning above the chart's full-rich manifold pressures: the work a cylinder gains over full rich is capped at
+  // `leanGainMax`, phased in with the full-rich basis (performance.ts fullRichWeight); absent, no cap. On a hot day the
+  // full-rich basis is a very rich λ, and leaning from it would otherwise gain far more than a standard day's
+  const frWeight = fullRichWeight(spec, map);
+  const leanCap =
+    cal.leanGainMax !== undefined && lambdaFR !== undefined && frWeight > 0
+      ? cal.leanGainMax * mixturePower(lambdaFR, cal.lambdaBestPower, cal.peakEgtPower, rich)
+      : undefined;
+  // a turbocharged engine's chart power follows its intercooled charge's density (performance.ts, chargeRefC)
+  const bp = grossIndicatedHp(
+    spec,
+    s.rpm,
+    map,
+    env.altFt,
+    inletC,
+    exhaust,
+    ind.ve,
+    lambdaFR,
+    spec.turbo ? deckC : undefined,
+  );
   const ratedGross = ratedGrossHp(spec);
   let work = 0;
   let worst = 0;
@@ -585,14 +606,15 @@ function substep(
     const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
     cy.lambda = cy.fuel > 1e-4 ? airCyl / (cy.fuel * AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
-    let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower) : 0;
+    let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower, rich) : 0;
+    if (leanCap !== undefined && w > leanCap) w -= frWeight * (w - leanCap);
     if (cy.plugs === 1) w *= cal.singlePlug;
     if (c.mags === "START") w *= 0.85; // retarded spark wastes work
     cy.work = w;
     cy.hp = (bp / nCyl) * w;
     work += w;
     // roughness: a dead or misfiring cylinder, or one plug (slower, less even burn)
-    const stab = cy.plugs ? stability(cy.lambda) : 0;
+    const stab = cy.plugs ? stability(cy.lambda, rich) : 0;
     worst = Math.max(worst, 1 - stab, cy.plugs === 1 ? 0.15 : 0);
   });
   const mean = work / nCyl;
@@ -638,9 +660,13 @@ function substep(
   s.pct = (s.hp / rated.hp) * 100;
 
   // ---- cooling air over the cylinders: airspeed plus propeller slipstream (actuator disk, ∝ P^⅓)
-  const slipKt = (cal.slipKt ?? 55) * Math.cbrt(Math.max(s.hp, 0) / rated.hp);
-  const coolKt = Math.sqrt(env.tasKt ** 2 + slipKt ** 2);
-  const cooling = Math.max(0.15, Math.pow(((air.rho / RHO0) * coolKt) / 100, 0.4));
+  const coolingFor = (slipRated: number) => {
+    const slip = slipRated * Math.cbrt(Math.max(s.hp, 0) / rated.hp);
+    return Math.max(0.15, Math.pow(((air.rho / RHO0) * Math.sqrt(env.tasKt ** 2 + slip ** 2)) / 100, 0.4));
+  };
+  const cooling = coolingFor(cal.slipKt ?? 55);
+  // the oil cooler's own share of the slipstream, where the spec gives one (absent: the cylinders')
+  const oilCooling = cal.oilSlipKt === undefined ? cooling : coolingFor(cal.oilSlipKt);
   const oatF = cToF(air.t);
 
   // ---- exhaust gas and cylinder head temperatures
@@ -649,12 +675,14 @@ function substep(
     const firing = cy.work > 0.02;
     let egt = oatF;
     if (firing) {
-      egt = cal.egtBase + cal.egtGain * Math.sqrt(Math.max(load, 0)) + egtOffset(cy.lambda);
+      egt = cal.egtBase + cal.egtGain * Math.sqrt(Math.max(load, 0)) + egtOffset(cy.lambda, rich);
       if (cy.plugs === 1) egt += 60; // one flame front: later, hotter exhaust
       if (c.mags === "START") egt += 80;
     } else if (s.rpm > 50) egt = Math.max(oatF, (cy.cht + oatF) / 2);
     cy.egt = approach(cy.egt, egt, dt, firing ? 3 : 12 / thermal);
-    const heat = firing ? cal.chtRise * Math.pow(Math.max(load, 0), 0.6) * headHeat(cy.lambda, cal.lambdaBestPower) : 0;
+    const heat = firing
+      ? cal.chtRise * Math.pow(Math.max(load, 0), 0.6) * headHeat(cy.lambda, cal.lambdaBestPower, rich)
+      : 0;
     const chtTarget = oatF + heat / (cooling * cal.coolingTrim[i]);
     // the time constant follows the cooling: more air, faster approach
     cy.cht = approach(cy.cht, chtTarget, dtT, cal.chtTau / (cooling * cal.coolingTrim[i]));
@@ -665,6 +693,7 @@ function substep(
     const target = titTargets(
       spec,
       s.cyl.map((cy) => cy.egt),
+      oatF,
     );
     const tau = cal.titTauS ?? 5;
     s.tit = [approach(s.tit![0], target[0], dt, tau), approach(s.tit![1], target[1], dt, tau)];
@@ -678,9 +707,9 @@ function substep(
   // W; a turbocharged engine's oil also carries the turbochargers' bearing heat (AMM 79-00 PDF 2764)
   const heatIn = oilHeatHp(fric, gross) * HP_W + (spec.turbo ? bearingHeatW(spec.turbo, s.turboRpm!) : 0);
   const uaRef = (ratedOilHeat(spec) * HP_W) / cal.oilRise; // W/°F, at rated power and reference cooling air
-  const ua = uaRef * Math.max(cooling * (0.25 + 0.75 * valve), 0.05);
+  const ua = uaRef * Math.max(oilCooling * (0.25 + 0.75 * valve), 0.05);
   s.oilT = approach(s.oilT, oatF + heatIn / ua, dtT, (cal.oilTau * uaRef) / ua);
-  s.coolerBtu = s.rpm > 0 ? uaRef * cooling * 0.75 * valve * Math.max(s.oilT - oatF, 0) * 0.056869 : 0;
+  s.coolerBtu = s.rpm > 0 ? uaRef * oilCooling * 0.75 * valve * Math.max(s.oilT - oatF, 0) * 0.056869 : 0;
 
   // ---- oil pressure: positive-displacement pump, resistance ∝ viscosity, relief valve
   let oilP = s.rpm > 0 ? cal.oilPressPerRpm * Math.pow(s.rpm / 1000, 0.7) * Math.sqrt(visc) : 0;

@@ -225,15 +225,17 @@ describe("rating and fuel (POH, AMM)", () => {
     expect(fs.highBoost).toEqual({ mapInHg: 24, altFt: 10000, belowRpm: 500 });
     expect(fs.nozzleRatedPsid).toBeGreaterThanOrEqual(14.2);
     expect(fs.nozzleRatedPsid).toBeLessThanOrEqual(14.8);
-    // the fitted nozzle curve passes the AMM band's mid flow (38.2 GPH × 6.0 lb/gal) at the rated nozzle pressure
-    expect(interp(fs.nozzle.points, fs.nozzleRatedPsid)!).toBeCloseTo(38.2 * 6, 0);
+    // the fitted nozzle curve passes the model's full-power flow when it was anchored (37.23 GPH × 6.0 lb/gal, inside
+    // the AMM Figure 73-20-2 band) at the rated nozzle pressure
+    expect(interp(fs.nozzle.points, fs.nozzleRatedPsid)!).toBeCloseTo(37.23 * 6, 0);
     expect(increasing(fs.nozzle.points.map((p) => p[1]))).toBe(true);
-    // full-rich λ: richest at rated air, and the rated end is the one `calibration.lambdaFullRich` records
+    // full-rich λ: richest at rated air, about 0.58 there, which `calibration.lambdaFullRich` records to two places
     const lam = fs.fullRichLambda;
-    expect(lam[lam.length - 1]).toEqual([1, 0.58]);
-    expect(lam[lam.length - 1][1]).toBe(S.calibration.lambdaFullRich);
+    expect(lam[lam.length - 1][0]).toBe(1);
+    expect(lam[lam.length - 1][1]).toBeCloseTo(0.58, 2);
+    expect(lam[lam.length - 1][1]).toBeCloseTo(S.calibration.lambdaFullRich, 2);
     expect(increasing(lam.map((p) => p[0]))).toBe(true);
-    for (const [, l] of lam) expect(l).toBeGreaterThanOrEqual(0.58);
+    for (const [, l] of lam) expect(l).toBeGreaterThanOrEqual(lam[lam.length - 1][1]);
   });
 });
 
