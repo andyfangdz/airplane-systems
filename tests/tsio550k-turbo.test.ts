@@ -2,7 +2,7 @@
  * The TSIO-550-K turbocharger's pure functions (engines/model/turbo.ts) against what the SR22T POH, the AMM and
  * Continental's M-18 say the system does: an oil-actuated wastegate the spring holds open, a differential controller
  * that bleeds the actuator's oil, intercoolers, and a compressor whose pressure ratio follows the turbines' power.
- * The running engine's calibration targets (CT-n) are in tsio550k-engine.test.ts.
+ * The running engine's calibration targets (T-n) are in tsio550k-engine.test.ts.
  */
 import { describe, expect, test } from "vitest";
 import { TSIO550K } from "@/engines/tsio550k/spec";
@@ -182,7 +182,7 @@ describe("the gate-closed balance at altitude", () => {
     expect(compressorPowerW(T, mA, a.t + 273.15, pr) / power).toBeCloseTo(1, 9);
   });
 
-  test("the steady full-throttle point at 25,000 ft converges with the gate shut and MAP inside CT-7's 30.5–35.0", () => {
+  test("the steady full-throttle point at 25,000 ft converges with the gate shut and MAP inside T-7's 30.5–35.0", () => {
     const tas = 120 / Math.sqrt(atmosphere(25000).sigma);
     const pt = fullThrottleMapTurbo(TSIO550K, 2500, 25000, { tasKt: tas, titF: 1030, oilPsi: 45 });
     expect(pt.gate).toBe(0);

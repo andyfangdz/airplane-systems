@@ -1,7 +1,7 @@
 /**
  * The standalone engine model against what Continental and Cirrus document for the TSIO-550-K (M-18, 21 September
  * 2017; SR22T POH 13772-007; AMM 13773-002 Rev 7). Chart values were digitized (engines/tsio550k/SOURCES.md); the
- * literals below are the chart readings, not read back from the spec. Calibration targets carry a CT-n label the
+ * literals below are the chart readings, not read back from the spec. Calibration targets carry a T-n label the
  * tests use to refer to each other (this file's own numbering). The engine is not registered yet, so these drive the
  * model directly: the POH 4-12 start and taxi warm-up are set up here, not by a page scenario.
  */
@@ -98,7 +98,7 @@ function atBhp(hp: number, lambda?: number) {
 }
 
 describe("Continental sea-level performance chart (M-18 Figure 2-37 p. 2-45)", () => {
-  test("CT-2: the chart function reproduces Figure 2-37 at 20, 25, 30.5, 36.0 and 36.5 in.Hg", () => {
+  test("T-2: the chart function reproduces Figure 2-37 at 20, 25, 30.5, 36.0 and 36.5 in.Hg", () => {
     // [MAP in.Hg, bhp, tolerance]: the 2400 line runs under the hatching above 29 in.Hg (±3 hp)
     const fig: Record<number, [number, number, number][]> = {
       2500: [
@@ -134,13 +134,13 @@ describe("Continental sea-level performance chart (M-18 Figure 2-37 p. 2-45)", (
     );
   });
 
-  test("CT-3: maximum recommended cruise 262 bhp at 2,500 rpm and 30.5 in.Hg (M-18 Table 2-2 p. 2-25), ±2 %", () => {
+  test("T-3: maximum recommended cruise 262 bhp at 2,500 rpm and 30.5 in.Hg (M-18 Table 2-2 p. 2-25), ±2 %", () => {
     const hp = chartHp(K, 2500, 30.5, 0, 15);
     expect(hp).toBeGreaterThanOrEqual(262 * 0.98);
     expect(hp).toBeLessThanOrEqual(262 * 1.02);
   });
 
-  test("CT-4: power falls about 1 % per 6 °F of compressor-inlet temperature above standard (M-18 Table 2-2 note 1)", () => {
+  test("T-4: power falls about 1 % per 6 °F of compressor-inlet temperature above standard (M-18 Table 2-2 note 1)", () => {
     for (const alt of [0, 10000]) {
       const ts = atmosphere(alt).ts;
       const drop = 1 - chartHp(K, 2500, 30.5, alt, ts + 6 / 1.8) / chartHp(K, 2500, 30.5, alt, ts);
@@ -191,7 +191,7 @@ describe("Continental fuel metering (SR22T POH 7-38; M-18 2-1, Figure 2-36 p. 2-
     [236, 118, 128],
     [262, 133, 143],
   ])(
-    "CT-13a: full rich at %i bhp and 2,500 rpm burns inside Figure 2-36's full-rich band, never above it (±3 lb/h)",
+    "T-13a: full rich at %i bhp and 2,500 rpm burns inside Figure 2-36's full-rich band, never above it (±3 lb/h)",
     (hp, lean, rich) => {
       const s = atBhp(hp);
       expect(Math.abs(s.rpm - 2500)).toBeLessThan(20);
@@ -201,12 +201,12 @@ describe("Continental fuel metering (SR22T POH 7-38; M-18 2-1, Figure 2-36 p. 2-
     },
   );
 
-  test("CT-14: at 236 bhp best power burns 103 ± 8 lb/h and peak EGT 89 ± 8 lb/h (Figure 2-36)", () => {
+  test("T-14: at 236 bhp best power burns 103 ± 8 lb/h and peak EGT 89 ± 8 lb/h (Figure 2-36)", () => {
     const best = atBhp(236, K.calibration.lambdaBestPower);
     expect(best.hp).toBeCloseTo(236, 0);
     expect(best.fuel).toBeGreaterThanOrEqual(95);
     // upper tolerances widened to the measured flows (111.2, 98.6 lb/h): the turbocharged -K's volumetric efficiency is
-    // fitted to the AMM full-power fuel flow (CT-12), which outranks this loose Continental target
+    // fitted to the AMM full-power fuel flow (T-12), which outranks this loose Continental target
     // (engines/tsio550k/SOURCES.md)
     expect(best.fuel).toBeLessThanOrEqual(111.5);
     const peak = atBhp(236, 1.0);
@@ -235,7 +235,7 @@ describe("Continental fuel metering (SR22T POH 7-38; M-18 2-1, Figure 2-36 p. 2-
     expect(meteredFuelFlow(K, 1500, 1, 1.225, 0)).toBe(0);
   });
 
-  test("CT-39 pump law: unmetered fuel pressure 7.0–9.0 psi at 600 rpm and 21.0–24.5 psi at 2,500 (AMM 73-20 PDF 2589 (z), (x))", () => {
+  test("T-39 pump law: unmetered fuel pressure 7.0–9.0 psi at 600 rpm and 21.0–24.5 psi at 2,500 (AMM 73-20 PDF 2589 (z), (x))", () => {
     expect(continentalPumpPsi(K, 600)).toBeGreaterThanOrEqual(7.0);
     expect(continentalPumpPsi(K, 600)).toBeLessThanOrEqual(9.0);
     expect(continentalPumpPsi(K, 2500)).toBeGreaterThanOrEqual(21.0);
@@ -247,7 +247,7 @@ describe("Continental fuel metering (SR22T POH 7-38; M-18 2-1, Figure 2-36 p. 2-
 
   test("metered nozzle pressure 14.2–14.8 psid at the AMM full-power flow, a square-root law to the upper deck (M-18 Table 2-4 notes 3, 4)", () => {
     // the nozzle curve's anchor, 37.23 GPH (inside AMM Figure 73-20-2 PDF 2592's band; full power settles at 36.91
-    // GPH and 14.30 psid, CT-12, CT-39), 6.0 lb/gal (POH 5-30), not the band's mid 38.2 GPH (SOURCES.md)
+    // GPH and 14.30 psid, T-12, T-39), 6.0 lb/gal (POH 5-30), not the band's mid 38.2 GPH (SOURCES.md)
     const fullPower = 37.23 * 6;
     const psid = continentalNozzlePsid(K, fullPower, 1);
     expect(psid).toBeGreaterThanOrEqual(14.2);
@@ -272,7 +272,7 @@ describe("mixtureFor inverts each fuel system's metering (trim.ts)", () => {
       }
   });
 
-  test("the IO-390 servo inverse is the same arithmetic as before the per-system split (CT-37)", () => {
+  test("the IO-390 servo inverse is the same arithmetic as before the per-system split (T-37)", () => {
     const before = (air: number, lambda: number, rho: number) => {
       const far = 1 / (15 * IO390.calibration.lambdaFullRich);
       const want = air / (15 * lambda);
@@ -422,10 +422,10 @@ function climb() {
   return climbRun;
 }
 const at = (alt: number) => climb().find((p) => p.alt === alt)!;
-/** What the CT-5/6/7 climb passed through. */
+/** What the T-5/6/7 climb passed through. */
 const climbWatched = () => (climb(), climbWatch!);
 
-/** CT-8: the settled full-power run with the oil at a temperature (temperatures held, thermal ≈ 0, while the
+/** T-8: the settled full-power run with the oil at a temperature (temperatures held, thermal ≈ 0, while the
  * pressures settle). */
 function coldOilRun(oilF: number) {
   const { s, c, e, f } = copy(rated());
@@ -440,7 +440,7 @@ function coldOilRun(oilF: number) {
   return { s, peak, w };
 }
 
-/** CT-9: 10,000 ft cruise at 30.5 in.Hg, the actuator's oil lost for 5 s, then full throttle for 30 s. */
+/** T-9: 10,000 ft cruise at 30.5 in.Hg, the actuator's oil lost for 5 s, then full throttle for 30 s. */
 function oilLossRun() {
   const x = takeoff(K);
   const { s, c, e, f, w } = x;
@@ -464,7 +464,7 @@ function oilLossRun() {
 const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
 
 describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Tables 2-1, 2-6)", () => {
-  test("CT-1: 36.0 in.Hg and 306–318 bhp at sea level static full throttle, full rich (POH 4-14, 4-17; M-18 Figure 2-37: 311.7 at 36.0)", () => {
+  test("T-1: 36.0 in.Hg and 306–318 bhp at sea level static full throttle, full rich (POH 4-14, 4-17; M-18 Figure 2-37: 311.7 at 36.0)", () => {
     const { s } = rated();
     expect(Math.abs(s.rpm - 2500)).toBeLessThan(30);
     expect(s.oilT).toBeGreaterThanOrEqual(150);
@@ -473,7 +473,7 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
     expect(s.hp).toBeLessThanOrEqual(318);
   });
 
-  test("CT-12: full-power fuel flow 36.65–39.8 GPH at 36.0 in.Hg (AMM Figure 73-20-2 PDF 2592), every cylinder burning (λ ≥ 0.55 on average)", () => {
+  test("T-12: full-power fuel flow 36.65–39.8 GPH at 36.0 in.Hg (AMM Figure 73-20-2 PDF 2592), every cylinder burning (λ ≥ 0.55 on average)", () => {
     const { s } = rated();
     expect(gph(s)).toBeGreaterThanOrEqual(36.65);
     expect(gph(s)).toBeLessThanOrEqual(39.8);
@@ -487,7 +487,7 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
     expect(s.deckInHg! - s.map).toBeLessThanOrEqual(0.6);
   });
 
-  test("CT-38: tailpipe back pressure at rated ≤ 2.5 in.Hg (M-18 Table 2-1 p. 2-24); the turbines take their pressure drop above it", () => {
+  test("T-38: tailpipe back pressure at rated ≤ 2.5 in.Hg (M-18 Table 2-1 p. 2-24); the turbines take their pressure drop above it", () => {
     const { s, e } = rated();
     const a = atmosphere(e.altFt);
     const tailpipe = a.p * 1.02; // turbine discharge: the exit pressure the normally aspirated exhaust sees (engine.ts)
@@ -496,7 +496,7 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
     expect(s.turbineInletInHg!).toBeGreaterThan(tailpipe);
   });
 
-  test("CT-40: at rated takeoff the intercooled charge is at most 130 °F and the intercoolers' effectiveness at least 0.5 (M-18 Table 2-6, Figure 2-39)", () => {
+  test("T-40: at rated takeoff the intercooled charge is at most 130 °F and the intercoolers' effectiveness at least 0.5 (M-18 Table 2-6, Figure 2-39)", () => {
     const { s } = rated();
     const t = K.turbo!.intercooler;
     expect((s.matC! * 9) / 5 + 32).toBeLessThanOrEqual(130);
@@ -504,7 +504,7 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
     expect(eff).toBeGreaterThanOrEqual(0.5);
   });
 
-  test("CT-8: cold oil raises MAP to (36.0, 37.0], never above 37.0, and fuel flow rises in proportion (POH 4-17, 3-29, 3A-9)", () => {
+  test("T-8: cold oil raises MAP to (36.0, 37.0], never above 37.0, and fuel flow rises in proportion (POH 4-17, 3-29, 3A-9)", () => {
     const warm = rated().s;
     const run = coldOilRun;
     const cold = run(100); // first flight of the day: oil just warm enough to go (POH 4-14: at least 100 °F)
@@ -539,7 +539,7 @@ describe("turbocharger at sea level (POH 4-14, 4-17; AMM Figure 73-20-2; M-18 Ta
 });
 
 describe("turbocharged climb (POH 4-14, 4-19/4-20, 5-28/5-29; M-18 Table 2-2)", () => {
-  test("CT-5: full throttle at 120 KIAS holds MAP 36.0 ± 0.3 at 0, 5,000, 10,000, 15,000 and 17,000 ft (POH 4-14, 4-17)", () => {
+  test("T-5: full throttle at 120 KIAS holds MAP 36.0 ± 0.3 at 0, 5,000, 10,000, 15,000 and 17,000 ft (POH 4-14, 4-17)", () => {
     for (const alt of [0, 5000, 10000, 15000, 17000]) {
       const p = at(alt);
       expect(Math.abs(p.rpm - 2500), `${alt} ft rpm`).toBeLessThan(20);
@@ -549,11 +549,11 @@ describe("turbocharged climb (POH 4-14, 4-19/4-20, 5-28/5-29; M-18 Table 2-2)", 
   }, 60_000); // the first caller runs the whole climb (≈ 2 s; past 5 s on a loaded machine)
 
   // the controller, wastegate and spool lags must not cycle
-  test("no limit cycle: at each CT-5 altitude MAP varies under 0.05 in.Hg over 10 s settled", () => {
+  test("no limit cycle: at each T-5 altitude MAP varies under 0.05 in.Hg over 10 s settled", () => {
     for (const alt of [0, 5000, 10000, 15000, 17000]) expect(at(alt).band, `${alt} ft`).toBeLessThan(0.05);
   });
 
-  test("CT-6: the gate closes and MAP first falls below 35.7 between 18,000 and 21,000 ft (M-18 Table 2-2: K critical altitude 18,000)", () => {
+  test("T-6: the gate closes and MAP first falls below 35.7 between 18,000 and 21,000 ft (M-18 Table 2-2: K critical altitude 18,000)", () => {
     const first = climb().find((p) => p.alt >= 17000 && p.map < 35.7)!;
     expect(first.alt).toBeGreaterThanOrEqual(18000);
     expect(first.alt).toBeLessThanOrEqual(21000);
@@ -561,7 +561,7 @@ describe("turbocharged climb (POH 4-14, 4-19/4-20, 5-28/5-29; M-18 Table 2-2)", 
     for (const p of climb().filter((q) => q.alt < first.alt)) expect(p.map, `${p.alt} ft`).toBeGreaterThanOrEqual(35.7);
   });
 
-  test("CT-7: above the critical altitude MAP falls, 30.5–35.0 at 25,000 ft; full-rich climb fuel flow as POH 5-28/5-29", () => {
+  test("T-7: above the critical altitude MAP falls, 30.5–35.0 at 25,000 ft; full-rich climb fuel flow as POH 5-28/5-29", () => {
     const first = climb().find((p) => p.alt >= 17000 && p.map < 35.7)!;
     const above = climb().filter((p) => p.alt >= first.alt);
     for (let i = 1; i < above.length; i++) expect(above[i].map).toBeLessThanOrEqual(above[i - 1].map);
@@ -579,7 +579,7 @@ describe("turbocharged climb (POH 4-14, 4-19/4-20, 5-28/5-29; M-18 Table 2-2)", 
     expect(band2).toBeLessThanOrEqual(33.53 + 1.5);
   });
 
-  test("CT-13 climb part: full-rich full-throttle fuel flow 36 ± 1.5 GPH from sea level to 17,000 ft (POH 5-28: 9.5 gal in 15.8 min = 36.08)", () => {
+  test("T-13 climb part: full-rich full-throttle fuel flow 36 ± 1.5 GPH from sea level to 17,000 ft (POH 5-28: 9.5 gal in 15.8 min = 36.08)", () => {
     const pts = [0, 5000, 10000, 15000, 17000].map((a) => at(a).gph);
     expect(mean(pts)).toBeGreaterThanOrEqual(36.08 - 1.5);
     expect(mean(pts)).toBeLessThanOrEqual(36.08 + 1.5);
@@ -599,7 +599,7 @@ describe("turbocharged climb (POH 4-14, 4-19/4-20, 5-28/5-29; M-18 Table 2-2)", 
 });
 
 describe("wastegate actuator oil loss (POH 3-27/3-28 cause 3)", () => {
-  test("CT-9: at 10,000 ft cruise the gate opens within 5 s of losing actuator oil; full throttle then gives at most ram + 1.5 in.Hg", () => {
+  test("T-9: at 10,000 ft cruise the gate opens within 5 s of losing actuator oil; full throttle then gives at most ram + 1.5 in.Hg", () => {
     const { s, e, regulating, opened } = oilLossRun();
     expect(regulating).toBeLessThan(0.9); // regulating: the turbo is boosting above the 20.6 in.Hg outside
     expect(opened).toBeGreaterThanOrEqual(0.98);
@@ -612,7 +612,7 @@ describe("wastegate actuator oil loss (POH 3-27/3-28 cause 3)", () => {
 // ---- SR22T controls: START, the fixed governor, HIGH BOOST/PRIME and automatic alternate air
 
 describe("START fires both magnetos at top centre (SR22T POH 7-37, 4-12; AMM 74-00 PDF 2604)", () => {
-  test("CT-17 mechanics: START activates both magnetos, every cylinder fires both plugs, spark at 0° ATC (impulse couplings)", () => {
+  test("T-17 mechanics: START activates both magnetos, every cylinder fires both plugs, spark at 0° ATC (impulse couplings)", () => {
     expect(startFiringMags(K, "START")).toEqual(["L", "R"]);
     expect(sparks(K, "START", noFailures(K), 200)).toEqual([2, 2, 2, 2, 2, 2]);
     // one magneto failed: the other still fires its plug in every cylinder
@@ -629,7 +629,7 @@ describe("START fires both magnetos at top centre (SR22T POH 7-37, 4-12; AMM 74-
     expect(trace.spark).toBe(0); // combustion starts at top centre
   });
 
-  test("CT-17 mechanics: cranking per POH 4-12 (full rich, BOOST, power lever open ¼ in, START), both plugs fire in every cylinder and the engine runs within 10 s", () => {
+  test("T-17 mechanics: cranking per POH 4-12 (full rich, BOOST, power lever open ¼ in, START), both plugs fire in every cylinder and the engine runs within 10 s", () => {
     const e = defaultEnvironment();
     const s = initialState(K, e);
     const f = noFailures(K);
@@ -650,7 +650,7 @@ describe("START fires both magnetos at top centre (SR22T POH 7-37, 4-12; AMM 74-
     expect(ranAt).toBeLessThan(10);
   });
 
-  test("CT-17 / CT-37: the IO-390's START still fires its retard magneto alone (IOM System Description p. 2)", () => {
+  test("T-17 / T-37: the IO-390's START still fires its retard magneto alone (IOM System Description p. 2)", () => {
     expect(startFiringMags(IO390, "START")).toEqual([IO390.ignition.retardMag]);
     expect(sparks(IO390, "START", noFailures(IO390), 200)).toEqual(IO390.geometry.cylinders.map(() => 1));
   });
@@ -670,7 +670,7 @@ describe("governor fixed at 2,500 rpm with no propeller control (SR22T POH 4-17,
     return hi - lo;
   };
 
-  test("CT-36: the governor sets 2,500 rpm whatever the propeller control says (POH 7-32 'No propeller control is required')", () => {
+  test("T-36: the governor sets 2,500 rpm whatever the propeller control says (POH 7-32 'No propeller control is required')", () => {
     for (const prop of [0, 0.5, 1, Number.NaN]) {
       expect(governedRpm(K, prop)).toBe(2500);
       expect(governedRpm(RANGE, prop)).toBe(2500);
@@ -678,7 +678,7 @@ describe("governor fixed at 2,500 rpm with no propeller control (SR22T POH 4-17,
     expect(governedRpm(IO390, 0)).toBe(IO390.propeller.governorMinRpm); // a lever still moves the IO-390's
   });
 
-  test("CT-36: controls.prop 0 and 1 give the same static full-throttle rpm", () => {
+  test("T-36: controls.prop 0 and 1 give the same static full-throttle rpm", () => {
     const run = (prop: number) => {
       const x = takeoff(RANGE);
       x.c.prop = prop;
@@ -690,14 +690,14 @@ describe("governor fixed at 2,500 rpm with no propeller control (SR22T POH 4-17,
     expect(Math.abs(low - 2500)).toBeLessThanOrEqual(30);
   });
 
-  test("CT-36: static full throttle at sea level governs 2,500 ± 30 rpm off the fine stop (POH 4-17 'approximately 2500 RPM')", () => {
+  test("T-36: static full throttle at sea level governs 2,500 ± 30 rpm off the fine stop (POH 4-17 'approximately 2500 RPM')", () => {
     const { s } = rated();
     expect(Math.abs(s.rpm - 2500)).toBeLessThanOrEqual(30);
     expect(s.governing).toBe(true);
     expect(s.beta).toBeGreaterThan(K.propeller.fineDeg + 0.2);
   });
 
-  test("CT-36: at ISA the 120 KIAS full-power climb governs 2,500 ± 20 rpm to 25,000 ft, and so does full throttle at POH 5-34's 213 and 220 KTAS there (POH 7-39)", () => {
+  test("T-36: at ISA the 120 KIAS full-power climb governs 2,500 ± 20 rpm to 25,000 ft, and so does full throttle at POH 5-34's 213 and 220 KTAS there (POH 7-39)", () => {
     const x = takeoff(K);
     const points: [number, number][] = [
       ...[0, 5000, 10000, 15000, 17000, 18000, 20000, 22000, 25000].map((alt): [number, number] => [
@@ -725,7 +725,7 @@ describe("governor fixed at 2,500 rpm with no propeller control (SR22T POH 4-17,
 });
 
 describe("fuel pump HIGH BOOST/PRIME and its lockout (SR22T POH 7-41, Figure 7-8; 4-12)", () => {
-  test("CT-45: HIGH BOOST/PRIME is enabled iff MAP ≥ 24 in.Hg and pressure altitude ≥ 10,000 ft, or below 500 rpm", () => {
+  test("T-45: HIGH BOOST/PRIME is enabled iff MAP ≥ 24 in.Hg and pressure altitude ≥ 10,000 ft, or below 500 rpm", () => {
     const table: { map: number; altFt: number; rpm: number; on: boolean }[] = [];
     for (const map of [23.9, 24.0])
       for (const altFt of [9999, 10000])
@@ -748,7 +748,7 @@ describe("fuel pump HIGH BOOST/PRIME and its lockout (SR22T POH 7-41, Figure 7-8
     ]);
   });
 
-  test("CT-45: the IO-390 has no HIGH BOOST: never enabled, never on", () => {
+  test("T-45: the IO-390 has no HIGH BOOST: never enabled, never on", () => {
     expect(highBoostEnabled(IO390, initialState(IO390), defaultEnvironment())).toBe(false);
     const e = defaultEnvironment();
     const s = initialState(IO390, e);
@@ -853,7 +853,7 @@ describe("overboost relief valve and a seized wastegate (POH 3-29, 3-30, 2-9; AM
     const onset = track(K, x, 20);
     return { x, onset, settled: track(K, x, 10) };
   };
-  /** CT-10's surge: MAP into the MAN PRESSURE warning band (POH 2-9) and no higher than 40.0 from the seizure on,
+  /** T-10's surge: MAP into the MAN PRESSURE warning band (POH 2-9) and no higher than 40.0 from the seizure on,
    * the valve cycling ("cycling high manifold pressure followed by sudden drop", POH 3-30). */
   const expectSurge = ({ onset, settled }: ReturnType<typeof seizedClosed>) => {
     expect(Math.max(onset.maxGate, settled.maxGate)).toBe(0);
@@ -863,11 +863,11 @@ describe("overboost relief valve and a seized wastegate (POH 3-29, 3-30, 2-9; AM
     expect(settled.reliefOpenings).toBeGreaterThanOrEqual(2);
   };
 
-  test("CT-10: a wastegate seized closed overboosts and the relief valve surges: MAP above 37.5, cycling at least 0.5 in.Hg, peak at most 40.0 (POH 3-30)", () => {
+  test("T-10: a wastegate seized closed overboosts and the relief valve surges: MAP above 37.5, cycling at least 0.5 in.Hg, peak at most 40.0 (POH 3-30)", () => {
     expectSurge(seizedClosed());
   });
 
-  test("CT-10 on a cold day, leaned: at ISA −30 °C and λ about 0.8 the relief valve still surges and MAP peaks at most 40.0 (POH 3-30: 'adequately protected by the pressure relief valve'; 'higher density air … may aggravate')", () => {
+  test("T-10 on a cold day, leaned: at ISA −30 °C and λ about 0.8 the relief valve still surges and MAP peaks at most 40.0 (POH 3-30: 'adequately protected by the pressure relief valve'; 'higher density air … may aggravate')", () => {
     const x = takeoff(K, { isaDevC: -30 });
     x.c.mixture = 0.75; // POH 3-30 step 2 adjusts the mixture: a leaned engine is a normal case when the gate seizes
     track(K, x, 30);
@@ -877,7 +877,7 @@ describe("overboost relief valve and a seized wastegate (POH 3-29, 3-30, 2-9; AM
     expectSurge(seizedClosed(x));
   });
 
-  test("CT-10: reducing power to 30.5 in.Hg lowers the surge, the relief valve still bounding MAP; at the suite's 24 in.Hg warm-up power the valve reseats and stays shut (POH 3-30 Overboost / Pressure Relief Valve step 1 and NOTE)", () => {
+  test("T-10: reducing power to 30.5 in.Hg lowers the surge, the relief valve still bounding MAP; at the suite's 24 in.Hg warm-up power the valve reseats and stays shut (POH 3-30 Overboost / Pressure Relief Valve step 1 and NOTE)", () => {
     // POH 3-30: "Reducing manifold pressure … reducing the energy available to drive the turbine"; "If noticeable
     // surging is present: Land as soon as practicable" (the surge may persist after step 1)
     const { x, settled: full } = seizedClosed();
@@ -897,7 +897,7 @@ describe("overboost relief valve and a seized wastegate (POH 3-29, 3-30, 2-9; AM
   });
 
   test("a seized-closed wastegate overboosts below the critical altitude and not above it (POH 3-30: 'lower altitudes … may aggravate the condition')", () => {
-    // the critical altitude is the CT-6 test's own: the climb's first altitude with MAP below 35.7 (gate shut)
+    // the critical altitude is the T-6 test's own: the climb's first altitude with MAP below 35.7 (gate shut)
     const crit = climb().find((p) => p.alt >= 17000 && p.map < 35.7)!.alt;
     expect(crit).toBeLessThanOrEqual(21000);
     // the same climb with and without the seizure
@@ -942,12 +942,12 @@ describe("overboost relief valve and a seized wastegate (POH 3-29, 3-30, 2-9; AM
     expect(y.s.gate).toBe(0); // the spring cannot open a seized gate
   });
 
-  test("the relief valve never opens and the alternate-air door stays shut in normal operation (CT-1, CT-5 … CT-9, CT-12)", () => {
+  test("the relief valve never opens and the alternate-air door stays shut in normal operation (T-1, T-5 … T-9, T-12)", () => {
     const runs: [string, Watch][] = [
-      ["CT-1/CT-12 takeoff", rated().w],
-      ["CT-5/6/7 climb", climbWatched()],
-      ...[100, 150, 180].map((oilF): [string, Watch] => [`CT-8 oil ${oilF} °F`, coldOilRun(oilF).w]),
-      ["CT-9 actuator oil loss", oilLossRun().w],
+      ["T-1/T-12 takeoff", rated().w],
+      ["T-5/6/7 climb", climbWatched()],
+      ...[100, 150, 180].map((oilF): [string, Watch] => [`T-8 oil ${oilF} °F`, coldOilRun(oilF).w]),
+      ["T-9 actuator oil loss", oilLossRun().w],
     ];
     const { crackInHg, hystInHg } = K.turbo!.overboost;
     for (const [name, w] of runs) {
@@ -987,7 +987,7 @@ describe("turbine inlet temperature, LH and RH (POH 7-35; M-18 Table 2-1, Figure
     }
   });
 
-  test("CT-23: TIT peaks within ±0.03 λ of the EGT peak, and L and R stay within 60 °F (POH 7-35, 4-22)", () => {
+  test("T-23: TIT peaks within ±0.03 λ of the EGT peak, and L and R stay within 60 °F (POH 7-35, 4-22)", () => {
     const x = takeoff(K);
     x.e.altFt = 10000;
     x.e.tasKt = 170;
@@ -1022,7 +1022,7 @@ describe("turbine inlet temperature, LH and RH (POH 7-35; M-18 Table 2-1, Figure
     expect(rated().s.titOverS).toBe(0);
   });
 
-  test("CT-34: turbine speed stays below the M-18 Figure 2-41 limit in every normal run", () => {
+  test("T-34: turbine speed stays below the M-18 Figure 2-41 limit in every normal run", () => {
     // Figure 2-41: 132,000 rpm to 1440 °F, falling linearly to 122,000 at 1750 °F; flat beyond the line's ends
     for (const [tit, rpm] of [
       [1000, 132000],
@@ -1097,7 +1097,7 @@ describe("automatic alternate-air door (POH 7-37, 7-38, 3A-11; AMM 71-60 PDF 254
     expect(filterOutletInHg(1, 30, 288, 0.2)).toBeCloseTo(30, 2);
   });
 
-  test("CT-30: a fully blocked filter at 10,000 ft and 75 % power opens the door with no pilot input: MAP within 0.3 in.Hg, 3–5 % less power (POH 3A-11, 7-37)", () => {
+  test("T-30: a fully blocked filter at 10,000 ft and 75 % power opens the door with no pilot input: MAP within 0.3 in.Hg, 3–5 % less power (POH 3A-11, 7-37)", () => {
     const BLOCKED = patched(K, { induction: { filterBlockedArea: 0 } });
     const x = takeoff(BLOCKED);
     x.e.altFt = 10000;
@@ -1142,7 +1142,7 @@ describe("automatic alternate-air door (POH 7-37, 7-38, 3A-11; AMM 71-60 PDF 254
     expect(drop).toBeLessThanOrEqual(0.05);
   }, 60_000);
 
-  test("CT-31: with the door open, full-throttle MAP at 22,000 ft is at least 0.5 in.Hg lower and the climb's wastegate closes at least 1,000 ft lower (POH 7-38, 3A-11)", () => {
+  test("T-31: with the door open, full-throttle MAP at 22,000 ft is at least 0.5 in.Hg lower and the climb's wastegate closes at least 1,000 ft lower (POH 7-38, 3A-11)", () => {
     const BLOCKED = patched(K, { induction: { filterBlockedArea: 0 } });
     const x = takeoff(BLOCKED);
     x.f.filter = true;
@@ -1158,13 +1158,13 @@ describe("automatic alternate-air door (POH 7-37, 7-38, 3A-11; AMM 71-60 PDF 254
       if (alt === 22000) at22 = x.s.map;
     }
     expect(at22).toBeLessThanOrEqual(at(22000).map - 0.5);
-    // the CT-6 measure on filter air: the first climb altitude with the gate shut
+    // the T-6 measure on filter air: the first climb altitude with the gate shut
     const normalShut = climb().find((p) => p.gate < 0.02)!.alt;
     expect(gateShut).toBeDefined();
     expect(gateShut!).toBeLessThanOrEqual(normalShut - 1000);
   }, 60_000);
 
-  test("CT-42: a partly blocked filter opens the door at full power, and it closes again once power is reduced to 30.5 in.Hg (POH 3A-11)", () => {
+  test("T-42: a partly blocked filter opens the door at full power, and it closes again once power is reduced to 30.5 in.Hg (POH 3A-11)", () => {
     const x = copy(rated());
     x.f.filter = true; // the spec's filterBlockedArea: a partial obstruction
     const sl = track(K, x, 20);
@@ -1245,7 +1245,7 @@ function runup() {
 
 // ---- part-throttle cruise, a misadjusted controller, TIT in normal operation, and every modelled failure
 
-/** CT-9's 10,000 ft cruise at 30.5 in.Hg and 170 KTAS, settled (shared; copied per test). */
+/** T-9's 10,000 ft cruise at 30.5 in.Hg and 170 KTAS, settled (shared; copied per test). */
 let cruiseRun: ReturnType<typeof takeoff> | undefined;
 const cruise10k = () =>
   copy(
@@ -1254,7 +1254,7 @@ const cruise10k = () =>
       x.e.altFt = 10000;
       x.e.tasKt = 170;
       watchedSettle(x.w, K, x, 60, { map: 30.5 });
-      // settled as CT-30 settles its point: the lever moved once per look, the turbocharger and the controller
+      // settled as T-30 settles its point: the lever moved once per look, the turbocharger and the controller
       // settling between moves (settle's per-step trim leaves the engine moving)
       for (let i = 0; i < 12; i++) {
         watchedSettle(x.w, K, x, 10);
@@ -1301,7 +1301,7 @@ describe("part throttle and a misadjusted controller (POH 3-29, 3A-9, 4-22)", ()
     expect(x.s.reliefOpen).toBe(false);
   }, 60_000);
 
-  test("CT-24: at rated power and in the full-power climb at 5,000 and 15,000 ft both TITs stay below 1750 °F (POH 2-9; M-18 Table 2-1)", () => {
+  test("T-24: at rated power and in the full-power climb at 5,000 and 15,000 ft both TITs stay below 1750 °F (POH 2-9; M-18 Table 2-1)", () => {
     const r = copy(rated());
     expect(Math.max(...r.s.tit!)).toBeLessThan(1750);
     expect(r.s.titOverS).toBe(0);
@@ -1316,7 +1316,7 @@ describe("part throttle and a misadjusted controller (POH 3-29, 3A-9, 4-22)", ()
   }, 60_000);
 });
 
-describe("CT-35: the -K keeps a finite state under every failure the model runs", () => {
+describe("T-35: the -K keeps a finite state under every failure the model runs", () => {
   const FAILURES: [string, (f: Failures) => void][] = [
     ["left magneto", (f) => (f.magL = true)],
     ["both magnetos", (f) => ((f.magL = true), (f.magR = true))],
@@ -1480,7 +1480,7 @@ describe("fuel metering in proportion to rpm, mixture and throttle angle (SR22T 
 });
 
 describe("fuel pressures at the settled points (AMM 73-20 PDF 2589 (x), (z); M-18 Table 2-4)", () => {
-  test("CT-39: at full power the metered nozzle pressure is 14.2–14.8 psid and the unmetered pump pressure 21.0–24.5 psi", () => {
+  test("T-39: at full power the metered nozzle pressure is 14.2–14.8 psid and the unmetered pump pressure 21.0–24.5 psi", () => {
     const { s } = rated();
     expect(s.nozzlePsi).toBeGreaterThanOrEqual(14.2);
     expect(s.nozzlePsi).toBeLessThanOrEqual(14.8);
@@ -1488,7 +1488,7 @@ describe("fuel pressures at the settled points (AMM 73-20 PDF 2589 (x), (z); M-1
     expect(s.fuelPsi).toBeLessThanOrEqual(24.5);
   });
 
-  test("CT-39: at 600 rpm, warm, the unmetered pump pressure is 7.0–9.0 psi with the boost pump off (set before the idle stop, AMM step (ab))", () => {
+  test("T-39: at 600 rpm, warm, the unmetered pump pressure is 7.0–9.0 psi with the boost pump off (set before the idle stop, AMM step (ab))", () => {
     // AMM 73-20 sets the 600 rpm pressure (step (z)) before it sets the idle stop to 700 ± 25 (step (ab)): the stop
     // backed off
     const OFF = patched(K, { calibration: { idleArea: 0.005 } });
@@ -1620,7 +1620,7 @@ describe("POH cruise performance, lean of peak (SR22T POH 5-32 to 5-34, 4-22)", 
       return { alt, pct, hp: r.hp, gph: r.gph, map: r.map };
     }));
 
-  test("CT-18: every white standard-day cell makes pct × 315 bhp ± 4 % at the table fuel flow (± 0.1 GPH) and MAP ≤ 30.5 in.Hg (POH 5-32 to 5-34; 4-22)", () => {
+  test("T-18: every white standard-day cell makes pct × 315 bhp ± 4 % at the table fuel flow (± 0.1 GPH) and MAP ≤ 30.5 in.Hg (POH 5-32 to 5-34; 4-22)", () => {
     const off = cells()
       .filter(
         (r) =>
@@ -1634,14 +1634,14 @@ describe("POH cruise performance, lean of peak (SR22T POH 5-32 to 5-34, 4-22)", 
     expect(off).toEqual([]);
   }, 180_000);
 
-  test("CT-19: hp per GPH at the CT-18 points is the table's ± 4 % (14.6, 14.5, 14.4, 14.0, 13.6; POH 5-32 to 5-34)", () => {
+  test("T-19: hp per GPH at the T-18 points is the table's ± 4 % (14.6, 14.5, 14.4, 14.0, 13.6; POH 5-32 to 5-34)", () => {
     const off = cells()
       .filter((r) => Math.abs(r.hp / r.gph / HP_PER_GPH[r.pct] - 1) > 0.04)
       .map((r) => `${r.alt} ft ${r.pct} %: ${(r.hp / r.gph).toFixed(2)} hp/GPH`);
     expect(off).toEqual([]);
   }, 180_000);
 
-  test("CT-20: at 10,000 ft and 30.5 in.Hg leaning to λ ≈ 1.25 keeps hp per fuel flow within 5 %; leaner, roughness rises before power reaches zero (POH 4-22: 'lower cruise power … the only undesirable affect … is engine misfire')", () => {
+  test("T-20: at 10,000 ft and 30.5 in.Hg leaning to λ ≈ 1.25 keeps hp per fuel flow within 5 %; leaner, roughness rises before power reaches zero (POH 4-22: 'lower cruise power … the only undesirable affect … is engine misfire')", () => {
     const x = warmStart(K);
     const f = noFailures(K);
     x.env = { ...x.env, altFt: 10000, tasKt: 175 };
@@ -1662,7 +1662,7 @@ describe("POH cruise performance, lean of peak (SR22T POH 5-32 to 5-34, 4-22)", 
     expect(leaner.hp).toBeGreaterThan(0);
   }, 120_000);
 
-  test("CT-21: 85 % at 18.3 GPH and 10,000 ft: standard day every CHT ≤ 420 °F and both TIT ≤ 1750 °F; at ISA +30 °C (a gray cell) a CHT above 420, a TIT above 1750 or more than 30.5 in.Hg is needed (POH 5-33 and its note)", () => {
+  test("T-21: 85 % at 18.3 GPH and 10,000 ft: standard day every CHT ≤ 420 °F and both TIT ≤ 1750 °F; at ISA +30 °C (a gray cell) a CHT above 420, a TIT above 1750 or more than 30.5 in.Hg is needed (POH 5-33 and its note)", () => {
     const isa = cruisePoint(10000, 18.3, 184);
     expect(hottestCht(isa.x.s)).toBeLessThanOrEqual(420);
     expect(Math.max(...isa.x.s.tit!)).toBeLessThanOrEqual(1750);
@@ -1671,7 +1671,7 @@ describe("POH cruise performance, lean of peak (SR22T POH 5-32 to 5-34, 4-22)", 
     expect(hottestCht(hot.x.s) > 420 || Math.max(...hot.x.s.tit!) > 1750 || short).toBe(true);
   }, 120_000);
 
-  test("CT-22: at 10,000 ft and 30.5 in.Hg the 75 % target fuel flow (16.4 GPH) sits 50–75 °F (± 15) lean of the peak TIT (POH 4-22)", () => {
+  test("T-22: at 10,000 ft and 30.5 in.Hg the 75 % target fuel flow (16.4 GPH) sits 50–75 °F (± 15) lean of the peak TIT (POH 4-22)", () => {
     const x = warmStart(K);
     const f = noFailures(K);
     x.env = { ...x.env, altFt: 10000, tasKt: 175 };
@@ -1739,7 +1739,7 @@ describe("TR-3 and leaning at full throttle on a hot day (SR22T POH 5-34)", () =
 });
 
 describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 7-36)", () => {
-  test("CT-25: leaned toward peak at sea-level full throttle a TIT exceeds 1750 °F; back to full rich both fall below 1750 within 30 s; one magneto raises TIT at a fixed mixture (POH 3-30 TIT Warning, 4-14)", () => {
+  test("T-25: leaned toward peak at sea-level full throttle a TIT exceeds 1750 °F; back to full rich both fall below 1750 within 30 s; one magneto raises TIT at a fixed mixture (POH 3-30 TIT Warning, 4-14)", () => {
     const x = copy(rated());
     settle(K, x.s, x.c, x.e, x.f, 30, { lambda: 1.0 });
     expect(Math.max(...x.s.tit!)).toBeGreaterThan(1750);
@@ -1756,7 +1756,7 @@ describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 
     expect(Math.max(...x.s.tit!)).toBeGreaterThan(both);
   }, 60_000);
 
-  test("CT-26: the full-power climb at 120 KIAS keeps every CHT ≤ 420 °F, oil 180–240 °F and 30–60 psi at 5,000 and 15,000 ft, the cooler inside Figure 2-38's rejection at its inlet temperature difference (POH 4-19, 2-9, 2-6; M-18 Figure 2-38, Table 2-3)", () => {
+  test("T-26: the full-power climb at 120 KIAS keeps every CHT ≤ 420 °F, oil 180–240 °F and 30–60 psi at 5,000 and 15,000 ft, the cooler inside Figure 2-38's rejection at its inlet temperature difference (POH 4-19, 2-9, 2-6; M-18 Figure 2-38, Table 2-3)", () => {
     for (const altFt of [5000, 15000]) {
       const x = copy(rated());
       x.e.altFt = altFt;
@@ -1773,14 +1773,14 @@ describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 
     }
   }, 60_000);
 
-  test("CT-27: a static full-power run overheats the cylinders past 460 °F, into the CHT warning band (POH 4-14: 'avoid overheating during prolonged ground engine operation'; 2-9)", () => {
+  test("T-27: a static full-power run overheats the cylinders past 460 °F, into the CHT warning band (POH 4-14: 'avoid overheating during prolonged ground engine operation'; 2-9)", () => {
     const x = copy(rated());
     settle(K, x.s, x.c, x.e, x.f, 60, {}, 20);
     const warning = K.markings!.find((m) => m.gauge === "cht")!.bands.find((b) => b.level === "warning")!;
     expect(hottestCht(x.s)).toBeGreaterThan(warning.from);
   }, 60_000);
 
-  test("CT-28: cruise at 10,000 ft and 75 % holds oil at 180 ± 15 °F; the full-power climb stays at or under 240 °F (POH 7-36 'approximately 180 °F'; AMM 79-00 PDF 2764)", () => {
+  test("T-28: cruise at 10,000 ft and 75 % holds oil at 180 ± 15 °F; the full-power climb stays at or under 240 °F (POH 7-36 'approximately 180 °F'; AMM 79-00 PDF 2764)", () => {
     const r = cruisePoint(10000, 16.4, 175);
     expect(Math.abs(r.x.s.oilT - 180)).toBeLessThanOrEqual(15);
     const x = copy(rated());
@@ -1790,7 +1790,7 @@ describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 
     expect(x.s.oilT).toBeLessThanOrEqual(240);
   }, 60_000);
 
-  test("CT-29: oil pressure at least 10 psi at a hot idle, 30–60 psi in cruise, 60–100 psi after a cold start at ISA −15 °C (POH 2-6, 2-9; M-18 Table 2-3)", () => {
+  test("T-29: oil pressure at least 10 psi at a hot idle, 30–60 psi in cruise, 60–100 psi after a cold start at ISA −15 °C (POH 2-6, 2-9; M-18 Table 2-3)", () => {
     const hot = idle();
     hot.s.oilT = 230; // hot, after a flight
     settle(K, hot.s, hot.c, hot.env, noFailures(K), 20, {}, 1e-6);
@@ -1809,7 +1809,7 @@ describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 
     expect(s.oilP).toBeLessThanOrEqual(100);
   }, 60_000);
 
-  test("CT-47: at a lean-of-peak cruise point 0.5 GPH less fuel lowers the hottest CHT by about 15 °F (15 ± 8; POH 4-22)", () => {
+  test("T-47: at a lean-of-peak cruise point 0.5 GPH less fuel lowers the hottest CHT by about 15 °F (15 ± 8; POH 4-22)", () => {
     // the POH's remedy for a CHT above 420 °F: the hottest cruise, 85 % at 18.3 GPH, here at 18,000 ft where the 30.5
     // in.Hg limit leaves it just lean of peak
     const r = cruisePoint(18000, 18.3, 198);
@@ -1824,13 +1824,13 @@ describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 
 });
 
 describe("ground operation (SR22T POH 4-12, 4-15; AMM 73-20 PDF 2589)", () => {
-  test("CT-15: started per POH 4-12, leaned for taxi and warm, the idle is 700 ± 25 rpm (POH 4-15: 600–750) with at least 10 psi of oil (AMM 73-20 (ab))", () => {
+  test("T-15: started per POH 4-12, leaned for taxi and warm, the idle is 700 ± 25 rpm (POH 4-15: 600–750) with at least 10 psi of oil (AMM 73-20 (ab))", () => {
     const x = idle();
     expect(Math.abs(x.s.rpm - 700)).toBeLessThanOrEqual(25);
     expect(x.s.oilP).toBeGreaterThanOrEqual(10);
   }, 60_000);
 
-  test("CT-16: at the 1,700 rpm run-up each magneto drops more than 25 and at most 150 rpm, within 75 of each other; a failed magneto drops more than 150 (POH 4-15)", () => {
+  test("T-16: at the 1,700 rpm run-up each magneto drops more than 25 and at most 150 rpm, within 75 of each other; a failed magneto drops more than 150 (POH 4-15)", () => {
     const f = noFailures(K);
     const x = runup();
     const base = x.s.rpm;
@@ -1850,7 +1850,7 @@ describe("ground operation (SR22T POH 4-12, 4-15; AMM 73-20 PDF 2589)", () => {
     expect(dropOn("L", { magL: true })).toBeGreaterThan(150);
   }, 60_000);
 
-  test("CT-17: the POH 4-12 start runs within 10 s, then holds 1,000 rpm with the oil pressure rising (POH 4-12, 4-15)", () => {
+  test("T-17: the POH 4-12 start runs within 10 s, then holds 1,000 rpm with the oil pressure rising (POH 4-12, 4-15)", () => {
     const e = defaultEnvironment();
     const s = initialState(K, e);
     const c: Controls = { ...defaultControls(), mixture: 1, throttle: 0.15, boost: true, mags: "START" };
@@ -1867,7 +1867,7 @@ describe("ground operation (SR22T POH 4-12, 4-15; AMM 73-20 PDF 2589)", () => {
     expect(s.oilP).toBeGreaterThanOrEqual(K.limits.oilPressMinIdle.value);
   }, 60_000);
 
-  test("CT-41: at 1,000 rpm after the start, leaning from full rich raises rpm to a maximum before it falls (POH 4-12 step 13)", () => {
+  test("T-41: at 1,000 rpm after the start, leaning from full rich raises rpm to a maximum before it falls (POH 4-12 step 13)", () => {
     const x = warmStart(K);
     const f = noFailures(K);
     x.c.mixture = 1;
