@@ -187,6 +187,8 @@ const HIST_DT = 0.1;
 
 /** Advance the state by dt seconds (split into short steps). */
 export function step(spec: GovernorSpec, s: GovState, c: Controls, hub: Hub, f: Failures, dt: number) {
+  // a repeated frame time passes no time; a zero step would divide by it
+  if (!(dt > 0)) return;
   const n = Math.max(1, Math.ceil(dt / 0.002));
   for (let i = 0; i < n; i++) substep(spec, s, c, hub, f, dt / n);
 }

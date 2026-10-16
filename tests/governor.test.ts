@@ -187,6 +187,16 @@ it("with the blades on the high-pitch stop the piston takes only the leakage: th
   expect(x.s.hubPsi).toBe(G.handbook.reliefPsi.value);
 });
 
+it("a step of no time leaves the state as it was, even with the piston on its stop", () => {
+  const x = cruise("high");
+  x.f.brokenSpring = true;
+  span("high", x, 20);
+  const before = { ...x.s, hist: undefined };
+  step(G, x.s, x.c, "high", x.f, 0);
+  expect({ ...x.s, hist: undefined }).toEqual(before);
+  expect(Number.isFinite(x.s.beta) && Number.isFinite(x.s.rpm)).toBe(true);
+});
+
 describe("losing the governor's oil", () => {
   it("the SR20's Hartzell hub goes to low pitch: oil drives it to high pitch, its spring and the blades' twisting moment back (SR20 AMM 61-10 p. 1)", () => {
     const x = cruise("high");
