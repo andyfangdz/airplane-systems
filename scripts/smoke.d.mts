@@ -27,7 +27,7 @@ export interface Summary {
   ok: boolean;
   checks: { url: string; expect: string; status: number | null; ok: boolean; skipped?: true }[];
 }
-export const VIEW_PATHS: string[];
+export const VIEW_PAGES: Record<string, string>;
 export const MISSING_PATHS: string[];
 export const HTML_CACHE: string[];
 export function assetUrls(html: string): string[];

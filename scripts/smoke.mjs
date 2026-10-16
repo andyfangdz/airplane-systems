@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Smoke test of a deployed site, from outside: the main views return the one static HTML page, the hashed assets it
- * references load with an immutable cache header, /sr22t/ redirects, and unknown paths 404 with the 404.html body.
+ * Smoke test of a deployed site, from outside: the root and the main views each return their own static HTML page, the
+ * hashed assets they reference load with an immutable cache header, /sr22t/ redirects, and unknown paths (including an
+ * unknown system) 404 with the 404.html body.
  *
  *   npm run smoke -- https://dxxxx.cloudfront.net
  *   npm run smoke -- http://127.0.0.1:3000          (the HTTP-to-HTTPS check is recorded as skipped)
@@ -12,10 +13,10 @@
  */
 import { pathToFileURL } from "node:url";
 
-/** The views that must serve the root HTML unchanged; the browser picks the view from the path. */
-export const VIEW_PATHS = ["/sr22t", "/sr22t/electrical", "/sr22t/bogus"];
+/** Views that must serve their own page (the airplane's route, not the root's HTML): path → its tab title. */
+export const VIEW_PAGES = { "/sr22t": "SR22T G6 Systems", "/sr22t/electrical": "SR22T G6 Systems" };
 /** Paths that must 404 with the 404.html body. */
-export const MISSING_PATHS = ["/nope", "/sr22t/electrical/extra"];
+export const MISSING_PATHS = ["/nope", "/sr22t/bogus", "/sr22t/electrical/extra"];
 /** The cache-control directives the HTML must carry (a short cache, so a deploy shows within a minute). */
 export const HTML_CACHE = ["public", "max-age=60"];
 const TIMEOUT_MS = 15000;
@@ -120,14 +121,16 @@ async function run(base) {
     bodyIncludes: "/_next/static/",
   });
   await record(rootUrl, `cache-control: ${HTML_CACHE.join(", ")}`, { cacheControl: HTML_CACHE }, root);
-  for (const path of VIEW_PATHS)
-    await record(`${base}${path}`, "200 text/html, same body as /", {
-      status: 200,
-      contentType: "text/html",
-      bodyEquals: root.body,
-      bodyEqualsName: "/",
-    });
-  for (const asset of assetUrls(root.body ?? "")) {
+  const pages = [root];
+  for (const [path, title] of Object.entries(VIEW_PAGES))
+    pages.push(
+      await record(`${base}${path}`, `200 text/html, body contains <title>${title}</title>`, {
+        status: 200,
+        contentType: "text/html",
+        bodyIncludes: `<title>${title}</title>`,
+      }),
+    );
+  for (const asset of new Set(pages.flatMap((page) => assetUrls(page.body ?? "")))) {
     const extension = new URL(asset, rootUrl).pathname.split(".").at(-1);
     // Match the MIME types assigned by deploy-aws.sh TYPED_ASSETS.
     const contentType = { js: "text/javascript", css: "text/css", woff2: "font/woff2" }[extension];

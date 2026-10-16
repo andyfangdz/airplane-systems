@@ -18,9 +18,9 @@ const body = localFont({
 });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
-// The tab title is rendered by App (<title> in components/App.tsx): neutral in the static HTML, which is the same page
-// for every view (next.config.ts rewrites /c172s/electrical etc. to it), then the airplane shown once mounted.
+// Each airplane's route names its airplane in the tab title (app/(fleet)/airplane-route.ts); the root keeps this one.
 export const metadata: Metadata = {
+  title: "Airplane Systems",
   description:
     "Interactive 3D walkthroughs of airplane systems from POH/AFM Section 7: Cirrus SR20 G6 and SR22T G6, Cessna 172S and 182T NAV III, Diamond DA40 XLS, Mooney M20C Ranger.",
 };
