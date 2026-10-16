@@ -14,12 +14,19 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const SIGMA_20K = sigmaStd(20000);
 const P0 = 29.92126;
 
+/** The chart's sea-level rpm lines: Lycoming's form, the only one the model reads so far. */
+export function seaLevelLines(spec: EngineSpec): SeaLevelLine[] {
+  const p = spec.performance;
+  if (p.kind !== "lycoming") throw new Error(`${spec.id}: the model does not read a ${p.kind} performance chart yet`);
+  return p.lines;
+}
+
 /** Brake hp on one sea-level rpm line (lines are straight in manifold pressure, extended beyond the chart). */
 const onLine = (l: SeaLevelLine, map: number) => l.a[1] + ((l.b[1] - l.a[1]) * (map - l.a[0])) / (l.b[0] - l.a[0]);
 
 /** The two chart lines bracketing `rpm` and the fraction between them (extrapolates past the ends). */
 function bracket(spec: EngineSpec, rpm: number) {
-  const L = spec.performance.lines;
+  const L = seaLevelLines(spec);
   let i = 0;
   while (i < L.length - 2 && rpm > L[i + 1].rpm) i++;
   const lo = L[i],
@@ -123,7 +130,7 @@ export function grossIndicatedHp(
   ve: (rpm: number) => number,
 ) {
   if (rpm <= 0) return 0;
-  const L = spec.performance.lines;
+  const L = seaLevelLines(spec);
   const r = clamp(rpm, L[0].rpm, L[L.length - 1].rpm);
   const gross = chartHp(spec, r, map, altFt, inletC) + frictionHp(spec, r) + pumpingHp(spec, r, map, exhaust);
   return Math.max(0, gross) * (rpm / r) * (ve(rpm) / ve(r));
@@ -133,10 +140,12 @@ export function grossIndicatedHp(
  * Lycoming fuel consumption (lb/h) at a brake hp, best-power or best-economy mixture: the part-throttle chart where the
  * manual has one (IO-390 Figure C-3), else a constant best-power specific consumption from a published cruise point.
  * Best economy (peak EGT) then takes the same power from air the mixture model says it needs: λ at peak is 1, power
- * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower.
+ * there `peakEgtPower` of best power, so fuel scales by λbp / peakEgtPower. Continental's chart (TSIO-550-K, M-18
+ * Figure 2-36) is one curve set for every rpm, read by brake hp.
  */
 export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture: "bestPower" | "bestEconomy") {
   const ff = spec.fuelFlow;
+  if (ff.kind === "continental") return lineThrough(ff[mixture], hp);
   if (ff.kind === "bsfc") {
     const bp = ff.bsfc * hp;
     const cal = spec.calibration;
@@ -149,6 +158,15 @@ export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture
     b = pts[i + 1];
   const base = a.base + ((b.base - a.base) * (rpm - a.rpm)) / (b.rpm - a.rpm);
   return base + ff.slope * hp;
+}
+
+/** Linear interpolation on [x, y] points increasing in x, straight on beyond the end segments. */
+function lineThrough(P: [number, number][], x: number) {
+  let i = 0;
+  while (i < P.length - 2 && x > P[i + 1][0]) i++;
+  const [x0, y0] = P[i],
+    [x1, y1] = P[i + 1];
+  return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
 }
 
 /** The minimum allowable fuel flow (US gal/h) at a % of rated power, where the manual gives that curve. */

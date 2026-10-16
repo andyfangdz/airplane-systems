@@ -15,7 +15,7 @@ import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carbur
 import { distribution, nozzleFlow, nozzlePressure, servoFuelFlow } from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
-import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp } from "./performance";
+import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
 import { governor, inducedVelocity, propTorque } from "./propeller";
 
 export type MagSwitch = "OFF" | "R" | "L" | "BOTH" | "START";
@@ -503,7 +503,7 @@ export function ratedGrossHp(spec: EngineSpec) {
   if (v === undefined) {
     const r = spec.rating.rpm;
     const ind = inductionCal(spec);
-    const map = spec.performance.lines.find((l) => l.rpm === r)!.ftMap;
+    const map = seaLevelLines(spec).find((l) => l.rpm === r)!.ftMap;
     v = grossIndicatedHp(spec, r, map, 0, 15, 29.92126 * 1.02, ind.ve);
     ratedCache.set(spec, v);
   }

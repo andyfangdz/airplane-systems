@@ -20,7 +20,7 @@ import {
   type Environment,
   type Failures,
 } from "@/engines/model/engine";
-import { minimumFuelFlow, seaLevelHp } from "@/engines/model/performance";
+import { minimumFuelFlow, seaLevelHp, seaLevelLines } from "@/engines/model/performance";
 import { scenariosFor, SCENARIOS, warmStart, type Setup } from "@/engines/model/scenarios";
 import { meanLambda, settle } from "@/engines/model/trim";
 
@@ -54,7 +54,7 @@ describe("O-360-A specifications (OM pp. 1-1–1-3, 2-1)", () => {
 
 describe("power (curve 13358, OM Figure 3-42) and fuel (OM p. 3-12, Figure 3-39)", () => {
   test("rated power: 180 hp at 2,700 rpm at the chart's full-throttle manifold pressure", () => {
-    const l = S.performance.lines.find((x) => x.rpm === 2700)!;
+    const l = seaLevelLines(S).find((x) => x.rpm === 2700)!;
     expect(seaLevelHp(S, 2700, l.ftMap)).toBeCloseTo(180, -0.5);
   });
 

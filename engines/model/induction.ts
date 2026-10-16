@@ -4,7 +4,7 @@
  */
 import type { EngineSpec } from "../types";
 import { GAMMA, INHG_PA, LB_KG, R_AIR } from "./atmosphere";
-import { chartFullThrottleMap, chartFuelFlow, displacementM3, seaLevelHp } from "./performance";
+import { chartFullThrottleMap, chartFuelFlow, displacementM3, seaLevelHp, seaLevelLines } from "./performance";
 import { AFR_STOICH } from "./mixture";
 
 const P0 = 29.92126;
@@ -47,7 +47,7 @@ export function inductionCal(spec: EngineSpec): InductionCal {
   if (hit) return hit;
   const vd = displacementM3(spec);
   const lbp = spec.calibration.lambdaBestPower;
-  const vePoints = spec.performance.lines.map((l): [number, number] => {
+  const vePoints = seaLevelLines(spec).map((l): [number, number] => {
     const hp = seaLevelHp(spec, l.rpm, l.ftMap);
     const fuel = (chartFuelFlow(spec, l.rpm, hp, "bestPower") * LB_KG) / 3600;
     const air = fuel * AFR_STOICH * lbp;

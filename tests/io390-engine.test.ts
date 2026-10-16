@@ -278,8 +278,8 @@ describe("mixture", () => {
 
   test("best power is at least 150 °F rich of peak: maximum-power cruise is never leaner than that (p. 39)", () => {
     const rop = -egtOffset(S.calibration.lambdaBestPower);
-    expect(rop).toBeGreaterThanOrEqual(S.limits.leanMaxPowerROP.value);
-    expect(rop).toBeLessThan(S.limits.leanMaxPowerROP.value + 25);
+    expect(rop).toBeGreaterThanOrEqual(S.limits.leanMaxPowerROP!.value);
+    expect(rop).toBeLessThan(S.limits.leanMaxPowerROP!.value + 25);
   });
 
   test("the servo richens as the air thins, so the same mixture setting is richer at altitude", () => {
