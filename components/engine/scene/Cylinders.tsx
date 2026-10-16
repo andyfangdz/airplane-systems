@@ -1,9 +1,8 @@
 "use client";
 /**
- * The four cylinders: finned barrel on a base flange held by hold-down nuts, finned head tinted by its CHT, rocker box
- * and cover on the outer end, two spark plugs that flash when they fire, and the injection nozzle. Each cylinder
- * contains "a cylinder head, barrel, piston, angled intake and exhaust valve guides and valve seats, rocker shafts,
- * rocker covers, and fins" (IOM System Description p. 1, Figure 2); the shapes here are schematic.
+ * The cylinders: finned barrel on a base flange held by its fasteners, finned head tinted by its CHT, rocker box and
+ * cover(s) on the outer end, two spark plugs that flash when they fire, the injection nozzle and the intake and exhaust
+ * ports where the engine's layout puts them. The shapes are schematic.
  */
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
@@ -12,14 +11,17 @@ import { phaseOf, sparkBTC } from "@/engines/model/cycle";
 import { sparks } from "@/engines/model/engine";
 import type { CylinderDef } from "@/engines/types";
 import type { EngineSim } from "../store";
-import { chtColor, finned, headPoints, merge, slab, zrod, type Dims, type Mats } from "./kit";
+import { chtColor, finned, headPoints, magsAtStart, merge, slab, zrod, type Dims, type Mats } from "./kit";
+import { layoutFor, type EngineLayout } from "./layout";
 import { Group, P } from "./parts";
 
-function cylinderGeometry(d: Dims) {
-  const hp = headPoints(d);
+/** One cylinder's geometries, in its own frame (+z out along the axis). */
+export function cylinderGeometry(d: Dims, L: EngineLayout) {
+  const hp = headPoints(d, L);
   const R = d.bore / 2;
-  const nuts = Array.from({ length: 8 }, (_, k) => {
-    const a = ((k + 0.5) / 8) * Math.PI * 2;
+  const n = L.baseFasteners;
+  const nuts = Array.from({ length: n }, (_, k) => {
+    const a = ((k + 0.5) / n) * Math.PI * 2;
     return zrod(0.0065, d.caseHalf + 0.01, d.caseHalf + 0.02, 6).translate(0.088 * Math.cos(a), 0.088 * Math.sin(a), 0);
   });
   // a spark plug along +y from its seat: hex, insulator, shielded elbow
@@ -28,11 +30,24 @@ function cylinderGeometry(d: Dims) {
     new THREE.CylinderGeometry(0.0065, 0.0075, 0.034, 12).translate(0, 0.029, 0),
   ]);
   const plugShield = new THREE.CylinderGeometry(0.0085, 0.0085, 0.016, 12).translate(0, 0.052, 0);
-  const port = (p: [number, number, number]) =>
-    merge([
-      new THREE.CylinderGeometry(0.026, 0.026, 0.008, 16).translate(p[0], p[1] - 0.004, p[2]),
-      new THREE.BoxGeometry(0.07, 0.006, 0.05).translate(p[0], p[1] - 0.003, p[2]),
+  // a port flange facing down (under the head) or up (on top)
+  const port = (p: [number, number, number]) => {
+    const k = p[1] < 0 ? 1 : -1;
+    return merge([
+      new THREE.CylinderGeometry(0.026, 0.026, 0.008, 16).translate(p[0], p[1] - k * 0.004, p[2]),
+      new THREE.BoxGeometry(0.07, 0.006, 0.05).translate(p[0], p[1] - k * 0.003, p[2]),
     ]);
+  };
+  const [y0, y1] = L.rockerBoxY;
+  // one cover across the head, or two side by side (fore and aft)
+  const halves: [number, number][] =
+    L.coversPerCylinder === 2
+      ? [
+          [-0.05, -0.002],
+          [0.002, 0.05],
+        ]
+      : [[-0.05, 0.05]];
+  const covers = halves.map(([x0, x1]) => slab(x0, x1, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014));
   return {
     barrel: finned(R + 0.006, R + 0.028, d.caseHalf + 0.012, d.headIn, 11),
     flange: merge([zrod(R + 0.03, d.caseHalf, d.caseHalf + 0.01, 32), ...nuts]),
@@ -40,8 +55,8 @@ function cylinderGeometry(d: Dims) {
       finned(R + 0.016, 0.1, d.headIn, d.zPivot + 0.02, 12, false),
       zrod(R + 0.008, d.headIn - 0.004, d.deck + 0.004, 32), // the head's lower skirt over the barrel
     ]),
-    rockerBox: slab(-0.048, 0.048, 0.012, 0.15, d.zPivot - 0.075, d.headOut - 0.012, 0.012),
-    cover: slab(-0.05, 0.05, 0.008, 0.154, d.headOut - 0.012, d.headOut, 0.014),
+    rockerBox: slab(-0.048, 0.048, y0, y1, d.zPivot - 0.075, d.headOut - 0.012, 0.012),
+    cover: covers.length > 1 ? merge(covers) : covers[0],
     plug,
     plugShield,
     spark: new THREE.SphereGeometry(0.024, 14, 10),
@@ -70,7 +85,8 @@ function Cylinder({
   mats: Mats;
   geo: CylGeo;
 }) {
-  const hp = useMemo(() => headPoints(d), [d]);
+  const L = layoutFor(sim.spec);
+  const hp = useMemo(() => headPoints(d, L), [d, L]);
   const head = useMemo(() => mats.head.clone(), [mats]);
   const spark = useMemo(() => [mats.spark.clone(), mats.spark.clone()], [mats]);
   useEffect(
@@ -100,7 +116,7 @@ function Cylinder({
       !(m === "L" ? ui.failures.magL : ui.failures.magR) &&
       (ui.controls.mags === "BOTH" ||
         ui.controls.mags === m ||
-        (ui.controls.mags === "START" && m === spec.ignition.retardMag));
+        (ui.controls.mags === "START" && magsAtStart(spec).includes(m)));
     const other = top === "L" ? "R" : "L";
     spark[0].opacity = firing && magOn(top) && !ui.failures.plugs[i][0] ? fl : 0;
     spark[1].opacity = firing && magOn(other) && !ui.failures.plugs[i][1] ? fl : 0;
@@ -116,7 +132,7 @@ function Cylinder({
       />
       <P
         name={`Cylinder ${n} base flange`}
-        note="Hold-down nuts on studs clamp the cylinder to the crankcase."
+        note={L.notes.baseFlange ?? "Hold-down nuts on studs clamp the cylinder to the crankcase."}
         geometry={geo.flange}
         material={mats.darkSteel}
       />
@@ -129,18 +145,28 @@ function Cylinder({
       <P name="Rocker box" note="Houses the rocker shafts and rockers." geometry={geo.rockerBox} material={head} />
       <P
         name="Rocker cover"
-        note="Closes the rocker box on the outer end of the head."
+        note={L.notes.rockerCover ?? "Closes the rocker box on the outer end of the head."}
         geometry={geo.cover}
         material={mats.cover}
       />
-      <P name="Intake port" note="Tuned induction runner flange." geometry={geo.intakePort} material={mats.darkSteel} />
-      <P name="Exhaust port" note="Exhaust pipe flange." geometry={geo.exhaustPort} material={mats.darkSteel} />
+      <P
+        name="Intake port"
+        note={L.notes.intakePort ?? "Tuned induction runner flange."}
+        geometry={geo.intakePort}
+        material={mats.darkSteel}
+      />
+      <P
+        name="Exhaust port"
+        note={L.notes.exhaustPort ?? "Exhaust pipe flange."}
+        geometry={geo.exhaustPort}
+        material={mats.darkSteel}
+      />
       {/* the nozzle and plugs sit in the head but hide with their own systems' groups */}
-      {sim.spec.fuelSystem.kind === "injected" && (
+      {sim.spec.fuelSystem.kind !== "carburetor" && (
         <Group sim={sim} id="fuel">
           <P
             name={`Fuel injection nozzle, cylinder ${n}`}
-            note="Four injection nozzles, one per cylinder, fed from the fuel manifold (IOM p. 4)."
+            note={L.notes.nozzle ?? "Four injection nozzles, one per cylinder, fed from the fuel manifold (IOM p. 4)."}
             geometry={geo.nozzle}
             material={mats.gear}
           />
@@ -155,7 +181,10 @@ function Cylinder({
             <group position={p.at} rotation={[0, 0, p.rot]}>
               <P
                 name={`Spark plug, cylinder ${n} ${p.which}`}
-                note="Eight spark plugs, two per cylinder (IOM p. 2); each magneto fires one plug in every cylinder."
+                note={
+                  L.notes.plug ??
+                  "Eight spark plugs, two per cylinder (IOM p. 2); each magneto fires one plug in every cylinder."
+                }
                 geometry={geo.plug}
                 material={mats.plug}
               />
@@ -170,7 +199,8 @@ function Cylinder({
 }
 
 export function Cylinders({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
-  const geo = useMemo(() => cylinderGeometry(d), [d]);
+  const L = layoutFor(sim.spec);
+  const geo = useMemo(() => cylinderGeometry(d, L), [d, L]);
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
   return (
     <>
