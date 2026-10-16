@@ -1,18 +1,20 @@
 // vitest: isolate
 /**
- * The engine page's panel and pressure chart for the TSIO-550-K (SR22T POH 13772-007 Reissue A) against the IO-390 and
+ * The engine page's panel, monitor and pressure chart for the TSIO-550-K (SR22T POH 13772-007 Reissue A) against the IO-390 and
  * O-360 pages, which stay as they were. Each case renders the compiled component (vitest.react.config.mts).
  */
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { initialState } from "@/engines/model/engine";
+import { egtOffset } from "@/engines/model/mixture";
 import { labelOf, scenariosFor } from "@/engines/model/scenarios";
 import { IO390 } from "@/engines/io390/spec";
 import { O360 } from "@/engines/o360/spec";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
 import { EnginePanel } from "@/components/engine/EnginePanel";
+import { Monitor, bandTone, titFromPeak } from "@/components/engine/Monitor";
 import { PressureChart, chartCaption, chartInputs } from "@/components/engine/PressureChart";
 import { GROUPS } from "@/components/engine/scene/parts";
 import { replaceState, simFor, type EngineSim } from "@/components/engine/store";
@@ -39,6 +41,11 @@ const reading = (label: string) =>
   screen.getByText(label, { selector: ".ro > span", exact: true }).parentElement?.querySelector("b")?.textContent;
 const fact = (c: HTMLElement, label: string) =>
   [...c.querySelectorAll("dt")].find((dt) => dt.textContent === label)?.nextElementSibling?.textContent ?? "";
+const monCell = (c: HTMLElement, label: string) =>
+  [...c.querySelectorAll(".mon-big > div, .mon-small > div")].find(
+    (d) => d.querySelector("span")?.textContent === label,
+  );
+const smallLabels = (c: HTMLElement) => [...c.querySelectorAll(".mon-small > div > span")].map((s) => s.textContent);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -223,6 +230,142 @@ describe("panel parts and the pages that stay as they were", () => {
     expect(container.querySelector("#boost")).not.toBeNull();
     expect(container.querySelector("#prop")).not.toBeNull();
     expect(container.querySelector("#oil")?.getAttribute("max")).toBe("8");
+  });
+});
+
+describe("engine monitor", () => {
+  it("colours the TSIO-550-K gauges at the POH 2-9 band edges", () => {
+    const tones = (gauge: Parameters<typeof bandTone>[1], vs: number[]) => vs.map((v) => bandTone(K, gauge, v));
+    expect(tones("map", [36.5, 36.6, 37.5, 37.6, 41])).toEqual(["", "warnc", "warnc", "bad", "bad"]);
+    expect(tones("cht", [420, 421, 460, 461, 510])).toEqual(["", "warnc", "warnc", "bad", "bad"]);
+    expect(tones("oilP", [0, 5, 10, 20, 30, 45, 80, 100, 101])).toEqual([
+      "bad",
+      "bad",
+      "bad",
+      "warnc",
+      "warnc",
+      "",
+      "warnc",
+      "warnc",
+      "bad",
+    ]);
+    expect(tones("oilT", [240, 241])).toEqual(["", "bad"]);
+    expect(tones("rpm", [2550, 2551])).toEqual(["", "bad"]);
+    expect(tones("tit", [1750, 1751])).toEqual(["", "bad"]);
+    expect(bandTone(IO390, "map", 40)).toBeUndefined();
+  });
+
+  it("shows six EGT/CHT pairs and TIT bars for the LH and RH turbochargers (POH 7-35)", () => {
+    const { container } = render(<Monitor sim={fresh(K)} />);
+    expect(container.querySelectorAll(".mon-cyl:not(.mon-tit)")).toHaveLength(6);
+    expect([...container.querySelectorAll(".mon-tit > span")].map((s) => s.textContent)).toEqual(["L", "R"]);
+  });
+
+  it("shows manifold pressure yellow above 36.5 and red above 37.5 inHg (POH 2-9)", () => {
+    const sim = fresh(K);
+    const { container } = render(<Monitor sim={sim} />);
+    const cls = (map: number) => {
+      live(sim, (s) => (s.map = map));
+      return monCell(container, "MAP")?.querySelector("b")?.className;
+    };
+    expect([cls(36.5), cls(37.0), cls(37.6)]).toEqual(["", "warnc", "bad"]);
+  });
+
+  it("puts each TIT value above its bar (POH 7-35)", () => {
+    const sim = fresh(K);
+    const { container } = render(<Monitor sim={sim} />);
+    live(sim, (s) => (s.tit = [1600, 1620]));
+    const cols = [...container.querySelectorAll(".mon-tit")];
+    expect(
+      cols.map((c) =>
+        [...c.children].map((e) => e.tagName.toLowerCase() + (e.classList.contains("bar") ? ".bar" : "")),
+      ),
+    ).toEqual([
+      ["small", "div.bar", "span", "small", "small"],
+      ["small", "div.bar", "span", "small", "small"],
+    ]);
+    expect(cols.map((c) => c.firstElementChild?.textContent)).toEqual(["1600", "1620"]);
+  });
+
+  it("says the airplane's display computes percent power its own way (POH 7-36)", () => {
+    const { container } = render(<Monitor sim={fresh(K)} />);
+    expect(monCell(container, "Power")?.querySelector("b")?.getAttribute("title")).toContain("POH 7-36");
+  });
+
+  it("adds the deck pressure and TIT from peak to the small row", () => {
+    const sim = fresh(K);
+    const { container } = render(<Monitor sim={sim} />);
+    live(sim, (s) => (s.deckInHg = 36.4));
+    expect(smallLabels(container)).toEqual(["Oil °F", "Oil psi", "Fuel psi", "Peak", "Deck", "TIT pk"]);
+    expect(monCell(container, "Deck")?.querySelector("b")?.textContent).toBe("36.4");
+  });
+
+  it("puts TIT from peak where EGT from peak is for an even mixture", () => {
+    for (const lam of [0.85, 1.0, 1.1]) {
+      const t = titFromPeak(Array(6).fill(lam))!;
+      expect(t.off).toBeCloseTo(-egtOffset(lam), 0);
+      expect(t.side).toBe(lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak");
+    }
+    const spread = titFromPeak([0.95, 1.0, 1.05, 1.1, 1.15, 1.2])!;
+    expect(Number.isFinite(spread.off) && spread.off >= 0).toBe(true);
+    expect(titFromPeak([Infinity, Infinity])).toBeNull();
+  });
+
+  /** Every cylinder burning at λ `lam` with the engine running; the panel's "from peak" cells and the monitor's. */
+  const fromPeakAt = (spec: EngineSpec, lam: number) => {
+    const sim = fresh(spec);
+    const panel = render(<EnginePanel sim={sim} />).container;
+    const mon = render(<Monitor sim={sim} />).container;
+    live(sim, (s) => {
+      s.running = true;
+      s.cyl.forEach((c) => ((c.lambda = lam), (c.work = 0.5)));
+    });
+    const text = (label: string) => monCell(mon, label)?.querySelector("b")?.textContent;
+    const table = [...panel.querySelectorAll(".eng-table")].find((x) =>
+      [...x.querySelectorAll("th")].some((th) => th.textContent === "from peak"),
+    )!;
+    const col = [...table.querySelectorAll("th")].findIndex((th) => th.textContent === "from peak");
+    return {
+      cells: [...table.querySelectorAll("tbody tr")].map((r) => r.children[col].textContent),
+      peak: text("Peak"),
+      tit: text("TIT pk"),
+    };
+  };
+
+  it("reads EGT and TIT from peak on the -K's own rich misfire edge (calibration.richMisfireLambda)", () => {
+    const rich = K.calibration.richMisfireLambda;
+    expect(rich).toBe(0.45);
+    // at λ 0.50 the -K burns every cycle; the 0.55 default would add about 170 °F of misfire cooling it no longer has
+    const off = -egtOffset(0.5, rich);
+    expect(Math.abs(off + egtOffset(0.5))).toBeGreaterThan(100);
+    const t = titFromPeak(Array(6).fill(0.5), rich)!;
+    expect(t.off).toBeCloseTo(off, 0);
+    expect(t.side).toBe("ROP");
+    const r = fromPeakAt(K, 0.5);
+    expect(r.cells).toEqual(Array(6).fill(`${Math.round(off)} R`));
+    expect(r.peak).toBe(`${Math.round(off)} ROP`);
+    expect(r.tit).toBe(`${Math.round(t.off)} ROP`);
+  });
+
+  it("keeps the IO-390's from-peak readings on the default rich edge", () => {
+    expect(IO390.calibration.richMisfireLambda).toBeUndefined();
+    const off = -egtOffset(0.5, 0.55);
+    expect(titFromPeak(Array(4).fill(0.5))!.off).toBeCloseTo(off, 6);
+    const r = fromPeakAt(IO390, 0.5);
+    expect(r.cells).toEqual(Array(4).fill(`${Math.round(off)} R`));
+    expect(r.peak).toBe(`${Math.round(off)} ROP`);
+    expect(r.tit).toBeUndefined();
+  });
+
+  it("keeps the IO-390's four pairs, its small row and its rpm colour", () => {
+    const sim = fresh(IO390);
+    const { container } = render(<Monitor sim={sim} />);
+    expect(container.querySelectorAll(".mon-cyl")).toHaveLength(4);
+    expect(container.querySelectorAll(".mon-tit")).toHaveLength(0);
+    expect(smallLabels(container)).toEqual(["Oil °F", "Oil psi", "Fuel psi", "hp", "Peak"]);
+    live(sim, (s) => (s.rpm = 2726));
+    expect(monCell(container, "RPM")?.querySelector("b")?.className).toBe("bad");
+    expect(monCell(container, "Power")?.querySelector("b")?.getAttribute("title")).toBeNull();
   });
 });
 
