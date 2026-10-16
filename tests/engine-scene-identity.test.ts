@@ -1,12 +1,14 @@
 /**
  * Identical-scene guard for the engine page's 3D model (components/engine/scene/): every mesh the IO-390 and O-360
- * scenes mount, stopped and at takeoff power at two crank angles, against a baseline taken from main 50d1aa3b before
- * the per-engine scene layouts. Each mesh is summarised by its hover name and note (hashed), its geometry (vertex and
- * index counts, position sums, first and last vertex), its world matrix and its material's colour, opacity and glow, in
- * mount order.
+ * scenes mount, stopped and at takeoff power at two crank angles, against a baseline recorded on main's scene code
+ * before the per-engine scene layouts. Each mesh is summarised, in mount order, by its hover name and note, a
+ * fingerprint of its whole geometry, its world matrix and its material's colour, opacity and glow.
  *
- * As in scene-snapshot.test.ts, the last bit of Math.sin/cos differs between runtimes, so numbers are compared within
- * TOL; text and counts must match exactly.
+ * The geometry fingerprint covers every vertex, normal and index in order: the attribute layout, the index buffer and
+ * the groups are hashed exactly (they are integers), and each float attribute is summed plain and with two sets of
+ * fixed per-item weights, so moving, swapping or reordering any vertex changes it. As in scene-snapshot.test.ts, the
+ * last bit of Math.sin/cos differs between runtimes, so the float sums are compared within TOL rather than hashed;
+ * text, counts and hashes must match exactly.
  *
  * Update only for an intended change to these engines' drawing:
  * UPDATE_ENGINE_SCENE_BASELINE=1 npx vitest run tests/engine-scene-identity.test.ts
@@ -41,7 +43,7 @@ const TOL = 2e-6;
 const STEP = 1e-7;
 const to = (x: number) => +(Math.round(x / STEP) * STEP).toFixed(7);
 
-/** One mesh: [hash of its hover name and note, counts, numbers]. */
+/** One mesh: [hash of its hover name and note, counts and geometry hash, numbers]. */
 type Row = [string, string, number[]];
 
 /** FNV-1a over the text's UTF-16 code units. */
@@ -49,6 +51,51 @@ function hash(s: string) {
   let x = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 16777619) >>> 0;
   return x.toString(36);
+}
+
+/** FNV-1a over 32-bit integers. */
+function hashInts(a: ArrayLike<number>, x = 0x811c9dc5) {
+  for (let i = 0; i < a.length; i++) x = Math.imul(x ^ a[i], 16777619) >>> 0;
+  return x;
+}
+
+/** A fixed weight in [0.5, 1.5) for item `i`: integer arithmetic only, so every runtime gets the same weights. */
+const weight = (i: number, seed: number) => (Math.imul(i + 1, seed) >>> 0) / 2 ** 32 + 0.5;
+const SEEDS = [0x9e3779b1, 0x85ebca6b];
+
+/**
+ * An order-sensitive fingerprint of a geometry's whole content: the exact text and integers (attribute layout, index
+ * buffer, groups) as a hash, and per float attribute (position, normal, uv) the plain sum and the two weighted sums of
+ * each component over its items.
+ */
+function geometryPrint(g: THREE.BufferGeometry): { text: string; nums: number[] } {
+  const names = Object.keys(g.attributes).sort();
+  const layout = names.map((n) => `${n}:${g.attributes[n].itemSize}:${g.attributes[n].count}`).join(" ");
+  let x = hashInts(Array.from(`${layout}|${JSON.stringify(g.groups)}`, (c) => c.charCodeAt(0)));
+  if (g.index) x = hashInts(g.index.array, hashInts([g.index.count], x));
+  const nums: number[] = [];
+  for (const n of names) {
+    const a = g.attributes[n].array,
+      k = g.attributes[n].itemSize;
+    const plain = new Array(k).fill(0),
+      weighted = SEEDS.map(() => new Array(k).fill(0));
+    for (let i = 0; i < a.length; i++) {
+      const item = Math.floor(i / k);
+      plain[i % k] += a[i];
+      SEEDS.forEach((seed, j) => (weighted[j][i % k] += weight(item, seed) * a[i]));
+    }
+    nums.push(...plain, ...weighted.flat());
+  }
+  return { text: `${layout}/${g.index?.count ?? -1}/${x.toString(36)}`, nums };
+}
+
+/** What differs between two rows, or null when they match. */
+function mismatch([text, counts, nums]: Row, [wtext, wcounts, wnums]: Row): string | null {
+  if (text !== wtext) return "hover name or note";
+  if (counts !== wcounts) return `counts or geometry hash: ${counts} vs ${wcounts}`;
+  if (nums.length !== wnums.length) return "number of values";
+  const j = nums.findIndex((v, k) => !(Math.abs(v - wnums[k]) <= TOL));
+  return j < 0 ? null : `value ${j}: ${nums[j]} vs ${wnums[j]}`;
 }
 
 function hoverOf(o: THREE.Object3D): string {
@@ -65,19 +112,13 @@ function rowsOf(scene: THREE.Object3D): Row[] {
   const rows: Row[] = [];
   scene.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
-    const g = o.geometry as THREE.BufferGeometry,
-      pos = g.attributes.position.array,
-      m = o.material as THREE.MeshStandardMaterial;
-    const sum = [0, 0, 0];
-    for (let i = 0; i < pos.length; i++) sum[i % 3] += pos[i];
-    const counts = `${pos.length / 3}/${g.index?.count ?? -1}/${o.visible ? 1 : 0}/${m.type}`;
+    const m = o.material as THREE.MeshStandardMaterial;
+    const print = geometryPrint(o.geometry as THREE.BufferGeometry);
     rows.push([
       hoverOf(o),
-      counts,
+      `${print.text}/${o.visible ? 1 : 0}/${m.type}`,
       [
-        ...sum,
-        ...Array.from(pos.slice(0, 3)),
-        ...Array.from(pos.slice(-3)),
+        ...print.nums,
         ...o.matrixWorld.elements,
         m.color.r,
         m.color.g,
@@ -140,7 +181,14 @@ const taken: Record<string, Record<string, Row[]>> = {};
 const baseline: Record<string, Record<string, Row[]>> = UPDATE ? {} : JSON.parse(readFileSync(BASELINE, "utf8"));
 
 afterAll(() => {
-  if (UPDATE) writeFileSync(BASELINE, JSON.stringify(taken, null, 0).replace(/\],"/g, '],\n"') + "\n");
+  // one mesh per line, so a change shows as the lines of the meshes it moved
+  if (UPDATE)
+    writeFileSync(
+      BASELINE,
+      JSON.stringify(taken)
+        .replace(/\]\],\[/g, "]],\n[")
+        .replace(/\],"/g, '],\n"') + "\n",
+    );
 });
 
 describe.each(ENGINES)("the %s scene", (name, spec) => {
@@ -152,14 +200,52 @@ describe.each(ENGINES)("the %s scene", (name, spec) => {
     expect(Object.keys(now)).toEqual(Object.keys(was));
     for (const k of Object.keys(was)) {
       expect(now[k].length, `${k}: mesh count`).toBe(was[k].length);
-      now[k].forEach(([text, counts, nums], i) => {
-        const [wtext, wcounts, wnums] = was[k][i];
-        const at = `${k} mesh ${i}`;
-        expect([text, counts], at).toEqual([wtext, wcounts]);
-        expect(nums.length, at).toBe(wnums.length);
-        const off = nums.map((v, j) => Math.abs(v - wnums[j]));
-        expect(Math.max(0, ...off), `${at}: largest numeric difference`).toBeLessThanOrEqual(TOL);
-      });
+      now[k].forEach((row, i) => expect(mismatch(row, was[k][i]), `${k} mesh ${i}`).toBeNull());
     }
+  });
+});
+
+describe("the identity fingerprint", () => {
+  /** A 4 × 4 grid of vertices, two triangles per cell, with normals and uvs. */
+  const grid = () => new THREE.PlaneGeometry(0.2, 0.2, 3, 3);
+  const row = (g: THREE.BufferGeometry) => rowsOf(new THREE.Mesh(g, new THREE.MeshStandardMaterial()))[0];
+
+  test("an unchanged geometry matches itself", () => {
+    expect(mismatch(row(grid()), row(grid()))).toBeNull();
+  });
+
+  test("moving two interior vertices by equal and opposite amounts fails, though every plain sum is unchanged", () => {
+    const was = grid(),
+      now = grid();
+    const p = now.attributes.position;
+    // vertices 5 and 10 are inside the grid: neither the first nor the last
+    p.setY(5, p.getY(5) + 1e-4);
+    p.setY(10, p.getY(10) - 1e-4);
+    const sums = (g: THREE.BufferGeometry) =>
+      [0, 1, 2].map((c) => {
+        const a = g.attributes.position.array;
+        let t = 0;
+        for (let i = c; i < a.length; i += 3) t += a[i];
+        return t;
+      });
+    sums(now).forEach((v, i) => expect(v).toBeCloseTo(sums(was)[i], 9));
+    expect(mismatch(row(now), row(was))).toMatch(/^value/);
+  });
+
+  test("a changed normal fails", () => {
+    const was = grid(),
+      now = grid();
+    now.attributes.normal.setX(6, 0.01);
+    expect(mismatch(row(now), row(was))).toMatch(/^value/);
+  });
+
+  test("a changed triangle (two indices swapped) fails", () => {
+    const was = grid(),
+      now = grid();
+    const ix = now.index!;
+    const a = ix.getX(3);
+    ix.setX(3, ix.getX(4));
+    ix.setX(4, a);
+    expect(mismatch(row(now), row(was))).toMatch(/^counts or geometry hash/);
   });
 });
