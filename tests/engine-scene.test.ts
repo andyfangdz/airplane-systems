@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { mod, phaseOf, rodEnds, sideAngle, valveLift } from "@/engines/model/cycle";
+import { noFailures, sparks, type MagSwitch } from "@/engines/model/engine";
 import { O360 } from "@/engines/o360/spec";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
@@ -18,6 +19,7 @@ import {
   crankLayout,
   D2R,
   dims,
+  drawnSparks,
   driveLayout,
   GEAR_TEETH,
   gearSpins,
@@ -285,5 +287,27 @@ describe("IO-390 scene layout defaults", () => {
       ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
       ["Governor", [d.front + 0.04, 0.16, -0.07]],
     ]);
+  });
+});
+
+describe("the drawn sparks", () => {
+  test.each([
+    ["IO-390", IO390],
+    ["O-360", O360],
+  ] as const)("on the %s, where START fires the retard magneto alone, flash the plugs the model fires", (_, S) => {
+    const switches: MagSwitch[] = ["OFF", "L", "R", "BOTH", "START"];
+    for (const mags of switches)
+      for (const [magL, magR, plug] of [
+        [false, false, false],
+        [true, false, false],
+        [false, true, false],
+        [false, false, true],
+      ])
+        for (const rpm of [0, 29, 30, 200, 2400]) {
+          const f = { ...noFailures(S), magL, magR };
+          f.plugs = f.plugs.map((p, i) => (i === 0 && plug ? [true, p[1]] : p));
+          const drawn = drawnSparks(S, mags, f, rpm).map(([a, b]) => +a + +b);
+          expect(drawn, `${mags} L${+magL} R${+magR} plug${+plug} ${rpm} rpm`).toEqual(sparks(S, mags, f, rpm));
+        }
   });
 });

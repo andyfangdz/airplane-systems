@@ -8,10 +8,9 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { phaseOf, sparkBTC } from "@/engines/model/cycle";
-import { sparks } from "@/engines/model/engine";
 import type { CylinderDef } from "@/engines/types";
 import type { EngineSim } from "../store";
-import { chtColor, finned, headPoints, magsAtStart, merge, slab, zrod, type Dims, type Mats } from "./kit";
+import { chtColor, drawnSparks, finned, headPoints, merge, slab, zrod, type Dims, type Mats } from "./kit";
 import { layoutFor, type EngineLayout } from "./layout";
 import { Group, P } from "./parts";
 
@@ -110,16 +109,9 @@ function Cylinder({
     const since = (ph + sparkBTC(spec, ui.controls.mags) + 720) % 720;
     const lit = since < 40 && s.rpm > 30;
     const fl = lit ? (s.cyl[i]?.work > 0.02 ? 1 - since / 40 : 0.35) : 0;
-    const top = spec.ignition.topPlugMag[c.n];
-    const firing = sparks(spec, ui.controls.mags, ui.failures, s.rpm)[i] > 0;
-    const magOn = (m: "L" | "R") =>
-      !(m === "L" ? ui.failures.magL : ui.failures.magR) &&
-      (ui.controls.mags === "BOTH" ||
-        ui.controls.mags === m ||
-        (ui.controls.mags === "START" && magsAtStart(spec).includes(m)));
-    const other = top === "L" ? "R" : "L";
-    spark[0].opacity = firing && magOn(top) && !ui.failures.plugs[i][0] ? fl : 0;
-    spark[1].opacity = firing && magOn(other) && !ui.failures.plugs[i][1] ? fl : 0;
+    const [top, bottom] = drawnSparks(spec, ui.controls.mags, ui.failures, s.rpm)[i];
+    spark[0].opacity = top ? fl : 0;
+    spark[1].opacity = bottom ? fl : 0;
   });
   const n = c.n;
   return (

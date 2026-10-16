@@ -8,6 +8,7 @@ import { createElement as h } from "react";
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 import { mod, sideAngle } from "@/engines/model/cycle";
+import { noFailures } from "@/engines/model/engine";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
 import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
@@ -15,6 +16,7 @@ import {
   crankLayout,
   D2R,
   dims,
+  drawnSparks,
   driveLayout,
   GEAR_TEETH,
   headPoints,
@@ -180,6 +182,55 @@ describe("TSIO-550-K 3D model", () => {
     // START fires both magnetos (POH 7-37), so neither is the retard-breaker magneto
     expect(names).toEqual(expect.arrayContaining(["Left magneto", "Right magneto"]));
     expect(count(/retard breaker/)).toBe(0);
+    await unmount();
+  });
+});
+
+describe("TSIO-550-K starting sparks (POH 7-37: START energizes both magnetos)", () => {
+  test("with the right magneto failed, START still fires every left-fired plug", () => {
+    const f = { ...noFailures(S), magR: true };
+    drawnSparks(S, "START", f, 200).forEach(([top, bottom], i) => {
+      const left = S.ignition.topPlugMag[S.geometry.cylinders[i].n] === "L";
+      expect([top, bottom], `cylinder ${S.geometry.cylinders[i].n}`).toEqual([left, !left]);
+    });
+  });
+
+  test("the scene flashes the left-fired plugs at START with the right magneto failed", async () => {
+    const sim = simFor(S, "tsio550k-start-sparks");
+    sim.useUi.setState((u) => ({
+      controls: { ...u.controls, mags: "START" },
+      failures: { ...u.failures, magR: true },
+    }));
+    sim.s.rpm = 200;
+    const { scene, frame, unmount } = await mountScene(h(Cylinders, { sim, d, mats: makeMats() }));
+    // each spark beside its plug: the plug's hover name says which cylinder and which plug
+    const sparksAt: { name: string; mat: THREE.Material }[] = [];
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || (o.material as THREE.MeshBasicMaterial).color?.getHex() !== 0x9fd8ff) return;
+      const plug = o.parent!.children[0].children[0] as THREE.Object3D & {
+        __r3f?: { handlers: Record<string, (e: unknown) => void> };
+      };
+      useHover.setState({ hover: null });
+      plug.__r3f!.handlers.onPointerOver({
+        object: plug,
+        stopPropagation() {},
+        nativeEvent: { clientX: 0, clientY: 0 },
+      });
+      sparksAt.push({ name: useHover.getState().hover!.name, mat: o.material as THREE.Material });
+    });
+    useHover.setState({ hover: null });
+    expect(sparksAt).toHaveLength(12);
+    const lit = new Set<string>();
+    // turn the drawn crankshaft through two revolutions, as the flash follows each cylinder's spark
+    for (let crank = 0; crank < 720; crank += 2) {
+      sim.anim.crank = crank;
+      frame();
+      for (const s of sparksAt) if (s.mat.opacity > 0) lit.add(s.name);
+    }
+    const leftFired = S.geometry.cylinders.map((c) =>
+      S.ignition.topPlugMag[c.n] === "L" ? `Spark plug, cylinder ${c.n} top` : `Spark plug, cylinder ${c.n} bottom`,
+    );
+    expect([...lit].sort()).toEqual(leftFired.sort());
     await unmount();
   });
 });
