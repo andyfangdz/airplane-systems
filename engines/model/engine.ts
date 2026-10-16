@@ -30,12 +30,21 @@ import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp, seaLevelLines }
 import { governor, inducedVelocity, propTorque } from "./propeller";
 import {
   actuatorPressure,
+  altAirDoorNext,
+  bearingHeatW,
   compressorOut,
   controllerBleed,
   equilibriumPR,
+  filterOutletInHg,
   gateTarget,
+  INH2O_PA,
   intercool,
   intercoolerDrop,
+  reliefFlow,
+  reliefOpenNext,
+  titContinuousMaxF,
+  titOverNext,
+  titTargets,
   turbineInletPressure,
   turbinePowerW,
   turbineRpm,
@@ -93,7 +102,7 @@ export interface Failures {
   /** Leak in an intake pipe (a split hose, a loose clamp), by cylinder index, 0 … 1: unmetered air into that cylinder. */
   intakeLeak: number[];
   // Turbo-system failures: present (false or null) only for a spec with `turbo` (see noFailures).
-  /** Wastegate seized open or closed (null: free). */
+  /** Wastegate seized open or closed (null: free): it stays put whatever the actuator, its oil or the spring do. */
   wastegateSeized?: "open" | "closed" | null;
   /** Wastegate actuator oil supply lost (the spring opens the gate). */
   wastegateOil?: boolean;
@@ -439,6 +448,19 @@ function substep(
     // ice narrows the bore at the butterfly; heated air bypasses the filter
     const open = throttleArea(c.throttle, cal.idleArea) * (1 - 0.92 * s.ice);
     cdA = ind.cdAFull * (f.filter ? series(open, 0.12 + 0.88 * heat) : open);
+  } else if (intake?.altAir === "automatic") {
+    // an automatic door (POH 7-37; AMM 71-60 PDF 2542) has no pilot control, so the switch is ignored. An obstructed
+    // filter upstream of the compressors leaves the air boxes below the cowl's pressure; that suction opens the door
+    // against its magnets, and the engine then draws unfiltered, warmer air from inside the cowl (turbo.ts). A clean
+    // filter is no restriction.
+    const box = f.filter
+      ? filterOutletInHg((intake.filterBlockedArea ?? 0.12) * ind.cdAFull, ram, air.t + 273.15, (s.air * LB_KG) / 3600)
+      : ram;
+    const door = altAirDoorNext(spec, !!s.altAirOpen, ((air.p - box) * INHG_PA) / INH2O_PA);
+    s.altAirOpen = door;
+    source = door ? air.p : box;
+    inletC = air.t + (door ? (intake.altAirDeltaC ?? 15) : 0);
+    cdA = ind.cdAFull * throttleArea(c.throttle, cal.idleArea);
   } else {
     source = c.altAir ? air.p : ram;
     inletC = air.t + (c.altAir ? (intake?.altAirDeltaC ?? 15) : 0); // alternate air is warmer (assumed +15 °C)
@@ -638,10 +660,23 @@ function substep(
     cy.cht = approach(cy.cht, chtTarget, dtT, cal.chtTau / (cooling * cal.coolingTrim[i]));
   });
 
+  // ---- turbine-inlet temperature each side's probe reads (POH 7-35; turbo.ts), and the time above its continuous limit
+  if (spec.turbo) {
+    const target = titTargets(
+      spec,
+      s.cyl.map((cy) => cy.egt),
+    );
+    const tau = cal.titTauS ?? 5;
+    s.tit = [approach(s.tit![0], target[0], dt, tau), approach(s.tit![1], target[1], dt, tau)];
+    const limit = titContinuousMaxF(spec);
+    s.titOverS = limit === undefined ? 0 : titOverNext(s.titOverS!, s.tit, limit, dt);
+  }
+
   // ---- oil: friction and piston-cooling heat in; thermostatic cooler and crankcase out
   const valve = clamp((s.oilT - (spec.oil.thermostatF - 25)) / 25, 0.15, 1);
   s.coolerValve = valve;
-  const heatIn = oilHeatHp(fric, gross) * HP_W; // W
+  // W; a turbocharged engine's oil also carries the turbochargers' bearing heat (AMM 79-00 PDF 2764)
+  const heatIn = oilHeatHp(fric, gross) * HP_W + (spec.turbo ? bearingHeatW(spec.turbo, s.turboRpm!) : 0);
   const uaRef = (ratedOilHeat(spec) * HP_W) / cal.oilRise; // W/°F, at rated power and reference cooling air
   const ua = uaRef * Math.max(cooling * (0.25 + 0.75 * valve), 0.05);
   s.oilT = approach(s.oilT, oatF + heatIn / ua, dtT, (cal.oilTau * uaRef) / ua);
@@ -653,6 +688,9 @@ function substep(
   const [bare, covered] = spec.oil.pickupQt ?? [1.5, 3];
   const sump = clamp((env.oilQt - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
   oilP *= sump < 1 ? sump * (0.85 + 0.15 * Math.sin(s.t * 7)) : 1;
+  // the turbochargers' supply from the oil cooler is a branch in parallel with the engine's passages: it takes
+  // `turbo.oil.bleedPsi` at rated rpm, in proportion to the pump's flow (AMM 79-00 PDF 2764)
+  if (spec.turbo) oilP = Math.max(0, oilP - spec.turbo.oil.bleedPsi * clamp(s.rpm / rated.rpm, 0, 1));
   s.oilP = approach(s.oilP, oilP, dt, 0.4);
 }
 
@@ -680,16 +718,29 @@ function turboStep(
   const bleed = controllerBleed(turbo, s.deckInHg!, s.map, !!f.controllerMisadjust);
   // the actuator takes engine oil through its inlet restriction (POH 3-27/3-28 cause 3: none with its oil lost)
   const pAct = actuatorPressure(f.wastegateOil ? 0 : s.oilP, bleed, turbo.controller.ratio);
-  const gate = approach(s.gate!, gateTarget(turbo, pAct, s.rpm), dt, turbo.wastegate.tauS);
+  // a seized wastegate stays where it stuck, whatever the actuator, its oil or the spring do
+  const seized = f.wastegateSeized;
+  const gate =
+    seized === "closed"
+      ? 0
+      : seized === "open"
+        ? 1
+        : approach(s.gate!, gateTarget(turbo, pAct, s.rpm), dt, turbo.wastegate.tauS);
+  // the relief valve on the deck (LH intercooler outlet, AMM 71-60 PDF 2542) vents deck air into the cowl: the
+  // compressors then pass that air as well as the engine's, so the same turbine power holds a lower pressure ratio
+  const relief = reliefOpenNext(turbo, !!s.reliefOpen, s.deckInHg!);
+  const mR = relief ? reliefFlow(turbo, s.deckInHg!, s.matC! + 273.15, air.p) : 0;
+  s.reliefOpen = relief;
   const mA = (s.air * LB_KG) / 3600,
     mE = ((s.air + s.fuel) * LB_KG) / 3600;
-  // the gas the turbines expand: the cylinders' mean exhaust gas temperature
+  // the gas the turbines expand: the cylinders' mean exhaust gas temperature (the probes' `tit` reading, with its
+  // offset and lag, is display and limits only, so fitting it does not move the turbocharger's calibration)
   const titK = fToK(s.cyl.reduce((a, cy) => a + cy.egt, 0) / s.cyl.length);
   const pTI = turbineInletPressure(turbo, mE, titK, pTail, gate);
-  const pr = equilibriumPR(turbo, turbinePowerW(turbo, mE, titK, pTI, pTail, gate), mA, t1);
+  const pr = equilibriumPR(turbo, turbinePowerW(turbo, mE, titK, pTI, pTail, gate), mA + mR, t1);
   const ref = turboRef(spec, ve);
   const rho2 = (s.deckInHg! * INHG_PA) / (R_AIR * (s.compressorOutC! + 273.15));
-  const drop = intercoolerDrop(turbo, mA, ref.mRef, rho2, ref.rhoRef);
+  const drop = intercoolerDrop(turbo, mA + mR, ref.mRef, rho2, ref.rhoRef);
   const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
   const prNow = Math.max(1, (deck + drop) / source);
   const t2 = compressorOut(turbo, t1, prNow);

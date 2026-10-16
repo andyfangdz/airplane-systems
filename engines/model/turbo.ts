@@ -21,9 +21,16 @@
  * where k·deck − (c0 + c1 (deck − deckRef)) = (b − b0)/kBleed. A change δb in the bleed the gate needs (climbing, or
  * the cold-oil pressure) therefore moves the deck by about δb / (kBleed (k − c1)): a negative slope with a gain of
  * order 1 holds manifold pressure through a climb while still letting cold oil raise it.
+ *
+ * Around the turbochargers: an overboost relief valve on the deck (the LH intercooler outlet, AMM 71-60 PDF 2542) that
+ * lifts above its crack pressure and reseats a hysteresis lower, venting deck air overboard so the compressors must
+ * pass more air for the same turbine power (POH 3-29/3-30: it surges with a wastegate seized closed); the turbine-inlet
+ * temperature each side's probe reads (POH 7-35); the turbochargers' bearing heat and the oil they take (AMM 79-00 PDF
+ * 2764); and the automatic alternate-air door upstream of the compressors, which the engine's suction opens against
+ * its magnets when the filter is obstructed (POH 7-37, 3A-11; AMM 71-60).
  */
-import type { EngineSpec, TurboSpec } from "../types";
-import { atmosphere, fToK, INHG_PA, LB_KG, R_AIR, ramPressure } from "./atmosphere";
+import type { EngineSpec, Side, TurboSpec } from "../types";
+import { atmosphere, fToK, HP_W, INHG_PA, LB_KG, R_AIR, ramPressure } from "./atmosphere";
 import { continentalFuelFlow } from "./fuel";
 import { engineAirFlow, inductionCal, orificeFlow, solveManifold, throttleArea } from "./induction";
 
@@ -292,4 +299,99 @@ export function fullThrottleMapTurbo(
   }
   const { next: _, ...point } = hiPoint;
   return point;
+}
+
+/** Whether the overboost relief valve is open: it lifts above `crackInHg` of deck pressure and reseats below
+ * `crackInHg − hystInHg`; in between it stays as it was. */
+export function reliefOpenNext(turbo: TurboSpec, wasOpen: boolean, deckInHg: number) {
+  const o = turbo.overboost;
+  if (wasOpen) return deckInHg >= o.crackInHg - o.hystInHg;
+  return deckInHg > o.crackInHg;
+}
+
+/** Air (kg/s) the open relief valve vents from the deck (inHg, at `tK`) to the cowl (inHg). */
+export const reliefFlow = (turbo: TurboSpec, deckInHg: number, tK: number, cowlInHg: number) =>
+  orificeFlow(turbo.overboost.area, deckInHg * INHG_PA, tK, cowlInHg * INHG_PA);
+
+/**
+ * Turbine-inlet temperature (°F) each side's probe settles to, [L, R], from the cylinders' exhaust gas temperatures:
+ * that bank's mean (left 2-4-6, right 1-3-5 by `CylinderDef.side`), mixed with the other bank's by `titCrossover`
+ * through the crossover pipe, plus `titOffsetF`.
+ */
+export function titTargets(spec: EngineSpec, egtF: number[]): [number, number] {
+  const bank = (side: Side) => {
+    const v = spec.geometry.cylinders.flatMap((c, i) => (c.side === side ? [egtF[i]] : []));
+    return v.reduce((a, x) => a + x, 0) / v.length;
+  };
+  const l = bank("L"),
+    r = bank("R");
+  const x = spec.calibration.titCrossover ?? 0,
+    o = spec.calibration.titOffsetF ?? 0;
+  return [(1 - x) * l + x * r + o, (1 - x) * r + x * l + o];
+}
+
+/** Maximum continuous TIT (°F): where the spec's `tit` marking turns to its warning band (POH 2-9; M-18 Table 2-1). */
+export function titContinuousMaxF(spec: EngineSpec) {
+  return spec.markings?.find((m) => m.gauge === "tit")?.bands.find((b) => b.level === "warning")?.from;
+}
+
+/** Seconds above the maximum continuous TIT: counts while the hotter side is above it, back to 0 at or below. */
+export const titOverNext = (prevS: number, tit: readonly number[], limitF: number, dt: number) =>
+  Math.max(...tit) > limitF ? prevS + dt : 0;
+
+/**
+ * Turbine speed limit (rpm) at a turbine-inlet temperature, from `limits.turbineRpmMax` (M-18 Figure 2-41): linear
+ * between the points, flat beyond both ends (the figure's line stops at 1750 °F, the continuous TIT limit). Infinity
+ * for a spec without one.
+ */
+export function turbineRpmLimit(spec: EngineSpec, titF: number) {
+  const P = spec.limits.turbineRpmMax?.points;
+  if (!P?.length) return Infinity;
+  if (titF <= P[0][0]) return P[0][1];
+  for (let i = 1; i < P.length; i++)
+    if (titF <= P[i][0])
+      return P[i - 1][1] + ((P[i][1] - P[i - 1][1]) * (titF - P[i - 1][0])) / (P[i][0] - P[i - 1][0]);
+  return P[P.length - 1][1];
+}
+
+/** Heat (W) the turbochargers' bearings put into the oil: `oil.bearingHeatK` hp per turbocharger at `rpmRef`, ∝ N². */
+export const bearingHeatW = (turbo: TurboSpec, turboRpm: readonly number[]) =>
+  turboRpm.reduce((a, n) => a + turbo.oil.bearingHeatK * HP_W * (n / turbo.rpmRef) ** 2, 0);
+
+/** One inch of water, Pa (conventional, 4 °C). */
+export const INH2O_PA = 249.08891;
+
+/**
+ * Not published: the alternate-air door, once open, closes when the filter's suction falls below this fraction of
+ * the suction that opened it. The magnets hold the closed flap (AMM 71-60 PDF 2542) and lose their pull once it is
+ * open; a narrow band lets the door's own manifold-pressure loss slam it shut and open again. Reproduces the door
+ * opening at full power and closing again once power is reduced to 30.5 in.Hg (POH 3A-11) without the door chattering.
+ */
+export const DOOR_RESEAT_FRACTION = 0.5;
+
+/**
+ * Air-box pressure (inHg) behind an obstructed filter of effective area `areaM2` passing `mA` kg/s from `ramInHg` at
+ * `tK`. A filter that cannot pass the flow at any pressure (fully blocked) gives the bracket's floor.
+ */
+export function filterOutletInHg(areaM2: number, ramInHg: number, tK: number, mA: number) {
+  if (mA <= 0) return ramInHg;
+  let lo = 0.2 * ramInHg,
+    hi = ramInHg;
+  for (let i = 0; i < 40; i++) {
+    const m = (lo + hi) / 2;
+    if (orificeFlow(areaM2, ramInHg * INHG_PA, tK, m * INHG_PA) > mA) lo = m;
+    else hi = m;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Whether the automatic alternate-air door is open, from the suction (inH₂O) the filter path pulls below cowl pressure:
+ * it opens above `induction.doorOpenInH2O` and closes below `DOOR_RESEAT_FRACTION` of it.
+ */
+export function altAirDoorNext(spec: EngineSpec, wasOpen: boolean, suctionInH2O: number) {
+  const open = spec.induction?.doorOpenInH2O;
+  if (open === undefined)
+    throw new Error(`${spec.id}: an automatic alternate-air door needs induction.doorOpenInH2O (spec.ts)`);
+  return wasOpen ? suctionInH2O > open * DOOR_RESEAT_FRACTION : suctionInH2O > open;
 }
