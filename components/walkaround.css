@@ -1,8 +1,11 @@
-/* SR22T preflight walk-around panel (panels/walkaround.tsx). */
+/* Preflight study walk panel shared by every airplane (FleetWalkaround.tsx). */
 .walk {
   --c: var(--accent);
   display: grid;
   gap: 12px;
+}
+.walk > * {
+  min-width: 0;
 }
 .walk-hd {
   display: flex;
@@ -295,6 +298,9 @@
   cursor: pointer;
   font-size: 13px;
   color: var(--ink);
+}
+.walk-src a {
+  color: inherit;
 }
 /* larger text, for reading at the airplane */
 .walk-big {
