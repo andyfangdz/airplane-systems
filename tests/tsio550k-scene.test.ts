@@ -19,6 +19,7 @@ import {
   drawnSparks,
   driveLayout,
   GEAR_TEETH,
+  gearSpins,
   headPoints,
   IN,
   magDrive,
@@ -231,6 +232,54 @@ describe("TSIO-550-K starting sparks (POH 7-37: START energizes both magnetos)",
       S.ignition.topPlugMag[c.n] === "L" ? `Spark plug, cylinder ${c.n} top` : `Spark plug, cylinder ${c.n} bottom`,
     );
     expect([...lit].sort()).toEqual(leftFired.sort());
+    await unmount();
+  });
+});
+
+describe("TSIO-550-K ALT 1 on its transverse pad (AMM Fig 24-30-3)", () => {
+  const a = driveLayout(S, d, L).alternators.find((x) => x.def.name === "ALT 1")!;
+
+  test("the shaft runs across the engine on the right, its pad and end faces where M-18 Figures 5-34 and 5-35 put them", () => {
+    const t = a.transverse!;
+    expect(t.axis[1]).toBeCloseTo(0, 9);
+    expect(t.axis[2]).toBeCloseTo(1, 9);
+    expect(station(t.padAt[0])).toBeCloseTo(27.3, 6);
+    expect(t.padAt[2] / IN).toBeCloseTo(6.7, 6);
+    expect(t.endAt[2] / IN).toBeCloseTo(9.45, 6);
+    // turned by a bevel pinion on the crankshaft's drive gear, at the gear-driven alternator's 3:1 (M-18 Table 2-9)
+    expect(gearSpins(S, d, L).meshes).toContainEqual({ a: "crank", b: "ALT 1", kind: "bevel" });
+    expect(a.gear!.driveTeeth / a.gear!.drivenTeeth).toBe(3);
+  });
+
+  test("as drawn, the housing stands outboard of the crankcase on its pad, its axis across the engine", async () => {
+    const sim = simFor(S, "tsio550k-alt1");
+    const { scene, unmount } = await mountScene(h(Drives, { sim, d, mats: makeMats() }));
+    const box = (name: string) => {
+      const b = new THREE.Box3();
+      scene.traverse((o) => {
+        const over = (o as { __r3f?: { handlers: Record<string, (e: unknown) => void> } }).__r3f?.handlers
+          .onPointerOver;
+        if (!(o instanceof THREE.Mesh) || !over) return;
+        useHover.setState({ hover: null });
+        over({ object: o, stopPropagation() {}, nativeEvent: { clientX: 0, clientY: 0 } });
+        if (useHover.getState().hover?.name === name) b.expandByObject(o);
+      });
+      useHover.setState({ hover: null });
+      return b;
+    };
+    const body = box("ALT 1"),
+      pad = box("ALT 1 drive pad");
+    // the housing from the pad face out to the end face: clear of the crankcase half-width, longest across the engine
+    expect(body.min.z).toBeGreaterThan(d.caseHalf);
+    expect(body.min.z / IN).toBeCloseTo(6.7, 2);
+    expect(body.max.z / IN).toBeGreaterThan(9.45);
+    const size = body.getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(2 * a.transverse!.r, 3);
+    expect(size.y).toBeGreaterThanOrEqual(2 * a.transverse!.r - 1e-3);
+    expect(body.getCenter(new THREE.Vector3()).x).toBeCloseTo(a.x, 3);
+    // the pad bridges the case side to the housing
+    expect(pad.min.z).toBeCloseTo(d.caseHalf, 3);
+    expect(pad.max.z / IN).toBeCloseTo(6.7, 2);
     await unmount();
   });
 });

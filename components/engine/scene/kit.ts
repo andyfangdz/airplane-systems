@@ -526,12 +526,28 @@ export function driveLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutF
     if (a.drive === "belt") {
       const r = a.r ?? 0.27;
       const x = d.flangeX - (a.pulleyBehindFlange ?? 0.055);
-      return { def: a, ratio, x, at: [x, r * Math.cos(ang), r * Math.sin(ang)] as V3, gear: null };
+      return { def: a, ratio, x, at: [x, r * Math.cos(ang), r * Math.sin(ang)] as V3, gear: null, transverse: null };
     }
     const driveTeeth = 48,
       driveR = 0.09;
     const drivenTeeth = Math.round(driveTeeth / ratio),
       drivenR = (driveR * drivenTeeth) / driveTeeth;
+    const t = a.axis === "transverse" ? a.transverse : undefined;
+    if (t) {
+      // shaft across the engine in the `angleDeg` direction; its bevel pinion beside the rim of the crankshaft's drive
+      // gear, which sits just aft of the pinion
+      const x = d.accRear + t.stationIn * IN;
+      const axis: V3 = [0, Math.cos(ang), Math.sin(ang)];
+      const along = (s: number): V3 => [x, s * axis[1], s * axis[2]];
+      return {
+        def: a,
+        ratio,
+        x,
+        at: along(driveR + 0.006),
+        gear: { driveR, driveTeeth, drivenR, drivenTeeth, driveX: x - drivenR - 0.007, bevel: true },
+        transverse: { axis, padAt: along(t.padIn * IN), endAt: along(t.endIn * IN), r: t.r },
+      };
+    }
     const x = d.front - 0.045,
       dist = driveR + drivenR;
     return {
@@ -539,7 +555,8 @@ export function driveLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutF
       ratio,
       x,
       at: [x, dist * Math.cos(ang), dist * Math.sin(ang)] as V3,
-      gear: { driveR, driveTeeth, drivenR, drivenTeeth },
+      gear: { driveR, driveTeeth, drivenR, drivenTeeth, driveX: x, bevel: false },
+      transverse: null,
     };
   });
   return { governor, starter, alternators };
@@ -580,8 +597,9 @@ export function gearSpins(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor
   spins.governor = acc.governorRatio;
   meshes.push({ a: "cam", b: "governor", kind: D.governor.bevel ? "bevel" : "gear" });
   for (const a of D.alternators) {
-    spins[a.def.name] = a.gear ? -a.ratio : a.ratio;
-    meshes.push({ a: "crank", b: a.def.name, kind: a.gear ? "gear" : "belt" });
+    // a bevel pinion beside the drive gear's forward face turns about its own axis with the crankshaft (+ outboard)
+    spins[a.def.name] = a.gear && !a.gear.bevel ? -a.ratio : a.ratio;
+    meshes.push({ a: "crank", b: a.def.name, kind: !a.gear ? "belt" : a.gear.bevel ? "bevel" : "gear" });
   }
   return { spins, meshes };
 }

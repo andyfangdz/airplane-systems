@@ -650,6 +650,24 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     const alternators = D.alternators.map((a) => {
       // the default is short enough to stay forward of the IO-390's cylinder 1 intake pipe
       const len = a.def.bodyLen ?? 0.08;
+      const t = a.transverse;
+      if (t && a.gear) {
+        // across the engine, in its own frame (+z outboard along the shaft): the housing from the pad face to the end
+        // face, the drive pad on the crankcase side, the shaft in to the bevel pinion (drawn in the pinion's frame) and
+        // the terminal block on the end face
+        const [pad, end] = [t.padAt, t.endAt].map((p) => Math.hypot(p[1], p[2]));
+        const pin = Math.hypot(a.at[1], a.at[2]);
+        return {
+          body: merge([
+            zrod(t.r, pad, end, 32),
+            new THREE.BoxGeometry(0.035, 0.035, 0.012).translate(0, 0.03, end + 0.006),
+          ]),
+          pad: zrod(0.04, d.caseHalf, pad, 24),
+          shaft: zrod(0.008, pin + 0.006, pad, 10),
+          wheel: gear(a.gear.drivenR, a.gear.drivenTeeth, 0.012, 0),
+          belt: null,
+        };
+      }
       return a.gear
         ? {
             // the body runs forward of its gear, on the front of the crankcase
@@ -659,6 +677,8 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
             ]),
             wheel: gear(a.gear.drivenR, a.gear.drivenTeeth, 0.012, 0),
             belt: null,
+            pad: null,
+            shaft: null,
           }
         : {
             body: merge([
@@ -667,6 +687,8 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
             ]),
             wheel: merge([gear(d.altPulleyR, 16, 0.016, 0), rod(0.012, 0.03, 10).translate(-0.012, 0, 0)]),
             belt: beltGeometry(a.x, a.at[1], a.at[2]),
+            pad: null,
+            shaft: null,
           };
     });
     const gv = D.governor;
@@ -686,7 +708,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     () => () => {
       const all = [
         ...Object.values(geo.starter).filter((g) => g instanceof THREE.BufferGeometry),
-        ...geo.alternators.flatMap((a) => [a.body, a.wheel, a.belt]),
+        ...geo.alternators.flatMap((a) => [a.body, a.wheel, a.belt, a.pad, a.shaft]),
         geo.gov,
         geo.govGear,
         geo.govShaft,
@@ -788,6 +810,33 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       ) : null}
       {D.alternators.map((a, k) => {
         const g = geo.alternators[k];
+        if (a.transverse)
+          // turned about the crankshaft so its +z runs out along the shaft; the pinion's frame turns +x onto it
+          return (
+            <group key={a.def.name} position={[a.x, 0, 0]} rotation={[a.def.angleDeg * D2R - Math.PI / 2, 0, 0]}>
+              <P name={a.def.name} note={a.def.note} geometry={g.body} material={mats.alt} />
+              {g.pad && (
+                <P
+                  name={`${a.def.name} drive pad`}
+                  note={`${a.def.name} bolts to the drive pad on the crankcase, its face outboard (${a.def.src}).`}
+                  geometry={g.pad}
+                  material={mats.case}
+                />
+              )}
+              {g.shaft && <P name={`${a.def.name} shaft`} geometry={g.shaft} material={mats.steel} />}
+              <group position={[0, 0, Math.hypot(a.at[1], a.at[2])]} rotation={[0, -Math.PI / 2, 0]}>
+                <P
+                  name={`${a.def.name} drive pinion`}
+                  note={`Bevel pinion on ${a.def.name}'s shaft, turned by the alternator drive gear on the crankshaft at ${a.ratio}:1.`}
+                  geometry={g.wheel}
+                  material={mats.gear}
+                  meshRef={(m) => {
+                    altRot.current[k] = m;
+                  }}
+                />
+              </group>
+            </group>
+          );
         return (
           <Fragment key={a.def.name}>
             <group position={a.at}>

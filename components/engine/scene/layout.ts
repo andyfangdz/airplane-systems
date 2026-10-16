@@ -37,6 +37,16 @@ export interface AlternatorDef {
   pulleyBehindFlange?: number;
   /** Length of the alternator body, m (default 0.08). */
   bodyLen?: number;
+  /**
+   * Gear drive: the shaft along the crankshaft, the body running forward of its gear (absent), or across it on a pad on
+   * the crankcase nose, turned by a bevel pinion on the crankshaft's drive gear (`"transverse"`, with `transverse`).
+   */
+  axis?: "axial" | "transverse";
+  /**
+   * A transverse alternator's shaft station forward of the accessory mounting face, its pad face and outboard end face
+   * from the crankshaft axis (in the `angleDeg` direction), inches, and its housing radius, m.
+   */
+  transverse?: { stationIn: number; padIn: number; endIn: number; r: number };
   src: string;
   /** Hover note; absent = the IO-390 alternator's. */
   note?: string;

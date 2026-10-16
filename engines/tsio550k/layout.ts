@@ -67,12 +67,17 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
       name: "ALT 1",
       drive: "gear",
       ratio: null, // M-18 Table 2-9: gear-driven alternator 3:1 (the spec's alternatorRatio)
-      // POH 7-47: "mounted on the right front of the engine"; M-18 2-2.1: pad on the right crankcase forward of No. 5
-      angleDeg: 80,
-      // FIT, drawing only: no document gives the body length
-      bodyLen: 0.11,
-      src: "POH 7-47; M-18 2-2.2, Table 2-9",
-      note: "ALT 1: gear-driven 100 A alternator on the right front (POH 7-47), driven at three times crankshaft speed by the alternator drive gear on the crankshaft (M-18 2-2.2, Table 2-9).",
+      // AMM 13773-002 Rev 7 Fig 24-30-3 (PDF p. 714), Fig 71-00-2 sheet 1 item 7 (PDF p. 2487): the shaft runs across
+      // the engine, the drive flange on a pad on the right side of the crankcase nose, the terminal end outboard. M-18
+      // Figure 5-34 view D-D and Figure 5-35 (pp. 5-54, 5-55): on the crankshaft centreline.
+      axis: "transverse",
+      angleDeg: 90,
+      // Scaled from M-18 Figures 5-35 (station, against its 3.97 in) and 5-34 view D-D (pad and end faces, against its
+      // 10.52 in), ± 0.5 in: station 27.3 in forward of the accessory face, pad 6.7 in and end 9.45 in right of the
+      // crankshaft centreline, Ø 5.75 in.
+      transverse: { stationIn: 27.3, padIn: 6.7, endIn: 9.45, r: (5.75 / 2) * IN },
+      src: "POH 7-47; AMM Fig 24-30-3; M-18 2-2.2, Table 2-9",
+      note: "ALT 1: gear-driven 100 A alternator on the right front (POH 7-47), its shaft across the engine on a pad on the right side of the crankcase nose, terminal end outboard (AMM Fig 24-30-3, Fig 71-00-2 sheet 1). The alternator drive gear on the crankshaft turns it at three times crankshaft speed (M-18 2-2.2, Table 2-9); the bevel pinion is drawn, not published.",
     },
     {
       name: "ALT 2",
@@ -100,7 +105,7 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
     ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
     ["Starter", [d.accRear - 1.78 * IN, -0.2, 0.2]],
-    ["ALT 1", [d.flangeX - 0.04, 0.1, 0.24]],
+    ["ALT 1", [d.accRear + 27.3 * IN, 0.1, 0.26]],
     ["ALT 2", [d.flangeX - 0.04, 0.14, -0.22]],
     ["Governor", [d.front, -0.22, -0.12]],
   ],
@@ -118,7 +123,7 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
       "Belt drive to ALT 2, the belt-driven alternator on the front left (POH 7-47). Pulley sizes are drawn, not published.",
     altBelt: "ALT 2's belt. The drive ratio isn't published; the pulleys are drawn about 2.4 to 1.",
     altDriveGear:
-      "Alternator drive gear, bolted to a flange behind the front main journal (M-18 2-2.2.1); drives ALT 1 at three times crankshaft speed (Table 2-9).",
+      "Alternator drive gear, bolted to a flange behind the front main journal (M-18 2-2.2.1); drives ALT 1, across the engine, at three times crankshaft speed (Table 2-9). Drawn turning a bevel pinion on ALT 1's shaft.",
     pistonOil:
       "Oil from the galleries reaches the rotating parts and the piston inner domes (POH 7-36, 7-37). Drawn as a nozzle.",
     baseFlange: "Seven studs and two through-bolts hold each cylinder base flange to the crankcase (M-18 2-2.1).",

@@ -159,7 +159,11 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
       if (a.gear) {
         expect(a.gear.driveTeeth / a.gear.drivenTeeth).toBeCloseTo(a.ratio, 6);
         expect(a.gear.driveR / a.gear.drivenR).toBeCloseTo(a.ratio, 6);
-        expect(Math.hypot(a.at[1], a.at[2])).toBeCloseTo(a.gear.driveR + a.gear.drivenR, 6);
+        if (a.gear.bevel) {
+          // a bevel pinion across the shaft: beside the drive gear's rim, its aft face just forward of the drive gear
+          expect(Math.hypot(a.at[1], a.at[2])).toBeCloseTo(a.gear.driveR + 0.006, 6);
+          expect(a.x - a.gear.drivenR - a.gear.driveX).toBeCloseTo(0.007, 6);
+        } else expect(Math.hypot(a.at[1], a.at[2])).toBeCloseTo(a.gear.driveR + a.gear.drivenR, 6);
       } else expect(d.pulleyR / d.altPulleyR).toBeCloseTo(a.ratio, 6);
     }
   });

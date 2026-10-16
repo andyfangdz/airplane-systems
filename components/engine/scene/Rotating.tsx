@@ -73,7 +73,7 @@ export function crankGeometry(spec: EngineSpec, d: Dims) {
     : null;
   const geared = drives.alternators.find((a) => a.gear);
   const altGear = geared?.gear
-    ? gear(geared.gear.driveR, geared.gear.driveTeeth, 0.012, 0.03).translate(geared.x, 0, 0)
+    ? gear(geared.gear.driveR, geared.gear.driveTeeth, 0.012, 0.03).translate(geared.gear.driveX, 0, 0)
     : null;
   return {
     journals: merge(journals),
