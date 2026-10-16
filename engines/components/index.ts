@@ -1,7 +1,8 @@
 /**
  * Standalone component simulations (`/components/<id>`): one engine accessory on its own, bigger than it is drawn on
  * an engine, with its own controls. Each folder here holds a component's model and its SOURCES.md; its page is in
- * `components/engine/<id>/`, listed in `components/engine/ComponentPage.tsx`. This list is the picker order.
+ * `components/engine/<id>/`, loaded by `components/engine/ComponentPage.tsx`, whose map is keyed by `ComponentId` so
+ * the two can't drift (and `tests/component-pages.test.ts` checks it). This list is the picker order.
  */
 import { GOVERNOR } from "./governor/spec";
 
@@ -15,7 +16,7 @@ export interface ComponentEntry {
   lead: string;
 }
 
-export const COMPONENTS: ComponentEntry[] = [
+export const COMPONENTS = [
   {
     id: "carburetor",
     name: "Carburetor",
@@ -35,7 +36,9 @@ export const COMPONENTS: ComponentEntry[] = [
     lead: "SureFly SIM4P electronic ignition module: dip switch timing, advance with rpm and manifold pressure, the timing light and wasted spark.",
   },
   { id: GOVERNOR.id, name: GOVERNOR.name, sub: GOVERNOR.sub, lead: GOVERNOR.lead },
-];
+] as const satisfies readonly ComponentEntry[];
+
+export type ComponentId = (typeof COMPONENTS)[number]["id"];
 
 export const COMPONENT_IDS = COMPONENTS.map((c) => c.id);
 
