@@ -15,7 +15,7 @@ import { PositiveControl } from "./panels/pc";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Vacuum } from "./panels/vacuum";
 import { useM20C } from "./store";
-import { SYS } from "./systems";
+import { M20C_META } from "./meta";
 import { simTick } from "./tick";
 import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
@@ -38,12 +38,7 @@ function Alerts() {
  * where 1967 differed.
  */
 export const M20C: AircraftDef = {
-  id: "m20c",
-  short: "M20C",
-  name: "M20C Ranger",
-  sub: "1968 · Johnson bar · O-360-A1D",
-  doc: "OM Part I",
-  systems: SYS,
+  ...M20C_META,
   groundY: GROUND_Y,
   pivotX: 1.0,
   Model,

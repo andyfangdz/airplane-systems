@@ -14,7 +14,7 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Lighting, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { useDA40 } from "./store";
-import { SYS } from "./systems";
+import { DA40_META } from "./meta";
 import { simTick } from "./tick";
 import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
@@ -30,12 +30,7 @@ function Alerts() {
 }
 
 export const DA40: AircraftDef = {
-  id: "da40",
-  short: "DA40",
-  name: "DA40 XLS",
-  sub: "G1000 · GFC 700 · IO-360",
-  doc: "AFM §7",
-  systems: SYS,
+  ...DA40_META,
   groundY: GROUND_Y,
   pivotX: 0.3,
   Model,

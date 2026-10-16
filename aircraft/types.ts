@@ -16,8 +16,11 @@ export interface ModelRefs {
   gridRef: RefObject<THREE.GridHelper | null>;
 }
 
-/** Everything the shared shell needs to show one airplane. Each lives in aircraft/<id>/index.tsx. */
-export interface AircraftDef {
+/**
+ * The light part of an airplane: what the shell (rail, picker, panel heading, camera flights, URL) needs before the
+ * airplane's code has loaded. Each lives in aircraft/<id>/meta.ts; aircraft/lazy.ts lists them and loads the rest on demand.
+ */
+export interface AircraftMeta {
   id: AircraftId;
   /** Fleet picker label, e.g. "C172S". */
   short: string;
@@ -29,6 +32,13 @@ export interface AircraftDef {
   doc: string;
   /** Systems in rail order; the first must be "overview". */
   systems: SysDef[];
+}
+
+/**
+ * Everything the shared shell needs to show one airplane: its meta and its code (Model, panels, tick, alerts, …). Each
+ * lives in aircraft/<id>/index.tsx, which the app loads only when that airplane is shown.
+ */
+export interface AircraftDef extends AircraftMeta {
   /** Ground plane height (m) for the grid. */
   groundY: number;
   /** x (m) about which the root group rotates; also the scene origin offset. */
@@ -40,8 +50,8 @@ export interface AircraftDef {
    * itself (lib/build.ts); the scene then waits for the build before framing a camera preset on the model's bounds.
    */
   progressive?: boolean;
-  /** Called when the page boots on this airplane, before its 3D code has loaded: start slow work early (SR22T: its
-   * fuselage skin, in a worker). */
+  /** Called once, when this airplane's code has loaded and before its Model mounts: start slow work early (SR22T: its
+   * fuselage skin, in a worker, while the scene is still loading). */
   prepare?: () => void;
   /** Optional scene-level effect that needs the model groups (SR20 CAPS parachute). */
   Overlay?: ComponentType<ModelRefs>;

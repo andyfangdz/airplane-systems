@@ -1,13 +1,20 @@
 # Adding an airplane
 
-Each airplane lives in `aircraft/<id>/` and exports one `AircraftDef` (see `types.ts`) from its `index.tsx`.
-The shell (`components/App.tsx`, `components/scene/Scene.tsx`) knows nothing airplane-specific. `aircraft/sr20/` is the reference implementation.
+Each airplane lives in `aircraft/<id>/` and exports one `AircraftDef` (see `types.ts`) from its `index.tsx`, which
+spreads its light `AircraftMeta` from `meta.ts` (id, names, document, systems). The shell (`components/App.tsx`,
+`components/scene/Scene.tsx`) knows nothing airplane-specific. `aircraft/sr20/` is the reference implementation.
+
+The app ships only the metas: `aircraft/lazy.ts` lists them and loads an airplane's `index.tsx` with a dynamic `import()`
+when it is first shown (the loader says "Loading" meanwhile; `useAircraftDef()` and `loaded(id)` in `lib/fleet.ts` are
+undefined until then, while `useAircraft()` and `aircraft(id)` give the meta at once). `aircraft/index.ts` imports every
+full definition, for tests and scripts; the app must not import it (`tests/fleet-lazy.test.ts` checks).
 
 To add one:
 
 1. Add its id to `AIRCRAFT_IDS` in `lib/systems.ts` (and any new system ids to `SysId`, with their rail and part colour in `SYS_COLOR`).
-2. Create `aircraft/<id>/` with the files below and export its `AircraftDef` from `index.tsx`.
-3. List it in `FLEET` in `aircraft/index.ts` (picker order). The fleet picker sizes itself to the number of airplanes.
+2. Create `aircraft/<id>/` with the files below: its meta in `meta.ts`, and its `AircraftDef` exported from `index.tsx`.
+3. List it in `FLEET` in `aircraft/index.ts`, and its meta and loader in `aircraft/lazy.ts` (picker order), and add it to
+   `FLEET_INDEX` in `lib/fleet-index.ts`. The fleet picker sizes itself to the number of airplanes.
 
 ## Files
 

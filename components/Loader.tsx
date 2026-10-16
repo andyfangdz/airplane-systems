@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useAircraft } from "@/aircraft";
+import { useAircraft, useAircraftDef } from "@/lib/fleet";
 import { skipBuild, useBuild, type BuildStage } from "@/lib/build";
 
 const TEXT: Record<Exclude<BuildStage, "ready">, string> = {
@@ -20,7 +20,8 @@ let completedOnce = false;
  * while shown.
  */
 export function Loader() {
-  const def = useAircraft();
+  const def = useAircraft(),
+    progressive = !!useAircraftDef()?.progressive;
   const { stage, done, total } = useBuild();
   // every view is served the same static HTML: name the airplane only once mounted (as App does for the tab title)
   const [mounted, setMounted] = useState(false);
@@ -32,7 +33,7 @@ export function Loader() {
   const bar = stage === "systems";
   return (
     <div
-      className={`loader${bar ? " loader-bar" : ""}${completedOnce && def.progressive ? " loader-later" : ""}`}
+      className={`loader${bar ? " loader-bar" : ""}${completedOnce && progressive ? " loader-later" : ""}`}
       role="status"
       aria-live="polite"
       data-building={stage}

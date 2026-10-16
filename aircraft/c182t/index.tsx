@@ -13,7 +13,7 @@ import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
 import { useC182 } from "./store";
-import { SYS } from "./systems";
+import { C182T_META } from "./meta";
 import { simTick } from "./tick";
 import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
@@ -34,12 +34,7 @@ function Alerts() {
 }
 
 export const C182T: AircraftDef = {
-  id: "c182t",
-  short: "C182T",
-  name: "C182T Skylane",
-  sub: "NAV III G1000 · KAP 140 · IO-540",
-  doc: "POH §7",
-  systems: SYS,
+  ...C182T_META,
   groundY: GROUND_Y,
   pivotX: 0,
   Model,
