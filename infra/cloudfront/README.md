@@ -66,4 +66,5 @@ Live verification should include `/sr22t/?a=x%26y%0D%0A` and assert the Location
 
 Offline tests require exact equality between the template FunctionCode and this source, including whitespace;
 format the source first, copy it to FunctionCode, then format the JSON. Missing source must fail.
-Route, 404, cache and HTTPS checks against a live site are `npm run smoke -- <site-url>`.
+Route, 404, cache and HTTPS checks against a live site are `npm run smoke -- <site-url>`. Before a deploy, CI serves the export through this Function locally
+(`scripts/serve-export.mjs`) and switches airplanes in a browser (`scripts/test-static-export-ui.mjs`).

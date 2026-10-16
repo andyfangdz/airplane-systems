@@ -31,7 +31,9 @@ and touch taps with Android and iPhone device profiles.
 
 Browser regressions use **Playwright Test**. `npm run test:ui` runs all suites; the existing `test:ui:*` commands select
 one suite. The runner starts and stops the production server after `npm run build`. Set `UI_BASE_URL` to test an
-already-running server. Use standard runner options such as `-- --project=phone` or `-- --grep=c172s` to narrow a run.
+already-running server. With `STATIC_EXPORT=1` (after `STATIC_EXPORT=1 npm run build`) it serves the static export in
+`out/` instead, through the CloudFront view rewrite (`scripts/serve-export.mjs`); `scripts/test-static-export-ui.mjs`
+switches airplanes there. Use standard runner options such as `-- --project=phone` or `-- --grep=c172s` to narrow a run.
 The projects retain the fleet picker's Chromium/WebKit, viewport, theme and touch combinations; tests run one at a time
 because software WebGL and camera timing need an uncontended renderer. Failures retain traces and screenshots under
 `test-results/` (`npx playwright show-trace <trace.zip>`). The load and SR22T walk-around suites disable tracing to preserve their camera timing measurements.
