@@ -322,6 +322,7 @@ const clampFrame = (k: Axis3, end: number, pose?: RigPose) =>
     new THREE.Vector3(1, 0, 0),
     new THREE.Vector3(...clampTangent(k, end, pose)),
   );
+/** Pure memo: `rigPose` reads only the control inputs it is keyed by, so it is safe across scene remounts. */
 let poseCache: { pitch: number; roll: number; yaw: number; pose: RigPose } | undefined;
 const livePose = () => {
   const s = useSR22T.getState().s,

@@ -36,8 +36,6 @@ export const trimPitch = (trim: number) => 1.5 + trim * 4;
 /** Engine power fraction 0..1 from MAP and RPM (illustrative). */
 export const powerFrac = (map: number, rpm: number) => clamp(((map - 10) / 18.5) * (rpm / 2700), 0, 1);
 
-let trimPrev = live.afcs.trim;
-
 /** PFD lost (AFMS p. 10): the AP disconnects (red, continuous tone) and the AP and FD are inoperative; MET stays available. */
 function pfdLost(st: Gfc700State): Gfc700State {
   if (!st.ap && !st.fd && !st.cws) return st;
@@ -256,6 +254,6 @@ export function simTick(dt: number) {
     roll: lerp(live.eff.roll, tgt.roll, k),
     yaw: lerp(live.eff.yaw, tgt.yaw, k),
   };
-  live.trimRate = (live.afcs.trim - trimPrev) / Math.max(dt, 1e-3);
-  trimPrev = live.afcs.trim;
+  live.trimRate = (live.afcs.trim - live.trimPrev) / Math.max(dt, 1e-3);
+  live.trimPrev = live.afcs.trim;
 }

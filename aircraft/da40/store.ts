@@ -15,6 +15,7 @@ export function scenarioCruise() {
   live.afcsDerived = "";
   live.afcsUser = {};
   Object.assign(live, {
+    trimPrev: CRUISE_TRIM,
     rpm: 2400,
     map: 23.5,
     ff: 9.4,
@@ -44,6 +45,7 @@ export function scenarioRamp() {
   live.afcsDerived = "";
   live.afcsUser = {};
   Object.assign(live, {
+    trimPrev: TO_TRIM,
     rpm: 0,
     map: 29.7,
     ff: 0,

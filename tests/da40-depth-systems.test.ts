@@ -250,6 +250,15 @@ describe("DA40 XLS source-specific plumbing and interfaces", () => {
     expect(useDA40.getState().s.eng.running).toBe(true);
     expect(live.fuelP).toBeGreaterThan(8);
   });
+  it("shows no trim cable motion for a scenario's trim reset, only for a trim wheel movement", () => {
+    simTick(0.25);
+    scenarioRamp(); // resets the trim from cruise to take-off
+    simTick(0.25);
+    expect(live.trimRate).toBe(0);
+    live.afcs = { ...live.afcs, trim: live.afcs.trim + 0.1 };
+    simTick(0.25);
+    expect(live.trimRate).toBeCloseTo(0.4);
+  });
   it("keeps the GFC 700 protected servo feed and each normal GIA data link independent (SMM 2-7, AFMS 7-5)", () => {
     const s = sim(),
       E = solve(s),
