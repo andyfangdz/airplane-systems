@@ -318,20 +318,51 @@ export function ratedAirLbH(spec: EngineSpec) {
 /** Oil viscosity relative to 180 °F (Andrade fit to a multigrade aviation oil: ~120 cSt at 40 °C, ~18 at 100 °C). */
 export const viscosity = (oilF: number) => Math.exp(3691 * (1 / ((oilF - 32) / 1.8 + 273.15) - 1 / 355.37));
 
-/** Governor set speed for a propeller-control position. */
+/**
+ * Governor set speed for a propeller-control position. A governor with no pilot control (`propeller.control:
+ * "fixed"`: SR22T POH 7-32, AMM 61-20 "factory-set to 2500 RPM") holds rated rpm whatever the control says.
+ */
 export const governedRpm = (spec: EngineSpec, prop: number) =>
-  spec.propeller.governorMinRpm + Math.max(0, Math.min(1, prop)) * (spec.rating.rpm - spec.propeller.governorMinRpm);
+  spec.propeller.control === "fixed"
+    ? spec.rating.rpm
+    : spec.propeller.governorMinRpm +
+      Math.max(0, Math.min(1, prop)) * (spec.rating.rpm - spec.propeller.governorMinRpm);
+
+/**
+ * Whether the HIGH BOOST/PRIME lockout lets the fuel pump run in high-speed mode (SR22T POH 7-41): manifold pressure
+ * equal to or greater than `highBoost.mapInHg` and pressure altitude equal to or greater than `altFt`, or engine speed
+ * below `belowRpm`. (Figure 7-8's note prints "greater than"; the 7-41 text, which says "equal to or greater than", is
+ * used.) Otherwise the relay limits the pump to BOOST. False for a fuel system without HIGH BOOST.
+ */
+export function highBoostEnabled(spec: EngineSpec, s: EngineState, env: Environment) {
+  const hb = spec.fuelSystem.kind === "continental" ? spec.fuelSystem.highBoost : undefined;
+  if (!hb) return false;
+  return (s.map >= hb.mapInHg && env.altFt >= hb.altFt) || s.rpm < hb.belowRpm;
+}
+
+/**
+ * Fuel HIGH BOOST/PRIME pushes through the metering to the nozzles below `highBoost.belowRpm`, lb/h at full rich. Not
+ * published: about 5 GPH, so the POH 4-12 note's 2 s prime leaves about 8 g in the six ports.
+ */
+const HIGH_BOOST_PRIME_LBH = 30;
+
+/**
+ * The magnetos a switch position connects, before failures and crank speed. At START with `ignition.startMags:
+ * "retard"` (the default) only the retard magneto fires: the plain one is grounded during the start cycle (IOM System
+ * Description p. 2). With `"both"` START "activates both magnetos" (SR22T POH 7-37), each held to top centre by its
+ * impulse coupling (AMM 74-00 PDF 2604).
+ */
+export function startFiringMags(spec: EngineSpec, mags: MagSwitch): Side[] {
+  if (mags === "BOTH") return ["L", "R"];
+  if (mags === "START") return spec.ignition.startMags === "both" ? ["L", "R"] : [spec.ignition.retardMag];
+  return mags === "OFF" ? [] : [mags];
+}
 
 /** Which plugs fire in each cylinder for a switch position and magneto failures. */
 export function sparks(spec: EngineSpec, mags: MagSwitch, f: Failures, rpm: number) {
   const ign = spec.ignition;
-  const on = (m: Side) =>
-    rpm >= ign.minStartRpm * 0.6 &&
-    !(m === "L" ? f.magL : f.magR) &&
-    (mags === "BOTH" ||
-      mags === m ||
-      // the plain magneto is grounded during the start cycle (IOM System Description p. 2)
-      (mags === "START" && m === ign.retardMag));
+  const live = startFiringMags(spec, mags);
+  const on = (m: Side) => rpm >= ign.minStartRpm * 0.6 && !(m === "L" ? f.magL : f.magR) && live.includes(m);
   return spec.geometry.cylinders.map((c, i) => {
     const top = ign.topPlugMag[c.n],
       bottom: Side = top === "L" ? "R" : "L";
@@ -455,16 +486,24 @@ function substep(
     // boost pump or engine-driven pump to the metering (servo or Continental, fuel.ts), metered against air flow,
     // split by nozzle area
     const continental = continentalSystem(spec);
-    const supply = Math.max(c.boost ? 1 : 0, enginePump);
+    // HIGH BOOST/PRIME runs the pump too; past the lockout it runs as BOOST (POH 7-41). Only the Continental system
+    // has the mode: elsewhere `highBoost` alone does nothing.
+    const highBoost = !!c.highBoost && highBoostEnabled(spec, s, env);
+    s.highBoostOn = highBoost;
+    const boost = c.boost || (!!c.highBoost && !!continental);
+    const supply = Math.max(boost ? 1 : 0, enginePump);
     const servo = spec.fuelSystem.kind === "injected" ? spec.fuelSystem : undefined;
     s.fuelPsi = continental
-      ? Math.max(c.boost ? continentalBoostPsi(spec) : 0, enginePump * continentalPumpPsi(spec, s.rpm))
-      : Math.max(c.boost ? (servo?.boostPsi ?? 26) : 0, enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28));
+      ? Math.max(boost ? continentalBoostPsi(spec) : 0, enginePump * continentalPumpPsi(spec, s.rpm))
+      : Math.max(boost ? (servo?.boostPsi ?? 26) : 0, enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28));
+    // below the lockout's rpm HIGH BOOST primes: fuel through the mixture valve to the nozzles and into the ports
+    const valve = c.mixture > 0.02 ? Math.min(1, c.mixture) : 0;
+    const prime = continental && highBoost && s.rpm < continental.highBoost.belowRpm ? HIGH_BOOST_PRIME_LBH * valve : 0;
     dist = distribution(spec, f.nozzle);
     // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
     // nothing flows however much the metering asks for
     metered = Math.min(
-      meteredFuelFlow(spec, meteredAir, c.mixture, inletRho, supply),
+      meteredFuelFlow(spec, meteredAir, c.mixture, inletRho, supply) + prime,
       continental
         ? continentalNozzleCapacity(spec, s.fuelPsi, dist.areaMean)
         : nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
