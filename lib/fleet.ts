@@ -17,6 +17,8 @@ let FLEET: AircraftMeta[] = [];
 let LOADERS: Partial<Record<AircraftId, Loader>> = {};
 /** The airplanes whose code has loaded, by id (components re-render when one arrives). */
 const useLoaded = create<Partial<Record<AircraftId, AircraftDef>>>(() => ({}));
+/** The airplanes whose last load failed (the Loader offers a retry); cleared when a load starts again. */
+const useFailed = create<Partial<Record<AircraftId, true>>>(() => ({}));
 const pending = new Map<AircraftId, Promise<AircraftDef>>();
 const waiting = new Map<AircraftId, ((def: AircraftDef) => void)[]>();
 
@@ -32,6 +34,7 @@ export function registerFleet(entries: (AircraftMeta | AircraftDef)[], load: Par
   pending.clear();
   waiting.clear();
   useLoaded.setState(Object.fromEntries(entries.filter(isDef).map((d) => [d.id, d])), true);
+  useFailed.setState({}, true);
 }
 /** An airplane's meta (always at hand; its code may still be loading). */
 export const aircraft = (id: AircraftId): AircraftMeta => FLEET.find((a) => a.id === id) ?? FLEET[0];
@@ -43,6 +46,17 @@ export const useAircraft = () => aircraft(useView((v) => v.ac));
 export const useAircraftDef = () => {
   const ac = useView((v) => v.ac);
   return useLoaded((d) => d[ac]);
+};
+/** Did the airplane's last load fail? */
+export const loadFailed = (id: AircraftId) => !!useFailed.getState()[id];
+/** Did the last load of the airplane currently shown fail? */
+export const useLoadFailed = () => {
+  const ac = useView((v) => v.ac);
+  return useFailed((f) => !!f[ac]);
+};
+/** Try loading the airplane currently shown again (the Loader's Retry). */
+export const retryLoad = () => {
+  loadAircraft(useView.getState().ac).catch(() => {}); // logged by loadAircraft
 };
 
 /**
@@ -56,6 +70,7 @@ export function loadAircraft(id: AircraftId): Promise<AircraftDef> {
   if (!p) {
     const load = LOADERS[id];
     if (!load) return Promise.reject(new Error(`No airplane "${id}" in the fleet`));
+    if (useFailed.getState()[id]) useFailed.setState({ [id]: undefined });
     p = load().then(
       (def) => {
         pending.delete(id);
@@ -68,6 +83,7 @@ export function loadAircraft(id: AircraftId): Promise<AircraftDef> {
       },
       (e: unknown) => {
         pending.delete(id);
+        useFailed.setState({ [id]: true });
         console.error(`Loading the ${id} failed`, e);
         throw e;
       },
@@ -82,7 +98,7 @@ export function whenLoaded(id: AircraftId, fn: (def: AircraftDef) => void) {
   const have = loaded(id);
   if (have) return fn(have);
   waiting.set(id, [...(waiting.get(id) ?? []), fn]);
-  loadAircraft(id).catch(() => {}); // logged by loadAircraft; a later selection tries again
+  loadAircraft(id).catch(() => {}); // logged by loadAircraft; the Loader offers a retry
 }
 
 export const sysOf = (def: AircraftMeta, id: SysId): SysDef => def.systems.find((s) => s.id === id) ?? def.systems[0];
@@ -125,7 +141,7 @@ export function selectAircraft(id: AircraftId, sys?: SysId) {
     loaded(v.ac)?.onSelect?.("overview");
     setBuild(code ? "airframe" : "code");
   }
-  if (!code) loadAircraft(id).catch(() => {}); // logged by loadAircraft; selecting it again tries again
+  if (!code) loadAircraft(id).catch(() => {}); // logged by loadAircraft; the Loader offers a retry
   const def = aircraft(id),
     to = sys && hasSys(def, sys) ? sys : "overview";
   code?.onSelect?.(to);

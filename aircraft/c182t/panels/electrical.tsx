@@ -109,6 +109,11 @@ export function Electrical() {
       </Small>
       <BreakerBoard breakers={BREAKERS} buses={NAV3_BUSES} E={E} cb={e.cb} up={upE} />
       <Nav3TripButtons cb={e.cb} up={upE} warn />
+      <Small>
+        WARN feeds the stall warning, autopilot warning (PITCH TRIM and the disconnect horn), ELT warning, main bus
+        voltmeter, hour meter, starter relay, standby battery controller and main bus sense — trip it and watch the
+        starter, Hobbs, stall horn and M BUS reading go (Fig. 7-7).
+      </Small>
       <H3>Monitoring (POH 7-53 – 7-55)</H3>
       <Facts
         rows={[

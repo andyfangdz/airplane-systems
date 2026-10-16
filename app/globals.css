@@ -375,7 +375,8 @@ button {
   padding: 6px 10px;
   font-size: 12px;
 }
-.loader-skip {
+.loader-skip,
+.loader-retry {
   pointer-events: auto;
   background: none;
   border: 1px solid var(--rule);

@@ -117,9 +117,17 @@ function useSession<S>(controller: FleetWalkController<S>, at: number, walking: 
     addEventListener("keydown", keyboard);
     return () => removeEventListener("keydown", keyboard);
   }, [controller, at, walking]);
+  // save when the page goes away, and when it is hidden: a phone may discard a backgrounded page without a pagehide
   useEffect(() => {
+    const hidden = () => {
+      if (document.visibilityState === "hidden") controller.checkpoint();
+    };
     addEventListener("pagehide", controller.checkpoint);
-    return () => removeEventListener("pagehide", controller.checkpoint);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      removeEventListener("pagehide", controller.checkpoint);
+      document.removeEventListener("visibilitychange", hidden);
+    };
   }, [controller]);
 }
 /** A horizontal swipe on the card: left for the next item, right for the previous. */

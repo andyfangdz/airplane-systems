@@ -11,7 +11,16 @@ import { FLEET } from "@/aircraft";
 import { FLEET_META, LOADERS } from "@/aircraft/lazy";
 import type { AircraftDef } from "@/aircraft/types";
 import { useBuild } from "@/lib/build";
-import { aircraft, loadAircraft, loaded, registerFleet, selectAircraft, whenLoaded } from "@/lib/fleet";
+import {
+  aircraft,
+  loadAircraft,
+  loaded,
+  loadFailed,
+  registerFleet,
+  retryLoad,
+  selectAircraft,
+  whenLoaded,
+} from "@/lib/fleet";
 import { useView } from "@/lib/view";
 
 const initialView = useView.getState();
@@ -91,6 +100,22 @@ describe("loading an airplane", () => {
     expect(f.loader).toHaveBeenCalledTimes(2);
     f.release();
     expect(await again).toBe(f.def);
+  });
+
+  it("marks a failed load for the shown airplane, and its Retry loads it again", async () => {
+    const f = fakeFleet();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    useView.setState({ ac: f.a.id, sys: "overview" });
+    selectAircraft(f.b.id);
+    f.fail(new Error("chunk failed"));
+    await vi.waitFor(() => expect(loadFailed(f.b.id)).toBe(true));
+    expect(useBuild.getState().stage).toBe("code");
+    retryLoad();
+    expect(f.loader).toHaveBeenCalledTimes(2);
+    expect(loadFailed(f.b.id)).toBe(false);
+    f.release();
+    await loadAircraft(f.b.id);
+    expect(loaded(f.b.id)).toBe(f.def);
   });
 
   it("switching to an airplane whose code has not loaded shows its meta and the loader's first stage while it loads", async () => {
