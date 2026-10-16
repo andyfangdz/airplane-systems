@@ -16,6 +16,7 @@ import {
   fleetStepSide,
   fleetTally,
   fleetWalkClock,
+  HALO_R,
   WALK_MAP_MARK_R,
   type FleetWalkStep,
 } from "@/lib/fleet-walk";
@@ -500,9 +501,8 @@ export function FleetWalkPanel<S>({ controller }: { controller: FleetWalkControl
 
 /** Halo colour for emphasized parts: a bright accent beside the orange spot. */
 export const EMPHASIS_COLOR = "#FFE14D";
-/** Halo radius, m, and pulse rate, Hz. */
-const HALO_R = 0.018, // approximate: display size, not a source value
-  PULSE_HZ = 1.2; // approximate: display rate, not a source value
+/** Halo pulse rate, Hz. */
+const PULSE_HZ = 1.2; // approximate: display rate, not a source value
 /** Arrowhead at the far end of a line of sight, m. */
 const ARROW_LEN = 0.12, // approximate: display size, not a source value
   ARROW_R = 0.03; // approximate: display size, not a source value
@@ -562,9 +562,9 @@ function Sight<S>({ controller, step }: { controller: FleetWalkController<S>; st
   );
   return obj ? <primitive object={obj} /> : null;
 }
-/** Pulsing halos on every instance of an emphasized item's parts, drawn through the skin. */
+/** Pulsing halos on an emphasized item's parts, drawn through the skin; each mesh's `radius` scales the HALO_R sphere. */
 function Halos<S>({ controller, step }: { controller: FleetWalkController<S>; step: FleetWalkStep<S> }) {
-  const pts = useMemo(() => controller.logic.emphasisPoints(step), [controller, step]);
+  const halos = useMemo(() => controller.logic.emphasisHalos(step), [controller, step]);
   const mat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({ color: EMPHASIS_COLOR, transparent: true, depthTest: false, depthWrite: false }),
@@ -583,13 +583,13 @@ function Halos<S>({ controller, step }: { controller: FleetWalkController<S>; st
     // approximate: the pulse's opacity and size range are a display choice
     const k = 0.5 + 0.5 * Math.sin(clock.elapsedTime * PULSE_HZ * 2 * Math.PI);
     mat.setValues({ opacity: 0.35 + 0.5 * k });
-    group.current?.children.forEach((o) => o.scale.setScalar(1 + 0.6 * k));
+    group.current?.children.forEach((o) => o.scale.setScalar((o.userData.radius / HALO_R) * (1 + 0.6 * k)));
   });
-  if (!pts.length) return null;
+  if (!halos.length) return null;
   return (
     <group ref={group}>
-      {pts.map((p, i) => (
-        <mesh key={i} position={p} geometry={geo} material={mat} renderOrder={11} />
+      {halos.map(({ p, r }, i) => (
+        <mesh key={i} position={p} userData={{ radius: r }} geometry={geo} material={mat} renderOrder={11} />
       ))}
     </group>
   );
