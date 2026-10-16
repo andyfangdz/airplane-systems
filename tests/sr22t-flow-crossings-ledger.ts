@@ -150,7 +150,6 @@ export const ENGINE_CROSSINGS: Record<string, [mm: number, why: Why]> = {
   "crossover / Exhaust crossover / heat exchanger": [79.3, "host"],
   "crossover / Wastegate bypass pipe": [37.6, "host"],
   "crossover / Wastegate transition": [48.5, "host"],
-  "deckRef / Upper-deck pressure line": [10.1, "host"],
   "exh1 / EGT probe — cyl 1": [4.2, "host"],
   "exh1 / Exhaust crossover pipe": [13.3, "host"],
   "exh1 / Exhaust slip joint": [35.6, "host"],

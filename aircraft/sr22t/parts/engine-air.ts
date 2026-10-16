@@ -855,7 +855,13 @@ part(
     groups: ["induction"],
   },
 );
-part(() => capEnds(tubeGeo(UPPER_DECK_LINE, SENSE_LINE_R, 0)), ["engine"], {
+/** The upper-deck hose on its straight-cornered centreline, a ring about every 5 mm: `tubeGeo`'s coarser rings cut its
+ * short corners, so the `deckRef` particles, which ride the centreline, showed outside the wall at the bends. */
+const upperDeckGeo = () => {
+  const curve = curveOf(UPPER_DECK_LINE, 0);
+  return capEnds(new THREE.TubeGeometry(curve, Math.ceil(curve.getLength() / 0.005), SENSE_LINE_R, 8, false));
+};
+part(upperDeckGeo, ["engine"], {
   name: "Upper-deck pressure line",
   color: "#3A3A3A",
   note: 'Upper-deck (throttle inlet) pressure to the wastegate controller: the hose "TO THROTTLE BODY" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742). The controller senses the differential across the throttle plate (POH 13772-007 7-39; AMM 81-00 PDF p. 2808). It starts on the upper-deck pressure fitting on the throttle body\'s upstream half. Ø11 mm hose, routing approximate.',
