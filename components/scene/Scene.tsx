@@ -24,6 +24,11 @@ import { PinDeclutter, pinPolicy } from "./PinDeclutter";
  */
 /** How far (m, squared) the camera or its target must go from where a press found them to count as moved. */
 const MOVED = 1e-6;
+/**
+ * The most a camera flight advances in one frame (s). At 10 fps or better a flight takes its second; a longer frame (the
+ * renderer compiling shaders for a new highlight, a heavy re-render) pauses it instead of skipping it to the end.
+ */
+const MAX_STEP = 0.1;
 
 /** OrbitControls owns mutable damping state; clear its accumulated motion before a camera flight. */
 function clearDamping(controls: OrbitControlsImpl) {
@@ -54,7 +59,8 @@ function CameraRig() {
     ft: THREE.Vector3;
     tp: THREE.Vector3;
     tt: THREE.Vector3;
-    t0: number;
+    /** Progress, 0 to 1 over a second of frames. */
+    u: number;
   } | null>(null);
   /** Camera and target at the user's last press (re-noted after a viewport fit), until the camera moves or is moved. */
   const press = useRef<{ p: THREE.Vector3; t: THREE.Vector3 } | null>(null);
@@ -172,7 +178,7 @@ function CameraRig() {
       pose.current = { p: camera.position.clone(), t: controls.target.clone() };
       return;
     }
-    flight.current = { fp: camera.position.clone(), ft: controls.target.clone(), tp, tt, t0: performance.now() };
+    flight.current = { fp: camera.position.clone(), ft: controls.target.clone(), tp, tt, u: 0 };
   };
   useFrame(applyRequest, -2);
 
@@ -207,10 +213,10 @@ function CameraRig() {
     };
   }, [controls, camera]);
 
-  useFrame(() => {
+  useFrame((_, dt) => {
     const f = flight.current;
     if (!f || !controls) return;
-    const u = clamp((performance.now() - f.t0) / 1000, 0, 1),
+    const u = (f.u = clamp(f.u + Math.min(dt, MAX_STEP), 0, 1)),
       e = ease(u);
     camera.position.lerpVectors(f.fp, f.tp, e);
     controls.target.lerpVectors(f.ft, f.tt, e);
