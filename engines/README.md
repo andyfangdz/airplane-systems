@@ -21,7 +21,8 @@ engines/
     alerts.ts     Limit flags from the spec's limits
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
   o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md
-  tsio550k/       Continental TSIO-550-K (turbocharged): data only, not in ENGINES until the model can run it
+  tsio550k/       Continental TSIO-550-K (turbocharged, the Cirrus SR22T's): spec.ts, its own Start-from setups
+                  (scenarios.ts) and SOURCES.md
 components/engine/  The page: store (zustand UI + per-frame loop, sim.ts), ComponentStage (canvas), 3D scene (scene/: dims, materials and builders in kit.ts, one file per part group), monitor, panel, pressure chart
 app/engines/[engine]/page.tsx  One static page per engine id
 ```
@@ -42,8 +43,9 @@ the two can't drift), and the id in `COMPONENT_IDS` in `infra/cloudfront/view-re
 1. Make `engines/<id>/spec.ts` exporting an `EngineSpec`, and a `SOURCES.md` beside it. Published numbers cite the
    document and page; chart values say how they were read. Put anything the documents don't give in `calibration` (or
    the marked propeller fields) and say so.
-2. Add it to `ENGINES` in `engines/index.ts` and to `ENGINE_IDS` in `infra/cloudfront/view-rewrite.js` (a test checks
-   the copy).
+2. Add it to `ENGINES` in `engines/index.ts` and to `ENGINE_IDS` in `infra/cloudfront/view-rewrite.js` and in that
+   Function's copy in `infra/aws/site.json` (`ViewRewrite.FunctionCode`, the file byte for byte). Tests check both
+   copies.
 3. Calibrate against the manufacturer's numbers, then write tests named after them in `tests/` (see
    `tests/io390-engine.test.ts`, `tests/o360-engine.test.ts`): rated power at full throttle, cruise fuel flows, idle,
    magneto drop, limits in a climb.

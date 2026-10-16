@@ -7,8 +7,6 @@
  * `fuelSystem.fullRichLambda`, the `induction` constants, the propeller's aerodynamics, the starter, the oil pickup and
  * the nozzle curve are model constants fitted on the running engine to reproduce the documented points (SOURCES.md,
  * "Not published: chosen to fit"): they are not Continental or Cirrus data.
- *
- * The model runs this spec, but the engine is not in `ENGINES` (engines/index.ts): it has no page or picker entry yet.
  */
 import type { EngineSpec } from "../types";
 

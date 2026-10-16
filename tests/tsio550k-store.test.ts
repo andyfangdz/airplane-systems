@@ -108,8 +108,6 @@ describe("the worker", () => {
   }
 
   test("the worker sets up the TSIO-550-K's own scenario for an id both lists use", async () => {
-    // the registry does not list the -K yet; stand it in here
-    vi.doMock("@/engines", () => ({ engineById: (id: string) => [IO390, K].find((e) => e.id === id) }));
     const { send, posted } = await worker();
     // "runup" is also a general setup; the -K's keeps the fuel pump on BOOST at full rich (POH 4-14 steps 8, 9),
     // where the general one switches the boost pump off after the start
