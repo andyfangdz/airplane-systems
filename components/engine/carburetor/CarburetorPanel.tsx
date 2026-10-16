@@ -10,10 +10,11 @@ import { Check, Facts, H3, Notes, Readouts, Small } from "@/components/ui/contro
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Controls, Environment, StartFrom } from "../EnginePanel";
 import type { EngineSim } from "../store";
-import { live } from "./live";
+import { live, primeStroke } from "./live";
 
 const OI_HREF = "https://www.expaircraft.com/PDF/marvel-schebler-OH.pdf";
 const AMT_HREF = "https://www.faa.gov/sites/faa.gov/files/04_amtp_ch2.pdf";
+const PHAK_HREF = "https://www.faa.gov/sites/faa.gov/files/09_phak_ch7.pdf";
 const OM_HREF =
   "https://www.lycoming.com/sites/default/files/file/2025-11/60297-12%20-%20O-360%2C%20HO-360%2C%20IO-360%2C%20AIO-360%2C%20HIO-360%2C%20and%20TIO-360%20Series.pdf";
 
@@ -51,12 +52,20 @@ function Systems() {
           ["Inlet air", `${f0(degF(r.inletC))} °F`],
           ["Mixture", [`${f0(degF(r.chamberC))} °F`, r.chamberC < 0 ? "warnc" : ""]],
           ["Ice", [pct(r.ice), r.ice > 0.2 ? "bad" : r.ice > 0.02 ? "warnc" : ""]],
+          [
+            "Primer",
+            r.primer.t < 0
+              ? "in and locked"
+              : r.primer.discharging
+                ? "pushing fuel to the cylinders"
+                : "drawing fuel into the barrel",
+          ],
         ]}
       />
       <Small>
         With the throttle nearly closed the venturi can&apos;t lift fuel from the main nozzle and the idle jet carries
         the engine; opening the throttle hands over to the main system. Snap the throttle open to see the accelerating
-        pump.
+        pump. Prime works the primer, which sends fuel to the cylinders around the carburetor.
       </Small>
     </>
   );
@@ -99,6 +108,9 @@ function Documented() {
     ["Carburetor inlet", "0.5–8.0 psi, 3.0 desired (OM p. 3-10)"],
     ["Mixture cooling", "up to 70 °F below the incoming air (OM p. 3-8)"],
     ["Icing", `${MA45.icingRange.value} (${MA45.icingRange.src})`],
+    ["Primer", `${MA45.primer.value} (${MA45.primer.src})`],
+    ["Priming", `${MA45.priming.value} (${MA45.priming.src})`],
+    ["What the primer does", `${MA45.primerUse.value} (${MA45.primerUse.src})`],
   ];
   return (
     <>
@@ -114,6 +126,7 @@ const MODEL_NOTES = [
   "The accelerating pump adds a fixed amount of fuel per full throttle stroke (the engine model's, not published). The drawing spreads it over the plunger spring's travel; the spring's speed is a display constant.",
   "The float bowl refills through the float valve in proportion to how far the level has dropped, up to what the inlet pressure pushes through the needle. Running, the needle sits partly open; the drawing exaggerates its lift. The bowl's size and the needle's capacity are model constants.",
   "Carburetor ice comes from the engine model: fuel evaporation and the pressure drop cool the mixture (limited to the OM's 70 °F); moisture the cooled air can't hold freezes and narrows the bore. How fast it builds and melts is illustrative.",
+  "The primer is the engine model's: each stroke puts a fixed amount of fuel (a model constant, not published) straight into every cylinder, where it helps a cold engine start and evaporates or drains away. Here a press of Prime pulls and pushes the knob, and the fuel goes in as the plunger is pushed; the stroke's timing is a display constant. Its tee in the fuel line, the pump behind a piece of panel, one primer line and its nozzle on one intake pipe are drawn schematically: where they sit is the airframe's.",
   "The 3D carburetor is schematic: its parts are named and arranged after the overhaul instructions' exploded views (Figures 2-19 and 2-20), but their shapes, sizes and spacing are not measured. The air box and heat duct stand for the airframe's installation. Parts the model doesn't use, such as the power jet and the air metering pin, are not drawn.",
 ];
 
@@ -132,7 +145,12 @@ function Sources() {
     [
       "Lycoming O-360 series Operator's Manual, P/N 60297-12",
       OM_HREF,
-      "The O-360-A1D and its MA-4-5, starting, carburetor heat and icing, inlet pressure, idle mixture check.",
+      "The O-360-A1D and its MA-4-5, starting, carburetor heat and icing, inlet pressure, idle mixture check, the primer provision and priming.",
+    ],
+    [
+      "FAA-H-8083-25B, Pilot's Handbook of Aeronautical Knowledge, Chapter 7",
+      PHAK_HREF,
+      "What the fuel primer does and how to use it (p. 7-25), and where it sits in a fuel-pump system (Figure 7-30).",
     ],
   ];
   return (
@@ -163,7 +181,7 @@ export function CarburetorPanel({ sim }: { sim: EngineSim }) {
         openings, and the mixture valve leans it or cuts it off.
       </p>
       <StartFrom sim={sim} />
-      <Controls sim={sim} />
+      <Controls sim={sim} onPrime={primeStroke} />
       <Systems />
       <Environment sim={sim} />
       <Failures sim={sim} />
