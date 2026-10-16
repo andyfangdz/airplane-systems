@@ -11,3 +11,4 @@ aircraft/reference-traces/baseline.json
 
 # Generated identical-scene baseline (numeric summaries, one line per part).
 tests/scene-snapshot.baseline.json
+tests/engine-scene-identity.baseline.json
