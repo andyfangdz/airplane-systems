@@ -2,15 +2,10 @@
  * Memberships are `groups` tags on each part() / flow() (turbo oil Oil only, EGT and TIT probes Sensors only;
  * the turbos Induction + Exhaust). Empty membership means core. Geometry and simulation are unchanged. */
 import { checkGroups, type FlowSpec, type PartSpec } from "@/lib/catalogue";
+import { ENGINE_GROUPS, allGroups, type EngineGroup, type ShownGroups } from "@/lib/engine-groups";
 import type { SysId } from "@/lib/systems";
 
-export const ENGINE_GROUPS = ["ignition", "induction", "exhaust", "fuel", "oil", "sensors"] as const;
-export type EngineGroup = (typeof ENGINE_GROUPS)[number];
-export type ShownGroups = Record<EngineGroup, boolean>;
-declare module "@/lib/catalogue" {
-  // Each engine group id is a valid `groups` tag on part() / flow(); nothing else type-checks.
-  interface StudyGroups extends Record<EngineGroup, true> {}
-}
+export { ENGINE_GROUPS, allGroups, type EngineGroup, type ShownGroups } from "@/lib/engine-groups";
 /** Registration guard for a flow's `groups` tag (parts are checked by the catalogue). */
 export const checkEngineGroups = (id: string, groups: readonly string[] | undefined) =>
   checkGroups(id, groups, ENGINE_GROUPS);
@@ -39,9 +34,6 @@ export function engineHidden(spec: PartSpec | FlowSpec, sys: SysId, shown: Shown
   // New unmapped items remain visible; the coverage test requires an explicit mapping.
   return groups !== undefined && !isShown(groups, shown);
 }
-
-export const allGroups = (on = true): ShownGroups =>
-  Object.fromEntries(ENGINE_GROUPS.map((group) => [group, on])) as ShownGroups;
 
 /** URL lists the enabled groups. Invalid lists fall back as a whole, with one diagnostic. */
 export function parseGroups(search: string): ShownGroups {
