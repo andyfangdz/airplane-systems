@@ -36,6 +36,8 @@ jobs:
   ui:
     name: ui (${{ matrix.name }})
     runs-on: ubuntu-latest
+    env:
+      STATIC_EXPORT: ${{ matrix.static && '1' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +53,10 @@ jobs:
             tests: scripts/test-fleet-depth-ui.mjs --project=desktop
           - name: study walks, phone
             tests: scripts/test-fleet-depth-ui.mjs --project=phone
+          # the deployed files: out/ from the static export, served through the CloudFront view rewrite
+          - name: static export
+            tests: scripts/test-static-export-ui.mjs --project=desktop
+            static: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
