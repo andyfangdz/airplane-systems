@@ -5,6 +5,7 @@
  * physics data. `IO390_DEFAULTS` are the constants the scene was first drawn with: an engine without a layout, or a
  * field its layout leaves out, draws exactly as the IO-390 does.
  */
+import { TSIO550K_LAYOUT } from "@/engines/tsio550k/layout";
 import type { EngineSpec } from "@/engines/types";
 import type { Dims } from "./kit";
 
@@ -174,6 +175,7 @@ export const IO390_DEFAULTS: EngineLayout = {
 /** Layouts by engine id; the fields an engine leaves out keep the IO-390 values. */
 const LAYOUTS: Record<string, EngineLayout> = {
   io390: IO390_DEFAULTS,
+  tsio550k: { ...IO390_DEFAULTS, ...TSIO550K_LAYOUT },
 };
 
 /** The scene layout for an engine (the IO-390 defaults for an engine without one). */

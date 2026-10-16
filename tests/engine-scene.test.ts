@@ -8,6 +8,7 @@ import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { mod, phaseOf, rodEnds, sideAngle, valveLift } from "@/engines/model/cycle";
 import { O360 } from "@/engines/o360/spec";
+import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
 import { caseGeometry } from "@/components/engine/scene/Case";
 import { cylinderGeometry } from "@/components/engine/scene/Cylinders";
@@ -37,6 +38,7 @@ import { crankGeometry } from "@/components/engine/scene/Rotating";
 const ENGINES: [string, EngineSpec][] = [
   ["IO-390", IO390],
   ["O-360", O360],
+  ["TSIO-550-K", TSIO550K],
 ];
 
 /** The drawn crankcase, cylinders and crankshaft (to the propeller flange) in engine coordinates. */
@@ -185,7 +187,8 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     const size = coreBounds(S).getSize(new THREE.Vector3());
     // margin: the shapes are schematic, so allow an inch past the published envelope at each face; the propeller,
     // accessories, induction, exhaust and (on a turbocharged engine) the turbochargers are not part of this box.
-    // Drawn: IO-390 26.4 × 17.1 × 32.0 in (envelope 32.56 × 22.19 × 34.37)
+    // Drawn: IO-390 26.4 × 17.1 × 32.0 in (envelope 32.56 × 22.19 × 34.37); TSIO-550-K 33.7 × 20.8 × 33.8 in
+    // (envelope 39.2 × 34.0 × 42.4)
     const margin = 2 * IN;
     const e = S.geometry.envelopeIn;
     expect(size.x).toBeLessThanOrEqual(e.length * IN + margin);

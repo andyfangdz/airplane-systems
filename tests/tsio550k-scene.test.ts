@@ -1,0 +1,185 @@
+/**
+ * The TSIO-550-K in the engine page's 3D model: stations, crankshaft, ports and drives as the Continental M-18 manual,
+ * the SR22T POH and AMM give them (engines/tsio550k/layout.ts cites each). The engine is not on the engine pages yet,
+ * so its scene is mounted here directly, stopped.
+ */
+// vitest: isolate (mounts the scene with React Three Fiber)
+import { createElement as h } from "react";
+import * as THREE from "three";
+import { describe, expect, test } from "vitest";
+import { mod, sideAngle } from "@/engines/model/cycle";
+import { TSIO550K } from "@/engines/tsio550k/spec";
+import { simFor } from "@/components/engine/store";
+import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
+import {
+  crankLayout,
+  D2R,
+  dims,
+  driveLayout,
+  GEAR_TEETH,
+  headPoints,
+  IN,
+  magDrive,
+  makeMats,
+  oilPump,
+  throwRotation,
+  valveLayout,
+} from "@/components/engine/scene/kit";
+import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
+import { layoutFor } from "@/components/engine/scene/layout";
+import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
+import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
+import { Drives, FuelSystem, Ignition, Induction, Propeller } from "@/components/engine/scene/Systems";
+import { Camshaft, ValveTrain } from "@/components/engine/scene/Valvetrain";
+import { mountScene } from "./engine-mount";
+
+const S = TSIO550K;
+const L = layoutFor(S);
+const d = dims(S, L);
+const cyl = (n: number) => S.geometry.cylinders.find((c) => c.n === n)!;
+/** Inches forward of the accessory mounting face. */
+const station = (x: number) => (x - d.accRear) / IN;
+
+describe("TSIO-550-K 3D model", () => {
+  test("cylinders at the M-18 Fig 5-34 stations", () => {
+    expect(station(cyl(1).x)).toBeCloseTo(5.42, 2);
+    expect(station(cyl(2).x)).toBeCloseTo(7.89, 2);
+    // 7.31 in pitch on each bank
+    for (const [a, b] of [
+      [1, 3],
+      [3, 5],
+      [2, 4],
+      [4, 6],
+    ])
+      expect(station(cyl(b).x) - station(cyl(a).x)).toBeCloseTo(7.31, 2);
+    // M-18 2-1.2: viewed from the rear, right 1-3-5 and left 2-4-6; No. 1 and No. 2 nearest the rear
+    for (const n of [1, 3, 5]) expect(cyl(n).side).toBe("R");
+    for (const n of [2, 4, 6]) expect(cyl(n).side).toBe("L");
+    for (const side of ["R", "L"]) {
+      const bank = S.geometry.cylinders.filter((c) => c.side === side).sort((a, b) => a.x - b.x);
+      expect(bank[0].n).toBe(side === "R" ? 1 : 2);
+    }
+  });
+
+  test("rocker covers 33.8 in across, scaled from M-18 Fig 5-34 view D-D", () => {
+    const g = cylinderGeometry(d, L).cover;
+    g.computeBoundingBox();
+    expect((2 * g.boundingBox!.max.z) / IN).toBeCloseTo(33.8, 4); // geometry is float32
+    g.dispose();
+  });
+
+  test("propeller flange 32.50 in forward of the accessory mounting face (M-18 Fig 5-33)", () => {
+    expect(station(d.flangeX)).toBeCloseTo(32.5, 6);
+  });
+
+  test("counterweights on the No. 2 and No. 5 cheeks (M-18 2-2.2.1, Fig 2-6)", () => {
+    const cl = crankLayout(S, d, L);
+    // M-18 Figure 2-6 numbers the cheeks from the rear: No. 2 is between rod journals 1 and 2, No. 5 between 3 and 4
+    const between = (a: number, b: number) =>
+      cl.counterweights.filter((w) => w.x > Math.min(cyl(a).x, cyl(b).x) && w.x < Math.max(cyl(a).x, cyl(b).x));
+    expect(cl.counterweights).toHaveLength(4);
+    expect(between(1, 2)).toHaveLength(2);
+    expect(between(3, 4)).toHaveLength(2);
+    expect(cl.counterweights.some((w) => w.c.n === 5 || w.c.n === 6)).toBe(false);
+  });
+
+  test("five main journals (M-18 2-2.2.1)", () => {
+    expect(crankLayout(S, d, L).bearings).toHaveLength(5);
+  });
+
+  test("drawn ratios equal M-18 Table 2-9", () => {
+    // magneto 1.5: through the idler, 24 crankshaft-gear teeth to 16
+    const m = magDrive(S, d, L);
+    expect(m.idler).not.toBeNull();
+    expect(GEAR_TEETH.crank / m.teeth).toBe(1.5);
+    const D = driveLayout(S, d, L);
+    // gear-driven alternator 3
+    const alt1 = D.alternators.find((a) => a.def.name === "ALT 1")!;
+    expect(alt1.gear!.driveTeeth / alt1.gear!.drivenTeeth).toBe(3);
+    // governor 1: the camshaft at half speed, its bevel gear twice the governor's
+    expect((0.5 * D.governor.camGovR) / D.governor.govR).toBe(1);
+    expect(D.governor.bevel).toBe(true);
+    // starter 48: one-start worm, 48-tooth wheel, shaft gear on the crankshaft gear tooth for tooth
+    const st = D.starter;
+    if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+    expect(((st.wheel.teeth / st.worm.starts) * GEAR_TEETH.crank) / st.shaft.teeth).toBe(48);
+  });
+
+  test("intake on top, exhaust at the bottom (M-18 2-1)", () => {
+    const hp = headPoints(d, L);
+    expect(hp.intakePort[1]).toBeGreaterThan(0);
+    expect(hp.nozzle[1]).toBeGreaterThan(0);
+    expect(hp.exhaustPort[1]).toBeLessThan(0);
+    const V = valveLayout(L);
+    expect(V.intake.tipY).toBeGreaterThan(0);
+    expect(V.exhaust.tipY).toBeLessThan(0);
+  });
+
+  test("camshaft below the crankshaft (M-18 Fig 2-5), the oil pump turning with its gear (M-18 2-2.2)", () => {
+    expect(d.camY).toBeLessThan(0);
+    const p = oilPump(d, L);
+    expect(p.onCam).toBe(true);
+    expect(p.y).toBe(d.camY);
+    // the pushrods run under the cylinders, on the camshaft's axis
+    expect(valveLayout(L).intake.pushY).toBe(d.camY);
+  });
+
+  test("governor front lower left, starter at the rear (AMM 61-20, 80-10)", () => {
+    const D = driveLayout(S, d, L);
+    const [gx, gy, gz] = D.governor.at;
+    expect(gx).toBeGreaterThan(0);
+    expect(gy).toBeLessThan(0);
+    expect(gz).toBeLessThan(0);
+    // M-18 Figure 5-34: the starter's centreline 1.78 in aft of the accessory face, on the 1-3-5 (right) side
+    expect(station(D.starter.at[0])).toBeCloseTo(-1.78, 6);
+    expect(D.starter.at[2]).toBeGreaterThan(0);
+  });
+
+  test("drawn crankpins agree with CylinderDef.pin: 1-6-3-2-5-4 at 120° (M-18 Table 2-1)", () => {
+    // each drawn crankpin points at its cylinder (top centre) 120° of crank after the one before it in the firing order
+    const crank = new THREE.Object3D(),
+      throwG = new THREE.Object3D();
+    crank.add(throwG);
+    [1, 6, 3, 2, 5, 4].forEach((n, k) => {
+      const c = cyl(n);
+      crank.rotation.x = ((k * 120) % 360) * D2R;
+      throwG.rotation.x = throwRotation(c);
+      crank.updateMatrixWorld(true);
+      const p = new THREE.Vector3(0, 0, d.r).applyMatrix4(throwG.matrixWorld);
+      // direction in the plane normal to the crank: 0 up, 90 right (cycle.ts)
+      const dir = mod(Math.atan2(p.z, p.y) / D2R, 360);
+      expect(dir).toBeCloseTo(sideAngle(c), 6);
+    });
+  });
+
+  test("the scene mounts stopped: six cylinders, twelve plugs, two alternators and the starter on its rear adapter", async () => {
+    const sim = simFor(S, "tsio550k-scene");
+    const p = { sim, d, mats: makeMats() };
+    const parts = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase, Lubrication];
+    const more = [Ignition, FuelSystem, Induction, Drives, Propeller];
+    const { scene, unmount } = await mountScene(
+      h(PartNotesProvider, { value: S.parts }, ...[...parts, ...more].map((C) => h(C, p))),
+    );
+    const names: string[] = [];
+    scene.traverse((o) => {
+      const over = (o as { __r3f?: { handlers: Record<string, (e: unknown) => void> } }).__r3f?.handlers.onPointerOver;
+      if (!(o instanceof THREE.Mesh) || !over) return;
+      useHover.setState({ hover: null });
+      over({ object: o, stopPropagation() {}, nativeEvent: { clientX: 0, clientY: 0 } });
+      names.push(useHover.getState().hover?.name ?? "");
+    });
+    useHover.setState({ hover: null });
+    const count = (re: RegExp) => names.filter((n) => re.test(n)).length;
+    expect(count(/^Cylinder \d barrel$/)).toBe(6);
+    expect(count(/^Spark plug, cylinder \d (top|bottom)$/)).toBe(12);
+    expect(count(/^Fuel injection nozzle, cylinder \d$/)).toBe(6);
+    expect(count(/^Cam lobe, cylinder \d (intake|exhaust)$/)).toBe(12);
+    expect(count(/^Dynamic counterweight$/)).toBe(4);
+    for (const n of ["ALT 1", "ALT 2", "Idler gear", "Starter worm", "Starter worm wheel", "Propeller governor"])
+      expect(names, n).toContain(n);
+    // START fires both magnetos (POH 7-37), so neither is the retard-breaker magneto
+    expect(names).toEqual(expect.arrayContaining(["Left magneto", "Right magneto"]));
+    expect(count(/retard breaker/)).toBe(0);
+    await unmount();
+  });
+});
