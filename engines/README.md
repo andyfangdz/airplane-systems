@@ -21,6 +21,7 @@ engines/
     alerts.ts     Limit flags from the spec's limits
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
   o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md
+  tsio550k/       Continental TSIO-550-K (turbocharged): data only, not in ENGINES until the model can run it
 components/engine/  The page: store (zustand UI + per-frame loop), 3D scene (scene/: dims, materials and builders in kit.ts, one file per part group), monitor, panel, pressure chart
 app/engines/[engine]/page.tsx  One static page per engine id
 ```
