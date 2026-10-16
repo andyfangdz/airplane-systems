@@ -17,6 +17,7 @@ const STEEL = "#8C959C",
   CART = "#9F85E6",
   MOTOR = "#5E6B75";
 const neutral = () => rigPose({ ctrl: { pitch: 0, roll: 0, yaw: 0 } } as Sim);
+/** Pure memo: `rigPose` reads only the control inputs it is keyed by, so it is safe across scene remounts. */
 let previousControls: [number, number, number] | undefined;
 let previousPose: RigPose | undefined;
 const current = () => {

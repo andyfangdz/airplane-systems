@@ -457,6 +457,7 @@ let litFor: { s: Sim | null; E: Elec | null; r: { nav: boolean; beacon: boolean;
   E: null,
   r: { nav: false, beacon: false, landing: false },
 };
+/** Exterior lights lit. Cached per store state (a pure memo of the immutable `s` and `E`, so it cannot go stale). */
 export function extLit(s: Sim, E: Elec) {
   if (litFor.s === s && litFor.E === E) return litFor.r;
   void s;

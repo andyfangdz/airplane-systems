@@ -180,7 +180,8 @@ export class Catalogue {
   readonly parts: PartSpec[] = [];
   readonly shells: ShellSpec[] = [];
   readonly surfaces: SurfaceSpec[] = [];
-  private n = 0;
+  /** Parts and shells registered so far, by name (see `uid`). */
+  private named = new Map<string, number>();
   private byParent = new Map<string, PartSpec[]>();
   private pins = new Map<SysId, PartSpec[]>();
   private pinIds = new Map<string, Set<string>>();
@@ -225,11 +226,20 @@ export class Catalogue {
     private readonly groupIds?: readonly string[],
   ) {}
 
-  uid = (s: string) => `${this.prefix}/${s}-${this.n++}`;
+  /**
+   * `${prefix}/${name}-${k}`, k counting the parts and shells of that name registered before it. Ids key the prebuilt
+   * geometry (lib/mesh/prebuilt.ts) and the scene baseline, so adding a part elsewhere must not shift them.
+   */
+  uid = (s: string) => {
+    const k = this.named.get(s) ?? 0;
+    this.named.set(s, k + 1);
+    return `${this.prefix}/${s}-${k}`;
+  };
 
   part = (geo: () => THREE.BufferGeometry, sys: SysId[], o: PartOpts = {}) => {
-    if (this.groupIds) checkGroups(`${this.prefix}/${o.name || "part"}-${this.n}`, o.groups, this.groupIds);
-    const spec: PartSpec = { id: this.uid(o.name || "part"), geo, sys, ...o };
+    const name = o.name || "part";
+    if (this.groupIds) checkGroups(`${this.prefix}/${name}-${this.named.get(name) ?? 0}`, o.groups, this.groupIds);
+    const spec: PartSpec = { id: this.uid(name), geo, sys, ...o };
     this.parts.push(spec);
     this.byParent.clear();
     this.pins.clear();
