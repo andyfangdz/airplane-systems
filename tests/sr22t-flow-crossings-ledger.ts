@@ -202,12 +202,10 @@ export const ENGINE_CROSSINGS: Record<string, [mm: number, why: Why]> = {
   "gateBypass / Wastegate": [50.7, "host"],
   "gateBypass / Wastegate bypass pipe": [34.5, "host"],
   "gateOil / Controller oil return": [10.3, "host"],
-  "gateOil / Wastegate actuator": [17.6, "host"],
-  "gateOil / Wastegate controller": [4.5, "host"],
+  "gateOil / Wastegate actuator": [18.2, "host"],
+  // the flow joins its two oil hoses through the controller box, 8 mm aft of the forward face (engine-air.ts GATE_OIL_RUN)
+  "gateOil / Wastegate controller": [12.5, "host"],
   "gateOil / Wastegate oil line": [10.3, "host"],
-  // the flow's own supply hose: its chord from the hose's end at the actuator's underside grazes the open end ring by
-  // about 1 mm, depending only on where the audit's spaced samples fall along the re-routed flow
-  "gateOil / Wastegate oil supply line": [1.0, "host"],
   "hotIn / Exhaust crossover / heat exchanger": [31.2, "host"],
   "man1 / Intake pipe — cyl 1": [23.5, "host"],
   "man2 / Intake pipe — cyl 2": [23.5, "host"],

@@ -943,10 +943,15 @@ export const CONTROLLER_RETURN: Vec3[] = [
   [2.735, -0.16, -0.06], // approximate
   [2.75, -0.16, -0.06], // approximate
 ];
+/** A point 8 mm aft of the controller's forward face behind an oil hose's end there, so the `gateOil` flow's join
+ * between the two hoses runs inside the box rather than across its face. Approximate. */
+const behindControllerFace = ([, y, z]: Vec3): Vec3 => [CONTROLLER_FRONT_X - 0.008, y, z];
 /** The three oil lines' sampled centrelines, joined through the actuator and the controller: the `gateOil` flow. */
 export const GATE_OIL_RUN = (): Vec3[] => [
   ...bentPoints(WASTEGATE_SUPPLY, OIL_BEND),
   ...bentPoints(WASTEGATE_RETURN, OIL_BEND),
+  behindControllerFace(WASTEGATE_RETURN[WASTEGATE_RETURN.length - 1]),
+  behindControllerFace(CONTROLLER_RETURN[0]),
   ...bentPoints(CONTROLLER_RETURN, OIL_BEND),
 ];
 /** The drain manifold's top (parts/fuel.ts DRAIN_MANIFOLD, FW + 0.07 at y −0.595; its body is 0.12 m tall). The drain line
