@@ -224,10 +224,13 @@ function markingFlags(
 
   // ---- turbine inlet temperature past its continuous limit: above the maximum allowable, or for too long
   const tt = L.titTransient;
-  // When a probe has failed, the raw hottest-side timer also counts heat the display cannot read.
-  const titOverS = ctx.failures?.titProbe?.some(Boolean)
-    ? Math.max(0, ...SIDES.map((_, i) => (ctx.failures?.titProbe?.[i] ? 0 : (s.titProbeOverS?.[i] ?? 0))))
-    : (s.titOverS ?? 0);
+  // Per-side history survives probe failures and repairs; only working probes contribute a warning.
+  // Older checkpoints may lack that history: retain the raw timer only when no probe has failed.
+  const titOverS = s.titProbeOverS
+    ? Math.max(0, ...s.titProbeOverS.map((seconds, i) => (ctx.failures?.titProbe?.[i] ? 0 : seconds)))
+    : ctx.failures?.titProbe?.some(Boolean)
+      ? 0
+      : (s.titOverS ?? 0);
   if (tt && tit.length) {
     const over = tit.filter((x) => x.v > tt.value);
     const continuous = titContinuousMaxF(spec);
