@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { create } from "zustand";
 import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
+import { layoutFor } from "./layout";
 
 export const GROUPS = [
   { id: "case", name: "Crankcase, sump and accessory housing" },
@@ -21,7 +22,26 @@ export const GROUPS = [
   { id: "oil", name: "Lubrication" },
   { id: "drives", name: "Starter, alternator and governor" },
 ] as const;
-export type GroupId = (typeof GROUPS)[number]["id"];
+
+/** A turbocharged engine's groups: the turbochargers with their controls, after the induction. */
+const TURBO_GROUPS = [
+  { id: "case", name: "Crankcase, sump and accessory housing" },
+  { id: "cylinders", name: "Cylinders: barrels, heads, rocker covers" },
+  { id: "valvetrain", name: "Camshaft and valve train" },
+  { id: "rotating", name: "Crankshaft, rods and pistons" },
+  { id: "ignition", name: "Magnetos, harness and spark plugs" },
+  { id: "fuel", name: "Fuel injection" },
+  { id: "induction", name: "Induction and exhaust" },
+  { id: "turbo", name: "Turbochargers, wastegate, controller and intercoolers" },
+  { id: "oil", name: "Lubrication" },
+  { id: "drives", name: "Starter, alternators and governor" },
+] as const;
+
+export type GroupId = (typeof GROUPS)[number]["id"] | (typeof TURBO_GROUPS)[number]["id"];
+
+/** The part groups an engine's panel lists: the turbo group only for a layout with a turbo block. */
+export const groupsFor = (spec: EngineSpec, L = layoutFor(spec)): readonly { id: GroupId; name: string }[] =>
+  L.turbo ? TURBO_GROUPS : GROUPS;
 
 export interface HoverInfo {
   name: string;

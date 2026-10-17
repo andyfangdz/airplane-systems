@@ -4,13 +4,15 @@
  * each). The engine is not on the engine pages yet, so its scene is mounted here directly, stopped.
  */
 // vitest: isolate (mounts the scene with React Three Fiber)
+import { advance } from "@react-three/fiber";
 import { createElement as h, type FC } from "react";
 import * as THREE from "three";
 import { MeshBVH } from "three-mesh-bvh";
-import { describe, expect, test } from "vitest";
+import { afterAll, describe, expect, test } from "vitest";
 import { presetCamera, type CameraPreset } from "@/lib/camera";
 import { mod, sideAngle } from "@/engines/model/cycle";
 import { noFailures } from "@/engines/model/engine";
+import { ACCESSORY_FACE_IN } from "@/engines/tsio550k/layout-turbo";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
 import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
@@ -38,7 +40,7 @@ import {
 } from "@/components/engine/scene/kit";
 import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
 import { layoutFor, type V3 } from "@/components/engine/scene/layout";
-import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
+import { Group, PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
 import {
   clutchGrip,
@@ -51,6 +53,17 @@ import {
   Propeller,
   starterAdapter,
 } from "@/components/engine/scene/Systems";
+import {
+  actuatorTravel,
+  chargeAirColor,
+  gatePlateAngle,
+  oilInletNote,
+  reliefLift,
+  Turbo,
+  turboGeometries,
+  turboGeometry,
+  wheelRate,
+} from "@/components/engine/scene/Turbo";
 import { Camshaft, ValveTrain } from "@/components/engine/scene/Valvetrain";
 import { mountScene } from "./engine-mount";
 import { obstacle, sampledClearance } from "./sampled-clearance";
@@ -600,7 +613,7 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
     for (const k of XRAY_MATS) mats[k].opacity = k === "barrel" || k === "head" ? 0.28 : 0.16;
     const p = { sim, d, mats };
     const parts: FC<typeof p>[] = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase];
-    parts.push(Lubrication, Ignition, FuelSystem, Induction, Drives);
+    parts.push(Lubrication, Ignition, FuelSystem, Induction, Turbo, Drives);
     return mountScene(
       h(
         "group",
@@ -643,6 +656,561 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
       }),
     );
     expect(shown).toMatchObject({ default: false, iso: false, side: true, top: true, rear: true, below: true });
+    await unmount();
+  });
+});
+
+describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
+  const T = L.turbo!;
+  const G = turboGeometry(T);
+  afterAll(() => turboGeometries(G).forEach((g) => g.dispose()));
+  const box = (g: THREE.BufferGeometry) => {
+    g.computeBoundingBox();
+    return g.boundingBox!;
+  };
+  const inch = (m: number) => m / IN;
+  const [tl, tr] = T.sides;
+  const near = (a: number[], b: number[], tolIn: number) =>
+    expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / IN).toBeLessThanOrEqual(tolIn);
+
+  test("the turbo stations hang from the layout's accessory mounting face (M-18 Fig 5-33)", () => {
+    expect(ACCESSORY_FACE_IN).toBe(L.stationsIn!.accessoryFace);
+  });
+
+  test("turbochargers at the dimensioned stations (M-18 Fig 5-33)", () => {
+    expect([tl.side, tr.side]).toEqual(["L", "R"]);
+    // rear view: shafts 14.82 / 14.81 in below the crankshaft centreline, 12.94 in left and 13.45 in right of it
+    expect(inch(tl.y)).toBeCloseTo(-14.82, 6);
+    expect(inch(tr.y)).toBeCloseTo(-14.81, 6);
+    expect(inch(tl.z)).toBeCloseTo(-12.94, 6);
+    expect(inch(tr.z)).toBeCloseTo(13.45, 6);
+    G.sides.forEach((g, i) => {
+      const t = T.sides[i];
+      // side views: the turbine housing's aft face 3.97 in forward of the accessory face
+      expect(station(box(g.turbine).min.x)).toBeCloseTo(3.97, 4);
+      // compressor forward, turbine aft, on one shaft
+      const x = t.x;
+      expect(x.turbineAft).toBeLessThan(x.turbineFront);
+      expect(x.turbineFront).toBeLessThan(x.centreFront);
+      expect(x.centreFront).toBeLessThan(x.compressorFront);
+      expect(x.compressorFront).toBeLessThan(x.inletFace);
+      // the compressor inlet Ø3.00 in, facing forward
+      const inlet = box(g.inletStub);
+      expect(inch(inlet.max.z - inlet.min.z)).toBeCloseTo(3.0, 2);
+      expect(inlet.max.x).toBeCloseTo(x.inletFace, 6);
+      for (const k of ["turbine", "centre", "compressor", "inletStub"] as const) {
+        const b = box(g[k]);
+        expect((b.min.y + b.max.y) / 2).toBeCloseTo(t.y, 6);
+        expect((b.min.z + b.max.z) / 2).toBeCloseTo(t.z, 6);
+      }
+    });
+  });
+
+  test("a TIT probe on each turbine inlet, the oil inlet on top of each centre housing (M-18 Fig 5-33)", () => {
+    G.sides.forEach((g, i) => {
+      const t = T.sides[i];
+      const tit = box(g.tit);
+      // 0.4375-20UNF-3B TIT boss: over the turbine housing, on that side's turbine centreline, 9.35 in below the
+      // crankshaft centreline
+      expect(tit.min.x).toBeGreaterThan(t.x.turbineAft);
+      expect(tit.max.x).toBeLessThan(t.x.turbineFront);
+      expect((tit.min.z + tit.max.z) / 2).toBeCloseTo(t.z, 6);
+      expect(inch(t.tit[1])).toBeCloseTo(-9.35, 6);
+      // TURBO OIL INLET: the supply hose ends on top of the centre housing
+      const hose = T.oil.lines[t.side === "L" ? "toL" : "toR"];
+      const [hx, hy, hz] = hose[hose.length - 1];
+      expect(hx).toBeCloseTo(t.x.centre, 6);
+      expect(hz).toBeCloseTo(t.z, 6);
+      expect(hy).toBeGreaterThan(t.y + t.r.centre);
+    });
+  });
+
+  test("intercoolers 12.28 / 11.54 in long, outer edges 21.15 / 21.23 in (M-18 Fig 5-34)", () => {
+    const [cl, cr] = G.intercoolers.map((g) => box(g.core));
+    expect(T.intercoolers.map((ic) => ic.side)).toEqual(["L", "R"]);
+    // geometry is float32
+    expect(inch(cl.max.x - cl.min.x)).toBeCloseTo(11.54, 3);
+    expect(inch(cr.max.x - cr.min.x)).toBeCloseTo(12.28, 3);
+    expect(inch(-cl.min.z)).toBeCloseTo(21.23, 3);
+    expect(inch(cr.max.z)).toBeCloseTo(21.15, 3);
+    // one on each side, over the cylinders
+    expect(cl.max.z).toBeLessThan(0);
+    expect(cr.min.z).toBeGreaterThan(0);
+    expect(cl.min.y).toBeGreaterThan(0);
+    expect(cr.min.y).toBeGreaterThan(0);
+  });
+
+  test("intercooler cores 6.3 in wide and 3.1 in deep (scaled, M-18 Figs 5-33 to 5-35), the neck on the end face", () => {
+    G.intercoolers.forEach((g, i) => {
+      const c = box(g.core);
+      // geometry is float32
+      expect(inch(c.max.z - c.min.z)).toBeCloseTo(6.3, 3);
+      expect(inch(c.max.y - c.min.y)).toBeCloseTo(3.1, 3);
+      // the outlet neck leaves the forward end face, within its height
+      const ic = T.intercoolers[i];
+      expect(ic.neck[1]).toBeGreaterThan(c.min.y);
+      expect(ic.neck[1]).toBeLessThan(c.max.y);
+    });
+  });
+
+  test("the intercoolers are solid with X-ray off; in X-ray less see-through than the turbo housings, still under the pointer", async () => {
+    const sim = simFor(S, "tsio550k-intercooler-opacity");
+    const { scene, frame, unmount } = await mountScene(h(Turbo, { sim, d, mats: makeMats() }));
+    const cooler = (n: string) => /intercooler|cabin-heat nozzle/.test(n);
+    sim.useUi.setState((u) => ({ view: { ...u.view, xray: false } }));
+    frame();
+    const parts = namedMeshes(scene);
+    const ic = parts.filter(({ name }) => cooler(name)).map(({ mesh }) => mesh.material as THREE.Material);
+    // core, fins, outlet transition and neck, aft hood, inlet and nozzle on each side
+    expect(ic).toHaveLength(14);
+    for (const m of ic) {
+      expect(m.opacity).toBe(1);
+      expect(m.depthWrite).toBe(true);
+    }
+    const housing = parts.find(({ name }) => name === "LH turbine housing")!.mesh.material as THREE.Material;
+    // X-ray, the page's default: see-through, but well short of the housings X-ray opens up
+    sim.useUi.setState((u) => ({ view: { ...u.view, xray: true } }));
+    frame();
+    expect(housing.opacity).toBeLessThan(1);
+    for (const m of ic) {
+      expect(m.opacity).toBeLessThan(1);
+      expect(m.opacity).toBeGreaterThan(housing.opacity);
+    }
+    // the pointer passes through parts below 0.5 opacity (parts.tsx): it still stops on every intercooler part
+    expect(namedMeshes(scene).filter(({ name }) => cooler(name))).toHaveLength(14);
+    await unmount();
+  });
+
+  test("aft nozzles 18.13 in out and 3.75 in up (M-18 Fig 5-33), ending 3.87 in aft of the accessory face (Fig 5-34)", () => {
+    G.intercoolers.forEach((g, i) => {
+      const k = T.intercoolers[i].side === "L" ? -1 : 1;
+      const b = box(g.port);
+      expect(inch((b.min.z + b.max.z) / 2)).toBeCloseTo(k * 18.13, 3);
+      expect(inch((b.min.y + b.max.y) / 2)).toBeCloseTo(3.75, 3);
+      expect(station(b.min.x)).toBeCloseTo(-3.87, 3);
+    });
+  });
+
+  test("one wastegate, on the left, at the LH tailpipe (POH 7-38; AMM 81-20)", () => {
+    const W = T.wastegate;
+    expect(Array.isArray(W)).toBe(false);
+    expect(W.side).toBe("L");
+    // on the LH turbine outlet's (and tailpipe's) centreline, aft of the LH turbine's discharge
+    expect(W.at[2]).toBeCloseTo(tl.z, 9);
+    expect(W.at[0]).toBeLessThan(tl.outlet.x);
+    expect(W.at[1]).toBeLessThan(0);
+    // its actuator outboard of it (M-18 Fig 5-33 rear view)
+    expect(W.actuator.at[2]).toBeLessThan(W.at[2]);
+    const g = box(G.wastegate.body);
+    expect(g.max.z).toBeLessThan(0);
+  });
+
+  test("the wastegate's flanges, where the exhaust transition and the LH tailpipe bolt on, are its drawn faces", () => {
+    const F = T.wastegate.flanges;
+    const b = box(G.wastegate.body);
+    // geometry is float32
+    expect(b.max.y).toBeCloseTo(F.top[1], 6);
+    expect(b.min.y).toBeCloseTo(F.bottom[1], 6);
+    for (const f of [F.top, F.bottom]) {
+      expect(f[0]).toBeCloseTo((b.min.x + b.max.x) / 2, 6);
+      expect(f[2]).toBeCloseTo((b.min.z + b.max.z) / 2, 6);
+    }
+    expect((b.max.x - b.min.x) / 2).toBeCloseTo(F.halfWidth, 6);
+    expect((b.max.z - b.min.z) / 2).toBeCloseTo(F.halfWidth, 6);
+  });
+
+  test("each turbocharger's oil inlet names its own supply hose: 13 to the LH, 14 to the RH (M-18 Fig 12-21)", () => {
+    expect(oilInletNote(T, "L")).toContain("LH");
+    expect(oilInletNote(T, "L")).toContain("hose 13");
+    expect(oilInletNote(T, "R")).toContain("RH");
+    expect(oilInletNote(T, "R")).toContain("hose 14");
+    expect(oilInletNote(T, "L")).not.toContain("RH");
+    expect(oilInletNote(T, "R")).not.toContain("LH");
+  });
+
+  test("overboost valve on the LH intercooler outlet (AMM 71-60)", () => {
+    const ic = T.intercoolers.find((c) => c.side === "L")!;
+    const [x, y, z] = T.overboost.at;
+    expect(T.overboost.side).toBe("L");
+    expect(x).toBeGreaterThanOrEqual(ic.neck[0]);
+    expect(x).toBeLessThanOrEqual(ic.outlet[0]);
+    expect(z).toBeCloseTo(ic.neck[2], 9);
+    expect(y).toBeCloseTo(ic.neck[1] + ic.neckR, 9);
+  });
+
+  test("wastegate controller off the engine, behind the accessory face (M-18 12-4.2; AMM 81-20)", () => {
+    expect(station(T.controller.at[0])).toBeLessThan(0);
+    expect(station(box(G.controller.body).max.x)).toBeLessThan(0);
+    expect(T.notes.controller).toContain("upper firewall in the airplane");
+  });
+
+  test("wastegate controller at the left rear, outboard of the oil cooler (AMM Fig 71-00-2 sh 3 item 30)", () => {
+    const [, y, z] = T.controller.at;
+    expect(z).toBeLessThan(0);
+    expect(z).toBeLessThan(T.oil.coolerOutlet[2]);
+    // the figure puts it ≈ 14-18 in left of the crankshaft centreline and 3-6 in above it
+    expect(inch(z)).toBeGreaterThanOrEqual(-18);
+    expect(inch(z)).toBeLessThanOrEqual(-14);
+    expect(inch(y)).toBeGreaterThanOrEqual(3);
+    expect(inch(y)).toBeLessThanOrEqual(6);
+    // its oil and sense lines reach it there
+    near(T.oil.lines.toController[T.oil.lines.toController.length - 1], T.controller.at, 2);
+    near(T.oil.lines.controllerDrain[0], T.controller.at, 2);
+    for (const p of [T.controller.deckPort, T.controller.mapPort]) expect(p[2]).toBeLessThan(0);
+  });
+
+  test("turbocharger oil: oil cooler, check valve and tee to both centre housings; reservoirs to the scavenge pump on the starter adapter (POH 7-38; AMM 79-00; M-18 Fig 12-21)", () => {
+    const o = T.oil,
+      l = o.lines;
+    // POH 7-38: "from a source at the bottom of the oil cooler"; Fig 12-21: filter assembly, check valve, tee
+    expect(l.supply[0]).toEqual(o.coolerOutlet);
+    expect(l.supply[l.supply.length - 1]).toEqual(o.supplyTee);
+    for (const f of [o.filter, o.checkValve]) {
+      expect(f[1]).toBeLessThan(o.coolerOutlet[1]);
+      expect(f[1]).toBeGreaterThan(o.supplyTee[1]);
+    }
+    expect(o.filter[1]).toBeGreaterThan(o.checkValve[1]);
+    expect(l.toL[0]).toEqual(o.supplyTee);
+    expect(l.toR[0]).toEqual(o.supplyTee);
+    // the reservoirs under each turbocharger drain through hoses to one tee, then to the scavenge pump
+    for (const [line, t] of [
+      [l.drainL, tl],
+      [l.drainR, tr],
+    ] as const) {
+      expect(line[0][0]).toBeCloseTo(t.x.centre, 9);
+      expect(line[0][2]).toBeCloseTo(t.z, 9);
+      expect(line[0][1]).toBeLessThan(t.y - t.r.centre);
+      near(line[line.length - 1], o.drainTee, 1.5);
+    }
+    near(l.scavenge[0], o.drainTee, 1.5);
+    near(l.scavenge[l.scavenge.length - 1], o.scavengePump, 1.5);
+    near(l.pumpReturn[0], o.scavengePump, 1.5);
+    expect(l.pumpReturn[l.pumpReturn.length - 1]).toEqual(o.pumpReturn);
+    // wastegate oil: the cooler's inboard fitting to the actuator, the wastegate to the controller, the controller's
+    // drain to the rear of the crankcase (M-18 12-4.2, Figure 12-6)
+    expect(l.toWastegate[0]).toEqual(o.coolerInboard);
+    near(l.toWastegate[l.toWastegate.length - 1], T.wastegate.actuator.at, 1.5);
+    near(l.toController[0], T.wastegate.actuator.at, 2);
+    near(l.toController[l.toController.length - 1], T.controller.at, 2);
+    near(l.controllerDrain[0], T.controller.at, 2);
+    expect(l.controllerDrain[l.controllerDrain.length - 1]).toEqual(o.controllerReturn);
+  });
+
+  test("the scavenge pump on the starter adapter's cover, on the starter shaft's axis (M-18 16-4.1 step 15, Figs 16-17, D-3)", () => {
+    const st = driveLayout(S, d, L).starter;
+    if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+    const a = starterAdapter(st, d);
+    const [px, py, pz] = T.oil.scavengePump;
+    // its driver gear on the end of the starter shaft gear: the pump on that axis, aft of the worm wheel and the cover
+    expect(Math.abs(py - st.shaft.y) / IN).toBeLessThanOrEqual(0.01);
+    expect(Math.abs(pz - st.shaft.z) / IN).toBeLessThanOrEqual(0.01);
+    expect(px).toBeLessThan(a.coverX);
+    // its drive stub reaches forward into the cover; the drum itself stands clear of it
+    const b = box(G.oil.scavengePump);
+    expect(b.max.x).toBeGreaterThan(a.coverX);
+    expect(b.max.x).toBeLessThan(a.faceX);
+    expect(px + 0.025).toBeLessThan(a.coverX);
+  });
+
+  test("the scavenge return ends on the rear of the case, outside the starter adapter (AMM 79-00)", () => {
+    const st = driveLayout(S, d, L).starter;
+    if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+    const a = starterAdapter(st, d);
+    const [x, y, z] = T.oil.pumpReturn;
+    // on the accessory housing's rear face (Case.tsx caseGeometry: 0.125 m either side, accBottom … accTop)
+    expect(Math.abs(x - d.accRear) / IN).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(z)).toBeLessThan(0.125);
+    expect(y).toBeGreaterThan(d.accBottom);
+    expect(y).toBeLessThan(d.accTop);
+    // outside the adapter's flange on that face, with the hose's radius and the 0.25 in margin to spare
+    expect(Math.hypot(y - a.y, z - a.z)).toBeGreaterThan(a.flangeR + 0.005 + 0.25 * IN);
+  });
+
+  test("the controller's drain fitting under the LH magneto, on the rear of the case as drawn (M-18 12-4.2; Fig 5-33 C'CASE OIL RETURN CONN.)", () => {
+    const [x, y, z] = T.oil.controllerReturn;
+    // Figure 5-33 rear view, scaled (± 0.3 in): 2.3 in left of and 3.1 in above the crankshaft centreline
+    expect(Math.abs(inch(z) + 2.3)).toBeLessThanOrEqual(0.3);
+    expect(Math.abs(inch(y) - 3.1)).toBeLessThanOrEqual(0.3);
+    // below the LH magneto, above the oil filter's top
+    const mag = magnetoPose(S, d, "L", L);
+    expect(y).toBeLessThan(mag.centre[1] - mag.r);
+    const F = oilFilterPose(d, L);
+    expect(y).toBeGreaterThan(F.centre[1] + F.len / 2);
+    // no view gives its station: on the rear face of the magneto drive housing, the case's rear surface as drawn there
+    const cover = ignitionGeometry(S, d, L).cover!;
+    const c = box(cover);
+    cover.dispose();
+    expect(Math.abs(x - c.min.x) / IN).toBeLessThanOrEqual(0.1);
+    expect(y).toBeGreaterThan(c.min.y);
+    expect(y).toBeLessThan(c.max.y);
+    expect(z).toBeGreaterThan(c.min.z);
+  });
+
+  test("turbocharger oil leaves the bottom of the oil cooler, through a check valve and a tee hung below it (POH 7-38; M-18 Fig 5-33; AMM Fig 79-30-2 sh 3)", () => {
+    const o = T.oil;
+    // the cooler's centre 1.8 in above and 9.65 in left of the crankshaft centreline (M-18 Figure 5-33 rear view,
+    // scaled), its 5.51 in core's bottom below it; its station approximate, 0.41 in aft of the accessory face
+    near(o.coolerOutlet, [d.accRear - 0.41 * IN, (1.8 - 5.51 / 2) * IN, -9.65 * IN], 0.05);
+    near(o.coolerInboard, o.coolerOutlet, 0.5);
+    // the check valve and the tee below it: 20 mm forward, 65 mm outboard, 50 and 85 mm down (approximate)
+    const below = (fwd: number, out: number, down: number): V3 => [
+      o.coolerOutlet[0] + fwd,
+      o.coolerOutlet[1] - down,
+      o.coolerOutlet[2] - out,
+    ];
+    near(o.checkValve, below(0.02, 0.065, 0.05), 0.5);
+    near(o.supplyTee, below(0.02, 0.065, 0.085), 0.5);
+    // the cooler on the left (M-18 2-1), the wastegate's fitting inboard of the turbocharger outlet
+    expect(o.coolerOutlet[2]).toBeLessThan(0);
+    expect(o.coolerInboard[2]).toBeGreaterThan(o.coolerOutlet[2]);
+  });
+
+  test("the turbo group stays inside the M-18 Fig 5-33 / 5-34 outline", () => {
+    const all = new THREE.Box3();
+    turboGeometries(G).forEach((g) => all.union(box(g)));
+    // the intercoolers are the widest part (42.39 in overall); 17.42 in behind the accessory face is the drawing's
+    // aft extent; the tailpipes end lowest, the LH 14.82 + 11.89 = 26.71 in and the RH 14.81 + 11.95 = 26.76 in below
+    // the centreline (rear view): the bound takes the LH's, the stricter
+    expect(inch(Math.max(-all.min.z, all.max.z))).toBeLessThanOrEqual(21.23 + 1e-3);
+    expect(station(all.min.x)).toBeGreaterThanOrEqual(-17.42);
+    expect(inch(all.min.y)).toBeGreaterThanOrEqual(-(14.82 + 11.89));
+  });
+
+  test("every turbo part, as mounted, clears the magnetos, oil filter and filler, the starter and its worm wheel, the oil suction line, the engine mount fittings, and the cylinder heads and rocker covers by 0.25 in", async () => {
+    const MARGIN = 0.25 * IN,
+      // how far the starter and cylinder gaps are measured (beyond it a pair is simply clear)
+      REACH = 2 * MARGIN;
+    // the magnetos as drawn (Systems.tsx ignitionGeometry): mounting flange, body and cap on each pose's axis, enclosed
+    // in a capsule as wide as the widest of them
+    const ig = ignitionGeometry(S, d, L);
+    const mb = [ig.flange, ig.body, ig.cap].map(box);
+    Object.values(ig).forEach((g) => g?.dispose());
+    const x0 = Math.min(...mb.map((b) => b.min.x)),
+      x1 = Math.max(...mb.map((b) => b.max.x)),
+      R = Math.max(...mb.map((b) => b.max.y));
+    const mags = (["L", "R"] as const).map((side) => {
+      const [, y, z] = magnetoPose(S, d, side, L).centre;
+      return new THREE.Line3(new THREE.Vector3(x0, y, z), new THREE.Vector3(x1, y, z));
+    });
+    // the canister standing on its adapter (kit.ts oilFilterPose) and the hex on its top (Case.tsx: 12 mm radius,
+    // 14 mm high)
+    const F = oilFilterPose(d, L);
+    expect(F.axis).toEqual([0, 1, 0]);
+    const [fx, fy, fz] = F.centre;
+    const cylGap = (p: THREE.Vector3, y: number, r: number, half: number) => {
+      const radial = Math.hypot(p.x - fx, p.z - fz) - r,
+        axial = Math.abs(p.y - y) - half;
+      return radial > 0 || axial > 0 ? Math.hypot(Math.max(radial, 0), Math.max(axial, 0)) : Math.max(radial, axial);
+    };
+    const filterGap = (p: THREE.Vector3) =>
+      Math.min(cylGap(p, fy, F.r, F.len / 2), cylGap(p, fy + F.len / 2 + 0.007, 0.012, 0.007));
+    // the filler tube along its drawn curve (Case.tsx: kit.ts oilFiller through a 9 mm tube)
+    const fill = new THREE.CatmullRomCurve3(oilFiller(d, L).tube.map((p) => new THREE.Vector3(...p))).getPoints(200);
+    const fillSegs = fill.slice(1).map((p, i) => new THREE.Line3(fill[i], p));
+    // the starter as drawn (Systems.tsx drivesGeometry): the motor and solenoid on their pose, the adapter housing in
+    // place; the cylinders' heads, rocker boxes and covers (Cylinders.tsx cylinderGeometry) on each cylinder's frame
+    const st = driveLayout(S, d, L).starter;
+    if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+    const sg = drivesGeometry(S, d, L).starter;
+    if (sg.kind !== "rear-adapter") throw new Error("expected the adapter housing");
+    const cg = cylinderGeometry(d, L);
+    const atStarter = new THREE.Matrix4().makeTranslation(...st.at);
+    const solids: [string, THREE.BufferGeometry][] = [
+      ["Starter", sg.motor.clone().applyMatrix4(atStarter)],
+      ["Starter solenoid", sg.solenoid.clone().applyMatrix4(atStarter)],
+      ["Starter adapter", sg.adapter.clone()],
+      ...S.geometry.cylinders.flatMap((c) => {
+        const m = new THREE.Matrix4().compose(
+          new THREE.Vector3(c.x, 0, 0),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, c.side === "L" ? Math.PI : 0, 0)),
+          new THREE.Vector3(1, 1, 1),
+        );
+        return [
+          [`Cylinder ${c.n} head`, cg.head.clone().applyMatrix4(m)],
+          [`Cylinder ${c.n} rocker box`, cg.rockerBox.clone().applyMatrix4(m)],
+          [`Cylinder ${c.n} rocker cover`, cg.cover.clone().applyMatrix4(m)],
+        ] as [string, THREE.BufferGeometry][];
+      }),
+    ];
+    Object.values(sg).forEach((g) => g instanceof THREE.BufferGeometry && g.dispose());
+    Object.values(cg).forEach((g) => g?.dispose());
+    // the oil suction line rising from the sump to the pump on the accessory face (Case.tsx), the worm wheel inside
+    // the adapter, and the engine mount bosses and their brackets (Case.tsx Crankcase), as mounted
+    const mounted = new Set(["Oil suction line", "Starter worm wheel", "Engine mount bosses", "Engine mount brackets"]);
+    const parts = await mountScene(
+      h(
+        "group",
+        null,
+        h(Crankcase, { sim: simFor(S), d, mats: makeMats() }),
+        h(Lubrication, { sim: simFor(S), d, mats: makeMats() }),
+        h(Drives, { sim: simFor(S), d, mats: makeMats() }),
+      ),
+    );
+    for (const { mesh, name } of namedMeshes(parts.scene))
+      if (mounted.has(name)) solids.push([name, worldGeometry(mesh)]);
+    await parts.unmount();
+    expect(solids.filter(([n]) => mounted.has(n))).toHaveLength(mounted.size);
+    // the suction line is an open tube, and the brackets' bars overlap each other and the bosses: measured surface to
+    // surface only
+    const open = new Set(["Oil suction line", "Engine mount brackets"]);
+    const obstacles = solids.map(([name, g]) => ({ name, g, bvh: new MeshBVH(g), box: box(g).clone() }));
+    // the scavenge pump bolts to the adapter's cover (M-18 Figure 16-17): its one contact by design
+    const pumpBox = box(G.oil.scavengePump).clone();
+    const mount = (b: THREE.Box3, o: string) => o === "Starter adapter" && b.equals(pumpBox);
+    // odd crossings of a skewed ray: inside a closed solid (a part wholly inside another touches no surface)
+    const ray = new THREE.Ray(new THREE.Vector3(), new THREE.Vector3(0.137, 0.419, 1).normalize());
+    const inside = (bvh: MeshBVH, p: THREE.Vector3) => {
+      ray.origin.copy(p);
+      const hits = bvh
+        .raycast(ray, THREE.DoubleSide)
+        .map((x) => x.distance)
+        .sort((a, b) => a - b);
+      return hits.filter((x, i) => i === 0 || x - hits[i - 1] > 1e-7).length % 2 === 1;
+    };
+    const { scene, unmount } = await mountScene(h(Turbo, { sim: simFor(S), d, mats: makeMats() }));
+    const gap: Record<string, number> = { magneto: Infinity, filter: Infinity, filler: Infinity };
+    // every starter, mount and cylinder part is checked; one farther than the margin from a turbo part keeps Infinity
+    for (const k of mounted) gap[k] = Infinity;
+    for (const k of ["Starter", "Starter solenoid", "Starter adapter"]) gap[k] = Infinity;
+    for (const k of ["head", "rocker box", "rocker cover"]) gap[`cylinder ${k}`] = Infinity;
+    const worst: Record<string, string> = {};
+    const v = new THREE.Vector3(),
+      q = new THREE.Vector3();
+    const hit = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+    const hit2 = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+    const I = new THREE.Matrix4();
+    let meshes = 0;
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      meshes++;
+      const pos = (o.geometry as THREE.BufferGeometry).getAttribute("position");
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        for (const m of mags) gap.magneto = Math.min(gap.magneto, m.closestPointToPoint(v, true, q).distanceTo(v) - R);
+        gap.filter = Math.min(gap.filter, filterGap(v));
+        for (const s of fillSegs)
+          gap.filler = Math.min(gap.filler, s.closestPointToPoint(v, true, q).distanceTo(v) - 0.009);
+      }
+      // surface to surface against the starter and the cylinders (three-mesh-bvh), negative when inside
+      const w = (o.geometry as THREE.BufferGeometry).clone().applyMatrix4(o.matrixWorld);
+      const wb = box(w).clone();
+      for (const ob of obstacles) {
+        if (mount(wb, ob.name) || !wb.clone().expandByScalar(REACH).intersectsBox(ob.box)) continue;
+        // the nearest surfaces within reach (null: farther); a part wholly inside the solid counts negative
+        const r = ob.bvh.closestPointToGeometry(w, I, hit, hit2, 0, REACH);
+        const within = !open.has(ob.name) && inside(ob.bvh, v.fromBufferAttribute(w.getAttribute("position"), 0));
+        if (!r && !within) continue;
+        const g = within ? -(r?.distance ?? REACH) : r!.distance;
+        const key = ob.name.startsWith("Cylinder") ? ob.name.replace(/^Cylinder \d+ /, "cylinder ") : ob.name;
+        if (g < (gap[key] ?? Infinity)) {
+          gap[key] = g;
+          const at = hit2.point;
+          worst[key] =
+            `(${ob.name}, nearest at s ${station(at.x).toFixed(2)}, y ${(at.y / IN).toFixed(2)}, ` +
+            `z ${(at.z / IN).toFixed(2)} in)`;
+        }
+      }
+      w.dispose();
+    });
+    await unmount();
+    obstacles.forEach((ob) => ob.g.dispose());
+    // every part the group draws, wheels and moving parts in their mounted places
+    expect(meshes).toBe(turboGeometries(G).length);
+    const short = Object.entries(gap)
+      .filter(([, g]) => g < MARGIN)
+      .map(([k, g]) => `${k} gap ${(g / IN).toFixed(2)} in ${worst[k] ?? ""}`);
+    expect(short).toEqual([]);
+  });
+
+  test("the intercoolers sit clear above the rocker covers", () => {
+    const cover = cylinderGeometry(d, L).cover;
+    const cb = box(cover);
+    for (const c of S.geometry.cylinders) {
+      const m = new THREE.Matrix4().compose(
+        new THREE.Vector3(c.x, 0, 0),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(0, c.side === "L" ? Math.PI : 0, 0)),
+        new THREE.Vector3(1, 1, 1),
+      );
+      const b = cb.clone().applyMatrix4(m);
+      for (const g of G.intercoolers) expect(b.intersectsBox(box(g.core))).toBe(false);
+    }
+    cover.dispose();
+  });
+
+  test("animation maps: gate plate, wheels, relief poppet, charge-air tint", () => {
+    // gate plate: 0 across the bore when closed, opening monotonically to its full angle; clamped outside 0 … 1
+    expect(gatePlateAngle(0)).toBe(0);
+    const g = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].map(gatePlateAngle);
+    for (let i = 1; i < g.length; i++) expect(g[i]).toBeGreaterThan(g[i - 1]);
+    expect(gatePlateAngle(-0.2)).toBe(0);
+    expect(gatePlateAngle(1.3)).toBe(gatePlateAngle(1));
+    expect(actuatorTravel(0)).toBe(0);
+    expect(actuatorTravel(1)).toBeGreaterThan(actuatorTravel(0.5));
+    // wheels: still when stopped or failed, faster with the shaft speed
+    expect(wheelRate(0, true, false)).toBe(0);
+    expect(wheelRate(90000, false, false)).toBe(0);
+    expect(wheelRate(90000, true, true)).toBe(0);
+    const w = [0, 10000, 40000, 80000, 105000, 130000].map((n) => wheelRate(n, true, false));
+    for (let i = 1; i < w.length; i++) expect(w[i]).toBeGreaterThan(w[i - 1]);
+    // overboost poppet lifts iff the relief valve is open
+    expect(reliefLift(false)).toBe(0);
+    expect(reliefLift(true)).toBeGreaterThan(0);
+    // charge air: warmer tint for warmer air
+    const red = [-20, 20, 60, 100, 150, 250].map((c) => chargeAirColor(c, new THREE.Color()).r);
+    for (let i = 1; i < red.length; i++) expect(red[i]).toBeGreaterThanOrEqual(red[i - 1]);
+    expect(red[4]).toBeGreaterThan(red[1]);
+  });
+
+  test("hiding the turbo group removes every one of its parts", async () => {
+    const sim = simFor(S, "tsio550k-hide-turbo");
+    const el = h(Group, { sim, id: "turbo", children: h(Turbo, { sim, d, mats: makeMats() }) });
+    const { scene, render, unmount } = await mountScene(el);
+    const meshes = () => {
+      let n = 0;
+      scene.traverse((o) => {
+        if (o instanceof THREE.Mesh) n++;
+      });
+      return n;
+    };
+    expect(meshes()).toBe(turboGeometries(G).length);
+    sim.useUi.setState((u) => ({ view: { ...u.view, hidden: ["turbo"] } }));
+    await render(el);
+    expect(meshes()).toBe(0);
+    await unmount();
+  });
+
+  test("a failed turbocharger's wheels stand still while the other side's turn", async () => {
+    const sim = simFor(S, "tsio550k-failed-wheel");
+    sim.s.running = true;
+    sim.s.turboRpm = [80000, 80000];
+    sim.useUi.setState((u) => ({
+      failures: { ...u.failures, turboInternal: [true, false] },
+      view: { ...u.view, paused: false },
+    }));
+    const { scene, unmount } = await mountScene(h(Turbo, { sim, d, mats: makeMats() }));
+    // the wheel groups sit on each shaft's axis (layout-turbo.ts sides): read their rotation
+    const wheelsOf = (k: number) => {
+      const out: THREE.Object3D[] = [];
+      scene.traverse((o) => {
+        if (
+          o.type === "Group" &&
+          Math.abs(o.position.y - T.sides[k].y) < 1e-9 &&
+          Math.abs(o.position.z - T.sides[k].z) < 1e-9
+        )
+          out.push(o);
+      });
+      return out;
+    };
+    const angles = () => [0, 1].map((k) => wheelsOf(k).map((o) => o.rotation.x));
+    // two 50 ms steps of the scene's clock (frameloop "never": advance takes the time in seconds)
+    advance(1.0);
+    const before = angles();
+    advance(1.05);
+    advance(1.1);
+    const after = angles();
+    expect(before[0].length).toBeGreaterThan(0);
+    expect(after[0]).toEqual(before[0]);
+    expect(after[1]).not.toEqual(before[1]);
     await unmount();
   });
 });
@@ -712,7 +1280,7 @@ describe("TSIO-550-K engine mount fittings (AMM 71-20: six)", () => {
     const sim = simFor(S, "tsio550k-mount-clearance");
     const p = { sim, d, mats: makeMats() };
     const all = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase, Lubrication];
-    const more = [Ignition, FuelSystem, Induction, Drives, Propeller];
+    const more = [Ignition, FuelSystem, Induction, Turbo, Drives, Propeller];
     const { scene, unmount } = await mountScene(
       h(PartNotesProvider, { value: S.parts }, ...[...all, ...more].map((C) => h(C, p))),
     );

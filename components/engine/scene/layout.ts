@@ -8,6 +8,7 @@
 import { TSIO550K_LAYOUT } from "@/engines/tsio550k/layout";
 import type { EngineSpec } from "@/engines/types";
 import type { Dims } from "./kit";
+import type { TurboLayout } from "./Turbo";
 
 export type V3 = [number, number, number];
 
@@ -174,6 +175,8 @@ export interface EngineLayout {
   /** Initial camera position and orbit target, and the furthest zoom. */
   camera: { position: V3; target: V3; maxDistance: number };
   notes: Partial<Record<NoteKey, string>>;
+  /** Turbochargers, wastegate and intercoolers (scene/Turbo.tsx, an engine with a turbo layout only). */
+  turbo?: TurboLayout;
 }
 
 /** The IO-390 scene's constants: today's drawing, unchanged. */

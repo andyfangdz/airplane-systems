@@ -9,6 +9,7 @@
  * are drawing choices no document gives. Shapes are schematic.
  */
 import type { EngineLayout, V3 } from "@/components/engine/scene/layout";
+import { TSIO550K_TURBO } from "./layout-turbo";
 
 const IN = 0.0254;
 
@@ -173,6 +174,7 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   // FIT, checked by shot: the IO-390 view drawn 1.25 times as far (the -K is ≈ 1.2 times longer and wider; the extra
   // height is turbochargers and tailpipes, which this layout does not draw yet).
   camera: { position: [1.4375, 0.775, 1.6875], target: [0, -0.05, 0], maxDistance: 6 },
+  turbo: TSIO550K_TURBO,
   notes: {
     crankshaft:
       "Six rod journals and five main journals (M-18 2-2.2.1, Figure 2-6); the crankshaft gear at the rear drives the camshaft, the idler and the fuel pump.",

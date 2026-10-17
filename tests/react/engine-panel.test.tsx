@@ -19,7 +19,7 @@ import type { EngineSpec } from "@/engines/types";
 import { EnginePanel } from "@/components/engine/EnginePanel";
 import { Monitor, bandTone } from "@/components/engine/Monitor";
 import { PressureChart, chartCaption, chartInputs } from "@/components/engine/PressureChart";
-import { GROUPS } from "@/components/engine/scene/parts";
+import { groupsFor } from "@/components/engine/scene/parts";
 import { replaceState, simFor, type EngineSim } from "@/components/engine/store";
 
 const K = TSIO550K;
@@ -210,10 +210,19 @@ describe("panel parts and the pages that stay as they were", () => {
     const { container } = render(<EnginePanel sim={fresh(spec)} />);
     const labels = [...container.querySelectorAll(".eng-parts label")].map((l) => l.textContent);
     expect(labels).toEqual(
-      GROUPS.map((g) =>
+      groupsFor(spec).map((g) =>
         g.id === "fuel" && spec.fuelSystem.kind === "carburetor" ? "Carburetor and fuel pump" : g.name,
       ),
     );
+  });
+
+  it("lists the TSIO-550-K's turbochargers apart, and hides them from the 3D view when unticked", () => {
+    const sim = fresh(K);
+    const { container } = render(<EnginePanel sim={sim} />);
+    const labels = [...container.querySelectorAll(".eng-parts label")].map((l) => l.textContent);
+    expect(labels).toContain("Turbochargers, wastegate, controller and intercoolers");
+    fireEvent.click(container.querySelector("#part-turbo")!);
+    expect(sim.useUi.getState().view.hidden).toEqual(["turbo"]);
   });
 
   it("keeps the IO-390's controls, conditions and limits", () => {

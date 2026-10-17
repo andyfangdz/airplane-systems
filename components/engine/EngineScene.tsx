@@ -20,6 +20,7 @@ import { Group, PartNotesProvider } from "./scene/parts";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
+import { Turbo } from "./scene/Turbo";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
 
 function EngineModel({ sim }: { sim: EngineSim }) {
@@ -71,6 +72,11 @@ function EngineModel({ sim }: { sim: EngineSim }) {
         <Group sim={sim} id="induction">
           <Induction {...p} />
         </Group>
+        {layoutFor(sim.spec).turbo && (
+          <Group sim={sim} id="turbo">
+            <Turbo {...p} />
+          </Group>
+        )}
         <Group sim={sim} id="drives">
           <Drives {...p} />
         </Group>
@@ -84,6 +90,7 @@ function EngineModel({ sim }: { sim: EngineSim }) {
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
+  const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
   const gl = useThree((s) => s.gl),
     scene = useThree((s) => s.scene);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
@@ -94,6 +101,8 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
     ]),
     ...layoutFor(sim.spec).labels(d, sim.spec),
+    // the turbo group's labels go with its parts
+    ...((!turboHidden && layoutFor(sim.spec).turbo?.labels) || []),
   ];
   if (propOn) items.push(["Propeller", [d.flangeX + 0.1, 0.55, 0]]);
   return (

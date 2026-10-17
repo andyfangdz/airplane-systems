@@ -10,6 +10,7 @@ import { IO390 } from "@/engines/io390/spec";
 import { mod, phaseOf, rodEnds, sideAngle, valveLift } from "@/engines/model/cycle";
 import { noFailures, sparks, type MagSwitch } from "@/engines/model/engine";
 import { O360 } from "@/engines/o360/spec";
+import { TSIO550K_TURBO } from "@/engines/tsio550k/layout-turbo";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
 import { caseGeometry } from "@/components/engine/scene/Case";
@@ -41,6 +42,7 @@ import {
   VT,
 } from "@/components/engine/scene/kit";
 import { IO390_DEFAULTS, layoutFor, type V3 } from "@/components/engine/scene/layout";
+import { GROUPS, groupsFor } from "@/components/engine/scene/parts";
 import { crankGeometry } from "@/components/engine/scene/Rotating";
 import { Propeller } from "@/components/engine/scene/Systems";
 import { simFor } from "@/components/engine/store";
@@ -280,6 +282,13 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
       checked++;
     }
     expect(checked).toBe(meshes.filter((m) => m.kind !== "belt").length);
+  });
+
+  test("the turbo part group appears only for a layout with a turbo block", () => {
+    const ids = (L2 = L) => groupsFor(S, L2).map((g) => g.id);
+    expect(ids().includes("turbo")).toBe(!!L.turbo);
+    expect(ids({ ...L, turbo: undefined })).toEqual(GROUPS.map((g) => g.id));
+    expect(ids({ ...L, turbo: TSIO550K_TURBO })).toEqual(expect.arrayContaining(["turbo"]));
   });
 
   test("no two crankshaft cheeks overlap", () => {
