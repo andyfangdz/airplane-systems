@@ -218,6 +218,9 @@ export interface EngineState {
   /** The manifold pressure a turbocharged spec's metering reads as its throttle-angle stand-in (turbo.ts
    * `turboMetering`): the MAP without an intake leak. Set by `step` for a turbocharged spec only; absent, `map`. */
   meterMapInHg?: number;
+  /** The leaning cap the cylinders' work follows this step (`leanCapAt`; undefined: none). Set by `step` for a spec
+   * with `calibration.leanGainMax` only. */
+  leanCap?: LeanCap;
 }
 
 export const defaultControls = (): Controls => ({
@@ -585,14 +588,10 @@ function substep(
   // full rich, the cylinders burn at the schedule's λ scaled by the air they take over the air metered for
   const lfr = fullRichLambdaAt(spec, scheduleLbH);
   const lambdaFR = lfr !== undefined && airLbH > 0 && meterLbH > 0 ? (lfr * airLbH) / (meterLbH * meterScale) : lfr;
-  // leaning above the chart's full-rich manifold pressures: the work a cylinder gains over full rich is capped at
-  // `leanGainMax`, phased in with the full-rich basis (performance.ts fullRichWeight); absent, no cap. On a hot day the
-  // full-rich basis is a very rich λ, and leaning from it would otherwise gain far more than a standard day's
-  const frWeight = fullRichWeight(spec, map);
-  const leanCap =
-    cal.leanGainMax !== undefined && lambdaFR !== undefined && frWeight > 0
-      ? cal.leanGainMax * mixturePower(lambdaFR, cal.lambdaBestPower, cal.peakEgtPower, rich)
-      : undefined;
+  // leaning above the chart's full-rich manifold pressures: the work a cylinder gains over full rich is capped
+  // (leanCapAt); kept on the state for the readings that lean the cylinders by hand (tit.ts)
+  const leanCap = leanCapAt(spec, lambdaFR, map);
+  if (cal.leanGainMax !== undefined) s.leanCap = leanCap;
   // a turbocharged engine's chart power follows its intercooled charge's density (performance.ts, chargeRefC)
   const bp = grossIndicatedHp(
     spec,
@@ -618,8 +617,7 @@ function substep(
     const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
     cy.lambda = cy.fuel > 1e-4 ? airCyl / (cy.fuel * AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
-    let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower, rich) : 0;
-    if (leanCap !== undefined && w > leanCap) w -= frWeight * (w - leanCap);
+    let w = cy.plugs ? cylinderWork(spec, cy.lambda, leanCap) : 0;
     if (cy.plugs === 1) w *= cal.singlePlug;
     if (c.mags === "START") w *= 0.85; // retarded spark wastes work
     cy.work = w;
@@ -805,6 +803,41 @@ function governorStep(spec: EngineSpec, s: EngineState, target: number, dt: numb
   s.beta = ps.beta;
   s.propInteg = ps.integ;
   s.governing = s.beta > spec.propeller.fineDeg + 0.2 && Math.abs(s.rpm - target) < 40;
+}
+
+/**
+ * The cap on the work a cylinder gains when leaned above the chart's full-rich manifold pressures
+ * (`calibration.leanGainMax`): `leanGainMax` × its work at the full-rich λ, phased in with the full-rich basis
+ * (performance.ts fullRichWeight). On a hot day the full-rich basis is a very rich λ, and leaning from it would
+ * otherwise gain far more than a standard day's (tsio550k/SOURCES.md "Leaning above 30.5 in.Hg").
+ */
+export interface LeanCap {
+  /** The most work a leaned cylinder does, as a fraction of best-power work. */
+  work: number;
+  /** How much of the work above `work` is taken off, 0 … 1 (fullRichWeight at the manifold pressure). */
+  weight: number;
+}
+
+/** The leaning cap at the full-rich λ `lambdaFR` and manifold pressure `map` (inHg); undefined where none applies. */
+export function leanCapAt(spec: EngineSpec, lambdaFR: number | undefined, map: number): LeanCap | undefined {
+  const cal = spec.calibration;
+  const weight = fullRichWeight(spec, map);
+  return cal.leanGainMax !== undefined && lambdaFR !== undefined && weight > 0
+    ? {
+        work: cal.leanGainMax * mixturePower(lambdaFR, cal.lambdaBestPower, cal.peakEgtPower, cal.richMisfireLambda),
+        weight,
+      }
+    : undefined;
+}
+
+/**
+ * The fraction of best-power work a cylinder firing on both plugs does at `lambda` (mixture.ts mixturePower), with
+ * the leaning cap: above `cap.work`, `cap.weight` of the excess is taken off.
+ */
+export function cylinderWork(spec: EngineSpec, lambda: number, cap?: LeanCap) {
+  const cal = spec.calibration;
+  const w = mixturePower(lambda, cal.lambdaBestPower, cal.peakEgtPower, cal.richMisfireLambda);
+  return cap !== undefined && w > cap.work ? w - cap.weight * (w - cap.work) : w;
 }
 
 const ratedCache = new WeakMap<EngineSpec, number>();
