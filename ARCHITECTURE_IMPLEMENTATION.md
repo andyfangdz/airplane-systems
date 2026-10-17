@@ -124,6 +124,13 @@ concurrent validation load.
 - A separate runtime stress harness passed 1,200 switch transitions, each checking fork state, replay determinism, and
   checkpoint serialization. Offline deployment tests pass all 29 cases.
 
+The browser's SR22T baseline had missed PR101's already-merged wastegate controller, hose, and flow changes. Its two
+SR22T entries are refreshed from an independent browser capture of unchanged starting main `bcdece1`. The refactored
+normal and worker-refusal paths match that capture. Comparing the seven affected objects accounts for every numerical
+delta within the existing tolerances; reversing their six changed geometry keys reconstructs the old multiset hash
+exactly. Camera, skin, object-count, and animation-count expectations remain unchanged. Scene and camera comparisons
+now run as soon as their captures complete, before the longer interaction checks.
+
 Production measurements at a 1440×900 viewport, using `scripts/measure-rendering.mjs`:
 
 | View            | Frame subscribers, before → after | Draw calls, before → after | Particle objects, before → after |
