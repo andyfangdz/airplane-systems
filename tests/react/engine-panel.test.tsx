@@ -380,6 +380,143 @@ describe("engine monitor", () => {
   });
 });
 
+/** The Failures section: from its heading to the cylinder table. */
+const failuresOf = (c: HTMLElement) => {
+  const h = [...c.querySelectorAll("h3")].find((x) => x.textContent === "Failures")!;
+  const out: Element[] = [];
+  for (let e = h.nextElementSibling; e && e.tagName !== "H3"; e = e.nextElementSibling) out.push(e);
+  return out;
+};
+const failureChecks = (c: HTMLElement) => failuresOf(c).filter((e) => e.classList.contains("eng-checks"));
+
+const TURBO_FAILURES = [
+  ["f-wg-closed", "Wastegate stuck closed", K.refs.relief],
+  ["f-wg-open", "Wastegate stuck open", K.refs.lossOfMap],
+  ["f-wg-oil", "Actuator oil loss", K.refs.lossOfMap],
+  ["f-misadjust", "Controller misadjusted", K.refs.manPressure],
+  ["f-turbo-l", "Turbocharger failed L", K.refs.lossOfMap],
+  ["f-turbo-r", "Turbocharger failed R", K.refs.lossOfMap],
+  ["f-ic-l", "Intercooler leak L", K.refs.lossOfMap],
+  ["f-ic-r", "Intercooler leak R", K.refs.lossOfMap],
+  ["f-ind-leak", "Induction leak", K.refs.lossOfMap],
+  ["f-exh-leak", "Exhaust leak", K.refs.lossOfMap],
+  ["f-tit-l", "TIT probe failed L", K.refs.sensorFailure],
+  ["f-tit-r", "TIT probe failed R", K.refs.sensorFailure],
+  ["f-oil-leak", "Oil leak", K.refs.lossOfMap],
+] as const;
+
+describe("TSIO-550-K failures (POH 3-27 to 3-31, 3-49, 3A-8 to 3A-11, 4-17, 7-37)", () => {
+  it("groups the turbo-system failures under a Turbo system sub-heading, after the general ones", () => {
+    const { container } = render(<EnginePanel sim={fresh(K)} />);
+    const section = failuresOf(container);
+    const sub = section.find((e) => e.tagName === "H4");
+    expect(sub?.textContent).toBe("Turbo system");
+    const grids = failureChecks(container);
+    expect(grids).toHaveLength(2);
+    expect(section.indexOf(grids[0])).toBeLessThan(section.indexOf(sub!));
+    expect(section.indexOf(sub!)).toBeLessThan(section.indexOf(grids[1]));
+    expect([...grids[1].querySelectorAll("label.chk")].map((l) => l.textContent)).toEqual(
+      TURBO_FAILURES.map(([, label]) => label),
+    );
+  });
+
+  it("titles each turbo-system failure with its POH page (POH 3-27, 3-28 causes 1-4; 3-29, 3-30; 3A-9; 3-31)", () => {
+    const { container } = render(<EnginePanel sim={fresh(K)} />);
+    for (const [id, , ref] of TURBO_FAILURES) {
+      const title = container.querySelector(`#${id}`)?.closest("label")?.getAttribute("title") ?? "";
+      expect(ref, id).toBeTruthy();
+      expect(title.endsWith(` · ${ref}`), `${id}: ${title}`).toBe(true);
+    }
+    const cause = (id: string) => container.querySelector(`#${id}`)?.closest("label")?.getAttribute("title");
+    expect(cause("f-ind-leak")).toContain("cause 1");
+    expect(cause("f-exh-leak")).toContain("cause 2");
+    expect(cause("f-oil-leak")).toContain("cause 3");
+    expect(cause("f-turbo-l")).toContain("cause 4");
+  });
+
+  it("sets each failure from its box; the seized gate is either open or closed", () => {
+    const sim = fresh(K);
+    const { container } = render(<EnginePanel sim={sim} />);
+    const f = () => sim.useUi.getState().failures;
+    const tick = (id: string) => fireEvent.click(container.querySelector(`#${id}`)!);
+    const checked = (id: string) => (container.querySelector(`#${id}`) as HTMLInputElement).checked;
+    tick("f-wg-closed");
+    expect(f().wastegateSeized).toBe("closed");
+    tick("f-wg-open");
+    expect(f().wastegateSeized).toBe("open");
+    expect([checked("f-wg-closed"), checked("f-wg-open")]).toEqual([false, true]);
+    tick("f-wg-open");
+    expect(f().wastegateSeized).toBeNull();
+    for (const id of ["f-wg-oil", "f-misadjust", "f-ind-leak", "f-exh-leak", "f-oil-leak"]) tick(id);
+    expect([f().wastegateOil, f().controllerMisadjust, f().inductionLeak, f().exhaustLeak, f().oilLeak]).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
+    tick("f-turbo-r");
+    tick("f-ic-l");
+    tick("f-tit-r");
+    expect([f().turboInternal, f().intercoolerLeak, f().titProbe]).toEqual([
+      [false, true],
+      [true, false],
+      [false, true],
+    ]);
+    tick("f-turbo-l");
+    expect(f().turboInternal).toEqual([true, true]);
+  });
+
+  it("names the filter for the automatic door: Induction filter blocked (ice or debris) (POH 3A-11, 7-37)", () => {
+    const { container } = render(<EnginePanel sim={fresh(K)} />);
+    const label = container.querySelector("#f-filter")?.closest("label");
+    expect(label?.textContent).toBe("Induction filter blocked (ice or debris)");
+    expect(label?.getAttribute("title")).toBe(`The alternate-air door opens by itself · ${K.refs.altAirOpen}`);
+    expect(container.querySelector("#f-starter-stuck")?.closest("label")?.getAttribute("title")).toContain(
+      K.limits.startEngaged!.src,
+    );
+  });
+
+  it("offers nozzle blockage for the continuous-flow injection, one per cylinder (M-18 2-1)", () => {
+    const { container } = render(<EnginePanel sim={fresh(K)} />);
+    expect([...container.querySelectorAll(".eng-fail th")].map((th) => th.textContent)).toContain("Nozzle blocked");
+    expect(container.querySelectorAll('input[aria-label$="nozzle blockage"]')).toHaveLength(6);
+  });
+
+  it("shows the oil lost overboard and what is left, yellow below six quarts (POH 3-28 cause 3; 4-8)", () => {
+    const sim = fresh(K);
+    render(<EnginePanel sim={sim} />);
+    act(() => sim.useUi.getState().setEnv({ oilQt: 7 }));
+    expect(reading("Oil lost overboard")).toBe("0.0 qt (7.0 qt left)");
+    live(sim, (s) => (s.oilLossQt = 1.25));
+    expect(reading("Oil lost overboard")).toBe("1.3 qt (5.8 qt left)");
+    const b = screen.getByText("Oil lost overboard", { selector: ".ro > span" }).parentElement?.querySelector("b");
+    expect(b?.className).toBe("warnc");
+  });
+
+  // the IO-390 and O-360 failures lists stay as they were
+  it.each([
+    { spec: IO390, headers: ["Cyl", "Top plug", "Bottom plug", "Nozzle blocked", "Intake leak"] },
+    { spec: O360, headers: ["Cyl", "Top plug", "Bottom plug", "Intake leak"] },
+  ])("keeps the $spec.name failures list", ({ spec, headers }) => {
+    const { container } = render(<EnginePanel sim={fresh(spec)} />);
+    const grids = failureChecks(container);
+    expect(grids).toHaveLength(1);
+    expect([...grids[0].querySelectorAll("label.chk")].map((l) => l.textContent)).toEqual([
+      "Left magneto",
+      "Right magneto",
+      "Engine-driven fuel pump",
+      "Air filter blocked",
+      "Starter",
+      "Starter stuck engaged",
+    ]);
+    expect([...grids[0].querySelectorAll("label")].filter((l) => l.hasAttribute("title"))).toEqual([]);
+    expect(failuresOf(container).some((e) => e.tagName === "H4")).toBe(false);
+    expect([...container.querySelectorAll(".eng-fail th")].map((th) => th.textContent)).toEqual(headers);
+    expect(screen.queryByText("Oil lost overboard", { selector: ".ro > span" })).toBeNull();
+  });
+});
+
 describe("limit flags on the page (POH 2-9, 3-29 to 3-31, 4-22)", () => {
   const items = (c: HTMLElement) => [...c.querySelectorAll(".eng-flags li")];
 

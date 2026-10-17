@@ -2,7 +2,9 @@
  * The engine pages in a browser: the IO-390 and the TSIO-550-K at desktop (1280×800) and phone (390×844) sizes, the
  * phone also dark. Each case opens its own context, collects page errors from before the first navigation and checks
  * none happened before the context closes. The TSIO-550-K's controls follow the SR22T POH (13772-007): a factory-set
- * governor, a three-position fuel pump and START on both magnetos (7-32, 7-37, 7-39, 7-41). Monitor shots go to
+ * governor, a three-position fuel pump and START on both magnetos (7-32, 7-37, 7-39, 7-41). Its failure cases do too:
+ * a wastegate seized closed raises the MAN PRESSURE warning and the relief valve surges (3-29, 3-30); a misadjusted
+ * controller holds the MAN PRESSURE caution with warm oil (3-29, 3A-9). Monitor, flag-row and Failures shots go to
  * .shots/engine-ui/.
  *
  * Run after npm run build, or set UI_BASE_URL for an existing server.
@@ -36,6 +38,11 @@ const tiles = (page) =>
     ),
   );
 const num = (text) => Number(String(text).replace(/,/g, ""));
+/** The flag rows: class (warn, caut, adv) and text. */
+const flagRows = (page) =>
+  page.evaluate(() => [...document.querySelectorAll(".eng-flags li")].map((li) => [li.className, li.textContent]));
+const isMan = ([, text]) => text.startsWith("MAN PRESSURE:");
+const isRelief = ([cls, text]) => cls === "adv" && text.startsWith("Overboost relief valve open");
 
 /** Poll `read` every 250 ms until `ok` holds; the last value, or a failure naming `what` after `ms`. */
 async function until(what, read, ok, ms) {
@@ -47,6 +54,45 @@ async function until(what, read, ok, ms) {
     await delay(250);
   } while (Date.now() < end);
   throw new Error(`${what} not within ${ms / 1000} s; last ${JSON.stringify(last)}`);
+}
+
+/** Freeze the simulation (the toolbar's Pause), run `fn`, then let it run again. */
+async function paused(page, fn) {
+  const pause = page.getByRole("button", { name: "Pause", exact: true });
+  await pause.click();
+  await page.waitForFunction(
+    () => document.querySelector('button[title="Freeze the simulation"]')?.getAttribute("aria-pressed") === "true",
+  );
+  // let the last snapshot of the frozen engine reach the flags
+  await delay(400);
+  try {
+    return await fn();
+  } finally {
+    await pause.click();
+  }
+}
+
+/** The Failures section, from its heading to the cylinder table. */
+async function failuresShot(page, file, phone) {
+  // the desktop panel scrolls inside the window: make the window tall enough to hold the whole section
+  const size = page.viewportSize();
+  if (!phone) await page.setViewportSize({ width: size.width, height: 1400 });
+  await page.evaluate(() =>
+    [...document.querySelectorAll("h3")].find((h) => h.textContent === "Failures").scrollIntoView({ block: "start" }),
+  );
+  const clip = await page.evaluate((phone) => {
+    const h = [...document.querySelectorAll("h3")].find((x) => x.textContent === "Failures").getBoundingClientRect();
+    const t = document.querySelector("table.eng-fail").getBoundingClientRect();
+    const x = Math.max(0, Math.min(h.left, t.left) - 8);
+    return {
+      x,
+      y: Math.max(0, h.top - 8) + (phone ? scrollY : 0),
+      width: Math.min(innerWidth - x, Math.max(h.right, t.right) - x + 8),
+      height: t.bottom - h.top + 16,
+    };
+  }, phone);
+  await page.screenshot({ path: file, clip, fullPage: phone });
+  if (!phone) await page.setViewportSize(size);
 }
 
 /** Wait for a "Start from" setup to apply: its "Setting up" line gone and the engine at speed. */
@@ -101,6 +147,13 @@ for (const engine of ENGINES)
       const overflow = () =>
         page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok((await overflow()) <= 0, `no horizontal scroll at ${view.viewport.width} px`);
+      // the -K's wider Failures table also fits the narrowest phone
+      if (engine.turbo && view.id === "phone") {
+        await page.setViewportSize({ width: 320, height: 640 });
+        await page.waitForFunction(() => innerWidth === 320);
+        assert.ok((await overflow()) <= 0, "no horizontal scroll at 320 px");
+        await page.setViewportSize(view.viewport);
+      }
 
       // ---- monitor: an EGT/CHT pair per cylinder, a TIT bar per turbocharger (POH 7-35)
       assert.equal(await page.locator(".mon-cyl:not(.mon-tit)").count(), engine.cylinders);
@@ -140,6 +193,95 @@ for (const engine of ENGINES)
         assert.ok(Math.abs(num(t.RPM) - 2500) <= 30, `takeoff rpm ${t.RPM}`);
         assert.ok(num(t.Deck) > num(t.MAP), `deck ${t.Deck} above MAP ${t.MAP}`);
       } else assert.ok(Math.abs(num(t.RPM) - 2700) <= 30, `takeoff rpm ${t.RPM}`);
+
+      // ---- the Failures section
+      const turboHeading = page.locator("h4.eng-sub");
+      if (engine.turbo) {
+        assert.equal(await turboHeading.innerText(), "Turbo system");
+        assert.equal(await page.locator('[id^="f-wg-"], [id^="f-turbo-"], [id^="f-ic-"], [id^="f-tit-"]').count(), 9);
+        assert.equal(await page.locator("#f-misadjust, #f-ind-leak, #f-exh-leak, #f-oil-leak").count(), 4);
+        assert.equal(
+          await page.locator("#f-filter").locator("xpath=..").innerText(),
+          "Induction filter blocked (ice or debris)",
+        );
+      } else {
+        assert.equal(await turboHeading.count(), 0);
+        assert.equal(await page.locator("#f-filter").locator("xpath=..").innerText(), "Air filter blocked");
+      }
+
+      if (engine.turbo) {
+        // ---- wastegate seized closed at full power: MAN PRESSURE warning, the relief valve surging (POH 3-29, 3-30)
+        await page.locator("#f-wg-closed").check();
+        const seen = new Set();
+        await until(
+          "MAN PRESSURE warning and the relief flag",
+          async () => {
+            for (const r of await flagRows(page)) {
+              if (isMan(r)) seen.add(`man ${r[0]}`);
+              if (isRelief(r)) seen.add("relief");
+            }
+            return [...seen];
+          },
+          (s) => s.includes("man warn") && s.includes("relief"),
+          30_000,
+        );
+        assert.equal(await page.locator(".eng-flags .hd").innerText(), "Study flags, not the airplane's CAS");
+        // frozen frames for the shots: the warning row, and the relief row beside it when the surge coincides. The
+        // valve opens in short pulses, so the freezes are staggered by fixed steps rather than chasing a seen frame.
+        const warn = (x) => x.some((r) => isMan(r) && r[0] === "warn");
+        let warned = false,
+          both = false;
+        for (let i = 0; i < 30 && !both; i++) {
+          await delay(150 + ((i * 173) % 600));
+          await paused(page, async () => {
+            const frozen = await flagRows(page);
+            if (!warn(frozen) || (warned && !frozen.some(isRelief))) return;
+            warned = true;
+            both = frozen.some(isRelief);
+            await page.locator(".eng-flags").screenshot({ path: shot("flags-man-pressure-warning") });
+            await failuresShot(page, shot("failures-wastegate-closed"), view.phone);
+          });
+        }
+        assert.ok(warned, "no frozen frame with the MAN PRESSURE warning");
+        if (!both) console.warn(`${engine.id} ${view.id}: the warning shot has no relief row (the valve pulses)`);
+        await page.locator("#f-wg-closed").uncheck();
+        await until(
+          "MAN PRESSURE cleared",
+          () => flagRows(page),
+          (x) => !x.some(isMan),
+          10_000,
+        );
+
+        // ---- controller misadjusted: the MAN PRESSURE caution with warm oil, never the warning (POH 3-29, 3A-9)
+        await page.locator("#f-misadjust").check();
+        await until(
+          "MAN PRESSURE caution",
+          () => flagRows(page),
+          (x) => x.some((r) => isMan(r) && r[0] === "caut"),
+          20_000,
+        );
+        const end = Date.now() + 10_000;
+        while (Date.now() < end) {
+          const r = await flagRows(page);
+          assert.ok(!r.some((x) => isMan(x) && x[0] === "warn"), `misadjust warning: ${JSON.stringify(r)}`);
+          await delay(250);
+        }
+        await paused(page, async () => {
+          const frozen = await flagRows(page);
+          assert.ok(
+            frozen.some((r) => isMan(r) && r[0] === "caut"),
+            JSON.stringify(frozen),
+          );
+          await page.locator(".eng-flags").screenshot({ path: shot("flags-man-pressure-caution") });
+        });
+        await page.locator("#f-misadjust").uncheck();
+        await until(
+          "MAN PRESSURE cleared",
+          () => flagRows(page),
+          (x) => !x.some(isMan),
+          10_000,
+        );
+      }
 
       // ---- theme: the saved theme applies, the toolbar switch flips it and back
       const theme = () => page.evaluate(() => document.documentElement.dataset.theme);

@@ -284,6 +284,13 @@
   gap: 2px 10px;
   margin-bottom: 8px;
 }
+/* a group inside a panel section (the turbocharged engine's own failures) */
+.eng-sub {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
 .eng-table {
   width: 100%;
   border-collapse: collapse;
@@ -323,6 +330,12 @@
   width: 3.2em;
   font-size: 12px;
   color: var(--muted);
+}
+/* with its nozzle and intake columns the turbocharged engine's table is a pixel too wide for a 320-px screen */
+@media (max-width: 359px) {
+  .eng-fail.turbo input[type="range"] {
+    width: 80px;
+  }
 }
 .eng-chart {
   width: 100%;
