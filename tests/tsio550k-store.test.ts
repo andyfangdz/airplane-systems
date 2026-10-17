@@ -156,9 +156,8 @@ describe("the page", () => {
   });
 
   test("an id the engine doesn't list applies nothing", async () => {
-    const { store, sim, warn } = await freshSim();
-    store.startScenario(sim, "cruise75");
-    expect(warn).toHaveBeenCalled();
+    const { store, sim } = await freshSim();
+    expect(() => store.startScenario(sim, "cruise75")).toThrow("Unknown engine scenario cruise75");
     expect(sim.useUi.getState().view.scenario).toBeNull();
     expect(sim.s.rpm).toBe(0);
   });
@@ -186,6 +185,23 @@ describe("the TSIO-550-K setups", () => {
     }
     return { map, gph };
   };
+
+  test("restoring or selecting cold clears the previous takeoff's optional leaning cap", async () => {
+    const { createEngineSimulation, replaceState } = await import("@/components/engine/store");
+    const sim = createEngineSimulation(K);
+    try {
+      const cold = sim.checkpoint();
+      replaceState(sim, run("takeoff").s);
+      expect(sim.s.leanCap).toBeDefined();
+      sim.restore(cold);
+      expect(sim.checkpoint()).toEqual(cold);
+      replaceState(sim, run("takeoff").s);
+      replaceState(sim, run("cold").s);
+      expect(sim.s).toEqual(run("cold").s);
+    } finally {
+      sim.dispose();
+    }
+  });
 
   test("every TSIO-550-K setup runs to completion with a finite state", () => {
     for (const id of K_IDS) expect(nonFinite(run(id)), id).toEqual([]);

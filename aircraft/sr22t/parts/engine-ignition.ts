@@ -312,6 +312,8 @@ export const IGNITION_LEADS = CYLS.flatMap((c) =>
 );
 (["R", "L"] as const).forEach((mag) => {
   part(() => cyl(CAP_R, CAP_LEN, "x"), ["engine"], {
+    id: "parts.engine-ignition.harness-cap.001",
+    instance: [mag],
     pos: HARNESS_CAP(mag),
     color: "#655344",
     name: "Harness cap",
@@ -321,6 +323,8 @@ export const IGNITION_LEADS = CYLS.flatMap((c) =>
   });
   for (let terminal = 1; terminal <= 6; terminal++)
     part(() => cyl(TERMINAL_R, CAP_LEN, "x"), ["engine"], {
+      id: "parts.engine-ignition.part.002",
+      instance: [terminal, mag],
       pos: capTerminal(mag, terminal),
       color: "#B7A480",
       name: `Harness cap terminal ${terminal}`,
@@ -329,6 +333,8 @@ export const IGNITION_LEADS = CYLS.flatMap((c) =>
     });
   IGNITION_LEADS.filter((l) => l.mag === mag).forEach((l, i) =>
     part(ignitionTube(l.pts, 0.005, l.pts[2]), ["engine"], {
+      id: "parts.engine-ignition.part.003",
+      instance: [l.pos, l.cyl, l.terminal, mag],
       pos: l.pts[2],
       color: "#26333D",
       name: `Ignition lead — ${mag === "R" ? "right" : "left"} magneto`,
@@ -341,6 +347,8 @@ export const IGNITION_LEADS = CYLS.flatMap((c) =>
 });
 CYLS.forEach((c) => {
   part(() => box(0.025, 0.023, 0.035), ["engine"], {
+    instance: [c.n],
+    id: "parts.engine-ignition.harness-clamp.004",
     pos: harnessClamp(c),
     color: "#A6ADB2",
     name: "Harness clamp",
@@ -350,6 +358,8 @@ CYLS.forEach((c) => {
   });
   (["U", "L"] as const).forEach((pos) =>
     part(() => cyl(c.n === 2 && pos === "L" ? 0.012 : 0.018, terminalLength(c, pos), "y", 6), ["engine"], {
+      id: "parts.engine-ignition.plug-lead-terminal.005",
+      instance: [pos, c.n],
       pos: plugTerminal(c, pos),
       color: "#B7A480",
       name: "Plug lead terminal",
@@ -401,6 +411,8 @@ P_LEADS.forEach(({ mag, pts }) => {
     return key === "OFF" || key === (mag === "R" ? "L" : "R");
   };
   part(ignitionTube(pts, 0.004, pts[1]), ["engine", "electrical"], {
+    id: "parts.engine-ignition.magneto-p-lead.006",
+    instance: [mag],
     pos: pts[1],
     color: "#45484B",
     name: "Magneto P-lead",
@@ -419,6 +431,8 @@ P_LEADS.forEach(({ mag, pts }) => {
     [housing[0], housing[1] - 0.016, housing[2] + side * 0.0074],
   ];
   part(() => cyl(0.009, 0.004, "x"), ["engine", "electrical"], {
+    id: "parts.engine-ignition.engine-ground-lug.007",
+    instance: [mag],
     pos: ground.at(-1)!,
     color: "#B7A480",
     name: "Engine ground lug",
@@ -426,6 +440,8 @@ P_LEADS.forEach(({ mag, pts }) => {
     groups: ["ignition"],
   });
   part(ignitionTube(ground, 0.004, ground[1]), ["engine", "electrical"], {
+    id: "parts.engine-ignition.magneto-ground-wire.008",
+    instance: [mag],
     pos: ground[1],
     color: "#727A80",
     name: "Magneto ground wire",
@@ -517,6 +533,7 @@ export const PRESSURIZATION_LINES: { key: string; pts: Vec3[] }[] = [
   })),
 ];
 part(() => cyl(MAG_HOSE_R, MAG_PRESSURE_FITTING_LEN, "y").applyQuaternion(fromUp(MAG_PRESSURE_DIR)), ["engine"], {
+  id: "parts.engine-ignition.magneto-pressure-fitting.009",
   pos: magPressureAt(MAG_PRESSURE_FITTING_LEN / 2 - 0.002),
   color: "#B4B8BC",
   name: "Magneto pressure fitting",
@@ -524,6 +541,7 @@ part(() => cyl(MAG_HOSE_R, MAG_PRESSURE_FITTING_LEN, "y").applyQuaternion(fromUp
   groups: ["ignition"],
 });
 part(() => cyl(FILTER_R, FILTER_LEN, "x"), ["engine"], {
+  id: "parts.engine-ignition.magneto-desiccant-filter.010",
   pos: MAG_FILTER,
   color: "#E8E4D6",
   name: "Magneto desiccant filter",
@@ -533,6 +551,8 @@ part(() => cyl(FILTER_R, FILTER_LEN, "x"), ["engine"], {
 });
 ([1, -1] as const).forEach((end) =>
   part(() => cyl(NIPPLE_R, NIPPLE_LEN, "x"), ["engine"], {
+    id: "parts.engine-ignition.magneto-desiccant-filter.011",
+    instance: [end],
     pos: add(MAG_FILTER, [(end * (FILTER_LEN + NIPPLE_LEN)) / 2, 0, 0]),
     color: "#9AA3AA",
     name: "Magneto desiccant filter",
@@ -547,6 +567,7 @@ part(
   () => new ConeGeometry(ARROW_R, ARROW_LEN, 12).applyQuaternion(fromUp([-1, 0, 0])), // the cone's apex is +y: turn it aft
   ["engine"],
   {
+    id: "parts.engine-ignition.magneto-filter-flow-arrow.012",
     pos: [MAG_FILTER[0] + 0.018, MAG_FILTER[1] + FILTER_R + ARROW_R - 0.001, 0], // forward of the bracket; approximate
     color: "#C2412D",
     name: "Magneto filter flow arrow",
@@ -559,6 +580,7 @@ part(
 const DRAIN_R = 0.003,
   DRAIN_LEN = 0.008;
 part(() => cyl(DRAIN_R, DRAIN_LEN, "y"), ["engine"], {
+  id: "parts.engine-ignition.magneto-filter-drain.013",
   pos: [MAG_FILTER[0], MAG_FILTER[1] - FILTER_R - DRAIN_LEN / 2 + 0.002, 0],
   color: "#9AA3AA",
   name: "Magneto filter drain",
@@ -566,6 +588,7 @@ part(() => cyl(DRAIN_R, DRAIN_LEN, "y"), ["engine"], {
   groups: ["ignition"],
 });
 part(() => box(0.02, 0.004, 0.028), ["engine"], {
+  id: "parts.engine-ignition.magneto-filter-bracket.014",
   pos: BRACKET,
   color: "#5E6B73",
   name: "Magneto filter bracket",
@@ -573,6 +596,7 @@ part(() => box(0.02, 0.004, 0.028), ["engine"], {
   groups: ["ignition"],
 });
 part(() => sph(TEE_R), ["engine"], {
+  id: "parts.engine-ignition.magneto-pressurization-tee.015",
   pos: MAG_TEE,
   color: "#9AA3AA",
   name: "Magneto pressurization tee",
@@ -581,6 +605,8 @@ part(() => sph(TEE_R), ["engine"], {
 });
 (["R", "L"] as const).forEach((mag) =>
   part(() => cyl(ELBOW_R, ELBOW_LEN, "y"), ["engine"], {
+    id: "parts.engine-ignition.magneto-pressurization-elbow.016",
+    instance: [mag],
     pos: add(magFitting(mag), [0, ELBOW_LEN / 2 - 0.003, 0]),
     color: "#9AA3AA",
     name: "Magneto pressurization elbow",
@@ -590,6 +616,8 @@ part(() => sph(TEE_R), ["engine"], {
 );
 PRESSURIZATION_LINES.forEach((l, i) =>
   part(ignitionTube(l.pts, MAG_HOSE_R, l.pts[1]), ["engine"], {
+    id: "parts.engine-ignition.magneto-pressurization-line.017",
+    instance: [l.key],
     pos: l.pts[1],
     color: "#2E3A42",
     name: "Magneto pressurization line",
@@ -603,6 +631,7 @@ PRESSURIZATION_LINES.forEach((l, i) =>
 /** Right-angle starter drive adapter on the rear of the accessory case, the starter across its aft end; the turbo oil scavenge pump sits outboard of it (AMM 79-00 PDF p. 2764). */
 export const STARTER_ADAPTER: Vec3 = [2.725, -0.25, 0.03];
 part(() => box(0.05, 0.1, 0.1), ["engine"], {
+  id: "parts.engine-ignition.starter-drive-adapter.018",
   pos: STARTER_ADAPTER,
   color: "#5E6B73",
   name: "Starter drive adapter",

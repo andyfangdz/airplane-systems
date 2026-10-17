@@ -14,11 +14,13 @@ import { part, selPtrAnim } from "./catalogue";
 
 /* ---------- cockpit / cabin ---------- */
 part(() => sectionSlab(2.3, -0.18, 0.3, 0.97, 0.04, 2.32), ["avionics", "cabin"], {
+  id: "parts.cabin.instrument-panel.001",
   color: "#2B3238",
   name: "Instrument panel",
   note: "All-metal sectional panel under a composite glareshield.",
 });
 part(() => sectionSlab(2.24, 0.3, 0.35, 0.95, 0.2, 2.36), ["cabin"], {
+  id: "parts.cabin.glareshield.002",
   color: "#2B3238",
   name: "Glareshield",
   note: "Projects over the panel; windshield diffuser outlet runs along its base.",
@@ -56,6 +58,7 @@ part(
   () => mergeGeos([-1, 1].map((s) => box(0.1, 0.145, 0.305).translate(0, 0, s * 0.2475))),
   ["cabin", "lighting", "electrical"],
   {
+    id: "parts.cabin.bolster-switch-panel.003",
     pos: [2.23, -0.0775, 0],
     color: "#39424A",
     name: "Bolster switch panel",
@@ -72,40 +75,52 @@ const slot = (px: number) => -0.385 + (px - 205) * (0.285 / 420);
 const onStrip = (z: number, out: number, dt = 0) => BOLSTER_TOP.at(0.05 + dt, out, z);
 const SR = () => useSR20.getState().s;
 part(() => box(0.004, 0.048, 0.285), ["cabin", "lighting", "electrical"], {
+  id: "parts.cabin.part.004",
   pos: onStrip(slot(415), 0.001),
   rot: BOLSTER_TOP.rot,
   color: "#20262B",
 });
 part(() => box(0.003, 0.03, 0.06), ["cabin"], {
+  id: "parts.cabin.part.005",
   pos: onStrip(slot(255), 0.004),
   rot: BOLSTER_TOP.rot,
   color: "#9AA3AA",
 });
 (
   [
-    [312, "BAT 2", "Battery 2 relay: BAT 2 feeds ESS BUS 1 and charges from it.", () => SR().elec.bat2],
+    ["bat2", 312, "BAT 2", "Battery 2 relay: BAT 2 feeds ESS BUS 1 and charges from it.", () => SR().elec.bat2],
     [
+      "bat1",
       329,
       "BAT 1",
       "Battery 1 relay: BAT 1 on the Main Dist Bus 1 side, for starting; ALT 1 needs it on.",
       () => SR().elec.bat1,
     ],
-    [346, "ALT 1", "Alternator 1 field; needs BAT 1 on.", () => SR().elec.alt1],
-    [363, "ALT 2", "Alternator 2 field.", () => SR().elec.alt2],
-    [380, "AVIONICS", "AVIONICS bus.", () => SR().elec.avionics],
-    [397, "NAV", "Wingtip position and aft position lights.", () => SR().lights.nav],
-    [414, "STROBE", "Wingtip anti-collision strobes.", () => SR().lights.strobe],
-    [431, "LAND", "Both wingtip landing lights.", () => SR().lights.land],
+    ["alt1", 346, "ALT 1", "Alternator 1 field; needs BAT 1 on.", () => SR().elec.alt1],
+    ["alt2", 363, "ALT 2", "Alternator 2 field.", () => SR().elec.alt2],
+    ["avionics", 380, "AVIONICS", "AVIONICS bus.", () => SR().elec.avionics],
+    ["nav", 397, "NAV", "Wingtip position and aft position lights.", () => SR().lights.nav],
+    ["strobe", 414, "STROBE", "Wingtip anti-collision strobes.", () => SR().lights.strobe],
+    ["land", 431, "LAND", "Both wingtip landing lights.", () => SR().lights.land],
     [
+      "ice",
       448,
       "ICE",
       "Wing ice inspection lights. Fig. 7-12 shows only NAV, STROBE and LAND (exterior lighting is in the Spectra wing tip light supplement): shown after LAND, position approximate.",
       () => SR().lights.ice,
     ],
-    [470, "PITOT HEAT", "Heated pitot tube; a current sensor drives PITOT HEAT FAIL.", () => SR().pitot.heat],
-  ] as [number, string, string, () => boolean][]
-).forEach(([px, label, note, on]) =>
+    [
+      "pitot-heat",
+      470,
+      "PITOT HEAT",
+      "Heated pitot tube; a current sensor drives PITOT HEAT FAIL.",
+      () => SR().pitot.heat,
+    ],
+  ] as [string, number, string, string, () => boolean][]
+).forEach(([key, px, label, note, on]) =>
   part(() => box(0.01, 0.02, 0.0095), ["electrical", "lighting"], {
+    id: "parts.cabin.part.006",
+    instance: [key],
     pos: onStrip(slot(px), 0.007),
     rot: BOLSTER_TOP.rot,
     color: "#D8DDE0",
@@ -119,20 +134,28 @@ part(() => box(0.003, 0.03, 0.06), ["cabin"], {
 // ICE PROTECT positions (blank on a non-FIKI airplane) and the wider blank slot before the dimmers
 (
   [
-    [495, 0.0095],
-    [512, 0.0095],
-    [537, 0.02],
-  ] as [number, number][]
-).forEach(([px, w]) =>
-  part(() => box(0.004, 0.02, w), ["cabin"], { pos: onStrip(slot(px), 0.004), rot: BOLSTER_TOP.rot, color: "#3A4148" }),
+    ["ice-toggle", 495, 0.0095],
+    ["ice-mode", 512, 0.0095],
+    ["spare", 537, 0.02],
+  ] as [string, number, number][]
+).forEach(([key, px, w]) =>
+  part(() => box(0.004, 0.02, w), ["cabin"], {
+    id: "parts.cabin.part.007",
+    instance: [key],
+    pos: onStrip(slot(px), 0.004),
+    rot: BOLSTER_TOP.rot,
+    color: "#3A4148",
+  }),
 );
 (
   [
-    [0.012, "PANEL dimmer"],
-    [-0.012, "INSTRUMENT dimmer"],
-  ] as [number, string][]
-).forEach(([dt, name]) =>
+    ["panel", 0.012, "PANEL dimmer"],
+    ["instrument", -0.012, "INSTRUMENT dimmer"],
+  ] as [string, number, string][]
+).forEach(([key, dt, name]) =>
   part(() => cyl(0.008, 0.014, "x", 16), ["lighting"], {
+    id: "parts.cabin.part.008",
+    instance: [key],
     pos: onStrip(slot(588), 0.008, dt),
     rot: BOLSTER_TOP.rot,
     color: "#20262B",
@@ -141,8 +164,13 @@ part(() => box(0.003, 0.03, 0.06), ["cabin"], {
   }),
 );
 // POH 7-13, Fig. 7-4 item 19: left side of the instrument panel, outboard of the PFD; above the yoke tube here (height approximate)
-part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: [2.276, 0.03, -0.47], color: "#3E4A52" });
+part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], {
+  id: "parts.cabin.part.009",
+  pos: [2.276, 0.03, -0.47],
+  color: "#3E4A52",
+});
 part(() => box(0.012, 0.03, 0.008), ["engine", "electrical"], {
+  id: "parts.cabin.ignition-key-switch.010",
   pos: [2.266, 0.03, -0.47],
   color: "#C9D0D5",
   anim: (m) => {
@@ -154,6 +182,7 @@ part(() => box(0.012, 0.03, 0.008), ["engine", "electrical"], {
   note: "Keyed rotary switch on the left side of the instrument panel, outboard of the PFD: OFF – R – L – BOTH – START, spring-loaded from START to BOTH (POH 7-13, Fig. 7-4 item 19).",
 });
 part(() => box(0.9, 0.26, 0.26), ["cabin"], {
+  id: "parts.cabin.center-console.011",
   pos: [1.63, -0.4, 0],
   color: "#39424A",
   name: "Center console",
@@ -178,23 +207,27 @@ part(
     ),
   ["cabin", "avionics"],
   {
+    id: "parts.cabin.avionics-panel-centre-console.012",
     color: "#39424A",
     name: "Avionics panel (centre console)",
     note: "Sloping front section of the centre console, rising between the bolster halves to meet the displays: FMS keyboard, autopilot mode controller and audio panel, with the flap control at its foot (POH 7-13, Fig. 7-4 items 10 and 15).",
   },
 );
 part(() => box(0.4, 0.18, 0.02), ["electrical"], {
+  id: "parts.cabin.circuit-breaker-panel.013",
   pos: [1.78, -0.4, -0.14],
   color: "#5A4A1C",
   name: "Circuit breaker panel",
   note: "Left side of the center console. Holds ESS 1/2, MAIN 1/2/3, NON ESS, A/C 1/2 and AVIONICS bus breakers.",
   pin: true,
 });
-for (const [z, name] of [
-  [-0.33, "Pilot seat"],
-  [0.33, "Front passenger seat"],
+for (const [seat, z, name] of [
+  ["pilot", -0.33, "Pilot seat"],
+  ["copilot", 0.33, "Front passenger seat"],
 ] as const) {
   part(() => box(0.48, 0.1, 0.4), ["cabin"], {
+    id: "parts.cabin.part.014",
+    instance: [seat],
     pos: [1.25, -0.4, z],
     color: "#6B5A48",
     name,
@@ -203,6 +236,8 @@ for (const [z, name] of [
     note: "Individually adjustable front seat on upward-angled fore/aft tracks, with an integral aluminum-honeycomb energy-absorption core. Do not kneel or stand on the seat (POH11934-0057-27–28;AMM12137-00225-10p1). Upholstery is translucent in X-ray to expose hardware; dimensions approximate.",
   });
   part(() => box(0.09, 0.58, 0.368), ["cabin"], {
+    id: "parts.cabin.part.015",
+    instance: [seat],
     pos: [0.98, -0.08, z],
     rot: [0, 0, 0.2],
     color: "#6B5A48",
@@ -212,6 +247,7 @@ for (const [z, name] of [
   });
 }
 part(() => box(0.48, 0.1, 0.98), ["cabin"], {
+  id: "parts.cabin.rear-seat-2-1-bench.016",
   pos: [0.35, -0.4, 0],
   color: "#6B5A48",
   name: "Rear seat (2+1 bench)",
@@ -219,11 +255,13 @@ part(() => box(0.48, 0.1, 0.98), ["cabin"], {
   pin: true,
   note: "One-piece rear bench in the optional 2+1 configuration; wider LH seat back provides a center seat/restraint area, with 60/40 split seat backs (POH7-29). Three-restraint option shown. Other SR20s have an observer's seat or two rear harnesses (AMM25-10p1). Bench proportions schematic.",
 });
-for (const [z, w, name] of [
-  [-0.196, 0.588, "Rear seat (2+1 bench)"],
-  [0.294, 0.392, "Rear seat"],
+for (const [back, z, w, name] of [
+  ["left", -0.196, 0.588, "Rear seat (2+1 bench)"],
+  ["right", 0.294, 0.392, "Rear seat"],
 ] as const)
   part(() => box(0.09, 0.58, w * 0.96), ["cabin"], {
+    id: "parts.cabin.part.017",
+    instance: [back],
     pos: [0.08, -0.08, z],
     rot: [0, 0, 0.2],
     color: "#6B5A48",
@@ -276,6 +314,8 @@ YOKES.forEach(({ side }) => {
     grip = "grip:" + side,
     top = HEAD.d + HEAD.l / 2;
   part(() => cyl(0.018, 0.5, "x"), ["controls"], {
+    id: "parts.cabin.yoke-tube.018",
+    instance: [side],
     parent: "yoke:" + side,
     chan: ["elevator", "aileron"],
     pos: [0.27, 0, 0],
@@ -284,6 +324,8 @@ YOKES.forEach(({ side }) => {
     note: "Slides fore/aft in its bearing carriage for pitch (driving the elevator drop link) and rotates the carriage for roll.",
   });
   part(() => sideYokeGeo(s), ["controls"], {
+    id: "parts.cabin.side-yoke.019",
+    instance: [side, grip],
     parent: grip,
     chan: ["elevator", "aileron"],
     color: "#20262B",
@@ -298,6 +340,8 @@ YOKES.forEach(({ side }) => {
     },
     ["controls"],
     {
+      id: "parts.cabin.trim-switch.020",
+      instance: [side, grip],
       parent: grip,
       chan: ["elevator", "aileron"],
       pos: onGrip(s, HEAD.x - 0.004, top, s * 0.01),
@@ -308,6 +352,8 @@ YOKES.forEach(({ side }) => {
     },
   );
   part(() => cyl(0.0065, 0.006), ["controls"], {
+    id: "parts.cabin.a-p-disc-button.021",
+    instance: [side, grip],
     parent: grip,
     chan: ["elevator", "aileron"],
     pos: onGrip(s, HEAD.x + 0.004, top + 0.002, -s * 0.011),
@@ -321,6 +367,7 @@ export const FT = { x: 0.66, y: -0.54 };
 // POH 7-23: at the bottom of the console's vertical section. Fig. 7-4 (7-14/7-15) item 10 is the panel between the avionics panel
 // (15) and the engine controls (13), knob on its right: here at the foot of the upright avionics panel, right of centre.
 part(() => box(0.04, 0.04, 0.07), ["flaps"], {
+  id: "parts.cabin.flaps-switch.022",
   pos: STACK.at(0.08, 0.02, 0.04),
   rot: STACK.rot,
   color: "#7C57CF",
@@ -329,13 +376,20 @@ part(() => box(0.04, 0.04, 0.07), ["flaps"], {
   note: "Airfoil-shaped knob at the bottom of the console's vertical section, with detents at UP (0%), 50% and 100%; VFE is marked at 50% and 100%. A light at each position comes on when the flaps reach it: UP green, 50% and 100% yellow (POH 7-23, Fig. 7-4 item 10). Position in the model is approximate.",
 });
 part(() => cyl(0.045, 0.03, "y"), ["fuel"], {
+  id: "parts.cabin.fuel-selector-valve.023",
   pos: [1.24, -0.25, 0],
   name: "Fuel selector valve",
   note: "LEFT / RIGHT / OFF at the rear of the console. Lift the release to select OFF.",
   pin: true,
 });
-part(() => box(0.09, 0.02, 0.02), ["fuel"], { pos: [1.24, -0.23, 0], color: "#F2F5F7", anim: selPtrAnim });
+part(() => box(0.09, 0.02, 0.02), ["fuel"], {
+  id: "parts.cabin.part.024",
+  pos: [1.24, -0.23, 0],
+  color: "#F2F5F7",
+  anim: selPtrAnim,
+});
 part(() => box(0.04, 0.03, 0.04), ["fuel"], {
+  id: "parts.cabin.boost-pump-switch.025",
   pos: [1.34, -0.26, 0.08],
   name: "BOOST PUMP switch",
   note: "Next to the selector. On for takeoff, climb, maneuvering, landing and tank switching.",
@@ -351,6 +405,7 @@ part(
     mergeGeos([cyl(0.012, 0.09, "x", 20).translate(-0.0125, 0, 0), cyl(0.012, 0.15, "z", 20).translate(0.045, 0, 0)]),
   ["caps", "cabin"],
   {
+    id: "parts.cabin.caps-activation-t-handle.026",
     pos: CAPS_HANDLE_POS,
     color: "#D32640",
     name: "CAPS activation T-handle",
@@ -371,6 +426,7 @@ part(
     ]),
   ["caps", "cabin"],
   {
+    id: "parts.cabin.caps-handle-receptacle.027",
     pos: CAPS_HANDLE_POS,
     color: "#4A535B",
     name: "CAPS handle receptacle",
@@ -380,6 +436,7 @@ part(
   },
 );
 part(() => box(0.18, 0.006, 0.21), ["caps", "cabin"], {
+  id: "parts.cabin.caps-activation-handle-cover.028",
   pos: [CAPS_HANDLE_POS[0], 0.612, 0],
   color: "#D32640",
   name: "CAPS activation handle cover",
@@ -390,6 +447,7 @@ part(() => box(0.18, 0.006, 0.21), ["caps", "cabin"], {
   note: "Placarded cover retained by hook-and-loop fasteners, preventing tampering with the activation handle (POH 7-98). Removed before the handle is pulled; hidden during the deployment sequence. Size approximate.",
 });
 part(() => box(0.03, 0.004, 0.025), ["caps", "cabin"], {
+  id: "parts.cabin.caps-cover-black-forward-tab.029",
   pos: [CAPS_HANDLE_POS[0] + 0.1, 0.607, 0],
   color: "#151515",
   name: "CAPS cover black forward tab",
@@ -401,6 +459,7 @@ part(() => box(0.03, 0.004, 0.025), ["caps", "cabin"], {
   note: "Black tab on the forward edge of the activation-handle cover (POH 7-98). Pulling it removes the cover. Size approximate.",
 });
 part(() => cyl(0.04, 0.24), ["cabin"], {
+  id: "parts.cabin.fire-extinguisher.030",
   pos: [2.18, -0.45, -0.44],
   color: "#D32640",
   name: "Fire extinguisher",
@@ -408,6 +467,7 @@ part(() => cyl(0.04, 0.24), ["cabin"], {
   pin: true,
 });
 part(() => box(0.22, 0.05, 0.12), ["cabin"], {
+  id: "parts.cabin.armrest-egress-hammer-hour-meters.031",
   pos: [1.45, -0.24, 0],
   color: "#8A6A3A",
   name: "Armrest: egress hammer & hour meters",
@@ -415,6 +475,7 @@ part(() => box(0.22, 0.05, 0.12), ["cabin"], {
   pin: true,
 });
 part(() => box(0.16, 0.09, 0.11), ["cabin", "caps"], {
+  id: "parts.cabin.elt-artex-elt-1000.032",
   pos: [-0.8, -0.28, 0.13],
   color: "#EB7A12",
   name: "ELT — Artex ELT 1000",
@@ -423,12 +484,14 @@ part(() => box(0.16, 0.09, 0.11), ["cabin", "caps"], {
 });
 // both stand proud of the circuit breaker panel face (z −0.15) on the left side of the console
 part(() => box(0.05, 0.04, 0.02), ["cabin"], {
+  id: "parts.cabin.elt-remote-switch-rcpi.033",
   pos: [1.92, -0.44, -0.161],
   color: "#EB7A12",
   name: "ELT remote switch (RCPI)",
   note: "ON – ARM/OFF – TEST, red LED flashes when transmitting. Below the ALT AIR knob by the pilot's right knee (POH Section 7, ELT Remote Switch and Indicator Panel).",
 });
 part(() => box(0.05, 0.05, 0.03), ["engine"], {
+  id: "parts.cabin.alt-air-pull-knob.034",
   pos: [1.92, -0.36, -0.166],
   color: "#E0B040",
   name: "ALT AIR – PULL knob",
@@ -440,8 +503,13 @@ export const RESTRAINT_EMA: Vec3 = [1.05, -0.61, -0.22];
 export const RESTRAINT_INFLATOR = (s: number): Vec3 => [0.91, -0.25, s * 0.33];
 for (const side of [-1, 1]) {
   const z = side * 0.33;
-  for (const d of [-0.14, 0.14])
+  for (const [track, d] of [
+    ["left", -0.14],
+    ["right", 0.14],
+  ] as const)
     part(() => box(0.64, 0.015, 0.025), ["cabin"], {
+      id: "parts.cabin.front-seat-track.035",
+      instance: [side, track],
       pos: [1.25, -0.482, z + d],
       rot: [0, 0, 0.09],
       color: "#7A858E",
@@ -450,6 +518,8 @@ for (const side of [-1, 1]) {
       note: "Two tracks per crew seat, angled upward toward the front so forward adjustment also raises the occupant. The handle below the forward cushion releases the lock pins; verify the seat relocks after adjustment (POH 7-28; AMM 25-10 pp. 3–8). Track dimensions, slope and holes schematic.",
     });
   part(() => box(0.04, 0.025, 0.07), ["cabin"], {
+    id: "parts.cabin.front-seat-position-control.036",
+    instance: [side],
     pos: [1.51, -0.46, z],
     color: "#8B949B",
     name: "Front seat position control",
@@ -457,6 +527,8 @@ for (const side of [-1, 1]) {
     note: "Lift handle below the forward edge of the seat cushion to slide the seat, then release and check locked engagement (POH 7-28). Shown with an illustrative lock-pin carrier; no moving-seat simulation.",
   });
   part(() => box(0.02, 0.05, 0.025), ["cabin"], {
+    id: "parts.cabin.seat-recline-release-lever.037",
+    instance: [side],
     pos: [0.98, -0.3, z + side * 0.19],
     color: "#42494D",
     name: "Seat recline release lever",
@@ -464,6 +536,8 @@ for (const side of [-1, 1]) {
     note: "Release lever on each side of each front seat back. With the back unloaded, operating the release returns it upright; it also permits folding forward for rear access (POH 7-28). Geometry and lever position approximate.",
   });
   part(() => box(0.32, 0.055, 0.3), ["cabin"], {
+    id: "parts.cabin.seat-energy-absorption-core.038",
+    instance: [side],
     pos: [1.25, -0.435, z],
     color: "#D7B970",
     fairing: true,
@@ -472,6 +546,8 @@ for (const side of [-1, 1]) {
     note: "Aluminum honeycomb energy-absorption module integral to the seat bottom; designed to crush under downward impact loads. Do not kneel or stand on the seat (POH 7-27; AMM 25-10 p. 1). Core outline and thickness schematic.",
   });
   part(() => mergeGeos([-1, 1].map((d) => cyl(0.022, 0.025, "z").translate(0, 0, d * 0.045))), ["cabin"], {
+    id: "parts.cabin.front-shoulder-harness-inertia-reels.039",
+    instance: [side],
     pos: [0.935, 0.145, z],
     color: "#717D85",
     name: "Front shoulder-harness inertia reels",
@@ -492,6 +568,8 @@ for (const side of [-1, 1]) {
         ),
       ["cabin"],
       {
+        id: "parts.cabin.front-inflatable-shoulder-harness.040",
+        instance: [side, d],
         color: "#454A4D",
         name: "Front inflatable shoulder harness",
         pin: side < 0 && d < 0,
@@ -499,6 +577,8 @@ for (const side of [-1, 1]) {
       },
     );
   part(() => cyl(0.019, 0.13, "z"), ["cabin"], {
+    id: "parts.cabin.front-seat-restraint-inflator.041",
+    instance: [side],
     pos: RESTRAINT_INFLATOR(side),
     color: "#8B9EAA",
     name: "Front seat restraint inflator",
@@ -507,14 +587,21 @@ for (const side of [-1, 1]) {
   });
 }
 part(() => box(0.12, 0.035, 0.09), ["cabin"], {
+  id: "parts.cabin.inflatable-restraint-electronic-module.042",
   pos: RESTRAINT_EMA,
   color: "#C9A755",
   name: "Inflatable restraint electronic module",
   pin: true,
   note: "Below the cabin floor: crash sensor, battery and circuitry evaluate deceleration and signal both front-seat inflators. It has its own battery; independent of aircraft bus power (POH 7-30; AMM 25-10 pp. 1, 18–24). Installation under the LH crew seat is accessible through CF2L. Position and dimensions schematic.",
 });
-for (const z of [-0.34, -0.04, 0.3]) {
+for (const [seat, z] of [
+  ["left", -0.34],
+  ["centre", -0.04],
+  ["right", 0.3],
+] as const) {
   part(() => cyl(0.025, 0.04, "z"), ["cabin"], {
+    id: "parts.cabin.rear-shoulder-harness-inertia-reel.043",
+    instance: [seat],
     pos: [-0.44, 0.14, z],
     color: "#717D85",
     name: "Rear shoulder-harness inertia reel",
@@ -522,6 +609,8 @@ for (const z of [-0.34, -0.04, 0.3]) {
     note: "Baggage-compartment rear bulkhead inertia reel feeds a rear three-point harness; lap belts attach to cabin-floor fittings (POH 7-29). Three-harness option shown for the 2+1 bench; the AMM also lists a two-harness standard configuration (AMM 25-10 p. 1). Attachment offsets and reel size schematic.",
   });
   part(() => box(0.035, 0.035, 0.025), ["cabin"], {
+    id: "parts.cabin.child-seat-top-tether-anchor.044",
+    instance: [seat],
     pos: [-0.46, 0.22, z],
     color: "#7A858E",
     name: "Child-seat top tether anchor",
@@ -529,8 +618,15 @@ for (const z of [-0.34, -0.04, 0.3]) {
     note: "One of three top-tether anchors on the rear bulkhead for the 2+1 configuration. Route the tether through the seat-back pass-through, never over or around the back (POH 7-31; AMM 25-10 pp. 1–2). Size and spacing approximate.",
   });
 }
-for (const z of [-0.42, -0.18, 0.18, 0.42])
+for (const [anchor, z] of [
+  ["left-outer", -0.42],
+  ["left-inner", -0.18],
+  ["right-inner", 0.18],
+  ["right-outer", 0.42],
+] as const)
   part(() => cyl(0.008, 0.05, "z", 12), ["cabin"], {
+    id: "parts.cabin.child-seat-lower-latch-anchor.045",
+    instance: [anchor],
     pos: [0.11, -0.36, z],
     color: "#7A858E",
     name: "Child-seat lower LATCH anchor",
@@ -540,6 +636,7 @@ for (const z of [-0.42, -0.18, 0.18, 0.42])
 export const ELT_POS: Vec3 = [-0.8, -0.28, 0.13];
 export const ELT_REMOTE: Vec3 = [1.92, -0.44, -0.161];
 part(() => box(0.24, 0.012, 0.2), ["cabin", "caps"], {
+  id: "parts.cabin.elt-mounting-shelf.046",
   pos: [ELT_POS[0], ELT_POS[1] - 0.053, ELT_POS[2]],
   color: "#70828F",
   name: "ELT mounting shelf",
@@ -548,6 +645,7 @@ part(() => box(0.24, 0.012, 0.2), ["cabin", "caps"], {
   note: "Immediately aft of the cabin bulkhead, slightly right of centerline. Longitudinal mounting aligns the ELT's deceleration sensor; removable attach straps retain the transmitter (POH 7-92–94; AMM 25-60 p. 1). Geometry approximate.",
 });
 part(() => cyl(0.018, 0.018, "y"), ["cabin", "caps"], {
+  id: "parts.cabin.elt-warning-buzzer.047",
   pos: [-0.8, -0.323, -0.005],
   color: "#444B50",
   name: "ELT warning buzzer",
@@ -556,7 +654,11 @@ part(() => cyl(0.018, 0.018, "y"), ["cabin", "caps"], {
   note: "Shelf-mounted buzzer beeps periodically when the ELT transmits, alongside the remote LED. Powered by the ELT's own batteries (POH 7-92; AMM 25-60 p. 1). Position and size approximate.",
 });
 
-for (const z of [-0.34, -0.04, 0.3]) {
+for (const [seat, z] of [
+  ["left", -0.34],
+  ["centre", -0.04],
+  ["right", 0.3],
+] as const) {
   part(
     () =>
       tubeGeo(
@@ -569,6 +671,8 @@ for (const z of [-0.34, -0.04, 0.3]) {
       ),
     ["cabin"],
     {
+      id: "parts.cabin.rear-three-point-shoulder-restraint.048",
+      instance: [seat],
       color: "#454A4D",
       name: "Rear three-point shoulder restraint",
       pin: z < -0.3,
@@ -588,6 +692,8 @@ for (const z of [-0.34, -0.04, 0.3]) {
       ),
     ["cabin"],
     {
+      id: "parts.cabin.rear-lap-restraint.049",
+      instance: [seat],
       color: "#454A4D",
       name: "Rear lap restraint",
       pin: z < -0.3,
@@ -621,14 +727,22 @@ part(
     ]),
   ["cabin"],
   {
+    id: "parts.cabin.retractable-baggage-cargo-net.050",
     color: "#665B46",
     name: "Retractable baggage cargo net",
     pin: true,
     note: "2+1 configuration retractable net extends from inertia reels at the rear bulkhead over baggage and secures to the seat backs with four latch assemblies. It does not function with the rear backs folded forward; then use conventional tie-down straps (POH7-27). Schematic net shape, reel station and mesh spacing.",
   },
 );
-for (const z of [-0.4, -0.2, 0.2, 0.4])
+for (const [latch, z] of [
+  ["left-outer", -0.4],
+  ["left-inner", -0.2],
+  ["right-inner", 0.2],
+  ["right-outer", 0.4],
+] as const)
   part(() => box(0.025, 0.03, 0.025), ["cabin"], {
+    id: "parts.cabin.cargo-net-seat-back-latch.051",
+    instance: [latch],
     pos: [0.08, 0.15, z],
     color: "#818C93",
     name: "Cargo-net seat-back latch",

@@ -71,7 +71,7 @@ it("every boot feed tube, inlet included, clears the slinger ring by 0.1 in. (AM
     rg.dispose();
   }
   console.info(`Feed tube to slinger ring: minimum ${(min * 1000).toFixed(2)} mm`);
-});
+}, 30_000); // 66 full-mesh BVH comparisons need headroom on shared CI hosts.
 
 it("every boot feed tube clears the propeller hub envelope by 0.25 in. (AMM Fig 30-60-2, PDF 1270)", () => {
   const saved = useSR22T.getState().s;

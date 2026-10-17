@@ -1,9 +1,9 @@
 /**
  * scripts/deploy-aws.sh without AWS: each test copies the script into a throwaway git repo with a bare "origin", and
  * puts stub `aws` and `npm` commands first on PATH. The stubs log every call and answer from fixed fixtures, so the
- * tests check the argument parsing, the guards, the upload cache headers and the JSON summary, offline. The `npm`
- * stub also records the files of the tree it builds, so tests can check the build used exactly the commit's tree.
+ * tests check source guards, artifact integrity, cache headers and atomic activation offline. npm is forbidden.
  */
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   chmodSync,
@@ -20,6 +20,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { contentType } from "../scripts/release-manifest.mjs";
+
+import.meta.glob("../scripts/deploy-aws.sh");
 
 // Every test here runs deploy-aws.sh as a subprocess that starts dozens of git and node stub processes. On a loaded
 // machine a single deploy took 6.7 s, over vitest's 5 s default; 20 s leaves about 3x that worst case.
@@ -34,6 +37,7 @@ const PARTITION = "aws";
 const FUNCTION_NAME = "airplane-systems-site-view-rewrite";
 const FUNCTION_ARN = `arn:${PARTITION}:cloudfront::${ACCOUNT}:function/${FUNCTION_NAME}`;
 const FUNCTION_CODE = "function handler(event) {\n  return event.request;\n}\n";
+const NPM_VERSION = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim();
 const SUMMARY_KEYS = [
   "ok",
   "exit_code",
@@ -71,7 +75,16 @@ if (cmd === "sts get-caller-identity") {
   console.log(key === env.STUB_MISSING_OUTPUT ? "None" : outputs[key]);
 } else if (cmd === "cloudfront get-distribution-config") {
   if (env.STUB_DIST_CONFIG_FAIL) { console.error("AccessDenied"); process.exit(254); }
-  console.log(env.STUB_ASSOC_ARN);
+  if (a.includes("--query")) console.log(env.STUB_ASSOC_ARN);
+  else console.log(JSON.stringify({ ETag: "etag-current", DistributionConfig: {
+    Origins: { Quantity: 2, Items: [{ Id: "site-bucket", DomainName: "test-bucket.s3.amazonaws.com" }, { Id: "site-assets", DomainName: "test-bucket.s3.amazonaws.com" }] },
+    DefaultCacheBehavior: { TargetOriginId: "site-bucket", FunctionAssociations: { Items: [{ EventType: "viewer-request", FunctionARN: env.STUB_ASSOC_ARN }] } },
+    CacheBehaviors: { Quantity: 2, Items: [{ PathPattern: "/_next/static/*", TargetOriginId: "site-assets", CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6" }, { PathPattern: "/geometry/*-????????????????????.*", TargetOriginId: "site-assets", CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6" }] }
+  }}));
+} else if (cmd === "cloudfront update-distribution") {
+  if (env.STUB_ACTIVATE_FAIL) process.exit(1);
+  fs.writeFileSync(env.STUB_ACTIVATION_LOG, fs.readFileSync(a[a.indexOf("--distribution-config") + 1].slice(7)));
+  console.log("{}");
 } else if (cmd === "cloudfront get-function") {
   const src = env.STUB_FUNCTIONS + "/" + a[a.indexOf("--name") + 1] + ".js";
   if (!fs.existsSync(src)) { console.error("NoSuchFunctionExists"); process.exit(254); }
@@ -90,35 +103,11 @@ if (cmd === "sts get-caller-identity") {
 }
 `;
 
-// `npm` stub: \`STATIC_EXPORT=1 npm run build\` writes a minimal static export into out/
+// Any attempt to install or rebuild during promotion is a regression.
 const NPM_STUB = `#!/usr/bin/env node
-const fs = require("fs");
-const a = process.argv.slice(2);
-fs.appendFileSync(process.env.STUB_LOG, JSON.stringify(["npm", ...a]) + "\\n");
-if (a[0] === "ci" && process.env.STUB_CI_FAIL) process.exit(1);
-if (a[0] === "run" && a[1] === "build") {
-  if (process.env.STUB_BUILD_FAIL) process.exit(1);
-  // a build without STATIC_EXPORT=1 is a server build: it writes no out/
-  if (process.env.STATIC_EXPORT !== "1") process.exit(0);
-  // record every file of the tree being built (not out/ or node_modules/), path -> content
-  const files = {};
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const rel = dir === "." ? e.name : dir + "/" + e.name;
-      if (rel === "out" || rel === "node_modules") continue;
-      if (e.isDirectory()) walk(rel);
-      else files[rel] = fs.readFileSync(rel, "utf8");
-    }
-  };
-  walk(".");
-  fs.writeFileSync(process.env.STUB_TREE_LOG, JSON.stringify(files));
-  fs.mkdirSync("out/_next/static/chunks", { recursive: true });
-  fs.mkdirSync("out/_next/static/media", { recursive: true });
-  fs.writeFileSync("out/index.html", "<html></html>");
-  fs.writeFileSync("out/404.html", "<html>404</html>");
-  fs.writeFileSync("out/_next/static/chunks/a.js", "");
-  fs.writeFileSync("out/_next/static/media/f.woff2", "");
-}
+require("fs").appendFileSync(process.env.STUB_LOG, JSON.stringify(["npm", ...process.argv.slice(2)]) + "\\n");
+console.error("Deployment must never run npm");
+process.exit(99);
 `;
 
 // the repo's smoke script, replaced by one that logs its argument and prints a fixed summary
@@ -166,6 +155,7 @@ beforeEach(() => {
     GIT_COMMITTER_EMAIL: "test@example.com",
     STUB_LOG: join(root, "calls.log"),
     STUB_TREE_LOG: join(root, "built-tree.json"),
+    STUB_ACTIVATION_LOG: join(root, "activated.json"),
     DEPLOY_AWS_ACCOUNT: ACCOUNT,
     DEPLOY_AWS_REGION: REGION,
     STUB_ACCOUNT: ACCOUNT,
@@ -180,6 +170,17 @@ beforeEach(() => {
   mkdirSync(join(repo, "scripts"));
   mkdirSync(join(repo, "infra", "cloudfront"), { recursive: true });
   copyFileSync(SCRIPT, join(repo, "scripts", "deploy-aws.sh"));
+  copyFileSync(join(SCRIPTS, "release-manifest.mjs"), join(repo, "scripts", "release-manifest.mjs"));
+  copyFileSync(join(SCRIPTS, "activate-release.mjs"), join(repo, "scripts", "activate-release.mjs"));
+  writeFileSync(join(repo, "package-lock.json"), "{}\n");
+  writeFileSync(join(repo, ".node-version"), process.version.slice(1) + "\n");
+  writeFileSync(
+    join(repo, "package.json"),
+    JSON.stringify({
+      engines: { node: process.version.slice(1), npm: NPM_VERSION },
+      packageManager: `npm@${NPM_VERSION}`,
+    }),
+  );
   writeFileSync(join(repo, "scripts", "smoke.mjs"), SMOKE_STUB);
   writeFileSync(join(repo, "infra", "cloudfront", "view-rewrite.js"), FUNCTION_CODE);
   writeFileSync(join(repo, ".gitignore"), "out/\n");
@@ -191,7 +192,66 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
+function artifact(commit: string) {
+  const directory = join(root, "release");
+  rmSync(directory, { recursive: true, force: true });
+  const geometry = `sr20-${createHash("sha256").update("gzip fixture").digest("hex").slice(0, 20)}.bin.gz`;
+  const entries: Record<string, string> = {
+    "index.html": "<html></html>",
+    "404.html": "<html>404</html>",
+    "_next/static/chunks/a.js": "",
+    "_next/static/media/f.woff2": "",
+    "geometry/manifest.json": JSON.stringify({ sr20: `/geometry/${geometry}` }),
+    [`geometry/${geometry}`]: "gzip fixture",
+  };
+  const sha = (data: string) => createHash("sha256").update(data).digest("hex");
+  const files = Object.entries(entries)
+    .sort(([a], [b]) => a.localeCompare(b, "en"))
+    .map(([path, bytes]) => {
+      mkdirSync(dirname(join(directory, path)), { recursive: true });
+      writeFileSync(join(directory, path), bytes);
+      const hashed = path.startsWith("_next/") || path.endsWith(".gz");
+      const contentType = path.endsWith(".html")
+        ? "text/html; charset=utf-8"
+        : path.endsWith(".json")
+          ? "application/json"
+          : path.endsWith(".woff2")
+            ? "font/woff2"
+            : path.endsWith(".js")
+              ? "text/javascript"
+              : "application/octet-stream";
+      return {
+        path,
+        bytes: Buffer.byteLength(bytes),
+        sha256: sha(bytes),
+        cache: hashed ? "immutable" : "short",
+        contentType,
+      };
+    })
+    .sort((a, b) => (a.path < b.path ? -1 : 1));
+  const manifest = {
+    version: 1,
+    source: {
+      commit,
+      tree: git(repo, "rev-parse", `${commit}^{tree}`),
+      dirty: false,
+      lockSha256: sha(git(repo, "show", `${commit}:package-lock.json`) + "\n"),
+    },
+    toolchain: { node: process.version, npm: NPM_VERSION, platform: process.platform, arch: process.arch },
+    files,
+  };
+  const data = JSON.stringify(manifest);
+  writeFileSync(join(directory, "release-manifest.json"), data);
+  env.DEPLOY_RELEASE_DIR = directory;
+  env.DEPLOY_RELEASE_SHA256 = sha(data);
+  if (env.STUB_BUILD_FAIL) writeFileSync(join(directory, "index.html"), "corrupted after sealing");
+}
+
 function deploy(...args: string[]) {
+  const rollback = args.indexOf("--rollback-to");
+  const commit =
+    rollback >= 0 ? git(repo, "rev-parse", args[rollback + 1]) : git(join(root, "origin.git"), "rev-parse", "main");
+  artifact(commit);
   return invokeDeploy(repo, join(repo, "scripts", "deploy-aws.sh"), ...args);
 }
 
@@ -211,25 +271,11 @@ function invokeDeploy(cwd: string, script: string, ...args: string[]) {
   return { code: r.status, summary, stderr: r.stderr, calls };
 }
 
-/** Every file of `rev`'s tree in `cwd`'s repository, path -> content; submodule entries are left out. */
-function commitTree(rev: string, cwd = repo) {
-  const files: Record<string, string> = {};
-  for (const line of git(cwd, "ls-tree", "-r", "--full-tree", rev).split("\n")) {
-    const [meta, path] = line.split("\t");
-    const [, type, blob] = meta.split(" ");
-    if (type === "blob") {
-      files[path] = execFileSync("git", ["cat-file", "blob", blob], { cwd, env, encoding: "utf8" });
-    }
-  }
-  return files;
-}
-
-/** The files the `npm` stub saw when `npm run build` ran. */
-const builtTree = () => JSON.parse(readFileSync(env.STUB_TREE_LOG!, "utf8")) as Record<string, string>;
-
-/** Asserts the build used exactly `rev`'s tree, byte for byte. */
+/** Promotion uses the sealed artifact for the selected source revision, with no dependency install or rebuild. */
 function expectBuiltFrom(rev: string) {
-  expect(builtTree()).toEqual(commitTree(rev));
+  const manifest = JSON.parse(readFileSync(join(env.DEPLOY_RELEASE_DIR!, "release-manifest.json"), "utf8"));
+  expect(manifest.source.commit).toBe(git(repo, "rev-parse", rev));
+  expect(readFileSync(env.STUB_LOG!, "utf8")).not.toContain('["npm"');
 }
 
 const awsCalls = (calls: string[][], sub: string) => calls.filter((c) => c[0] === "aws" && c[1] + " " + c[2] === sub);
@@ -239,28 +285,48 @@ const flags = (call: string[], name: string) => call.flatMap((a, i) => (a === na
 describe("a normal deploy", () => {
   it("uploads hashed assets as immutable and everything else with a short cache, never deleting", () => {
     const { calls } = deploy();
-    const [assets, ...typedAndRest] = awsCalls(calls, "s3 sync");
+    const [assets, ...remaining] = awsCalls(calls, "s3 sync");
+    const geometry = remaining.splice(-3);
+    const typedAndRest = remaining;
     const [rest] = awsCalls(calls, "s3 cp");
     expect(rest).toContain("--recursive");
     expect(assets.slice(3, 5)).toEqual(["out/_next/static", "s3://test-bucket/_next/static"]);
     expect(flag(assets, "--cache-control")).toBe("public, max-age=31536000, immutable");
-    expect(flags(assets, "--exclude")).toEqual(["*.woff2", "*.js", "*.css"]);
-    // SecurityHeadersPolicy sends nosniff, so fonts, scripts and stylesheets carry an explicit type.
-    expect(typedAndRest.map((c) => [flag(c, "--include"), flag(c, "--content-type")])).toEqual([
-      ["*.woff2", "font/woff2"],
-      ["*.js", "text/javascript"],
-      ["*.css", "text/css"],
+    const manifestSource = readFileSync(join(SCRIPTS, "release-manifest.mjs"), "utf8");
+    const expectedTypes = [...manifestSource.matchAll(/"\.(\w+)": "([^"]+)"/g)].map(([, ext, type]) => [
+      `*.${ext}`,
+      type,
     ]);
+    expect(expectedTypes).toHaveLength(11);
+    expect(typedAndRest.map((c) => [flag(c, "--include"), flag(c, "--content-type")]).sort()).toEqual(
+      expectedTypes.sort(),
+    );
+    expect(flags(assets, "--exclude").sort()).toEqual(expectedTypes.map(([pattern]) => pattern).sort());
     for (const typed of typedAndRest) {
+      expect(flag(typed, "--content-type")).toBe(contentType(flag(typed, "--include")));
       expect(typed.slice(3, 5)).toEqual(["out/_next/static", "s3://test-bucket/_next/static"]);
       expect(flag(typed, "--exclude")).toBe("*");
       expect(flag(typed, "--cache-control")).toBe("public, max-age=31536000, immutable");
     }
-    expect(rest.slice(3, 5)).toEqual(["out", "s3://test-bucket"]);
+    expect(rest[3]).toBe("out");
+    expect(rest[4]).toMatch(/^s3:\/\/test-bucket\/releases\/[a-f0-9]{40}-[a-f0-9]{64}$/);
+    expect(geometry[0].slice(3, 5)).toEqual(["out/geometry", "s3://test-bucket/geometry"]);
+    expect(flag(geometry[0], "--cache-control")).toBe("public, max-age=31536000, immutable");
     expect(flag(rest, "--exclude")).toBe("_next/static/*");
     expect(flag(rest, "--cache-control")).toBe("public, max-age=60");
     expect(calls.flat()).not.toContain("--delete");
     expect(calls.some((c) => c.join(" ").includes("delete"))).toBe(false);
+  });
+
+  it("uploads source maps, worker sources and unknown extensions as octet-stream", () => {
+    const { calls } = deploy();
+    const [assets] = awsCalls(calls, "s3 sync");
+    // Unrecognized extensions, including source maps and worker sources, must bypass the local MIME database.
+    for (const extension of ["map", "ts", "unknown"]) {
+      expect(flags(assets, "--exclude")).not.toContain(`*.${extension}`);
+      expect(contentType(`asset.${extension}`)).toBe("application/octet-stream");
+      expect(flag(assets, "--content-type")).toBe(contentType(`asset.${extension}`));
+    }
   });
 
   it("invalidates and waits for that invalidation", () => {
@@ -268,7 +334,7 @@ describe("a normal deploy", () => {
     const [create] = awsCalls(calls, "cloudfront create-invalidation");
     expect(flag(create, "--distribution-id")).toBe("ETEST123");
     expect(flag(create, "--paths")).toBe("/*");
-    const [wait] = awsCalls(calls, "cloudfront wait");
+    const wait = awsCalls(calls, "cloudfront wait").find((call) => call[3] === "invalidation-completed")!;
     expect(wait[3]).toBe("invalidation-completed");
     expect(flag(wait, "--distribution-id")).toBe("ETEST123");
     expect(flag(wait, "--id")).toBe("ITESTINVALIDATION");
@@ -278,7 +344,7 @@ describe("a normal deploy", () => {
     const { calls } = deploy();
     const [config] = awsCalls(calls, "cloudfront get-distribution-config");
     expect(flag(config, "--id")).toBe("ETEST123");
-    expect(flag(config, "--query")).toMatch(/DefaultCacheBehavior\.FunctionAssociations.*viewer-request/);
+    expect(flag(config, "--output")).toBe("json");
     const [get] = awsCalls(calls, "cloudfront get-function");
     expect(flag(get, "--name")).toBe(FUNCTION_NAME);
     expect(flag(get, "--stage")).toBe("LIVE");
@@ -319,10 +385,17 @@ describe("configuration", () => {
       expect(flag(call, "--region")).toBe("eu-west-1");
   });
 
-  it("builds the static export (STATIC_EXPORT=1)", () => {
+  it("promotes the verified static export without rebuilding", () => {
     const { code, calls } = deploy();
     expect(code).toBe(0);
-    expect(calls.some((c) => c[0] === "npm" && c[1] === "run" && c[2] === "build")).toBe(true);
+    expect(calls.some((c) => c[0] === "npm")).toBe(false);
+    const activation = JSON.parse(readFileSync(env.STUB_ACTIVATION_LOG!, "utf8"));
+    expect(activation.Origins.Items[0].OriginPath).toMatch(/^\/releases\/[a-f0-9]{40}-[a-f0-9]{64}$/);
+    expect(flag(awsCalls(calls, "cloudfront update-distribution")[0], "--if-match")).toBe("etag-current");
+    expect(awsCalls(calls, "cloudfront get-distribution-config")).toHaveLength(1);
+    const position = (sub: string) => calls.findIndex((call) => call[1] + " " + call[2] === sub);
+    expect(position("cloudfront get-distribution-config")).toBeLessThan(position("s3 sync"));
+    expect(position("cloudfront update-distribution")).toBeGreaterThan(position("s3 cp"));
   });
 
   it("refuses a viewer-request Function that belongs to another account (exit 6)", () => {
@@ -422,7 +495,7 @@ describe("the working tree only warns, and the build is the commit's tree", () =
       expect(readdirSync(scratch)).toEqual([]);
     });
 
-    it("after a build failure", () => {
+    it("after an artifact verification failure", () => {
       env.STUB_BUILD_FAIL = "1";
       expect(deploy().code).toBe(7);
       expect(readdirSync(scratch)).toEqual([]);
@@ -445,11 +518,35 @@ describe("stack and Function guards", () => {
 });
 
 describe("failures after the guards", () => {
-  it("stops on a failed build (exit 7) without uploading", () => {
+  it("refuses a stale independently supplied artifact digest before any upload", () => {
+    artifact(git(repo, "rev-parse", "HEAD"));
+    env.DEPLOY_RELEASE_SHA256 = "0".repeat(64);
+    const { code, calls, stderr } = invokeDeploy(repo, join(repo, "scripts", "deploy-aws.sh"));
+    expect(code).toBe(7);
+    expect(stderr).toContain("manifest SHA256 mismatch");
+    expect(awsCalls(calls, "s3 sync")).toEqual([]);
+    expect(awsCalls(calls, "cloudfront update-distribution")).toEqual([]);
+  });
+
+  it("refuses source toolchain mismatch even when the manifest digest is supplied correctly", () => {
+    artifact(git(repo, "rev-parse", "HEAD"));
+    const path = join(env.DEPLOY_RELEASE_DIR!, "release-manifest.json");
+    const manifest = JSON.parse(readFileSync(path, "utf8"));
+    manifest.toolchain.node = "v0.0.0";
+    const bytes = JSON.stringify(manifest);
+    writeFileSync(path, bytes);
+    env.DEPLOY_RELEASE_SHA256 = createHash("sha256").update(bytes).digest("hex");
+    const { code, calls, stderr } = invokeDeploy(repo, join(repo, "scripts", "deploy-aws.sh"));
+    expect(code).toBe(7);
+    expect(stderr).toContain("Node toolchain mismatch");
+    expect(awsCalls(calls, "s3 sync")).toEqual([]);
+  });
+
+  it("stops on an artifact checksum failure (exit 7) without uploading", () => {
     env.STUB_BUILD_FAIL = "1";
     const { code, summary, calls } = deploy();
     expect(code).toBe(7);
-    expect(summary).toMatchObject({ ok: false, step: "build" });
+    expect(summary).toMatchObject({ ok: false, step: "artifact" });
     expect(awsCalls(calls, "s3 sync")).toEqual([]);
   });
 
@@ -459,6 +556,16 @@ describe("failures after the guards", () => {
     expect(code).toBe(8);
     expect(summary).toMatchObject({ ok: false, step: "upload" });
     expect(awsCalls(calls, "cloudfront create-invalidation")).toEqual([]);
+    expect(awsCalls(calls, "cloudfront update-distribution")).toEqual([]);
+  });
+
+  it("does not invalidate or smoke when conditional activation is rejected", () => {
+    env.STUB_ACTIVATE_FAIL = "1";
+    const { code, summary, calls } = deploy();
+    expect(code).toBe(9);
+    expect(summary.step).toBe("activate");
+    expect(awsCalls(calls, "cloudfront create-invalidation")).toEqual([]);
+    expect(calls.some((call) => call[0] === "smoke")).toBe(false);
   });
 
   it("stops when create-invalidation fails (exit 9), without waiting or smoke-testing", () => {
@@ -466,9 +573,9 @@ describe("failures after the guards", () => {
     const { code, summary, calls } = deploy();
     expect(code).toBe(9);
     expect(summary).toMatchObject({ step: "invalidate", invalidation_id: null, smoke: null });
-    expect(awsCalls(calls, "s3 sync")).toHaveLength(4);
+    expect(awsCalls(calls, "s3 sync")).toHaveLength(15);
     expect(awsCalls(calls, "s3 cp")).toHaveLength(1);
-    expect(awsCalls(calls, "cloudfront wait")).toEqual([]);
+    expect(awsCalls(calls, "cloudfront wait").map((call) => call[3])).toEqual(["distribution-deployed"]);
     expect(calls.some((c) => c[0] === "smoke")).toBe(false);
   });
 
@@ -500,6 +607,30 @@ describe("--rollback-to", () => {
     writeFileSync(join(repo, "new.txt"), "x");
     commitAll(repo, "newer");
     git(repo, "push", "-q", "origin", "main");
+  });
+
+  it("reuses an earlier verified artifact without rebuilding", () => {
+    const { code, summary, calls } = deploy("--rollback-to", previous);
+    expect(code).toBe(0);
+    expect(summary.commit).toBe(previous);
+    expect(calls.some((call) => call[0] === "npm")).toBe(false);
+    const origins = JSON.parse(readFileSync(env.STUB_ACTIVATION_LOG!, "utf8")).Origins.Items;
+    expect(origins[0].OriginPath).toBe(`/releases/${previous}-${env.DEPLOY_RELEASE_SHA256}`);
+    expect(origins[1]).not.toHaveProperty("OriginPath");
+    expect(awsCalls(calls, "s3 sync").map((call) => call[4])).toEqual([
+      ...Array(12).fill("s3://test-bucket/_next/static"),
+      ...Array(3).fill("s3://test-bucket/geometry"),
+    ]);
+    expect(calls.flat()).not.toContain("--delete");
+  });
+
+  it("rejects an earlier artifact when deploying the current main revision", () => {
+    artifact(previous);
+    const { code, calls, stderr } = invokeDeploy(repo, join(repo, "scripts", "deploy-aws.sh"));
+    expect(code).toBe(7);
+    expect(stderr).toContain("source commit mismatch");
+    expect(awsCalls(calls, "s3 sync")).toEqual([]);
+    expect(awsCalls(calls, "cloudfront update-distribution")).toEqual([]);
   });
 
   it("refuses a commit that is not on origin/main (exit 4)", () => {

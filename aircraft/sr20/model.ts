@@ -3,6 +3,16 @@
  * Everything here is pure so it can run in the store, in useFrame, or in tests.
  */
 import type { CasLevel } from "../types";
+import {
+  ELECTRICAL_FACTS,
+  BREAKERS,
+  breakerPowered,
+  loadPowered,
+  distributionBranches,
+  type BusId,
+} from "./electrical-installation";
+export { BUSES } from "./electrical-installation";
+export type { BusId } from "./electrical-installation";
 
 export type Key = "OFF" | "R" | "L" | "BOTH" | "START";
 export type FuelSel = "L" | "R" | "OFF";
@@ -82,7 +92,7 @@ export const initialSim: Sim = {
 };
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
-export const live = {
+export const initialLive = () => ({
   rpm: 2500,
   flapAng: 0,
   capsT: -1,
@@ -90,10 +100,8 @@ export const live = {
   startTimer: 0,
   crankT: 0,
   starve: 0,
-};
-
-export type BusId =
-  "mdb1" | "mdb2" | "edb" | "ess1" | "ess2" | "main1" | "main2" | "main3" | "nonEss" | "ac1" | "ac2" | "avx" | "conv";
+});
+export const live = initialLive();
 
 export interface Elec extends Record<BusId, number> {
   alt1: boolean;
@@ -137,8 +145,9 @@ export interface Elec extends Record<BusId, number> {
  * Diode-ORed distribution buses in the MCU; CB-panel buses hang off them. Pulled breakers
  * remove individual loads. Battery endurance uses the Costanzo training deck's rule of thumb:
  * ALT 1 fail → BAT 1 carries MDB 1 ~30 min; dual ALT fail → BAT 1 ~15 min, then BAT 2 ~45 min.
+ * Nothing here latches, so the previous solution (`prev`, as every airplane's solver takes it) is not used.
  */
-export function solve(s: Sim): Elec {
+export function solve(s: Sim, _prev?: Elec): Elec {
   const e = s.elec,
     run = s.eng.running,
     t = e.tBat;
@@ -152,8 +161,8 @@ export function solve(s: Sim): Elec {
   const bat1ok = e.bat1 && !bat1Dead;
   const bat2ok = e.bat2 && !bat2Dead && cb("BAT 2");
   const D = 0.7; // diode drop
-  const mdb1 = Math.max(alt1 ? 27.7 : 0, bat1ok ? 24.3 : 0);
-  const mdb2 = Math.max(alt2 ? 28.7 : 0, mdb1 ? mdb1 - D : 0); // MDB1 → MDB2 only
+  const mdb1 = Math.max(alt1 ? ELECTRICAL_FACTS.alt1Voltage.value : 0, bat1ok ? 24.3 : 0);
+  const mdb2 = Math.max(alt2 ? ELECTRICAL_FACTS.alt2Voltage.value : 0, mdb1 ? mdb1 - D : 0); // MDB1 → MDB2 only
   // Ess Dist Bus: diode-fed from MDB 1, from BAT 1 ahead of its 125 A fuse (the same voltage as MDB 1 here) and from MDB 2.
   // ESS BUS 2 hangs straight off it; ESS BUS 1 through the ESSENTIAL POWER breaker, and BAT 2 joins ESS BUS 1 through the
   // BAT 2 breaker, so with the alternators and BAT 1 gone BAT 2 feeds the Ess Dist Bus and ESS BUS 2 back through
@@ -171,16 +180,12 @@ export function solve(s: Sim): Elec {
     edb: r(edb),
     ess1: r(ess1),
     ess2: r(ess2),
-    main1: r(mdb2),
-    main2: r(mdb2),
-    nonEss: r(mdb2),
-    main3: r(mdb1),
-    ac1: r(mdb1),
-    ac2: r(mdb1),
-    avx: e.avionics && mdb2 && cb("AVIONICS") ? r(mdb2) : 0,
+    ...distributionBranches({ mdb1: r(mdb1), mdb2: r(mdb2) }),
+    avx: 0,
     conv: bat1Dead ? 0 : 24.4,
   };
-  const pw = (bus: BusId, name: string) => buses[bus] > 0 && cb(name);
+  buses.avx = e.avionics && breakerPowered("avionics", buses, s.cb) ? buses[BREAKERS.avionics.bus] : 0;
+  const powered = (load: Parameters<typeof loadPowered>[0]) => loadPowered(load, buses, s.cb, s.avx);
   return {
     ...buses,
     alt1,
@@ -197,27 +202,27 @@ export function solve(s: Sim): Elec {
     a1: alt1 ? (alt2 ? 23 : 36) : 0,
     a2: alt2 ? (alt1 ? 13 : 22) : 0,
     b1: !bat1ok ? 0 : alt1 ? 1 : alt2 ? -14 : -36,
-    pfd: !s.avx.pfdFail && (pw("ess1", "PFD A") || pw("main2", "PFD B")),
-    mfd: pw("main3", "MFD A") || pw("main1", "MFD B"),
-    stby: pw("ess1", "STDBY ATTD A") || pw("main1", "STDBY ATTD B"),
-    ahrs1: pw("ess1", "ADAHRS 1") && !s.avx.ahrs1Fail,
-    ahrs2: s.avx.dualAdahrs && pw("main2", "ADAHRS 2") && !s.avx.ahrs2Fail,
-    flapsPwr: pw("nonEss", "FLAPS"),
-    pitotPwr: pw("nonEss", "PITOT HEAT"),
-    stallPwr: pw("ess2", "STALL WARNING"),
-    boostPwr: pw("main2", "FUEL PUMP"),
-    starterPwr: pw("nonEss", "STARTER") && bat1ok,
-    pitchTrim: pw("ess2", "PITCH TRIM"),
-    rollTrim: pw("ess2", "ROLL TRIM"),
-    navPwr: pw("nonEss", "NAV LIGHTS"),
-    strobePwr: pw("nonEss", "STROBE LIGHTS"),
+    pfd: !s.avx.pfdFail && powered("pfd"),
+    mfd: powered("mfd"),
+    stby: powered("standby"),
+    ahrs1: powered("adahrs1") && !s.avx.ahrs1Fail,
+    ahrs2: powered("adahrs2") && !s.avx.ahrs2Fail,
+    flapsPwr: powered("flaps"),
+    pitotPwr: powered("pitot"),
+    stallPwr: powered("stall"),
+    boostPwr: powered("boost"),
+    starterPwr: powered("starter") && bat1ok,
+    pitchTrim: powered("pitchTrim"),
+    rollTrim: powered("rollTrim"),
+    navPwr: powered("nav"),
+    strobePwr: powered("strobe"),
     // landing light: Main Dist Bus 1 (POH 7-48), breaker on MAIN BUS 3; ice lights on MAIN BUS 1 (Figs 7-10, 7-11)
-    landPwr: pw("main3", "LANDING LIGHTS"),
-    icePwr: pw("main1", "ICE LIGHTS"),
-    eisPwr: pw("ess2", "ENGINE INSTR"),
-    convPwr: buses.conv > 0 && cb("CONV LIGHTS"),
-    fan1: pw("nonEss", "AVIONICS FAN 1"),
-    fan2: pw("main2", "AVIONICS FAN 2"),
+    landPwr: powered("landing"),
+    icePwr: powered("ice"),
+    eisPwr: powered("eis"),
+    convPwr: powered("convenience"),
+    fan1: powered("fan1"),
+    fan2: powered("fan2"),
   };
 }
 
@@ -278,100 +283,3 @@ export function casMessages(s: Sim, E: Elec): [CasLevel, string][] {
   if (E.mfd && !E.fan1) m.push(["a", "MFD FAN FAIL"]);
   return m;
 }
-
-/** Circuit-breaker buses as shown on the panel: [bus, label, source, loads]. */
-export const BUSES: [BusId, string, string, [string, number?][]][] = [
-  [
-    "ess1",
-    "ESS BUS 1",
-    "Ess Dist Bus via ESSENTIAL POWER · BAT 2",
-    [
-      ["ESSENTIAL POWER"],
-      ["PFD A", 5],
-      ["ADAHRS 1", 5],
-      ["COM 1", 7.5],
-      ["GPS NAV GIA 1", 5],
-      ["STDBY ATTD A", 5],
-      ["BAT 2", 20],
-    ],
-  ],
-  [
-    "ess2",
-    "ESS BUS 2",
-    "Ess Dist Bus (BAT 2 through ESS BUS 1)",
-    [
-      ["PITCH TRIM", 2],
-      ["ROLL TRIM", 2],
-      ["STALL WARNING", 2],
-      ["ENGINE INSTR", 3],
-      ["ALT 2", 5],
-    ],
-  ],
-  [
-    "main1",
-    "MAIN BUS 1",
-    "Main Dist Bus 2",
-    [
-      ["ICE LIGHTS"],
-      ["MFD B", 5],
-      ["STDBY ATTD B", 5],
-      ["KEYPADS / AP CTRL", 5],
-      ["CABIN LIGHTS", 5],
-      ["CABIN AIR CONTROL", 2],
-      ["FUEL QTY", 5],
-      ["AP SERVOS"],
-      ["AVIONICS", 10],
-    ],
-  ],
-  [
-    "main2",
-    "MAIN BUS 2",
-    "Main Dist Bus 2",
-    [
-      ["PFD B", 5],
-      ["FUEL PUMP", 5],
-      ["COM 2", 7.5],
-      ["GPS NAV GIA 2", 5],
-      ["ADAHRS 2", 5],
-      ["AVIONICS FAN 2", 5],
-    ],
-  ],
-  [
-    "nonEss",
-    "NON ESS BUS",
-    "Main Dist Bus 2",
-    [["FLAPS", 10], ["PITOT HEAT", 7.5], ["STARTER", 2], ["AVIONICS FAN 1", 5], ["NAV LIGHTS"], ["STROBE LIGHTS"]],
-  ],
-  [
-    "avx",
-    "AVIONICS BUS",
-    "MAIN BUS 1 via AVIONICS switch",
-    [
-      ["AUDIO PANEL", 5],
-      ["XPONDER", 2],
-      ["DATA LINK/WX", 5],
-      ["TRAFFIC", 5],
-      ["DME/ADF", 3],
-    ],
-  ],
-  ["main3", "MAIN BUS 3", "Main Dist Bus 1", [["LANDING LIGHTS"], ["MFD A", 5], ["12V & USB", 5], ["EVS CAMERA", 5]]],
-  [
-    "ac1",
-    "A/C BUS 1",
-    "Main Dist Bus 1",
-    [
-      ["ALT 1", 5],
-      ["A/C COND", 15],
-    ],
-  ],
-  [
-    "ac2",
-    "A/C BUS 2",
-    "Main Dist Bus 1",
-    [
-      ["CABIN FAN", 15],
-      ["A/C COMPR", 5],
-    ],
-  ],
-  ["conv", "CONV BUS", "BAT 1 direct, 5 A fuse", [["CONV LIGHTS", 5]]],
-];

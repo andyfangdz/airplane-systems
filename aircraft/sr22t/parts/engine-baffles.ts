@@ -388,6 +388,8 @@ for (const s of [-1, 1]) {
       ]),
     ["engine"],
     {
+      instance: [s],
+      id: "parts.engine-baffles.side-baffle.001",
       name: "Side baffle",
       groups: [], // core: shown with every engine group
       color: BAFFLE,
@@ -397,6 +399,8 @@ for (const s of [-1, 1]) {
     },
   );
   part(() => xPlate(L().aft, L().xa, s), ["engine"], {
+    instance: [s],
+    id: "parts.engine-baffles.aft-baffle.002",
     name: "Aft baffle",
     groups: [], // core: shown with every engine group
     color: BAFFLE,
@@ -405,6 +409,8 @@ for (const s of [-1, 1]) {
     note: `${bank} bank, aft of the rear cylinder: closes the high-pressure area above the cylinders at the back, up to the cowl inboard of the intercooler and to the core base under it. ${baffleRef}`,
   });
   part(() => xPlate(L().front, L().xf, s), ["engine"], {
+    instance: [s],
+    id: "parts.engine-baffles.front-baffle.003",
     name: "Front baffle",
     groups: [], // core: shown with every engine group
     color: BAFFLE,
@@ -413,12 +419,16 @@ for (const s of [-1, 1]) {
     note: `${bank} bank, ahead of the front cylinder: turns the inlet air over the cylinders and seals to the cowl; notched where the intercooler outlet duct passes (AMM Fig 71-60-2 sheet 2 item 7, PDF p. 2558). ${baffleRef}`,
   });
   part(() => yPlate(L().gasketCut, L().gasket.top, GASKET_T, s), ["engine"], {
+    instance: [s],
+    id: "parts.engine-baffles.intercooler-seal.004",
     name: "Intercooler seal",
     groups: [], // core: shown with every engine group
     color: "#5A5F63",
     note: `${bank} intercooler seal (item 16) between the side-baffle deck and the intercooler, which are screwed together (AMM 13773-002 Rev 7 71-60 PDF p. 2555; Fig 71-60-2 sheet 2 items 15, 16, 18, PDF p. 2558). Thickness and land width approximate.`,
   });
   part(() => mergeGeos(L().seals.map(sealTube)), ["engine"], {
+    instance: [s],
+    id: "parts.engine-baffles.baffle-seal.005",
     name: "Baffle seal",
     groups: [], // core: shown with every engine group
     color: "#8C5A3C",
@@ -452,6 +462,8 @@ for (const [a, b] of INTER_PAIRS) {
       ]),
     ["engine"],
     {
+      id: "parts.engine-baffles.inter-cylinder-baffle.006",
+      instance: [a, b],
       pos: [x, CRANK_Y, zc],
       color: BAFFLE,
       name: "Inter-cylinder baffle",
@@ -483,6 +495,8 @@ export const cylinderBaffle = (c: { n: number; x: number; s: number }) => {
 for (const c of CYLS) {
   const b = cylinderBaffle(c);
   part(() => box(CYL_BAFFLE_LEN, BAFFLE_SHEET, b.zOut - b.zIn), ["engine"], {
+    instance: [c.n],
+    id: "parts.engine-baffles.cylinder-baffle.007",
     pos: [b.x, b.top - BAFFLE_SHEET / 2, (c.s * (b.zIn + b.zOut)) / 2],
     color: BAFFLE,
     name: "Cylinder baffle",

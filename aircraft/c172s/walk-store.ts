@@ -1,17 +1,16 @@
 "use client";
 import { initFlight } from "@/lib/avionics/flight";
-import { createFleetWalkStore, restoreFleetWalkLive } from "@/lib/fleet-walk-store";
-import { initialLive, live } from "./model";
-import { useC172 } from "./store";
+import { createFleetWalkStore } from "@/lib/fleet-walk-store";
+import { initialLive } from "./model";
+import { c172Runtime } from "./store";
 import { SYS } from "./systems";
 import { walk } from "./walk";
 export const walkController = createFleetWalkStore({
   logic: walk,
-  sim: useC172,
-  live,
+  runtime: c172Runtime,
   systems: SYS,
-  resetLive: () => {
-    restoreFleetWalkLive(live, initialLive());
+  resetLive: (_s, live) => {
+    Object.assign(live, initialLive());
     live.rpm =
       live.ff =
       live.oilP =
@@ -26,7 +25,7 @@ export const walkController = createFleetWalkStore({
     live.afcs.trim = 0;
     live.afcs.powered = false;
   },
-  syncLive: (s) => {
+  syncLive: (s, _step, live) => {
     live.flapAng = s.flaps.cmd;
   },
 });

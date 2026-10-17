@@ -17,8 +17,8 @@ export interface ModelRefs {
 }
 
 /**
- * The light part of an airplane: what the shell (rail, picker, panel heading, camera flights, URL) needs before the
- * airplane's code has loaded. Each lives in aircraft/<id>/meta.ts; aircraft/lazy.ts lists them and loads the rest on demand.
+ * The light part of an airplane: what its route (static paths, tab title) and the root page need without the airplane's
+ * code. Each lives in aircraft/<id>/meta.ts; aircraft/metas.ts lists them.
  */
 export interface AircraftMeta {
   id: AircraftId;
@@ -36,7 +36,7 @@ export interface AircraftMeta {
 
 /**
  * Everything the shared shell needs to show one airplane: its meta and its code (Model, panels, tick, alerts, …). Each
- * lives in aircraft/<id>/index.tsx, which the app loads only when that airplane is shown.
+ * lives in aircraft/<id>/index.tsx, which only that airplane's route imports (app/(fleet)/<id>/).
  */
 export interface AircraftDef extends AircraftMeta {
   /** Ground plane height (m) for the grid. */
@@ -50,15 +50,16 @@ export interface AircraftDef extends AircraftMeta {
    * itself (lib/build.ts); the scene then waits for the build before framing a camera preset on the model's bounds.
    */
   progressive?: boolean;
-  /** Called once, when this airplane's code has loaded and before its Model mounts: start slow work early (SR22T: its
-   * fuselage skin, in a worker, while the scene is still loading). */
+  /** Called when the airplane's route mounts, before its Model does: start slow work early (SR22T: its fuselage skin,
+   * in a worker, while the scene's code is still loading). It must be safe to call again (a later visit, or a route that
+   * starts it even earlier: app/(fleet)/sr22t/[[...sys]]/prepare.tsx). */
   prepare?: () => void;
   /** Optional scene-level effect that needs the model groups (SR20 CAPS parachute). */
   Overlay?: ComponentType<ModelRefs>;
   /** Side-panel body per system. */
   panels: Partial<Record<SysId, ComponentType>>;
-  /** Per-frame simulation step (dt seconds, clamped). */
-  tick: (dt: number) => void;
+  /** Wall time for the active runtime's own integration clock; driven by the route, independently of WebGL. */
+  advance: (elapsed: number) => void;
   /** Aircraft-specific alert window with statically bound hooks. */
   Alerts: ComponentType;
   /** Optional overlay in the viewport (SR20 CAPS timeline HUD). */

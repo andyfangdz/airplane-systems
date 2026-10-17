@@ -160,7 +160,7 @@ export const groundFlight = (): FlightState =>
   });
 
 /** Fast-changing values advanced every frame (kept out of React state). */
-export const live = {
+export const initialLive = () => ({
   rpm: 2400,
   map: 23.5,
   ff: 9.4,
@@ -180,6 +180,8 @@ export const live = {
   /** Oil lost (0..1) with the oil-leak failure; trim wheel rate (for the Bowden-cable particles). */
   oilLoss: 0,
   trimRate: 0,
+  /** `afcs.trim` on the previous frame, for `trimRate`. */
+  trimPrev: CRUISE_TRIM,
   /** Fuel gauge pointers (long-range tanks: full reads 24, holds 16 while the ungauged 3 gal is used). */
   gaugeL: 21,
   gaugeR: 20,
@@ -191,7 +193,8 @@ export const live = {
   afcsUser: {} as Gfc700Fail,
   /** Last AFCS failure set applied (so it is only re-applied on change). */
   afcsDerived: "",
-};
+});
+export const live = initialLive();
 
 /* ---------- electrical ---------- */
 
@@ -300,7 +303,9 @@ const BAT_AH = 7.7,
  * alive through MAIN. `prev` is the last solution (the store passes it) and says whether it was online; without one
  * (the initial state, in cruise) it is.
  */
-export function solve(s: Sim, prev?: Elec): Elec {
+export type ElectricalMemory = Pick<Elec, "altOn">;
+
+export function solve(s: Sim, prev?: ElectricalMemory): Elec {
   const excited = prev ? prev.altOn : true;
   return solveBatteryExcitation((batteryAvailable, allowBatteryExcitation) =>
     solveWith(s, batteryAvailable, excited, allowBatteryExcitation),

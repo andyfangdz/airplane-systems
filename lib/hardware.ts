@@ -47,8 +47,17 @@ export function controlCableGeo(points: Vec3[], radius = 0.0035) {
   return result;
 }
 
-export function addControlCable(cat: Catalogue, name: string, points: Vec3[], note: string, sys: SysId[] = ["engine"]) {
+/** The caller owns the authored identity; changing a route's points or display name never changes that identity. */
+export function addControlCable(
+  cat: Catalogue,
+  id: string,
+  name: string,
+  points: Vec3[],
+  note: string,
+  sys: SysId[] = ["engine"],
+) {
   const spec = cat.part(() => controlCableGeo(points), sys, {
+    id,
     name,
     color: "#60676E",
     pin: true,
@@ -107,7 +116,8 @@ function hardwareShape(kind: HardwareKind) {
 export function refineHardware(cat: Catalogue, selection: Partial<Record<HardwareKind, readonly string[]>>) {
   return Object.entries(selection).flatMap(([kind, names]) =>
     names!.flatMap((name) => {
-      const parts = cat.parts.filter((part) => part.name === name);
+      const exact = cat.byId(name);
+      const parts = exact && "sys" in exact ? [exact] : cat.parts.filter((part) => part.name === name);
       if (!parts.length) throw new Error(`${cat.prefix}: missing hardware ${name}`);
       return parts.map((spec) => {
         if (spec.dynamicGeo) throw new Error(`${spec.id}: cannot refine replacement geometry`);
@@ -140,7 +150,8 @@ export function bindHardwareMotion(
   name: string,
   pose: (spec: PartSpec, index: number) => (mesh: THREE.Mesh) => void,
 ) {
-  const parts = cat.parts.filter((part) => part.name === name);
+  const exact = cat.byId(name);
+  const parts = exact && "sys" in exact ? [exact] : cat.parts.filter((part) => part.name === name);
   if (!parts.length) throw new Error(`${cat.prefix}: missing mechanism ${name}`);
   parts.forEach((spec, index) => {
     const previous = spec.anim,

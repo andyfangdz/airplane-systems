@@ -1,3 +1,4 @@
+import type { InstanceKey } from "@/lib/catalogue";
 import { sided } from "@/lib/geometry";
 /** Component detail for the avgas XLS. AMM 6.02.01 Rev 7 applicable -00 chapters,
  * Garmin 190-00545-01 Rev E, Lycoming PC-(L)IO-360-M1A Rev 1 and MT E-124.
@@ -29,9 +30,26 @@ import { pitotBase } from "./pitot";
 import { CAT, part, sim, glow, relTo } from "./catalogue";
 
 const firstDepthPart = CAT.parts.length;
-const component = (name: string, sys: SysId[], point: Vec3, size: Vec3, note: string, pin = false) =>
-  part(() => box(...size), sys, { name, pos: point, note, pin });
+const component = (
+  identity: InstanceKey,
+  name: string,
+  sys: SysId[],
+  point: Vec3,
+  size: Vec3,
+  note: string,
+  pin = false,
+) =>
+  part(() => box(...size), sys, {
+    id: "parts.depth.part.001",
+    instance: identity,
+
+    name,
+    pos: point,
+    note,
+    pin,
+  });
 const drum = (
+  identity: InstanceKey,
   name: string,
   sys: SysId[],
   point: Vec3,
@@ -40,12 +58,21 @@ const drum = (
   note: string,
   pin = false,
   axis: "x" | "y" | "z" = "y",
-) => part(() => cyl(radius, length, axis), sys, { name, pos: point, note, pin });
+) =>
+  part(() => cyl(radius, length, axis), sys, {
+    id: "parts.depth.part.002",
+    instance: identity,
+    name,
+    pos: point,
+    note,
+    pin,
+  });
 const note = (what: string, ref: string) =>
   `${what} (${ref}). Position, dimensions and internal pose schematic; see SOURCES.md.`;
 
 // IO-360 internals and complete lubrication path.
 drum(
+  ["crankshaft"],
   "Crankshaft",
   ["engine"],
   [fs(0.94), 0, 0],
@@ -56,6 +83,7 @@ drum(
   "x",
 );
 drum(
+  ["camshaft"],
   "Camshaft",
   ["engine"],
   [fs(0.95), 0.075, 0],
@@ -67,6 +95,7 @@ drum(
 );
 for (const c of CYLS) {
   drum(
+    ["piston-cyl", c.n],
     `Piston, cyl ${c.n}`,
     ["engine"],
     [c.x, 0, c.s * 0.25],
@@ -77,6 +106,7 @@ for (const c of CYLS) {
     "z",
   );
   drum(
+    ["connecting-rod-cyl", c.n],
     `Connecting rod, cyl ${c.n}`,
     ["engine"],
     [c.x, 0, c.s * 0.12],
@@ -86,8 +116,12 @@ for (const c of CYLS) {
     false,
     "z",
   );
-  for (const dx of [-0.032, 0.032])
+  for (const [instance1, dx] of [
+    ["member-1", -0.032],
+    ["member-2", 0.032],
+  ] as const)
     drum(
+      ["push-rod-shroud", c.n, instance1],
       "Push-rod shroud",
       ["engine"],
       [c.x + dx, -0.055, c.s * 0.25],
@@ -98,6 +132,7 @@ for (const c of CYLS) {
       "z",
     );
   component(
+    ["rocker-box-cover-cyl", c.n],
     `Rocker box cover, cyl ${c.n}`,
     ["engine"],
     [c.x, 0.005, c.s * 0.372],
@@ -107,8 +142,12 @@ for (const c of CYLS) {
       "Lycoming IPC 72-30 pp. 28–29",
     ),
   ).fairing = true;
-  for (const dx of [-0.025, 0.025])
+  for (const [instance2, dx] of [
+    ["member-1", -0.025],
+    ["member-2", 0.025],
+  ] as const)
     drum(
+      ["valve-spring-and-rocker", c.n, instance2],
       "Valve spring and rocker",
       ["engine"],
       [c.x + dx, 0.01, c.s * 0.362],
@@ -119,6 +158,7 @@ for (const c of CYLS) {
       "z",
     );
   drum(
+    ["injector-nozzle-cyl", c.n],
     `Injector nozzle, cyl ${c.n}`,
     ["engine", "fuel"],
     [c.x, 0.045, c.s * 0.33],
@@ -129,6 +169,7 @@ for (const c of CYLS) {
     "x",
   );
   drum(
+    ["cht-probe-cyl", c.n],
     `CHT probe, cyl ${c.n}`,
     ["engine", "avionics"],
     [c.x, -0.05, c.s * 0.35],
@@ -139,6 +180,7 @@ for (const c of CYLS) {
     "z",
   );
   drum(
+    ["egt-probe-cyl", c.n],
     `EGT probe, cyl ${c.n}`,
     ["engine", "avionics"],
     [c.x, -0.19, c.s * 0.33],
@@ -150,6 +192,7 @@ for (const c of CYLS) {
   );
 }
 drum(
+  ["oil-suction-strainer"],
   "Oil suction strainer",
   ["engine"],
   A.OIL_SCREEN,
@@ -160,6 +203,7 @@ drum(
   "x",
 );
 component(
+  ["accessory-oil-pump"],
   "Accessory oil pump",
   ["engine"],
   A.OIL_PUMP,
@@ -168,6 +212,7 @@ component(
   true,
 );
 drum(
+  ["thermostatic-oil-bypass-valve"],
   "Thermostatic oil bypass valve",
   ["engine"],
   A.OIL_THERMOSTAT,
@@ -177,6 +222,7 @@ drum(
   true,
 );
 drum(
+  ["full-flow-oil-filter"],
   "Full-flow oil filter",
   ["engine"],
   A.OIL_FILTER,
@@ -190,6 +236,7 @@ drum(
   "x",
 );
 drum(
+  ["oil-filter-bypass-valve"],
   "Oil filter bypass valve",
   ["engine"],
   [A.OIL_FILTER[0] - 0.025, A.OIL_FILTER[1], A.OIL_FILTER[2]],
@@ -198,6 +245,7 @@ drum(
   note("Normally closed; opens to maintain oil flow with a blocked filter", "AMM 79-00-00 p. 1"),
 );
 drum(
+  ["oil-pressure-regulating-valve"],
   "Oil pressure regulating valve",
   ["engine"],
   A.OIL_RELIEF,
@@ -210,6 +258,7 @@ drum(
   true,
 );
 component(
+  ["oil-cooler-mounting-bracket"],
   "Oil cooler mounting bracket",
   ["engine"],
   [A.OIL_COOLER[0] - 0.015, -0.14, 0.28],
@@ -217,6 +266,7 @@ component(
   note("Supports cooler from engine-mounting frame", "AMM 79-00-00 p. 1/Fig 1"),
 );
 drum(
+  ["oil-pressure-sensor"],
   "Oil pressure sensor",
   ["engine", "avionics"],
   [fs(0.83), -0.25, -0.12],
@@ -226,6 +276,7 @@ drum(
   true,
 );
 drum(
+  ["oil-temperature-sensor"],
   "Oil temperature sensor",
   ["engine", "avionics"],
   [fs(1.16), -0.05, -0.11],
@@ -234,6 +285,7 @@ drum(
   note("Oil temperature input to GEA", "Garmin SMM 2.2.4"),
 );
 component(
+  ["manifold-pressure-sensor"],
   "Manifold pressure sensor",
   ["engine", "avionics"],
   [fs(0.83), -0.265, -0.2],
@@ -242,6 +294,7 @@ component(
   true,
 );
 component(
+  ["tachometer-pickup"],
   "Tachometer pickup",
   ["engine", "avionics"],
   [fs(1.27) + 0.01, 0.07, 0.15],
@@ -249,6 +302,7 @@ component(
   note("RPM pickup at right magneto; independent of throttle setting", "Garmin SMM 2.2.4"),
 );
 component(
+  ["slickstart-ignition-booster"],
   "SlickSTART ignition booster",
   ["engine", "electrical"],
   A.SLICKSTART,
@@ -260,6 +314,7 @@ component(
   true,
 );
 component(
+  ["air-filter-housing"],
   "Air filter housing",
   ["engine"],
   [A.AIR_FILTER[0], A.AIR_FILTER[1] + 0.022, 0],
@@ -269,6 +324,7 @@ component(
 for (let i = 0; i < 6; i++) {
   const a = (i * Math.PI) / 3;
   drum(
+    ["alternate-air-inlet-port", i],
     "Alternate-air inlet port",
     ["engine"],
     [A.ALTERNATE_AIR[0] + 0.012 * Math.cos(a), A.ALTERNATE_AIR[1] + 0.012 * Math.sin(a), 0.052],
@@ -282,6 +338,7 @@ for (let i = 0; i < 6; i++) {
 
 // Mechanical, oil-to-coarse governor. No feathering/accumulator is fitted in this configuration.
 drum(
+  ["governor-gear-pump"],
   "Governor gear pump",
   ["propeller", "engine"],
   [A.GOVERNOR[0], 0.102, 0.06],
@@ -292,6 +349,7 @@ drum(
   "x",
 );
 drum(
+  ["governor-pilot-valve"],
   "Governor pilot valve",
   ["propeller"],
   [A.GOVERNOR[0], 0.132, 0.06],
@@ -304,6 +362,7 @@ drum(
   true,
 );
 drum(
+  ["governor-speeder-spring"],
   "Governor speeder spring",
   ["propeller"],
   [A.GOVERNOR[0], 0.15, 0.06],
@@ -313,6 +372,7 @@ drum(
 );
 for (const s of [-1, 1])
   component(
+    ["governor-flyweight", s],
     "Governor flyweight",
     ["propeller"],
     [A.GOVERNOR[0], 0.13, 0.06 + s * 0.018],
@@ -320,6 +380,7 @@ for (const s of [-1, 1])
     note("Centrifugal flyweight opposes speeder-spring force", "AMM 61-20-00 p. 1"),
   );
 part(() => cyl(0.082, 0.14, "x"), ["propeller"], {
+  id: "parts.depth.propeller-hub-and-pitch-piston.003",
   pos: [PROP[0] + 0.02, 0, 0],
   name: "Propeller hub and pitch piston",
   note: note(
@@ -330,6 +391,7 @@ part(() => cyl(0.082, 0.14, "x"), ["propeller"], {
   pin: true,
 });
 part(() => cyl(0.03, 0.05, "x"), ["propeller"], {
+  id: "parts.depth.propeller-return-spring.004",
   pos: [PROP[0] + 0.07, 0, 0],
   name: "Propeller return spring",
   note: note("Fine-pitch return spring for the non-feathering MTV-12-B system", "MT E-124 §4.4–4.6"),
@@ -349,6 +411,8 @@ for (const s of [1, -1]) {
         ),
       ["fuel"],
       {
+        instance: [s, chamber.id],
+        id: "parts.depth.part.005",
         name: chamber.name,
         pos: [0, 0, 0],
         note: note(
@@ -370,6 +434,8 @@ for (const s of [1, -1]) {
         ),
       ["fuel"],
       {
+        instance: [s, chamber.id],
+        id: "parts.depth.fuel-chamber-baffle.006",
         name: "Fuel chamber baffle",
         pos: [0, 0, 0],
         plate: true,
@@ -380,8 +446,12 @@ for (const s of [1, -1]) {
       },
     );
   }
-  for (const z of [2.1, 2.975])
+  for (const [instance3, z] of [
+    ["member-1", 2.1],
+    ["member-2", 2.975],
+  ] as const)
     drum(
+      ["fuel-chamber-flexible-coupling", s, instance3],
       "Fuel chamber flexible coupling",
       ["fuel"],
       A.tankPort(s, z),
@@ -397,6 +467,8 @@ for (const s of [1, -1]) {
   for (const longRange of [false, true]) {
     const point = A.FUEL_PROBE(s, longRange);
     part(() => tubeGeo([point, A.tankPort(s, Math.abs(point[2]) + 0.35)], 0.006, 0.05), ["fuel", "avionics"], {
+      id: "parts.depth.part.007",
+      instance: [longRange, s],
       name: longRange ? "Long-range capacitive fuel probe" : "Inboard capacitive fuel probe",
       note: note(
         "Fuel-wetted probe capacitance supplies measured quantity; G1000 sums probes with long-range gauge behavior, not legacy AUX FUEL QTY switch",
@@ -407,6 +479,7 @@ for (const s of [1, -1]) {
   }
 }
 component(
+  ["under-floor-fuel-selector-body"],
   "Under-floor fuel selector body",
   ["fuel"],
   A.FUEL_SELECTOR_BODY,
@@ -418,10 +491,12 @@ component(
   true,
 );
 part(() => tubeGeo([A.FUEL_SELECTOR_BODY, [A.FUEL_SELECTOR_BODY[0], -0.32, 0]], 0.006, 0.05), ["fuel"], {
+  id: "parts.depth.fuel-selector-drive-shaft.008",
   name: "Fuel selector drive shaft",
   note: note("Connects selector valve to cockpit selector lever and OFF safety catch", "AMM 28-20-00 p. 3"),
 });
 drum(
+  ["gascolator-filter-screen"],
   "Gascolator filter screen",
   ["fuel"],
   [A.GASCOLATOR[0], -0.54, 0],
@@ -430,6 +505,7 @@ drum(
   note("Filter/sediment bowl at system low point; drain before flight", "AMM 28-20-00 p. 3"),
 );
 component(
+  ["electric-fuel-pump-bypass"],
   "Electric fuel-pump bypass",
   ["fuel"],
   [A.ELECTRIC_PUMP[0], -0.53, 0.125],
@@ -437,6 +513,7 @@ component(
   note("Bypass permits engine pump to draw fuel with electric pump off", "AFM 7-31 schematic"),
 );
 component(
+  ["firewall-fuel-bulkhead-connector"],
   "Firewall fuel bulkhead connector",
   ["fuel"],
   A.FUEL_FIREWALL,
@@ -445,12 +522,16 @@ component(
 );
 
 // Pitot/static water traps are parallel sump loops, not an invented series reservoir.
-for (const [line, start, sump, end] of [
-  ["Pitot", A.PITOT_SPLIT, A.PITOT_SUMP, A.PITOT_JOIN],
-  ["Static", A.STATIC_SPLIT, A.STATIC_SUMP, A.STATIC_JOIN],
+for (const [instance4, [line, start, sump, end]] of [
+  ["pitot", ["Pitot", A.PITOT_SPLIT, A.PITOT_SUMP, A.PITOT_JOIN]],
+  ["static", ["Static", A.STATIC_SPLIT, A.STATIC_SUMP, A.STATIC_JOIN]],
 ] as const) {
-  for (const point of [start, end])
+  for (const [instance5, point] of [
+    ["member-1", start],
+    ["member-2", end],
+  ] as const)
     drum(
+      ["", instance4, instance5],
       `${line} trap tee`,
       ["pitot"],
       point,
@@ -462,6 +543,7 @@ for (const [line, start, sump, end] of [
       ),
     );
   drum(
+    ["-2", instance4],
     `${line} water-trap low point`,
     ["pitot"],
     sump,
@@ -471,11 +553,14 @@ for (const [line, start, sump, end] of [
     true,
   );
 }
-for (const [name, dy, dx] of [
-  ["Pitot thermal switch", -0.045, 0.048],
-  ["Pitot thermal fuse", -0.07, 0.06],
+for (const [instance6, [name, dy, dx]] of [
+  ["pitot-thermal-switch", ["Pitot thermal switch", -0.045, 0.048]],
+  ["pitot-thermal-fuse", ["Pitot thermal fuse", -0.07, 0.06]],
 ] as const)
   part(() => box(0.009, 0.013, 0.009), ["pitot", "electrical"], {
+    id: "parts.depth.part.009",
+    instance: [instance6],
+
     pos: [pitotBase.x + dx, pitotBase.y + dy, pitotBase.z],
     name,
     ext: true,
@@ -489,6 +574,7 @@ for (const [name, dy, dx] of [
 for (const s of [-1, 1]) {
   const circuit = A.brakeCircuit(s);
   drum(
+    ["brake-fluid-reservoir", s],
     "Brake fluid reservoir",
     ["gear"],
     circuit.reservoir,
@@ -500,14 +586,21 @@ for (const s of [-1, 1]) {
     ),
     s < 0,
   );
-  for (const dz of [-0.03, 0.03])
+  for (const [instance7, dz] of [
+    ["member-1", -0.03],
+    ["member-2", 0.03],
+  ] as const)
     part(() => cyl(0.025, 0.025, "z"), ["gear"], {
+      id: "parts.depth.main-wheel-tapered-bearing.010",
+      instance: [instance7, s],
       pos: [MG.x, MG.y, s * MG.z + dz],
       name: "Main-wheel tapered bearing",
       note: note("Tapered roller bearing and grease seal in each wheel-hub half", "AMM 32-40-00 pp. 1–2"),
       ext: true,
     });
   part(() => box(0.065, 0.09, 0.045), ["gear"], {
+    instance: [s],
+    id: "parts.depth.brake-caliper-and-piston.011",
     pos: [MG.x + 0.04, MG.y + 0.06, s * (MG.z - 0.13)],
     name: "Brake caliper and piston",
     note: note(
@@ -519,6 +612,8 @@ for (const s of [-1, 1]) {
     anim: glow("#6E7A84", "#FF9C44", () => sim().s.gear.park || Math.sign(sim().s.gear.diff) === s, ["gear"]),
   });
   part(() => cyl(0.006, 0.02, "y"), ["gear"], {
+    instance: [s],
+    id: "parts.depth.brake-bleed-screw.012",
     pos: [MG.x + 0.04, MG.y + 0.11, s * (MG.z - 0.13)],
     name: "Brake bleed screw",
     note: note("Hydraulic bleed fitting at each wheel brake cylinder", "AMM 32-40-00 Fig 4"),
@@ -526,6 +621,7 @@ for (const s of [-1, 1]) {
   });
 }
 component(
+  ["parking-brake-cable-quadrant"],
   "Parking-brake cable quadrant",
   ["gear"],
   [A.BRAKE_VALVE[0] + 0.03, -0.52, 0.1],
@@ -537,14 +633,15 @@ component(
 );
 
 // Separate electrical relay/bus hardware and G1000 lightning interfaces.
-for (const [name, point] of [
-  ["Battery contactor", A.BATTERY_RELAY],
-  ["Starter contactor", A.START_RELAY],
-  ["External-power contactor", A.EXT_RELAY],
-  ["Essential/main tie relay", A.TIE_RELAY],
-  ["Avionics master relay", A.AV_RELAY],
+for (const [instance8, [name, point]] of [
+  ["battery-contactor", ["Battery contactor", A.BATTERY_RELAY]],
+  ["starter-contactor", ["Starter contactor", A.START_RELAY]],
+  ["external-power-contactor", ["External-power contactor", A.EXT_RELAY]],
+  ["essential-main-tie-relay", ["Essential/main tie relay", A.TIE_RELAY]],
+  ["avionics-master-relay", ["Avionics master relay", A.AV_RELAY]],
 ] as const)
   component(
+    ["declaration", instance8],
     name,
     ["electrical"],
     point,
@@ -556,6 +653,7 @@ for (const [name, point] of [
     name === "Essential/main tie relay",
   );
 component(
+  ["main-to-essential-bypass-diode"],
   "Main-to-essential bypass diode",
   ["electrical"],
   A.TIE_DIODE,
@@ -568,6 +666,7 @@ component(
 );
 for (const [bus, point] of Object.entries(A.BUS))
   component(
+    ["-3", bus],
     `${bus.toUpperCase()} bus bar`,
     ["electrical"],
     point,
@@ -577,12 +676,13 @@ for (const [bus, point] of Object.entries(A.BUS))
       "Garmin SMM 2-9/Fig 2-3",
     ),
   );
-for (const [name, point] of [
-  ["GIA 1", A.GIA1],
-  ["GIA 2", A.GIA2],
-  ["AHRS", A.GRS],
+for (const [instance9, [name, point]] of [
+  ["gia-1", ["GIA 1", A.GIA1]],
+  ["gia-2", ["GIA 2", A.GIA2]],
+  ["ahrs", ["AHRS", A.GRS]],
 ] as const) {
   component(
+    ["-4", instance9],
     `${name} lightning resistor/TVS/fuse`,
     ["electrical", "avionics"],
     [point[0] + 0.04, point[1] + 0.05, point[2]],
@@ -595,6 +695,7 @@ for (const [name, point] of [
   );
 }
 component(
+  ["remote-enclosure-ground-block"],
   "Remote enclosure ground block",
   ["electrical", "avionics"],
   [A.GIA1[0] + 0.13, -0.49, -0.13],
@@ -602,6 +703,7 @@ component(
   note("Ground strap and braided bonds connect avionics enclosure to airframe ground station", "Garmin SMM 2-4, 2-11"),
 );
 component(
+  ["g1000-shield-block"],
   "G1000 shield block",
   ["avionics"],
   [A.GEA[0] + 0.04, A.GEA[1], A.GEA[2]],
@@ -613,14 +715,15 @@ component(
 );
 
 // Five actual flap microswitch roles and servo mounts, alongside the existing moving rig.
-for (const [i, role] of [
-  [1, "UP travel limit"],
-  [2, "UP indication"],
-  [3, "T/O position and indication"],
-  [4, "LDG travel limit"],
-  [5, "LDG indication"],
+for (const [instance10, [i, role]] of [
+  ["member-1", [1, "UP travel limit"]],
+  ["member-2", [2, "UP indication"]],
+  ["member-3", [3, "T/O position and indication"]],
+  ["member-4", [4, "LDG travel limit"]],
+  ["member-5", [5, "LDG indication"]],
 ] as const)
   component(
+    ["flap-microswitch", instance10],
     `Flap microswitch ${i} — ${role}`,
     ["flaps"],
     [FLAP_ACT[0] - 0.015, FLAP_ACT[1] + 0.025, FLAP_ACT[2] + (i - 3) * 0.02],
@@ -630,6 +733,7 @@ for (const [i, role] of [
   );
 for (const [name, point] of Object.entries(SERVO)) {
   component(
+    ["gsm-85", name],
     `GSM 85 ${name} servo mount`,
     ["autopilot", "controls"],
     [point[0], point[1] - 0.01, point[2]],
@@ -641,6 +745,7 @@ for (const [name, point] of Object.entries(SERVO)) {
   );
 }
 component(
+  ["electric-pedal-adjustment-motor"],
   "Electric pedal-adjustment motor",
   ["controls", "gear"],
   [fs(2.08), -0.5, -0.3],
@@ -655,6 +760,8 @@ component(
 for (const side of [-1, 1]) {
   const point = onSkin(ROLLBAR_X + 0.05, SILL_Y + 0.01, side, 0.94);
   part(() => cyl(0.009, 0.034, "z"), ["cabin"], {
+    id: "parts.depth.canopy-locking-bolt.013",
+    instance: [side],
     name: "Canopy locking bolt",
     parent: "canopy",
     pos: relTo(point, CANOPY_HINGE),
@@ -665,6 +772,7 @@ for (const side of [-1, 1]) {
     pin: side < 0,
   });
   component(
+    ["canopy-lock-detection-switch", side],
     "Canopy lock-detection switch",
     ["cabin", "avionics"],
     toVec3(point.clone().add(V(0.035, -0.02, 0))),
@@ -672,8 +780,14 @@ for (const side of [-1, 1]) {
     note("Door detection input reaches GEA 71; state reflects cockpit locking position", "Garmin SMM 2.2.4; AMM 52-10"),
   );
 }
-for (const x of [DOOR.x0 - 0.045, DOOR.x1 + 0.045]) {
+for (const [instance11, x] of [
+  ["member-1", DOOR.x0 - 0.045],
+  ["member-2", DOOR.x1 + 0.045],
+] as const) {
   part(() => cyl(0.009, 0.033, "z"), ["cabin"], {
+    id: "parts.depth.rear-door-locking-bolt.014",
+    instance: [instance11],
+
     name: "Rear door locking bolt",
     parent: "door",
     pos: relTo(onSkin(x, SILL_Y + 0.015, -1, 0.94), DOOR_HINGE),
@@ -685,6 +799,7 @@ for (const x of [DOOR.x0 - 0.045, DOOR.x1 + 0.045]) {
   });
 }
 component(
+  ["rear-door-lock-detection-switch"],
   "Rear door lock-detection switch",
   ["cabin", "avionics"],
   toVec3(onSkin(DOOR.x0 - 0.06, SILL_Y - 0.015, -1, 0.93)),
@@ -694,6 +809,7 @@ component(
 
 // Documented heating and ventilation hardware.
 component(
+  ["left-stub-wing-fresh-air-collector"],
   "Left stub-wing fresh-air collector",
   ["environment"],
   toVec3(wingP(-0.75, 0.15, 0)),
@@ -702,6 +818,7 @@ component(
   true,
 );
 component(
+  ["right-stub-wing-distribution-chamber"],
   "Right stub-wing distribution chamber",
   ["environment"],
   toVec3(wingP(0.75, 0.15, 0)),
@@ -709,6 +826,7 @@ component(
   note("Cross-fuselage pipe brings left-inlet air to right closing rib and side duct", "AMM 21-00-00 p. 3"),
 );
 component(
+  ["heat-valve-butterfly"],
   "Heat-valve butterfly",
   ["environment"],
   [FW + 0.045, -0.4, 0.12],
@@ -716,6 +834,7 @@ component(
   note("CABIN HEAT diverts exhaust-muff air to cabin or overboard, with intermediate blending", "AMM 21-00-00 pp. 1–3"),
 );
 component(
+  ["defrost-floor-distributor-butterfly"],
   "Defrost/floor distributor butterfly",
   ["environment"],
   [FW - 0.14, -0.42, 0],
@@ -727,6 +846,8 @@ component(
 );
 for (const side of [-1, 1])
   part(() => sph(0.02), ["environment"], {
+    id: "parts.depth.optional-panel-vent-naca-inlet.015",
+    instance: [side],
     pos: toVec3(onSkin(fs(1.88), -0.16, side, 1.005)),
     name: "Optional panel-vent NACA inlet",
     ext: true,
@@ -737,6 +858,7 @@ for (const side of [-1, 1])
     fitted: () => sim().s.env.extraVents,
   });
 component(
+  ["flood-light-inverter"],
   "Flood-light inverter",
   ["lighting", "electrical"],
   [PANEL_X + 0.07, 0.045, 0.34],
@@ -747,6 +869,7 @@ component(
   ),
 );
 component(
+  ["instrument-light-dimmer-module"],
   "Instrument-light dimmer module",
   ["lighting", "electrical"],
   [PANEL_X + 0.07, -0.04, 0.34],
@@ -755,13 +878,14 @@ component(
 );
 
 // Fuel-injector pressure balance is mechanical; GEA pressure sensing does not control the metering valve.
-for (const [name, offset] of [
-  ["Fuel-servo inlet screen", [-0.035, 0, 0]],
-  ["Fuel-servo air diaphragm", [0, 0.015, -0.022]],
-  ["Fuel-servo fuel diaphragm", [0, 0.015, 0.022]],
-  ["Fuel-servo metering/idle valve", [0.015, -0.01, 0]],
-] as [string, Vec3][])
+for (const [instance12, [name, offset]] of [
+  ["fuel-servo-inlet-screen", ["Fuel-servo inlet screen", [-0.035, 0, 0]] as [string, Vec3]],
+  ["fuel-servo-air-diaphragm", ["Fuel-servo air diaphragm", [0, 0.015, -0.022]] as [string, Vec3]],
+  ["fuel-servo-fuel-diaphragm", ["Fuel-servo fuel diaphragm", [0, 0.015, 0.022]] as [string, Vec3]],
+  ["fuel-servo-metering-idle-valve", ["Fuel-servo metering/idle valve", [0.015, -0.01, 0]] as [string, Vec3]],
+] as const)
   component(
+    ["declaration-2", instance12],
     name,
     ["engine", "fuel"],
     [A.FUEL_SERVO[0] + offset[0], A.FUEL_SERVO[1] + offset[1], A.FUEL_SERVO[2] + offset[2]],
@@ -772,6 +896,7 @@ for (const [name, offset] of [
     ),
   );
 drum(
+  ["flow-divider-diaphragm-and-needle"],
   "Flow-divider diaphragm and needle",
   ["fuel", "engine"],
   [A.FUEL_DIVIDER[0], A.FUEL_DIVIDER[1] + 0.007, 0],
@@ -785,12 +910,15 @@ drum(
 for (const side of [-1, 1])
   for (const check of [false, true])
     part(() => cyl(0.006, 0.018), ["fuel"], {
+      id: "parts.depth.part.016",
+      instance: [check, side],
       name: check ? "Fuel check-valve vent outlet" : "Fuel capillary vent outlet",
       pos: A.VENT(side, check),
       ext: true,
       note: note("Independent capillary balance vent and one-way inlet end below wing", "AFM 7-34; AMM 28-10-00 p 6"),
     });
 component(
+  ["power-flow-collector-box"],
   "Power Flow collector box",
   ["engine", "environment"],
   [fs(1), -0.31, 0.05],
@@ -802,6 +930,7 @@ component(
   true,
 );
 component(
+  ["power-flow-firewall-bracket"],
   "Power Flow firewall bracket",
   ["engine"],
   [FW + 0.035, -0.475, 0.13],
@@ -812,6 +941,7 @@ component(
   ),
 );
 component(
+  ["power-flow-engine-mount-heat-shield"],
   "Power Flow engine-mount heat shield",
   ["engine"],
   [fs(1.07), -0.22, -0.28],
@@ -823,6 +953,7 @@ component(
 );
 for (let i = 0; i < 3; i++)
   drum(
+    ["power-flow-ball-joint-spring", i],
     "Power Flow ball-joint spring",
     ["engine"],
     [fs(1.06) + (i - 1) * 0.017, -0.39, 0.12],
@@ -834,6 +965,7 @@ for (let i = 0; i < 3; i++)
     ),
   );
 component(
+  ["gea-configuration-module"],
   "GEA configuration module",
   ["avionics"],
   [A.GEA[0] + 0.037, A.GEA[1] + 0.02, A.GEA[2]],
@@ -841,6 +973,7 @@ component(
   note("Backshell module preserves installation configuration; distinct from airframe sensors", "Garmin SMM 7.3"),
 );
 drum(
+  ["gea-backshell-thermocouple"],
   "GEA backshell thermocouple",
   ["avionics"],
   [A.GEA[0] + 0.038, A.GEA[1] - 0.02, A.GEA[2]],

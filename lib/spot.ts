@@ -12,19 +12,31 @@ export const SPOT_COLOR = "#FF7A1A";
 export type Side = -1 | 0 | 1;
 export interface Spot {
   names: string[];
+  /** Exact authored catalogue identities. These survive display-name edits and distinguish repeated instances. */
+  ids?: string[];
   side: Side;
 }
 
-/** Bounding-box centre of a part in its parent's coordinates (its own pos, rot and scale applied). */
-export function partCentre(spec: Pick<PartSpec, "pos" | "rot" | "scale">, geo: THREE.BufferGeometry) {
-  if (!geo.boundingBox) geo.computeBoundingBox();
-  const c = geo.boundingBox!.getCenter(new THREE.Vector3());
+/** A part's own placement in its parent: its pos, rot and scale. */
+function placement(spec: Pick<PartSpec, "pos" | "rot" | "scale">) {
   const o = new THREE.Object3D();
   if (spec.pos) o.position.set(...spec.pos);
   if (spec.rot) o.rotation.set(...spec.rot);
   if (spec.scale) o.scale.set(...spec.scale);
   o.updateMatrix();
-  return c.applyMatrix4(o.matrix);
+  return o.matrix;
+}
+
+/** Bounding-box centre of a part in its parent's coordinates (its own pos, rot and scale applied). */
+export function partCentre(spec: Pick<PartSpec, "pos" | "rot" | "scale">, geo: THREE.BufferGeometry) {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  return geo.boundingBox!.getCenter(new THREE.Vector3()).applyMatrix4(placement(spec));
+}
+
+/** Bounding box of a part in its parent's coordinates (its own pos, rot and scale applied). */
+export function partBox(spec: Pick<PartSpec, "pos" | "rot" | "scale">, geo: THREE.BufferGeometry) {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  return geo.boundingBox!.clone().applyMatrix4(placement(spec));
 }
 
 /** Within this distance of the centreline (m) a part belongs to neither side. */
@@ -50,8 +62,8 @@ export function partSide(spec: PartSpec, geo: THREE.BufferGeometry, cat: Catalog
 
 /** Does the spot highlight the skin shell or control surface `name` whose centre is at `z`? Shells such as "Wing trailing
  * edge" exist on both sides, so a sided spot keeps only its own side's instances. */
-export function spotsAt(spot: Spot | null, name: string, z: number) {
-  if (!spot || !spot.names.includes(name)) return false;
+export function spotsAt(spot: Spot | null, name: string, z: number, id?: string) {
+  if (!spot || (!spot.names.includes(name) && !(id && spot.ids?.includes(id)))) return false;
   return !spot.side || Math.abs(z) < CENTRE || Math.sign(z) === spot.side;
 }
 
@@ -63,7 +75,7 @@ export function geoCentreZ(geo: THREE.BufferGeometry) {
 
 /** Is this part one the spot highlights? */
 export function spotsPart(spot: Spot | null, spec: PartSpec, geo: THREE.BufferGeometry, cat: Catalogue) {
-  if (!spot || !spec.name || !spot.names.includes(spec.name)) return false;
+  if (!spot || (!(spec.name && spot.names.includes(spec.name)) && !spot.ids?.includes(spec.id))) return false;
   if (!spot.side) return true;
   const s = partSide(spec, geo, cat);
   return s === 0 || s === spot.side;

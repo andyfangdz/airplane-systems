@@ -14,7 +14,7 @@ import {
   Slider,
   Small,
 } from "@/components/ui/controls";
-import { densityFactor, enginePower, fuelInd, lambda, live, type FuelSel, type Mags } from "../model";
+import { densityFactor, enginePower, fuelInd, fuelEquivalenceRatio, live, type FuelSel, type Mags } from "../model";
 import { Nav3MagSwitch } from "../../cessna/panels";
 import { ENGINE_GROUPS } from "../engine-groups";
 import { useEngineGroups } from "../engine-group-store";
@@ -60,7 +60,7 @@ export function Engine() {
   const { shown, set } = useEngineGroups();
   const g = s.eng,
     alt = snapshot.fs.alt;
-  const lam = lambda(g.mix, alt),
+  const lam = fuelEquivalenceRatio(g.mix, alt),
     P = g.running ? enginePower(s, alt) : 0;
   const state = g.running
     ? snapshot.primeRun > 0

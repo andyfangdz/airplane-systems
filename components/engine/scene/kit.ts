@@ -1,24 +1,24 @@
 /**
- * Shared pieces for the engine scene: dimensions from the spec, the layout of the accessories, materials and
- * geometry builders. Axes as in the airplanes: x forward (propeller end), y up, z right; metres.
+ * Shared pieces for the engine scene: dimensions from the spec and the engine's scene layout (`layout.ts`), the layout
+ * of the valve train, crankshaft and accessory drives, materials and geometry builders. Axes as in the airplanes: x
+ * forward (propeller end), y up, z right; metres.
  *
- * Published dimensions (bore, stroke, rod-free ones from IOM Table A-1, the overall envelope) set the scale. Where parts
- * sit follows the IOM's System Description figures (Figures 1B–9): camshaft above the crankshaft with the pushrod
- * tubes over the cylinders, rocker covers on the outer end of each head, spark plugs top and bottom, magnetos and fuel
- * pump on the rear accessory housing, oil filter at the back, fuel injector under the front of the sump, fuel manifold
- * on top, starter ring gear and alternator pulley on the propeller hub, governor pad on the front of the crankcase.
- * Shapes and sizes of individual parts are schematic.
+ * Published dimensions (bore, stroke, the overall envelope, stations an engine's layout gives) set the scale; where
+ * parts sit follows the manufacturer's figures as each engine's layout and notes cite them. Shapes and sizes of
+ * individual parts are schematic.
  */
 import * as THREE from "three";
 import { firingAngle, sideAngle } from "@/engines/model/cycle";
-import type { CylinderDef, EngineSpec } from "@/engines/types";
+import type { Failures, MagSwitch } from "@/engines/model/engine";
+import type { CylinderDef, EngineSpec, Side } from "@/engines/types";
+import { IO390_DEFAULTS, layoutFor, type EngineLayout, type ValveDef } from "./layout";
 
 export const IN = 0.0254;
 export const D2R = Math.PI / 180;
 
 export type Dims = ReturnType<typeof dims>;
 
-export function dims(spec: EngineSpec) {
+export function dims(spec: EngineSpec, L: EngineLayout = layoutFor(spec)) {
   const g = spec.geometry;
   const r = (g.strokeIn * IN) / 2,
     l = g.rodIn * IN,
@@ -26,11 +26,16 @@ export function dims(spec: EngineSpec) {
   const pinTdc = r + l; // piston pin from the crank axis at top centre
   const crown = 0.045; // pin to crown
   const deck = pinTdc + crown + 0.004; // head face, just past the crown at top centre
-  const halfWidth = (g.envelopeIn.width * IN) / 2; // outer face of the rocker covers
+  // half the drawn width: the rocker covers' outer faces sit 0.03 m inside it, within the published overall width, or
+  // on the layout's measured cover width
+  const halfWidth = L.coverWidthIn === null ? (g.envelopeIn.width * IN) / 2 : (L.coverWidthIn * IN) / 2 + 0.03;
   const caseHalf = l - 0.02; // crankcase half-width: the barrel spigots start here
   const xs = g.cylinders.map((c) => c.x);
-  const front = Math.max(...xs) + 0.12,
-    rear = Math.min(...xs) - 0.13;
+  // stations the layout gives, or around the cylinders
+  const st = L.stationsIn;
+  const front = st ? st.front * IN : Math.max(...xs) + 0.12,
+    rear = st ? st.caseRear * IN : Math.min(...xs) - 0.13;
+  const belt = L.alternators.find((a) => a.drive === "belt");
   return {
     r,
     l,
@@ -44,24 +49,26 @@ export function dims(spec: EngineSpec) {
     /** Head: from the deck to the rocker-box face. */
     headIn: deck - 0.012,
     headOut: halfWidth - 0.03,
-    /** Camshaft axis height (gear centres: crank gear r + cam gear r, 2:1). */
-    camY: 0.12,
+    /** Camshaft axis height (gear centres: crank gear r + cam gear r, 2:1), above or below the crankshaft. */
+    camY: L.camBelow ? -0.12 : 0.12,
     crankGearR: 0.04,
     camGearR: 0.08,
     /** Rocker shaft, and the valve-stem tips at rest, along a cylinder's axis. */
     zPivot: halfWidth - 0.065,
     /** Rear face of the crankcase, accessory housing behind it. */
     caseRear: rear,
-    accRear: rear - 0.05,
-    /** Crankcase top and bottom (sump below). */
-    caseTop: 0.16,
-    caseBottom: -0.11,
-    sumpBottom: -0.2,
+    accRear: st ? st.accessoryFace * IN : rear - 0.05,
+    /** Crankcase top and bottom (sump below), and the accessory housing's height range. */
+    caseTop: L.caseY.top,
+    caseBottom: L.caseY.bottom,
+    sumpBottom: L.caseY.sumpBottom,
+    accBottom: L.caseY.accBottom,
+    accTop: L.caseY.accTop,
     /** Propeller flange, starter ring gear and alternator pulley. */
-    flangeX: front + 0.1,
+    flangeX: st ? st.propFlange * IN : front + 0.1,
     ringR: 0.17,
-    // the alternator drive ratio with the 3.10 in alternator pulley it assumes (IOM Table A-4)
-    pulleyR: ((3.1 * IN) / 2) * spec.accessories.alternatorRatio,
+    // the belt alternator's drive ratio with a 3.10 in alternator pulley (the IO-390's, IOM Table A-4)
+    pulleyR: ((3.1 * IN) / 2) * (belt?.ratio ?? spec.accessories.alternatorRatio),
     altPulleyR: (3.1 * IN) / 2,
   };
 }
@@ -70,7 +77,7 @@ export function dims(spec: EngineSpec) {
 export const bank = (c: CylinderDef) => (c.side === "R" ? 1 : -1);
 
 /** Valve-train layout in a cylinder's own frame (+z outward along its axis, y up, x towards the front for the right
- * bank). Intake and exhaust sit fore and aft of the axis. */
+ * bank), camshaft above, valves fore and aft of the axis; `valveLayout` turns it for other layouts. */
 export const VT = {
   xOff: 0.022, // intake at +xOff, exhaust at −xOff (local)
   baseR: 0.016, // cam lobe base circle
@@ -79,8 +86,30 @@ export const VT = {
   pushY: 0.12, // pushrod line height: the camshaft axis
   pivotY: 0.079, // rocker shaft, halfway between pushrod and valve stem (1:1 rocker)
   tipY: 0.038, // valve stem tips
-  maxLift: 0.0095, // drawn lift (the IOM doesn't give one)
+  maxLift: 0.0095, // drawn lift (not published)
 };
+
+/**
+ * Each valve's train in the cylinder frame. Camshaft above: both valves above the axis, fore and aft (`VT`). Camshaft
+ * below: the pushrods run under the cylinder; with a vertical valve plane the intake stem tip is above the axis and the
+ * exhaust's below, each rocker pivot halfway between its pushrod and stem (1:1).
+ */
+export function valveLayout(L: EngineLayout): { intake: ValveDef; exhaust: ValveDef } {
+  if (!L.camBelow && L.valvePlane === "fore-aft") {
+    const v = (x: number): ValveDef => ({ x, pushY: VT.pushY, pivotY: VT.pivotY, tipY: VT.tipY });
+    return { intake: v(VT.xOff), exhaust: v(-VT.xOff) };
+  }
+  const k = L.camBelow ? -1 : 1;
+  const v = (x: number, tipY: number): ValveDef => ({
+    x,
+    pushY: k * VT.pushY,
+    pivotY: (k * VT.pushY + tipY) / 2,
+    tipY,
+  });
+  return L.valvePlane === "vertical"
+    ? { intake: v(VT.xOff, VT.tipY), exhaust: v(-VT.xOff, -VT.tipY) }
+    : { intake: v(VT.xOff, k * VT.tipY), exhaust: v(-VT.xOff, k * VT.tipY) };
+}
 
 export function makeMats() {
   const std = (color: string, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
@@ -128,6 +157,27 @@ export type Mats = ReturnType<typeof makeMats>;
 
 /** Materials that turn translucent in X-ray. */
 export const XRAY_MATS = ["case", "sump", "acc", "barrel", "head", "cover", "shroud"] as const;
+
+/**
+ * What hides an occluding label (drei `Html occlude` takes it as its one target): the parts under `root` the pointer
+ * would stop on, never the part the label names (the group called `own`). Hidden parts and parts X-ray has turned
+ * see-through (the pointer's rule, parts.tsx) don't count, so the label shows from every side its part is seen from.
+ */
+export function labelOccluder(root: THREE.Object3D, own: string): { current: THREE.Object3D } {
+  const target = new THREE.Object3D();
+  target.raycast = (ray, hits) => {
+    const visit = (o: THREE.Object3D) => {
+      if (!o.visible || o.name === own) return;
+      if (o instanceof THREE.Mesh) {
+        const m = o.material as THREE.Material;
+        if (!(m.transparent && m.opacity < 0.5 && !m.userData.hoverWhenClear)) o.raycast(ray, hits);
+      }
+      o.children.forEach(visit);
+    };
+    visit(root);
+  };
+  return { current: target };
+}
 
 /** Cylinder along +x (lathe axis), centred. */
 export function rod(radius: number, length: number, segs = 16) {
@@ -265,8 +315,11 @@ export const toWorld = (c: CylinderDef, [x, y, z]: V3): V3 => [c.x + bank(c) * x
 
 const PLUG_TILT = 0.5; // rad, top and bottom plugs lean towards the exhaust side
 
-/** Fittings on a cylinder head, in the cylinder's frame: plugs top and bottom, nozzle on top, ports underneath. */
-export function headPoints(d: Dims) {
+/**
+ * Fittings on a cylinder head, in the cylinder's frame: plugs top and bottom, nozzle on top, exhaust port underneath,
+ * intake port underneath or (downdraft) on top beside the nozzle.
+ */
+export function headPoints(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
   const z = d.deck + 0.015;
   const s = Math.sin(PLUG_TILT),
     c = Math.cos(PLUG_TILT);
@@ -282,7 +335,7 @@ export function headPoints(d: Dims) {
     botSpark: [-0.03, -0.04, d.deck - 0.004] as V3,
     nozzle: [0.062, 0.078, d.deck + 0.035] as V3,
     nozzleTop: [0.062, 0.105, d.deck + 0.035] as V3,
-    intakePort: [0.035, -0.1, d.deck + 0.07] as V3,
+    intakePort: [0.035, L.ports.intake === "top" ? 0.1 : -0.1, d.deck + 0.07] as V3,
     exhaustPort: [-0.035, -0.1, d.deck + 0.075] as V3,
   };
 }
@@ -301,26 +354,149 @@ export function peakCrank(spec: EngineSpec, c: CylinderDef, intake: boolean) {
 export const lobeAngle = (spec: EngineSpec, c: CylinderDef, intake: boolean) =>
   sideAngle(c) - 90 + peakCrank(spec, c, intake) / 2;
 
-/** Starter ring gear and pinion teeth: not published, chosen so their ratio is the starter drive ratio (16.556:1). */
+/**
+ * The magnetos the switch's START position fires, as drawn: both where the spec says so (`ignition.startMags`),
+ * otherwise the retard-breaker magneto alone.
+ */
+export const magsAtStart = (spec: EngineSpec): Side[] =>
+  spec.ignition.startMags === "both" ? ["L", "R"] : [spec.ignition.retardMag];
+
+/**
+ * Which plugs flash in each cylinder, [top, bottom], for a switch position and the failures: the model's `sparks` rule
+ * (a magneto fires from 60 % of the minimum starting speed unless it or the plug has failed), with the magnetos START
+ * fires taken from `magsAtStart`, so the gate and each plug's magneto come from one set.
+ */
+export function drawnSparks(spec: EngineSpec, mags: MagSwitch, f: Failures, rpm: number): [boolean, boolean][] {
+  const ign = spec.ignition;
+  const live: Side[] =
+    mags === "BOTH" ? ["L", "R"] : mags === "START" ? magsAtStart(spec) : mags === "OFF" ? [] : [mags];
+  const on = (m: Side) => rpm >= ign.minStartRpm * 0.6 && !(m === "L" ? f.magL : f.magR) && live.includes(m);
+  return spec.geometry.cylinders.map((c, i) => {
+    const top = ign.topPlugMag[c.n],
+      bottom: Side = top === "L" ? "R" : "L";
+    return [on(top) && !f.plugs[i][0], on(bottom) && !f.plugs[i][1]];
+  });
+}
+
+/** Starter ring gear and pinion teeth: not published, chosen so their ratio is the IO-390's starter drive ratio (16.556:1). */
 export const STARTER_TEETH = { ring: 149, pinion: 9 };
 
 /** Teeth on the camshaft gear (twice the crankshaft gear's 24: the camshaft turns at half speed). */
 export const GEAR_TEETH = { crank: 24, cam: 48 };
 
+/** An idler gear between the crankshaft gear and the magneto drive gears: drawn the camshaft gear's size. */
+export const IDLER = { r: 0.08, teeth: 48 };
+
+/** Teeth on each gear of the pair behind the accessory face (a layout that sets the magnetos' height): drawn. */
+export const MAG_PAIR_TEETH = 20;
+
 /**
- * Magneto drive gears: each meshes with the camshaft gear, sized so the magneto turns at the published magneto drive
- * ratio (Table A-1), and sits behind the accessory housing at ±z from the centreline.
+ * Magneto drive gears at ±z from the centreline (the layout's `magnetos.z`), sized so the magneto turns at the published
+ * magneto drive ratio. Each meshes with the camshaft gear, or with an idler gear above the crankshaft gear (the layout's
+ * `magDrive`), all in the crankshaft gear's plane; through an idler the idler's own size drops out, crankshaft-gear
+ * teeth over magneto-gear teeth.
+ *
+ * A layout that sets the magnetos' height puts them on their own axes behind the accessory face, where their drive
+ * couplings enter the accessory case. The idler is then two gears on one shaft: a front gear on the crankshaft gear with
+ * the magneto gear's teeth, so the idler turns at the magneto drive ratio, small enough to stay inside the housing and
+ * clear of the magnetos, and a rear gear behind the face driving each magneto gear tooth for tooth.
  */
-export function magDrive(spec: EngineSpec, d: Dims) {
-  const z = 0.1;
+export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const M = L.magnetos;
+  const z = M.z;
   const ratio = spec.accessories.magnetoRatio;
+  const x = d.caseRear - 0.018;
+  if (L.magDrive === "idler") {
+    const teeth = Math.round(GEAR_TEETH.crank / ratio),
+      r = (d.crankGearR * teeth) / GEAR_TEETH.crank;
+    if (M.y !== null) {
+      const idlerY = d.crankGearR + r;
+      // the rear pair shares the centre distance from the idler's axis to the magneto's
+      const pairR = Math.hypot(M.y - idlerY, z) / 2;
+      const rearX = d.accRear - 0.012;
+      return {
+        r: pairR,
+        teeth: MAG_PAIR_TEETH,
+        z,
+        y: M.y,
+        x: rearX,
+        idler: { y: idlerY, r, teeth, x, rearR: pairR, rearTeeth: MAG_PAIR_TEETH, rearX },
+      };
+    }
+    const idlerY = d.crankGearR + IDLER.r;
+    return {
+      r,
+      teeth,
+      z,
+      y: idlerY + Math.sqrt((IDLER.r + r) ** 2 - z * z),
+      x,
+      idler: { y: idlerY, ...IDLER, x, rearR: IDLER.r, rearTeeth: IDLER.teeth, rearX: x },
+    };
+  }
   const r = (d.camGearR * 0.5) / ratio,
     teeth = Math.round((GEAR_TEETH.cam * 0.5) / ratio);
-  return { r, teeth, z, y: d.camY + Math.sqrt((d.camGearR + r) ** 2 - z * z), x: d.caseRear - 0.018 };
+  return { r, teeth, z, y: d.camY + Math.sqrt((d.camGearR + r) ** 2 - z * z), x, idler: null };
 }
 
-/** Oil pump: a drive gear meshing below the crankshaft gear, its shaft running aft to two pumping gears. */
-export function oilPump(d: Dims) {
+/**
+ * A magneto body on its fore-aft axis over its drive gear: the drive end on the accessory mounting face, the distributor
+ * cap end aft of it, or forward (the layout's `magnetos.mount`). `k` is +1 when the body runs forward.
+ */
+export function magnetoPose(spec: EngineSpec, d: Dims, side: "L" | "R", L: EngineLayout = layoutFor(spec)) {
+  const M = L.magnetos;
+  const drive = magDrive(spec, d, L);
+  const y = drive.y,
+    z = side === "R" ? drive.z : -drive.z;
+  const k = M.mount === "forward" ? 1 : -1;
+  return {
+    k,
+    r: M.r,
+    len: M.len,
+    driveEnd: [d.accRear, y, z] as V3,
+    capEnd: [d.accRear + k * M.len, y, z] as V3,
+    centre: [d.accRear + (k * M.len) / 2, y, z] as V3,
+  };
+}
+
+/** The oil filter's centre, axis, radius and length: on the rear of the accessory housing, or standing on its adapter. */
+export function oilFilterPose(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
+  const f = L.oilFilter;
+  if (f.mount === "rear")
+    return { centre: [d.accRear - 0.05, 0.015, 0] as V3, axis: [1, 0, 0] as V3, r: 0.045, len: 0.1 };
+  return {
+    centre: [d.accRear - f.aftIn * IN, f.yIn * IN, f.zIn * IN] as V3,
+    axis: [0, 1, 0] as V3,
+    r: f.r,
+    len: f.len,
+  };
+}
+
+/**
+ * The oil filler tube, out of the sump's rear face and up behind the crankcase, outboard of the accessory housing and
+ * mounts on the layout's side, and the filler cap on its top.
+ */
+export function oilFiller(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
+  const k = L.oilFiller.side === "R" ? 1 : -1;
+  const top = d.caseRear - 0.025;
+  return {
+    tube: [
+      [d.caseRear + 0.04, d.caseBottom - 0.02, k * 0.1],
+      [d.caseRear - 0.025, d.caseBottom - 0.025, k * 0.15],
+      [d.caseRear - 0.025, 0.06, k * 0.155],
+      [top, 0.2, k * 0.16],
+    ] as V3[],
+    cap: [top, 0.209, k * 0.16] as V3,
+  };
+}
+
+/**
+ * Oil pump: a drive gear meshing below the crankshaft gear, its shaft running aft to two pumping gears; or (the layout's
+ * `oilPumpDrive: "cam"`) the first pumping gear splined into the camshaft gear, turning at camshaft speed. The crank
+ * drive's ratio is drawn, not published.
+ */
+export function oilPump(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
+  if (L.oilPumpDrive === "cam")
+    return { driveR: 0.018, driveTeeth: 10, y: d.camY, gearR: 0.018, x0: -0.036, x1: -0.036, ratio: 0.5, onCam: true };
   const driveR = d.crankGearR / 2;
   return {
     driveR,
@@ -330,5 +506,198 @@ export function oilPump(d: Dims) {
     x0: -0.018, // drive gear, in the crankshaft gear's plane (from the crankcase's rear face)
     x1: -0.042, // pumping gears
     ratio: 2,
+    onCam: false,
   };
+}
+
+/** A crank cheek's thickness along the shaft, m. */
+export const CHEEK_T = 0.014;
+
+/** A throw's turn about the shaft at crank angle 0: its crankpin (drawn at +z) points at `pin` (cycle.ts convention). */
+export const throwRotation = (c: CylinderDef) => (c.pin - 90) * D2R;
+
+/**
+ * The crankshaft along x: main journals between the throws (none where two throws share a cheek), their bearings, the
+ * cheeks either side of each crankpin and the counterweights the layout hangs on them.
+ */
+export function crankLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const cyls = spec.geometry.cylinders;
+  const T = L.throwHalf;
+  // main journals only between the throws: at a throw the rod passes the axis between the cheeks
+  const throwsAt = cyls.map((c) => c.x).sort((a, b) => b - a);
+  const edges = [d.front + 0.02, ...throwsAt.flatMap((x) => [x + T, x - T]), d.caseRear - 0.005];
+  const journals: { x: number; len: number }[] = [],
+    bearings: { x: number; len: number }[] = [];
+  for (let i = 0; i < edges.length; i += 2) {
+    const len = edges[i] - edges[i + 1];
+    if (len <= 0.002) continue;
+    const mid = (edges[i] + edges[i + 1]) / 2;
+    journals.push({ x: mid, len });
+    if (i === 0 && L.noseMainBearing)
+      // a long front journal with a main bearing at each end, the front one at the crankcase nose
+      bearings.push({ x: edges[1] + 0.02, len: 0.03 }, { x: d.front - 0.02, len: 0.03 });
+    else if (len > 0.02) bearings.push({ x: mid, len: Math.min(len - 0.006, 0.03) });
+  }
+  const cheek = T - CHEEK_T / 2; // cheek centres either side of the crankpin
+  const cheeks = cyls.flatMap((c) => [c.x - cheek, c.x + cheek]);
+  const counterweights = L.counterweights.map((w) => {
+    const c = cyls.find((k) => k.n === w.cyl);
+    if (!c) throw new Error(`Counterweight on cylinder ${w.cyl}, which ${spec.id} doesn't have`);
+    return { c, at: w.cheek * cheek, x: c.x + w.cheek * cheek };
+  });
+  return { journals, bearings, cheek, cheeks, counterweights };
+}
+
+/**
+ * Where the accessory drives sit: the starter (pinion on a ring gear behind the propeller flange, or a worm in a
+ * right-angle adapter on the accessory end turning a shaft gear on the crankshaft gear), the propeller governor (spur
+ * gear on the camshaft's front, or a bevel gear there with the governor on the lower left), and the alternators (belt
+ * from a crankshaft pulley, or gear from a drive gear on the crankshaft).
+ */
+export function driveLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const acc = spec.accessories;
+  // governor: its gear meshes with the camshaft's, turning at the governor drive ratio
+  const camGovR = 0.03,
+    govR = (camGovR * 0.5) / acc.governorRatio;
+  const gd = camGovR + govR;
+  const governor =
+    L.governor === "front-top"
+      ? {
+          at: [d.front - 0.03, d.camY - gd * Math.SQRT1_2, -gd * Math.SQRT1_2] as V3,
+          rotation: [0, 0, 0] as V3,
+          gearAt: null,
+          camGovR,
+          govR,
+          teeth: 10,
+          bevel: false,
+        }
+      : {
+          // the governor body on the left side of the case, its bevel gear beside the camshaft's, a shaft between
+          at: [d.front - 0.03 + govR + 0.007, d.camY, -(d.caseHalf - 0.034)] as V3,
+          rotation: [0, Math.PI / 2, 0] as V3,
+          gearAt: [d.front - 0.03 + govR + 0.007, d.camY, -(camGovR + 0.006)] as V3,
+          camGovR,
+          govR,
+          teeth: Math.round((18 * govR) / camGovR),
+          bevel: true,
+        };
+  let starter;
+  if (L.starter === "front-ring") {
+    const pinionR = (d.ringR * STARTER_TEETH.pinion) / STARTER_TEETH.ring;
+    const sa = 235 * D2R,
+      rs = d.ringR + pinionR + 0.001;
+    const ringX = d.flangeX - 0.03;
+    starter = {
+      kind: "front-ring" as const,
+      pinionR,
+      ringX,
+      at: [ringX, rs * Math.cos(sa), rs * Math.sin(sa)] as V3,
+    };
+  } else {
+    const x = d.accRear - (L.starterAftIn ?? 0) * IN;
+    // shaft gear on the crankshaft gear, lower right; worm wheel on its shaft behind the accessory face
+    const sa = 135 * D2R,
+      dist = d.crankGearR * 2;
+    const shaft = {
+      x: d.caseRear - 0.018,
+      y: dist * Math.cos(sa),
+      z: dist * Math.sin(sa),
+      r: d.crankGearR,
+      teeth: GEAR_TEETH.crank,
+    };
+    const starts = 1;
+    const wheel = { x, r: 0.04, teeth: Math.round((acc.starterRatio * shaft.teeth * starts) / GEAR_TEETH.crank) };
+    const worm = { r: 0.012, starts, at: [x, shaft.y - wheel.r - 0.012, shaft.z] as V3 };
+    starter = {
+      kind: "rear-adapter" as const,
+      shaft,
+      wheel,
+      worm,
+      // the motor on the worm's axis, from the adapter (the worm's outboard end) across the engine to the right
+      at: [x, worm.at[1], shaft.z + 0.04] as V3,
+    };
+  }
+  const alternators = L.alternators.map((a) => {
+    const ratio = a.ratio ?? acc.alternatorRatio;
+    const ang = a.angleDeg * D2R;
+    if (a.drive === "belt") {
+      const r = a.r ?? 0.27;
+      const x = d.flangeX - (a.pulleyBehindFlange ?? 0.055);
+      return { def: a, ratio, x, at: [x, r * Math.cos(ang), r * Math.sin(ang)] as V3, gear: null, transverse: null };
+    }
+    const driveTeeth = 48,
+      driveR = 0.09;
+    const drivenTeeth = Math.round(driveTeeth / ratio),
+      drivenR = (driveR * drivenTeeth) / driveTeeth;
+    const t = a.axis === "transverse" ? a.transverse : undefined;
+    if (t) {
+      // shaft across the engine in the `angleDeg` direction; its bevel pinion beside the rim of the crankshaft's drive
+      // gear, which sits just aft of the pinion
+      const x = d.accRear + t.stationIn * IN;
+      const axis: V3 = [0, Math.cos(ang), Math.sin(ang)];
+      const along = (s: number): V3 => [x, s * axis[1], s * axis[2]];
+      return {
+        def: a,
+        ratio,
+        x,
+        at: along(driveR + 0.006),
+        gear: { driveR, driveTeeth, drivenR, drivenTeeth, driveX: x - drivenR - 0.007, bevel: true },
+        transverse: { axis, padAt: along(t.padIn * IN), endAt: along(t.endIn * IN), r: t.r },
+      };
+    }
+    const x = d.front - 0.045,
+      dist = driveR + drivenR;
+    return {
+      def: a,
+      ratio,
+      x,
+      at: [x, dist * Math.cos(ang), dist * Math.sin(ang)] as V3,
+      gear: { driveR, driveTeeth, drivenR, drivenTeeth, driveX: x, bevel: false },
+      transverse: null,
+    };
+  });
+  return { governor, starter, alternators };
+}
+
+/**
+ * How fast each drawn gear turns, in turns per crankshaft turn about +x in engine coordinates (+ = with the crankshaft),
+ * and which gears drive which: external spur gears in mesh turn opposite ways, pulleys on one belt the same way, and a
+ * bevel pair turns about crossed axes. The scene animates the drives from these spins; a gear is drawn in a group that
+ * doesn't turn its axis, so its own x rotation is its spin.
+ */
+export function gearSpins(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const acc = spec.accessories;
+  const D = driveLayout(spec, d, L);
+  const mag = magDrive(spec, d, L);
+  const pump = oilPump(d, L);
+  const spins: Record<string, number> = { crank: 1, cam: -0.5, magneto: acc.magnetoRatio };
+  const meshes: { a: string; b: string; kind: "gear" | "belt" | "bevel" }[] = [{ a: "crank", b: "cam", kind: "gear" }];
+  if (mag.idler) {
+    spins.idler = -GEAR_TEETH.crank / mag.idler.teeth;
+    meshes.push({ a: "crank", b: "idler", kind: "gear" }, { a: "idler", b: "magneto", kind: "gear" });
+  } else meshes.push({ a: "cam", b: "magneto", kind: "gear" });
+  // the first pumping gear turns with its drive gear (on the camshaft or meshing the crankshaft gear); the second meshes
+  spins.oilPump = -pump.ratio;
+  spins.oilPumpIdler = pump.ratio;
+  if (!pump.onCam) {
+    spins.oilPumpDrive = -pump.ratio;
+    meshes.push({ a: "crank", b: "oilPumpDrive", kind: "gear" });
+  }
+  meshes.push({ a: "oilPump", b: "oilPumpIdler", kind: "gear" });
+  if (D.starter.kind === "front-ring") {
+    spins.pinion = -acc.starterRatio;
+    meshes.push({ a: "crank", b: "pinion", kind: "gear" });
+  } else {
+    spins.starterShaft = -GEAR_TEETH.crank / D.starter.shaft.teeth;
+    meshes.push({ a: "crank", b: "starterShaft", kind: "gear" });
+  }
+  // a bevel governor gear stands across the camshaft, its axis turned to −z, so it turns the other way about its own axis
+  spins.governor = D.governor.bevel ? -acc.governorRatio : acc.governorRatio;
+  meshes.push({ a: "cam", b: "governor", kind: D.governor.bevel ? "bevel" : "gear" });
+  for (const a of D.alternators) {
+    // a bevel pinion beside the drive gear's forward face turns about its own axis with the crankshaft (+ outboard)
+    spins[a.def.name] = a.gear && !a.gear.bevel ? -a.ratio : a.ratio;
+    meshes.push({ a: "crank", b: a.def.name, kind: !a.gear ? "belt" : a.gear.bevel ? "bevel" : "gear" });
+  }
+  return { spins, meshes };
 }

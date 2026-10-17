@@ -13,8 +13,8 @@
  * - lighting.ts — exterior and interior lights
  * - cabin.ts — cabin heat and ventilation, cabin and safety equipment
  *
- * The sections are imported below in registration order. Part ids come from a running counter and the first part with a
- * given name gets the label pin, so keep this order, and never import a section from one that comes before it here.
+ * The sections are imported below in registration order. Part ids are explicit authored tokens; the first pinned part with a
+ * given name gets the label pin, so preserve this label order, and never import a section from one that comes before it here.
  * Shared constants go in catalogue.ts.
  */
 export { CAT, P3, PV, onSurf, surfacePivot } from "./catalogue";

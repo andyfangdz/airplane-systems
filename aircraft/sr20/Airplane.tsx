@@ -12,7 +12,7 @@ import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, type Vec3 } from "@/lib/math";
 import { useView } from "@/lib/view";
-import { ControlRig } from "./ControlRig";
+import { ControlRig } from "../cirrus/ControlRig";
 import { drawMfdScreen, drawOff, drawPfdScreen, drawStandby } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
 import { DOORS, loft, windowOutlines, wingSec } from "./geometry";
@@ -32,6 +32,7 @@ import {
   YOKE_X,
   YOKE_Y,
 } from "./parts";
+import * as RIG from "./rig";
 import { useSR20 } from "./store";
 import { engineHidden } from "./engine-groups";
 import { useEngineGroups } from "./engine-group-store";
@@ -39,6 +40,7 @@ import { isOptionalPitotFlow } from "./fuel-pitot-depth-flow";
 import { electricalAvionicsFlowFitted } from "./electrical-avionics-depth-flow";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
+const sim = () => useSR20.getState().s;
 
 /** Control-surface deflections (radians) from the yokes, pedals and flap motor. */
 function surfaceAngle(key: string) {
@@ -285,7 +287,7 @@ export function Model() {
       <Propeller />
       <Cylinders />
       <Yokes />
-      <ControlRig />
+      <ControlRig cat={CAT} rig={RIG} sim={sim} />
       <Tanks tanks={TANKS} />
       <Flows flows={flows} rates={rates} color={flowColor} />
       <Screens screens={SCREENS} />

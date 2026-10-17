@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 import { TAIL_PAINT_BOX, paintTail } from "../geometry";
 /** C172S catalogue: control surfaces (flaps, ailerons, elevator, rudder) and the details that ride on them. */
 import { V } from "@/lib/math";
@@ -105,8 +106,15 @@ const WICK =
   "Static discharger: bleeds static charge off the trailing edge to cut radio noise. A set of 10 is installed (POH 7-78, 6-19); the distribution and stations shown are illustrative, not a maintenance drawing.";
 [1, -1].forEach((s) => {
   const side = s > 0 ? "R" : "L";
-  [195, 175].forEach((bl, i) =>
+  (
+    [
+      ["row-001", 195],
+      ["row-002", 175],
+    ] as const
+  ).forEach(([rowKey1, bl], i) =>
     onSurf("ail" + side, wingP(s * Z(bl), 1.0, 0).add(V(-0.05, 0, 0)), () => cyl(0.004, 0.12, "x", 6), {
+      id: "parts.surfaces.static-discharger.001",
+      instance: [s, rowKey1],
       color: "#2A2F33",
       name: "Static discharger",
       note: WICK,
@@ -114,8 +122,15 @@ const WICK =
       pin: s > 0 && i === 0,
     }),
   );
-  [52, 40].forEach((bl) =>
+  (
+    [
+      ["row-001", 52],
+      ["row-002", 40],
+    ] as const
+  ).forEach(([rowKey2, bl]) =>
     onSurf("elev" + side, V(sLE(Z(bl)) - sC(Z(bl)) - 0.05, SY, s * Z(bl)), () => cyl(0.004, 0.11, "x", 6), {
+      id: "parts.surfaces.static-discharger.002",
+      instance: [s, rowKey2],
       color: "#2A2F33",
       name: "Static discharger",
       note: WICK,
@@ -123,20 +138,32 @@ const WICK =
     }),
   );
   onSurf("elev" + side, V(sLE(Z(64)) - 0.06, SY, s * Z(64)), () => box(0.045, 0.016, 0.07), {
+    instance: [s],
+    id: "parts.surfaces.elevator-balance-weight.003",
     color: "#6E7A84",
     name: "Elevator balance weight",
     note: "In the elevator tip leading-edge extension ahead of the hinge (horn balance) — reduces stick force and prevents flutter (POH 7-6).",
     pin: s > 0,
   });
   onSurf("ail" + side, wingP(s * Z(150), AIL_C + 0.035, 0), () => box(0.05, 0.025, 0.5), {
+    instance: [s],
+    id: "parts.surfaces.aileron-balance-weights.004",
     color: "#6E7A84",
     name: "Aileron balance weights",
     note: "Carried in the aileron forward spar (POH 7-6).",
     pin: s > 0,
   });
   // flap tracks / rollers and aileron hinges
-  [30, 60, 92].forEach((b, i) =>
+  (
+    [
+      ["row-001", 30],
+      ["row-002", 60],
+      ["row-003", 92],
+    ] as const
+  ).forEach(([rowKey3, b], i) =>
     part(() => box(0.32, 0.05, 0.03), ["flaps"], {
+      id: "parts.surfaces.flap-track-and-rollers.005",
+      instance: [s, rowKey3],
       pos: PV(wingP(s * Z(b), 0.74, -1).add(V(-0.03, -0.03, 0))),
       color: "#B9C1C7",
       name: "Flap track and rollers",
@@ -145,8 +172,16 @@ const WICK =
       pin: s > 0 && i === 0,
     }),
   );
-  [118, 165, 200].forEach((b) =>
+  (
+    [
+      ["row-001", 118],
+      ["row-002", 165],
+      ["row-003", 200],
+    ] as const
+  ).forEach(([rowKey4, b]) =>
     part(() => box(0.1, 0.03, 0.022), ["controls"], {
+      id: "parts.surfaces.aileron-hinge.006",
+      instance: [s, rowKey4],
       pos: PV(wingP(s * Z(b), 0.78, -1).add(V(-0.01, -0.012, 0))),
       color: "#C9D0D5",
       name: "Aileron hinge",
@@ -164,6 +199,7 @@ const WICK =
     m.quaternion.setFromAxisAngle(axis, RIG.surfaceAngles({ ...live.ctl, trim: live.afcs.trim }, 0).tab);
   };
   onSurf("elevR", V(...tab.pivot), tab.geo, {
+    id: "parts.surfaces.elevator-trim-tab.007",
     color: "#9F85E6",
     name: "Elevator trim tab",
     pin: true,
@@ -173,6 +209,7 @@ const WICK =
     anim: animate,
   });
   onSurf("elevR", V(...tab.pivot), () => box(0.02, 0.05, 0.01).translate(-0.02, 0.025, 0), {
+    id: "parts.surfaces.trim-tab-horn.008",
     color: "#7C57CF",
     name: "Trim tab horn",
     note: "Exposed trim-tab horn receives the stabilizer actuator push-pull rod (POH7-6;172RPC24 27-30). It rides with the tab; simplified size and placement.",
@@ -181,6 +218,7 @@ const WICK =
   });
 }
 onSurf("rudder", V(fLE(Y(49)) - fC(Y(49)) + 0.055, Y(49), 0), () => box(0.1, 0.13, 0.005), {
+  id: "parts.surfaces.rudder-trim-tab-ground-adjustable.009",
   color: "#8C99A3",
   name: "Rudder trim tab (ground adjustable)",
   note: "“A ground adjustable trim tab at the base of the trailing edge” (POH 7-6) — the only rudder trim. Bent on the ground to trim out a constant yaw.",
@@ -188,13 +226,23 @@ onSurf("rudder", V(fLE(Y(49)) - fC(Y(49)) + 0.055, Y(49), 0), () => box(0.1, 0.1
   pin: true,
 });
 onSurf("rudder", V(fLE(Y(102.5)) - 0.12, Y(102.5), 0), () => box(0.08, 0.014, 0.012), {
+  id: "parts.surfaces.rudder-balance-weight.010",
   color: "#6E7A84",
   name: "Rudder balance weight",
   note: "In the leading-edge extension at the top of the rudder (horn balance, POH 7-6).",
   pin: true,
 });
-[95, 80].forEach((h) =>
+(
+  [
+    ["row-001", 95],
+    ["row-002", 80],
+  ] as const
+).forEach(([rowKey5, h]) =>
   onSurf("rudder", V(fLE(Y(h)) - fC(Y(h)) - 0.04, Y(h), 0), () => cyl(0.004, 0.11, "x", 6), {
+    instance: [rowKey5],
+
+    id: "parts.surfaces.static-discharger.011",
+
     color: "#2A2F33",
     name: "Static discharger",
     note: WICK,

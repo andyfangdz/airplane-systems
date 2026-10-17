@@ -1,5 +1,6 @@
 "use client";
 import { AlertWindow } from "@/components/AlertWindow";
+import { fleetWalkUi } from "@/components/FleetWalkaround";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
@@ -12,10 +13,8 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
-import { useC172 } from "./store";
+import { c172Runtime, useC172 } from "./store";
 import { C172S_META } from "./meta";
-import { simTick } from "./tick";
-import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window: shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
@@ -27,12 +26,14 @@ function Alerts() {
   return <AlertWindow title="ANNUNCIATIONS" powered={powered} msgs={powered ? annunciations(s, E, snapshot) : []} />;
 }
 
+const WALK = fleetWalkUi(walkController);
+
 export const C172S: AircraftDef = {
   ...C172S_META,
   groundY: GROUND_Y,
   pivotX: 0,
   Model,
-  Overlay: WalkMarker,
+  Overlay: WALK.Marker,
   panels: {
     overview: Overview,
     airframe: Airframe,
@@ -51,8 +52,8 @@ export const C172S: AircraftDef = {
     avionics: Avionics,
     autopilot: Autopilot,
   },
-  tick: simTick,
+  advance: c172Runtime.advance,
   Alerts,
   labels: { cat: CAT, inside: inFus },
-  walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
+  walk: WALK.walk,
 };

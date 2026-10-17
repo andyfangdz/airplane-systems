@@ -1,33 +1,46 @@
 "use client";
 import dynamic from "next/dynamic";
 import { parseCameraPreset } from "@/lib/camera";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { AircraftDef } from "@/aircraft/types";
 import {
-  aircraft,
+  AircraftContext,
   applyCameraPreset,
   hasSys,
+  registerAircraft,
   resetCam,
   selectAircraft,
   selectSys,
   showInUrl,
   sysOf,
   useAircraft,
-  useAircraftDef,
-  whenLoaded,
-} from "@/aircraft/lazy";
-import { FLEET_INDEX } from "@/lib/fleet-index";
-import { isAircraftId, sysColor, type AircraftId, type SysId, type Theme } from "@/lib/systems";
-import { revealStage, useView } from "@/lib/view";
+} from "@/lib/fleet";
+import { setBuild } from "@/lib/build";
+import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
+import { useSimulationLoop } from "@/lib/useSimulationLoop";
+import { sysColor, type SysId, type Theme } from "@/lib/systems";
+import { revealStage, useAircraftHover, useView } from "@/lib/view";
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
-import { Tour, startTour } from "./Tour";
+import { startTour } from "./Tour";
 
 // WebGL scene is client-only; the Loader overlay shows while it loads (the placeholder keeps the canvas's slot)
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div /> });
 
+/**
+ * The route's system until the shell has booted (so the prerendered HTML and its hydration show the system the path
+ * names), the view state's after that.
+ */
+const RouteSys = createContext<{ sys: SysId; booted: boolean }>({ sys: "overview", booted: false });
+function useShownSys() {
+  const route = useContext(RouteSys),
+    sys = useView((x) => x.selectedSys);
+  return route.booted ? sys : route.sys;
+}
+
 function Rail() {
   const def = useAircraft();
-  const sys = useView((x) => x.sys),
+  const sys = useShownSys(),
     theme = useView((x) => x.theme);
   // keep the selected entry visible (the list scrolls: vertically on desktop, a chip strip on phones) without scrolling the page
   useEffect(() => {
@@ -70,18 +83,17 @@ function Rail() {
 }
 
 function Panel() {
-  const def = useAircraft(),
-    code = useAircraftDef();
-  const sys = useView((x) => x.sys),
+  const def = useAircraft();
+  const sys = useShownSys(),
     theme = useView((x) => x.theme),
     walking = useView((x) => x.walking);
   const s = sysOf(def, sys),
-    Body = code?.panels[s.id];
+    Body = def.panels[s.id];
   // phones: after picking a system from far down the panel, bring the 3D view back up
   useEffect(() => {
     if (!walking) revealStage();
   }, [sys, def, walking]);
-  const Walk = walking ? code?.walk?.Panel : undefined;
+  const Walk = walking ? def.walk?.Panel : undefined;
   if (Walk)
     return (
       <aside className="panel">
@@ -98,8 +110,7 @@ function Panel() {
           {s.ref ?? `${def.doc} · p. ${s.pg}`}
         </div>
         <h2>{s.id === "overview" ? "Airplane & Systems" : s.name}</h2>
-        {/* while the airplane's code loads, the heading alone (the Loader is up over the 3D view) */}
-        {Body ? <Body /> : code && <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
+        {Body ? <Body /> : <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
       </div>
     </aside>
   );
@@ -114,8 +125,7 @@ const SUN = (
 const MOON = <path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z" />;
 
 function Toolbar() {
-  const def = useAircraft(),
-    code = useAircraftDef();
+  const def = useAircraft();
   const xray = useView((x) => x.xray),
     labels = useView((x) => x.labels),
     spin = useView((x) => x.spin),
@@ -125,18 +135,15 @@ function Toolbar() {
     setTheme = useView((v) => v.setTheme),
     flyTo = useView((v) => v.flyTo);
   const dark = theme === "dark";
-  // the button is there from the first paint (FLEET_INDEX says which airplanes have a walk); it works once the code is in
-  const walk = code?.walk,
-    hasWalk = FLEET_INDEX.some((a) => a.id === def.id && a.walk);
+  const walk = def.walk;
   return (
     <div className="toolbar">
-      {hasWalk && (
+      {walk && (
         <button
           className="tb"
-          disabled={!walk}
           aria-pressed={walking}
           title={walking ? "Leave the preflight walk-around" : "Guided preflight walk-around"}
-          onClick={() => (walking ? walk?.close() : walk?.open())}
+          onClick={() => (walking ? walk.close() : walk.open())}
         >
           Preflight
         </button>
@@ -182,7 +189,7 @@ function Toolbar() {
 }
 
 function Hud() {
-  const H = useAircraftDef()?.Hud;
+  const H = useAircraft().Hud;
   return H ? <H /> : null;
 }
 
@@ -196,7 +203,7 @@ function tipColor(c: string, theme: Theme) {
 }
 
 function Tooltip() {
-  const hover = useView((x) => x.hover),
+  const hover = useAircraftHover((x) => x.hover),
     theme = useView((x) => x.theme);
   const ref = useRef<HTMLDivElement>(null);
   // below-right of the cursor; flipped above it when the note would run past the bottom of the 3D view
@@ -227,36 +234,32 @@ const read = (k: string) => {
   }
 };
 
-/** Airplane and system named by `s`, a URL path or hash: c172s/electrical, c172s, or (SR20) electrical. */
-function viewIn(s: string): [AircraftId, string | undefined] | null {
+/** The system named by the address bar's path (/c172s/electrical), when it is this airplane's. */
+function sysInPath(def: AircraftDef): string | undefined {
+  let path = location.pathname;
   try {
-    s = decodeURIComponent(s);
-  } catch {} // malformed escape (e.g. a truncated link): use the raw text
-  const [a, b] = s.replace(/^[/#]+/, "").split("/");
-  if (isAircraftId(a)) return [a, b];
-  if (a && hasSys(aircraft("sr20"), a)) return ["sr20", a];
-  return null;
+    path = decodeURIComponent(path);
+  } catch {} // malformed escape: use the raw text
+  const [ac, sys] = path.replace(/^\/+/, "").split("/");
+  return ac === def.id ? sys : undefined;
 }
 
-/** The view named by the URL: its path (/c172s/electrical), or a hash from links made before views had paths (#c172s/electrical). */
-const fromUrl = () => viewIn(location.pathname) ?? viewIn(location.hash);
-
-/** Show an airplane at `sys`, or else at its last-viewed system, or else its overview; remember it for the next visit. */
-function show(ac: AircraftId, sys?: string | null) {
-  const def = aircraft(ac),
+/** Show the airplane at `sys`, or else at its last-viewed system, or else its overview; remember it for the next visit. */
+function show(def: AircraftDef, sys?: string | null) {
+  // "sr20sys": the SR20's last-viewed system, saved before there was a fleet
+  if (!hasSys(def, sys)) sys = read("sys:" + def.id) ?? (def.id === "sr20" ? read("sr20sys") : null);
+  const start: SysId = hasSys(def, sys) ? sys : "overview",
     v = useView.getState();
-  if (!hasSys(def, sys)) sys = read("sys:" + ac) ?? (ac === "sr20" ? read("sr20sys") : null);
-  const start: SysId = hasSys(def, sys) ? sys : "overview";
-  if (ac !== v.ac) selectAircraft(ac, start);
-  else if (start !== v.sys) selectSys(start);
-  else showInUrl(ac, start); // already shown (e.g. the SR20 overview on a fresh load): still put the view in the address bar
+  if (def.id !== v.ac) selectAircraft(def.id, start);
+  else if (start !== v.selectedSys) selectSys(start);
+  else showInUrl(def.id, start); // already in the view state (e.g. the default airplane's overview on a fresh load): still put the view in the address bar
   try {
-    localStorage.setItem("fleetAc", ac);
+    localStorage.setItem("fleetAc", def.id);
   } catch {}
 }
 
-/** Restore theme, airplane and last-viewed system; a view named by the URL wins. */
-function useBoot() {
+/** Theme: the saved choice, else the system setting (followed until the user chooses). */
+function useTheme() {
   useEffect(() => {
     // the toolbar's theme toggle saves a choice; until then follow the system setting, without saving it
     const os = matchMedia("(prefers-color-scheme: dark)");
@@ -270,57 +273,84 @@ function useBoot() {
       if (!chosen()) useView.getState().setTheme(os.matches ? "dark" : "light", false);
     };
     os.addEventListener("change", onOs);
-    // either way the address bar ends up on the view shown, as a path
-    const u = fromUrl(),
-      saved = read("fleetAc");
-    if (u) show(...u);
-    else show(isAircraftId(saved) ? saved : "sr20");
-    const search = location.search,
-      preset = parseCameraPreset(new URLSearchParams(search).get("cam"));
-    if (preset) applyCameraPreset(preset);
-    // the airplane's walk-around: a ?walk= deep link, or saved progress to resume. Its code loads (if `show` didn't
-    // start that already) and this runs before its Model mounts, unless the user has switched airplanes meanwhile.
-    whenLoaded(useView.getState().ac, (def) => {
-      if (useView.getState().ac === def.id) def.walk?.boot(search);
-    });
     return () => os.removeEventListener("change", onOs);
   }, []);
 }
 
-function Alerts() {
-  const code = useAircraftDef();
-  return code ? <code.Alerts key={code.id} /> : null;
+/**
+ * Put this route's airplane in the view state before its 3D scene mounts: its `prepare` first (slow work such as the
+ * SR22T's fuselage worker starts at once), then the system the path names (or the last-viewed one), a `?cam=` preset and
+ * the walk-around's `?walk=` deep link or saved progress. A layout effect: it runs after Next has put a navigation's URL
+ * in the address bar (an insertion effect), so the path and query read here are this route's, and before the first paint.
+ */
+function useBoot(def: AircraftDef) {
+  const [session, setSession] = useState<AircraftSession | null>(null);
+  // Strict Mode may rehearse setup after cleanup; consuming ?walk must not lose the original boot intent.
+  const bootSearch = useRef<{ aircraft: AircraftDef["id"]; search: string } | null>(null);
+  useLayoutEffect(() => {
+    const session = mountAircraftSession(def);
+    try {
+      def.prepare?.();
+      setBuild("code");
+      show(def, sysInPath(def));
+      const search = bootSearch.current?.aircraft === def.id ? bootSearch.current.search : location.search,
+        preset = parseCameraPreset(new URLSearchParams(search).get("cam"));
+      bootSearch.current = { aircraft: def.id, search };
+      if (preset) applyCameraPreset(preset);
+      def.walk?.boot(search);
+      setSession(session);
+    } catch (error) {
+      session.dispose();
+      throw error;
+    }
+    return session.dispose;
+  }, [def]);
+  return session;
 }
 
-export default function App() {
-  useBoot();
-  const def = useAircraft();
-  // The tab title follows the airplane shown, but only once mounted: every view is served the same static HTML
-  // (next.config.ts rewrites), which gets a neutral title. (React hoists <title> into <head>; app/layout.tsx sets none.)
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+/**
+ * The shell for one airplane. Each airplane's route (app/(fleet)/<id>/[[...sys]]/page.tsx) renders it with that
+ * airplane's definition, so a page ships one airplane and switching airplanes is a navigation that remounts the shell and
+ * its 3D scene. `sys` is the system the route's path names, for the prerendered HTML.
+ */
+export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
+  registerAircraft(def); // for the view-state helpers in lib/fleet (idempotent)
+  useTheme();
+  const session = useBoot(def);
+  // Next may retain this client shell when its catch-all system parameter changes. Apply that navigation without
+  // replacing the aircraft session; the URL guard ignores an older server prop after the rail's replaceState.
+  useLayoutEffect(() => {
+    const view = useView.getState();
+    if (session && view.session === session.owner && sys && sysInPath(def) === sys && view.selectedSys !== sys)
+      selectSys(sys);
+  }, [def, session, sys]);
+  useSimulationLoop(session?.advance ?? def.advance, 1, !!session);
   const walking = useView((x) => x.walking);
+  const Alerts = def.Alerts;
   return (
-    <div className={walking ? "app walking" : "app"}>
-      <title>{mounted ? `${def.name} Systems` : "Airplane Systems"}</title>
-      <Rail />
-      <main className="stage">
-        <Scene />
-        <Loader />
-        <Toolbar />
-        <div className="stage-foot">
-          <Alerts />
-          <Hud />
-          <div id="walk-scene" className="walk-scene" />
+    <AircraftContext value={def}>
+      <RouteSys value={{ sys: sys ?? "overview", booted: !!session }}>
+        <div className={walking ? "app walking" : "app"}>
+          <Rail />
+          <main className="stage">
+            {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
+            {session ? <Scene owner={session.owner} /> : <div />}
+            <Loader />
+            <Toolbar />
+            <div className="stage-foot">
+              <Alerts />
+              <Hud />
+              <div id="walk-scene" className="walk-scene" />
+            </div>
+            <Tooltip />
+          </main>
+          {/* phones: the HUD shows here, under the 3D view, instead (see globals.css) */}
+          <div className="stage-under">
+            <Hud />
+          </div>
+          <Panel />
         </div>
-        <Tooltip />
-      </main>
-      {/* phones: the HUD shows here, under the 3D view, instead (see globals.css) */}
-      <div className="stage-under">
-        <Hud />
-      </div>
-      <Panel />
-      <Tour />
-    </div>
+      </RouteSys>
+    </AircraftContext>
   );
 }

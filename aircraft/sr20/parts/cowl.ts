@@ -5,7 +5,7 @@ import { COWL_INLETS } from "../../cowl-inlets";
 import { part } from "./catalogue";
 
 /* ---------- cowl inlets ---------- */
-COWL_INLETS.sr20.forEach(({ y, z, width, height, exponent }) => {
+COWL_INLETS.sr20.forEach(({ id: key, y, z, width, height, exponent }) => {
   const s = Math.sign(z);
   part(
     () => {
@@ -16,6 +16,9 @@ COWL_INLETS.sr20.forEach(({ y, z, width, height, exponent }) => {
     },
     ["engine", "airframe"],
     {
+      id: "parts.cowl.part.001",
+      instance: key,
+
       color: "#1E2A33",
       ext: true,
       pin: true,
@@ -31,6 +34,6 @@ COWL_INLETS.sr20.forEach(({ y, z, width, height, exponent }) => {
       return cowlOpeningGeo(() => 3.743, y, z, width, height, exponent);
     },
     ["engine", "airframe"],
-    { color: "#0B1014", ext: true },
+    { id: "parts.cowl.part.002", instance: key, color: "#0B1014", ext: true },
   );
 });

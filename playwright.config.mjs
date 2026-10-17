@@ -3,7 +3,7 @@ import { softwareGL } from "./scripts/software-gl.mjs";
 
 const baseURL = process.env.UI_BASE_URL || "http://127.0.0.1:4100";
 const launchOptions = { args: softwareGL };
-const phoneTests = /test-(m20c|fleet-depth|sr20-walkaround|walkaround|door-mechanisms|tour)-ui\.mjs/;
+const phoneTests = /test-(m20c|fleet-depth|sr20-walkaround|walkaround|door-mechanisms|tour|aircraft-session)-ui\.mjs/;
 const fleetTests = /test-fleet-ui\.mjs/;
 
 export default defineConfig({
@@ -30,7 +30,11 @@ export default defineConfig({
   webServer: process.env.UI_BASE_URL
     ? undefined
     : {
-        command: "npm run start -- --hostname 127.0.0.1 --port 4100",
+        // STATIC_EXPORT=1: the export in out/, served as CloudFront serves it; otherwise the Next server
+        command:
+          process.env.STATIC_EXPORT === "1"
+            ? "node scripts/serve-export.mjs 4100"
+            : "npm run start -- --hostname 127.0.0.1 --port 4100",
         url: baseURL,
         timeout: 120_000,
         reuseExistingServer: false,

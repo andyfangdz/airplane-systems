@@ -1,13 +1,14 @@
 /**
  * The walk-around's item framing while the page's worker still builds the fuselage skin: it must not build the hull
  * a second time on the main thread, and once the worker's hull is in it frames each item exactly as a main-thread build.
- * Items 2a and 11a (first items of their stations) step back from the airplane, so they need its outline.
+ * Items 2a and 11a (first items of their stations) step back from the airplane, so they need its outline; 7a backs away
+ * past its station to fit its stall strips in, which needs the outline too.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BufferGeometry } from "three";
 
-type Walk = typeof import("@/aircraft/sr22t/walk");
-const ITEMS = ["2a", "11a"];
+type Walk = (typeof import("@/aircraft/sr22t/walk"))["walk"];
+const ITEMS = ["2a", "11a", "7a"];
 
 /** A fresh module graph: the hull cache, the worker build and the clearance outline are all per page. */
 async function page() {
@@ -25,7 +26,7 @@ async function page() {
     return { station, item: station.items.find((i) => i.id === id)! };
   };
   const hull = parts.CAT.shells.find((s) => catalogue.factoryOf(s) === geometry.fuselageGeo)!;
-  return { walk: walk as Walk, worker, step, hull, fuselageGeo: geometry.fuselageGeo, specGeo: catalogue.specGeo };
+  return { walk: walk.walk as Walk, worker, step, hull, fuselageGeo: geometry.fuselageGeo, specGeo: catalogue.specGeo };
 }
 
 /** What fuselage.worker.ts posts for a geometry. */

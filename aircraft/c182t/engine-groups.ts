@@ -1,9 +1,7 @@
 /** Presentation-only subsystem filters for the naturally aspirated IO540. */
 import type { FlowSpec, PartSpec } from "@/lib/catalogue";
-export const ENGINE_GROUPS = ["ignition", "induction", "exhaust", "fuel", "oil", "sensors"] as const;
-export type EngineGroup = (typeof ENGINE_GROUPS)[number];
-export type ShownGroups = Record<EngineGroup, boolean>;
-export const allGroups = (): ShownGroups => Object.fromEntries(ENGINE_GROUPS.map((x) => [x, true])) as ShownGroups;
+import type { EngineGroup, ShownGroups } from "@/lib/engine-groups";
+export { ENGINE_GROUPS, allGroups, type EngineGroup, type ShownGroups } from "@/lib/engine-groups";
 export function engineGroupsOf(p: PartSpec | FlowSpec): readonly EngineGroup[] {
   if (p.groups) return p.groups as readonly EngineGroup[];
   if (p.sys.includes("fuel")) return ["fuel"];

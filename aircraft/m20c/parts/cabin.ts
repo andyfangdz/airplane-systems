@@ -11,6 +11,7 @@ import { P, onSurf, part, sim, trimWheelAnim } from "./catalogue";
 
 /* ---------- cabin ---------- */
 part(() => sectionSlab(PANEL_X, -0.26, 0.2, 0.95, 0.04, PANEL_X), ["cabin", "vacuum"], {
+  id: "parts.cabin.instrument-panel.001",
   color: "#2B3238",
   name: "Instrument panel",
   note: "Shock-mounted flight panel in front of the pilot; engine cluster, switches and breakers; radios in the centre. The 1968 Ranger introduced the one-piece windshield; the standard 'T' instrument grouping followed on later models.",
@@ -18,11 +19,13 @@ part(() => sectionSlab(PANEL_X, -0.26, 0.2, 0.95, 0.04, PANEL_X), ["cabin", "vac
   pinIn: ["cabin"],
 });
 part(() => sectionSlab(PANEL_X + 0.1, 0.2, 0.26, 0.94, 0.16, PANEL_X + 0.16), ["cabin"], {
+  id: "parts.cabin.glareshield.002",
   color: "#2B3238",
   name: "Glareshield",
   note: "Over the panel; the defroster outlets are along its front edge.",
 });
 part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
+  id: "parts.cabin.magnetic-compass.003",
   pos: [1.42, 0.45, 0],
   color: "#1B1F23",
   name: "Magnetic compass",
@@ -32,17 +35,24 @@ part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
 });
 [-1, 0, 1].forEach((side) =>
   part(() => cabinFloorGeo(side), ["cabin", "airframe"], {
+    id: "parts.cabin.part.004",
+    instance: [side],
     color: "#4A4F55",
     fairing: true,
     name: side ? "Cabin floor" : "Gear-lever floor recess",
     note: "Schematic cabin floor: separate footwells beside the nose-wheel housing, with a centre recess for the retracted Johnson bar. Equipment envelopes and floor heights are approximate; the main wheel wells are outside the cabin.",
   }),
 );
-[
-  [1.3, 1.52],
-  [-0.45, 0.58],
-].forEach(([x0, x1]) =>
+(
+  [
+    ["member-1", [1.3, 1.52]],
+    ["member-2", [-0.45, 0.58]],
+  ] as const
+).forEach(([instance1, [x0, x1]]) =>
   part(() => box(x1 - x0, 0.015, 0.22), ["cabin", "airframe"], {
+    id: "parts.cabin.cabin-floor.005",
+    instance: [instance1],
+
     pos: [(x0 + x1) / 2, CABIN.floor - 0.0075, 0],
     color: "#4A4F55",
     fairing: true,
@@ -51,13 +61,15 @@ part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
 );
 (
   [
-    [CABIN.frontSeatX, -0.295, "Pilot seat"],
-    [CABIN.frontSeatX, 0.295, "Co-pilot seat"],
-    [CABIN.rearSeatX, -0.3, "Rear seat (L)"],
-    [CABIN.rearSeatX, 0.3, "Rear seat (R)"],
-  ] as [number, number, string][]
-).forEach(([x, z, name], i) => {
+    ["member-1", [CABIN.frontSeatX, -0.295, "Pilot seat"] as [number, number, string]],
+    ["member-2", [CABIN.frontSeatX, 0.295, "Co-pilot seat"] as [number, number, string]],
+    ["member-3", [CABIN.rearSeatX, -0.3, "Rear seat (L)"] as [number, number, string]],
+    ["member-4", [CABIN.rearSeatX, 0.3, "Rear seat (R)"] as [number, number, string]],
+  ] as const
+).forEach(([instance2, [x, z, name]], i) => {
   part(() => box(0.44, 0.08, 0.4), ["cabin"], {
+    id: "parts.cabin.part.006",
+    instance: [instance2],
     pos: [x, -0.5, z],
     color: "#6B5A48",
     name,
@@ -68,6 +80,8 @@ part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
     pin: i === 0 || i === 2,
   });
   part(() => box(0.08, 0.55, 0.38), ["cabin"], {
+    id: "parts.cabin.part.007",
+    instance: [instance2],
     pos: [x - 0.25, -0.2, z],
     rot: [0, 0, 0.2],
     color: "#6B5A48",
@@ -76,6 +90,7 @@ part(() => box(0.05, 0.05, 0.05), ["cabin", "vacuum"], {
   });
 });
 part(() => box(0.5, 0.05, 0.8), ["cabin"], {
+  id: "parts.cabin.baggage-compartment.008",
   pos: [CABIN.baggageX, -0.5, 0],
   color: "#4A4F55",
   name: "Baggage compartment",
@@ -83,6 +98,7 @@ part(() => box(0.5, 0.05, 0.8), ["cabin"], {
   pin: true,
 });
 part(() => box(0.3, 0.04, 0.6), ["cabin"], {
+  id: "parts.cabin.hat-rack-utility-shelf.009",
   pos: [CABIN.shelfX, -0.3, 0],
   color: "#4A4F55",
   name: "Hat rack (utility shelf)",
@@ -90,6 +106,7 @@ part(() => box(0.3, 0.04, 0.6), ["cabin"], {
   pin: true,
 });
 part(() => box(0.03, 0.04, 0.1), ["cabin"], {
+  id: "parts.cabin.cabin-door-handle.010",
   pos: P(onSkin(0.85, -0.05, 1, 1.0)),
   color: "#30363B",
   name: "Cabin door handle",
@@ -98,6 +115,7 @@ part(() => box(0.03, 0.04, 0.1), ["cabin"], {
   pin: true,
 });
 part(() => box(0.03, 0.03, 0.06), ["cabin"], {
+  id: "parts.cabin.baggage-door.011",
   pos: P(onSkin(-0.06, 0.0, 1, 1.0)),
   color: "#30363B",
   name: "Baggage door",
@@ -113,6 +131,7 @@ part(
   },
   ["cabin", "environment"],
   {
+    id: "parts.cabin.pilot-s-storm-window.012",
     pos: P(onSkin(1.3, 0.3, -1, 0.995)),
     color: "#9AB4C8",
     anim: (m) => {
@@ -133,6 +152,8 @@ part(
     },
     ["controls"],
     {
+      id: "parts.cabin.control-wheel.013",
+      instance: [side],
       parent: "wheel:" + side,
       chan: ["elevator", "aileron"],
       color: "#30363B",
@@ -142,12 +163,15 @@ part(
     },
   );
   part(() => box(0.02, 0.04, WHEEL.r * 2 - 0.02), ["controls"], {
+    id: "parts.cabin.part.014",
+    instance: [side],
     parent: "wheel:" + side,
     chan: ["aileron"],
     color: "#30363B",
   });
 });
 part(() => cyl(0.014, 2 * WHEEL.z - 0.1, "z"), ["controls"], {
+  id: "parts.cabin.elevator-torque-tube.015",
   pos: [1.62, -0.42, 0],
   chan: ["elevator"],
   color: "#8C959C",
@@ -163,6 +187,7 @@ part(
   },
   ["controls"],
   {
+    id: "parts.cabin.trim-control-wheel.016",
     pos: TRIM_WHEEL.c,
     chan: ["elevator"],
     color: "#1B1F23",
@@ -173,6 +198,7 @@ part(
   },
 );
 part(() => box(0.012, 0.02, 0.03), ["controls"], {
+  id: "parts.cabin.part.017",
   pos: [TRIM_WHEEL.c[0], TRIM_WHEEL.c[1] + TRIM_WHEEL.r - 0.005, TRIM_WHEEL.c[2]],
   chan: ["elevator"],
   color: "#F2F5F7",
@@ -187,6 +213,7 @@ part(() => box(0.012, 0.02, 0.03), ["controls"], {
   },
 });
 part(() => box(0.08, 0.1, 0.06), ["controls"], {
+  id: "parts.cabin.empennage-jack-screw.018",
   pos: JACK,
   chan: ["elevator"],
   color: "#7C57CF",
@@ -200,6 +227,8 @@ part(() => box(0.08, 0.1, 0.06), ["controls"], {
     V(ELEV_HORN.c[0] - 0.02, SY - 0.05, s * 0.14),
     () => cyl(0.01, 0.1, "y"),
     {
+      id: "parts.cabin.elevator-trim-bungee",
+      instance: s,
       chan: ["elevator"],
       color: "#E0B040",
       name: "Elevator trim bungee",

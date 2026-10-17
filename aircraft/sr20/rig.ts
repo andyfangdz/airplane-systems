@@ -12,7 +12,7 @@
  */
 import * as THREE from "three";
 import type { Axis } from "@/lib/geometry";
-import { D2R, V, type Vec3 } from "@/lib/math";
+import { D2R, V, bisect, circleMeet, type Vec3 } from "@/lib/math";
 import { hingeX, sC, sLE, EF, SY, wingP } from "./geometry";
 import type { Sim } from "./model";
 
@@ -308,43 +308,6 @@ export interface RigPose {
   pulley: Record<string, number>;
 }
 
-/** Where circle (c, r1) meets circle (e, r2) in a plane — the solution nearer (nx, ny). */
-function meet(
-  cx: number,
-  cy: number,
-  r1: number,
-  ex: number,
-  ey: number,
-  r2: number,
-  nx: number,
-  ny: number,
-): [number, number] {
-  const dx = ex - cx,
-    dy = ey - cy,
-    d = Math.hypot(dx, dy);
-  const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d),
-    h = Math.sqrt(Math.max(0, r1 * r1 - a * a));
-  const bx = cx + (a * dx) / d,
-    by = cy + (a * dy) / d;
-  const p: [number, number] = [bx - (h * dy) / d, by + (h * dx) / d],
-    q: [number, number] = [bx + (h * dy) / d, by - (h * dx) / d];
-  return Math.hypot(p[0] - nx, p[1] - ny) <= Math.hypot(q[0] - nx, q[1] - ny) ? p : q;
-}
-
-/** Bisection root of a monotonic f on [lo, hi]. */
-function solve(f: (x: number) => number, lo: number, hi: number) {
-  let flo = f(lo);
-  for (let i = 0; i < 40; i++) {
-    const mid = (lo + hi) / 2,
-      fm = f(mid);
-    if (Math.sign(fm) === Math.sign(flo)) {
-      lo = mid;
-      flo = fm;
-    } else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
 /** Aileron drive-arm pin: rotates with the aileron about its hinge line (same pivot/axis as the surface). */
 function ailPin(side: number, ang: number) {
   const pv = wingP(side * 3.68, 0.75, 0),
@@ -369,14 +332,23 @@ const ailSurfAng = (roll: number) => -roll * 18 * D2R; // matches ControlSurface
 export function rigPose(s: Sim): RigPose {
   const { pitch, roll, yaw } = s.ctrl;
   // elevator: the yoke eye slides aft; the lever turns so the drop link keeps its length
-  const [tx, ty] = meet(ETT.c[0], ETT.c[1], ETT.lever, EYE_X0 - pitch * YOKE_TRAVEL, EYE_Y, DROP_LEN, TIP0[0], TIP0[1]);
+  const [tx, ty] = circleMeet(
+    ETT.c[0],
+    ETT.c[1],
+    ETT.lever,
+    EYE_X0 - pitch * YOKE_TRAVEL,
+    EYE_Y,
+    DROP_LEN,
+    TIP0[0],
+    TIP0[1],
+  );
   const ett = LEVER_ANG - Math.atan2(tx - ETT.c[0], ty - ETT.c[1]);
   const carr = roll * 0.6; // bearing carriages rotate with the yokes
   const ailSector = Math.asin(Math.max(-1, Math.min(1, (-CARR.arm * Math.sin(carr)) / AIL_SECTOR.r)));
   // wing sectors turn until the drive link to each aileron arm is back at its rigged length
   const aw = [-1, 1].map((sd, i) => {
     const pin = ailPin(sd, ailSurfAng(roll));
-    return solve((a) => pin.distanceTo(crankPin(sd, a)) - CONE_LEN[i], -1.2, 1.2);
+    return bisect((a) => pin.distanceTo(crankPin(sd, a)) - CONE_LEN[i], -1.2, 1.2);
   });
   const rudHorn = yaw * 0.5;
   const tE = ett * ETT.sectorR,

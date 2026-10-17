@@ -61,6 +61,8 @@ export type PartAnim = (mesh: THREE.Mesh, t: number) => void;
 
 export interface PartSpec {
   id: string;
+  /** Installation equipment identity. Several submeshes can represent one item of equipment. */
+  equipment?: string;
   geo: () => THREE.BufferGeometry;
   sys: SysId[];
   name?: string;
@@ -127,6 +129,8 @@ export interface SurfaceSpec {
 /** Pipe / wire / duct / cable with moving particles. */
 export interface FlowSpec {
   key: string;
+  /** Installation connection identity; points below are only its visual routing. */
+  connection?: string;
   pts: (Vec3 | THREE.Vector3)[];
   sys: SysId[];
   name?: string;
@@ -156,7 +160,13 @@ export const chanOfKey = (k: string): Chan[] | undefined =>
         ? ["rudder"]
         : undefined;
 
-type PartOpts = Omit<PartSpec, "id" | "geo" | "sys">;
+export type InstanceKey = string | number | boolean | null | undefined | readonly InstanceKey[];
+type PartOpts = Omit<PartSpec, "id" | "geo" | "sys"> & {
+  /** Authored local identity, independent of display wording and registration order. */
+  id: string;
+  /** Explicit identity of a repeated declaration's instance (side, station, channel or mechanism key). */
+  instance?: InstanceKey;
+};
 
 /** Fitted, visible parts of a cached list; preserve the list when no filtering is needed. */
 const visibleOnly = (l: PartSpec[], hidden?: (spec: PartSpec) => boolean) =>
@@ -180,7 +190,7 @@ export class Catalogue {
   readonly parts: PartSpec[] = [];
   readonly shells: ShellSpec[] = [];
   readonly surfaces: SurfaceSpec[] = [];
-  private n = 0;
+  private identities = new Set<string>();
   private byParent = new Map<string, PartSpec[]>();
   private pins = new Map<SysId, PartSpec[]>();
   private pinIds = new Map<string, Set<string>>();
@@ -225,11 +235,38 @@ export class Catalogue {
     private readonly groupIds?: readonly string[],
   ) {}
 
-  uid = (s: string) => `${this.prefix}/${s}-${this.n++}`;
+  private identity(authored: string, instance?: InstanceKey) {
+    if (!authored || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$/.test(authored))
+      throw new Error(`${this.prefix}: invalid authored identity ${authored}`);
+    const instanceKey = (value: InstanceKey): unknown => {
+      if (typeof value === "number" && !Number.isFinite(value))
+        throw new Error(`${this.prefix}: non-finite instance key`);
+      return Array.isArray(value) ? value.map(instanceKey) : [typeof value, value];
+    };
+    const suffix = instance === undefined ? "" : `@${encodeURIComponent(JSON.stringify(instanceKey(instance)))}`;
+    const id = `${this.prefix}/${authored}${suffix}`;
+    if (this.identities.has(id)) throw new Error(`${this.prefix}: duplicate catalogue identity ${id}`);
+    this.identities.add(id);
+    return id;
+  }
 
-  part = (geo: () => THREE.BufferGeometry, sys: SysId[], o: PartOpts = {}) => {
-    if (this.groupIds) checkGroups(`${this.prefix}/${o.name || "part"}-${this.n}`, o.groups, this.groupIds);
-    const spec: PartSpec = { id: this.uid(o.name || "part"), geo, sys, ...o };
+  /** Resolve semantic references without depending on labels. Local and fully qualified IDs are accepted. */
+  byId = (id: string): PartSpec | ShellSpec | undefined => {
+    const full = id.startsWith(`${this.prefix}/`) ? id : `${this.prefix}/${id}`;
+    return this.parts.find((part) => part.id === full) ?? this.shells.find((shell) => shell.id === full);
+  };
+
+  /** Stable compiler input. Rendering keeps declaration order; artifact identity never depends on that order. */
+  assembly = () => ({
+    parts: [...this.parts].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    shells: [...this.shells].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    surfaces: [...this.surfaces].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+  });
+
+  part = (geo: () => THREE.BufferGeometry, sys: SysId[], o: PartOpts) => {
+    if (this.groupIds) checkGroups(`${this.prefix}/${o.id}`, o.groups, this.groupIds);
+    const { id, instance, ...options } = o;
+    const spec: PartSpec = { id: this.identity(id, instance), geo, sys, ...options };
     this.parts.push(spec);
     this.byParent.clear();
     this.pins.clear();
@@ -244,9 +281,11 @@ export class Catalogue {
     name: string,
     note: string,
     skin: boolean | (() => THREE.Texture) = false,
+    id: string,
+    instance?: InstanceKey,
   ) => {
     const spec: ShellSpec = {
-      id: this.uid(name),
+      id: this.identity(id, instance),
       geo: sourced(geo),
       name,
       note,
@@ -298,7 +337,7 @@ export class Catalogue {
     key: string,
     world: THREE.Vector3 | Vec3,
     geo: () => THREE.BufferGeometry,
-    o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] },
+    o: PartOpts & { sys?: SysId[] },
   ) => {
     const pv = this.surfacePivot(key),
       w = Array.isArray(world) ? V(...world) : world;
@@ -348,7 +387,7 @@ export class Catalogue {
         quiet = this.labels.quiet?.[sys] ?? [],
         only = nar ? (this.labels.narrow?.[sys] ?? []) : null;
       if (process.env.NODE_ENV !== "production") {
-        const names = new Set(pinned.map((p) => p.name));
+        const names = new Set(pinned.flatMap((p) => [p.name, p.id, p.id.slice(this.prefix.length + 1)]));
         for (const n of [...quiet, ...(only ?? [])])
           if (!names.has(n))
             console.warn(
@@ -357,9 +396,11 @@ export class Catalogue {
       }
       s = new Set(
         pinned
-          .filter(
-            (p) => (!p.pinIn || p.pinIn.includes(sys)) && (only ? only.includes(p.name!) : !quiet.includes(p.name!)),
-          )
+          .filter((p) => {
+            const matches = (list: string[]) =>
+              list.some((id) => id === p.name || id === p.id || `${this.prefix}/${id}` === p.id);
+            return (!p.pinIn || p.pinIn.includes(sys)) && (only ? matches(only) : !matches(quiet));
+          })
           .map((p) => p.id),
       );
       this.pinIds.set(key, s);

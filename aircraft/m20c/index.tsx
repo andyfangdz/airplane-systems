@@ -1,5 +1,6 @@
 "use client";
 import { AlertWindow } from "@/components/AlertWindow";
+import { fleetWalkUi } from "@/components/FleetWalkaround";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
@@ -14,10 +15,8 @@ import { Airframe, Lighting, Overview } from "./panels/general";
 import { PositiveControl } from "./panels/pc";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Vacuum } from "./panels/vacuum";
-import { useM20C } from "./store";
+import { m20cRuntime, useM20C } from "./store";
 import { M20C_META } from "./meta";
-import { simTick } from "./tick";
-import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** Warning lights and horns: all dead with the master switch off (Ranger 4-9). */
@@ -31,6 +30,8 @@ function Alerts() {
   );
 }
 
+const WALK = fleetWalkUi(walkController);
+
 /**
  * N6947N: the FAA registry lists it as a 1968 Mooney M20C Ranger, s/n 680194 (airworthiness date 25 Sep 1968), which fits
  * the photos (one-piece windshield, no dorsal fin) and the "Ranger" name Mooney introduced for 1968; the 1967 airplane was
@@ -42,7 +43,7 @@ export const M20C: AircraftDef = {
   groundY: GROUND_Y,
   pivotX: 1.0,
   Model,
-  Overlay: WalkMarker,
+  Overlay: WALK.Marker,
   panels: {
     overview: Overview,
     airframe: Airframe,
@@ -60,8 +61,8 @@ export const M20C: AircraftDef = {
     environment: Environment,
     cabin: Cabin,
   },
-  tick: simTick,
+  advance: m20cRuntime.advance,
   Alerts,
   labels: { cat: CAT, inside: inFus },
-  walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
+  walk: WALK.walk,
 };

@@ -28,6 +28,8 @@ for (const side of [-1, 1]) {
     () => patch((u, v) => AF.wingP(Z(side * (207 + 6 * u)), 0.03 + 0.8 * v, 1).add(new THREE.Vector3(0, 0.0005, 0))),
     ["airframe"],
     {
+      id: "parts.depth-inspection.wing-tip.001",
+      instance: [side],
       name: "Wing tip",
       anim: onlySpotted("Wing tip", side),
       note: "Narrow wing-tip inspection surface: POH4-7/4-10 requires lights and general condition. Skin region is a visual selection aid, not an added structural component.",
@@ -41,6 +43,8 @@ for (const side of [-1, 1]) {
     () => patch((u, v) => AF.wingP(Z(side * (27 + 179 * u)), 0.008 + 0.06 * v, 1).add(new THREE.Vector3(0, 0.0005, 0))),
     ["airframe"],
     {
+      id: "parts.depth-inspection.wing-leading-edge.002",
+      instance: [side],
       name: "Wing leading edge",
       anim: onlySpotted("Wing leading edge", side),
       note: "Narrow upper leading-edge inspection surface for condition checks (POH4-7/4-10). Each side is a separate selection mesh; no unsupported stall strip is added.",
@@ -52,6 +56,7 @@ for (const side of [-1, 1]) {
   );
 }
 part(() => patch((u, v) => onSkin(X(-15 + 10 * u), Y(54 + 7 * v), 1, 1.001)), ["airframe", "engine"], {
+  id: "parts.depth-inspection.cowling-inspection-region.003",
   name: "Cowling inspection region",
   anim: onlySpotted("Cowling inspection region", 1),
   note: "Narrow right-upper cowling/oil-access inspection region (POH4-8). Conformal selection surface, not a second cowling or a service-door dimension claim.",

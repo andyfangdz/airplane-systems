@@ -10,39 +10,52 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Box3, DoubleSide, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from "three";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import "@/aircraft";
 import { FUSE, GROUND_Y, inFus, SPINNER_BASE_X } from "@/aircraft/sr22t/geometry";
 import { initialSim } from "@/aircraft/sr22t/model";
 import { CAT } from "@/aircraft/sr22t/parts";
-import { Item } from "@/aircraft/sr22t/panels/walkaround";
-import {
+import { Item } from "@/components/FleetWalkaround";
+import { walk } from "@/aircraft/sr22t/walk";
+import { walkController } from "@/aircraft/sr22t/walk-store";
+import { isPoh, NOT_MODELLED, TECHNIQUE_BADGE, WALK } from "@/aircraft/sr22t/walkaround";
+import { spotsPart } from "@/lib/spot";
+import { useView } from "@/lib/view";
+import { fleetTally as tally, HALO_R } from "@/lib/fleet-walk";
+
+// These static cards represent a completed SR22T scene: beforeAll builds all their geometry. There is no mounted
+// route in renderToStaticMarkup, whose Zustand server snapshot is the initial store. Real readiness/owner transitions
+// are exercised by tests/react/fleet-walk-readiness.test.tsx; keep this fixture focused on the authored sight lines.
+vi.mock("@/lib/aircraft-session", async (original) => ({
+  ...(await original<typeof import("@/lib/aircraft-session")>()),
+  useAircraftSceneReady: (aircraft: string) => aircraft === "sr22t",
+}));
+
+const {
+  emphasisHalos,
   emphasisPoints,
   loadProgress,
   nameCentres,
+  nameInstances,
   sightLine,
   stepCentroid,
   stepParts,
   stepPose,
   stepSide,
-  tally,
   underAirplane,
   walkSteps,
-  type Step,
-} from "@/aircraft/sr22t/walk";
-import {
-  beginWalk,
-  closeWalk,
+} = walk;
+type Step = (typeof walk.steps)[number];
+const {
+  begin: beginWalk,
+  close: closeWalk,
   goStep,
-  markStep,
-  openWalk,
-  resumeWalk,
-  useWalk,
-  walkNow,
-} from "@/aircraft/sr22t/walk-store";
-import { isPoh, NOT_MODELLED, TECHNIQUE_BADGE, WALK } from "@/aircraft/sr22t/walkaround";
-import { spotsPart } from "@/lib/spot";
-import { useView } from "@/lib/view";
+  mark: markStep,
+  open: openWalk,
+  resume: resumeWalk,
+  session: walkNow,
+} = walkController;
+const useWalk = walkController.store;
 
 /** Lettered POH items per station (POH 4-5 – 4-9), unchanged by the technique items. */
 const POH_COUNTS = [26, 8, 6, 3, 4, 3, 7, 4, 9, 7, 7, 4, 4];
@@ -61,7 +74,10 @@ const step = (id: string) => {
   if (!s) throw new Error(`no walk-around item ${id}`);
   return s;
 };
-const card = (s: Step) => renderToStaticMarkup(createElement(Item, { step: s, at: steps.indexOf(s), steps }));
+const card = (s: Step) =>
+  renderToStaticMarkup(
+    createElement(Item<typeof initialSim>, { controller: walkController, step: s, at: steps.indexOf(s), steps }),
+  );
 const FASTENER = "Front cowl fastener";
 
 beforeAll(() => {
@@ -219,7 +235,33 @@ describe("the front cowl fasteners behind the spinner (AMM 71-10)", () => {
     const spot = { names: stepParts(s).shown, side: stepSide(s) };
     for (const p of fasteners) expect(spotsPart(spot, p, p.geo(), CAT), p.id).toBe(true);
     expect(emphasisPoints(s)).toHaveLength(fasteners.length);
-    for (const other of steps) if (other !== s) expect(emphasisPoints(other), other.item.id).toEqual([]);
+    // the fasteners' halos keep the small size
+    for (const h of emphasisHalos(s)) expect(h.r).toBe(HALO_R);
+    // the only other emphasized items: the stall strips, too small for the wide view they need
+    const others = steps.filter((o) => o !== s && emphasisPoints(o).length).map((o) => o.item.id);
+    expect(others).toEqual(["7a", "11g"]);
+  });
+
+  it("puts a halo round each stall strip site on 7a and 11g, big enough to enclose the strip", () => {
+    for (const [id, side, label] of [
+      ["7a", 1, "Right"],
+      ["11g", -1, "Left"],
+    ] as const) {
+      const halos = emphasisHalos(step(id));
+      // the plain inboard strip and the porous one that replaces it share a site: two halos, inboard and outboard
+      expect(halos, id).toHaveLength(2);
+      for (const section of ["inboard", "outboard", "porous"]) {
+        const [{ box }] = nameInstances(`${label} ${section} stall strip`, side);
+        const h = halos.find((x) => box.containsPoint(x.p))!;
+        expect(h, `${id} ${section}`).toBeDefined();
+        expect(h.r).toBeGreaterThan(HALO_R);
+        // the halo sphere encloses the whole strip
+        for (const x of [box.min.x, box.max.x])
+          for (const y of [box.min.y, box.max.y])
+            for (const z of [box.min.z, box.max.z])
+              expect(h.p.distanceTo(new Vector3(x, y, z)), `${id} ${section}`).toBeLessThanOrEqual(h.r + 1e-9);
+      }
+    }
   });
 
   it("frames the fastener ring from in front of the spinner, looking aft, standing", () => {

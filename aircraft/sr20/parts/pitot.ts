@@ -21,12 +21,14 @@ part(
     ]),
   ["pitot"],
   {
+    id: "parts.pitot.pitot-mast.001",
     name: "Pitot mast",
     note: "L-shaped mast with integral heated pitot on LH wing just inboard of wingtip. Bracket, electrical connector and pitot line are accessible with the left wingtip removed (POH 11934-005 7-69; AMM 12137-002 Rev A1 34-10 pp. 1, 8, Fig 34-10-1 p. 20). Span, bracket shape and mast height approximate.",
     ext: true,
   },
 );
 part(() => cyl(0.011, PITOT_TIP_LEN, "x"), ["pitot"], {
+  id: "parts.pitot.heated-pitot-tube.002",
   pos: [PITOT_TIP.bend[0] + PITOT_TIP_LEN / 2, PITOT_TIP.bend[1], PITOT_Z],
   name: "Heated pitot tube",
   note: "3.6 in (91.4 mm) entry-tip length to bend, lower-forward drain hole 1.1 in (27.9 mm) aft of tip and upper-aft drain hole (AMM 12137-002 Rev A1 Fig 34-10-2 p. 21). 7.5 A PITOT HEAT breaker, NON-ESSENTIAL BUS; current sensor drives PITOT HEAT FAIL. PITOT HEAT REQD appears when heat is OFF below 5 °C (POH 11934-005 7-69–7-70).",
@@ -39,6 +41,8 @@ export const statR = fus(SPX);
 export const STATIC_PORT = (s: number): Vec3 => [SPX, statR.cy, s * statR.hw];
 [1, -1].forEach((s) =>
   part(() => cyl(0.025, 0.006, "z"), ["pitot"], {
+    instance: [s],
+    id: "parts.pitot.part.003",
     pos: STATIC_PORT(s),
     color: "#3A9448",
     name: "Static port (" + (s > 0 ? "R" : "L") + ")",
@@ -49,6 +53,7 @@ export const STATIC_PORT = (s: number): Vec3 => [SPX, statR.cy, s * statR.hw];
 );
 export const ALT_STATIC: Vec3 = [1.84, -0.3, -0.14];
 part(() => box(0.05, 0.05, 0.03), ["pitot"], {
+  id: "parts.pitot.alternate-static-valve.004",
   pos: ALT_STATIC,
   color: "#3A9448",
   name: "Alternate static valve",
@@ -66,6 +71,7 @@ const TRAP_SIZE = 0.05;
 const trapNote = (line: "pitot" | "static") =>
   `Low-point ${line} water trap with drain tube and plug, under cabin floor. Drain at annual inspection and when water is known or suspected (POH 11934-005 7-69). AMM 12137-002 Rev A1 34-10 ${line === "pitot" ? "p. 9 specifies CF2L" : "p. 1 specifies CF2L but p. 12 specifies CF3L"}; Fig 6-00-6 labels CF3R. Position and size schematic pending airframe confirmation.`;
 part(() => box(TRAP_SIZE, TRAP_SIZE, TRAP_SIZE), ["pitot"], {
+  id: "parts.pitot.pitot-water-trap.005",
   pos: TRAPS.pitot,
   color: "#3A9448",
   name: "Pitot water trap",
@@ -74,6 +80,7 @@ part(() => box(TRAP_SIZE, TRAP_SIZE, TRAP_SIZE), ["pitot"], {
 });
 export const STALL_INLET = toVec3(wingP(STALL_Z, 0, 0));
 part(() => sph(0.025), ["pitot"], {
+  id: "parts.pitot.stall-warning-inlet.006",
   pos: STALL_INLET,
   color: "#3A9448",
   name: "Stall warning inlet",
@@ -82,6 +89,7 @@ part(() => sph(0.025), ["pitot"], {
   ext: true,
 });
 part(() => sph(0.04), ["pitot"], {
+  id: "parts.pitot.low-pressure-peak.007",
   pos: toVec3(wingP(STALL_Z, 0.3, 1)),
   color: "#E0263B",
   anim: suctionAnim,
@@ -92,7 +100,10 @@ part(() => sph(0.04), ["pitot"], {
 /** RH wing, source corrected from previous left-wing photo interpretation; station/spacing approximate. */
 export const OAT_1 = toVec3(wingP(4.52, 0.45, -1));
 export const OAT_2 = toVec3(wingP(4.62, 0.45, -1));
-[OAT_1, OAT_2].forEach((pos, i) =>
+[
+  { key: "adahrs1", pos: OAT_1 },
+  { key: "adahrs2", pos: OAT_2 },
+].forEach(({ key, pos }, i) =>
   part(
     () =>
       tubeGeo(
@@ -104,6 +115,8 @@ export const OAT_2 = toVec3(wingP(4.62, 0.45, -1));
       ),
     ["pitot", "avionics"],
     {
+      id: "parts.pitot.part.008",
+      instance: key,
       pos,
       color: "#8C959C",
       name: `OAT sensor ${i + 1}`,
@@ -115,6 +128,7 @@ export const OAT_2 = toVec3(wingP(4.62, 0.45, -1));
   ),
 );
 part(() => box(TRAP_SIZE, TRAP_SIZE, TRAP_SIZE), ["pitot"], {
+  id: "parts.pitot.static-water-trap.009",
   pos: TRAPS.static,
   color: "#3A9448",
   name: "Static water trap",
@@ -122,6 +136,7 @@ part(() => box(TRAP_SIZE, TRAP_SIZE, TRAP_SIZE), ["pitot"], {
   pin: true,
 });
 part(() => box(TRAP_SIZE, TRAP_SIZE, TRAP_SIZE), ["pitot"], {
+  id: "parts.pitot.console-static-water-trap.010",
   pos: TRAPS.staticConsole,
   color: "#3A9448",
   name: "Console static water trap",
@@ -129,8 +144,13 @@ part(() => box(TRAP_SIZE, TRAP_SIZE, TRAP_SIZE), ["pitot"], {
   pin: true,
 });
 export const SUMPS: Vec3[] = [1, -1].map((s) => [SPX, statR.cy - 0.03, s * (statR.hw - 0.035)]);
-SUMPS.forEach((pos, i) =>
+[
+  { key: "right", pos: SUMPS[0] },
+  { key: "left", pos: SUMPS[1] },
+].forEach(({ key, pos }, i) =>
   part(() => cyl(0.012, 0.05), ["pitot"], {
+    id: "parts.pitot.part.011",
+    instance: key,
     pos,
     color: "#3A9448",
     name: `Static line sump (${i === 0 ? "R" : "L"})`,
@@ -140,12 +160,14 @@ SUMPS.forEach((pos, i) =>
 );
 export const STATIC_TEE: Vec3 = [AB - 0.03, 0.15, -0.17];
 part(() => cyl(0.012, 0.04, "z"), ["pitot"], {
+  id: "parts.pitot.static-bulkhead-tee.012",
   pos: STATIC_TEE,
   color: "#3A9448",
   name: "Static bulkhead tee",
   note: "Tee on aft cabin bulkhead at LH CAPS enclosure, centred between rivet holes; joins two port lines to forward static plumbing (AMM 12137-002 Rev A1 Fig 34-10-1 p. 19). Position and size approximate.",
 });
 part(() => cyl(0.03, 0.006, "z"), ["pitot"], {
+  id: "parts.pitot.alternate-static-knob.013",
   pos: [ALT_STATIC[0], ALT_STATIC[1], ALT_STATIC[2] - 0.018],
   color: "#2B2B2B",
   name: "Alternate static knob",
@@ -153,6 +175,7 @@ part(() => cyl(0.03, 0.006, "z"), ["pitot"], {
 });
 export const PITOT_HEAT_SENSOR: Vec3 = [1.72, -0.5, -0.2];
 part(() => box(0.03, 0.02, 0.02), ["pitot"], {
+  id: "parts.pitot.pitot-heat-current-sensor.014",
   pos: PITOT_HEAT_SENSOR,
   color: "#8C959C",
   name: "Pitot heat current sensor",
@@ -175,12 +198,14 @@ part(
     ),
   ["pitot"],
   {
+    id: "parts.pitot.pitot-heater-wiring.015",
     color: "#D9960F",
     name: "Pitot heater wiring",
     note: "7.5 A PITOT HEAT (NON-ESSENTIAL BUS) through current sensor to pitot mast heater; switch/current logic reports to Engine Airframe Unit (POH 11934-005 7-69–7-70, Fig 7-16 p. 7-72). Wire route and diameter schematic.",
   },
 );
 part(() => box(0.03, 0.004, 0.012), ["pitot"], {
+  id: "parts.pitot.pitot-mast-ground-strap.016",
   pos: [pitotBase.x + 0.03, pitotBase.y + 0.012, PITOT_Z],
   color: "#8C959C",
   name: "Pitot mast ground strap",
@@ -190,6 +215,7 @@ export const STALL_SWITCH: Vec3 = [1.4, -0.45, -0.11];
 export const STALL_CONNECTOR: Vec3 = [1.4, -0.45, -0.077];
 export const STALL_TRAP: Vec3 = [1.5, -0.625, 0.24];
 part(() => box(0.04, 0.03, 0.025), ["pitot"], {
+  id: "parts.pitot.stall-warning-pressure-switch.017",
   pos: STALL_SWITCH,
   color: "#3A9448",
   name: "Stall warning pressure switch",
@@ -197,12 +223,14 @@ part(() => box(0.04, 0.03, 0.025), ["pitot"], {
   pin: true,
 });
 part(() => box(0.025, 0.018, 0.016), ["pitot"], {
+  id: "parts.pitot.stall-switch-electrical-connector.018",
   pos: STALL_CONNECTOR,
   color: "#C8399F",
   name: "Stall switch electrical connector",
   note: "Electrical connector on electro-pneumatic pressure switch; interface to avionics aural warning/CAS (AMM 12137-002 Rev A1 Fig 27-31-1 p. 5 item 5; POH 11934-005 7-69). Position and size approximate.",
 });
 part(() => cyl(0.012, 0.035), ["pitot"], {
+  id: "parts.pitot.stall-warning-water-trap.019",
   pos: STALL_TRAP,
   color: "#3A9448",
   name: "Stall warning water trap",
@@ -222,11 +250,15 @@ export const DRAINS = {
 (["pitot", "static", "staticConsole", "stall"] as const).forEach((line) => {
   const label = { pitot: "Pitot", static: "Static", staticConsole: "Console static", stall: "Stall warning" }[line];
   part(() => tubeGeo(DRAINS[line].tube, 0.005), ["pitot"], {
+    id: "parts.pitot.part.020",
+    instance: [line],
     color: "#8C959C",
     name: `${label} drain tube`,
     note: `${label} low-point drain tube, ends at a removable plug. Length and route schematic (AMM 12137-002 Rev A1 ${line === "stall" ? "Fig 27-31-1 p. 5" : "34-10 pp. 9, 12, Fig 34-10-1 p. 19"}).`,
   });
   part(() => cyl(0.011, 0.022, "x"), ["pitot"], {
+    id: "parts.pitot.part.021",
+    instance: [line],
     pos: DRAINS[line].plug,
     color: "#D9960F",
     name: `${label} drain plug`,

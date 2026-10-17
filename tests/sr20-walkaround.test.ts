@@ -4,35 +4,37 @@ import "@/aircraft";
 import { initialSim, live, solve } from "@/aircraft/sr20/model";
 import { useSR20 } from "@/aircraft/sr20/store";
 import { simTick } from "@/aircraft/sr20/tick";
-import {
+import { walk } from "@/aircraft/sr20/walk";
+import { walkController } from "@/aircraft/sr20/walk-store";
+import { WALK } from "@/aircraft/sr20/walkaround";
+import { walkController as sr22tWalk } from "@/aircraft/sr22t/walk-store";
+import { useView } from "@/lib/view";
+const {
   inCatalogue,
   nameCentres,
   loadProgress,
   parseProgress,
-  PROGRESS_KEY,
+  progressKey: PROGRESS_KEY,
   saveProgress,
   simAt,
   stepParts,
   stepSide,
   walkParam,
-  walkSteps,
-} from "@/aircraft/sr20/walk";
-import {
-  beginWalk,
-  bootWalk,
-  closeWalk,
+} = walk;
+const {
+  begin: beginWalk,
+  boot: bootWalk,
+  close: closeWalk,
   goStep,
-  markStep,
-  openWalk,
-  resumeWalk,
-  useWalk,
-  walkNow,
-} from "@/aircraft/sr20/walk-store";
-import { WALK } from "@/aircraft/sr20/walkaround";
-import { openWalk as openSR22TWalk, closeWalk as closeSR22TWalk } from "@/aircraft/sr22t/walk-store";
-import { useView } from "@/lib/view";
+  mark: markStep,
+  open: openWalk,
+  resume: resumeWalk,
+  session: walkNow,
+} = walkController;
+const useWalk = walkController.store;
+const { open: openSR22TWalk, close: closeSR22TWalk } = sr22tWalk;
 
-const steps = walkSteps();
+const steps = walk.steps;
 const at = (id: string) => steps.findIndex((step) => step.item.id === id);
 const liveInitial = structuredClone(live);
 
@@ -54,7 +56,6 @@ beforeEach(() => {
     walking: false,
     cam: null,
     focus: null,
-    hover: null,
     spot: null,
     xray: true,
     labels: true,
@@ -101,15 +102,15 @@ describe("G6 source and catalogue coverage", () => {
     expect(nameCentres("Static port (L)", 1)).toEqual([]);
   });
   it("demonstrates BAT 2 alone before BAT 1, then leaves flaps extended with battery switches off", () => {
-    const bat2 = simAt(initialSim, steps, at("1c")),
+    const bat2 = simAt(initialSim, at("1c"), steps),
       e2 = solve(bat2);
     expect(e2.pfd).toBe(true);
     expect(e2.mfd).toBe(false);
     expect(e2.flapsPwr).toBe(false);
     expect(e2.ess1).toBeGreaterThanOrEqual(23);
     expect(e2.ess1).toBeLessThanOrEqual(25);
-    expect(solve(simAt(initialSim, steps, at("1g"))).flapsPwr).toBe(true);
-    const off = simAt(initialSim, steps, at("1s"));
+    expect(solve(simAt(initialSim, at("1g"), steps)).flapsPwr).toBe(true);
+    const off = simAt(initialSim, at("1s"), steps);
     expect(off.flaps.cmd).toBe(100);
     expect(solve(off).flapsPwr).toBe(false);
     expect(off.pitot.heat).toBe(false);

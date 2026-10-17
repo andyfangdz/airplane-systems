@@ -11,12 +11,14 @@ const PIT = "#3A9448";
 /** Pitot mast under the left wing, inboard of the strut: BL ≈ 65 scaled from both Figure 1-1 front views (the text gives no station); heated head centred near arm 28.0. */
 export const PITOT: Vec3 = wp(-65, 0.12, -1, -0.12);
 part(() => tubeGeo([wp(-65, 0.18, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2]]], 0.012), ["pitot"], {
+  id: "parts.pitot.pitot-mast.001",
   color: "#AEB6BC",
   name: "Pitot mast",
   note: "Under the left wing, inboard of the strut (POH 7-62; station scaled from Figure 1-1).",
   ext: true,
 });
 part(() => cyl(0.012, 0.26, "x"), ["pitot"], {
+  id: "parts.pitot.heated-pitot-head.002",
   pos: [PITOT[0] + 0.08, PITOT[1], PITOT[2]],
   color: "#AEB6BC",
   anim: glow("#AEB6BC", () => EL().pitotHeating, ["pitot"], "#FF6A2A"),
@@ -27,8 +29,15 @@ part(() => cyl(0.012, 0.26, "x"), ["pitot"], {
 });
 /** External static ports on both sides of the forward fuselage (POH 7-62); station not in the POH. */
 export const STATIC_PORTS: Vec3[] = [1, -1].map((s) => PV(onSkin(X(15), Y(44), s, 1.01)));
-STATIC_PORTS.forEach((p, i) =>
+(
+  [
+    ["right", STATIC_PORTS[0]],
+    ["left", STATIC_PORTS[1]],
+  ] as const
+).forEach(([port, p], i) =>
   part(() => cyl(0.014, 0.006, "z"), ["pitot"], {
+    id: "parts.pitot.static-port.003",
+    instance: [port],
     pos: p,
     color: PIT,
     name: "Static port",
@@ -38,6 +47,7 @@ STATIC_PORTS.forEach((p, i) =>
   }),
 );
 part(() => cyl(0.012, 0.03, "x"), ["pitot"], {
+  id: "parts.pitot.alt-static-air-valve.004",
   pos: P3(18.4, -4.6, KNOB.h),
   color: PIT,
   anim: pushPull(X(18.4), () => (S().pitot.altStatic ? 0 : 1), 0.03),
@@ -46,6 +56,7 @@ part(() => cyl(0.012, 0.03, "x"), ["pitot"], {
   pin: true,
 });
 part(() => cyl(0.006, 0.05), ["pitot", "avionics"], {
+  id: "parts.pitot.oat-probe-gtp-59.005",
   pos: [X(41.5), top(41.5, -4) + 0.022, Z(-4)],
   color: PIT,
   name: "OAT probe (GTP 59)",
@@ -57,6 +68,7 @@ part(() => cyl(0.006, 0.05), ["pitot", "avionics"], {
 export const STALL_VANE: Vec3 = wp(-92, 0.015, -1, 0);
 const vaneGlow = glow(PIT, () => live.horn, ["pitot"], "#FF5050");
 part(() => box(0.03, 0.006, 0.03), ["pitot"], {
+  id: "parts.pitot.stall-warning-vane.006",
   pos: STALL_VANE,
   color: PIT,
   anim: (m, t) => {
@@ -71,6 +83,7 @@ part(() => box(0.03, 0.006, 0.03), ["pitot"], {
 /** Source arm retained; approximate BL/height keep the horn inside the headliner above the left door. */
 export const STALL_HORN: Vec3 = P3(40, -18, 77);
 part(() => cyl(0.025, 0.05, "x"), ["pitot", "cabin"], {
+  id: "parts.pitot.stall-warning-horn.007",
   pos: STALL_HORN,
   color: PIT,
   anim: glow(PIT, () => live.horn, ["pitot", "cabin"], "#FF5050"),
@@ -79,6 +92,7 @@ part(() => cyl(0.025, 0.05, "x"), ["pitot", "cabin"], {
   pin: true,
 });
 part(() => sph(0.035), ["pitot"], {
+  id: "parts.pitot.stagnation-point.008",
   pos: wp(-92, 0.1, 1),
   color: "#E0263B",
   ext: true,
@@ -95,6 +109,7 @@ part(() => sph(0.035), ["pitot"], {
 /* ---------- vacuum system and standby attitude (POH 7-63, Figure 7-9) ---------- */
 const VAC = "#4FA8A0";
 part(() => cyl(0.04, 0.08, "x"), ["vacuum", "engine"], {
+  id: "parts.pitot.engine-driven-vacuum-pump.009",
   pos: P3(-5, 5.5, 47),
   color: VAC,
   anim: glow(VAC, () => S().vac.fail, ["vacuum", "engine"], "#E0263B"),
@@ -103,6 +118,7 @@ part(() => cyl(0.04, 0.08, "x"), ["vacuum", "engine"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.05), ["vacuum"], {
+  id: "parts.pitot.vacuum-regulator.010",
   pos: P3(2.1, 8, 56),
   color: VAC,
   name: "Vacuum regulator",
@@ -110,6 +126,7 @@ part(() => box(0.06, 0.05, 0.05), ["vacuum"], {
   pin: true,
 });
 part(() => cyl(0.04, 0.05), ["vacuum"], {
+  id: "parts.pitot.vacuum-system-air-filter.011",
   pos: P3(11.5, 3, 58.5),
   color: "#C9D6D4",
   name: "Vacuum system air filter",
@@ -117,6 +134,7 @@ part(() => cyl(0.04, 0.05), ["vacuum"], {
   pin: true,
 });
 part(() => box(0.03, 0.03, 0.03), ["vacuum"], {
+  id: "parts.pitot.vacuum-transducer.012",
   pos: P3(8.5, 6, 54),
   color: VAC,
   name: "Vacuum transducer",
@@ -124,6 +142,7 @@ part(() => box(0.03, 0.03, 0.03), ["vacuum"], {
   pin: true,
 });
 part(() => tubeGeo([P3(-5, 5.5, 44.5), P3(-6, 6, 32), P3(-6, 7, 23.2)], 0.008), ["vacuum"], {
+  id: "parts.pitot.vacuum-pump-overboard-vent-line.013",
   color: VAC,
   name: "Vacuum pump overboard vent line",
   note: "Pump discharge air goes overboard (Fig. 7-9).",

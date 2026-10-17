@@ -55,6 +55,7 @@ export const DOOR_STRUTS = [-1, 1].map((side, index) => {
     fixed = new Vector3(...doorHardwarePoint(1.85, 0.05, side, 0.12));
   const moving = new Vector3(...doorHardwarePoint(1.48, -0.03, side, 0.045));
   return telescopingStrut(CAT, {
+    id: `door.${door.key}.strut`,
     name: "Cabin door gas strut",
     note: "Gas-charged strut between the fixed forward bracket and moving door (POH 7-33; AMM 52-10 Fig 52-10-1). Barrel, rod, ball joints and travel are illustrative; attachment points remain connected throughout opening.",
     sys: ["doors", "cabin"],

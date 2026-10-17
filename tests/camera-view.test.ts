@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyCameraPreset, aircraft, FLEET, loaded, selectAircraft, sysOf } from "@/aircraft";
+import { applyCameraPreset, aircraft, FLEET, selectAircraft, sysOf } from "@/aircraft";
 import { airplaneBounds, CAMERA_PRESETS, parseCameraPreset, viewPresetCamera } from "@/lib/camera";
 import { useView } from "@/lib/view";
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
@@ -33,7 +33,7 @@ describe("URL preset focus selection", () => {
     useSR22T.getState().update((s) => {
       s.capsOn = true;
     });
-    const [p, t] = loaded("sr22t")!.resetCam!()!;
+    const [p, t] = aircraft("sr22t").resetCam!()!;
     applyCameraPreset("side");
     expect(useView.getState().cam).toMatchObject({ p, t, preset: "side" });
   });

@@ -20,6 +20,7 @@ engines/
     trim.ts       settle(): hold a manifold pressure, rpm or λ while the engine runs (pages and tests)
     scenarios.ts  "Start from" setups for the page
     alerts.ts     Limit flags from the spec's limits, or from its POH markings with the POH's CAS names
+    tit.ts        Turbocharged engine TIT peak from the model's cylinder work and probe laws
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
   o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md
   tsio550k/       Continental TSIO-550-K (turbocharged, the Cirrus SR22T's): spec.ts, its own Start-from setups
@@ -37,16 +38,17 @@ order), each component's model and `SOURCES.md` sit in `engines/components/<id>/
 uses too: `ComponentStage` (canvas, lights, orbit controls and hover tip; the page gives the camera and target),
 `useSimLoop` and `createViewStore` (`components/engine/sim.ts`), `ViewToggles` (`chrome.tsx`) and `f0`
 (`lib/format.ts`). Adding one: an entry in `COMPONENTS`, one in `ComponentPage`'s `PAGES` (typed by `ComponentId`, so
-the two can't drift), and the id in `COMPONENT_IDS` in `infra/cloudfront/view-rewrite.js`.
+the two can't drift), then run `npm run fleet:generate` to write `infra/cloudfront/view-rewrite.js` and its
+CloudFormation copy in `infra/aws/site.json`. `npm run fleet:check` catches stale copies.
 
 ## Adding an engine
 
 1. Make `engines/<id>/spec.ts` exporting an `EngineSpec`, and a `SOURCES.md` beside it. Published numbers cite the
    document and page; chart values say how they were read. Put anything the documents don't give in `calibration` (or
    the marked propeller fields) and say so.
-2. Add it to `ENGINES` in `engines/index.ts` and to `ENGINE_IDS` in `infra/cloudfront/view-rewrite.js` and in that
-   Function's copy in `infra/aws/site.json` (`ViewRewrite.FunctionCode`, the file byte for byte). Tests check both
-   copies.
+2. Add it to `ENGINES` in `engines/index.ts`, then run `npm run fleet:generate` to write
+   `infra/cloudfront/view-rewrite.js` and its CloudFormation copy in `infra/aws/site.json`.
+   `npm run fleet:check` catches stale copies.
 3. Calibrate against the manufacturer's numbers, then write tests named after them in `tests/` (see
    `tests/io390-engine.test.ts`, `tests/o360-engine.test.ts`): rated power at full throttle, cruise fuel flows, idle,
    magneto drop, limits in a climb.
@@ -55,8 +57,9 @@ the two can't drift), and the id in `COMPONENT_IDS` in `infra/cloudfront/view-re
 The model reads the spec only, so a new engine of a kind already modelled (air-cooled, injected or float-carbureted,
 constant-speed propeller) needs no model changes: `fuelSystem.kind` picks the injector or the carburetor, and
 `fuelFlow.kind` takes either a fuel-flow chart or, when the manual has none, a specific consumption from a cruise point.
-A turbocharged or fixed-pitch engine needs those pieces added to `model/` behind a spec field, keeping the existing
-engines' behaviour (their tests guard it).
+Turbocharged engines use the spec's `turbo` fields for the compressors, intercoolers, wastegate and TIT probes. A new
+engine kind needs its pieces added to `model/` behind a spec field, keeping the existing engines' behaviour (their tests
+guard it).
 
 The 3D scene is shared and its part notes cite the IO-390's manual; an engine's `parts` replaces a part's name and note
 with its own manual's words (keyed by the default name, numbers written `#`), and `modelNotes` is its "How the model
@@ -68,3 +71,27 @@ works" text.
 - The zustand hook on `EngineSim` is `useUi`. Don't name a hook property plain `use`: React Compiler treats
   `x.use(...)` as React's conditional `use()` and memoizes around it, which breaks the hook order.
 - Temperatures can run faster than real time (`thermal`); the shaft, governor and fuel always run at real time.
+
+## Runtime ownership and composition
+
+`createEngineSimulation(spec)` in `components/engine/store.ts` creates an independent engine session. It owns the
+mutable engine state, controls, failures, animation angle and a fixed 120 Hz clock. `simFor(spec, key)` retains those
+sessions for routes; it is a cache, not the physics API. `advance(elapsed)` consumes elapsed time on the owned clock,
+with at most half a second of catch-up per frame. Pausing preserves the remainder. `checkpoint()` / `restore()` and
+`fork()` copy at explicit boundaries; `serialize()` / `restoreSerialized()` also preserve infinite mixture ratios.
+`dispose()` cancels this session's scenario job, removes its cache entry and clears its step listeners. Disposed
+sessions reject further simulation work.
+
+Scenario worker replies belong to a request and its session. Starting or canceling one engine's setup leaves other
+sessions alone; worker failure falls back for every pending owner. Transport errors also clear the loading state.
+
+Accessories compose at `subscribeSteps(listener)`: the carburetor pump and primer run after each engine step using
+that step's exact duration, and unmounting unregisters the listener. The governor and SureFly bench own separate
+120 Hz clocks. Route frame loops drive these clocks independently of canvas rendering. Low-level model functions
+remain directly step-able for source-based tests.
+
+Mixture units are explicit: the Cessna illustrative curves use fuel equivalence ratio **φ** (rich above 1), while the
+detailed engine kernel uses excess-air ratio **λ** (lean above 1). `model/mixture-units.ts` defines the reciprocal
+conversion and the mass-flow boundary. These unit conversions do not change either model's source calibration.
+The fleet keeps its installed-aircraft teaching models; sharing a clock or an engine type does not make distinct
+installation, governor and failure assumptions interchangeable.

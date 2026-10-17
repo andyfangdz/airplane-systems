@@ -1,80 +1,36 @@
 #!/usr/bin/env bash
-# Optional: deploys the site as static files to S3 + CloudFront from this machine, with your own AWS CLI credentials,
-# to a stack created from infra/aws/site.json. It never builds your working tree: it builds a clean static export
-# (STATIC_EXPORT=1) of a commit of origin/main, so the deployed files are exactly that commit's tree.
+# Promote a verified CI static release to S3 + CloudFront. No dependency install or build runs during deployment.
+# Download release-<sha> from a successful main CI run and copy its manifest SHA256 from that run's summary.
 #
-# Configuration (no account, bucket or host is built in):
-#   DEPLOY_AWS_ACCOUNT=<12-digit id>   required (or --account): the AWS account the stack lives in; any other refuses
-#   DEPLOY_AWS_REGION=<region>         required (or --region, or AWS_REGION): the stack's and the bucket's region
+#   DEPLOY_AWS_ACCOUNT=<12 digits> DEPLOY_AWS_REGION=<region> npm run deploy:aws -- \
+#     --artifact <downloaded-directory> --manifest-sha256 <CI checksum>
+#   Add --rollback-to <main-sha> to promote an older retained release without rebuilding it.
 #
-#   scripts/deploy-aws.sh                        deploy main's tip, freshly fetched
-#   scripts/deploy-aws.sh --rollback-to <sha>    deploy an earlier main commit (see Rollback below)
+# Options:
+#   --artifact <directory>       sealed static files [DEPLOY_RELEASE_DIR]
+#   --manifest-sha256 <digest>    independently recorded CI manifest digest [DEPLOY_RELEASE_SHA256]
+#   --account <id>               expected account [DEPLOY_AWS_ACCOUNT]
+#   --region <region>            stack region [DEPLOY_AWS_REGION, else AWS_REGION]
+#   --stack <name>               CloudFormation stack [airplane-systems-site]
+#   --rollback-to <sha>          commit in origin/main's first-parent history
+#   -h, --help                   print this header
 #
-# Options (defaults in brackets):
-#   --account <id>           the expected AWS account id [$DEPLOY_AWS_ACCOUNT]
-#   --stack <name>           CloudFormation stack holding the site [airplane-systems-site]
-#   --region <region>        the stack's and the bucket's region [$DEPLOY_AWS_REGION, else $AWS_REGION]
-#   --rollback-to <sha>      deploy <sha>, a commit on origin/main's first-parent history, instead of main's tip
-#   -h, --help               print this header
+# Account, fetched-main, history-override, clean export and LIVE Function guards run before publication.
+# The copied artifact must match the supplied digest, every file checksum, source commit/tree and lockfile,
+# and record a clean source tree and the source's pinned Node/npm toolchain. Never source the expected digest from the artifact itself.
+# CI only publishes release-<sha> after every required test succeeds; checksums prove byte integrity, not test success.
 #
-# Steps, in order; each refuses (exits) before anything later runs:
-#   1. `aws sts get-caller-identity` must report the expected account.
-#   2. Git: no inherited GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_REPLACE_REF_BASE, GIT_GRAFT_FILE,
-#      GIT_CONFIG_PARAMETERS, GIT_CONFIG_COUNT, GIT_TEMPLATE_DIR or similar variable. Every git call then runs with
-#      replace objects, grafts files and the commit-graph cache ignored (GIT_NO_REPLACE_OBJECTS=1,
-#      GIT_GRAFT_FILE=/dev/null, core.commitGraph=false), no system or user gitattributes (GIT_ATTR_NOSYSTEM=1,
-#      core.attributesFile=/dev/null, core.autocrlf=false) and hooks off (core.hooksPath=/dev/null).
-#      main is fetched explicitly into origin/main (`git fetch origin +refs/heads/main:refs/remotes/origin/main`,
-#      whatever remote.origin.fetch says); any refs/replace/ ref, info/grafts or info/attributes file refuses. The
-#      deployed commit is origin/main, or the --rollback-to <sha> on its first-parent history (a commit main itself
-#      pointed at). Any git error, including a missing remote main, refuses.
-#      Working-tree state only WARNS, on stderr and in "warnings": HEAD not the deployed commit, local changes or
-#      untracked files, assume-unchanged or skip-worktree entries, sparse checkout. None of it is deployed.
-#   3. `git archive` exports the commit into a scratch directory. Every exported file is hashed with
-#      `git hash-object --no-filters` and, with its mode, must list exactly as `git ls-tree -r <commit>` (submodules
-#      aside): the export is the commit's bytes, or the script refuses (exit 4). In deploy mode, a working-tree copy
-#      of this script that differs from the commit's warns. In rollback mode, the running script must match
-#      freshly fetched main.
-#      The bucket, distribution id and domain are then read from the stack outputs BucketName, DistributionId and
-#      DistributionDomainName.
-#   4. The viewer-request Function associated with that distribution's default cache behavior (read from
-#      `aws cloudfront get-distribution-config`, never from an option) must exist, and its LIVE stage must equal the
-#      commit's infra/cloudfront/view-rewrite.js byte for byte and not be a PLACEHOLDER (which would 404
-#      every /<aircraft>/<view> path). The commit must have scripts/smoke.mjs.
-#   5. In the export: `npm ci` and `STATIC_EXPORT=1 npm run build` (static export to out/).
-#   6. Upload the export's out/ without ever deleting (aws s3 sync/cp, no delete flag):
-#      pass 1, out/_next/static/ with "public, max-age=31536000, immutable" (.woff2, .js and .css each typed in
-#      its own sync, since SecurityHeadersPolicy sends nosniff);
-#      pass 2, unconditionally copy everything else (HTML, RSC .txt, icon.svg) with "public, max-age=60".
-#   7. One CloudFront invalidation of "/*" (the HTML at every view path; the hashed assets it also covers are
-#      unchanged), then `aws cloudfront wait invalidation-completed`.
-#   8. The commit's `node scripts/smoke.mjs https://<domain>`.
-# The scratch directory (${TMPDIR:-/tmp}/deploy-aws.XXXXXX) is removed on every exit.
+# Upload immutable JS and geometry first to shared root asset paths, then the entire short-cache release beneath
+# releases/<commit>-<manifest-sha256>/. Activate with an ETag-conditional CloudFront origin-path change, wait for
+# propagation, invalidate short-lived paths, then run the source commit's smoke. A failed upload cannot activate.
+# Apply the current CloudFormation template first: immutable assets use a separate root origin.
+# No objects are deleted. See infra/cloudfront/README.md for release retention and rollback.
 #
-# Output: one JSON object on stdout, always (except --help):
-#   { "ok", "exit_code", "step", "error", "mode", "commit", "account", "region", "stack", "bucket",
-#     "distribution_id", "site_url", "invalidation_id", "smoke", "warnings" }
-# "commit" is the deployed commit; "smoke" is the smoke script's own JSON summary, or null; "warnings" lists the
-# working-tree warnings; "exit_code" always equals the process exit code. The summary is encoded by node's
-# JSON.stringify; if node fails, a fixed fallback with "step": "summary" is printed and a would-be success exits 1.
-# A failure to remove the scratch directory only warns on stderr; it never changes the exit code. Progress and
-# diagnostics go to stderr.
-#
-# Exit codes:
-#   0 deployed and smoke-tested    5 stack outputs missing           9 invalidation failed
-#   1 unexpected error             6 CloudFront Function not ready 10 smoke test failed
-#   2 bad usage                    7 npm ci or build failed
-#   3 wrong or unknown AWS account 8 upload failed
-#   4 git guard or clean export refused
-#
-# Rollback: production is whatever the last run uploaded, so roll back by deploying an earlier main commit; no
-# checkout is needed, from any up-to-date checkout of main:
-#   git fetch origin && git log --first-parent --oneline origin/main     pick the last good commit <sha>
-#   scripts/deploy-aws.sh --rollback-to <sha>
-# A commit without the static export, the Function file or the smoke script cannot be deployed; fix forward instead.
-# Threat model: this guards against accidental, misconfigured and ordinary-tooling states; an attacker who can write
-# your git config, the repository's .git, the environment or this script is out of scope.
-# Deploys never delete, so the newer build's hashed files stay in the bucket, harmlessly.
+# stdout: one JSON outcome object (except --help); diagnostics: stderr.
+# Exit codes: 0 success, 1 unexpected, 2 usage, 3 account, 4 git/export, 5 stack, 6 Function,
+#             7 artifact verification, 8 upload, 9 activation/invalidation, 10 smoke.
+# Threat model: accidental/misconfigured tooling; an attacker controlling git config, local scripts or the
+# independently supplied artifact digest is outside this local promotion tool's trust boundary.
 set -euo pipefail
 
 EXPECTED_ACCOUNT="${DEPLOY_AWS_ACCOUNT:-}"
@@ -82,7 +38,13 @@ readonly HASHED_CACHE="public, max-age=31536000, immutable"
 # Hashed-asset extensions uploaded with an explicit Content-Type, not the CLI's guess: the managed SecurityHeadersPolicy
 # sends X-Content-Type-Options: nosniff, so a mistyped script or stylesheet would not load.
 # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-response-headers-policies.html#managed-response-headers-policies-security
-readonly TYPED_ASSETS=("woff2:font/woff2" "js:text/javascript" "css:text/css")
+# Keep this table in agreement with release-manifest.mjs contentType(); deploy-aws.test.ts checks every entry.
+readonly TYPED_ASSETS=(
+  "woff2:font/woff2" "js:text/javascript" "css:text/css"
+  "html:text/html; charset=utf-8" "json:application/json" "txt:text/plain; charset=utf-8"
+  "svg:image/svg+xml" "png:image/png" "ico:image/x-icon"
+  "webmanifest:application/manifest+json" "glb:model/gltf-binary"
+)
 readonly SHORT_CACHE="public, max-age=60"
 readonly FUNCTION_FILE="infra/cloudfront/view-rewrite.js"
 readonly SMOKE_SCRIPT="scripts/smoke.mjs"
@@ -91,6 +53,9 @@ readonly INVALIDATION_PATHS="/*"
 
 STACK="airplane-systems-site"
 REGION="${DEPLOY_AWS_REGION:-${AWS_REGION:-}}"
+ARTIFACT="${DEPLOY_RELEASE_DIR:-}"
+MANIFEST_SHA256="${DEPLOY_RELEASE_SHA256:-}"
+RELEASE_ID=""
 ROLLBACK_TO=""
 MODE="deploy"
 STEP="args"
@@ -103,6 +68,7 @@ BUCKET=""
 DIST_ID=""
 DOMAIN=""
 INVALIDATION_ID=""
+ACTIVATION_ETAG=""
 SMOKE_JSON=""
 SUMMARY_DONE=0
 EXIT_CODE=""
@@ -184,11 +150,13 @@ parse_args() {
         EXIT_CODE=0
         exit 0
         ;;
-      --account | --stack | --region | --rollback-to)
+      --account | --stack | --region | --rollback-to | --artifact | --manifest-sha256)
         if [[ $# -lt 2 || -z "$2" || "$2" == -* ]]; then
           fail 2 "$1 needs a value; run scripts/deploy-aws.sh --help for usage"
         fi
         case "$1" in
+          --artifact) ARTIFACT=$2 ;;
+          --manifest-sha256) MANIFEST_SHA256=$2 ;;
           --account) EXPECTED_ACCOUNT=$2 ;;
           --stack) STACK=$2 ;;
           --region) REGION=$2 ;;
@@ -208,6 +176,10 @@ parse_args() {
   if [[ -z "$REGION" ]]; then
     fail 2 "set DEPLOY_AWS_REGION (or --region) to the stack's region, e.g. us-east-1"
   fi
+  if [[ ! -d "$ARTIFACT" || ! "$MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+    fail 2 "supply --artifact <directory> and --manifest-sha256 <checksum from successful CI>; see --help"
+  fi
+  ARTIFACT=$(cd "$ARTIFACT" && pwd -P)
 }
 
 check_account() {
@@ -448,9 +420,10 @@ has_placeholder() {
 
 # The name of the viewer-request Function on the distribution's default cache behavior, or nothing.
 associated_function() {
-  aws cloudfront get-distribution-config --id "$DIST_ID" \
-    --query "DistributionConfig.DefaultCacheBehavior.FunctionAssociations.Items[?EventType=='viewer-request'].FunctionARN | [0]" \
-    --output text
+  node -e '
+    const config = JSON.parse(require("fs").readFileSync(process.argv[1])).DistributionConfig;
+    console.log(config?.DefaultCacheBehavior?.FunctionAssociations?.Items?.find(item => item.EventType === "viewer-request")?.FunctionARN ?? "");
+  ' "$TMP_DIR/distribution.json"
 }
 
 check_function() {
@@ -463,6 +436,11 @@ check_function() {
     fail 6 "$FUNCTION_FILE in commit $COMMIT is still a placeholder; commit the real Function first"
   fi
   local arn name live="$TMP_DIR/live-function.js"
+  # Capture the configuration before uploads. Activation must still match this ETag, so an overlapping promotion
+  # cannot silently replace a release that completed while this one was uploading.
+  if ! aws cloudfront get-distribution-config --id "$DIST_ID" --output json > "$TMP_DIR/distribution.json"; then
+    fail 6 "cannot read distribution configuration before release preparation"
+  fi
   if ! arn=$(associated_function); then
     fail 6 "cannot read the config of distribution $DIST_ID (aws cloudfront get-distribution-config); check your access"
   fi
@@ -485,15 +463,18 @@ check_function() {
   log "LIVE Function '$name' of distribution $DIST_ID matches $FUNCTION_FILE"
 }
 
-# Builds the clean export; from here on the working directory is SRC, so out/ is the export's build.
-build_site() {
-  STEP="build"
-  if ! cd "$SRC"; then fail 7 "cannot enter the export $SRC"; fi
-  if ! npm ci >&2; then fail 7 "npm ci failed; see the npm output above"; fi
-  if ! STATIC_EXPORT=1 npm run build >&2; then fail 7 "STATIC_EXPORT=1 npm run build failed; see the build output above"; fi
-  if [[ ! -f out/index.html || ! -d out/_next/static ]]; then
-    fail 7 "the build wrote no out/index.html or out/_next/static; does this commit's next.config.ts support STATIC_EXPORT=1?"
+# Copy first, then verify the private snapshot used for every upload (no build, and no mutable caller directory).
+prepare_release() {
+  STEP="artifact"
+  if ! mkdir "$SRC/out" || ! cp -R "$ARTIFACT/." "$SRC/out/"; then fail 7 "cannot snapshot the release artifact"; fi
+  local tree lock
+  tree=$(git rev-parse "$COMMIT^{tree}") || fail 7 "cannot resolve source tree"
+  lock=$(node -e 'const fs=require("fs"),c=require("crypto"); console.log(c.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"))' "$SRC/package-lock.json") || fail 7 "cannot read source lockfile"
+  if ! node "$SRC/scripts/release-manifest.mjs" verify "$SRC/out" "$MANIFEST_SHA256" "$COMMIT" "$tree" "$lock" >&2; then
+    fail 7 "release artifact verification failed; download the successful CI release and its independently recorded checksum"
   fi
+  RELEASE_ID="$COMMIT-$MANIFEST_SHA256"
+  if ! cd "$SRC"; then fail 7 "cannot enter the verified source export"; fi
 }
 
 upload() {
@@ -503,7 +484,7 @@ upload() {
   local typed excludes=()
   for typed in "${TYPED_ASSETS[@]}"; do excludes+=(--exclude "*.${typed%%:*}"); done
   if ! aws s3 sync out/_next/static "$dest/_next/static" --region "$REGION" --no-progress \
-    "${excludes[@]}" --cache-control "$HASHED_CACHE" >&2; then
+    "${excludes[@]}" --content-type application/octet-stream --cache-control "$HASHED_CACHE" >&2; then
     fail 8 "uploading the hashed assets failed; nothing was deleted, fix the cause and rerun"
   fi
   for typed in "${TYPED_ASSETS[@]}"; do
@@ -512,10 +493,41 @@ upload() {
       fail 8 "uploading the .${typed%%:*} assets failed; nothing was deleted, fix the cause and rerun"
     fi
   done
-  log "pass 2: out -> $dest, except _next/static ($SHORT_CACHE)"
-  if ! aws s3 cp out "$dest" --recursive --region "$REGION" --no-progress \
-    --exclude "_next/static/*" --cache-control "$SHORT_CACHE" >&2; then
-    fail 8 "uploading the HTML failed; the new hashed assets are up but harmless, fix the cause and rerun"
+  log "pass 2: hashed geometry -> $dest/geometry ($HASHED_CACHE)"
+  if ! aws s3 sync out/geometry "$dest/geometry" --region "$REGION" --no-progress \
+    --exclude "*" --include "*-????????????????????.bin.gz" --content-type application/octet-stream --cache-control "$HASHED_CACHE" >&2; then
+    fail 8 "uploading immutable geometry failed; the active release is unchanged"
+  fi
+  if ! aws s3 sync out/geometry "$dest/geometry" --region "$REGION" --no-progress \
+    --exclude "*" --include "*-????????????????????.scene.json" --content-type application/json --cache-control "$HASHED_CACHE" >&2; then
+    fail 8 "uploading immutable scene metadata failed; the active release is unchanged"
+  fi
+  if ! aws s3 sync out/geometry "$dest/geometry" --region "$REGION" --no-progress \
+    --exclude "*" --include "*-????????????????????.js" --content-type text/javascript --cache-control "$HASHED_CACHE" >&2; then
+    fail 8 "uploading immutable geometry recovery code failed; the active release is unchanged"
+  fi
+  log "pass 3: short-cache release -> $dest/releases/$RELEASE_ID"
+  if ! aws s3 cp out "$dest/releases/$RELEASE_ID" --recursive --region "$REGION" --no-progress \
+    --exclude "_next/static/*" --exclude "geometry/*-????????????????????.bin.gz" --exclude "geometry/*-????????????????????.scene.json" --exclude "geometry/*-????????????????????.js" --cache-control "$SHORT_CACHE" >&2; then
+    fail 8 "uploading the release failed; the active release is unchanged"
+  fi
+}
+
+prepare_activation() {
+  STEP="activate"
+  if ! ACTIVATION_ETAG=$(node "$SRC/scripts/activate-release.mjs" "$TMP_DIR/distribution.json" "$RELEASE_ID" "$TMP_DIR/activated.json"); then
+    fail 9 "release activation refused; apply the current CloudFormation template and retry"
+  fi
+}
+
+activate() {
+  STEP="activate"
+  if ! aws cloudfront update-distribution --id "$DIST_ID" --if-match "$ACTIVATION_ETAG" \
+    --distribution-config "file://$TMP_DIR/activated.json" > /dev/null; then
+    fail 9 "conditional release activation failed; another update may have changed the distribution, inspect it before retrying"
+  fi
+  if ! aws cloudfront wait distribution-deployed --id "$DIST_ID"; then
+    fail 9 "release activation was submitted but propagation did not complete; inspect the distribution"
   fi
 }
 
@@ -539,7 +551,7 @@ invalidate() {
 smoke() {
   STEP="smoke"
   local out code=0
-  out=$(node "$SMOKE_SCRIPT" "https://$DOMAIN") || code=$?
+  out=$(node "$SMOKE_SCRIPT" "https://$DOMAIN" "$MANIFEST_SHA256") || code=$?
   # keep the smoke summary only if it is one JSON value, compacted, so stdout stays a single valid object
   if ! SMOKE_JSON=$(printf '%s' "$out" | node -e \
     'process.stdout.write(JSON.stringify(JSON.parse(require("fs").readFileSync(0, "utf8"))))' 2>/dev/null); then
@@ -567,8 +579,10 @@ main() {
   export_commit
   read_stack
   check_function
-  build_site
+  prepare_release
+  prepare_activation
   upload
+  activate
   invalidate
   smoke
   STEP="done"

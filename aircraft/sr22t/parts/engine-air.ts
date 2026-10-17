@@ -40,6 +40,7 @@ import {
   cylExhaust,
   cylIntake,
   GATE_CONTROLLER,
+  GATE_CONTROLLER_SIZE,
   HEAT_X,
   THROTTLE,
   THROTTLE_LEN,
@@ -251,27 +252,43 @@ const deckTapAt = (out: number): Vec3 =>
     .toArray() as Vec3;
 /** The fitting's outer face, where the upper-deck hose starts. */
 export const UPPER_DECK_TAP: Vec3 = deckTapAt(UPPER_DECK_FITTING_LEN - 0.002);
+/** The controller box's faces (engine.ts GATE_CONTROLLER, GATE_CONTROLLER_SIZE): the sensing hoses land on its top
+ * face, the oil hoses on its forward face. */
+const CONTROLLER_TOP_Y = GATE_CONTROLLER[1] + GATE_CONTROLLER_SIZE[1] / 2;
+const CONTROLLER_FRONT_X = GATE_CONTROLLER[0] + GATE_CONTROLLER_SIZE[0] / 2;
 /** Upper-deck reference run (the `deckRef` flow and its drawn hose): from the throttle body fitting, in one straight
  * run above the ignition harness, left of the spider and the magneto pressurization line, inboard of the A/C compressor
- * head; then right across the centreline over the magneto P-lead risers, aft to the firewall and down onto the
- * controller's top face (its box is 0.06 m tall, engine.ts). Corners approximate, under the cowl. */
+ * head; then left and down over the compressor body under the cowl, aft of its head, down outboard of it, outboard
+ * along the firewall bay forward of the oil separator and over the Master Control Unit's heat shield, and aft and down
+ * onto the outboard half of the controller's top face at the left rear. Corners approximate. */
 export const UPPER_DECK_LINE: Vec3[] = [
   UPPER_DECK_TAP,
   [2.75, 0.172, -0.1085], // approximate
-  [2.69, 0.184, GATE_CONTROLLER[2]], // approximate
-  [GATE_CONTROLLER[0], 0.184, GATE_CONTROLLER[2]], // approximate
-  [GATE_CONTROLLER[0], GATE_CONTROLLER[1] + 0.03, GATE_CONTROLLER[2]], // the box's top face, approximate
+  [2.725, 0.166, -0.2], // approximate
+  [2.703, 0.15, -0.262], // approximate
+  [2.703, 0.055, -0.262], // approximate
+  [2.703, 0.055, -0.43], // approximate
+  [2.703, 0.045, -0.452], // approximate
+  [2.632, 0.045, -0.452], // approximate
+  [2.632, CONTROLLER_TOP_Y, -0.452], // the box's top face, outboard half; approximate
 ];
 /** Aft end cap of the manifold, 4 mm thick inside the drawn tube's end: the manifold pressure fitting is on it.
  * Approximate. */
 export const MANIFOLD_CAP_T = 0.004;
 const MANIFOLD_END = INTAKE_MANIFOLD_PATH[INTAKE_MANIFOLD_PATH.length - 1];
-/** Manifold pressure line: down out of the controller's underside, forward of the A/C belt plane and inboard of the belt
- *, left under the magneto P-leads and outboard of the left one's riser, between the two magnetos
+/** Manifold pressure line: up out of the inboard half of the controller's top face, inboard along the firewall bay aft
+ * of and below the upper-deck line, up outboard of the A/C compressor and over its body aft of the upper-deck line, down inboard of it and forward of
+ * the A/C belt plane, left under the magneto P-leads and outboard of the left one's riser, between the two magnetos
  * below their pressurization lines, aft of the harness caps, into a fitting on the manifold's aft end cap. Approximate. */
 export const MANIFOLD_PRESSURE_LINE: Vec3[] = [
-  [GATE_CONTROLLER[0] + 0.02, GATE_CONTROLLER[1] - 0.03, GATE_CONTROLLER[2] - 0.03],
-  [2.69, 0.09, -0.035], // approximate
+  [2.645, CONTROLLER_TOP_Y, -0.418], // the box's top face, inboard half; approximate
+  [2.645, 0.045, -0.418], // approximate
+  [2.685, 0.045, -0.418], // approximate
+  [2.685, 0.045, -0.262], // approximate
+  [2.685, 0.15, -0.262], // approximate
+  [2.685, 0.168, -0.17], // approximate
+  [2.69, 0.15, -0.07], // approximate
+  [2.69, 0.09, -0.04], // approximate
   [2.74, 0.055, -0.015],
   [MANIFOLD_END[0] - MANIFOLD_CAP_T, MANIFOLD_END[1] + 0.01, -0.012], // fitting station on the cap, approximate
 ];
@@ -459,6 +476,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.engine-air.induction-y-junction.001",
     name: "Induction Y junction",
     pos: INDUCTION_Y,
     color: INDUCTION_COLOR,
@@ -475,6 +493,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.engine-air.intake-manifold.002",
     name: "Intake manifold",
     pos: INTAKE_MANIFOLD,
     color: INDUCTION_COLOR,
@@ -484,6 +503,7 @@ part(
 );
 // Second inlet arm of the Y; one named assembly, no extra label over the turbo group.
 part(() => tubeGeo([INDUCTION_Y_INLET(1), INDUCTION_Y], INDUCTION_Y_R), ["engine"], {
+  id: "parts.engine-air.part.003",
   color: INDUCTION_COLOR,
   groups: ["induction"],
 });
@@ -512,6 +532,8 @@ for (const s of [-1, 1])
   for (const i of [0, 1] as const) {
     const span = duct7Span(s, i);
     part(() => new THREE.TubeGeometry(span, 40, DUCT7_R, 8, false), ["engine"], {
+      id: "parts.engine-air.intercooler-outlet-duct.004",
+      instance: [i === 0 ? "outboard" : "front", s],
       name: "Intercooler outlet duct",
       color: INDUCTION_COLOR,
       note:
@@ -558,6 +580,8 @@ for (const s of [-1, 1])
     const joint = duct7Joint(s, j),
       where = (s < 0 ? "LH" : "RH") + (j ? ' duct 7 at the "Y" inlet' : " duct 7 at the intercooler neck");
     part(() => sleeveGeo(joint.at, joint.axis, joint.r, -joint.back, joint.fwd), ["engine"], {
+      id: "parts.engine-air.hose-connector.005",
+      instance: [joint.end, s],
       name: "Hose connector",
       color: "#3A3A3A",
       note:
@@ -566,11 +590,16 @@ for (const s of [-1, 1])
         (j ? "." : "; thin-walled here to stay inside the cowl."),
       groups: ["induction"],
     });
-    for (const c of joint.clamps)
+    for (const [clamp, c] of [
+      ["spigot", joint.clamps[0]],
+      ["duct", joint.clamps[1]],
+    ] as const)
       part(
         () => sleeveGeo(joint.at, joint.axis, joint.clampR, c - DUCT7_CLAMP_W / 2, c + DUCT7_CLAMP_W / 2),
         ["engine"],
         {
+          id: "parts.engine-air.hose-clamp.006",
+          instance: [joint.end, clamp, s],
           name: "Hose clamp",
           color: "#B4B8BC",
           note:
@@ -583,6 +612,8 @@ for (const s of [-1, 1])
 for (const s of [-1, 1]) {
   const side = s < 0 ? "LH" : "RH";
   part(() => bentTubeGeo(ALTERNATE_CORNERS(s), ALTERNATE_DUCT_R, DUCT_BEND), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.alternate-air-duct.007",
     name: "Alternate air duct",
     color: INDUCTION_COLOR,
     note:
@@ -593,13 +624,15 @@ for (const s of [-1, 1]) {
   const h = HEADER(s);
   // Bent tube runs (ghta's bentTubeGeo, lib/geometry.ts) at the approximate EXHAUST_BEND radius; tighter only at the
   // collector joints, where the legs are shorter. The routing is illustrative.
-  for (const [name, path] of [
-    ["Elbow riser", h.elbow],
-    ["Exhaust tee", h.tee],
-    ["Turbocharger transition", h.transition],
+  for (const [key, name, path] of [
+    ["elbow", "Elbow riser", h.elbow],
+    ["tee", "Exhaust tee", h.tee],
+    ["transition", "Turbocharger transition", h.transition],
   ] as const) {
     const anchor = name === "Turbocharger transition" ? TURBINE_INLET(s) : path[0];
     part(() => headerTubeGeo(path, s).translate(-anchor[0], -anchor[1], -anchor[2]), ["engine"], {
+      id: "parts.engine-air.part.008",
+      instance: [key, s],
       name,
       pos: anchor,
       color: EXHAUST_COLOR,
@@ -611,6 +644,8 @@ for (const s of [-1, 1]) {
     });
   }
   part(() => bentTubeGeo(h.riser, EXHAUST_RADIUS, EXHAUST_BEND), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.cylinder-exhaust-riser.009",
     name: "Cylinder exhaust riser",
     pin: false,
     color: EXHAUST_COLOR,
@@ -618,6 +653,8 @@ for (const s of [-1, 1]) {
     groups: ["exhaust"],
   });
   part(() => bentTubeGeo(h.aftRiser, EXHAUST_RADIUS, EXHAUST_BEND), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.cylinder-exhaust-riser.010",
     name: "Cylinder exhaust riser",
     pin: false,
     color: EXHAUST_COLOR,
@@ -625,8 +662,13 @@ for (const s of [-1, 1]) {
     groups: ["exhaust"],
   });
   // Telescoping sleeves at the two collector slip joints on each bank (Fig 78-10-2).
-  for (const joint of [h.tee[0], h.transition[0]]) {
+  for (const [key, joint] of [
+    ["tee", h.tee[0]],
+    ["transition", h.transition[0]],
+  ] as const) {
     part(() => new THREE.CylinderGeometry(0.02, 0.02, 0.045, 16).rotateZ(Math.PI / 2), ["engine"], {
+      id: "parts.engine-air.exhaust-slip-joint.011",
+      instance: [key, s],
       pos: joint,
       color: "#B4B8BC",
       name: "Exhaust slip joint",
@@ -637,6 +679,8 @@ for (const s of [-1, 1]) {
   // Housing discharge neck reaches the butt joint; the start is inside its own housing,
   // not a separate pipe crossing the crankcase (AMM Fig 78-20-4 PDF p. 2756).
   part(() => tubeGeo([...DISCHARGE_NECK(s), TAILPIPE(s)[0]], TAILPIPE_RADIUS), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.turbine-discharge-neck.012",
     name: "Turbine discharge neck",
     pin: false,
     color: EXHAUST_COLOR,
@@ -649,6 +693,8 @@ for (const s of [-1, 1]) {
   // Illustrative ring size; its bottom face meets the inlet plane without burial.
   const inlet = TURBINE_INLET(s);
   part(() => new THREE.TorusGeometry(0.024, 0.004, 8, 20).rotateX(Math.PI / 2), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.turbine-inlet-flange.013",
     pos: [inlet[0], inlet[1] + 0.004, inlet[2]],
     name: "Turbine inlet flange",
     pin: false,
@@ -666,6 +712,8 @@ for (const s of [-1, 1]) {
     () => new THREE.TorusGeometry(TAILPIPE_RADIUS + 0.003, 0.004, 8, 20).applyQuaternion(clampRotation),
     ["engine"],
     {
+      instance: [s],
+      id: "parts.engine-air.turbocharger-tailpipe-clamp.014",
       pos: path[0],
       color: "#B4B8BC",
       name: "Turbocharger / tailpipe clamp",
@@ -678,9 +726,10 @@ for (const s of [-1, 1]) {
 // (AMM 78-10 PDF p. 2738; Fig 78-10-2 PDF p. 2740 item 5). Sizes approximate (../exhaust-layout).
 for (const c of CYLS) {
   const port = cylExhaust(c);
-  for (const [name, t, y, color] of [
-    ["Exhaust port gasket", EXHAUST_PORT_GASKET_T, port[1] - EXHAUST_PORT_GASKET_T / 2, "#9A9A92"],
+  for (const [key, name, t, y, color] of [
+    ["gasket", "Exhaust port gasket", EXHAUST_PORT_GASKET_T, port[1] - EXHAUST_PORT_GASKET_T / 2, "#9A9A92"],
     [
+      "flange",
       "Exhaust port flange",
       EXHAUST_PORT_FLANGE_T,
       port[1] - EXHAUST_PORT_GASKET_T - EXHAUST_PORT_FLANGE_T / 2,
@@ -688,6 +737,8 @@ for (const c of CYLS) {
     ],
   ] as const)
     part(() => box(EXHAUST_PORT_FLANGE_W, t, EXHAUST_PORT_FLANGE_W), ["engine"], {
+      id: "parts.engine-air.part.015",
+      instance: [key, c.n],
       name: `${name} — cyl ${c.n}`,
       pos: [port[0], y, port[2]],
       color,
@@ -700,40 +751,47 @@ for (const c of CYLS) {
 }
 // The crossover joins the headers upstream of the turbines, not their shaft centres.
 part(() => bentTubeGeo(CROSSOVER_CORNERS, CROSSOVER_RADIUS, CROSSOVER_BEND), ["engine", "environment"], {
+  id: "parts.engine-air.exhaust-crossover-pipe.016",
   name: "Exhaust crossover pipe",
   color: EXHAUST_COLOR,
   note: "LH wastegate transition → heat-exchanger shroud → RH header. " + exhaustRef,
   groups: ["exhaust"],
 });
 part(() => tubeGeo(WASTEGATE_BYPASS, 0.02), ["engine"], {
+  id: "parts.engine-air.wastegate-bypass-pipe.017",
   name: "Wastegate bypass pipe",
   color: EXHAUST_COLOR,
   note: "Left crossover transition → wastegate → branch into the LH tailpipe (AMM Fig 78-20-4 PDF p. 2756; POH 7-38). Geometry approximate.",
   groups: ["exhaust"],
 });
 part(() => tubeGeo(BLAST_TUBE, 0.012), ["engine"], {
+  id: "parts.engine-air.alternate-air-blast-tube.018",
   name: "Alternate air blast tube",
   color: "#D69D57",
   note: "Heat exchanger → alternate air assembly; heat prevents the magnetic flap from freezing (AMM 13773-002 Rev 7 71-60 PDF p. 2542; Fig 71-60-2 PDF p. 2557). Geometry approximate.",
   groups: ["induction"],
 });
 part(() => box(0.025, 0.02, 0.025), ["engine"], {
+  id: "parts.engine-air.alternate-air-door-switch.019",
   pos: [ALT_AIR[0], ALT_AIR[1] + 0.045, ALT_AIR[2]],
   name: "Alternate air door switch",
   note: "Door opening signals ALT AIR OPEN; no pilot alternate-air control. " + inductionRef,
   groups: ["induction"],
 });
 part(() => tubeGeo(TIE_ROD_ENDS(), 0.006), ["engine"], {
+  id: "parts.engine-air.exhaust-tie-rod.020",
   name: "Exhaust tie rod",
   color: "#B4B8BC",
   note: "RH turbocharger transition → crossover; slotted hole and bushing allow thermal expansion. " + exhaustRef,
   groups: ["exhaust"],
 });
-for (const [name, path, ref, group] of [
-  ["Throttle control cable", THROTTLE_CABLE, "Fig 76-10-2 (PDF p. 2665)", "induction"],
-  ["Mixture control cable", MIXTURE_CABLE, "Fig 76-10-3 (PDF p. 2674)", "fuel"],
+for (const [key, name, path, ref, group] of [
+  ["throttle", "Throttle control cable", THROTTLE_CABLE, "Fig 76-10-2 (PDF p. 2665)", "induction"],
+  ["mixture", "Mixture control cable", MIXTURE_CABLE, "Fig 76-10-3 (PDF p. 2674)", "fuel"],
 ] as const) {
   part(() => tubeGeo(path, 0.006), ["engine"], {
+    id: "parts.engine-air.part.021",
+    instance: [key],
     name,
     groups: [group],
     color: "#B4B8BC",
@@ -747,9 +805,39 @@ for (const [name, path, ref, group] of [
 }
 
 /* ---------- Inlet ducts, intake pipes, joint clamps, controller sensing lines ---------- */
+/** A tube with each end ring fanned to a centre vertex on its path, so the clearance audits' inside tests see a closed
+ * body (an open tube's ends let a ray leave without crossing the wall). */
+const capEnds = (tube: THREE.TubeGeometry) => {
+  const { path, tubularSegments, radialSegments } = tube.parameters;
+  const ring = radialSegments + 1,
+    pos = Array.from(tube.getAttribute("position").array),
+    nor = Array.from(tube.getAttribute("normal").array),
+    uv = Array.from(tube.getAttribute("uv").array),
+    index = Array.from(tube.index!.array);
+  for (const [u, first, flip] of [
+    [0, 0, true],
+    [1, tubularSegments * ring, false],
+  ] as const) {
+    const centre = pos.length / 3,
+      at = path.getPointAt(u),
+      n = path.getTangentAt(u).multiplyScalar(flip ? -1 : 1);
+    pos.push(at.x, at.y, at.z);
+    nor.push(n.x, n.y, n.z);
+    uv.push(0, 0);
+    for (let i = 0; i < radialSegments; i++)
+      index.push(...(flip ? [centre, first + i + 1, first + i] : [centre, first + i, first + i + 1]));
+  }
+  tube.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  tube.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  tube.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  tube.setIndex(index);
+  return tube;
+};
 const CLAMP_COLOR = "#B4B8BC";
-const clamp = (geo: () => THREE.BufferGeometry, where: string) =>
+const clamp = (id: string, geo: () => THREE.BufferGeometry, where: string) =>
   part(geo, ["engine"], {
+    id: "parts.engine-air.induction-clamp.022",
+    instance: [id],
     name: "Induction clamp",
     color: CLAMP_COLOR,
     note:
@@ -761,6 +849,8 @@ const clamp = (geo: () => THREE.BufferGeometry, where: string) =>
 for (const s of [-1, 1]) {
   const side = s < 0 ? "LH" : "RH";
   part(() => bentTubeGeo(INLET_DUCT(s), INLET_DUCT_R, DUCT_BEND), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.induction-inlet-duct.023",
     name: "Induction inlet duct",
     color: INDUCTION_COLOR,
     note:
@@ -768,27 +858,48 @@ for (const s of [-1, 1]) {
       ' duct 7 from the NACA inlet in the lower cowl aft into the air box\'s forward face, clamped there (POH 13772-007 7-37: "two NACA ducts located in the lower engine cowls … air boxes where it is filtered"; AMM 13773-002 Rev 7 Fig 71-60-2 sheet 1 PDF p. 2557 items 1, 4, 7, "INDUCTION AIR INLET (REF)"). Ø44 mm, sized to the NACA throat; bends and routing approximate.',
     groups: ["induction"],
   });
-  clamp(() => bandGeo(inletDuctCurve(s), INLET_DUCT_R, -0.005), side + " inlet duct at the air box");
-  clamp(() => bandGeo(alternateDuctCurve(s), ALTERNATE_DUCT_R, 0.005), side + " alternate air tube at the assembly");
-  clamp(() => bandGeo(alternateDuctCurve(s), ALTERNATE_DUCT_R, -0.005), side + " alternate air tube at the air box");
+  clamp(`inlet.${s}`, () => bandGeo(inletDuctCurve(s), INLET_DUCT_R, -0.005), side + " inlet duct at the air box");
+  clamp(
+    `alternate.assembly.${s}`,
+    () => bandGeo(alternateDuctCurve(s), ALTERNATE_DUCT_R, 0.005),
+    side + " alternate air tube at the assembly",
+  );
+  clamp(
+    `alternate.airbox.${s}`,
+    () => bandGeo(alternateDuctCurve(s), ALTERNATE_DUCT_R, -0.005),
+    side + " alternate air tube at the air box",
+  );
 }
 // The "Y" outlet clamps where it enters the throttle body; the manifold clamps where it leaves it (POH 13772-007 7-31,
 // 7-37; Continental M-18 Fig 12-16 p. 12-27 hoses 40 at the throttle body). Band 6 mm off each face, approximate.
 clamp(
+  "throttle.inlet",
   () => bandGeo(yCurve, INDUCTION_Y_R, fractionAtX(yCurve, THROTTLE_FRONT[0] + 0.006, 0.3) * yCurve.getLength()),
   '"Y" outlet at the throttle body',
 );
-clamp(() => bandGeo(manifoldCurve, INTAKE_MANIFOLD_R, 0.006), "intake manifold at the throttle body");
+clamp(
+  "throttle.outlet",
+  () => bandGeo(manifoldCurve, INTAKE_MANIFOLD_R, 0.006),
+  "intake manifold at the throttle body",
+);
 for (const c of CYLS) {
   part(() => bentTubeGeo(INTAKE_PIPE(c), INTAKE_PIPE_R, PIPE_BEND, 12, true), ["engine"], {
+    instance: [c.n],
+    id: "parts.engine-air.part.024",
     name: `Intake pipe — cyl ${c.n}`,
     color: INDUCTION_COLOR,
     note: `Intake manifold → cylinder ${c.n} intake port on top of the head: "divided by the intake pipes flowing to each cylinder" (POH 13772-007 7-37; top induction, 7-31). Hose-clamped at the manifold outlet. Ø28 mm, a little under half the duct 7 bore (no source dimensions it); routing approximate.`,
     groups: ["induction"],
   });
-  clamp(() => bandGeo(intakePipeCurve(c), INTAKE_PIPE_R, 0.022), `cylinder ${c.n} intake pipe at the manifold`);
+  clamp(
+    `intake.${c.n}`,
+    () => bandGeo(intakePipeCurve(c), INTAKE_PIPE_R, 0.022),
+    `cylinder ${c.n} intake pipe at the manifold`,
+  );
   const port = cylIntake(c);
   part(() => cyl(PORT_FLANGE_R, PORT_FLANGE_T, "y"), ["engine"], {
+    instance: [c.n],
+    id: "parts.engine-air.intake-port-flange.025",
     name: "Intake port flange",
     pos: [port[0], port[1] + PORT_FLANGE_T / 2, port[2]],
     color: CLAMP_COLOR,
@@ -803,6 +914,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.engine-air.upper-deck-pressure-fitting.026",
     name: "Upper-deck pressure fitting",
     pos: deckTapAt(UPPER_DECK_FITTING_LEN / 2 - 0.002),
     color: "#B4B8BC",
@@ -810,7 +922,14 @@ part(
     groups: ["induction"],
   },
 );
-part(() => tubeGeo(UPPER_DECK_LINE, SENSE_LINE_R, 0), ["engine"], {
+/** The upper-deck hose on its straight-cornered centreline, a ring about every 5 mm: `tubeGeo`'s coarser rings cut its
+ * short corners, so the `deckRef` particles, which ride the centreline, showed outside the wall at the bends. */
+const upperDeckGeo = () => {
+  const curve = curveOf(UPPER_DECK_LINE, 0);
+  return capEnds(new THREE.TubeGeometry(curve, Math.ceil(curve.getLength() / 0.005), SENSE_LINE_R, 8, false));
+};
+part(upperDeckGeo, ["engine"], {
+  id: "parts.engine-air.upper-deck-pressure-line.027",
   name: "Upper-deck pressure line",
   color: "#3A3A3A",
   note: 'Upper-deck (throttle inlet) pressure to the wastegate controller: the hose "TO THROTTLE BODY" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742). The controller senses the differential across the throttle plate (POH 13772-007 7-39; AMM 81-00 PDF p. 2808). It starts on the upper-deck pressure fitting on the throttle body\'s upstream half. Ø11 mm hose, routing approximate.',
@@ -818,14 +937,16 @@ part(() => tubeGeo(UPPER_DECK_LINE, SENSE_LINE_R, 0), ["engine"], {
 });
 // The manifold's aft end cap, under the manifold's name (the cap carries the manifold pressure fitting).
 part(() => cyl(INTAKE_MANIFOLD_R, MANIFOLD_CAP_T, "x"), ["engine"], {
+  id: "parts.engine-air.part.028",
   pos: [MANIFOLD_END[0] - MANIFOLD_CAP_T / 2, MANIFOLD_END[1], MANIFOLD_END[2]],
   color: INDUCTION_COLOR,
   groups: ["induction"],
 });
-part(() => tubeGeo(MANIFOLD_PRESSURE_LINE, SENSE_LINE_R, 0), ["engine"], {
+part(() => capEnds(tubeGeo(MANIFOLD_PRESSURE_LINE, SENSE_LINE_R, 0)), ["engine"], {
+  id: "parts.engine-air.manifold-pressure-line.029",
   name: "Manifold pressure line",
   color: "#3A3A3A",
-  note: 'Manifold (below-throttle) pressure to the wastegate controller: the hose "TO MANIFOLD" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742; AMM 81-00 PDF p. 2808: "the difference between the upper deck and manifold pressures"). From the controller\'s underside, between the magnetos, to a fitting on the manifold\'s aft end cap. Ø11 mm hose, fitting station and routing approximate.',
+  note: 'Manifold (below-throttle) pressure to the wastegate controller: the hose "TO MANIFOLD" (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742; AMM 81-00 PDF p. 2808: "the difference between the upper deck and manifold pressures"). From the controller\'s top face, along the firewall bay over the Master Control Unit\'s heat shield, up over the A/C compressor and down between the magnetos, to a fitting on the manifold\'s aft end cap. Ø11 mm hose, fitting station and routing approximate.',
   groups: ["induction"],
 });
 
@@ -854,8 +975,6 @@ const ACTUATOR_END: Vec3 = [
   WASTEGATE_ACTUATOR[1],
   WASTEGATE_ACTUATOR[2] - ACTUATOR_LEN / 2 - FACE_GAP,
 ];
-/** Controller box (engine.ts, 0.055 × 0.06 × 0.09 m, approximate): the oil hoses leave its underside. */
-const CONTROLLER_BOTTOM_Y = GATE_CONTROLLER[1] - 0.03;
 /** Oil supply: from the oil cooler's outlet fitting (`OIL_SOURCE`, engine-oil.ts), the separate wastegate hose in
  * AMM Fig 79-30-2 sheet 3 (PDF p. 2787); the turbo check valve and tee hang beside it, forward of the oil circuit's cooler feed, down beside the oil filter and forward of the wastegate, then
  * outboard under it onto the actuator's underside: the LH intercooler inlet duct passes over the actuator. Approximate. */
@@ -873,35 +992,42 @@ export const WASTEGATE_SUPPLY: Vec3[] = [
 ];
 /** Wastegate → controller hose (Fig 78-10-3 item 6, "WASTEGATE (REF)"): out of the actuator's outboard end, up near the
  * firewall outboard of the oil cooler, the lower-lead drops, the landing light feed and the LH intercooler inlet
- * duct, over the MCU, its CONV fuse and heat shield and forward of the oil separator, then inboard along the firewall
- * between it and the A/C pulleys and belt, up into the controller's underside. Approximate. */
+ * duct, then aft into the controller's forward face at the left rear. Approximate. */
 export const WASTEGATE_RETURN: Vec3[] = [
   ACTUATOR_END,
   [ACTUATOR_END[0], ACTUATOR_END[1], -0.46], // approximate
   [2.685, -0.41, -0.46], // approximate
-  [2.68, -0.36, -0.47], // approximate
-  [2.68, 0.01, -0.47], // approximate (Fig 78-10-3 PDF p. 2742)
-  [2.69, 0.039, -0.315], // over the MCU and its fuse, forward of the oil separator; approximate (Fig 78-10-3 PDF p. 2742)
-  [GATE_CONTROLLER[0] - 0.0155, 0.035, -0.255], // approximate
-  [GATE_CONTROLLER[0] - 0.0155, 0.035, GATE_CONTROLLER[2] - 0.03], // approximate
-  [GATE_CONTROLLER[0] - 0.0155, CONTROLLER_BOTTOM_Y, GATE_CONTROLLER[2] - 0.03], // approximate
+  [2.69, -0.36, -0.488], // approximate
+  [2.69, -0.005, -0.488], // approximate (Fig 78-10-3 PDF p. 2742)
+  [2.69, -0.005, -0.46], // approximate
+  [CONTROLLER_FRONT_X, -0.005, -0.46], // the box's forward face, approximate
 ];
-/** Controller → engine hose (Fig 78-10-3 "TO ENGINE"): from the controller's underside, forward over the A/C hoses
- *, down between them and the magneto P-lead risers, then forward under the P-leads and inboard of the oil filter
- * onto the crankcase's aft face above the oil pump. Approximate. */
+/** Controller → engine hose (Fig 78-10-3 "TO ENGINE"): forward out of the controller's forward face, outboard of the
+ * Master Control Unit's heat shield and aft of the LH intercooler, inboard in front of the shield over the oil cooler
+ * and under the A/C compressor, then down inboard of the oil filter onto the crankcase's aft face above the oil pump.
+ * Approximate. */
 export const CONTROLLER_RETURN: Vec3[] = [
-  [GATE_CONTROLLER[0] + 0.015, CONTROLLER_BOTTOM_Y, GATE_CONTROLLER[2] + 0.03], // approximate
-  [2.67, 0.045, 0.06], // approximate
-  [2.7, 0.03, 0.03], // approximate
-  [2.7, -0.065, 0.0], // approximate
-  [2.742, -0.1, -0.012], // approximate
-  [2.742, -0.16, -0.035], // approximate
+  [CONTROLLER_FRONT_X, 0.02, -0.435], // the box's forward face, approximate
+  [2.722, 0.02, -0.435], // approximate
+  [2.722, 0.01, -0.39], // approximate
+  [2.722, 0.01, -0.262], // approximate
+  [2.722, 0.042, -0.232], // over the A/C hoses, under the compressor; approximate
+  [2.722, 0.042, -0.198], // approximate
+  [2.722, 0.0, -0.165], // approximate
+  [2.722, 0.0, -0.12], // approximate
+  [2.735, -0.06, -0.07], // approximate
+  [2.735, -0.16, -0.06], // approximate
   [2.75, -0.16, -0.06], // approximate
 ];
+/** A point 8 mm aft of the controller's forward face behind an oil hose's end there, so the `gateOil` flow's join
+ * between the two hoses runs inside the box rather than across its face. Approximate. */
+const behindControllerFace = ([, y, z]: Vec3): Vec3 => [CONTROLLER_FRONT_X - 0.008, y, z];
 /** The three oil lines' sampled centrelines, joined through the actuator and the controller: the `gateOil` flow. */
 export const GATE_OIL_RUN = (): Vec3[] => [
   ...bentPoints(WASTEGATE_SUPPLY, OIL_BEND),
   ...bentPoints(WASTEGATE_RETURN, OIL_BEND),
+  behindControllerFace(WASTEGATE_RETURN[WASTEGATE_RETURN.length - 1]),
+  behindControllerFace(CONTROLLER_RETURN[0]),
   ...bentPoints(CONTROLLER_RETURN, OIL_BEND),
 ];
 /** The drain manifold's top (parts/fuel.ts DRAIN_MANIFOLD, FW + 0.07 at y −0.595; its body is 0.12 m tall). The drain line
@@ -920,30 +1046,36 @@ export const WASTEGATE_DRAIN: Vec3[] = [
   [DRAIN_TOP[0], DRAIN_TOP[1] + 0.006, 0], // approximate
   DRAIN_TOP,
 ];
-for (const [name, path, note] of [
+for (const [key, name, path, note] of [
   [
+    "supply",
     "Wastegate oil supply line",
     WASTEGATE_SUPPLY,
     "Engine oil from the oil cooler outlet to the wastegate actuator; oil pressure on the actuator piston closes the gate (POH 13772-007 7-38; AMM 81-20 PDF p. 2812; AMM 79-00 PDF p. 2764).",
   ],
   [
+    "actuator-return",
     "Wastegate oil line",
     WASTEGATE_RETURN,
     'Wastegate actuator → wastegate controller: the oil the controller meters back to the engine (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742 hose 6, "WASTEGATE (REF)"; POH 13772-007 7-39).',
   ],
   [
+    "controller-return",
     "Controller oil return",
     CONTROLLER_RETURN,
     'Wastegate controller → crankcase: the metered oil return (AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742 hose 6, "TO ENGINE"; AMM 81-00 PDF p. 2808; POH 13772-007 7-39).',
   ],
 ] as const)
   part(() => bentTubeGeo(path, OIL_LINE_R, OIL_BEND), ["engine"], {
+    id: "parts.engine-air.part.030",
+    instance: [key],
     name,
     color: "#3A3A3A",
     note: note + " Ø12 mm hose; fittings and routing approximate.",
     groups: ["oil"],
   });
 part(() => bentTubeGeo(WASTEGATE_DRAIN, DRAIN_LINE_R, OIL_BEND), ["engine"], {
+  id: "parts.engine-air.wastegate-drain-line.031",
   name: "Wastegate drain line",
   color: "#3A3A3A",
   note: 'Wastegate drain to the firewall drain manifold: the drain hose labelled "TO WASTEGATE" (AMM 13773-002 Rev 7 Fig 71-70-2 PDF p. 2565, items 3, 6). Fig 71-70-2 shows no induction drain. Ø8 mm; fitting and routing approximate.',
@@ -951,40 +1083,19 @@ part(() => bentTubeGeo(WASTEGATE_DRAIN, DRAIN_LINE_R, OIL_BEND), ["engine"], {
 });
 
 /* ---------- The compressor → intercooler inlet ducts ---------- */
-/** The duct as a closed solid: its tube with each end ring fanned to a centre vertex, where coupler 9 and the intercooler
- * close it (so the clearance audits' inside tests see a closed body). It stays a `TubeGeometry`, so audits that bound a
- * tube segment by segment still can; `userData` repeats the centreline and radius for the tests. */
+/** The duct as a closed solid: its tube with each end ring capped (`capEnds`), where coupler 9 and the intercooler
+ * close it. It stays a `TubeGeometry`, so audits that bound a tube segment by segment still can; `userData` repeats the
+ * centreline and radius for the tests. */
 const cappedDuctGeo = (s: number) => {
-  const tube = bentTubeGeo(COMPRESSOR_DUCT(s), COMPRESSOR_DUCT_R, COMPRESSOR_DUCT_BEND, 16);
-  const { path, tubularSegments, radialSegments } = tube.parameters;
-  const ring = radialSegments + 1,
-    pos = Array.from(tube.getAttribute("position").array),
-    nor = Array.from(tube.getAttribute("normal").array),
-    uv = Array.from(tube.getAttribute("uv").array),
-    index = Array.from(tube.index!.array);
-  for (const [u, first, flip] of [
-    [0, 0, true],
-    [1, tubularSegments * ring, false],
-  ] as const) {
-    const centre = pos.length / 3,
-      at = path.getPointAt(u),
-      n = path.getTangentAt(u).multiplyScalar(flip ? -1 : 1);
-    pos.push(at.x, at.y, at.z);
-    nor.push(n.x, n.y, n.z);
-    uv.push(0, 0);
-    for (let i = 0; i < radialSegments; i++)
-      index.push(...(flip ? [centre, first + i + 1, first + i] : [centre, first + i, first + i + 1]));
-  }
-  tube.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  tube.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-  tube.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-  tube.setIndex(index);
-  tube.userData = { path, radius: COMPRESSOR_DUCT_R };
+  const tube = capEnds(bentTubeGeo(COMPRESSOR_DUCT(s), COMPRESSOR_DUCT_R, COMPRESSOR_DUCT_BEND, 16));
+  tube.userData = { path: tube.parameters.path, radius: COMPRESSOR_DUCT_R };
   return tube;
 };
 for (const s of [-1, 1]) {
   const side = s < 0 ? "LH" : "RH";
   part(() => cappedDuctGeo(s), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.intercooler-inlet-duct.032",
     name: "Intercooler inlet duct",
     color: INDUCTION_COLOR,
     note:
@@ -997,6 +1108,8 @@ for (const s of [-1, 1]) {
     start = toVec(COMPRESSOR_DUCT(s)[0]),
     up = new THREE.Vector3(0, 1, 0);
   part(() => sleeveGeo(start, up, COMPRESSOR_DUCT_R + COUPLER_WALL, 0, COUPLER_LEN), ["engine"], {
+    instance: [s],
+    id: "parts.engine-air.compressor-outlet-coupler.033",
     name: "Compressor outlet coupler",
     color: "#3A3A3A",
     note:
@@ -1006,6 +1119,7 @@ for (const s of [-1, 1]) {
   });
   for (const at of [0.006, COUPLER_LEN - 0.006])
     clamp(
+      `compressor.${s}.${at === 0.006 ? "lower" : "upper"}`,
       () => bandGeo(curve, COMPRESSOR_DUCT_R + COUPLER_WALL, at),
       side + " compressor outlet coupler (Fig 81-20-1 item 3)",
     );
@@ -1016,6 +1130,8 @@ for (const s of [-1, 1]) {
     () => sleeveGeo(at, axis, COMPRESSOR_DUCT_R + COUPLER_WALL, -INLET_CONNECTOR_LEN / 2, INLET_CONNECTOR_LEN / 2),
     ["engine"],
     {
+      instance: [s],
+      id: "parts.engine-air.intercooler-inlet-hose-connector.034",
       name: "Intercooler inlet hose connector",
       color: "#3A3A3A",
       note:
@@ -1026,6 +1142,7 @@ for (const s of [-1, 1]) {
   );
   for (const d of [-1, 1])
     clamp(
+      `intercooler.${s}.${d}`,
       () => bandGeo(curve, COMPRESSOR_DUCT_R + COUPLER_WALL, mid + d * (INLET_CONNECTOR_LEN / 2 - 0.006)),
       side + " intercooler inlet hose connector (Fig 71-60-2 sheet 2 item 4)",
     );

@@ -2,6 +2,8 @@
  * Identical-scene guard: every catalogue entry of every airplane — part, skin shell and control surface: its id,
  * placement, systems, optional-equipment state and built geometry — plus the SR22T flow paths, against a baseline taken
  * from main a1d3cdf0 before the load work, with intentional systems-depth updates for SR20 G6, C172S, C182T, DA40 and M20C.
+ * Authored-ID migration preserves every numerical baseline; whole-fleet attribute/index bytes and transforms were
+ * independently compared with pre-migration main before changing identity and metadata hashes.
  * Speeding up geometry or mounting it progressively must not change the reviewed scene.
  * The SR22T is checked with TKS (FIKI) fitted and not fitted.
  *
@@ -48,14 +50,14 @@ const ENTRY_TOL = 1e-8;
  * doors; arm64 Node 22: baggage door). When the vertex count differs from the baseline, they are compared by bounding
  * box, area and area centroid instead; measured: area 0.015%, centroid 0.12 mm, bounding box 0. */
 const REMESHED = new Set([
-  "sr22t/Fuselage-0",
-  "sr22t/Left cabin door-651",
-  "sr22t/Right cabin door-674",
-  "sr22t/Baggage door-697",
+  "sr22t/parts.airframe.fuselage.001",
+  "sr22t/parts.doors.part.001@%5B%5B%22string%22%2C%22door-piece-1%22%5D%2C%5B%22string%22%2C%22L%22%5D%5D",
+  "sr22t/parts.doors.part.001@%5B%5B%22string%22%2C%22door-piece-1%22%5D%2C%5B%22string%22%2C%22R%22%5D%5D",
+  "sr22t/parts.doors.part.001@%5B%5B%22string%22%2C%22door-piece-11%22%5D%2C%5B%22string%22%2C%22bag%22%5D%5D",
 ]);
 const SKIN_TOL = { area: 1e-3 /* relative */, centroid: 1e-3 /* m */, box: 1e-6 };
 /** Three seam vertices take u or 1 − u depending on the runtime; u is summed as min(u, 1 − u). */
-const UV_SEAM = new Set(["sr20/Vertical stabilizer-12", "surface:rudder@sr20"]);
+const UV_SEAM = new Set(["sr20/parts.airframe.vertical-stabilizer.006", "surface:rudder@sr20"]);
 
 /** FNV-1a over 32-bit words, for integers and text only. */
 class Hash {
@@ -289,7 +291,7 @@ const sameAs: Record<string, string> = {
   "sr22t fiki=false": "sr22t fiki=true",
   "sr22t flows fiki=false": "sr22t flows fiki=true",
 };
-/** Keys are stored without their airplane prefix ("sr22t/Fuselage-0" as "/Fuselage-0"). */
+/** Keys are stored without their airplane prefix ("sr22t/parts.airframe.fuselage.001" as "/Fuselage-0"). */
 const plane = (set: string) => set.split(" ")[0];
 
 function writeBaseline() {

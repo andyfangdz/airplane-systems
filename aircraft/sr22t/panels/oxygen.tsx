@@ -1,7 +1,7 @@
 "use client";
 import { OXY_CAPACITY_LABELS, oxyPanelLamps, oxyDisplay, oxygenCas, type OxygenLamp, type Sim } from "../model";
 import { CAT } from "../parts";
-import { OXY_SCENARIOS, useSR22T } from "../store";
+import { OXY_SCENARIOS, setOxygenExposure, startOxygenScenario, useSR22T } from "../store";
 import {
   BtnRow,
   Caution,
@@ -151,11 +151,7 @@ export function Oxygen() {
           max={Math.max(60, Math.ceil(o.above12k5Min))}
           step={1}
           value={o.above12k5Min}
-          onChange={(v) =>
-            set((d) => {
-              d.oxy.above12k5Min = d.paFt > 12500 ? v : 0;
-            })
-          }
+          onChange={setOxygenExposure}
           fmt={(v) => Math.floor(v) + " min"}
         />
         <Small>
@@ -174,8 +170,8 @@ export function Oxygen() {
           }
         />
         <BtnRow>
-          {OXY_SCENARIOS.map(([label, fn]) => (
-            <button key={label} type="button" className="btn" onClick={() => set(fn)}>
+          {OXY_SCENARIOS.map(([label], index) => (
+            <button key={label} type="button" className="btn" onClick={() => startOxygenScenario(index)}>
               {label}
             </button>
           ))}

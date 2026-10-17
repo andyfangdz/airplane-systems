@@ -6,83 +6,9 @@
  * FIKI TKS supplement items are out of scope. The oxygen items (1i, 1q) show only when the oxygen system is fitted. The
  * cabin items carry `sim`: the switch or control the step sets in the model (see walk.ts).
  */
-import type { Vec3 } from "@/lib/math";
-import type { SysId } from "@/lib/systems";
+import { isChecklistItem, type FleetWalkData, type FleetWalkStation } from "@/lib/fleet-walk";
+import { CIRRUS_WALK_MAP } from "../cirrus-walk-map";
 import type { Sim } from "./model";
-
-/** A standing viewpoint: eye position and the point looked at (airplane coordinates, metres; x forward, z right). */
-export interface CameraPose {
-  p: Vec3;
-  t: Vec3;
-}
-/** Phase 2 item animations (not drawn yet). */
-export type WalkAnim = "flaps100" | "aileronSweep" | "elevatorSweep" | "rudderSweep" | "drainSample" | "dipstick";
-
-export interface WalkItem {
-  /** Station number and POH letter, e.g. "7c". */
-  id: string;
-  /** POH item text, e.g. "Fuel Drains (2 underside)". */
-  text: string;
-  /** POH action / standard, e.g. "DRAIN AND SAMPLE". */
-  standard: string;
-  /** POH sub-steps, e.g. 1q (1)–(3). */
-  steps?: string[];
-  /** POH note printed with the item. */
-  note?: string;
-  /** Catalogue part, surface or shell names to highlight; names in NOT_MODELLED are shown as text only. */
-  parts: string[];
-  /** Part name or point anchoring the label and camera instead of averaging the highlighted parts. */
-  target?: string | Vec3;
-  /** Which side's instances of a shared part name (e.g. "Main wheel"); defaults to the station's side, "any" for both. */
-  side?: "L" | "R" | "any";
-  /** X-ray system shown with the item. */
-  system?: SysId;
-  /** One line: what the check protects against, or what the system does. */
-  why: string;
-  /** An underside check (drains, vents, gascolator): the item camera crouches to CROUCH_Y instead of standing. */
-  crouch?: boolean;
-  /**
-   * A technique item, not a lettered POH item: shown with the TECHNIQUE_BADGE, kept out of the POH item counts, and
-   * otherwise walked like the others (progress, ✓ / skip, resume, the summary).
-   */
-  technique?: boolean;
-  /** Explicit eye position for the item, used instead of the one walk.ts computes; the camera still looks at the parts. */
-  eye?: Vec3;
-  /** Where the pilot is looking from, e.g. "Looking across at the LEFT main wheel". */
-  look?: string;
-  /** Id of the item where the pilot stands for this check: the mini-map and the scene draw the line of sight from there. */
-  sightFrom?: string;
-  /** Pointer to a related item, e.g. where a part is checked from the other side. */
-  see?: string;
-  /** Emphasize the parts beyond the spot colour: a pulsing halo on every instance. */
-  emphasis?: boolean;
-  /** A configuration cue replacing a basic-POH item when FIKI is fitted; it does not supply a supplement procedure. */
-  fiki?: Pick<WalkItem, "text" | "standard" | "parts" | "why" | "ref" | "note">;
-  configurationCue?: boolean;
-  /** Optional equipment: the item is left out while this is false. */
-  fitted?: (s: Sim) => boolean;
-  /** What stepping onto this item sets in the model (cabin station). */
-  sim?: (d: Sim) => void;
-  anim?: WalkAnim;
-  ref: string;
-}
-
-export interface WalkStation {
-  /** 1..13, Figure 4-1. */
-  n: number;
-  title: string;
-  /** Standing eye height viewpoint outside the airplane. */
-  cam: CameraPose;
-  /** Where the station sits on the top-down mini-map, [x, z] in airplane coordinates, around the airplane as in Fig 4-1. */
-  map: [number, number];
-  /** Side the station's shared part names refer to. */
-  side?: "L" | "R";
-  items: WalkItem[];
-  /** POH warning or caution printed with the station. */
-  warning?: string;
-  /** POH note printed before the station's first item. */
-  note?: string;
-}
 
 /** Eye height above the ground for the station viewpoints, m (GROUND_Y −1.39 + 1.65). */
 export const EYE_Y = 0.26; // approximate: a typical standing eye height, 1.65 m; no source gives one
@@ -91,6 +17,8 @@ export const CROUCH_Y = -0.29; // approximate: a crouched eye height, 1.1 m; no 
 
 /** The oxygen system is fitted (POH 4-5, 1i and 1q "if available"). */
 export const oxygenFitted = (s: Sim) => s.equip.oxygen !== false;
+/** FIKI is fitted: the basic-POH stall warning items become configuration cues (AMM 27-31). */
+const fikiFitted = (s: Sim) => s.equip.fiki;
 
 /** Names the walk-around refers to that the 3D model doesn't have, with the reason. */
 export const NOT_MODELLED: Record<string, string> = {
@@ -114,7 +42,7 @@ export const NOT_MODELLED: Record<string, string> = {
 /** Badge on technique items: checks taught at the airplane that the POH checklist doesn't list. */
 export const TECHNIQUE_BADGE = "Technique (not in the POH)";
 /** Is the item one of the POH's lettered items (not a technique item)? */
-export const isPoh = (item: WalkItem) => !item.technique;
+export const isPoh = isChecklistItem<Sim>;
 
 /** Brake temperature indicator, checked from under the opposite wing (AMM 13773-002 Rev 7 32-42). */
 const BRAKE_INDICATOR_WHY =
@@ -124,6 +52,8 @@ const BRAKE_INDICATOR_REF = "AMM 32-42, PDF 1450, 1461; Fig 32-42-1, PDF 1462";
 /** AMM 13773-002 Rev 7 27-31 ¶A/¶B (PDF1032), already cited by pitot.ts and ice.ts, distinguishes these fitted systems.
  * The applicable FIKI preflight procedure is not verified here, so these cues direct the reader to their supplement. */
 const FIKI_STALL_CUE = {
+  when: fikiFitted,
+  configurationCue: true,
   standard: "SEE APPLICABLE FIKI SUPPLEMENT",
   parts: ["Stall warning lift transducer"],
   note: "FIKI preflight inspection and test steps are not included in this walk-around. Use the approved supplement for your airplane.",
@@ -161,7 +91,7 @@ export const SOURCE = "SR22T POH 13772-007 Reissue A, Section 4, pp. 4-4 – 4-9
 
 const AILERON_BOLT_NOTE = "Verify bolt located under the inboard edge of aileron is secured with safety wire.";
 
-export const WALK: WalkStation[] = [
+export const WALK: FleetWalkStation<Sim>[] = [
   {
     n: 1,
     title: "Cabin",
@@ -315,7 +245,7 @@ export const WALK: WalkStation[] = [
         text: "Stall Warning System Inlet",
         standard: "UNOBSTRUCTED",
         parts: ["Stall warning inlet"],
-        fiki: { ...FIKI_STALL_CUE, text: "Stall Warning System — FIKI" },
+        variant: { ...FIKI_STALL_CUE, text: "Stall Warning System — FIKI" },
         side: "R",
         system: "pitot",
         why: "The inlet in the right wing leading edge feeds the stall warning pressure switch; blocked, it gives no warning (POH 7-68).",
@@ -327,7 +257,7 @@ export const WALK: WalkStation[] = [
         standard: "TEST",
         note: "Test stall warning system by applying suction to the stall warning system inlet and noting the warning horn sounds.",
         parts: ["Stall warning inlet"],
-        fiki: { ...FIKI_STALL_CUE, text: "Stall Warning — FIKI" },
+        variant: { ...FIKI_STALL_CUE, text: "Stall Warning — FIKI" },
         side: "R",
         system: "pitot",
         why: "Proves the whole chain from the inlet to the horn.",
@@ -738,6 +668,8 @@ export const WALK: WalkStation[] = [
         parts: ["Right inboard stall strip", "Right outboard stall strip", "Right porous stall strip"],
         system: "airframe",
         why: "The stall strips shape how the wing stalls; damage changes the stall.",
+        // the strips are small beside the span the view takes in, and sit under the FIKI panels in solid mode
+        emphasis: true,
         ref: "POH 4-7",
       },
       {
@@ -970,6 +902,7 @@ export const WALK: WalkStation[] = [
     cam: { p: [3.5, EYE_Y, -1.9], t: [2.65, -0.3, -0.3] }, // approximate: standing viewpoint chosen on the model
     map: [3.6, -1.6], // approximate: placed around the airplane as in Fig 4-1
     side: "L",
+    caution: true,
     warning:
       "The engine should not be operated with less than six quarts of oil. Seven quarts (dipstick indication) is recommended for extended flights.",
     items: [
@@ -1129,6 +1062,8 @@ export const WALK: WalkStation[] = [
         parts: ["Left inboard stall strip", "Left outboard stall strip", "Left porous stall strip"],
         system: "airframe",
         why: "The stall strips shape how the wing stalls; damage changes the stall.",
+        // the strips are small beside the span the view takes in, and sit under the FIKI panels in solid mode
+        emphasis: true,
         ref: "POH 4-9",
       },
     ],
@@ -1228,3 +1163,40 @@ export const WALK: WalkStation[] = [
     ],
   },
 ];
+
+export const WALK_DATA: FleetWalkData<Sim> = {
+  id: "sr22t",
+  short: "SR22T",
+  source: SOURCE,
+  applicability:
+    "Follow the POH/AFM for your serial number; this walk-through shows where each item is and why it matters.",
+  general: GENERAL_WARNING,
+  throughout: THROUGHOUT,
+  next: `Next: **${NEXT_CHECKLIST.title}** checklist, ${NEXT_CHECKLIST.ref}.`,
+  stations: WALK,
+  missing: NOT_MODELLED,
+  copy: {
+    title: "Preflight walk-around",
+    exit: "Exit the walk-around",
+    notice: "Study aid, not a substitute for the POH checklist.",
+    warnTitle: "Warning",
+    throughoutLead: "Throughout the walk-around:",
+    also: [COLD_WEATHER],
+    consequence: WARNING_CONSEQUENCE,
+    begin: "Begin walk-around",
+    resumeTitle: "Resume walk-around?",
+    resumed: ({ station, item }) =>
+      `You stopped at station ${station.n}, ${station.title}: item ${item.id} ${item.text}.`,
+    ok: "Checked",
+    stationDone: "done",
+    unmarked: "Not marked",
+    doneTitle: "Walk-around complete",
+    missingLead: "Not in the 3D model:",
+    refSuffix: null,
+    throughoutRef: "POH 4-4",
+    technique: TECHNIQUE_BADGE,
+    mapLabel: "Walk-around stations (POH Figure 4-1)",
+    mapTitle: "SR22T from above, nose up",
+    map: CIRRUS_WALK_MAP,
+  },
+};

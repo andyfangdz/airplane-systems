@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 /**
  * C182T catalogue: G1000 avionics (POH 7-66 – 7-70): displays, audio panel, remote units, cooling fans, faceplate detail,
  * antennas and compass; then the KAP 140 autopilot and its servos (POH 7-12, Supplement 3).
@@ -30,18 +31,21 @@ import { EL, P3, S, cAt, part, top, wp } from "./catalogue";
 /* ---------- avionics (POH 7-66 – 7-70) ---------- */
 const AVX = "#C8399F";
 part(() => box(0.03, GDU_H, GDU_W), ["avionics"], {
+  id: "parts.avionics.pfd-gdu-1040.001",
   pos: P3(18.1, NAV3_BL.pfd, 61.4),
   color: "#1A1F23",
   name: "PFD — GDU 1040",
   note: "In front of the pilot, arm 15.0. PFD breakers on the ESSENTIAL BUS and AVIONICS BUS 1 (with the deckskin and PFD fans). Shows the EIS during engine start, reversion or DISPLAY BACKUP (POH 7-10, 7-66).",
 });
 part(() => box(0.03, GDU_H, GDU_W), ["avionics"], {
+  id: "parts.avionics.mfd-gdu-1040.002",
   pos: P3(18.1, NAV3_BL.mfd, 61.4),
   color: "#1A1F23",
   name: "MFD — GDU 1040",
   note: "Right of the audio panel: moving map with the EIS strip on its left edge. MFD breaker (with the MFD fan), AVIONICS BUS 2 (POH 7-66, 7-49).",
 });
 part(() => box(0.03, GDU_H, GMA_W), ["avionics"], {
+  id: "parts.avionics.gma-1347-audio-panel.003",
   pos: P3(18.1, NAV3_BL.gma, 61.4),
   color: "#24292E",
   name: "GMA 1347 audio panel",
@@ -49,6 +53,7 @@ part(() => box(0.03, GDU_H, GMA_W), ["avionics"], {
   pin: true,
 });
 part(() => box(0.012, 0.014, 0.022), ["avionics"], {
+  id: "parts.avionics.display-backup-button.004",
   pos: P3(18.7, NAV3_BL.gma, 57.8),
   color: "#D32626",
   anim: (m) => {
@@ -61,20 +66,26 @@ part(() => box(0.012, 0.014, 0.022), ["avionics"], {
 (
   [
     [
+      "row-001",
       136,
       -4.5,
       "GIA 63 #1",
       "Integrated avionics unit in the tailcone racks behind the baggage curtain, arm 134.0: GPS, VHF NAV/COM and main processor. NAV 1 ENG (ESS and AVN BUS 1) and COMM 1 (ESS) breakers (POH 7-67, 6-20).",
     ],
     [
+      "row-002",
       136,
       4.5,
       "GIA 63 #2",
       "Second integrated avionics unit: NAV 2 and COMM 2 on AVIONICS BUS 2. The first GIA to get a 3-D GPS fix is the active GPS source. The KAP 140 takes its NAV, HDG and GPS roll-steering signals through GIA #2 (POH 7-67; Fig. S3-1).",
     ],
-  ] as [number, number, string, string][]
-).forEach(([fs, bl, name, note]) =>
+  ] as [string, number, number, string, string][]
+).forEach(([rowKey1, fs, bl, name, note]) =>
   part(() => box(0.24, 0.07, 0.13), bl > 0 ? ["avionics", "autopilot"] : ["avionics"], {
+    instance: [rowKey1],
+
+    id: "parts.avionics.part.005",
+
     pos: P3(fs, bl, 49.5),
     color: AVX,
     name,
@@ -83,6 +94,7 @@ part(() => box(0.012, 0.014, 0.022), ["avionics"], {
   }),
 );
 part(() => box(0.12, 0.08, 0.1), ["avionics", "pitot"], {
+  id: "parts.avionics.grs-77-ahrs.006",
   pos: P3(140, 0, 43.5),
   color: AVX,
   name: "GRS 77 AHRS",
@@ -90,6 +102,7 @@ part(() => box(0.12, 0.08, 0.1), ["avionics", "pitot"], {
   pin: true,
 });
 part(() => box(0.12, 0.06, 0.1), ["avionics", "pitot"], {
+  id: "parts.avionics.gdc-74a-air-data-computer.007",
   pos: P3(11.4, NAV3_BL.mfd, 61.5),
   color: AVX,
   name: "GDC 74A air data computer",
@@ -97,6 +110,7 @@ part(() => box(0.12, 0.06, 0.1), ["avionics", "pitot"], {
   pin: true,
 });
 part(() => box(0.1, 0.07, 0.12), ["avionics", "engine"], {
+  id: "parts.avionics.gea-71-engine-airframe-unit.008",
   pos: P3(11.4, -3, 57),
   color: AVX,
   name: "GEA 71 engine/airframe unit",
@@ -104,6 +118,7 @@ part(() => box(0.1, 0.07, 0.12), ["avionics", "engine"], {
   pin: true,
 });
 part(() => box(0.14, 0.06, 0.12), ["avionics"], {
+  id: "parts.avionics.gtx-33-transponder.009",
   pos: P3(140, 5, 52.5),
   color: AVX,
   name: "GTX 33 transponder",
@@ -111,6 +126,7 @@ part(() => box(0.14, 0.06, 0.12), ["avionics"], {
   pin: true,
 });
 part(() => box(0.06, 0.03, 0.06), ["avionics"], {
+  id: "parts.avionics.gmu-44-magnetometer.010",
   pos: wp(-170, cAt(44, 170)),
   color: AVX,
   name: "GMU 44 magnetometer",
@@ -118,6 +134,7 @@ part(() => box(0.06, 0.03, 0.06), ["avionics"], {
   pin: true,
 });
 part(() => box(0.12, 0.05, 0.1), ["avionics"], {
+  id: "parts.avionics.gdl-69a-data-link.011",
   pos: P3(11.4, NAV3_BL.mfd, 55),
   color: "#9C4C88",
   solidColor: "#E3E6E8",
@@ -125,6 +142,7 @@ part(() => box(0.12, 0.05, 0.1), ["avionics"], {
   note: "XM weather and radio, behind the panel just forward of the MFD, arm 11.4; FIS breaker, AVIONICS BUS 1 (if installed) (POH 7-68, 6-23).",
 });
 part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], {
+  id: "parts.avionics.forward-avionics-cooling-fan.012",
   pos: P3(12.7, -1, 63),
   color: "#5A6168",
   anim: glow("#5A6168", () => EL().fwdFan, ["avionics", "electrical"], "#9FE3FF"),
@@ -133,6 +151,7 @@ part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], {
   pin: true,
 });
 part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], {
+  id: "parts.avionics.aft-avionics-cooling-fan.013",
   pos: P3(125.5, 0, 55),
   color: "#5A6168",
   anim: glow("#5A6168", () => EL().aftFan, ["avionics", "electrical"], "#9FE3FF"),
@@ -141,6 +160,7 @@ part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], {
   pin: true,
 });
 part(() => box(0.06, 0.06, 0.06), ["avionics", "autopilot"], {
+  id: "parts.avionics.dc-turn-coordinator-kap-140.014",
   pos: P3(15.5, 4, 53),
   color: "#9C4C88",
   solidColor: "#E3E6E8",
@@ -150,26 +170,60 @@ part(() => box(0.06, 0.06, 0.06), ["avionics", "autopilot"], {
   pin: true,
 });
 /* ---------- faceplate detail (POH Figure 7-2; CRG): GDU 1040 knobs and softkeys, GMA 1347 keys, switch rockers, breaker heads ---------- */
-[NAV3_BL.pfd, NAV3_BL.mfd].forEach((bl) => {
+(
+  [
+    ["row-001", NAV3_BL.pfd],
+    ["row-002", NAV3_BL.mfd],
+  ] as const
+).forEach(([rowKey2, bl]) => {
   const c = P3(18.1, bl, 61.4),
     x = c[0] - 0.015 - 0.006; // just aft of the bezel face
-  part(() => gduKnobs(), ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
-  part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]], color: "#4A525A" });
+  part(() => gduKnobs(), ["avionics"], {
+    instance: [rowKey2],
+
+    id: "parts.avionics.part.015",
+
+    pos: [x, c[1], c[2]],
+    color: "#3A4046",
+  });
+  part(gduKeys, ["avionics"], {
+    instance: [rowKey2],
+
+    id: "parts.avionics.part.016",
+
+    pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]],
+    color: "#4A525A",
+  });
 });
-part(gmaKeys, ["avionics"], { pos: [X(18.1) - 0.018, Y(61.4), Z(NAV3_BL.gma)], color: "#4A525A" });
-part(gmaKnob, ["avionics"], { pos: [X(18.1) - 0.02, Y(61.4) + GMA_KNOB_Y, Z(NAV3_BL.gma)], color: "#3A4046" });
+part(gmaKeys, ["avionics"], {
+  id: "parts.avionics.part.017",
+  pos: [X(18.1) - 0.018, Y(61.4), Z(NAV3_BL.gma)],
+  color: "#4A525A",
+});
+part(gmaKnob, ["avionics"], {
+  id: "parts.avionics.part.018",
+  pos: [X(18.1) - 0.02, Y(61.4) + GMA_KNOB_Y, Z(NAV3_BL.gma)],
+  color: "#3A4046",
+});
 // switch panel rockers, up = ON (POH 7-10): BEACON, LAND, TAXI, NAV, STROBE on top; FUEL PUMP, PITOT HEAT, CABIN PWR 12V below
 switchRows([
   [
-    () => S().lights.beacon,
-    () => S().lights.land,
-    () => S().lights.taxi,
-    () => S().lights.nav,
-    () => S().lights.strobe,
+    { id: "lights-beacon", on: () => S().lights.beacon },
+    { id: "lights-land", on: () => S().lights.land },
+    { id: "lights-taxi", on: () => S().lights.taxi },
+    { id: "lights-nav", on: () => S().lights.nav },
+    { id: "lights-strobe", on: () => S().lights.strobe },
   ],
-  [() => S().fuel.pump, () => S().pitot.heat, () => S().lights.cabinPwr],
-]).forEach(([y, z, on]) =>
+  [
+    { id: "fuel-pump", on: () => S().fuel.pump },
+    { id: "pitot-heat", on: () => S().pitot.heat },
+    { id: "lights-cabinPwr", on: () => S().lights.cabinPwr },
+  ],
+]).forEach(([y, z, { id, on }]) =>
   part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], {
+    id: "parts.avionics.part.019",
+    instance: [id],
+
     pos: [X(17.9) - 0.011, Y(53.8) + y, Z(-13.3) + z],
     color: "#D8DDE0",
     anim: (m) => {
@@ -177,8 +231,16 @@ switchRows([
     },
   }),
 );
-part(() => cbHeads(4), ["electrical"], { pos: [X(17.9) - 0.009, Y(50), Z(-16.6)], color: "#1A1D20" });
-part(() => cbHeads(8), ["electrical", "avionics"], { pos: [X(17.9) - 0.009, Y(50), Z(-11.4)], color: "#1A1D20" });
+part(() => cbHeads(4), ["electrical"], {
+  id: "parts.avionics.part.020",
+  pos: [X(17.9) - 0.009, Y(50), Z(-16.6)],
+  color: "#1A1D20",
+});
+part(() => cbHeads(8), ["electrical", "avionics"], {
+  id: "parts.avionics.part.021",
+  pos: [X(17.9) - 0.009, Y(50), Z(-11.4)],
+  color: "#1A1D20",
+});
 
 const ANT = "#C8399F";
 /** Swept blade antenna, base on the skin: base chord 0.14 m, tip chord 0.06 m, 0.22 m tall, leading edge swept ≈ 30°. */
@@ -194,6 +256,7 @@ const bladeAnt = () => {
   return g;
 };
 part(bladeAnt, ["avionics"], {
+  id: "parts.avionics.com-1-gps-1-antenna.022",
   pos: [X(61.2), top(61.2, 7) - 0.005, Z(7)],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -203,6 +266,7 @@ part(bladeAnt, ["avionics"], {
   pin: true,
 });
 part(bladeAnt, ["avionics"], {
+  id: "parts.avionics.com-2-gps-2-xm-antenna.023",
   pos: [X(61.2), top(61.2, -7) - 0.005, Z(-7)],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -213,6 +277,8 @@ part(bladeAnt, ["avionics"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.36, 0.02, 0.006), ["avionics"], {
+    instance: [s],
+    id: "parts.avionics.vor-gs-navigation-antenna.024",
     pos: [fLE(Y(88)) - 0.12, Y(88), s * 0.06],
     rot: [s * 0.5, 0, -0.1],
     color: ANT,
@@ -224,6 +290,7 @@ part(bladeAnt, ["avionics"], {
   }),
 );
 part(() => box(0.28, 0.012, 0.08), ["avionics"], {
+  id: "parts.avionics.marker-beacon-antenna.025",
   pos: [X(131.5), botY(X(131.5)) - 0.006, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -233,6 +300,7 @@ part(() => box(0.28, 0.012, 0.08), ["avionics"], {
   pin: true,
 });
 part(() => cyl(0.006, 0.08), ["avionics"], {
+  id: "parts.avionics.transponder-antenna.026",
   pos: [X(86.5), botY(X(86.5)) - 0.04, Z(2)],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -242,6 +310,7 @@ part(() => cyl(0.006, 0.08), ["avionics"], {
   pin: true,
 });
 part(() => box(0.08, 0.05, 0.008), ["avionics"], {
+  id: "parts.avionics.dme-antenna-if-installed.027",
   pos: [X(114.5), botY(X(114.5)) - 0.026, Z(-2)],
   color: "#9C4C88",
   solidColor: "#E3E6E8",
@@ -250,6 +319,7 @@ part(() => box(0.08, 0.05, 0.008), ["avionics"], {
   ext: true,
 });
 part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], {
+  id: "parts.avionics.magnetic-compass-non-stabilized.028",
   pos: P3(19.5, 0, 68.3),
   color: "#20262B",
   anim: glow("#20262B", () => EL().lit.stbyInd, ["avionics", "cabin"], "#E8C46A"),
@@ -257,7 +327,11 @@ part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], {
   note: "Arm 18.0 (cockpit position not in the POH — modelled on top of the glareshield, inside the windshield). Required for all operations (KOEL) and the heading source after an AHRS failure; lit by the STDBY IND dimmer; deviation card in 30° steps (POH 2-13, 3-28, 7-59).",
   pin: true,
 });
-part(() => box(0.065, 0.008, 0.035), ["avionics", "cabin"], { pos: P3(18.4, 0, 67.3), color: "#20262B" }); // compass bracket on the glareshield
+part(() => box(0.065, 0.008, 0.035), ["avionics", "cabin"], {
+  id: "parts.avionics.part.029",
+  pos: P3(18.4, 0, 67.3),
+  color: "#20262B",
+}); // compass bracket on the glareshield
 
 /* ---------- KAP 140 (POH 7-12, Supplement 3) ---------- */
 const tr = (g: THREE.BufferGeometry, x: number, y: number, z: number) => {
@@ -273,6 +347,7 @@ const apBtn: PartAnim = (m) => {
   m.material = !lit ? mats("#2B3035").on : k.ap ? mats("#7CFF8A").hi : mats("#3A4046").on;
 };
 part(() => box(0.02, KAP.hgt, KAP.w), ["autopilot", "avionics"], {
+  id: "parts.avionics.kap-140-flight-computer.030",
   pos: P3(KAP.fs - 0.4, KAP.bl, KAP.h),
   color: "#202428",
   name: "KAP 140 flight computer",
@@ -281,6 +356,8 @@ part(() => box(0.02, KAP.hgt, KAP.w), ["autopilot", "avionics"], {
 });
 (["AP", "HDG", "NAV", "APR", "REV", "ALT"] as const).forEach((k, i) =>
   part(() => box(0.008, 0.007, 0.014), ["autopilot"], {
+    id: "parts.avionics.part.031",
+    instance: [k],
     pos: [X(KAP.fs + 0.2), Y(KAP.h) - 0.011, Z(KAP.bl) - 0.062 + i * 0.019],
     color: "#3A4046",
     anim:
@@ -300,12 +377,14 @@ part(() => box(0.02, KAP.hgt, KAP.w), ["autopilot", "avionics"], {
   }),
 );
 part(() => mergeGeos([0.011, 0.003, -0.006, -0.014].map((y) => tr(box(0.008, 0.007, 0.011), 0, y, 0))), ["autopilot"], {
+  id: "parts.avionics.kap-140-arm-baro-up-and-dn-keys.032",
   pos: [X(KAP.fs + 0.2), Y(KAP.h), Z(KAP.bl) + 0.0475],
   color: "#3A4046",
   name: "KAP 140 ARM, BARO, UP and DN keys",
   note: "ARM turns altitude arming on or off; BARO shows the baro setting for 3 s (hold 2 s: IN HG ↔ HPA); UP / DN change the VS reference 100 fpm a press (300 fpm/s held) or the ALT reference 20 ft (500 fpm held) (S3-10 – S3-12).",
 });
 part(() => cyl(0.012, 0.012, "x"), ["autopilot"], {
+  id: "parts.avionics.altitude-select-knobs.033",
   pos: [X(KAP.fs + 0.25), Y(KAP.h), Z(KAP.bl) + 0.068],
   color: "#30353A",
   name: "Altitude select knobs",
@@ -316,6 +395,7 @@ part(() => cyl(0.012, 0.012, "x"), ["autopilot"], {
 const servo = (on: () => boolean): PartAnim => glow("#7C57CF", on, ["autopilot", "controls"], "#FFD34D");
 const SV = RIG_SPEC.servo;
 part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], {
+  id: "parts.avionics.ks-271c-roll-servo.034",
   pos: P3(SV.roll[0], SV.roll[1], SV.roll[2] - 2.6),
   color: "#7C57CF",
   chan: ["aileron"],
@@ -325,6 +405,7 @@ part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], {
+  id: "parts.avionics.ks-270c-pitch-servo.035",
   pos: P3(SV.pitch[0], SV.pitch[1] + 1.5, SV.pitch[2]),
   color: "#7C57CF",
   chan: ["elevator"],
@@ -334,6 +415,7 @@ part(() => box(0.12, 0.08, 0.1), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.1, 0.08, 0.09), ["autopilot", "controls"], {
+  id: "parts.avionics.ks-272c-pitch-trim-servo.036",
   pos: P3(SV.trim[0], SV.trim[1] - 1.5, SV.trim[2]),
   color: "#7C57CF",
   chan: ["elevator"],

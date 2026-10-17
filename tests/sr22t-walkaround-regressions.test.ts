@@ -7,20 +7,22 @@ import { initialSim, live } from "@/aircraft/sr22t/model";
 import { CAT } from "@/aircraft/sr22t/parts";
 import { useSR22T } from "@/aircraft/sr22t/store";
 import { simTick } from "@/aircraft/sr22t/tick";
-import { loadProgress, nameCentres, underAirplane } from "@/aircraft/sr22t/walk";
-import {
-  beginWalk,
-  bootWalk,
-  closeWalk,
-  goStep,
-  markStep,
-  openWalk,
-  resetWalk,
-  useWalk,
-  walkNow,
-} from "@/aircraft/sr22t/walk-store";
+import { walk } from "@/aircraft/sr22t/walk";
+import { walkController } from "@/aircraft/sr22t/walk-store";
 import { factoryOf, primeGeo } from "@/lib/catalogue";
 import { useView } from "@/lib/view";
+const { loadProgress, nameCentres, underAirplane } = walk;
+const {
+  begin: beginWalk,
+  boot: bootWalk,
+  close: closeWalk,
+  goStep,
+  mark: markStep,
+  open: openWalk,
+  reset: resetWalk,
+  session: walkNow,
+} = walkController;
+const useWalk = walkController.store;
 
 afterEach(() => vi.restoreAllMocks());
 

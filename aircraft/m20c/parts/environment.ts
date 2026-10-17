@@ -1,12 +1,13 @@
 /** M20C heating and ventilation: junction box, scoops, overhead scoop and ceiling outlets, defroster, foot outlets, radio grill, controls. */
 
 import { FW, PANEL_X, box, cyl, onSkin, sph } from "../geometry";
-import { OVERHEAD, ROOF_SCOOP, scoopAngle } from "../placement";
+import { OVERHEAD_OUTLETS, ROOF_SCOOP, scoopAngle } from "../placement";
 
 import { P, knobAnim, part, sim } from "./catalogue";
 
 /* ---------- heating & ventilation ---------- */
 part(() => box(0.14, 0.14, 0.12), ["environment"], {
+  id: "parts.environment.heat-vent-junction-box.001",
   pos: [FW - 0.1, -0.3, 0.35],
   color: "#E0522B",
   name: "Heat / vent junction box",
@@ -14,6 +15,7 @@ part(() => box(0.14, 0.14, 0.12), ["environment"], {
   pin: true,
 });
 part(() => box(0.16, 0.04, 0.014), ["environment"], {
+  id: "parts.environment.right-flush-air-scoop.002",
   pos: P(onSkin(1.85, -0.1, 1, 0.985)),
   color: "#149C94",
   name: "Right flush air scoop",
@@ -22,6 +24,7 @@ part(() => box(0.16, 0.04, 0.014), ["environment"], {
   pin: true,
 });
 part(() => box(0.12, 0.04, 0.014), ["environment"], {
+  id: "parts.environment.left-side-air-scoop.003",
   pos: P(onSkin(1.5, -0.2, -1, 0.985)),
   color: "#149C94",
   name: "Left side air scoop",
@@ -33,6 +36,7 @@ part(
   () => box(ROOF_SCOOP.length, ROOF_SCOOP.thickness, ROOF_SCOOP.width).translate(ROOF_SCOOP.length / 2, 0, 0),
   ["environment"],
   {
+    id: "parts.environment.overhead-ram-air-scoop-retractable.004",
     pos: ROOF_SCOOP.hinge,
     rot: [0, 0, scoopAngle(0)],
     color: "#149C94",
@@ -45,8 +49,10 @@ part(
     pin: true,
   },
 );
-OVERHEAD.outlets.forEach((pos, i) =>
+OVERHEAD_OUTLETS.forEach(({ id: outletId, pos }, i) =>
   part(() => sph(0.022), ["environment"], {
+    id: "parts.environment.ceiling-outlet.005",
+    instance: [outletId],
     pos,
     color: "#149C94",
     name: "Ceiling outlet",
@@ -55,17 +61,23 @@ OVERHEAD.outlets.forEach((pos, i) =>
   }),
 );
 part(() => box(0.04, 0.012, 0.5), ["environment"], {
+  id: "parts.environment.windshield-defroster-outlets.006",
   pos: [PANEL_X + 0.12, 0.25, 0],
   color: "#149C94",
   name: "Windshield defroster outlets",
   note: "Fed from the junction box; with the pilot deflectors off, all the air goes to the defrosters and the aft outlets (OM p. 11).",
   pin: true,
 });
-[
-  [-0.3, "Pilot's foot outlet"],
-  [0.3, "Co-pilot's foot outlet"],
-].forEach(([z, name]) =>
+(
+  [
+    ["member-1", [-0.3, "Pilot's foot outlet"]],
+    ["member-2", [0.3, "Co-pilot's foot outlet"]],
+  ] as const
+).forEach(([instance1, [z, name]]) =>
   part(() => box(0.06, 0.04, 0.08), ["environment"], {
+    id: "parts.environment.part.007",
+    instance: [instance1],
+
     pos: [1.72, -0.56, z as number],
     color: "#149C94",
     name: name as string,
@@ -74,6 +86,7 @@ part(() => box(0.04, 0.012, 0.5), ["environment"], {
   }),
 );
 part(() => box(0.1, 0.06, 0.12), ["environment", "electrical"], {
+  id: "parts.environment.radio-cooling-grill.008",
   pos: [FW - 0.05, 0.05, 0.0],
   color: "#149C94",
   name: "Radio cooling grill",
@@ -82,11 +95,14 @@ part(() => box(0.1, 0.06, 0.12), ["environment", "electrical"], {
 });
 (
   [
-    ["Cabin heat control", 0.2, () => sim().s.env.heat],
-    ["Cabin vent control", 0.26, () => sim().s.env.vent],
-  ] as [string, number, () => number][]
-).forEach(([name, z, v]) =>
+    ["cabin-heat-control", ["Cabin heat control", 0.2, () => sim().s.env.heat] as [string, number, () => number]],
+    ["cabin-vent-control", ["Cabin vent control", 0.26, () => sim().s.env.vent] as [string, number, () => number]],
+  ] as const
+).forEach(([instance2, [name, z, v]]) =>
   part(() => cyl(0.012, 0.03, "x", 14), ["environment"], {
+    id: "parts.environment.part.009",
+    instance: [instance2],
+
     pos: [PANEL_X - 0.02, -0.25, z],
     color: "#1B1F23",
     anim: knobAnim(PANEL_X - 0.02, v, 0.05),

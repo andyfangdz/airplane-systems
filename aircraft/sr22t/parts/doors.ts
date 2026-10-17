@@ -43,6 +43,7 @@ let paintedDoor: THREE.MeshStandardMaterial | undefined;
 const doorMaterial = () => (paintedDoor ??= plainDoorInterior(skinMat(paintSkin).clone()));
 
 function riding(
+  id: string,
   key: DoorKey,
   geo: () => THREE.BufferGeometry,
   name: string,
@@ -53,6 +54,8 @@ function riding(
 ) {
   const { pivot } = doorHinge(key);
   part(() => geo().translate(-pivot.x, -pivot.y, -pivot.z), ["doors"], {
+    id: "parts.doors.part.001",
+    instance: [id, key],
     name,
     note,
     parent: "door:" + key,
@@ -69,6 +72,7 @@ function riding(
   });
 }
 function at(
+  id: string,
   key: DoorKey,
   p: THREE.Vector3,
   geo: () => THREE.BufferGeometry,
@@ -77,7 +81,7 @@ function at(
   color?: string,
   ext = false,
 ) {
-  riding(key, () => geo().translate(p.x, p.y, p.z), name, note, color, true, ext);
+  riding(id, key, () => geo().translate(p.x, p.y, p.z), name, note, color, true, ext);
 }
 const point = (x: number, y: number, side: number, inward = 0) => {
   const p = onSkin(x, y, side, 1);
@@ -151,13 +155,24 @@ function span(mesh: THREE.Mesh, a: THREE.Vector3, b: THREE.Vector3) {
   mesh.scale.y = d.length();
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
 }
-for (const side of [-1, 1]) {
+for (const [member1, side] of [
+  ["member-01", -1],
+  ["member-02", 1],
+] as const) {
   const key = side < 0 ? "L" : "R",
     { upper, lower } = DOOR_HINGE(side);
   const note =
     "Forward-hinged cabin door with gas-strut assistance (POH 13772-007 7-31). Opening fitted to POH Fig 1-2, 1-5 (PDF 15); outline/roof wrap scaled from AMM Fig 52-10-8 (PDF 2046). Hinge coordinates and 70° full-open angle approximate. Edge clearance: AMM Fig 52-10-2 (PDF 2016), 0.060–0.125 in.";
-  riding(key, () => doorPanelGeo(key), side < 0 ? "Left cabin door" : "Right cabin door", note, "#F3F5F6");
   riding(
+    "door-piece-1",
+    key,
+    () => doorPanelGeo(key),
+    side < 0 ? "Left cabin door" : "Right cabin door",
+    note,
+    "#F3F5F6",
+  );
+  riding(
+    "door-piece-2",
     key,
     () => doorWindowGeo(side),
     "Door window",
@@ -167,15 +182,16 @@ for (const side of [-1, 1]) {
   // 3-mm tube centred 7 mm in along the loft normal: on the jamb flange, inside the closed skin.
   const seal = doorEdge(key).map((p) => p.clone().addScaledVector(skinNormal(p, side), -0.007));
   riding(
+    "door-piece-3",
     key,
     () => tubeGeo([...seal, seal[0]], 0.003),
     "Door seal",
     "Perimeter seal and foam strip (AMM Fig 52-10-8, PDF 2046), on the jamb inside the closed skin. Thickness approximate.",
     "#363A3D",
   );
-  for (const [name, p] of [
-    ["Upper door hinge", upper],
-    ["Lower door hinge", lower],
+  for (const [member2, [name, p]] of [
+    ["member-01", ["Upper door hinge", upper]],
+    ["member-02", ["Lower door hinge", lower]],
   ] as const)
     part(
       () =>
@@ -188,6 +204,8 @@ for (const side of [-1, 1]) {
         ),
       ["doors"],
       {
+        id: "parts.doors.part.002",
+        instance: [side, member1, member2],
         name,
         pin: true,
         color: "#85939C",
@@ -197,6 +215,7 @@ for (const side of [-1, 1]) {
   const mounts = DOOR_HINGE_MOUNTS(side);
   for (const name of ["upper", "lower"] as const) {
     riding(
+      `hinge-plate.${name}`,
       key,
       // The 8-mm plate starts 9 mm in along the loft normal, under the flush hinge plate cover.
       () =>
@@ -212,6 +231,7 @@ for (const side of [-1, 1]) {
   // the skin and the housing floor 2 mm below it (recess depth undimensioned, approximate).
   const LEVER = [0.12, 0.017, 0.018] as const;
   at(
+    "door-piece-5",
     key,
     seated(1.27, 0.02, side, [0.08, 0.019, 0.006], 0.002),
     () => box(0.16, 0.038, 0.012),
@@ -223,10 +243,15 @@ for (const side of [-1, 1]) {
   // AMM 13773-002 Rev 7 Fig 52-10-3 (PDF 2027): exterior hub at the forward
   // end; the grip extends aft and rises on release, ending short of the lock cylinder.
   // The illustrative 120 mm length leaves an 8 mm gap without moving the hub or lock.
-  for (const inside of [false, true]) {
+  for (const [member3, inside] of [
+    ["member-01", false],
+    ["member-02", true],
+  ] as const) {
     const pivot = doorHinge(key).pivot;
     const lever = interiorLever(side);
     part(() => (inside ? lever.geo() : box(...LEVER).translate(-LEVER[0] / 2, 0, 0)), ["doors"], {
+      id: "parts.doors.part.003",
+      instance: [inside, side, member1, member3],
       parent: "door:" + key,
       pos: toVec3(
         (inside ? lever.hub : seated(1.345, 0.02, side, [LEVER[0] / 2, LEVER[1] / 2, LEVER[2] / 2])).sub(pivot),
@@ -243,6 +268,7 @@ for (const side of [-1, 1]) {
     });
   }
   at(
+    "door-piece-6",
     key,
     seated(1.205, 0.02, side, [0.012, 0.012, 0.01]),
     () => cyl(0.012, 0.02, "z"),
@@ -252,6 +278,7 @@ for (const side of [-1, 1]) {
     true,
   );
   at(
+    "door-piece-7",
     key,
     armrestCentre(side),
     () => box(...ARMREST_SIZE),
@@ -259,10 +286,14 @@ for (const side of [-1, 1]) {
     "Front-seat armrest integrated with the door (POH 7-31); handle nestled in armrest when latched (AMM 52-10 PDF 2006). Dimensions approximate.",
     "#525C65",
   );
-  for (const y of [-0.105, 0.62]) {
+  for (const [member4, y] of [
+    ["member-01", -0.105],
+    ["member-02", 0.62],
+  ] as const) {
     const opening = DOOR_OPENING(side);
     const aftX = THREE.MathUtils.lerp(opening[3].x, opening[2].x, (y - opening[3].y) / (opening[2].y - opening[3].y));
     at(
+      `door-piece-8.${member4}`,
       key,
       seated(aftX + 0.04, y, side, [0.0135, 0.017, 0.014], INBOARD),
       () => box(0.027, 0.034, 0.028),
@@ -271,6 +302,8 @@ for (const side of [-1, 1]) {
     );
     const striker = seated(aftX - 0.012, y, side, [0.02, 0.007, 0.007], INBOARD);
     part(() => cyl(0.007, 0.04, "x").translate(striker.x, striker.y, striker.z), ["doors"], {
+      id: "parts.doors.striker-pin.004",
+      instance: [side, member1, member4],
       name: "Striker pin",
       pin: true,
       note: "Fixed jamb latch stud, inside the closed skin (AMM Fig 52-10-6 PDF 2037). Location/size approximate.",
@@ -286,17 +319,22 @@ for (const side of [-1, 1]) {
     },
     ["doors"],
     {
+      id: "parts.doors.gas-strut-jamb-return-arm.005",
+      instance: [side, member1],
       name: "Gas strut jamb return arm",
       pin: true,
       note: "Connects the forward door-frame flange to the fixed gas-strut bracket (AMM 13773-002 Rev 7 Fig 52-10-1 sheet 1, PDF 2011). Arm shape, 8-mm radius and 40-mm inboard return illustrative; foot lies 40 mm forward of the cut edge, clear of the moving panel/seal (POH Fig 1-2, PDF 15); placement approximate.",
     },
   );
   part(() => box(0.035, 0.027, 0.026).translate(ends.fixed.x, ends.fixed.y, ends.fixed.z), ["doors"], {
+    id: "parts.doors.gas-strut-forward-bracket.006",
+    instance: [side, member1],
     name: "Gas strut forward bracket",
     pin: true,
     note: "Fixed fuselage forward attachment (AMM Fig 52-10-1 sheet 1 PDF 2011); size/location approximate.",
   });
   at(
+    "door-piece-9",
     key,
     ends.moving,
     () => box(0.035, 0.027, 0.026),
@@ -304,18 +342,26 @@ for (const side of [-1, 1]) {
     "Moving door aft attachment (AMM Fig 52-10-1 sheet 1 PDF 2011); size/location approximate.",
   );
   part(() => sph(0.011).translate(ends.fixed.x, ends.fixed.y, ends.fixed.z), ["doors"], {
+    id: "parts.doors.gas-strut-forward-ball-fitting.007",
+    instance: [side, member1],
     name: "Gas strut forward ball fitting",
     note: "Frame ball fitting and rod end (AMM Fig 52-10-1 sheet 1 Detail A, PDF 2011); size/position approximate.",
   });
   at(
+    "door-piece-10",
     key,
     ends.moving,
     () => sph(0.011),
     "Gas strut aft ball fitting",
     "Door ball fitting and rod end (AMM Fig 52-10-1 sheet 1 Detail A, PDF 2011); size/position approximate.",
   );
-  for (const barrel of [true, false]) {
+  for (const [member5, barrel] of [
+    ["member-01", true],
+    ["member-02", false],
+  ] as const) {
     part(() => cyl(barrel ? 0.013 : 0.006, 1), ["doors"], {
+      id: "parts.doors.part.008",
+      instance: [barrel, side, member1, member5],
       name: barrel ? "Door gas strut" : "Gas strut piston",
       pin: barrel,
       color: barrel ? "#404C54" : "#D3DBDF",
@@ -330,6 +376,7 @@ for (const side of [-1, 1]) {
   }
 }
 riding(
+  "door-piece-11",
   "bag",
   () => doorPanelGeo("bag"),
   "Baggage door",
@@ -338,6 +385,7 @@ riding(
 );
 const bagSeal = BAG_DOOR.map((p) => p.clone().add(new THREE.Vector3(0, 0, 0.006)));
 riding(
+  "door-piece-12",
   "bag",
   () => tubeGeo([...bagSeal, bagSeal[0]], 0.003),
   "Baggage door seal",
@@ -345,12 +393,14 @@ riding(
   "#363A3D",
 );
 part(() => tubeGeo([BAG_HINGE.lower, BAG_HINGE.upper], 0.009), ["doors"], {
+  id: "parts.doors.baggage-door-hinge.009",
   name: "Baggage door hinge",
   pin: true,
   ext: true,
   note: "Exterior forward-edge piano hinge, rod on the skin line (AMM Fig 52-30-1 sheet 1 PDF 2055). Size approximate.",
 });
 at(
+  "door-piece-13",
   "bag",
   seated(-0.6, 0.025, -1, [0.012, 0.012, 0.01]),
   () => cyl(0.012, 0.02, "z"),
@@ -360,6 +410,7 @@ at(
   true,
 );
 at(
+  "door-piece-14",
   "bag",
   seated(-0.59, -0.015, -1, [0.014, 0.03, 0.0125], INBOARD),
   () => box(0.028, 0.06, 0.025),
@@ -367,6 +418,7 @@ at(
   "Rear-edge latch, inside the closed skin (POH 7-26; AMM Fig 52-30-1 PDF 2055), size approximate.",
 );
 part(() => cyl(0.004, 1), ["doors"], {
+  id: "parts.doors.baggage-door-lanyard.010",
   name: "Baggage door lanyard",
   pin: true,
   note: "Lanyard limits the swing on the modelled airplane; no baggage-door gas strut (AMM Fig 52-30-1 sheet 1 PDF 2055). Attachment coordinates/length approximate.",

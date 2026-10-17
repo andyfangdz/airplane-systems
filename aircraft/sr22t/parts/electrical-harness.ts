@@ -26,6 +26,7 @@ const behindPanel = (dx: number, dy: number): Vec3 => [cx + dx, cy + dy, -0.115]
 /* ---------- AVIONICS master relays (AMM 13773-002 24-50 PDF p. 752; POH 13772-007 7-51) ---------- */
 // location not given in either document: behind the breaker panel, position and size approximate
 part(() => box(0.04, 0.03, 0.03), ["electrical"], {
+  id: "parts.electrical-harness.avionics-master-relays.001",
   pos: behindPanel(-0.16, 0.05),
   color: "#7A8288",
   name: "Avionics master relays",
@@ -39,18 +40,25 @@ part(() => box(0.04, 0.03, 0.03), ["electrical"], {
  * The eight TVS integral to the wire harnesses, each beside the connector it protects. ADAHRS 2 is installed on this
  * airplane (per operator, 2026-10-08), so its TVS is drawn. Size and offsets from each unit approximate.
  */
-export const HARNESS_TVS: [where: string, pos: Vec3, axis: "x" | "z"][] = [
-  ["ADAHRS 1 connector", [ADAHRS_1[0] + 0.03, ADAHRS_1[1] - 0.03, ADAHRS_1[2] - 0.085], "x"],
-  ["ADAHRS 2 connector", [ADAHRS_2[0] - 0.05, ADAHRS_2[1] + 0.053, ADAHRS_2[2] - 0.026], "x"],
-  ["GIA 63W integrated avionics unit 1 connector", [GIA_1[0] + 0.1, GIA_1[1] - 0.064, GIA_1[2]], "z"],
-  ["attitude indicator connector", [MD302_POS[0] + 0.15, MD302_POS[1] + 0.01, MD302_POS[2] - 0.06], "z"],
-  ["PFD connector", [PFD_CONN[0] + 0.028, PFD_CONN[1] + 0.068, PFD_CONN[2] - 0.09], "z"],
-  ["PFD connector", [PFD_CONN[0] + 0.028, PFD_CONN[1] + 0.068, PFD_CONN[2] - 0.05], "z"],
-  ["circuit breaker panel", behindPanel(-0.08, 0.05), "z"],
-  ["circuit breaker panel", behindPanel(-0.02, 0.05), "z"],
+export const HARNESS_TVS: [where: string, pos: Vec3, axis: "x" | "z", key: string][] = [
+  ["ADAHRS 1 connector", [ADAHRS_1[0] + 0.03, ADAHRS_1[1] - 0.03, ADAHRS_1[2] - 0.085], "x", "adahrs-1"],
+  ["ADAHRS 2 connector", [ADAHRS_2[0] - 0.05, ADAHRS_2[1] + 0.053, ADAHRS_2[2] - 0.026], "x", "adahrs-2"],
+  ["GIA 63W integrated avionics unit 1 connector", [GIA_1[0] + 0.1, GIA_1[1] - 0.064, GIA_1[2]], "z", "gia-1"],
+  [
+    "attitude indicator connector",
+    [MD302_POS[0] + 0.15, MD302_POS[1] + 0.01, MD302_POS[2] - 0.06],
+    "z",
+    "standby-attitude",
+  ],
+  ["PFD connector", [PFD_CONN[0] + 0.028, PFD_CONN[1] + 0.068, PFD_CONN[2] - 0.09], "z", "pfd-outer"],
+  ["PFD connector", [PFD_CONN[0] + 0.028, PFD_CONN[1] + 0.068, PFD_CONN[2] - 0.05], "z", "pfd-inner"],
+  ["circuit breaker panel", behindPanel(-0.08, 0.05), "z", "breaker-aft"],
+  ["circuit breaker panel", behindPanel(-0.02, 0.05), "z", "breaker-forward"],
 ];
-HARNESS_TVS.forEach(([where, pos, axis]) =>
+HARNESS_TVS.forEach(([where, pos, axis, key]) =>
   part(() => cyl(0.006, 0.02, axis), ["electrical"], {
+    id: "parts.electrical-harness.harness-tvs.002",
+    instance: [key],
     pos,
     color: "#2F3A44",
     name: "Harness TVS",
@@ -60,8 +68,16 @@ HARNESS_TVS.forEach(([where, pos, axis]) =>
 
 /* ---------- static harness runs (schematic, approximate) ---------- */
 const HARNESS = "#3E3A33";
-const run = (name: string, pts: Vec3[], note: string) =>
-  part(() => tubeGeo(pts, 0.008), ["electrical"], { color: HARNESS, name, note, pin: true });
+const run = (key: string, name: string, pts: Vec3[], note: string) =>
+  part(() => tubeGeo(pts, 0.008), ["electrical"], {
+    id: "parts.electrical-harness.part.003",
+    instance: [key],
+
+    color: HARNESS,
+    name,
+    note,
+    pin: true,
+  });
 
 /** A point on the wing at span z and chord fraction xc, `up` above the mean line. */
 const wingAt = (z: number, xc: number, up: number): Vec3 => {
@@ -115,11 +131,13 @@ const wingRun = (s: 1 | -1): Vec3[] => {
 };
 for (const s of [-1, 1] as const)
   run(
+    `wing-${s}`,
     `Wing harness (${s < 0 ? "LH" : "RH"})`,
     wingRun(s),
     "Wiring from the circuit breaker panel to the wing loads: position, strobe and recognition lights, pitot heat, stall warning, magnetometer, OAT, fuel quantity sensors and the flap actuator (SR22T POH 13772-007 7-47 – 7-57, 7-68 – 7-75; AMM 13773-002 34-20 PDF p. 1675). Neither document draws the harness path: route schematic, approximate.",
   );
 run(
+  "tail",
   "Tail harness",
   [
     behindPanel(-0.08, -0.04),
@@ -140,6 +158,7 @@ run(
   "Wiring from the circuit breaker panel aft under the seats, through the aft bulkhead to the avionics bay behind it (SR22T POH 13772-007 7-5) and BAT 2 in the empennage (AMM 13773-002 24-00 PDF p. 694). Neither document draws the harness path: route schematic, approximate.",
 );
 run(
+  "engine",
   "Engine harness (firewall → GEA 71)",
   [
     [2.6, -0.12, 0.38],
@@ -149,6 +168,7 @@ run(
   "Engine sensor wiring from the firewall pass-through to the GEA 71 engine airframe unit behind the MFD (SR22T POH 13772-007 7-35, 7-78); firewall-forward it is the item 37 wiring harness (AMM 13773-002 Fig 71-00-2 sheet 4, PDF p. 2490). Route schematic, approximate.",
 );
 run(
+  "bolster",
   "Bolster switch wiring",
   [
     [2.23, -0.158, -0.36],

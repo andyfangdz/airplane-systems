@@ -3,42 +3,12 @@
  * Every lettered basic-POH inspection in source order. This Lycoming/Perspective+ configuration has no oxygen or FIKI
  * checklist. Positions are approximate display framing; inspection actions and numerical standards come from the POH.
  */
-import { toVec3, type Vec3 } from "@/lib/math";
+import type { FleetWalkData, FleetWalkItem, FleetWalkStation } from "@/lib/fleet-walk";
+import { toVec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
+import { CIRRUS_WALK_MAP } from "../cirrus-walk-map";
 import { onSkin, wingP, WTIP } from "./geometry";
 import type { Sim } from "./model";
-
-export interface CameraPose {
-  p: Vec3;
-  t: Vec3;
-}
-export interface WalkItem {
-  id: string;
-  text: string;
-  standard: string;
-  parts: string[];
-  /** Part name or point anchoring the label and camera instead of averaging the highlighted parts. */
-  target?: string | Vec3;
-  /** Inspection side override for unique belly hardware reached from either fuselage side. */
-  side?: "L" | "R" | "any";
-  system: SysId;
-  ref: string;
-  why?: string;
-  note?: string;
-  steps?: string[];
-  crouch?: boolean;
-  sim?: (s: Sim) => void;
-}
-export interface WalkStation {
-  n: number;
-  title: string;
-  side?: "L" | "R";
-  cam: CameraPose;
-  map: [number, number];
-  warning?: string;
-  note?: string;
-  items: WalkItem[];
-}
 
 export const SOURCE_URL = "https://www.palomaraviation.com/pdf/sr20-g6-poh.pdf";
 export const SOURCE = "SR20 POH 11934-005 Reissue A · 4-4–4-9 · Figure 4-1";
@@ -74,8 +44,8 @@ const item = (
   standard: string,
   parts: string[],
   system: SysId,
-  extra: Partial<WalkItem> = {},
-): WalkItem => ({
+  extra: Partial<FleetWalkItem<Sim>> = {},
+): FleetWalkItem<Sim> => ({
   id,
   text,
   standard,
@@ -94,7 +64,7 @@ const lightL = "Left wingtip: nav (red) + strobe",
   lightR = "Right wingtip: nav (green) + strobe";
 const boltNote = "Verify the bolt under the inboard aileron edge is secured with safety wire (POH 4-7 and 4-9).";
 
-export const WALK: WalkStation[] = [
+export const WALK: FleetWalkStation<Sim>[] = [
   {
     n: 1,
     title: "Cabin",
@@ -104,10 +74,10 @@ export const WALK: WalkStation[] = [
       item("1a", "Required Documents", "ON BOARD", ["Required documents"], "cabin"),
       item("1b", "AVIONICS Switch", "OFF", ["AVIONICS switch"], "electrical", { sim: power("avionics", false) }),
       item("1c", "BAT 2 Switch", "ON", ["BAT 2 switch"], "electrical", { sim: power("bat2", true) }),
-      item("1d", "PFD", "VERIFY ON", ["PFD bezel"], "avionics", {
+      item("1d", "PFD", "VERIFY ON", ["sr20/avionics.pfd"], "avionics", {
         why: "This check precedes BAT 1: the PFD is supplied by the essential battery circuit.",
       }),
-      item("1e", "Essential Bus Voltage", "23–25 VOLTS", ["PFD bezel"], "electrical"),
+      item("1e", "Essential Bus Voltage", "23–25 VOLTS", ["sr20/avionics.pfd"], "electrical"),
       item("1f", "Flap Position Light", "OUT", ["FLAPS switch"], "flaps", {
         why: "BAT 2 alone does not supply the flap motor's nonessential bus.",
       }),
@@ -123,7 +93,7 @@ export const WALK: WalkStation[] = [
         },
       ),
       item("1i", "AVIONICS Switch", "ON", ["AVIONICS switch"], "electrical", { sim: power("avionics", true) }),
-      item("1j", "Fuel Quantity", "CHECK", ["MFD bezel", "Filler cap"], "fuel", {
+      item("1j", "Fuel Quantity", "CHECK", ["sr20/avionics.mfd", "Filler cap"], "fuel", {
         why: "The subsequent wing checks verify quantity at each filler; displayed quantities alone are not the whole inspection.",
       }),
       item("1k", "Fuel Selector", "SELECT FULLER TANK", ["Fuel selector valve"], "fuel", {
@@ -189,12 +159,19 @@ export const WALK: WalkStation[] = [
     map: [-0.9, -1.7],
     items: [
       item("2a", "Door Lock", "UNLOCK", ["Cabin door key lock"], "cabin"),
-      item("2b", "COM 1 Antenna (top)", "CONDITION AND ATTACHMENT", ["COM 1 antenna"], "avionics"),
-      item("2c", "Transponder Antenna (underside)", "CONDITION AND ATTACHMENT", ["Transponder antenna"], "avionics", {
-        side: "any",
-        crouch: true,
-      }),
-      item("2d", "COM 2 Antenna (underside)", "CONDITION AND ATTACHMENT", ["COM 2 antenna"], "avionics", {
+      item("2b", "COM 1 Antenna (top)", "CONDITION AND ATTACHMENT", ["sr20/avionics.antenna.com1"], "avionics"),
+      item(
+        "2c",
+        "Transponder Antenna (underside)",
+        "CONDITION AND ATTACHMENT",
+        ["sr20/avionics.antenna.transponder"],
+        "avionics",
+        {
+          side: "any",
+          crouch: true,
+        },
+      ),
+      item("2d", "COM 2 Antenna (underside)", "CONDITION AND ATTACHMENT", ["sr20/avionics.antenna.com2"], "avionics", {
         crouch: true,
       }),
       item("2e", "Wing/Fuselage Fairing", "CHECK", ["Wing/fuselage fairing"], "airframe", {
@@ -333,6 +310,7 @@ export const WALK: WalkStation[] = [
     side: "R",
     cam: { p: [3.5, EYE_Y, 1.9], t: [2.55, -0.35, 0.45] },
     map: [3.6, 1.6],
+    caution: true,
     warning:
       "Do not operate the engine below six quarts on the dipstick. Seven quarts is recommended for extended flights (POH 4-7).",
     items: [
@@ -379,7 +357,13 @@ export const WALK: WalkStation[] = [
       item("10b", "Cowling", "ATTACHMENTS SECURE", ["Cowling inspection region"], "airframe", {
         target: toVec3(onSkin(3.1, -0.15, -1, 1)), // approximate inspection point on the actual cowl side skin
       }),
-      item("10c", "External Power", "DOOR SECURE", ["External power door", "Ground service receptacle"], "electrical"),
+      item(
+        "10c",
+        "External Power",
+        "DOOR SECURE",
+        ["External power door", "sr20/electrical.externalPower"],
+        "electrical",
+      ),
       item("10d", "Gascolator (underside)", "DRAIN FOR 3 SECONDS, SAMPLE", ["Gascolator drain"], "fuel", {
         crouch: true,
       }),
@@ -459,3 +443,27 @@ export const WALK: WalkStation[] = [
     ],
   },
 ];
+
+export const WALK_DATA: FleetWalkData<Sim> = {
+  id: "sr20",
+  short: "SR20",
+  source: SOURCE,
+  sourceUrl: SOURCE_URL,
+  applicability:
+    "This SR20 G6 walk explains the Lycoming/Perspective+ basic-POH inspection. It does not certify an aircraft ready for flight.",
+  general: GENERAL_WARNING,
+  throughout: THROUGHOUT,
+  next: "The POH continues with **Before Engine Start** on page 4-9.",
+  stations: WALK,
+  missing: NOT_MODELLED,
+  copy: {
+    notice: "Study aid · use the approved POH checklist for your aircraft.",
+    warnTitle: "Before inspection · POH 4-4",
+    consequence: "Failure to comply can cause serious aircraft damage, loss of the aircraft, or loss of life.",
+    refSuffix: "SR20 G6 POH",
+    throughoutRef: "POH 4-4",
+    mapLabel: "SR20 walk-around stations, POH Figure 4-1",
+    mapTitle: "SR20 from above, nose up",
+    map: CIRRUS_WALK_MAP,
+  },
+};

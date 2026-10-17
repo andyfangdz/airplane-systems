@@ -45,13 +45,15 @@ export const LIGHTS = {
 export const DOME_LIGHT_RADIUS = 0.022;
 (
   [
-    ["Dome light", LIGHTS.dome, false],
-    ["Footwell light", LIGHTS.foot[0], false],
-    ["Entry step light", LIGHTS.step[0], true],
-    ["Baggage light", LIGHTS.bag, false],
-  ] as [string, Vec3, boolean][]
-).forEach(([name, pos, ext]) =>
+    ["member-01", ["Dome light", LIGHTS.dome, false]],
+    ["member-02", ["Footwell light", LIGHTS.foot[0], false]],
+    ["member-03", ["Entry step light", LIGHTS.step[0], true]],
+    ["member-04", ["Baggage light", LIGHTS.bag, false]],
+  ] as [string, [string, Vec3, boolean]][]
+).forEach(([member1, [name, pos, ext]]) =>
   part(() => sph(DOME_LIGHT_RADIUS), ["lighting"], {
+    id: "parts.lights.part.001",
+    instance: [member1],
     pos,
     color: "#E8C46A",
     name,
@@ -64,6 +66,7 @@ export const DOME_LIGHT_RADIUS = 0.022;
 // dome light here, position approximate. Rocker order ON / OFF / AUTO as the POH lists them (7-60), forward = ON.
 const CABIN_SWITCH_TILT = { ON: -0.3, OFF: 0, AUTO: 0.3 } as const;
 part(() => box(0.03, 0.008, 0.016), ["lighting", "cabin"], {
+  id: "parts.lights.cabin-light-switch.002",
   pos: [LIGHTS.dome[0], LIGHTS.dome[1] + 0.014, LIGHTS.dome[2] + 0.045],
   color: "#20262B",
   anim: (m) => {
@@ -81,16 +84,18 @@ part(() => box(0.03, 0.008, 0.016), ["lighting", "cabin"], {
 const REAR_READING_X = REAR_CUSHION_X - 0.1; // POH 7-59: above each passenger, offsets approximate
 // Front pair over the FS 143.5 front occupants (cabin.ts FRONT_SEAT, POH Fig 6-3), outboard of the CAPS recess; approximate.
 const FRONT_READING_X = FRONT_CUSHION_X - 0.17;
-const READING_LIGHTS: Vec3[] = [
-  [FRONT_READING_X, 0.6, -0.3],
-  [FRONT_READING_X, 0.6, 0.3],
-  [REAR_READING_X, topY(REAR_READING_X) - 0.1, -0.24],
-  [REAR_READING_X, topY(REAR_READING_X) - 0.1, 0.28],
+const READING_LIGHTS: [id: string, position: Vec3][] = [
+  ["pilot", [FRONT_READING_X, 0.6, -0.3]],
+  ["copilot", [FRONT_READING_X, 0.6, 0.3]],
+  ["rear-left", [REAR_READING_X, topY(REAR_READING_X) - 0.1, -0.24]],
+  ["rear-right", [REAR_READING_X, topY(REAR_READING_X) - 0.1, 0.28]],
 ];
 const READING_STATIC =
   " Drawn static: the model keeps no reading-light switch state, so the lights stay unlit and the push buttons do not move.";
-READING_LIGHTS.forEach((pos, i) => {
+READING_LIGHTS.forEach(([id, pos], i) => {
   part(() => sph(0.014), ["lighting", "cabin"], {
+    id: "parts.lights.reading-light.003",
+    instance: [id],
     pos,
     color: "#E8C46A",
     name: "Reading light",
@@ -102,6 +107,8 @@ READING_LIGHTS.forEach((pos, i) => {
       READING_STATIC,
   });
   part(() => cyl(0.005, 0.006, "y", 12), ["lighting", "cabin"], {
+    id: "parts.lights.reading-light-push-button.004",
+    instance: [id],
     pos: [pos[0] + 0.03, pos[1] + 0.008, pos[2]],
     color: "#20262B",
     name: "Reading light push button",
@@ -111,11 +118,14 @@ READING_LIGHTS.forEach((pos, i) => {
 const EXT = "#D9D9D9";
 (
   [
-    [LIGHTS.tipL, "Left wingtip: nav (red) + strobe"],
-    [LIGHTS.tipR, "Right wingtip: nav (green) + strobe"],
-  ] as [Vec3, string][]
-).forEach(([pos, name]) =>
+    ["member-01", [LIGHTS.tipL, "Left wingtip: nav (red) + strobe"]],
+    ["member-02", [LIGHTS.tipR, "Right wingtip: nav (green) + strobe"]],
+  ] as [string, [Vec3, string]][]
+).forEach(([member2, [pos, name]]) =>
   part(() => sph(0.035), ["lighting"], {
+    id: "parts.lights.part.005",
+    instance: [member2],
+
     pos,
     color: EXT,
     name,
@@ -124,8 +134,15 @@ const EXT = "#D9D9D9";
     ext: true,
   }),
 );
-[LIGHTS.aftL, LIGHTS.aftR].forEach((pos, i) =>
+(
+  [
+    ["member-01", LIGHTS.aftL],
+    ["member-02", LIGHTS.aftR],
+  ] as const
+).forEach(([member3, pos], i) =>
   part(() => sph(0.025), ["lighting"], {
+    id: "parts.lights.aft-position-light-white.006",
+    instance: [member3],
     pos,
     color: EXT,
     name: "Aft position light (white)",
@@ -134,8 +151,15 @@ const EXT = "#D9D9D9";
     ext: true,
   }),
 );
-[LIGHTS.recogL, LIGHTS.recogR].forEach((pos, i) =>
+(
+  [
+    ["member-01", LIGHTS.recogL],
+    ["member-02", LIGHTS.recogR],
+  ] as const
+).forEach(([member4, pos], i) =>
   part(() => box(0.03, 0.035, 0.14), ["lighting"], {
+    id: "parts.lights.wingtip-recognition-light.007",
+    instance: [member4],
     pos,
     color: EXT,
     name: "Wingtip recognition light",
@@ -151,6 +175,7 @@ export const cowlLampAxis = (d: number): Vec3 => [
   LIGHTS.cowl[2],
 ];
 part(() => box(0.06, 0.03, 0.09), ["lighting"], {
+  id: "parts.lights.landing-light-hid-lower-cowl.008",
   pos: LIGHTS.cowl,
   rot: [0, 0, LIGHTS.cowlTilt],
   color: EXT,
@@ -159,8 +184,15 @@ part(() => box(0.06, 0.03, 0.09), ["lighting"], {
   pin: true,
   ext: true,
 });
-[LIGHTS.iceL, LIGHTS.iceR].forEach((pos, i) =>
+(
+  [
+    ["member-01", LIGHTS.iceL],
+    ["member-02", LIGHTS.iceR],
+  ] as const
+).forEach(([member5, pos], i) =>
   part(() => cyl(0.022, 0.02, "z"), ["lighting"], {
+    id: "parts.lights.ice-inspection-light.009",
+    instance: [member5],
     pos,
     color: EXT,
     name: "Ice inspection light",

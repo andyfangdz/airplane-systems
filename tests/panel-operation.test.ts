@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { cancelPropCycle, startPropCycle } from "@/aircraft/c182t/propCycle";
-import { scenarioCruise } from "@/aircraft/c182t/store";
+import { c182Runtime, scenarioCruise } from "@/aircraft/c182t/store";
 import { fuelPressureState } from "@/aircraft/da40/limits";
 import { cabinOperation } from "@/aircraft/sr20/environment";
 import { cabinAirColor, flowRates } from "@/aircraft/sr20/flows";
@@ -115,39 +115,32 @@ describe("DA40 fuel-pressure limits (AFMS §2.5)", () => {
 describe("C182 run-up propeller-cycle cancellation", () => {
   afterEach(() => {
     cancelPropCycle();
-    vi.useRealTimers();
+    scenarioCruise();
   });
 
-  it("manual override or leaving the panel cancels the pending return to high RPM", () => {
-    vi.useFakeTimers();
-    const returnToHigh = vi.fn();
-    startPropCycle(returnToHigh);
-    vi.advanceTimersByTime(1000);
+  it("manual override cancels the pending return to high RPM", () => {
+    startPropCycle();
+    c182Runtime.advance(1);
     cancelPropCycle();
-    vi.advanceTimersByTime(2500);
-    expect(returnToHigh).not.toHaveBeenCalled();
+    for (let i = 0; i < 3; i++) c182Runtime.advance(1);
+    expect(c182Runtime.current().store.getState().s.eng.prop).toBe(0);
   });
 
   it("only the newest cycle can complete", () => {
-    vi.useFakeTimers();
-    const oldCycle = vi.fn(),
-      newCycle = vi.fn();
-    startPropCycle(oldCycle);
-    vi.advanceTimersByTime(1000);
-    startPropCycle(newCycle);
-    vi.advanceTimersByTime(1500);
-    expect(oldCycle).not.toHaveBeenCalled();
-    expect(newCycle).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1000);
-    expect(newCycle).toHaveBeenCalledOnce();
+    startPropCycle();
+    c182Runtime.advance(1);
+    startPropCycle();
+    c182Runtime.advance(1);
+    c182Runtime.advance(0.5);
+    expect(c182Runtime.current().store.getState().s.eng.prop).toBe(0);
+    c182Runtime.advance(1);
+    expect(c182Runtime.current().store.getState().s.eng.prop).toBe(1);
   });
 
   it("changing scenario cancels the old scenario's pending cycle", () => {
-    vi.useFakeTimers();
-    const returnToHigh = vi.fn();
-    startPropCycle(returnToHigh);
+    startPropCycle();
     scenarioCruise();
-    vi.advanceTimersByTime(2500);
-    expect(returnToHigh).not.toHaveBeenCalled();
+    for (let i = 0; i < 3; i++) c182Runtime.advance(1);
+    expect(c182Runtime.current().store.getState().s.eng.prop).toBe(0.89);
   });
 });

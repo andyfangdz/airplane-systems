@@ -5,6 +5,7 @@
 import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import { wingP } from "./geometry";
+import { DISPLAY_BREAKERS, DISPLAY_FEEDS, DISPLAY_BUS_LABELS, displayFeedPowered } from "./electrical-installation";
 import { breakerBus, type Elec, type Sim } from "./model";
 import {
   OAT_1,
@@ -292,13 +293,25 @@ data(
 // under the bolster and round the panel slab's lower aft edge (either side of the rear floor duct), then up below the GIAs (y < 0.045) and aft
 // into the display cut-out behind the bezel (x < GIA front 2.325) to the connectors
 const CB_BACK = off(CB_PANEL, [0.08, 0.02, 0.02]);
-const FEEDS: [key: string, breaker: string, bus: string, to: Vec3, z: number][] = [
-  ["pfdFeedA", "PFD A", "ESS BUS 1", PFD_CONN, -0.075],
-  ["pfdFeedB", "PFD B", "MAIN BUS 2", PFD_CONN, -0.086],
-  ["mfdFeedA", "MFD A", "MAIN BUS 3", MFD_CONN, 0.03],
-  ["mfdFeedB", "MFD B", "MAIN BUS 1", MFD_CONN, 0.041],
-];
-FEEDS.forEach(([key, breaker, bus, to, z]) =>
+const FEED_ROUTES = {
+  pfdFeedA: { to: PFD_CONN, z: -0.075 },
+  pfdFeedB: { to: PFD_CONN, z: -0.086 },
+  mfdFeedA: { to: MFD_CONN, z: 0.03 },
+  mfdFeedB: { to: MFD_CONN, z: 0.041 },
+} as const;
+const FEEDS = Object.entries(FEED_ROUTES).map(([key, route]) => {
+  const feed = DISPLAY_FEEDS[key as keyof typeof FEED_ROUTES];
+  const breaker = DISPLAY_BREAKERS[feed.breaker];
+  return {
+    key,
+    breaker: breaker.label,
+    bus: DISPLAY_BUS_LABELS[breaker.bus],
+    rating: breaker.rating.value,
+    protection: feed.breaker,
+    ...route,
+  };
+});
+FEEDS.forEach(({ key, breaker, bus, to, z, rating }) =>
   flow(
     key,
     [
@@ -315,9 +328,11 @@ FEEDS.forEach(([key, breaker, bus, to, z]) =>
     ["avionics", "electrical"],
     {
       ...FEED,
+      connection: key,
       name: breaker + " feed",
       note:
-        "5 A " +
+        rating +
+        " A " +
         breaker +
         " circuit breaker on " +
         bus +
@@ -380,7 +395,7 @@ export function avionicsDepthRates(s: Sim, E: Elec): Record<string, number> {
   R.trafficData = link(fed("TRAFFIC") && adahrs, gia2);
   R.wxData = link(fed("DATA LINK/WX"), gia2);
   R.dmeData = link(fed("DME/ADF"), gia2);
-  for (const [key, breaker] of FEEDS) R[key] = fed(breaker) ? 1 : 0;
+  for (const { key, protection } of FEEDS) R[key] = displayFeedPowered(protection, E, s.cb) ? 1 : 0;
   R.iauCool = R.iauCool2 = E.fan2 ? 0.8 : 0;
   return R;
 }

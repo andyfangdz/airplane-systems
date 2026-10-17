@@ -1,4 +1,4 @@
-import { Box3, Mesh, Vector3, type Object3D } from "three";
+import { Box3, Mesh, PerspectiveCamera, Vector3, type Object3D } from "three";
 import { D2R, toVec3, V, type Vec3 } from "./math";
 
 /** Shared scene framing policy. Fit narrower viewports along the existing line of sight. */
@@ -93,4 +93,26 @@ export function viewPresetCamera(
   const halfAngle = Math.min((fov * D2R) / 2, Math.atan((Math.tan((fov * D2R) / 2) * aspect) / CAMERA_FIT_ASPECT));
   const distance = radius / (Math.sin(halfAngle) * FRAME_FILL);
   return [toVec3(V(...target).addScaledVector(V(...directions[preset]).normalize(), distance)), target];
+}
+
+/**
+ * How far from the middle of a view from `eye` looking at `target` the boxes reach: the largest corner offset as a share
+ * of the half-width or half-height (1: on the edge), or Infinity when a corner is level with or behind the eye.
+ */
+export function frameExtent(eye: Vector3, target: Vector3, boxes: Box3[], fov: number, aspect: number): number {
+  const camera = new PerspectiveCamera(fov, aspect);
+  camera.position.copy(eye);
+  camera.lookAt(target);
+  camera.updateMatrixWorld();
+  const tanVertical = Math.tan((fov * D2R) / 2);
+  let extent = 0;
+  for (const b of boxes)
+    for (const x of [b.min.x, b.max.x])
+      for (const y of [b.min.y, b.max.y])
+        for (const z of [b.min.z, b.max.z]) {
+          const v = V(x, y, z).applyMatrix4(camera.matrixWorldInverse);
+          if (v.z >= 0) return Infinity;
+          extent = Math.max(extent, Math.abs(v.x / -v.z) / (tanVertical * aspect), Math.abs(v.y / -v.z) / tanVertical);
+        }
+  return extent;
 }

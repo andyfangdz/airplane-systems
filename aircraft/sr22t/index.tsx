@@ -1,5 +1,6 @@
 "use client";
 import { AlertWindow } from "@/components/AlertWindow";
+import { fleetWalkUi } from "@/components/FleetWalkaround";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef, ModelRefs } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
@@ -16,14 +17,11 @@ import { Oxygen } from "./panels/oxygen";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Ice } from "./panels/ice";
 import { Environment, Pitot } from "./panels/air";
-import { resetCaps, useSR22T } from "./store";
+import { resetCaps, sr22Runtime, useSR22T } from "./store";
 import { CAPS_CAM } from "./systems";
 import { SR22T_META } from "./meta";
-import { simTick } from "./tick";
 import { useView } from "@/lib/view";
-import { WalkPanel } from "./panels/walkaround";
-import { WalkMarker } from "./WalkMarker";
-import { bootWalk, closeWalk, openWalk } from "./walk-store";
+import { walkController } from "./walk-store";
 
 /** CAPS timeline readout in the viewport while the CAPS view is open. */
 function CapsHud() {
@@ -41,12 +39,14 @@ function CapsHud() {
   );
 }
 
+const WALK = fleetWalkUi(walkController);
+
 /** Scene effects: the CAPS deployment and the walk-around's item marker. */
 function Overlay(refs: ModelRefs) {
   return (
     <>
       <Parachute {...refs} />
-      <WalkMarker />
+      <WALK.Marker />
     </>
   );
 }
@@ -64,7 +64,8 @@ export const SR22T: AircraftDef = {
   pivotX: 1,
   Model: SceneModel,
   progressive: true,
-  prepare: () => void fuselageInWorker(),
+  // Warm-up errors are surfaced by the mounted scene's awaited preparation and Retry boundary.
+  prepare: () => void fuselageInWorker().catch(() => {}),
   Overlay,
   panels: {
     overview: Overview,
@@ -86,7 +87,7 @@ export const SR22T: AircraftDef = {
     oxygen: Oxygen,
     caps: Caps,
   },
-  tick: simTick,
+  advance: sr22Runtime.advance,
   Alerts,
   Hud: CapsHud,
   onSelect: (to) => {
@@ -94,5 +95,5 @@ export const SR22T: AircraftDef = {
   },
   labels: { cat: CAT, inside: inFus },
   resetCam: () => (useSR22T.getState().s.capsOn ? CAPS_CAM : null),
-  walk: { Panel: WalkPanel, open: () => openWalk(), close: closeWalk, boot: bootWalk },
+  walk: WALK.walk,
 };

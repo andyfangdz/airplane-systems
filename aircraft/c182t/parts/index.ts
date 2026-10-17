@@ -19,8 +19,8 @@
  * Fore/aft positions are the POH Figure 6-9 equipment-list arms; butt lines and heights are placed from the descriptions in
  * Section 7 and Figure 7-2 (the POH gives no BL or WL).
  *
- * The sections are imported below in registration order. Part ids come from a running counter and the first part with a
- * given name gets the label pin, so keep this order. A section may import only from catalogue.ts or from a section above it
+ * The sections are imported below in registration order. Part ids are explicit authored tokens; the first pinned part with a
+ * given name gets the label pin, so preserve this label order. A section may import only from catalogue.ts or from a section above it
  * here (importing a later one would register its parts first); shared constants go in catalogue.ts.
  */
 export { CAT, P3, PV, onSurf, surfacePivot } from "./catalogue";

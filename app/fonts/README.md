@@ -9,3 +9,15 @@ SHA-256: `5f16566f7a40d39b339ad26be151fa5a1ab1f0c2574c7a2e619765584a1acbd8`.
 The layout loads this file with `next/font/local` at the existing 400, 600 and 700 weights. This avoids the
 `next/font/google queries have exactly one entry` error from Turbopack when resolving Google's generated
 Source Sans 3 font URLs during a clean build. The full font retains its non-Latin glyph coverage.
+
+## Saira Condensed and IBM Plex Mono
+
+The remaining fonts are now local as well. Every file listed in `vendored-fonts.json` is byte-for-byte identical to
+its counterpart in the audited main production build, and was checked against its versioned Google Fonts URL during
+vendoring. The inventory records source URLs, SHA256, exact weights and Unicode ranges. No outlines were regenerated.
+Saira Condensed retains 500/600/700; IBM Plex Mono retains 400/500, all upright. Their SIL Open Font Licenses are included.
+
+`study-fonts.ts` uses a separate `next/font/local` call per Unicode subset and composes the public `style.fontFamily` values,
+so all original Latin, extended Latin, Vietnamese and IBM Cyrillic coverage remains available. Only the Latin subsets
+are preloaded. `fallbacks.css` retains the original Google loader's Arial metric overrides, avoiding a change to the
+loading layout. Source Sans 3 and the application's font variables are unchanged. Building no longer fetches fonts.

@@ -7,7 +7,7 @@ import { cabinLit, extLit, iceLightBreaker } from "../model";
 import { CAT } from "../parts";
 import { setDoor, useSR22T } from "../store";
 import { SYS } from "../systems";
-import { openWalk } from "../walk-store";
+import { walkController } from "../walk-store";
 import {
   Caution,
   Check,
@@ -33,7 +33,7 @@ export function Overview() {
         it, hover parts for their notes, and operate switches, levers and failures in the panel. Systems are linked:
         pull an alternator and watch buses, displays and the CAS window respond.
       </p>
-      <button type="button" className="walk-link" onClick={() => openWalk()}>
+      <button type="button" className="walk-link" onClick={() => walkController.open()}>
         <b>Start preflight walk-around</b>
         <span>POH 4-4 – 4-9, stations 1–13: camera, highlights and the cabin switches, item by item</span>
       </button>

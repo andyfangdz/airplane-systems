@@ -30,6 +30,7 @@ shell(
   "Fuselage",
   "All-metal semimonocoque: formed bulkheads, stringers and skin. Front and rear carry-through spars take the wings; a bulkhead and forgings at the base of the rear door posts take the main gear; a bulkhead with fittings at the base of the forward door posts takes the struts; four engine mount stringers run from the forward door posts to the firewall (POH 7-5).",
   true,
+  "parts.airframe.fuselage.001",
 );
 shell(
   () => {
@@ -48,6 +49,8 @@ shell(
   },
   "Spinner",
   "D-7261-2 spinner, arm −49.9 (POH 6-24), over the oil-filled hub of the McCauley constant-speed propeller. Preflight: “Propeller and Spinner — CHECK (for nicks, security and no red oil leaks)” (POH 4-10).",
+  false,
+  "parts.airframe.spinner.002",
 ).finish = "polished";
 
 const ailS = [BL.ail0, 125, 150, 175, 195, BL.ail1];
@@ -65,6 +68,9 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     side + " wing",
     "Externally braced wing with an integral fuel tank: front and rear spar, formed ribs, doublers and stringers, aluminum skin. The front spar has the wing-to-fuselage and wing-to-strut fittings; the rear spar is partial span (POH 7-5). Constant chord inboard, tapered outboard panel.",
+    false,
+    "parts.airframe.shell.003",
+    [s],
   );
   shell(
     () =>
@@ -76,6 +82,9 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     side + " wing",
     "Outboard tapered panel carrying the aileron and the wing-tip lights.",
+    false,
+    "parts.airframe.shell.004",
+    [s],
   );
   shell(
     () =>
@@ -87,6 +96,9 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     "Wing root trailing edge",
     "",
+    false,
+    "parts.airframe.wing-root-trailing-edge.005",
+    [s],
   );
   shell(
     () =>
@@ -98,6 +110,9 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     "Wing trailing edge",
     "",
+    false,
+    "parts.airframe.wing-trailing-edge.006",
+    [s],
   );
   shell(
     () =>
@@ -109,6 +124,9 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     "Wing tip",
     "Slightly down-turned fiberglass tip carrying the position light and the strobe (POH 7-57, Fig 1-1).",
+    false,
+    "parts.airframe.wing-tip.007",
+    [s],
   ).finish = "red";
   shell(
     () =>
@@ -123,6 +141,9 @@ const tipS = [BL.ail1, 209.5, 211, 212.2, 213];
       ),
     "Horizontal stabilizer",
     "Forward and aft spar, ribs and stiffeners, centre upper and lower skins and two left and two right wraparound skins that form the leading edges. It also contains the elevator trim tab actuator (POH 7-6). Span 11'-8\" (POH 1-3).",
+    false,
+    "parts.airframe.horizontal-stabilizer.008",
+    [s],
   );
 });
 // Include every profile break; skipping a shallow dorsal station clips the fairing off.
@@ -132,4 +153,5 @@ shell(
   "Vertical stabilizer",
   "Forward and aft spar, formed ribs and reinforcements, four skin panels, formed leading-edge skins and a dorsal fin (POH 7-5). The rudder hinges on its aft spar.",
   paintTail,
+  "parts.airframe.vertical-stabilizer.009",
 );

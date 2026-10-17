@@ -10,12 +10,14 @@ const PIT = "#3A9448";
 /** Pitot under the left wing, inboard of the strut: BL ≈ 65 scaled from both Figure 1-1 front views (the text gives no station). */
 export const PITOT: Vec3 = wp(-65, 0.18, -1, -0.12);
 part(() => tubeGeo([wp(-65, 0.25, -1, 0.01), [PITOT[0] - 0.05, PITOT[1], PITOT[2]]], 0.012), ["pitot"], {
+  id: "parts.pitot.pitot-mast.001",
   color: "#AEB6BC",
   name: "Pitot mast",
   note: "Under the left wing, inboard of the strut (POH 7-64; station scaled from Figure 1-1).",
   ext: true,
 });
 part(() => cyl(0.012, 0.26, "x"), ["pitot"], {
+  id: "parts.pitot.heated-pitot-head.002",
   pos: [PITOT[0] + 0.08, PITOT[1], PITOT[2]],
   color: "#AEB6BC",
   anim: glow("#AEB6BC", () => EL().pitotHeating, ["pitot"], "#FF6A2A"),
@@ -26,6 +28,7 @@ part(() => cyl(0.012, 0.26, "x"), ["pitot"], {
 });
 export const STATIC_PORT: Vec3 = PV(onSkin(X(15), Y(45), -1, 1.01));
 part(() => cyl(0.014, 0.006, "z"), ["pitot"], {
+  id: "parts.pitot.static-port.003",
   pos: STATIC_PORT,
   color: PIT,
   name: "Static port",
@@ -34,6 +37,7 @@ part(() => cyl(0.014, 0.006, "z"), ["pitot"], {
   pin: true,
 });
 part(() => cyl(0.012, 0.03, "x"), ["pitot"], {
+  id: "parts.pitot.alt-static-air-valve.004",
   pos: P3(18.4, -3.5, 50.5),
   color: PIT,
   anim: pushPull(X(18.4), () => (S().pitot.altStatic ? 0 : 1), 0.03),
@@ -43,6 +47,7 @@ part(() => cyl(0.012, 0.03, "x"), ["pitot"], {
 });
 export const OAT_PROBE: Vec3 = [X(41.5), top(41.5, -4) + 0.022, Z(-4)];
 part(() => cyl(0.006, 0.05), ["pitot", "avionics"], {
+  id: "parts.pitot.oat-probe-gtp-59.005",
   pos: OAT_PROBE,
   color: PIT,
   name: "OAT probe (GTP 59)",
@@ -53,6 +58,7 @@ part(() => cyl(0.006, 0.05), ["pitot", "avionics"], {
 /** Stall warning opening in the left leading edge beside the fuel vent: BL ≈ 91 scaled from Figure 1-1. */
 export const STALL_INLET: Vec3 = wp(-91, 0.0, 0, 0);
 part(() => sph(0.02), ["pitot"], {
+  id: "parts.pitot.stall-warning-inlet.006",
   pos: STALL_INLET,
   color: PIT,
   anim: glow(PIT, () => live.horn, ["pitot"], "#FF5050"),
@@ -62,6 +68,7 @@ part(() => sph(0.02), ["pitot"], {
   pin: true,
 });
 part(() => cyl(0.025, 0.05, "x"), ["pitot", "cabin"], {
+  id: "parts.pitot.stall-warning-horn.007",
   pos: P3(27, -17.4, 74.5),
   color: PIT,
   anim: glow(PIT, () => live.horn, ["pitot", "cabin"], "#FF5050"),
@@ -70,6 +77,7 @@ part(() => cyl(0.025, 0.05, "x"), ["pitot", "cabin"], {
   pin: true,
 });
 part(() => sph(0.035), ["pitot"], {
+  id: "parts.pitot.low-pressure-peak.008",
   pos: wp(-91, 0.1, 1),
   color: "#E0263B",
   anim: (m) => {
@@ -86,6 +94,7 @@ part(() => sph(0.035), ["pitot"], {
 /* ---------- vacuum system and standby attitude (POH 7-65, Figure 7-9) ---------- */
 const VAC = "#4FA8A0";
 part(() => cyl(0.04, 0.08, "x"), ["vacuum", "engine"], {
+  id: "parts.pitot.engine-driven-vacuum-pump.009",
   pos: P3(-5, -5.5, 46.5),
   color: VAC,
   anim: glow(VAC, () => S().vac.fail, ["vacuum", "engine"], "#E0263B"),
@@ -94,6 +103,7 @@ part(() => cyl(0.04, 0.08, "x"), ["vacuum", "engine"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.05), ["vacuum"], {
+  id: "parts.pitot.vacuum-regulator.010",
   pos: P3(2, 8, 56),
   color: VAC,
   name: "Vacuum regulator",
@@ -101,6 +111,7 @@ part(() => box(0.06, 0.05, 0.05), ["vacuum"], {
   pin: true,
 });
 part(() => cyl(0.04, 0.05), ["vacuum"], {
+  id: "parts.pitot.vacuum-system-air-filter.011",
   pos: P3(2, 3, 58),
   color: "#C9D6D4",
   name: "Vacuum system air filter",
@@ -108,6 +119,7 @@ part(() => cyl(0.04, 0.05), ["vacuum"], {
   pin: true,
 });
 part(() => box(0.03, 0.03, 0.03), ["vacuum"], {
+  id: "parts.pitot.vacuum-transducer.012",
   pos: P3(10.3, 6, 54),
   color: VAC,
   name: "Vacuum transducer",
@@ -115,6 +127,7 @@ part(() => box(0.03, 0.03, 0.03), ["vacuum"], {
   pin: true,
 });
 part(() => tubeGeo([P3(-5, -5.5, 44), P3(-6, -6, 32), P3(-6, -8, 22.6)], 0.008), ["vacuum"], {
+  id: "parts.pitot.vacuum-pump-overboard-vent.013",
   color: VAC,
   name: "Vacuum pump overboard vent",
   note: "Pump discharge air goes overboard (Fig. 7-9).",

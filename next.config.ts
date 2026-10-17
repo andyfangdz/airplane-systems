@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
-import { AIRCRAFT_IDS } from "./lib/systems";
 import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 
 const sharedConfig: NextConfig = {
   reactStrictMode: true,
@@ -10,27 +11,48 @@ const sharedConfig: NextConfig = {
   transpilePackages: ["three"],
 };
 
-// every view is the one static page: /c172s and /c172s/electrical serve it, and App reads the view from the path
-// (other paths, including unknown airplanes, 404)
-const viewRewrites: NextConfig["rewrites"] = async () => [
-  { source: `/:ac(${AIRCRAFT_IDS.join("|")})/:sys?`, destination: "/" },
-];
-
 /**
- * `STATIC_EXPORT=1 next build` writes a static export to out/ for a plain file host (scripts/deploy-aws.sh); the host
- * then serves index.html for every view path (infra/cloudfront/view-rewrite.js). Every other build, and `next dev`,
- * keeps the rewrites above.
+ * Every view is a page of its own: each airplane's route (app/(fleet)/<id>/[[...sys]]) prerenders /<id> and
+ * /<id>/<system>, and any other path 404s. `STATIC_EXPORT=1 next build` writes them to out/ for a plain file host
+ * (scripts/deploy-aws.sh), which maps each view path to its .html file (infra/cloudfront/view-rewrite.js).
  */
 export default function nextConfig(phase: string): NextConfig {
   // A build embeds exact hashed asset URLs. Dev deliberately uses factories for immediate geometry edits.
   const manifest = "public/geometry/manifest.json";
+  const runtime = "public/geometry/runtime.json";
+  const compiled = phase !== PHASE_DEVELOPMENT_SERVER;
+  if (compiled) {
+    const inputs = ".geometry-runtime/inputs.json";
+    if (!existsSync(runtime) || !existsSync(manifest) || !existsSync(inputs))
+      throw new Error("Compiled aircraft artifacts are missing. Run npm run geometry:build before build:site.");
+    const digests = JSON.parse(readFileSync(inputs, "utf8")) as Record<string, string>;
+    for (const [path, expected] of Object.entries(digests)) {
+      if (!existsSync(path) || createHash("sha256").update(readFileSync(path)).digest("hex") !== expected)
+        throw new Error(`Compiled aircraft input changed: ${path}. Run npm run geometry:build before build:site.`);
+    }
+  }
   const env =
     phase !== PHASE_DEVELOPMENT_SERVER && existsSync(manifest)
-      ? { NEXT_PUBLIC_GEOMETRY_ASSETS: readFileSync(manifest, "utf8").trim() }
+      ? {
+          NEXT_PUBLIC_GEOMETRY_ASSETS: readFileSync(manifest, "utf8").trim(),
+          ...(compiled ? { NEXT_PUBLIC_GEOMETRY_RUNTIME: readFileSync(runtime, "utf8").trim() } : {}),
+        }
       : {};
+  const compiler = compiled
+    ? {
+        turbopack: {
+          rules: {
+            "*.{ts,tsx}": {
+              condition: { not: "foreign" as const },
+              loaders: [{ loader: "./scripts/geometry/runtime-loader.cjs", options: { root: resolve(".") } }],
+            },
+          },
+        },
+      }
+    : {};
   if (phase !== PHASE_DEVELOPMENT_SERVER && process.env.STATIC_EXPORT === "1") {
     // NEXT_PUBLIC_STATIC_EXPORT drops Vercel Analytics from the export (lib/staticExport.ts)
-    return { ...sharedConfig, output: "export", env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" } };
+    return { ...sharedConfig, ...compiler, output: "export", env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" } };
   }
-  return { ...sharedConfig, env, rewrites: viewRewrites };
+  return { ...sharedConfig, ...compiler, env };
 }

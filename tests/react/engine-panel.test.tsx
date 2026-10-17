@@ -7,15 +7,18 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { markingBand } from "@/engines/model/alerts";
-import { initialState } from "@/engines/model/engine";
-import { egtOffset } from "@/engines/model/mixture";
-import { labelOf, scenariosFor } from "@/engines/model/scenarios";
+import { initialState, noFailures, ratedGrossHp } from "@/engines/model/engine";
+import { egtOffset, mixturePower } from "@/engines/model/mixture";
+import { labelOf, scenarioById, scenariosFor } from "@/engines/model/scenarios";
+import { titFromPeak } from "@/engines/model/tit";
+import { settle } from "@/engines/model/trim";
+import { titTargets } from "@/engines/model/turbo";
 import { IO390 } from "@/engines/io390/spec";
 import { O360 } from "@/engines/o360/spec";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
 import { EnginePanel } from "@/components/engine/EnginePanel";
-import { Flags, Monitor, bandTone, titFromPeak } from "@/components/engine/Monitor";
+import { Flags, Monitor, bandTone } from "@/components/engine/Monitor";
 import { PressureChart, chartCaption, chartInputs } from "@/components/engine/PressureChart";
 import { GROUPS } from "@/components/engine/scene/parts";
 import { replaceState, simFor, type EngineSim } from "@/components/engine/store";
@@ -185,6 +188,24 @@ describe("TSIO-550-K panel", () => {
   });
 });
 
+describe("failures table (each cylinder's plugs, nozzle and intake)", () => {
+  it.each([
+    { spec: K, headers: ["Cyl", "Top plug", "Bottom plug", "Nozzle blocked", "Intake leak"], nozzles: 6 },
+    { spec: IO390, headers: ["Cyl", "Top plug", "Bottom plug", "Nozzle blocked", "Intake leak"], nozzles: 4 },
+    { spec: O360, headers: ["Cyl", "Top plug", "Bottom plug", "Intake leak"], nozzles: 0 },
+  ])("offers $spec.name's nozzle blockage where it has injection nozzles", ({ spec, headers, nozzles }) => {
+    const sim = fresh(spec);
+    const { container } = render(<EnginePanel sim={sim} />);
+    expect([...container.querySelectorAll(".eng-fail th")].map((th) => th.textContent)).toEqual(headers);
+    const sliders = container.querySelectorAll('input[aria-label$="nozzle blockage"]');
+    expect(sliders).toHaveLength(nozzles);
+    if (nozzles) {
+      fireEvent.change(sliders[0], { target: { value: "0.5" } });
+      expect(sim.useUi.getState().failures.nozzle[0]).toBe(0.5);
+    }
+  });
+});
+
 describe("panel parts and the pages that stay as they were", () => {
   it.each([K, IO390, O360])("lists $name's part groups", (spec) => {
     const { container } = render(<EnginePanel sim={fresh(spec)} />);
@@ -311,15 +332,29 @@ describe("engine monitor", () => {
     expect(monCell(container, "Deck")?.querySelector("b")?.textContent).toBe("36.4");
   });
 
-  it("puts TIT from peak where EGT from peak is for an even mixture", () => {
+  /** The -K's cylinders burning at the λ given, each at a cruise-like load (30 hp) and 1,400 °F. */
+  const cylsAt = (spec: EngineSpec, lambdas: number[]) =>
+    initialState(spec).cyl.map((c, i) => ({ ...c, lambda: lambdas[i], work: 0.5, hp: 30, egt: 1400 }));
+
+  it("puts TIT from peak on the side of the peak an even mixture is on, and at peak reads none", () => {
     for (const lam of [0.85, 1.0, 1.1]) {
-      const t = titFromPeak(Array(6).fill(lam))!;
-      expect(t.off).toBeCloseTo(-egtOffset(lam), 0);
-      expect(t.side).toBe(lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak");
+      const t = titFromPeak(K, cylsAt(K, Array(6).fill(lam)))!;
+      expect(t.side, `λ ${lam}`).toBe(lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak");
+      if (lam === 1.0) expect(t.off).toBeLessThan(1);
+      else expect(t.off, `λ ${lam}`).toBeGreaterThan(20);
     }
-    const spread = titFromPeak([0.95, 1.0, 1.05, 1.1, 1.15, 1.2])!;
+    const spread = titFromPeak(K, cylsAt(K, [0.95, 1.0, 1.05, 1.1, 1.15, 1.2]))!;
     expect(Number.isFinite(spread.off) && spread.off >= 0).toBe(true);
-    expect(titFromPeak([Infinity, Infinity])).toBeNull();
+    expect(titFromPeak(K, cylsAt(K, Array(6).fill(Infinity)))).toBeNull();
+    // no turbocharger, no TIT
+    expect(titFromPeak(IO390, cylsAt(IO390, Array(4).fill(1.1)))).toBeNull();
+  });
+
+  it("finds the TIT peak from a mixture as rich as the -K's misfire edge, beyond twice its λ", () => {
+    const rich = titFromPeak(K, cylsAt(K, Array(6).fill(0.46)))!;
+    expect(rich.side).toBe("ROP");
+    expect(rich.k).toBeGreaterThan(2);
+    expect(Math.abs(0.46 * rich.k - 1)).toBeLessThan(0.03);
   });
 
   /** Every cylinder burning at λ `lam` with the engine running; the panel's "from peak" cells and the monitor's. */
@@ -349,8 +384,10 @@ describe("engine monitor", () => {
     // at λ 0.50 the -K burns every cycle; the 0.55 default would add about 170 °F of misfire cooling it no longer has
     const off = -egtOffset(0.5, rich);
     expect(Math.abs(off + egtOffset(0.5))).toBeGreaterThan(100);
-    const t = titFromPeak(Array(6).fill(0.5), rich)!;
-    expect(t.off).toBeCloseTo(off, 0);
+    // with no load the TIT follows the EGT offset alone, scaled by the probes' gain (turbo.ts titTargets)
+    const cold = initialState(K).cyl.map((c) => ({ ...c, lambda: 0.5, work: 0.5 }));
+    const t = titFromPeak(K, cold)!;
+    expect(t.off).toBeCloseTo(K.calibration.titGain! * off, 0);
     expect(t.side).toBe("ROP");
     const r = fromPeakAt(K, 0.5);
     expect(r.cells).toEqual(Array(6).fill(`${Math.round(off)} R`));
@@ -361,7 +398,6 @@ describe("engine monitor", () => {
   it("keeps the IO-390's from-peak readings on the default rich edge", () => {
     expect(IO390.calibration.richMisfireLambda).toBeUndefined();
     const off = -egtOffset(0.5, 0.55);
-    expect(titFromPeak(Array(4).fill(0.5))!.off).toBeCloseTo(off, 6);
     const r = fromPeakAt(IO390, 0.5);
     expect(r.cells).toEqual(Array(4).fill(`${Math.round(off)} R`));
     expect(r.peak).toBe(`${Math.round(off)} ROP`);
@@ -626,6 +662,99 @@ describe("limit flags on the page (POH 2-9, 3-29 to 3-31, 4-22)", () => {
           expect(bandTone(K, m.gauge, v), `${m.gauge} ${v}`).toBe(band ? tone[band.color] : "");
         }
   });
+});
+
+describe("TIT from peak against the TIT bars (POH 4-22, 7-35)", () => {
+  it("at the 10,000 ft cruise setup the monitor's TIT pk gives the side and the °F the bars rise to their peak when the mixture is swept, within 5 °F", () => {
+    const x = scenarioById(K, "cruise")!.run(K);
+    const f = noFailures(K);
+    settle(K, x.s, x.c, x.env, f, 20);
+    // what the monitor shows for this state
+    const sim = fresh(K);
+    replaceState(sim, structuredClone(x.s));
+    const { container } = render(<Monitor sim={sim} />);
+    const shown = monCell(container, "TIT pk")?.querySelector("b")?.textContent ?? "";
+    // the bars: the mean of the two probes (turbo.ts titTargets), read over 10 s (the controller hunts at part throttle)
+    const bars = () => {
+      let sum = 0;
+      for (let i = 0; i < 40; i++) {
+        settle(K, x.s, x.c, x.env, f, 0.25);
+        sum += (x.s.tit![0] + x.s.tit![1]) / 2;
+      }
+      return sum / 40;
+    };
+    const meanLambda = () => x.s.cyl.reduce((a, c) => a + c.lambda, 0) / x.s.cyl.length;
+    const m0 = x.c.mixture,
+      lambda0 = meanLambda(),
+      tit0 = bars();
+    // sweep the mixture lever from the setting through the peak, settling at each step
+    let peak = { tit: tit0, lambda: lambda0 };
+    for (let r = 0.9; r <= 1.3001; r += 0.01) {
+      x.c.mixture = m0 * r;
+      settle(K, x.s, x.c, x.env, f, 15);
+      const t = bars();
+      if (t > peak.tit) peak = { tit: t, lambda: meanLambda() };
+    }
+    const below = peak.tit - tit0;
+    const side = lambda0 > peak.lambda + 0.01 ? "LOP" : lambda0 < peak.lambda - 0.01 ? "ROP" : "peak";
+    const [deg, word] = shown.split(" ");
+    expect(word, `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ${side}`).toBe(side);
+    expect(
+      Math.abs(Number(deg) - below),
+      `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ${side}`,
+    ).toBeLessThanOrEqual(5);
+  }, 120_000);
+
+  it.each([
+    { lam: 0.46, map: 36 },
+    { lam: 0.5, map: 36 },
+    { lam: 0.46, map: 30.5 },
+  ])(
+    "with the work cap leaning meets above 30.5 in.Hg (calibration.leanGainMax), full rich at λ $lam and $map in.Hg, TIT pk agrees with the engine's capped work, EGT and TIT laws swept, within 5 °F",
+    ({ lam, map }) => {
+      // the engine's laws at a fixed air charge, written out from engine.ts substep: each cylinder's work is
+      // mixturePower(λ), and above the cap (leanGainMax × its full-rich work) the cap's weight (performance.ts
+      // fullRichWeight: 1 at 31.5 in.Hg and up, ½ at 30.5) of the excess is taken off; its hp is the gross power's
+      // share at that work (rated gross here), its load hp × n ÷ rated gross, its EGT egtBase + egtGain √load +
+      // egtOffset(λ), and the bars read the cylinders through titTargets
+      const cal = K.calibration,
+        n = 6,
+        rated = ratedGrossHp(K),
+        oatF = 59;
+      const raw = (l: number) => mixturePower(l, cal.lambdaBestPower, cal.peakEgtPower, cal.richMisfireLambda);
+      const weight = Math.min(1, Math.max(0, (map - 29.5) / 2));
+      const cap = { work: cal.leanGainMax! * raw(lam), weight };
+      const work = (l: number) => {
+        let w = raw(l);
+        if (w > cap.work) w -= cap.weight * (w - cap.work);
+        return w;
+      };
+      const bars = (l: number) => {
+        const egt = cal.egtBase + cal.egtGain * Math.sqrt(work(l)) + egtOffset(l, cal.richMisfireLambda);
+        const [left, right] = titTargets(K, Array(n).fill(egt), oatF);
+        return (left + right) / 2;
+      };
+      // every cylinder leaned together, in steps of 0.0001 in λ
+      let peak = { tit: bars(lam), lambda: lam };
+      for (let l = lam; l <= 1.5; l += 0.0001) if (bars(l) > peak.tit) peak = { tit: bars(l), lambda: l };
+      const below = peak.tit - bars(lam);
+      // the monitor at that state: every cylinder at λ, its hp the rated gross share at its work, the cap on the state
+      const sim = fresh(K);
+      const { container } = render(<Monitor sim={sim} />);
+      live(sim, (s) => {
+        s.running = true;
+        s.leanCap = cap;
+        s.cyl.forEach((c) => Object.assign(c, { lambda: lam, plugs: 2, work: work(lam), hp: (rated / n) * work(lam) }));
+      });
+      const shown = monCell(container, "TIT pk")?.querySelector("b")?.textContent ?? "";
+      const [deg, word] = shown.split(" ");
+      const msg = `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ROP, peak at λ ${peak.lambda.toFixed(4)}`;
+      expect(word, msg).toBe("ROP");
+      expect(Math.abs(Number(deg) - below), msg).toBeLessThanOrEqual(5);
+      // unrounded, the reading follows the swept law to a tenth of a degree
+      expect(Math.abs(titFromPeak(K, sim.s.cyl, cap)!.off - below)).toBeLessThan(0.1);
+    },
+  );
 });
 
 describe("cylinder pressure chart", () => {

@@ -1,11 +1,12 @@
 "use client";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Vec3 } from "@/lib/math";
 import { V } from "@/lib/math";
 import { sysColor, type SysId } from "@/lib/systems";
 import { useNarrowLayout, useView } from "@/lib/view";
+import { ScreenVisibility } from "@/lib/scene/screen-visibility";
 import { Pin } from "./Part";
 
 export interface ScreenSpec {
@@ -37,13 +38,15 @@ function createScreens(screens: ScreenSpec[]) {
     const tx = new THREE.CanvasTexture(c);
     tx.anisotropy = 4;
     tx.colorSpace = THREE.SRGBColorSpace;
-    return { d, ctx: c.getContext("2d")!, tx };
+    return { d, ctx: c.getContext("2d")!, tx, mesh: null as THREE.Mesh | null };
   });
 }
 
 /** Canvas texture invalidation belongs to the renderer's frame callback. */
-function drawScreens(items: ReturnType<typeof createScreens>) {
+function drawScreens(items: ReturnType<typeof createScreens>, visibility: ScreenVisibility) {
   for (const it of items) {
+    // Back-facing and offscreen displays cannot contribute a pixel. Resume their normal refresh as they enter view.
+    if (!it.mesh || !visibility.contains(it.mesh)) continue;
     it.d.draw(it.ctx, it.d.px[0], it.d.px[1]);
     it.tx.needsUpdate = true;
   }
@@ -54,6 +57,8 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
   const narrow = useNarrowLayout();
+  const camera = useThree((s) => s.camera);
+  const visibility = useMemo(() => new ScreenVisibility(), []);
   const items = useMemo(() => createScreens(screens), [screens]);
   useEffect(() => () => items.forEach((it) => it.tx.dispose()), [items]);
   const acc = useRef(1);
@@ -61,24 +66,31 @@ export function Screens({ screens, every = 0.2 }: { screens: ScreenSpec[]; every
     acc.current += dt;
     if (acc.current < every) return;
     acc.current = 0;
-    drawScreens(items);
+    visibility.update(camera);
+    drawScreens(items, visibility);
   });
   return (
     <>
-      {items.map(({ d, tx }) => (
-        <mesh
-          key={d.key}
-          position={d.pos}
-          rotation={d.rot ?? [0, -Math.PI / 2, 0]}
-          userData={{ pick: { name: d.name, note: d.note, color: sysColor("avionics", theme), sys: d.sys } }}
-        >
-          <planeGeometry args={d.size} />
-          <meshBasicMaterial map={tx} toneMapped={false} />
-          {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin(narrow) : (d.pin ?? true)) && (
-            <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />
-          )}
-        </mesh>
-      ))}
+      {items.map((item) => {
+        const { d, tx } = item;
+        return (
+          <mesh
+            key={d.key}
+            ref={(mesh) => {
+              item.mesh = mesh;
+            }}
+            position={d.pos}
+            rotation={d.rot ?? [0, -Math.PI / 2, 0]}
+            userData={{ pick: { name: d.name, note: d.note, color: sysColor("avionics", theme), sys: d.sys } }}
+          >
+            <planeGeometry args={d.size} />
+            <meshBasicMaterial map={tx} toneMapped={false} />
+            {labels && d.sys.includes(sys) && (typeof d.pin === "function" ? d.pin(narrow) : (d.pin ?? true)) && (
+              <Pin at={V(...(d.pinAt ?? [0, 0, 0]))} label={d.name} color={sysColor(sys, theme)} />
+            )}
+          </mesh>
+        );
+      })}
     </>
   );
 }

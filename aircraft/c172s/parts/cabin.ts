@@ -10,6 +10,7 @@ const AIR = "#149C94";
 /** Approximate height above the rudder bars; the POH locates the manifold just aft of the firewall. */
 export const MANIFOLD: Vec3 = P3(5, 0, 33);
 part(() => box(0.08, 0.08, 0.08), ["environment"], {
+  id: "parts.cabin.heater-control-valve.001",
   pos: P3(0.6, 5, 37.5),
   color: "#E0522B",
   anim: (m) => {
@@ -20,6 +21,7 @@ part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.08, 0.08, 0.08), ["environment"], {
+  id: "parts.cabin.ventilating-air-door.002",
   pos: P3(0.6, 14, 36.5),
   color: AIR,
   anim: (m) => {
@@ -30,6 +32,7 @@ part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.08, 0.06, 0.6), ["environment"], {
+  id: "parts.cabin.cabin-manifold.003",
   pos: MANIFOLD,
   color: AIR,
   name: "Cabin manifold",
@@ -37,6 +40,7 @@ part(() => box(0.08, 0.06, 0.6), ["environment"], {
   pin: true,
 });
 part(() => cyl(0.012, 0.03, "x"), ["environment"], {
+  id: "parts.cabin.cabin-ht-knob.004",
   pos: P3(18.4, 15.5, 48.5),
   color: "#E0522B",
   anim: pushPull(X(18.4), () => 1 - S().env.heat, 0.04),
@@ -45,6 +49,7 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
   pin: true,
 });
 part(() => cyl(0.012, 0.03, "x"), ["environment"], {
+  id: "parts.cabin.cabin-air-knob.005",
   pos: P3(18.4, 15.5, 46.5),
   color: AIR,
   anim: pushPull(X(18.4), () => 1 - S().env.air, 0.04),
@@ -54,6 +59,8 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
 });
 [1, -1].forEach((s) => {
   part(() => box(0.03, 0.012, 0.12), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.defroster-outlet.006",
     pos: P3(15.5, s * 7, 66),
     color: AIR,
     name: "Defroster outlet",
@@ -61,6 +68,8 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
     pin: s > 0,
   });
   part(() => cyl(0.025, 0.02, "y"), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.wing-root-fresh-air-inlet.007",
     pos: wp(s * 19, 0.01, 0, -0.005),
     color: AIR,
     name: "Wing-root fresh air inlet",
@@ -69,6 +78,8 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
     pin: s > 0,
   });
   part(() => sph(0.025), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.adjustable-ventilator-forward.008",
     pos: P3(30, s * 18.5, 74),
     color: AIR,
     name: "Adjustable ventilator (forward)",
@@ -76,6 +87,8 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
     pin: s > 0,
   });
   part(() => sph(0.022), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.rear-cabin-ventilator.009",
     pos: P3(72, s * 18, 75),
     color: AIR,
     name: "Rear cabin ventilator",
@@ -83,6 +96,7 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
   });
 });
 part(() => box(0.05, 0.04, 0.06), ["environment", "cabin"], {
+  id: "parts.cabin.co-detector.010",
   pos: P3(14, 4, 50.5),
   color: "#E0263B",
   anim: glow("#E0263B", () => live.coPpm >= 50, ["environment", "cabin"], "#FF5050"),
@@ -94,6 +108,7 @@ part(() => box(0.05, 0.04, 0.06), ["environment", "cabin"], {
 /* ---------- cabin and safety (POH 7-24 – 7-28, 7-79 – 7-80) ---------- */
 const CAB = "#6F7F8C";
 part(() => cyl(0.04, 0.3), ["cabin"], {
+  id: "parts.cabin.fire-extinguisher.011",
   pos: P3(44, 0, 30),
   color: "#D32640",
   name: "Fire extinguisher",
@@ -101,6 +116,7 @@ part(() => cyl(0.04, 0.3), ["cabin"], {
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.1), ["cabin"], {
+  id: "parts.cabin.elt-artex-me406.012",
   pos: P3(135.5, 6, 47),
   color: "#EB7A12",
   name: "ELT (Artex ME406)",
@@ -108,6 +124,7 @@ part(() => box(0.12, 0.08, 0.1), ["cabin"], {
   pin: true,
 });
 part(() => box(0.012, 0.03, 0.03), ["cabin"], {
+  id: "parts.cabin.elt-remote-switch.013",
   pos: P3(18.1, 10.9, 63.5),
   color: "#EB7A12",
   name: "ELT remote switch",
@@ -115,6 +132,7 @@ part(() => box(0.012, 0.03, 0.03), ["cabin"], {
   pin: true,
 });
 part(() => cyl(0.004, 0.18), ["cabin"], {
+  id: "parts.cabin.elt-antenna.014",
   pos: [X(130), topY(X(130)) + 0.09, 0],
   color: "#EB7A12",
   name: "ELT antenna",
@@ -122,6 +140,7 @@ part(() => cyl(0.004, 0.18), ["cabin"], {
   ext: true,
 });
 part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
+  id: "parts.cabin.hour-hobbs-meter.015",
   pos: P3(18.1, 12.5, 63.5),
   color: "#20262B",
   name: "Hour (Hobbs) meter",
@@ -130,6 +149,8 @@ part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.06, 0.06, 0.04), ["cabin"], {
+    instance: [s],
+    id: "parts.cabin.inertia-reel-front-seat.016",
     pos: P3(54, s * 3, 74.5),
     color: CAB,
     name: "Inertia reel (front seat)",
@@ -138,6 +159,7 @@ part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
   }),
 );
 part(() => box(0.4, 0.008, 0.6), ["cabin"], {
+  id: "parts.cabin.baggage-area-a-fs-82-108.017",
   pos: P3(95, 0, 28.8),
   color: "#B7A27E",
   name: "Baggage area A (FS 82–108)",
@@ -145,6 +167,7 @@ part(() => box(0.4, 0.008, 0.6), ["cabin"], {
   pin: true,
 });
 part(() => box(0.5, 0.008, 0.4), ["cabin"], {
+  id: "parts.cabin.baggage-area-b-fs-108-142.018",
   pos: P3(124, 0, 33.5),
   color: "#B7A27E",
   name: "Baggage area B (FS 108–142)",
@@ -152,6 +175,7 @@ part(() => box(0.5, 0.008, 0.4), ["cabin"], {
 });
 // the door outline is drawn on the skin (windowOutlines); this is its key lock and handle at the aft edge
 part(() => box(0.07, 0.025, 0.012), ["cabin"], {
+  id: "parts.cabin.baggage-door.019",
   pos: PV(onSkin(X(108.6), Y(44), -1, 1.012)),
   color: "#5C666E",
   name: "Baggage door",
@@ -161,6 +185,8 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.12, 0.025, 0.02), ["cabin"], {
+    instance: [s],
+    id: "parts.cabin.cabin-door-handle.020",
     pos: PV(onSkin(X(60), Y(51), s, 1.02)),
     color: "#5C666E",
     name: "Cabin door handle",
@@ -171,6 +197,8 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], {
 );
 [1, -1].forEach((s) =>
   part(() => box(0.5, 0.008, 0.008), ["cabin"], {
+    instance: [s],
+    id: "parts.cabin.openable-door-window.021",
     pos: PV(onSkin(X(48), Y(56), s, 1.012)),
     color: "#0B1014",
     name: "Openable door window",
@@ -180,12 +208,14 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], {
   }),
 );
 part(() => box(0.012, 0.13, 0.1), ["cabin"], {
+  id: "parts.cabin.glove-box.022",
   pos: P3(17.8, 17, 54),
   color: "#2B3238",
   name: "Glove box",
   note: "Right panel (Fig. 7-2 item 15).",
 });
 part(() => box(0.05, 0.045, 0.06), ["avionics", "cabin"], {
+  id: "parts.cabin.magnetic-compass-non-stabilized.023",
   pos: P3(18.2, 0, 68.2),
   color: "#20262B",
   anim: glow("#20262B", () => EL().lit.stbyInd, ["avionics", "cabin"], "#E8C46A"),
