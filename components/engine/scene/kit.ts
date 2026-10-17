@@ -492,11 +492,23 @@ export function oilFiller(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
 /**
  * Oil pump: a drive gear meshing below the crankshaft gear, its shaft running aft to two pumping gears; or (the layout's
  * `oilPumpDrive: "cam"`) the first pumping gear splined into the camshaft gear, turning at camshaft speed. The crank
- * drive's ratio is drawn, not published.
+ * drive's ratio is drawn, not published. `body`: how far the pump body reaches aft and forward of the pumping gears.
  */
 export function oilPump(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
+  // on the camshaft: the gears just aft of the camshaft gear and the body short of the accessory housing's rear face, so
+  // the pump stays inside the TSIO-550-K's 1.6 in housing, where the starter adapter bolts on behind it (approximate)
   if (L.oilPumpDrive === "cam")
-    return { driveR: 0.018, driveTeeth: 10, y: d.camY, gearR: 0.018, x0: -0.036, x1: -0.036, ratio: 0.5, onCam: true };
+    return {
+      driveR: 0.018,
+      driveTeeth: 10,
+      y: d.camY,
+      gearR: 0.018,
+      x0: -0.0315,
+      x1: -0.0315,
+      ratio: 0.5,
+      onCam: true,
+      body: [0.0075, 0.0055] as const,
+    };
   const driveR = d.crankGearR / 2;
   return {
     driveR,
@@ -507,6 +519,7 @@ export function oilPump(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
     x1: -0.042, // pumping gears
     ratio: 2,
     onCam: false,
+    body: [0.01, 0.01] as const,
   };
 }
 
