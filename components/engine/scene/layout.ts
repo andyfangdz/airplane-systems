@@ -70,6 +70,7 @@ export type NoteKey =
   | "crankcaseRight"
   | "crankcaseLeft"
   | "crankcaseBolts"
+  | "mounts"
   | "accessoryHousing"
   | "sump"
   | "oilFilter"
@@ -159,6 +160,11 @@ export interface EngineLayout {
   /** Oil pump drive gear meshes with the crankshaft gear, or turns with the camshaft gear (splined into it). */
   oilPumpDrive: "crank" | "cam";
   /**
+   * Engine mount fittings, m: each boss's centre (a short cylinder along the crankshaft), and the brackets that carry
+   * bosses standing off the crankcase, each a bar between two points (none: the bosses sit on the case).
+   */
+  mounts: (d: Dims) => { bosses: V3[]; brackets: [V3, V3][] };
+  /**
    * Label pins: text and position. `occlude` hides the label while a solid part stands between it and the camera, other
    * than the part it names (the scene group of the label's name; kit.ts labelOccluder).
    */
@@ -195,6 +201,11 @@ export const IO390_DEFAULTS: EngineLayout = {
   oilFilter: { mount: "rear" },
   oilFiller: { side: "R" },
   oilPumpDrive: "crank",
+  // four bosses on the crankcase's rear face
+  mounts: (d) => ({
+    bosses: [1, -1].flatMap((y) => [1, -1].map((z): V3 => [d.caseRear + 0.012, y * 0.075, z * (d.caseHalf - 0.025)])),
+    brackets: [],
+  }),
   labels: (d, spec) => [
     ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
     ["Oil filter", [d.accRear - 0.12, -0.04, 0]],

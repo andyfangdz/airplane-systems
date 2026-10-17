@@ -30,6 +30,7 @@ import {
   oilFiller,
   oilFilterPose,
   oilPump,
+  rod,
   throwRotation,
   valveLayout,
   XRAY_MATS,
@@ -49,6 +50,7 @@ import {
 } from "@/components/engine/scene/Systems";
 import { Camshaft, ValveTrain } from "@/components/engine/scene/Valvetrain";
 import { mountScene } from "./engine-mount";
+import { obstacle, sampledClearance } from "./sampled-clearance";
 
 const S = TSIO550K;
 const L = layoutFor(S);
@@ -559,5 +561,119 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
     );
     expect(shown).toMatchObject({ default: false, iso: false, side: true, top: true, rear: true, below: true });
     await unmount();
+  });
+});
+
+/** The scene's meshes with the names the pointer shows for them. */
+function namedMeshes(scene: THREE.Object3D) {
+  const out: { name: string; mesh: THREE.Mesh }[] = [];
+  scene.traverse((o) => {
+    const over = (o as { __r3f?: { handlers: Record<string, (e: unknown) => void> } }).__r3f?.handlers.onPointerOver;
+    if (!(o instanceof THREE.Mesh) || !over) return;
+    useHover.setState({ hover: null });
+    over({ object: o, stopPropagation() {}, nativeEvent: { clientX: 0, clientY: 0 } });
+    out.push({ name: useHover.getState().hover?.name ?? "", mesh: o });
+  });
+  useHover.setState({ hover: null });
+  return out;
+}
+
+/** Each drawn boss's centre in the world: the merged bosses split into their cylinders. */
+function bossCentres(mesh: THREE.Mesh) {
+  const per = rod(0.02, 0.045, 16).toNonIndexed().attributes.position.count;
+  const pos = mesh.geometry.attributes.position;
+  expect(pos.count % per).toBe(0);
+  return Array.from({ length: pos.count / per }, (_, k) => {
+    const box = new THREE.Box3();
+    for (let i = k * per; i < (k + 1) * per; i++)
+      box.expandByPoint(new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld));
+    return box.getCenter(new THREE.Vector3());
+  });
+}
+
+describe("TSIO-550-K engine mount fittings (AMM 71-20: six)", () => {
+  // Inches forward of the accessory mounting face, right (+) of and above (+) the crankshaft centreline. Forward legs:
+  // M-18 Figures 5-33, 5-35 (stations) and 5-34 view D-D (15.24 in apart, 8.21 in below). Aft mounts: Figure 5-33 rear
+  // view (14.62 in apart, 8.13 in below); the station is approximate, ± 0.5 in.
+  const FITTINGS = [
+    { at: "left leg, front hole", station: 20.27, out: -7.62, up: -8.21, tol: 0.01 },
+    { at: "left leg, rear hole", station: 16.99, out: -7.62, up: -8.21, tol: 0.01 },
+    { at: "left aft mount", station: 3.97, out: -7.31, up: -8.13, tol: 0.5 },
+    { at: "right leg, front hole", station: 20.19, out: 7.62, up: -8.21, tol: 0.01 },
+    { at: "right leg, rear hole", station: 16.91, out: 7.62, up: -8.21, tol: 0.01 },
+    { at: "right aft mount", station: 3.97, out: 7.31, up: -8.13, tol: 0.5 },
+  ];
+
+  test("the scene draws six bosses at the M-18 positions", async () => {
+    const sim = simFor(S, "tsio550k-mounts");
+    const { scene, unmount } = await mountScene(h(Crankcase, { sim, d, mats: makeMats() }));
+    const bosses = namedMeshes(scene).filter((m) => m.name === "Engine mount bosses");
+    expect(bosses).toHaveLength(1);
+    const centres = bossCentres(bosses[0].mesh).map((c) => ({ station: station(c.x), out: c.z / IN, up: c.y / IN }));
+    expect(centres).toHaveLength(6);
+    for (const f of FITTINGS) {
+      const near = centres.reduce((a, b) =>
+        Math.hypot(b.station - f.station, b.out - f.out, b.up - f.up) <
+        Math.hypot(a.station - f.station, a.out - f.out, a.up - f.up)
+          ? b
+          : a,
+      );
+      expect(Math.abs(near.station - f.station), f.at).toBeLessThanOrEqual(f.tol);
+      expect(near.out, f.at).toBeCloseTo(f.out, 2);
+      expect(near.up, f.at).toBeCloseTo(f.up, 2);
+    }
+    await unmount();
+  });
+
+  test("the bosses and their brackets clear the scene's other parts", async () => {
+    const sim = simFor(S, "tsio550k-mount-clearance");
+    const p = { sim, d, mats: makeMats() };
+    const all = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase, Lubrication];
+    const more = [Ignition, FuelSystem, Induction, Drives, Propeller];
+    const { scene, unmount } = await mountScene(
+      h(PartNotesProvider, { value: S.parts }, ...[...all, ...more].map((C) => h(C, p))),
+    );
+    const meshes = namedMeshes(scene);
+    const mine = /^Engine mount (bosses|brackets)$/;
+    const closed = /^(Crankcase, (right|left) half|Oil sump|Accessory housing)$/;
+    const solids = meshes
+      .filter((m) => !mine.test(m.name))
+      .map((m) => ({
+        name: m.name,
+        ob: obstacle(m.name, m.mesh.geometry.clone().applyMatrix4(m.mesh.matrixWorld), closed.test(m.name)),
+      }));
+    const M = L.mounts(d);
+    const ends = (c: THREE.Vector3) => new THREE.LineCurve3(c.clone().setX(c.x - 0.0225), c.clone().setX(c.x + 0.0225));
+    const worst = { boss: { gap: Infinity, name: "" }, bracket: { gap: Infinity, name: "" } };
+    const everything = solids.map((s) => s.ob);
+    for (const b of M.bosses) {
+      const w = sampledClearance(ends(new THREE.Vector3(...b)), 0.02, everything, 0.004);
+      if (w.gap < worst.boss.gap) worst.boss = w;
+    }
+    // a bracket starts inside the crankcase half that carries it
+    const off = solids.filter((s) => !/^Crankcase, (right|left) half$/.test(s.name)).map((s) => s.ob);
+    for (const [a, b] of M.brackets) {
+      const curve = new THREE.LineCurve3(new THREE.Vector3(...a), new THREE.Vector3(...b));
+      const w = sampledClearance(curve, 0.009, off, 0.004);
+      if (w.gap < worst.bracket.gap) worst.bracket = w;
+    }
+    for (const [part, w] of Object.entries(worst)) {
+      console.info(`mount clearance, ${part}: ${(w.gap * 1000).toFixed(1)} mm to ${w.name}`);
+      expect(w.gap, `${part} to ${w.name}`).toBeGreaterThan(0.002);
+    }
+    await unmount();
+  });
+
+  test("every bracket starts inside the crankcase and ends at a boss", () => {
+    const M = L.mounts(d);
+    const at = (p: V3) => M.bosses.some((b) => Math.hypot(b[0] - p[0], b[1] - p[1], b[2] - p[2]) < 1e-9);
+    for (const [a, b] of M.brackets) {
+      expect(at(b)).toBe(true);
+      if (at(a)) continue; // a leg's bar between its two bosses
+      expect(a[0]).toBeGreaterThan(d.caseRear);
+      expect(a[0]).toBeLessThan(d.front);
+      expect(a[1]).toBeGreaterThan(d.caseBottom);
+      expect(Math.abs(a[2])).toBeLessThan(d.caseHalf);
+    }
   });
 });

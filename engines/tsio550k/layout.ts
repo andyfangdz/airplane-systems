@@ -8,7 +8,7 @@
  * "scaled" were measured off an installation drawing against a dimension printed on the same view; values marked FIT
  * are drawing choices no document gives. Shapes are schematic.
  */
-import type { EngineLayout } from "@/components/engine/scene/layout";
+import type { EngineLayout, V3 } from "@/components/engine/scene/layout";
 
 const IN = 0.0254;
 
@@ -130,6 +130,35 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   oilFiller: { side: "L" },
   // M-18 2-2.2: "The splined end of the oil pump drive gear mates with the internal splines of the camshaft gear".
   oilPumpDrive: "cam",
+  // AMM 71-20 General (PDF p. 2522): six mount fittings. M-18 Figure 16-38 (p. 16-41): a forward and an aft engine mount
+  // bracket on each side of the crankcase. Inches forward of the accessory mounting face, out from and below the
+  // crankshaft centreline:
+  // - forward: the two Ø 0.47 holes in each mount leg, 3.28 in apart: 20.27 and 16.99 in on the left (Figure 5-33 p. 5-53,
+  //   16.30 + 3.97 in), 20.19 and 16.91 in on the right (Figure 5-35 p. 5-55, 16.22 + 3.97 in); 7.62 in out and 8.21 in
+  //   below (Figure 5-34 view D-D p. 5-54, the front mounts 15.24 in apart). The side views draw a leg's two holes level,
+  //   so the rear hole takes the front hole's height and offset.
+  // - aft: 7.31 in out and 8.13 in below (Figure 5-33 rear view, 14.62 in apart). FIT, approximate station: no view
+  //   dimensions it; both side views draw the aft mount's centre on the extension line 3.97 in forward of the accessory
+  //   face (Figures 5-33, 5-35), scaled, ± 0.5 in.
+  // FIT: the bosses are drawn as the other engines' (a short cylinder along the crankshaft), each on a bar from the
+  // crankcase's lower edge, and each leg's two bosses joined by a bar; the bracket shapes are schematic.
+  mounts: (d) => {
+    const at = (stationIn: number, outIn: number, belowIn: number, side: 1 | -1): V3 => [
+      d.accRear + stationIn * IN,
+      -belowIn * IN,
+      side * outIn * IN,
+    ];
+    const bosses = ([-1, 1] as const).flatMap((side) => {
+      const [front, rear] = side < 0 ? [20.27, 16.99] : [20.19, 16.91];
+      return [at(front, 7.62, 8.21, side), at(rear, 7.62, 8.21, side), at(3.97, 7.31, 8.13, side)];
+    });
+    // from inside the crankcase half's rounded lower edge
+    const root = ([x, , z]: V3): V3 => [x, d.caseBottom + 0.02, Math.sign(z) * (d.caseHalf - 0.01)];
+    return {
+      bosses,
+      brackets: [...bosses.map((b): [V3, V3] => [root(b), b]), [bosses[0], bosses[1]], [bosses[3], bosses[4]]],
+    };
+  },
   labels: (d) => [
     ["Magnetos", [d.accRear + 0.045, 0.26, 0]],
     // over the canister's top (2.42 in above the crankshaft), shown while the canister is in view: hidden by the magnetos
@@ -174,6 +203,8 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     crankcaseLeft:
       "Left half: its cylinder pads are farther forward than the right half's, so each connecting rod works on its own crankpin (M-18 2-2.1).",
     crankcaseBolts: "Studs and through-bolts along the parting plane (M-18 2-2.1).",
+    mounts:
+      "Six mount fittings on the engine's mount brackets (AMM 71-20): two in each forward mount leg, about 17 and 20 in forward of the accessory mounting face, and an aft mount on each side about 4 in forward of it (M-18 Figures 5-33 to 5-35, 16-38). The aft station is approximate; the brackets are drawn schematically.",
     accessoryHousing:
       "The accessory case on the rear: magnetos, starter adapter, fuel pump and oil pump drives (M-18 Figure 2-4; POH 7-31).",
     sump: "Wet sump under the crankcase, eight quarts (POH 7-36).",

@@ -62,7 +62,7 @@ function coreBounds(spec: EngineSpec) {
     box.union(g.boundingBox!.clone().applyMatrix4(m));
     g.dispose();
   };
-  Object.values(caseGeometry(d)).forEach((g) => add(g));
+  Object.values(caseGeometry(d, L)).forEach((g) => add(g));
   const crank = crankGeometry(spec, d);
   [crank.journals, crank.nose, crank.flange, crank.crankGear].forEach((g) => add(g));
   const cyl = cylinderGeometry(d, L);
