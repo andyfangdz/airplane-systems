@@ -11,7 +11,7 @@ import {
 } from "../aircraft/sr22t/engine-groups";
 import { useEngineGroups } from "../aircraft/sr22t/engine-group-store";
 import { OXY_SCENARIOS, useSR22T } from "../aircraft/sr22t/store";
-import { useView } from "../lib/view";
+import { useAircraftHover, useView } from "../lib/view";
 import type { SysId } from "../lib/systems";
 import { TIT_PROBE } from "../aircraft/sr22t/turbo-layout";
 import { checkEngineGroups } from "../aircraft/sr22t/engine-groups";
@@ -51,8 +51,14 @@ describe("SR22T engine study groups (POH 7-31–39)", () => {
   it("rejects an unknown groups tag at registration, naming the tag and the part or flow", () => {
     const count = CAT.parts.length;
     const typo = ["oill"] as unknown as PartSpec["groups"];
-    expect(() => CAT.part(() => box(0.01, 0.01, 0.01), ["engine"], { name: "Typo part", groups: typo })).toThrow(
-      /sr22t\/Typo part-\d+: unknown group "oill".*ignition, induction, exhaust, fuel, oil, sensors/,
+    expect(() =>
+      CAT.part(() => box(0.01, 0.01, 0.01), ["engine"], {
+        id: "tests.sr22t-engine-groups.test.typo-part.001",
+        name: "Typo part",
+        groups: typo,
+      }),
+    ).toThrow(
+      /sr22t\/tests\.sr22t-engine-groups\.test\.typo-part\.001: unknown group "oill".*ignition, induction, exhaust, fuel, oil, sensors/,
     );
     expect(CAT.parts).toHaveLength(count);
     expect(() => checkEngineGroups("flow newEngineFlow", ["oil", "Sensors"])).toThrow(
@@ -289,9 +295,9 @@ describe("SR22T engine study groups (POH 7-31–39)", () => {
   it("a viewing toggle clears stale hover without changing the simulation or camera", () => {
     const simulation = useSR22T.getState();
     const camera = useView.getState().cam;
-    useView.setState({ hover: { name: "Oil sump", note: "", color: "", x: 0, y: 0 } });
+    useAircraftHover.setState({ hover: { name: "Oil sump", note: "", color: "", x: 0, y: 0 } });
     useEngineGroups.getState().set("oil", false);
-    expect(useView.getState().hover).toBeNull();
+    expect(useAircraftHover.getState().hover).toBeNull();
     expect(useView.getState().cam).toBe(camera);
     expect(useSR22T.getState()).toBe(simulation);
   });

@@ -14,10 +14,9 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Avionics, Cabin, Doors, Lighting, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Environment, Pitot } from "./panels/air";
-import { resetCaps, useSR20 } from "./store";
+import { resetCaps, sr20Runtime, useSR20 } from "./store";
 import { CAPS_CAM } from "./systems";
 import { SR20_META } from "./meta";
-import { simTick } from "./tick";
 import { useView } from "@/lib/view";
 import { walkController } from "./walk-store";
 
@@ -79,7 +78,7 @@ export const SR20: AircraftDef = {
     cabin: Cabin,
     caps: Caps,
   },
-  tick: simTick,
+  advance: sr20Runtime.advance,
   Alerts,
   Hud: CapsHud,
   onSelect: (to) => {

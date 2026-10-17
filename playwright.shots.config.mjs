@@ -47,14 +47,10 @@ const solid = flag("--solid");
 const noLabels = flag("--no-labels");
 if (!args.length) args.push("sr20/overview");
 
-/** Airplane ids, and each airplane's system ids in rail order, read from the source. */
-const ids = [
-  ...readFileSync(join(ROOT, "lib/systems.ts"), "utf8")
-    .match(/AIRCRAFT_IDS = \[([^\]]*)\]/)[1]
-    .matchAll(/"(\w+)"/g),
-].map((m) => m[1]);
-const systemsOf = (ac) =>
-  [...readFileSync(join(ROOT, `aircraft/${ac}/systems.ts`), "utf8").matchAll(/\bid: "(\w+)"/g)].map((m) => m[1]);
+/** Compiled from the canonical fleet and each aircraft's metadata by npm run fleet:generate. */
+const fleet = JSON.parse(readFileSync(join(ROOT, "aircraft/views.json"), "utf8"));
+const ids = fleet.map((entry) => entry.id);
+const systemsOf = (ac) => fleet.find((entry) => entry.id === ac).systems;
 
 const views = [
   ...new Set(

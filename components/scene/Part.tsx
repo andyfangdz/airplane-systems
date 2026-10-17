@@ -1,16 +1,15 @@
 "use client";
 import { Html } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
-import { animatePart } from "@/lib/anims";
-import { buildingIn, useBuiltParts } from "@/lib/build";
+import { useBuiltParts } from "@/lib/build";
 import { specGeo, type Catalogue, type PartSpec, type ShellSpec } from "@/lib/catalogue";
 import { dimSolidMat, finishMat, ghostMat, mats, plateMat, seeMat, shellMat, skinMat, solidMat } from "@/lib/materials";
-import { registerPart } from "@/lib/registry";
 import { geoCentreZ, SPOT_COLOR, spotsAt, spotsPart } from "@/lib/spot";
 import { palette, sysColor, type SysId } from "@/lib/systems";
 import { useNarrowLayout, useView } from "@/lib/view";
+import { usePartAnimation } from "./PartAnimations";
 
 /** What the hover tooltip needs to know about a mesh. */
 export interface PickInfo {
@@ -99,21 +98,14 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const showPin = labels && !all && !chanDim && cat.isPinned(spec, sys, narrow);
   const appearance = { material, active: act, focused, ghost };
 
-  // "tap to locate" flies to the instance carrying the label
-  useEffect(() => (spec.name ? registerPart(spec.name, ref.current, !!spec.pin) : undefined), [spec.name, spec.pin]);
-
   useEffect(() => {
     if (!spec.dynamicGeo) return;
     const mesh = ref.current;
     return () => releasePartGeometry(mesh, geo);
   }, [geo, spec.dynamicGeo]);
 
-  // animatePart applies the scene material policy and shows a part flashed by "tap to locate" even if its animation hides it
-  useFrame(({ clock }) => {
-    animatePart(ref.current, clock.elapsedTime, spec, appearance);
-    // a part a progressive build just added glows for a moment (lib/build.ts)
-    if (act && !focused && !ghost && !spec.plate && buildingIn(spec)) ref.current.material = mats(color).hi;
-  });
+  // Static appearance changes commit with React; only live animation and temporary build glow enter the scene loop.
+  usePartAnimation(ref, spec, appearance, color);
 
   return (
     <mesh
@@ -146,7 +138,7 @@ export function Shell({ spec }: { spec: ShellSpec }) {
   const geo = specGeo(spec);
   const xray = useView((x) => x.xray);
   const theme = useView((x) => x.theme);
-  const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo)));
+  const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo), spec.id));
   const spotOn = useView((x) => !!x.spot);
   const solid = !xray && spec.skin ? skinMat(spec.skin) : spec.finish ? finishMat[spec.finish] : solidMat;
   const material = xray

@@ -11,6 +11,7 @@ shell(
   "Fuselage",
   "Composite monocoque with integral roll cage. Cabin runs from the firewall (FS 100) to the aft baggage bulkhead (FS 222).",
   true,
+  "parts.airframe.fuselage.001",
 );
 shell(
   () => {
@@ -26,6 +27,8 @@ shell(
   },
   "Spinner",
   "Covers the constant-speed propeller hub.",
+  false,
+  "parts.airframe.spinner.002",
 );
 const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.65, 5.78, 5.81, 5.83, 5.84];
 [1, -1].forEach((s) => {
@@ -39,12 +42,15 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.65, 5.78, 5.8
       ),
     s > 0 ? "Right wing" : "Left wing",
     "Composite torsion box: carbon spar, ribs and bonded skins. Holds a 29.3 gal integral fuel tank and the main gear.",
+    false,
+    "parts.airframe.shell.003",
+    [s],
   );
   [
-    [WR, 0.94],
-    [3.62, 3.68],
-    [5.0, 5.2, 5.45, 5.65, 5.78, 5.81, 5.83, 5.84],
-  ].forEach((st) =>
+    { key: "root", stations: [WR, 0.94] },
+    { key: "mid", stations: [3.62, 3.68] },
+    { key: "tip", stations: [5.0, 5.2, 5.45, 5.65, 5.78, 5.81, 5.83, 5.84] },
+  ].forEach(({ key, stations: st }) =>
     shell(
       () =>
         loft(
@@ -55,6 +61,9 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.65, 5.78, 5.8
         ),
       "Wing trailing edge",
       "",
+      false,
+      "parts.airframe.wing-trailing-edge.004",
+      [s, key],
     ),
   );
   shell(
@@ -67,6 +76,9 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.65, 5.78, 5.8
       ),
     "Horizontal stabilizer",
     "Single composite structure tip to tip.",
+    false,
+    "parts.airframe.horizontal-stabilizer.005",
+    [s],
   );
 });
 shell(
@@ -74,4 +86,5 @@ shell(
   "Vertical stabilizer",
   "Composite, integral with the fuselage shell; swept leading edge blends into a dorsal fillet.",
   paintTail,
+  "parts.airframe.vertical-stabilizer.006",
 );

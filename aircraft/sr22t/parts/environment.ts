@@ -53,6 +53,7 @@ const plateAnim =
 /** Anchor for flows.ts. */
 export const FRESH_INLET: Vec3 = [3.42, -0.38, 0.49];
 part(() => box(0.1, 0.03, 0.02), ["environment"], {
+  id: "parts.environment.naca-fresh-air-inlet.001",
   pos: FRESH_INLET,
   name: "NACA fresh-air inlet",
   note: "RH cowl. Fresh (ventilation) air to the fresh-air valve on the firewall (POH 7-64). The AMM places it on the RH lower cowl (AMM 21-00).",
@@ -64,6 +65,7 @@ part(() => box(0.1, 0.03, 0.02), ["environment"], {
 export const MIX: Vec3 = [2.66, -0.46, 0.36];
 const MIX_DEPTH = 0.08;
 part(() => box(MIX_DEPTH, 0.12, 0.14), ["environment"], {
+  id: "parts.environment.mixing-chamber.002",
   pos: MIX,
   name: "Mixing chamber",
   note: "Mounted to the forward side of the firewall (AMM 21-40 PDF p. 486; Fig 21-40-2 PDF p. 495), on its lower RH portion (POH 7-64). The hot-air and fresh-air valves on its forward side set the blend; a flapper valve driven by the airflow valve servo lets the air through the firewall into the cabin air coupler (AMM 21-20 PDF p. 454). Position approximate: the figure gives no dimensions.",
@@ -76,6 +78,7 @@ part(() => box(MIX_DEPTH, 0.12, 0.14), ["environment"], {
 export const CABIN_AIR_COUPLER: Vec3 = [2.54, -0.46, 0.34];
 // on the aft side of the firewall, in the cabin air coupler duct (toMan in flows.ts)
 part(() => box(0.04, 0.04, 0.04), ["environment"], {
+  id: "parts.environment.duct-temperature-sensor.003",
   pos: [2.47, -0.33, 0.25],
   color: "#E0B040",
   name: "Duct temperature sensor",
@@ -85,6 +88,7 @@ part(() => box(0.04, 0.04, 0.04), ["environment"], {
 /** Distribution manifold, above the aileron push rod (y −0.2) and the central pulley sector below it; the ducts start here. */
 export const DIST_MANIFOLD: Vec3 = [2.52, -0.1, 0];
 part(() => box(0.08, 0.12, 0.28), ["environment"], {
+  id: "parts.environment.distribution-manifold.004",
   pos: DIST_MANIFOLD,
   name: "Distribution manifold",
   note: 'Mounted to the center, aft side of the firewall (POH 7-64, 7-65); its height on the firewall is approximate. Butterfly valves feed floor and defrost; the panel vents are always fed. Airflow selector: OFF closes cabin airflow; 0 is ram air; 1–3 are blower speeds (POH 7-62 Fig 7-13, 7-66; AMM 21-60). POH 7-65\'s mode list reads "OFF (ram air), 1, 2, 3", which contradicts its own "past the OFF position" sentence; the model follows Fig 7-13, 7-66 and the AMM. The blower on the evaporator assembly under the RH crew seat feeds it (Fig 7-13; AMM 21-20; AMM Fig 21-50-1 sheet 3, PDF p. 521).',
@@ -95,6 +99,7 @@ const VALVE_X = MIX[0] + MIX_DEPTH / 2 + 0.0175;
 export const HOT_VALVE: Vec3 = [VALVE_X, -0.49, 0.32];
 export const FRESH_VALVE: Vec3 = [VALVE_X, -0.42, 0.41];
 part(() => cyl(0.035, 0.035, "x"), ["environment"], {
+  id: "parts.environment.hot-air-valve.005",
   pos: HOT_VALVE,
   color: "#E0522B",
   name: "Hot-air valve",
@@ -102,11 +107,13 @@ part(() => cyl(0.035, 0.035, "x"), ["environment"], {
   pin: true,
 });
 part(() => box(0.006, 0.066, 0.066), ["environment"], {
+  id: "parts.environment.part.006",
   pos: HOT_VALVE,
   color: "#8A3A22",
   anim: plateAnim(() => hotValveOpen(V()), "y"),
 });
 part(() => cyl(0.035, 0.035, "x"), ["environment"], {
+  id: "parts.environment.fresh-air-valve.007",
   pos: FRESH_VALVE,
   color: "#5FC8F0",
   name: "Fresh-air valve",
@@ -114,12 +121,14 @@ part(() => cyl(0.035, 0.035, "x"), ["environment"], {
   pin: true,
 });
 part(() => box(0.006, 0.066, 0.066), ["environment"], {
+  id: "parts.environment.part.008",
   pos: FRESH_VALVE,
   color: "#2E6E86",
   anim: plateAnim(() => freshValveOpen(V()), "y"),
 });
 // the servo sits on top of the chamber; its arm swings with the flapper valve
 part(() => box(0.05, 0.04, 0.05), ["environment"], {
+  id: "parts.environment.airflow-valve-servo.009",
   pos: [MIX[0], MIX[1] + 0.08, MIX[2] - 0.03],
   color: "#4A535B",
   name: "Airflow valve servo",
@@ -127,12 +136,14 @@ part(() => box(0.05, 0.04, 0.05), ["environment"], {
   pin: true,
 });
 part(() => box(0.008, 0.008, 0.05), ["environment"], {
+  id: "parts.environment.part.010",
   pos: [MIX[0], MIX[1] + 0.105, MIX[2] - 0.03],
   color: "#C8CDD2",
   anim: plateAnim(() => (airflowValveOpen(V()) ? 1 : 0), "y"),
 });
 // the flapper sits in the chamber's aft outlet, between the chamber and the firewall (x 2.61 … 2.63)
 part(() => box(0.006, 0.05, 0.05), ["environment"], {
+  id: "parts.environment.airflow-flapper-valve.011",
   pos: [FW + 0.01, MIX[1], MIX[2]],
   color: "#8C969E",
   name: "Airflow flapper valve",
@@ -141,6 +152,7 @@ part(() => box(0.006, 0.05, 0.05), ["environment"], {
 });
 // butterfly valves at the entrances to the cabin floor ducting (manifold aft face) and the windshield diffuser (top)
 part(() => cyl(0.028, 0.006, "x"), ["environment"], {
+  id: "parts.environment.floor-butterfly-valve.012",
   pos: [2.475, -0.13, 0],
   color: "#0E6E68",
   name: "Floor butterfly valve",
@@ -149,6 +161,7 @@ part(() => cyl(0.028, 0.006, "x"), ["environment"], {
   anim: plateAnim(() => (butterflies(V().vent).floor ? 1 : 0), "y"),
 });
 part(() => cyl(0.028, 0.006, "y"), ["environment"], {
+  id: "parts.environment.defrost-butterfly-valve.013",
   pos: [2.5, -0.035, 0],
   color: "#0E6E68",
   name: "Defrost butterfly valve",
@@ -165,6 +178,7 @@ part(() => cyl(0.028, 0.006, "y"), ["environment"], {
 // centre, ahead of the RH wing harness (parts/cabin.ts FRONT_SEAT).
 export const BLOWER: Vec3 = [FRONT_CUSHION_X + 0.19, -0.475, 0.185];
 part(() => box(0.12, 0.08, 0.1), ["environment"], {
+  id: "parts.environment.blower-fan-assembly.014",
   pos: BLOWER,
   color: "#3E7FA8",
   name: "Blower fan assembly",
@@ -175,6 +189,7 @@ part(() => box(0.12, 0.08, 0.1), ["environment"], {
 export const ECS_PANEL: Vec3 = [2.27, 0.052, 0.228];
 // scaled like the outlets below
 part(() => box(0.02, 0.075, 0.052), ["environment"], {
+  id: "parts.environment.environmental-control-panel.015",
   pos: ECS_PANEL,
   color: "#20262B",
   name: "Environmental control panel",
@@ -189,6 +204,7 @@ part(() => box(0.02, 0.075, 0.052), ["environment"], {
  */
 export const ECS_CONTROLLER: Vec3 = [ECS_PANEL[0] + 0.15, 0.24, ECS_PANEL[2]];
 part(() => box(0.08, 0.04, 0.12), ["environment"], {
+  id: "parts.environment.ecs-controller.016",
   pos: ECS_CONTROLLER,
   color: "#E0B040",
   name: "ECS controller",
@@ -253,6 +269,8 @@ const paxTrimGeo = (s: number) => {
 };
 for (const s of [-1, 1]) {
   part(() => paxTrimGeo(s), ["environment"], {
+    instance: [s],
+    id: "parts.environment.rear-cabin-side-trim.017",
     pos: [(PAX_TRIM.x0 + PAX_TRIM.x1) / 2, 0, s * PAX_TRIM.zIn],
     color: "#C9C2B6",
     name: "Rear cabin side trim",
@@ -260,6 +278,8 @@ for (const s of [-1, 1]) {
     pin: s < 0,
   });
   part(() => sph(0.018), ["environment"], {
+    instance: [s],
+    id: "parts.environment.bolster-eyeball-outlet.018",
     pos: CREW_PANEL_VENT(s),
     color: EYE,
     name: "Bolster eyeball outlet",
@@ -267,6 +287,8 @@ for (const s of [-1, 1]) {
     pin: s < 0,
   });
   part(() => sph(0.018), ["environment"], {
+    instance: [s],
+    id: "parts.environment.panel-eyeball-outlet.019",
     pos: CREW_DISPLAY_VENT(s),
     color: EYE,
     name: "Panel eyeball outlet",
@@ -274,6 +296,8 @@ for (const s of [-1, 1]) {
     pin: s < 0,
   });
   part(() => sph(0.016), ["environment"], {
+    instance: [s],
+    id: "parts.environment.armrest-eyeball-outlet.020",
     pos: PAX_PANEL_VENT(s),
     color: EYE,
     name: "Armrest eyeball outlet",
@@ -281,6 +305,8 @@ for (const s of [-1, 1]) {
     pin: s < 0,
   });
   part(() => cyl(0.025, 0.012, "y"), ["environment"], {
+    instance: [s],
+    id: "parts.environment.kick-plate-floor-outlet.021",
     pos: CREW_FLOOR_VENT(s),
     color: EYE,
     name: "Kick-plate floor outlet",
@@ -288,6 +314,8 @@ for (const s of [-1, 1]) {
     pin: s < 0,
   });
   part(() => cyl(0.02, 0.03, "y"), ["environment"], {
+    instance: [s],
+    id: "parts.environment.foot-warmer-diffuser.022",
     pos: PAX_FLOOR_VENT(s),
     color: EYE,
     name: "Foot-warmer diffuser",
@@ -298,6 +326,7 @@ for (const s of [-1, 1]) {
 // AMM 13773-002 Fig 21-20-1 sheet 2 Detail A (PDF p. 475): compact housing fed from below,
 // bridging to the glareshield slot. All dimensions/offsets approximate: the figure is undimensioned.
 part(() => mergeGeos([box(0.03, 0.008, 0.52), box(0.03, 0.03, 0.1).translate(0, -0.015, 0)]), ["environment"], {
+  id: "parts.environment.windshield-diffuser.023",
   pos: DEFROST_VENT,
   color: EYE,
   name: "Windshield diffuser",

@@ -6,6 +6,7 @@ import { FUEL_SERVO, GOVERNOR } from "../depth-anchors";
 export const CONTROL_ROUTES = [
   addControlCable(
     CAT,
+    "aircraft.da40.parts.control-routing.throttle-cable",
     "Throttle control cable",
     [
       [fs(2), -0.31, -0.045],
@@ -18,6 +19,7 @@ export const CONTROL_ROUTES = [
   ),
   addControlCable(
     CAT,
+    "aircraft.da40.parts.control-routing.mixture-cable",
     "Mixture control cable",
     [
       [fs(2), -0.31, 0.045],
@@ -31,6 +33,7 @@ export const CONTROL_ROUTES = [
   ),
   addControlCable(
     CAT,
+    "aircraft.da40.parts.control-routing.rpm-cable",
     "RPM control cable",
     [
       [fs(2), -0.31, 0],

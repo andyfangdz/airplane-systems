@@ -38,8 +38,8 @@ it("the left-fuselage transponder check highlights and frames the unique right-o
   const centre = partCentre(antenna, specGeo(antenna));
   expect(step.station.side).toBe("L");
   expect(centre.z).toBeGreaterThan(0.05);
-  const side = sr20Walk.stepSide(step);
-  const spot = { names: sr20Walk.stepParts(step).shown, side };
+  const spot = sr20Walk.stepSpot(step);
+  expect(spot.ids).toContain(antenna.id);
   expect(spotsPart(spot, antenna, specGeo(antenna), sr20Cat)).toBe(true);
   expect(sr20Walk.stepCentroid(step)!.distanceTo(centre)).toBeLessThan(1e-9);
   const pose = sr20Walk.stepPose(step);

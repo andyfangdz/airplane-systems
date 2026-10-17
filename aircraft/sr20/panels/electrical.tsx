@@ -1,5 +1,6 @@
 "use client";
 import { BUSES, fuelAvail } from "../model";
+import { DISTRIBUTION_DIAGRAM, ELECTRICAL_FACTS } from "../electrical-installation";
 import { useSR20 } from "../store";
 import { PowerDiagram } from "../../cirrus/distribution";
 import { BusCard, PowerControls } from "../../cirrus/panels";
@@ -34,6 +35,7 @@ export function Electrical() {
       </Small>
       <H3>Power distribution (Figure 7-10)</H3>
       <PowerDiagram
+        distribution={DISTRIBUTION_DIAGRAM}
         s={s}
         E={E}
         digits={1}
@@ -68,10 +70,13 @@ export function Electrical() {
       <H3>Details</H3>
       <Facts
         rows={[
-          ["ALT 1", "100 A, right front, 27.7 V"],
-          ["ALT 2", "70 A, left front, 28.7 V"],
-          ["BAT 1", "24 V, 11 Ah, right firewall"],
-          ["BAT 2", "2 × 12 V, 7 Ah, aft of FS 222"],
+          ["ALT 1", `${ELECTRICAL_FACTS.alt1Rating.value} A, right front, ${ELECTRICAL_FACTS.alt1Voltage.value} V`],
+          ["ALT 2", `${ELECTRICAL_FACTS.alt2Rating.value} A, left front, ${ELECTRICAL_FACTS.alt2Voltage.value} V`],
+          [
+            "BAT 1",
+            `${ELECTRICAL_FACTS.bat1Voltage.value} V, ${ELECTRICAL_FACTS.bat1Capacity.value} Ah, right firewall`,
+          ],
+          ["BAT 2", `2 × 12 V, ${ELECTRICAL_FACTS.bat2Capacity.value} Ah, aft of FS 222`],
           ["ALT 1 start", "Needs BAT 1 on"],
           ["ALT 2 start", "Needs BAT 1 or BAT 2 on"],
           ["External power", "28 V regulated; BAT 1 must be on"],

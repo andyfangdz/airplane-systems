@@ -43,6 +43,8 @@ for (const c of CYLS) {
       ]),
     ["engine", "avionics"],
     {
+      instance: [c.n],
+      id: "parts.engine-sensors.part.001",
       name: `CHT sensor — cyl ${c.n}`,
       pos: [c.x + CHT_PORT_FWD, CHT_PORT_Y, c.s * CHT_PORT_Z],
       color: "#D4B776",
@@ -71,6 +73,8 @@ for (const c of CYLS) {
   const probe = tip.clone().addScaledVector(normal, EXHAUST_RADIUS + 0.012 - 0.002);
   const frame = new Matrix4().makeBasis(new Vector3().crossVectors(tangent, normal), tangent, normal);
   part(() => cyl(0.007, 0.024, "z", 10).applyMatrix4(frame), ["engine", "avionics"], {
+    instance: [c.n],
+    id: "parts.engine-sensors.part.002",
     name: `EGT probe — cyl ${c.n}`,
     pos: toVec3(probe),
     color: "#D4B776",
@@ -97,6 +101,7 @@ part(
     ]),
   ["engine", "avionics"],
   {
+    id: "parts.engine-sensors.map-sensor.003",
     name: "MAP sensor",
     pos: [MAP_BOSS[0], MAP_BOSS[1], MAP_BOSS[2] + MAP_STUB / 2 + MAP_BODY / 2],
     color: "#D4B776",
@@ -104,20 +109,24 @@ part(
   },
 );
 part(() => cyl(0.008, 0.04, "y", 10), ["engine", "avionics"], {
+  id: "parts.engine-sensors.mat-sensor.004",
   name: "MAT sensor",
   pos: [INTAKE_MANIFOLD[0], INTAKE_MANIFOLD[1] + 0.051, 0],
   color: "#D4B776",
   note: "Sensor seated into the induction manifold, with housing above it and sensing tip in the airflow. AMM 77-40 identifies MAT among the percent-power inputs; POH 7-36 attributes calculation to the display units; on the SR22T MAT is not depicted on either display (AMM 13773-002 Rev 7 77-20 PDF p. 2706, Fig 77-20-5 PDF p. 2721; 77-40 PDF p. 2722; POH 13772-007 7-36). Geometry approximate.",
 });
-for (const [name, pos, ref] of [
-  ["Throttle position sensor", [THROTTLE[0], THROTTLE[1], -0.0615], "sheet 2, item 14 (PDF p. 2488)"],
+for (const [key, name, pos, ref] of [
+  ["throttle", "Throttle position sensor", [THROTTLE[0], THROTTLE[1], -0.0615], "sheet 2, item 14 (PDF p. 2488)"],
   [
+    "mixture",
     "Mixture position sensor",
     [MIXTURE_ARM[0] + 0.0315, MIXTURE_ARM[1] + 0.026, MIXTURE_ARM[2] - 0.05],
     "sheet 3, item 26 (PDF p. 2489)",
   ],
 ] as const) {
   part(() => box(0.025, 0.025, 0.025), ["engine"], {
+    id: "parts.engine-sensors.part.005",
+    instance: [key],
     name,
     pos: [...pos],
     color: "#D4B776",
@@ -153,7 +162,7 @@ export const MOUNT_FEET: Vec3[] = [-1, 1].flatMap(
 );
 /** Node on the aft lower cross member where the nose-gear support leaves it. */
 const NOSE_ROOT: Vec3 = [2.77, -0.6, -0.04];
-export const MOUNT_RUNS: Vec3[][] = [];
+const mountPaths: { key: string; path: Vec3[]; segments: string[] }[] = [];
 for (let side = 0; side < 2; side++) {
   const [upper, lower] = MOUNT_ATTACH.slice(side * 2, side * 2 + 2);
   const [aft, mid, fwd] = MOUNT_FEET.slice(side * 3, side * 3 + 3);
@@ -166,48 +175,68 @@ for (let side = 0; side < 2; side++) {
   // triangulated side frames. Undimensioned runs pass outboard of the cylinder
   // banks between the exhaust and the cowl side, and over the turbos
   // to the aft feet.
-  MOUNT_RUNS.push(
-    [upper, [2.64, -0.15, s * 0.54], outerAft, innerAft, aft],
-    [aft, support],
-    [lower, lowerForward, [2.86, -0.4, s * 0.5], outerAft],
-    [aft, mid, fwd],
-    [support, [3.4, -0.29, s * 0.2], fwd],
+  const bank = s < 0 ? "left" : "right";
+  mountPaths.push(
+    {
+      key: `${bank}-upper-aft`,
+      path: [upper, [2.64, -0.15, s * 0.54], outerAft, innerAft, aft],
+      segments: ["firewall", "outboard", "cross", "foot"],
+    },
+    { key: `${bank}-aft-support`, path: [aft, support], segments: ["support"] },
+    {
+      key: `${bank}-lower-aft`,
+      path: [lower, lowerForward, [2.86, -0.4, s * 0.5], outerAft],
+      segments: ["firewall", "rise", "aft"],
+    },
+    { key: `${bank}-foot-rail`, path: [aft, mid, fwd], segments: ["aft-mid", "mid-forward"] },
+    { key: `${bank}-support-forward`, path: [support, [3.4, -0.29, s * 0.2], fwd], segments: ["rail", "foot"] },
   );
 }
-MOUNT_RUNS.push(
+mountPaths.push(
   // Aft lower transverse frame, under the engine and above the lower cowl.
-  [
-    MOUNT_FEET[0],
-    [2.76, -0.4, -0.22],
-    [2.77, -0.6, -0.22],
-    NOSE_ROOT,
-    [2.77, -0.6, 0.22],
-    [2.76, -0.4, 0.22],
-    MOUNT_FEET[3],
-  ],
+  {
+    key: "lower-cross",
+    segments: ["left-foot", "left-drop", "left-root", "right-root", "right-rise", "right-foot"],
+    path: [
+      MOUNT_FEET[0],
+      [2.76, -0.4, -0.22],
+      [2.77, -0.6, -0.22],
+      NOSE_ROOT,
+      [2.77, -0.6, 0.22],
+      [2.76, -0.4, 0.22],
+      MOUNT_FEET[3],
+    ],
+  },
   // Nose-gear support (AMM 32-00 PDF p. 1390): rises off the cross member
   // between the fuel drain lines, passes under the oil sump and above the
   // exhaust crossover and the hot-air line, then drops onto the strut top.
-  [NOSE_ROOT, [2.79, -0.47, -0.04], [3.03, -0.47, -0.04], NOSE_GEAR],
+  {
+    key: "nose-support",
+    segments: ["aft-rise", "forward-span", "strut"],
+    path: [NOSE_ROOT, [2.79, -0.47, -0.04], [3.03, -0.47, -0.04], NOSE_GEAR],
+  },
 );
+export const MOUNT_RUNS: Vec3[][] = mountPaths.map((run) => run.path);
 const mountRef =
   "POH 13772-007 7-31; AMM 13773-002 Rev 7 71-20 (PDF p. 2522), Fig 71-20-1 (PDF p. 2527). Shape and dimensions approximate.";
 // Each straight member has its own geometry; bends never spline through a
 // neighbouring solid or fill empty space with a whole-frame bounding box.
-const members = new Map<string, Vec3[]>();
-for (const path of MOUNT_RUNS)
+const members = new Map<string, { key: string; path: Vec3[] }>();
+for (const { key: run, path, segments } of mountPaths)
   for (let i = 1; i < path.length; i++) {
     const member = [path[i - 1], path[i]];
     const key = member
       .map((p) => p.join(","))
       .sort()
       .join(" / ");
-    if (!members.has(key)) members.set(key, member);
+    if (!members.has(key)) members.set(key, { key: `${run}-${segments[i - 1]}`, path: member });
   }
 const mountSections = [...members.values()];
-for (const path of mountSections) {
+for (const { key, path } of mountSections) {
   const anchor = path[0];
   part(() => tubeGeo(path, 0.013, 0).translate(-anchor[0], -anchor[1], -anchor[2]), ["engine", "gear"], {
+    id: "parts.engine-sensors.engine-mount-weldment.006",
+    instance: [key],
     name: "Engine mount weldment",
     pos: anchor,
     color: "#A0A9AD",
@@ -217,8 +246,17 @@ for (const path of mountSections) {
     pin: true,
   });
 }
-for (const pos of MOUNT_FEET) {
+for (const [key, pos] of [
+  ["left-aft", MOUNT_FEET[0]],
+  ["left-mid", MOUNT_FEET[1]],
+  ["left-forward", MOUNT_FEET[2]],
+  ["right-aft", MOUNT_FEET[3]],
+  ["right-mid", MOUNT_FEET[4]],
+  ["right-forward", MOUNT_FEET[5]],
+] as const) {
   part(() => cyl(0.034, 0.04, "y", 16), ["engine", "gear"], {
+    id: "parts.engine-sensors.engine-mount-isolator.007",
+    instance: [key],
     name: "Engine mount isolator",
     pos,
     color: "#3B4248",
@@ -227,8 +265,15 @@ for (const pos of MOUNT_FEET) {
       mountRef,
   });
 }
-for (const pos of MOUNT_ATTACH) {
+for (const [key, pos] of [
+  ["left-upper", MOUNT_ATTACH[0]],
+  ["left-lower", MOUNT_ATTACH[1]],
+  ["right-upper", MOUNT_ATTACH[2]],
+  ["right-lower", MOUNT_ATTACH[3]],
+] as const) {
   part(() => box(0.035, 0.075, 0.06), ["engine", "gear"], {
+    id: "parts.engine-sensors.firewall-attach-fitting.008",
+    instance: [key],
     name: "Firewall attach fitting",
     pos,
     color: "#A0A9AD",
@@ -239,7 +284,10 @@ for (const pos of MOUNT_ATTACH) {
 // the strap spans the isolator from the engine-foot bracket to the tab washer's screw.
 // All sizes/offsets below are approximate: the figure is exploded and does not dimension these shapes.
 // Keep the complete local assembly within 50 mm of the existing foot.
-for (const i of [2, 3]) {
+for (const [key, i] of [
+  ["left-forward", 2],
+  ["right-aft", 3],
+] as const) {
   const foot = MOUNT_FEET[i]; // forward LH, aft RH (negative z = LH)
   const side = Math.sign(foot[2]);
   const engineEnd: Vec3 = [foot[0] + 0.014, foot[1] + 0.024, foot[2] + side * 0.038];
@@ -254,6 +302,8 @@ for (const i of [2, 3]) {
       ]),
     ["engine", "gear"],
     {
+      id: "parts.engine-sensors.engine-foot-bracket.009",
+      instance: [key],
       name: "Engine foot bracket",
       pos: [foot[0], foot[1] + 0.024, foot[2]],
       color: "#A0A9AD",
@@ -270,6 +320,8 @@ for (const i of [2, 3]) {
       ]),
     ["engine", "gear"],
     {
+      id: "parts.engine-sensors.engine-mount-tab-washer.010",
+      instance: [key],
       name: "Engine mount tab washer",
       pos: [foot[0], foot[1] - 0.023, foot[2]],
       color: "#A0A9AD",
@@ -280,6 +332,8 @@ for (const i of [2, 3]) {
     () => mergeGeos([cyl(0.006, 0.06, "y", 12), cyl(0.01, 0.008, "y", 6).translate(0, -0.032, 0)]),
     ["engine", "gear"],
     {
+      id: "parts.engine-sensors.engine-mount-bolt.011",
+      instance: [key],
       name: "Engine mount bolt",
       pos: foot,
       color: "#B7A480",
@@ -289,6 +343,8 @@ for (const i of [2, 3]) {
   // Strap bows outboard around the isolator instead of passing through its rubber; approximate (Fig 71-20-1).
   const path: Vec3[] = [engineEnd, [engineEnd[0], foot[1], foot[2] + side * 0.044], mountEnd];
   part(() => tubeGeo(path, 0.003, 0).translate(-foot[0], -foot[1], -foot[2]), ["engine", "electrical"], {
+    id: "parts.engine-sensors.engine-grounding-strap.012",
+    instance: [key],
     name: "Engine grounding strap",
     pos: foot,
     color: "#C1A875",

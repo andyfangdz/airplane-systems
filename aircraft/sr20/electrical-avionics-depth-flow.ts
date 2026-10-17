@@ -8,6 +8,20 @@ import type { FlowSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
 import { cabinHarness } from "@/lib/cabinRouting";
 import type { Elec, Sim } from "./model";
+import {
+  BREAKERS,
+  BUS_DEFINITIONS,
+  DISPLAY_FEEDS,
+  breakerPowered,
+  connectionPowered,
+  type BreakerId,
+  AVIONICS_DATA_LINKS,
+  dataLinkAvailable,
+  dataLinkFitted,
+  loadPowered,
+  type AvionicsDataLinkId,
+  type LoadId,
+} from "./electrical-installation";
 import { MCU, BAT_1, BAT2_BOX, BAT2_RELAY, GROUND_POWER } from "./parts/electrical";
 import {
   ADAHRS_1,
@@ -143,20 +157,20 @@ add(
 );
 
 /* Separate redundant supply circuits, rather than one common avionics-master feed. */
-for (const [key, end, label, bus] of [
-  ["pfdFeedA", PFD_CONN, "PFD A", "ESS BUS 1"],
-  ["pfdFeedB", PFD_CONN, "PFD B", "MAIN BUS 2"],
-  ["mfdFeedA", MFD_CONN, "MFD A", "MAIN BUS 3"],
-  ["mfdFeedB", MFD_CONN, "MFD B", "MAIN BUS 1"],
-  ["standbyFeedA", MD302_POS, "STDBY ATTD A", "ESS BUS 1"],
-  ["standbyFeedB", MD302_POS, "STDBY ATTD B", "MAIN BUS 1"],
-] as const)
+const displayAnchors = { pfd: PFD_CONN, mfd: MFD_CONN, standby: MD302_POS };
+for (const [key, feed] of Object.entries(DISPLAY_FEEDS)) {
+  const end = displayAnchors[feed.load],
+    breaker = BREAKERS[feed.breaker],
+    label = breaker.label,
+    bus = BUS_DEFINITIONS[breaker.bus].label;
   power(
     key,
     [CB, [2.13, -0.5, key.endsWith("A") ? -0.18 : -0.15], [2.37, -0.34, end[2]], [2.37, end[1], end[2]], end],
     `${label} display feed`,
-    `Independent 5 A ${label} supply on ${bus}; either display feed powers unit (POH 7-15–7-16/7-75)`,
+    `Independent ${breaker.rating.value} A ${label} supply on ${bus}; either display feed powers unit (POH 7-15–7-16/7-75)`,
   );
+  F.at(-1)!.connection = key;
+}
 
 /* POH Fig 7-17: no direct GIA 1↔GIA 2 link. Displays bridge their independent HSDB channels. */
 panelData(
@@ -494,20 +508,31 @@ for (const [key, fan, dest, note] of [
     { color: "#536A74", pcolor: "#9BDDEB", r: 0.008, size: 0.027 },
   );
 
+for (const flow of F) if (flow.key in AVIONICS_DATA_LINKS) flow.connection = flow.key;
 export const ELECTRICAL_AVIONICS_DEPTH_FLOWS = F;
-export const OPTIONAL_ADAHRS2_FLOW_KEYS = new Set(["magData2", "adahrs2Mfd", "adahrs2Gia1", "adahrs2Gia2"]);
+export const OPTIONAL_ADAHRS2_FLOW_KEYS = new Set(
+  Object.keys(AVIONICS_DATA_LINKS).filter((id) => !dataLinkFitted(id as AvionicsDataLinkId, { dualAdahrs: false })),
+);
 export const electricalAvionicsFlowFitted = (f: FlowSpec, s: Sim) =>
   s.avx.dualAdahrs || !OPTIONAL_ADAHRS2_FLOW_KEYS.has(f.key);
 
 /** Explanatory motion is gated by the relevant breaker and by both powered endpoints. */
 export function electricalAvionicsDepthRates(s: Sim, E: Elec): Record<string, number> {
-  const pw = (bus: keyof Elec, cb: string) => Number(E[bus]) > 0 && !s.cb[cb];
-  const gia1 = pw("ess1", "GPS NAV GIA 1"),
-    gia2 = pw("main2", "GPS NAV GIA 2");
-  const audio = pw("avx", "AUDIO PANEL"),
-    xpdr = pw("avx", "XPONDER");
-  const keypads = pw("main1", "KEYPADS / AP CTRL"),
-    weather = pw("avx", "DATA LINK/WX");
+  const pw = (breaker: BreakerId) => breakerPowered(breaker, E, s.cb);
+  const available = (load: LoadId) => {
+    if (load === "pfd") return E.pfd;
+    if (load === "mfd") return E.mfd;
+    if (load === "adahrs1") return E.ahrs1;
+    if (load === "adahrs2") return E.ahrs2;
+    if (load === "eis") return E.eisPwr;
+    return loadPowered(load, E, s.cb, s.avx);
+  };
+  const gia1 = pw("gia1"),
+    gia2 = pw("gia2");
+  const audio = pw("audio"),
+    xpdr = pw("transponder");
+  const keypads = pw("keypads"),
+    weather = pw("weather");
   const R: Record<string, number> = {
     alt1: Number(E.alt1),
     alt2: Number(E.alt2),
@@ -517,28 +542,28 @@ export function electricalAvionicsDepthRates(s: Sim, E: Elec): Record<string, nu
     bat2Series: Number(!E.bat2Dead),
     bat2Contactor: E.bat2ok ? (E.bat2Charging ? -0.6 : 1) : 0,
     groundPower: 0,
-    altField1: Number(s.elec.alt1 && pw("ac1", "ALT 1")),
-    altField2: Number(s.elec.alt2 && pw("ess2", "ALT 2")),
+    altField1: Number(s.elec.alt1 && pw("alt1")),
+    altField2: Number(s.elec.alt2 && pw("alt2")),
     mcuShuntData: Number(E.eisPwr && (E.mdb1 > 0 || E.mdb2 > 0)),
-    pfdFeedA: Number(pw("ess1", "PFD A")),
-    pfdFeedB: Number(pw("main2", "PFD B")),
-    mfdFeedA: Number(pw("main3", "MFD A")),
-    mfdFeedB: Number(pw("main1", "MFD B")),
-    standbyFeedA: Number(pw("ess1", "STDBY ATTD A")),
-    standbyFeedB: Number(pw("main1", "STDBY ATTD B")),
-    gia1Pfd: Number(gia1 && E.pfd),
-    gia2Mfd: Number(gia2 && E.mfd),
-    pfdMfd: Number(E.pfd && E.mfd),
-    adahrsPfd: Number(E.ahrs1 && E.pfd),
-    adahrs2Mfd: Number(E.ahrs2 && E.mfd),
-    magData: Number(E.ahrs1 && pw("ess1", "PFD A")),
-    magData2: Number(E.ahrs2 && pw("main2", "PFD B")),
-    adahrs1Gia1: Number(E.ahrs1 && gia1),
-    adahrs1Gia2: Number(E.ahrs1 && gia2),
-    adahrs2Gia1: Number(E.ahrs2 && gia1),
-    adahrs2Gia2: Number(E.ahrs2 && gia2),
-    geaData1: Number(E.eisPwr && gia1),
-    geaData2: Number(E.eisPwr && gia2),
+    pfdFeedA: Number(connectionPowered("pfdFeedA", E, s.cb)),
+    pfdFeedB: Number(connectionPowered("pfdFeedB", E, s.cb)),
+    mfdFeedA: Number(connectionPowered("mfdFeedA", E, s.cb)),
+    mfdFeedB: Number(connectionPowered("mfdFeedB", E, s.cb)),
+    standbyFeedA: Number(connectionPowered("standbyFeedA", E, s.cb)),
+    standbyFeedB: Number(connectionPowered("standbyFeedB", E, s.cb)),
+    gia1Pfd: Number(dataLinkAvailable("gia1Pfd", available)),
+    gia2Mfd: Number(dataLinkAvailable("gia2Mfd", available)),
+    pfdMfd: Number(dataLinkAvailable("pfdMfd", available)),
+    adahrsPfd: Number(dataLinkAvailable("adahrsPfd", available)),
+    adahrs2Mfd: Number(dataLinkAvailable("adahrs2Mfd", available)),
+    magData: Number(dataLinkAvailable("magData", available)),
+    magData2: Number(dataLinkAvailable("magData2", available)),
+    adahrs1Gia1: Number(dataLinkAvailable("adahrs1Gia1", available)),
+    adahrs1Gia2: Number(dataLinkAvailable("adahrs1Gia2", available)),
+    adahrs2Gia1: Number(dataLinkAvailable("adahrs2Gia1", available)),
+    adahrs2Gia2: Number(dataLinkAvailable("adahrs2Gia2", available)),
+    geaData1: Number(dataLinkAvailable("geaData1", available)),
+    geaData2: Number(dataLinkAvailable("geaData2", available)),
     audioGia1: Number(audio && gia1),
     audioGia2: Number(audio && gia2),
     gcuPfd: Number(keypads && E.pfd),
@@ -550,10 +575,10 @@ export function electricalAvionicsDepthRates(s: Sim, E: Elec): Record<string, nu
     iridiumData: Number(weather && gia1),
     gatewayData: Number(E.convPwr && gia1),
     wxData: Number(weather && gia2),
-    trafficData: Number(pw("avx", "TRAFFIC") && E.ahrs1 && gia2),
-    dmeData: Number(pw("avx", "DME/ADF") && gia2),
-    com1Coax: Number(pw("ess1", "COM 1")),
-    com2Coax: Number(pw("main2", "COM 2")),
+    trafficData: Number(pw("traffic") && E.ahrs1 && gia2),
+    dmeData: Number(pw("dme") && gia2),
+    com1Coax: Number(pw("com1")),
+    com2Coax: Number(pw("com2")),
     gps1Coax: Number(gia1),
     gps2Coax: Number(gia2),
     navCoax1: Number(gia1),

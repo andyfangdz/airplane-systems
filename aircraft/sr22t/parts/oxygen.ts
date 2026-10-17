@@ -13,7 +13,7 @@ import { REAR_SEAT, STACK } from "./cabin";
 import { DOME_LIGHT_RADIUS, LIGHTS } from "./lights";
 import { sysNow } from "@/lib/anims";
 import { mats } from "@/lib/materials";
-import { OXY_CAPACITY_LABELS, oxyPanelLamps, type OxygenLamp } from "../model";
+import { OXY_CAPACITY_LEVELS, oxyPanelLamps, type OxygenLamp } from "../model";
 import { useSR22T } from "../store";
 
 const HEADLINER = 0.04; // below the outer skin
@@ -101,12 +101,14 @@ export const OXY: {
 
 /* ---------- oxygen ---------- */
 part(() => cyl(OXY_BOTTLE_RADIUS, OXY_BOTTLE_LENGTH, "x"), ["oxygen"], {
+  id: "parts.oxygen.oxygen-bottle-77-cu-ft.001",
   pos: OXY.bottle,
   name: "Oxygen bottle — 77 cu ft",
   note: "Empennage avionics bay (RE3), aft of the baggage bulkhead: 77 cu ft at 1800 psig (AMM 13773-002 Rev 7 35-00, PDF p. 1780; Fig 6-00-8, PDF p. 125). Fore-aft orientation from AFMS 102NMAN0001 Rev F Fig 1, p. 10. Illustrative: no bottle drawing in the AMM or AFMS. Outer radius 0.105 m, length 0.66 m; assumed internal radius 0.100 m and length 0.60 m give 18.85 L, above the ideal-gas minimum 17.7 L derived from the stated charge. Placement approximate.",
   pin: true,
 });
 part(() => box(0.06, 0.07, 0.07), ["oxygen"], {
+  id: "parts.oxygen.regulator-latching-solenoid.002",
   pos: OXY.regulator,
   name: "Regulator / latching solenoid",
   note: "Reduces bottle pressure to 70 psig. For serials 22T-1473 thru 9749 (the modelled airplane included), the control panel switches a latching solenoid to supply the overhead manifold (AMM 13773-002 Rev 7 35-00, PDF p. 1780). Dimensions and placement approximate.",
@@ -133,12 +135,14 @@ part(
     ),
   ["oxygen"],
   {
+    id: "parts.oxygen.center-cabin-low-pressure-oxygen-line.003",
     name: "Center cabin low pressure oxygen line",
     note: `Center cabin low pressure oxygen line: from the aft non-conductive hose, up the aft cabin to the headliner, then forward along the roof to the overhead console (AFMS 102NMAN0001 Rev F Fig 1, p. 10). Regulated to 70 psig (AMM 35-00, PDF p. 1780). Routing and diameter approximate; ${STATIONS}.`,
     pin: true,
   },
 );
 part(() => box(...MANIFOLD_SIZE), ["oxygen"], {
+  id: "parts.oxygen.overhead-distribution-manifold.004",
   pos: OXY.manifold,
   name: "Overhead distribution manifold",
   note: `One overhead console in the headliner: "oxygen distribution manifold with integral LED dome light" at the forward end of the centre-cabin line (AFMS 102NMAN0001 Rev F §1 p. 8, Fig 1 p. 10), so it carries the cabin dome light (POH 13772-007 7-59, "in the headliner at the approximate center of the cabin"). All five mask ports sit side by side on its lower face, aft of the dome lens (operator observation of the modelled airplane). Five-place AFMS variant (§1 p. 8); A5 is the only approved flow device for the five-port manifold (§5.3 Fig 26 p. 42). AMM 35-00 PDF p. 1780 states up to four stations; five ports are the operator-observed configuration. Flow controls are calibrated and user-adjustable for altitude. Console size, port pitch and row position approximate: no source dimensions them; ${STATIONS}.`,
@@ -146,6 +150,8 @@ part(() => box(...MANIFOLD_SIZE), ["oxygen"], {
 });
 OXY.outlets.forEach((p, i) =>
   part(() => cyl(PORT_RADIUS, PORT_LENGTH), ["oxygen"], {
+    id: "parts.oxygen.part.005",
+    instance: [i],
     pos: p,
     name: `Oxygen outlet ${i + 1}`,
     note: `A5 breathing-station port ${i + 1} of 5 (left to right) on the overhead console's lower face, fed inside the manifold; every occupant plugs a mask line into this one cluster (operator observation of the modelled airplane; AFMS 102NMAN0001 Rev F §1 p. 8, Fig 1 p. 10, §5.3 Fig 26 p. 42). AMM 35-00 PDF p. 1780 states up to four stations; five ports are the operator-observed configuration. Port size, 40 mm pitch and row position approximate; ${STATIONS}.`,
@@ -153,6 +159,7 @@ OXY.outlets.forEach((p, i) =>
   }),
 );
 part(() => box(0.004, 0.066, 0.064), ["oxygen"], {
+  id: "parts.oxygen.oxygen-system-control-panel.006",
   pos: OXY.panel,
   rot: STACK.rot,
   color: "#20262B",
@@ -161,12 +168,14 @@ part(() => box(0.004, 0.066, 0.064), ["oxygen"], {
   pin: true,
 });
 part(() => box(0.03, 0.12, 0.1), ["oxygen"], {
+  id: "parts.oxygen.remote-filler-station.007",
   pos: OXY.filler,
   name: "Remote filler station",
   note: "Baggage compartment aft wall: fill port with a manual pressure gauge (AMM 35-00). Service per Precise Flight ICA 102NPMAN0003; keep oil, grease, paint, hydraulic fluid and other flammable material away from oxygen equipment (POH 8-18).",
   pin: true,
 });
 part(() => cyl(0.025, 0.012, "x"), ["oxygen"], {
+  id: "parts.oxygen.part.008",
   pos: [OXY.filler[0] + 0.02, OXY.filler[1] + 0.025, OXY.filler[2]],
   color: "#F2F2F2",
 });
@@ -184,17 +193,23 @@ part(
       0,
     ),
   ["oxygen"],
-  { name: "Filler line", note: "Remote filler station to the bottle (AMM 35-00). Routing approximate." },
+  {
+    id: "parts.oxygen.filler-line.009",
+    name: "Filler line",
+    note: "Remote filler station to the bottle (AMM 35-00). Routing approximate.",
+  },
 );
 
 // New parts append after the existing oxygen block to preserve registration order.
 part(() => tubeGeo([hoseStart, [-0.665, 0.045, 0.08], [-0.61, 0.1, 0.16], SUPPLY_JOIN], 0.008), ["oxygen"], {
+  id: "parts.oxygen.non-conductive-oxygen-hose.010",
   name: "Non-conductive oxygen hose",
   note: "Aft-fuselage non-conductive hose for lightning protection and maintenance, between regulator and rigid supply line (AFMS 102NMAN0001 Rev F Fig 1 p. 10). The flexible line is not gas tight (§4.5 p. 39). Routing and diameter approximate.",
   color: "#484B50",
   pin: true,
 });
 part(() => box(0.16, 0.003, 0.012), ["oxygen"], {
+  id: "parts.oxygen.oxygen-bottle-ground-strap.011",
   pos: [OXY.bottle[0] - OXY_BOTTLE_LENGTH / 2 - 0.08, OXY.bottle[1], OXY.bottle[2]],
   name: "Oxygen bottle ground strap",
   note: "Bottle ground strap for lightning protection (AFMS 102NMAN0001 Rev F Fig 1 p. 10). Runs aft from the bottle aft end as drawn in Fig 1. Shape, 0.16 m length and attachment position approximate.",
@@ -202,6 +217,7 @@ part(() => box(0.16, 0.003, 0.012), ["oxygen"], {
   pin: true,
 });
 part(() => box(0.035, 0.045, 0.05), ["oxygen"], {
+  id: "parts.oxygen.oxygen-logic-controller.012",
   pos: STACK.at(0.08, -0.075, -0.04),
   rot: STACK.rot,
   name: "Oxygen logic controller",
@@ -213,6 +229,7 @@ part(() => box(0.035, 0.045, 0.05), ["oxygen"], {
 const lampNote =
   "AFMS 102NMAN0001 Rev F §1 pp. 8–9, §1.1.2 p. 14, Fig 2 p. 10. Single-band ladder is illustrative; bar versus single-lamp behavior is unspecified. Steady wiring FAULT not modelled.";
 const lamp = (
+  key: string,
   name: string,
   t: number,
   z: number,
@@ -220,6 +237,8 @@ const lamp = (
   state: (lamps: ReturnType<typeof oxyPanelLamps>) => OxygenLamp,
 ) =>
   part(() => cyl(0.0025, 0.003, "x", 12), ["oxygen"], {
+    id: "parts.oxygen.part.013",
+    instance: [key],
     pos: STACK.at(t, 0.0055, z),
     rot: STACK.rot,
     name,
@@ -236,8 +255,9 @@ const lamp = (
         mode === "on" || (mode === "flash" && Math.floor(time * 2) % 2 === 0) ? mats(color).hi : mats("#303438").on;
     },
   });
-OXY_CAPACITY_LABELS.forEach((label, i) =>
+OXY_CAPACITY_LEVELS.forEach(({ key, label }, i) =>
   lamp(
+    `capacity-${key}`,
     `Oxygen capacity ${label} lamp`,
     0.104 - i * 0.008,
     -0.055,
@@ -245,15 +265,15 @@ OXY_CAPACITY_LABELS.forEach((label, i) =>
     (l) => l.capacity[i],
   ),
 );
-lamp("Oxygen O₂ REQ’D lamp", 0.099, -0.026, "#F4B43B", (l) => l.required);
-lamp("Oxygen FAULT lamp", 0.078, -0.026, "#F04444", (l) => l.fault);
+lamp("required", "Oxygen O₂ REQ’D lamp", 0.099, -0.026, "#F4B43B", (l) => l.required);
+lamp("fault", "Oxygen FAULT lamp", 0.078, -0.026, "#F04444", (l) => l.fault);
 
 // Keep the existing regulator/hose offsets, bridging their end fittings after the lead-ruled bottle move.
 // AFMS Fig 1 p. 10 shows the connected supply chain; fitting radius is illustrative.
-for (const [name, start, end] of [
-  ["Oxygen bottle → regulator fitting", bottlePort, regulatorIn],
-  ["Oxygen regulator → hose fitting", regulatorOut, hoseStart],
-  ["Oxygen bottle → filler fitting", fillerPort, fillerStart],
+for (const [key, name, start, end] of [
+  ["bottle-regulator", "Oxygen bottle → regulator fitting", bottlePort, regulatorIn],
+  ["regulator-hose", "Oxygen regulator → hose fitting", regulatorOut, hoseStart],
+  ["bottle-filler", "Oxygen bottle → filler fitting", fillerPort, fillerStart],
 ] as const)
   part(
     () =>
@@ -266,6 +286,8 @@ for (const [name, start, end] of [
       ),
     ["oxygen"],
     {
+      id: "parts.oxygen.part.014",
+      instance: [key],
       name,
       note: "Anchor-derived fitting keeps the bottle/regulator/hose connected after the lead placement ruling (AFMS 102NMAN0001 Rev F Fig 1 p. 10; AMM 35-00 PDF 1780). Routing, 6 mm bottle-port stub and 3 mm radius illustrative.",
     },

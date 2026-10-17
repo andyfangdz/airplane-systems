@@ -12,6 +12,8 @@
  * any fails, 2 on bad usage. No redirect is followed. Node built-ins only.
  */
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
+import { immutable } from "./release-manifest.mjs";
 
 /** Views that must serve their own page (the airplane's route, not the root's HTML): path → its tab title. */
 export const VIEW_PAGES = { "/sr22t": "SR22T G6 Systems", "/sr22t/electrical": "SR22T G6 Systems" };
@@ -43,6 +45,8 @@ export function evaluate(check, response) {
   const e = check.expect;
   const h = response.headers;
   const problems = [];
+  if (e.sha256 !== undefined && response.sha256 !== e.sha256)
+    problems.push(`sha256 ${response.sha256}, want ${e.sha256}`);
   if (e.status !== undefined && response.status !== e.status)
     problems.push(`status ${response.status}, want ${e.status}`);
   if (e.contentType !== undefined && !(h["content-type"] ?? "").toLowerCase().startsWith(e.contentType))
@@ -97,7 +101,13 @@ async function get(url) {
   try {
     const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
     const headers = Object.fromEntries([...res.headers].map(([k, v]) => [k.toLowerCase(), v]));
-    return { status: res.status, headers, body: await res.text() };
+    const bytes = Buffer.from(await res.arrayBuffer());
+    return {
+      status: res.status,
+      headers,
+      body: bytes.toString("utf8"),
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
   } catch (err) {
     if (err instanceof TypeError || err?.name === "TimeoutError" || err?.name === "AbortError")
       return { status: null, headers: {}, body: null, error: err.cause?.message ?? err.message };
@@ -105,7 +115,7 @@ async function get(url) {
   }
 }
 
-async function run(base) {
+async function run(base, manifestSha256) {
   const results = [];
   const record = async (url, label, expect, response) => {
     const res = response ?? (await get(url));
@@ -144,6 +154,37 @@ async function run(base) {
       },
     );
   }
+  const release = await record(`${base}/release-manifest.json`, "200 release manifest with expected checksum", {
+    status: 200,
+    contentType: "application/json",
+    ...(manifestSha256 ? { sha256: manifestSha256 } : {}),
+  });
+  if (release.status === 200) {
+    let manifest;
+    try {
+      manifest = JSON.parse(release.body);
+    } catch {
+      /* The explicit schema failure below is actionable. */
+    }
+    if (manifest?.version !== 1 || !Array.isArray(manifest.files)) {
+      results.push({
+        url: `${base}/release-manifest.json`,
+        label: "valid release manifest",
+        status: 200,
+        ok: false,
+        problems: ["invalid release manifest"],
+      });
+    } else {
+      // These include every aircraft's production geometry, which HTML script/link discovery cannot see.
+      for (const file of manifest.files.filter((file) => typeof file.path === "string" && immutable(file.path)))
+        await record(`${base}/${file.path}`, "200 immutable asset with release checksum", {
+          status: 200,
+          contentType: file.contentType,
+          cacheIncludes: "immutable",
+          sha256: file.sha256,
+        });
+    }
+  }
   await record(`${base}/sr22t/`, "308, location ends /sr22t", { status: 308, locationEndsWith: "/sr22t" });
 
   const notFound = await get(`${base}/404.html`);
@@ -171,7 +212,7 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const results = await run(base);
+  const results = await run(base, process.argv[3]);
   const summary = summarize(base, results);
   console.log(JSON.stringify(summary, null, 2));
   for (const r of results.filter((r) => !r.ok)) console.error(`FAIL ${r.url} (${r.label}): ${r.problems.join("; ")}`);

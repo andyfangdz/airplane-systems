@@ -20,6 +20,7 @@ import { part } from "./catalogue";
 
 /* ---------- structure ---------- */
 part(() => planeRing(FW), ["airframe", "engine"], {
+  id: "parts.structure.firewall.001",
   plate: true,
   pin: true,
   pinIn: ["airframe"],
@@ -27,6 +28,7 @@ part(() => planeRing(FW), ["airframe", "engine"], {
   note: "Fire-resistant matting covered with stainless-steel cladding on the engine side (AFM 7-3). Station not given in the documents (≈ FS 1.35 here).",
 });
 part(() => planeRing(BAG_FRAME), ["airframe", "cabin"], {
+  id: "parts.structure.baggage-compartment-frame.002",
   plate: true,
   pin: true,
   name: "Baggage compartment frame",
@@ -36,6 +38,7 @@ part(
   () => tubeGeo(fRing(ROLLBAR_X, 0.93, 30, -0.1, Math.PI + 0.1, false), 0.025),
   ["airframe", "cabin", "environment"],
   {
+    id: "parts.structure.roll-bar.003",
     color: "#4E5961",
     name: "Roll bar",
     note: "Cabin roll bar behind the front seats; carries the spherical ventilation nozzles beside the front seats (AFM 7-12). Structural details not in the AFM.",
@@ -43,14 +46,19 @@ part(
   },
 );
 // stub wing spars crossing under the seats (AMM Fig. 2-6 top view: two carry-throughs under the seat pans)
-[
+(
   [
-    0.35,
-    "Front spar carry-through",
-    "Main spar of the stub wing crossing the cabin floor under the front seats (AMM Fig. 2-6).",
-  ],
-  [0.68, "Rear spar carry-through", "Rear spar of the stub wing, under the rear seat pans."],
-].forEach(([xc, name, note]) => {
+    [
+      "member-1",
+      [
+        0.35,
+        "Front spar carry-through",
+        "Main spar of the stub wing crossing the cabin floor under the front seats (AMM Fig. 2-6).",
+      ],
+    ],
+    ["member-2", [0.68, "Rear spar carry-through", "Rear spar of the stub wing, under the rear seat pans."]],
+  ] as const
+).forEach(([instance1, [xc, name, note]]) => {
   part(
     () =>
       tubeGeo(
@@ -61,11 +69,21 @@ part(
         0.03,
       ),
     ["airframe"],
-    { name: name as string, note: note as string, pin: true, color: "#3D5A73" },
+    {
+      id: "parts.structure.part.004",
+      instance: [instance1],
+
+      name: name as string,
+      note: note as string,
+      pin: true,
+      color: "#3D5A73",
+    },
   );
 });
 [1, -1].forEach((s) =>
   part(() => box(0.06, 0.13, 0.03), ["airframe"], {
+    instance: [s],
+    id: "parts.structure.root-rib-wing-joint.005",
     pos: toVec3(wingP(s * WJ, 0.4, 0)),
     color: "#E0522B",
     name: "Root rib / wing joint",
@@ -75,6 +93,8 @@ part(
 );
 [1, -1].forEach((s) =>
   part(() => sph(0.03), ["airframe", "gear"], {
+    instance: [s],
+    id: "parts.structure.jack-point.006",
     pos: [fs(2.41), botY(fs(2.41)) - 0.02, s * 0.35],
     color: "#E0522B",
     name: "Jack point",
@@ -84,6 +104,7 @@ part(
   }),
 );
 part(() => box(0.15, 0.025, 0.04), ["airframe"], {
+  id: "parts.structure.levelling-wedge-position.007",
   pos: [fs(6.0), topY(fs(6.0)) - 0.022, 0],
   color: "#E0B040",
   name: "Levelling wedge position",
@@ -111,6 +132,7 @@ part(
   },
   ["airframe"],
   {
+    id: "parts.structure.lower-fin-and-tail-skid.008",
     color: "#E6E9EB",
     name: "Lower fin and tail skid",
     note: "Small ventral fin with the tail skid underneath — walk-around item 'tail skid and lower fin' (AFM 4A-7).",

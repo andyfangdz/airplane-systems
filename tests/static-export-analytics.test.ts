@@ -4,6 +4,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import nextConfig from "@/next.config";
 import { vercelAnalytics } from "@/lib/staticExport";
 
+vi.mock("node:fs", async (original) => {
+  const fs = await original<typeof import("node:fs")>();
+  const artifacts = new Set([
+    "public/geometry/runtime.json",
+    "public/geometry/manifest.json",
+    ".geometry-runtime/inputs.json",
+  ]);
+  return {
+    ...fs,
+    existsSync: (path: string) => artifacts.has(path) || fs.existsSync(path),
+    readFileSync: (path: string, ...args: unknown[]) =>
+      artifacts.has(path) ? "{}" : fs.readFileSync(path, ...(args as [])),
+  };
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });

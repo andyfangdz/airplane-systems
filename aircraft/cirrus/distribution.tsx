@@ -59,12 +59,19 @@ export function PowerDiagram({
   digits,
   label,
   desc,
+  distribution,
 }: {
   s: DiagramSim;
   E: DiagramElec;
   digits: number;
   label: string;
   desc?: ReactNode;
+  /** Installation-derived labels and ratings; SVG coordinates remain a hand-authored layout. */
+  distribution?: {
+    mdb1: readonly string[];
+    mdb2: readonly string[];
+    interconnectAmps: number;
+  };
 }) {
   const V = (v: number) => (v > 0 ? v.toFixed(digits) + " V" : "0 V");
   const e = s.elec;
@@ -127,7 +134,7 @@ export function PowerDiagram({
       <Fuse x={142} y={112} lit={m1} />
       <Diode x={192} y={112} dir={1} lit={m1} />
       <text x={142} y={105} textAnchor="middle" className="d s">
-        80 A
+        {distribution?.interconnectAmps ?? 80} A
       </text>
       <Dot x={101} y={84} lit={m1} />
       <W d="M101 84 H170 V140 M118 128 V140" lit={m1} />
@@ -139,9 +146,23 @@ export function PowerDiagram({
       <Box x={100} y={156} w={140} label="ESS DIST" value={V(E.edb)} lit={edb} />
       {/* breaker-panel buses */}
       <W d="M24 128 V226" lit={m1} />
-      <Box x={6} y={226} w={78} label={["MAIN BUS 3", "A/C BUS 1", "A/C BUS 2"]} value={V(E.mdb1)} lit={m1} />
+      <Box
+        x={6}
+        y={226}
+        w={78}
+        label={distribution ? [...distribution.mdb1] : ["MAIN BUS 3", "A/C BUS 1", "A/C BUS 2"]}
+        value={V(E.mdb1)}
+        lit={m1}
+      />
       <W d="M316 128 V226" lit={m2} />
-      <Box x={256} y={226} w={78} label={["MAIN BUS 1", "MAIN BUS 2", "NON ESS BUS"]} value={V(E.mdb2)} lit={m2} />
+      <Box
+        x={256}
+        y={226}
+        w={78}
+        label={distribution ? [...distribution.mdb2] : ["MAIN BUS 1", "MAIN BUS 2", "NON ESS BUS"]}
+        value={V(E.mdb2)}
+        lit={m2}
+      />
       <W d="M128 188 V200" lit={edb} />
       <W d="M128 212 V226" lit={ess1} />
       <Cb x={128} y={206} open={!epIn} top={edb} bot={ess1} label="POWER" sub="ESSENTIAL" side={-1} />

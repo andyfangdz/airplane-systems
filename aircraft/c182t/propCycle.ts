@@ -1,17 +1,7 @@
-/** One pending return-to-high for the airplane; the powerplant panel cancels it on unmount and scenarios cancel it. */
-let timer: ReturnType<typeof setTimeout> | undefined;
+import { c182Runtime } from "./store";
 
-/** Cancel when the pilot moves the propeller control, changes scenario, or leaves this panel. */
-export function cancelPropCycle() {
-  if (timer !== undefined) clearTimeout(timer);
-  timer = undefined;
-}
+/** Cancel when the pilot moves the propeller control or leaves the panel. Scenarios reset the owned timer too. */
+export const cancelPropCycle = () => c182Runtime.dispatch({ type: "propCycle", active: false });
 
-/** One illustrative run-up cycle; a newer cycle replaces the previous return-to-high command. */
-export function startPropCycle(returnToHigh: () => void) {
-  cancelPropCycle();
-  timer = setTimeout(() => {
-    timer = undefined;
-    returnToHigh();
-  }, 2500);
-}
+/** The illustrative 2.5-second cycle follows simulation time and is included in checkpoints and forks. */
+export const startPropCycle = () => c182Runtime.dispatch({ type: "propCycle", active: true });

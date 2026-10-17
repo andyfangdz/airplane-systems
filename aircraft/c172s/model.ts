@@ -6,7 +6,7 @@
  * Sources: POH/AFM 172SPHBUS-04 (serials 172S10468, 10507, 10640, 10656 and on — N6189Q is 172S10738),
  * Figure 7-7 Sheets 1–3 (electrical), Figure 7-6 (fuel), Section 2 limitations; G1000 CRG 190-00384-13.
  */
-import { lambda, mixPower } from "../cessna/engine";
+import { fuelEquivalenceRatio, mixPower } from "../cessna/engine";
 import type { CasLevel } from "../types";
 import {
   nav3Init,
@@ -313,7 +313,7 @@ export const ELEC_CFG: Nav3Cfg = { altAmps: 60, mainAh: 8, stbyAh: 2.4, breakers
 /* ---------- engine helpers (pure) ---------- */
 /** Engine RPM for the alternator's low-RPM capacity: the tach value (rounded to 50 RPM by tick.ts), so cranking, idle and a windmilling engine all count. */
 export const rpmEstimate = (s: Sim) => s.eng.rpm;
-export { lambda, mixPower };
+export { fuelEquivalenceRatio, mixPower };
 export const densityFactor = (alt: number) => Math.max(0.55, 1 - Math.max(0, alt) / 30000);
 /** Fraction of rated power (180 BHP) the engine makes. */
 export function enginePower(s: Sim, alt: number) {
@@ -334,13 +334,13 @@ export function enginePower(s: Sim, alt: number) {
           : 0;
   const magF = magsLive === 2 ? 1 : magsLive === 1 ? 0.88 : 0; // single magneto: ~50–150 RPM drop at 1,800 (limit 175, POH 4-16)
   const filterF = g.filter ? 1 - 0.1 * g.throttle : 1;
-  return Math.min(1, air * mixPower(lambda(g.mix, alt)) * magF * filterF);
+  return Math.min(1, air * mixPower(fuelEquivalenceRatio(g.mix, alt)) * magF * filterF);
 }
 /** Fixed-pitch propeller: static RPM ∝ ∛power (2,300–2,400 static at full throttle, ~675 idle — POH 2-6, 4-30), plus windmilling with airspeed. */
 export const rpmFor = (P: number, ias: number) => 2350 * Math.cbrt(Math.max(P, 0)) + 3.76 * Math.max(0, ias);
 export const fuelFlowGph = (s: Sim, alt: number) => {
   const air = Math.max(0.025, Math.pow(s.eng.throttle, 0.85)) * densityFactor(alt);
-  return 0.6 + 11.5 * air * lambda(s.eng.mix, alt);
+  return 0.6 + 11.5 * air * fuelEquivalenceRatio(s.eng.mix, alt);
 };
 
 /* ---------- solver ---------- */
@@ -428,7 +428,9 @@ export function fuelOk(s: Sim) {
   return f.sel === "BOTH" ? tankHas(s, "L") || tankHas(s, "R") : tankHas(s, f.sel === "LEFT" ? "L" : "R");
 }
 
-export function solve(s: Sim, prev?: Elec): Elec {
+export type ElectricalMemory = Pick<Elec, "altOn">;
+
+export function solve(s: Sim, prev?: ElectricalMemory): Elec {
   const N = solveNav3(s.elec, ELEC_CFG, breakerLoads(s), rpmEstimate(s), prev?.altOn);
   const on = (bus: string, label: string) => !!N.on[`${bus}:${label}`];
   const either = (label: string) => on("ESS", label) || on("AV1", label);

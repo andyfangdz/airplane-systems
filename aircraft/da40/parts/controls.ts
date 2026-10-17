@@ -7,8 +7,17 @@ import { part, surfacePivot, sim, glow, trimWheelAnim, flapLight } from "./catal
 
 /* ---------- flight-control mechanisms (AFM 7.3; intermediate positions inferred) ---------- */
 const CTL = "#7C57CF";
-const crank = (parent: string, chan: "elevator" | "aileron", name: string, note: string, arms: Vec3[], pin = true) => {
+const crank = (
+  parent: string,
+  chan: "elevator" | "aileron",
+  name: string,
+  note: string,
+  arms: [id: string, vector: Vec3][],
+  pin = true,
+) => {
   part(() => cyl(0.02, 0.04, chan === "aileron" ? "y" : "z", 14), ["controls"], {
+    id: "parts.controls.part.001",
+    instance: [parent, chan],
     parent,
     chan: [chan],
     color: CTL,
@@ -16,7 +25,7 @@ const crank = (parent: string, chan: "elevator" | "aileron", name: string, note:
     note,
     pin,
   });
-  arms.forEach((a) =>
+  arms.forEach(([armId, a]) =>
     part(
       () => {
         const v = V(...a),
@@ -27,7 +36,13 @@ const crank = (parent: string, chan: "elevator" | "aileron", name: string, note:
         return g;
       },
       ["controls"],
-      { parent, chan: [chan], color: CTL },
+      {
+        id: "parts.controls.part.002",
+        instance: [parent, chan, armId],
+        parent,
+        chan: [chan],
+        color: CTL,
+      },
     ),
   );
 };
@@ -36,7 +51,7 @@ crank(
   "elevator",
   "Elevator idler bellcrank",
   "Supports the long elevator push rod under the rear cabin floor (position inferred; the AFM gives no routing figure).",
-  [[0, -ARMS.e, 0]],
+  [["arm-1", [0, -ARMS.e, 0]]],
 );
 crank(
   "rig:eFin",
@@ -44,11 +59,12 @@ crank(
   "Elevator bellcrank (fin base)",
   "Two of its bearings can be seen next to the lower rudder hinge (AFM 7-7). Turns the fore-aft push rod into the vertical rod up the fin.",
   [
-    [0, -ARMS.e, 0],
-    [-ARMS.e, 0, 0],
+    ["arm-1", [0, -ARMS.e, 0]],
+    ["arm-2", [-ARMS.e, 0, 0]],
   ],
 );
 part(() => box(0.008, ELEV_HORN.len, 0.018), ["controls"], {
+  id: "parts.controls.elevator-horn.003",
   parent: "surf:elev",
   chan: ["elevator"],
   pos: (() => {
@@ -71,8 +87,8 @@ crank(
   "Aileron bellcrank (forward)",
   "Turns the sideways motion of the stick link into the fore-aft aileron push rod (inferred).",
   [
-    [ARMS.a, 0, 0],
-    [0, 0, ARMS.a],
+    ["arm-1", [ARMS.a, 0, 0]],
+    ["arm-2", [0, 0, ARMS.a]],
   ],
 );
 crank(
@@ -81,8 +97,8 @@ crank(
   "Aileron bellcrank (aft)",
   "Splits the aileron run into the two spanwise push rods behind the rear spar (inferred).",
   [
-    [0, 0, ARMS.a],
-    [-ARMS.a, 0, 0],
+    ["arm-1", [0, 0, ARMS.a]],
+    ["arm-2", [-ARMS.a, 0, 0]],
   ],
 );
 [1, -1].forEach((s) =>
@@ -92,8 +108,8 @@ crank(
     "Aileron bellcrank (wing)",
     "Drives the short push rod with rod-end bearing to the aileron horn; the rod-end nut is sealed with locking varnish so any disturbance shows (AFM 7-4).",
     [
-      [0.06, 0, 0],
-      [0, 0, s * 0.06],
+      ["arm-1", [0.06, 0, 0]],
+      ["arm-2", [0, 0, s * 0.06]],
     ],
     s > 0,
   ),
@@ -103,6 +119,8 @@ crank(
     pv = surfacePivot(key),
     hz = wingP(s * 4.04, AIL.hinge, -1);
   part(() => box(0.012, 0.05, 0.03), ["controls"], {
+    instance: [s],
+    id: "parts.controls.aileron-control-horn.004",
     chan: ["aileron"],
     parent: "surf:" + key,
     pos: [hz.x - pv[0], hz.y - 0.025 - pv[1], hz.z - pv[2]],
@@ -116,6 +134,7 @@ crank(
 {
   const rh = rudHornPivot();
   part(() => box(0.03, 0.025, RUD_HORN.half * 2 + 0.02), ["controls"], {
+    id: "parts.controls.rudder-lower-bracket-cable-horn.005",
     chan: ["rudder"],
     parent: "surf:rudder",
     pos: [rh[0] - surfacePivot("rudder")[0], rh[1] - surfacePivot("rudder")[1], 0],
@@ -134,6 +153,7 @@ part(
   },
   ["controls", "autopilot"],
   {
+    id: "parts.controls.elevator-trim-wheel.006",
     pos: TRIM_WHEEL.c,
     chan: ["elevator"],
     color: "#1B1F23",
@@ -144,6 +164,7 @@ part(
   },
 );
 part(() => box(0.012, 0.02, 0.028), ["controls"], {
+  id: "parts.controls.part.007",
   pos: [TRIM_WHEEL.c[0], TRIM_WHEEL.c[1] + TRIM_WHEEL.r - 0.005, TRIM_WHEEL.c[2]],
   chan: ["elevator"],
   color: "#F2F5F7",
@@ -158,6 +179,7 @@ part(() => box(0.012, 0.02, 0.028), ["controls"], {
   },
 });
 part(() => box(0.1, 0.06, 0.07), ["autopilot", "controls"], {
+  id: "parts.controls.pitch-trim-servo-gsa.008",
   pos: SERVO.trim,
   chan: ["elevator"],
   color: "#C8399F",
@@ -167,6 +189,7 @@ part(() => box(0.1, 0.06, 0.07), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {
+  id: "parts.controls.pitch-servo-gsa.009",
   pos: SERVO.pitch,
   chan: ["elevator"],
   color: "#C8399F",
@@ -176,6 +199,7 @@ part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {
+  id: "parts.controls.roll-servo-gsa.010",
   pos: SERVO.roll,
   chan: ["aileron"],
   color: "#C8399F",
@@ -187,6 +211,7 @@ part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {
 
 /* ---------- flaps ---------- */
 part(() => cyl(0.018, FLAP_TUBE.half * 2, "z"), ["flaps"], {
+  id: "parts.controls.flap-torsion-tube.011",
   parent: "rig:flapTube",
   color: "#9F85E6",
   name: "Flap torsion tube",
@@ -201,10 +226,17 @@ part(() => cyl(0.018, FLAP_TUBE.half * 2, "z"), ["flaps"], {
       return g;
     },
     ["flaps"],
-    { parent: "rig:flapTube", pos: [0, 0, s * FLAP_TUBE.half], color: "#9F85E6" },
+    {
+      instance: [s],
+      id: "parts.controls.part.012",
+      parent: "rig:flapTube",
+      pos: [0, 0, s * FLAP_TUBE.half],
+      color: "#9F85E6",
+    },
   ),
 );
 part(() => box(0.24, 0.07, 0.08), ["flaps", "electrical"], {
+  id: "parts.controls.flap-actuator.013",
   pos: FLAP_ACT,
   color: "#7C57CF",
   anim: glow(
@@ -225,6 +257,8 @@ part(() => box(0.24, 0.07, 0.08), ["flaps", "electrical"], {
     pv = surfacePivot(key),
     hz = wingP(s * 1.28, FLAP.hinge, 0);
   part(() => box(0.012, FLAP_HORN, 0.03), ["flaps"], {
+    instance: [s],
+    id: "parts.controls.flap-control-horn.014",
     parent: "surf:" + key,
     pos: [hz.x - pv[0], hz.y - FLAP_HORN / 2 - pv[1], hz.z - pv[2]],
     color: CTL,
@@ -234,6 +268,7 @@ part(() => box(0.24, 0.07, 0.08), ["flaps", "electrical"], {
   });
 });
 part(() => box(0.1, 0.07, 0.05), ["flaps"], {
+  id: "parts.controls.flap-selector.015",
   pos: [PANEL_X - 0.01, -0.17, 0.19],
   color: "#2B3238",
   name: "Flap selector",
@@ -242,12 +277,14 @@ part(() => box(0.1, 0.07, 0.05), ["flaps"], {
 });
 (
   [
-    [0, "#2FD35A", 0.035, "Flap position light — UP (green)"],
-    [1, "#F4F6F8", 0.0, "Flap position light — T/O (white)"],
-    [2, "#F4F6F8", -0.035, "Flap position light — LDG (white)"],
-  ] as [0 | 1 | 2, string, number, string][]
-).forEach(([pos, c, dy, name]) =>
+    ["member-1", [0, "#2FD35A", 0.035, "Flap position light — UP (green)"] as [0 | 1 | 2, string, number, string]],
+    ["member-2", [1, "#F4F6F8", 0.0, "Flap position light — T/O (white)"] as [0 | 1 | 2, string, number, string]],
+    ["member-3", [2, "#F4F6F8", -0.035, "Flap position light — LDG (white)"] as [0 | 1 | 2, string, number, string]],
+  ] as const
+).forEach(([instance1, [pos, c, dy, name]]) =>
   part(() => sph(0.007), ["flaps", "lighting"], {
+    id: "parts.controls.part.016",
+    instance: [instance1],
     pos: [PANEL_X - 0.024, -0.17 + dy, 0.155],
     color: c,
     anim: flapLight(pos, c),

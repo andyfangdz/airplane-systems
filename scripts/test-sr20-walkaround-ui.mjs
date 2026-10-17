@@ -59,10 +59,31 @@ test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }
   }
   await page.getByRole("button", { name: "✓ Reviewed", exact: true }).click();
   await item("7d");
-  await page.reload();
-  await page.getByRole("heading", { name: "Resume SR20 study walk?", exact: true }).waitFor();
-  await page.getByRole("button", { name: "Resume", exact: true }).click();
-  await item("7d");
+  // Resume must work before compiled geometry is primed, including a warm reload whose controls hydrate first.
+  let releaseGeometry;
+  const heldGeometry = new Promise((resolve) => {
+    releaseGeometry = resolve;
+  });
+  const manifest = "**/geometry/sr20-*.scene.json";
+  const holdManifest = async (route) => {
+    await heldGeometry;
+    await route.continue();
+  };
+  await page.route(manifest, holdManifest);
+  try {
+    await page.reload();
+    await page.getByRole("heading", { name: "Resume SR20 study walk?", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Resume", exact: true }).click();
+    await item("7d");
+    assert.ok(
+      await page.locator("[data-building]").count(),
+      "the saved checklist item works while geometry is pending",
+    );
+  } finally {
+    releaseGeometry();
+    await page.unroute(manifest, holdManifest);
+  }
+  await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 120_000 });
   await shot("resumed");
   await page.getByRole("button", { name: /^Station 8: Nose, Right Side/ }).click();
   await item("8a");

@@ -5,7 +5,7 @@ import { Vector3 } from "three";
 import { telescopingStrut } from "@/lib/strut";
 import { bindHardwareMotion } from "@/lib/hardware";
 import { DOOR, cyl } from "../geometry";
-import { PEDALS } from "../rig";
+import { PEDALS, PEDAL_STATIONS } from "../rig";
 import { CAT, sim } from "./catalogue";
 import { DOOR_HINGE } from "./airframe";
 
@@ -13,6 +13,7 @@ export const DOOR_POSE = { rear: 0 };
 const hinge = new Vector3(...DOOR_HINGE),
   axis = new Vector3(1, 0, 0);
 export const REAR_STRUT = telescopingStrut(CAT, {
+  id: "door.rear.strut",
   name: "Rear door gas strut",
   sys: ["cabin"],
   fraction: () => DOOR_POSE.rear,
@@ -31,9 +32,11 @@ export const toeAmount = (index: number) => Math.max(0, sim().s.gear.diff * (ind
 bindHardwareMotion(CAT, "Rudder pedal / toe brake", (spec, index) => (mesh) => {
   mesh.rotation.z = spec.rot![2] - 0.22 * toeAmount(index);
 });
-export const BRAKE_RODS = PEDALS.z.map((z, index) => {
+export const BRAKE_RODS = PEDAL_STATIONS.map(({ id: pedalId, z }, index) => {
   const pos: [number, number, number] = [PEDALS.x + 0.05, PEDALS.y + 0.065, z];
   return CAT.part(() => cyl(0.004, 0.04, "y", 12), ["gear"], {
+    id: "parts.mechanisms.brake-master-cylinder-piston-rod.001",
+    instance: [pedalId],
     name: "Brake master-cylinder piston rod",
     parent: index % 2 ? "rig:pedR" : "rig:pedL",
     pos,
@@ -61,6 +64,7 @@ bindHardwareMotion(CAT, "Rear door safety lever", () => (mesh) => {
 });
 
 CAT.part(() => cabinFloor(FUSE, fs(3.98), fs(1.8), -0.56), ["cabin", "airframe"], {
+  id: "parts.mechanisms.cabin-floor-covering.002",
   name: "Cabin floor covering",
   fairing: true,
   color: "#514F4B",

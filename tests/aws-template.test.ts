@@ -17,7 +17,8 @@ describe("infra/aws/site.json", () => {
     const types = Object.values(template.Resources).map((r) => (r as Node).Type);
     expect(types.filter((t) => t.startsWith("AWS::IAM::"))).toEqual([]);
     expect(template.Parameters).not.toHaveProperty("CreateOidcProvider");
-    expect(template).not.toHaveProperty("Conditions");
+    expect(template.Conditions).toHaveProperty("HasActiveRelease");
+    expect(template.Parameters.ActiveReleaseId.AllowedPattern).toContain("{64}");
     // scripts/deploy-aws.sh reads BucketName, DistributionId and DistributionDomainName.
     expect(Object.keys(template.Outputs).sort()).toEqual([
       "BucketName",
@@ -43,6 +44,7 @@ describe("infra/aws/site.json", () => {
     ]);
     expect(dist.CacheBehaviors.map((b: Node) => [b.PathPattern, b.CachePolicyId])).toEqual([
       ["/_next/static/*", "658327ea-f89d-4fab-a63d-7e88639e58f6"],
+      ["/geometry/*-????????????????????.*", "658327ea-f89d-4fab-a63d-7e88639e58f6"],
     ]);
     expect(dist.DefaultCacheBehavior.CachePolicyId).toEqual({ Ref: "HtmlShortCache" });
     const html = res("HtmlShortCache").CachePolicyConfig;
@@ -54,7 +56,12 @@ describe("infra/aws/site.json", () => {
     const dist = res("SiteDistribution").DistributionConfig;
     const policyId = "67f7725c-6f97-4210-82d7-5512b31e9d03";
     expect(dist.DefaultCacheBehavior.ResponseHeadersPolicyId).toBe(policyId);
-    expect(dist.CacheBehaviors).toHaveLength(1);
+    expect(dist.CacheBehaviors).toHaveLength(2);
+    expect(
+      dist.CacheBehaviors.every(
+        (b: Node) => b.TargetOriginId === "site-assets" && b.ResponseHeadersPolicyId === policyId,
+      ),
+    ).toBe(true);
     expect(dist.CacheBehaviors[0].PathPattern).toBe("/_next/static/*");
     expect(dist.CacheBehaviors[0].ResponseHeadersPolicyId).toBe(policyId);
   });

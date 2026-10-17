@@ -14,9 +14,8 @@ import { Electrical } from "./panels/electrical";
 import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Lighting, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
-import { useDA40 } from "./store";
+import { da40Runtime, useDA40 } from "./store";
 import { DA40_META } from "./meta";
-import { simTick } from "./tick";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window: shown only while a display has power (PFD, or the MFD in reversionary mode). */
@@ -54,7 +53,7 @@ export const DA40: AircraftDef = {
     autopilot: Autopilot,
     cabin: Cabin,
   },
-  tick: simTick,
+  advance: da40Runtime.advance,
   Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: WALK.walk,

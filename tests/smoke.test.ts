@@ -2,6 +2,7 @@
 // in-process node:http server on 127.0.0.1 that answers like the S3 + CloudFront site should ("good") or like a
 // misconfigured host ("bad"). No external network and no deploy.
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
@@ -147,7 +148,10 @@ describe("parseBase", () => {
   });
 });
 
-type Mode = "good" | "bad" | "no404" | "badmime";
+type Mode = "good" | "bad" | "no404" | "badmime" | "geometrycache" | "geometrybytes";
+const GEOMETRY_PATH = `/geometry/sr20-${"a".repeat(20)}.bin.gz`;
+const GEOMETRY_BYTES = "compressed geometry fixture";
+const GEOMETRY_SHA = createHash("sha256").update(GEOMETRY_BYTES).digest("hex");
 
 /**
  * Answers like the S3 + CloudFront site (see infra/cloudfront/README.md), or, in "bad" mode, like a misconfigured host. In
@@ -160,6 +164,24 @@ function answer(mode: Mode, path: string): [number, Record<string, string>, stri
     INDEX_HTML,
   ];
   if (path === "/") return page;
+  if (path === "/release-manifest.json")
+    return [
+      200,
+      { "content-type": "application/json" },
+      JSON.stringify({
+        version: 1,
+        files: [{ path: GEOMETRY_PATH.slice(1), contentType: "application/octet-stream", sha256: GEOMETRY_SHA }],
+      }),
+    ];
+  if (path === GEOMETRY_PATH)
+    return [
+      200,
+      {
+        "content-type": "application/octet-stream",
+        "cache-control": mode === "geometrycache" ? "public, max-age=60" : IMMUTABLE,
+      },
+      mode === "geometrybytes" ? "corrupt" : GEOMETRY_BYTES,
+    ];
   // a host that serves the root's HTML for every view (as before each airplane had its own route)
   if (["/sr22t", "/sr22t/electrical"].includes(path)) return mode === "bad" ? page : [page[0], page[1], VIEW_HTML];
   if (VIEW_ASSETS.includes(path))
@@ -195,6 +217,8 @@ const servers: Record<Mode, Server> = {
   bad: serve("bad"),
   no404: serve("no404"),
   badmime: serve("badmime"),
+  geometrycache: serve("geometrycache"),
+  geometrybytes: serve("geometrybytes"),
 };
 const baseOf = (mode: Mode) => `http://127.0.0.1:${(servers[mode].address() as AddressInfo).port}`;
 
@@ -303,6 +327,26 @@ describe("scripts/smoke.mjs end to end", () => {
     const failed = JSON.parse(stdout).checks.filter((c: { ok: boolean }) => !c.ok);
     expect(failed.map((c: { url: string }) => new URL(c.url).pathname)).toEqual(VIEW_ASSETS);
     expect(stderr).toContain("content-type");
+  });
+
+  it.each(["geometrycache", "geometrybytes"] as const)("rejects a production geometry regression: %s", async (mode) => {
+    const { code, stdout } = await smoke(baseOf(mode));
+    expect(code).toBe(1);
+    expect(
+      JSON.parse(stdout)
+        .checks.filter((check: { ok: boolean }) => !check.ok)
+        .map((check: { url: string }) => new URL(check.url).pathname),
+    ).toEqual([GEOMETRY_PATH]);
+  });
+
+  it("rejects the wrong active release checksum", async () => {
+    const { code, stdout } = await smoke(baseOf("good"), "0".repeat(64));
+    expect(code).toBe(1);
+    expect(
+      JSON.parse(stdout)
+        .checks.filter((check: { ok: boolean }) => !check.ok)
+        .map((check: { url: string }) => new URL(check.url).pathname),
+    ).toEqual(["/release-manifest.json"]);
   });
 
   it("exits 2 without a base URL", async () => {

@@ -1,12 +1,9 @@
 import type { Vec3 } from "./math";
 
-/** Every airplane in the fleet. Each one lives in aircraft/<id>/. */
-export const AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"] as const;
-export type AircraftId = (typeof AIRCRAFT_IDS)[number];
+import { AIRCRAFT_IDS, type AircraftId } from "./aircraft-ids";
+export { AIRCRAFT_IDS, DEFAULT_AIRCRAFT, type AircraftId } from "./aircraft-ids";
 export const isAircraftId = (v: unknown): v is AircraftId =>
   typeof v === "string" && (AIRCRAFT_IDS as readonly string[]).includes(v);
-/** The airplane shown to a first-time visitor (the root page opens the last-viewed one after that). */
-export const DEFAULT_AIRCRAFT: AircraftId = "sr20";
 
 /** All system views across the fleet; each airplane lists the ones it has (in rail order). */
 export type SysId =

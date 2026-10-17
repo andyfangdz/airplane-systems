@@ -56,7 +56,6 @@ beforeEach(() => {
     walking: false,
     cam: null,
     focus: null,
-    hover: null,
     spot: null,
     xray: true,
     labels: true,

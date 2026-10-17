@@ -13,6 +13,7 @@ import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { skinMat } from "@/lib/materials";
 import { D2R, type Vec3 } from "@/lib/math";
 import { beginParts, endParts, markAdded, nextFrame, publishParts, setBuild, useBuild } from "@/lib/build";
+import { markAircraftSceneReady } from "@/lib/aircraft-session";
 import { specGeo, type PartSpec } from "@/lib/catalogue";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { narrowLayout, useView } from "@/lib/view";
@@ -74,13 +75,9 @@ const DOOR_WINDOWS = {
 };
 function DoorGroups() {
   const groups = useRef<Partial<Record<DoorKey, THREE.Group>>>({});
-  useFrame((_, dt) => {
-    const state = useSR22T.getState().s.doors;
-    for (const key of ["L", "R", "bag"] as const) {
-      const target = state[key] === "open" ? 1 : 0;
-      live.doors[key] += Math.sign(target - live.doors[key]) * Math.min(Math.abs(target - live.doors[key]), dt * 1.8);
+  useFrame(() => {
+    for (const key of ["L", "R", "bag"] as const)
       groups.current[key]?.quaternion.copy(doorRotation(key, live.doors[key]));
-    }
   });
   return (
     <>
@@ -382,12 +379,15 @@ const SLICE_MS = 8, // approximate: frame pacing, not a source value
  */
 export function SceneModel() {
   const [stage, setStage] = useState<"start" | "parts" | "complete">("start");
+  const [failure, setFailure] = useState<Error | null>(null);
   const skin = useMemo(() => [skinMat(paintSkin)], []);
   // each run (a remount, or React's dev double-mount, starts another) stops as soon as a newer one starts or the model unmounts
   const runs = useRef(0);
   const run = useCallback(async (compiled: Promise<unknown>) => {
+    const owner = useView.getState().session;
+    if (owner?.aircraft !== "sr22t") return;
     const me = ++runs.current,
-      current = () => runs.current === me;
+      current = () => runs.current === me && useView.getState().session === owner;
     let shadersReady = false;
     void compiled.then(() => (shadersReady = true));
     setBuild("airframe");
@@ -395,7 +395,10 @@ export function SceneModel() {
     const hull = CAT.shells.find(isFuselage)!,
       fuselage = fuselageInWorker();
     let hullBuilt: THREE.BufferGeometry | null | undefined;
-    void fuselage.then((g) => (hullBuilt = g));
+    void fuselage.then(
+      (g) => (hullBuilt = g),
+      () => {},
+    ); // prepareGeometry below owns a shared load failure.
     // Let the downloaded catalogue populate the cache before any eligible factory runs. On fallback, the fuselage
     // worker continues in parallel with the sliced procedural build below; shader compilation overlaps both paths.
     await prepareGeometry(CAT);
@@ -452,7 +455,19 @@ export function SceneModel() {
     if (!current()) return;
     endParts(CAT);
     setBuild("ready");
+    markAircraftSceneReady(owner);
   }, []);
+  const start = useCallback(
+    (compiled: Promise<unknown>) => {
+      const generation = runs.current + 1,
+        owner = useView.getState().session;
+      void run(compiled).catch((error) => {
+        if (runs.current === generation && useView.getState().session === owner)
+          setFailure(error instanceof Error ? error : new Error(String(error)));
+      });
+    },
+    [run],
+  );
   useEffect(
     () => () => {
       runs.current++;
@@ -460,9 +475,10 @@ export function SceneModel() {
     },
     [],
   );
+  if (failure) throw failure;
   return (
     <>
-      <Precompile extra={skin} onStarted={run} />
+      <Precompile extra={skin} onStarted={start} />
       {stage !== "start" && <Model overlays={stage === "complete"} />}
     </>
   );

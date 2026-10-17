@@ -1,27 +1,22 @@
 "use client";
-import { createSimStore } from "@/lib/simStore";
+import { bindSimulation } from "@/lib/simulationBinding";
 import { revealStage, useView } from "@/lib/view";
 import { CAPS_CAM } from "./systems";
-import { initialSim, live, solve } from "./model";
+import { live } from "./model";
+import { createSR20Simulation } from "./simulation";
+export { createSR20Simulation } from "./simulation";
+export type { SR20Command } from "./simulation";
 
-/** SR20 systems state (switches, failures, quantities) and its electrical solution. */
-export const useSR20 = createSimStore(initialSim, solve);
+export const sr20Runtime = bindSimulation(createSR20Simulation(), live);
+export const useSR20 = sr20Runtime.useStore;
 
 export function startCaps() {
-  live.capsT = 0;
-  live.capsPlaying = true;
-  useSR20.getState().update((d) => {
-    d.capsOn = true;
-  });
+  sr20Runtime.dispatch({ type: "caps", playing: true });
   useView.getState().flyTo(...CAPS_CAM);
   // phones: the handle is in the panel below the 3D view, which is otherwise scrolled mostly out of sight
   revealStage();
 }
 
 export function resetCaps() {
-  live.capsT = -1;
-  live.capsPlaying = false;
-  useSR20.getState().update((d) => {
-    d.capsOn = false;
-  });
+  sr20Runtime.dispatch({ type: "caps", playing: false });
 }

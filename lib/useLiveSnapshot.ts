@@ -1,53 +1,50 @@
 "use client";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import { createLiveObservation } from "./live-observation";
 
-/** React reads detached, low-rate snapshots; animation continues to mutate the source every frame. */
-function createSampler<T extends object>(source: T, ms: number) {
-  let snapshot = structuredClone(source);
-  const initial = snapshot;
-  const listeners = new Set<() => void>();
-  let timer: ReturnType<typeof setInterval> | undefined;
-  const sample = () => {
-    snapshot = structuredClone(source);
-    listeners.forEach((notify) => notify());
-  };
-  return {
-    sample,
-    getSnapshot: () => snapshot,
-    getServerSnapshot: () => initial,
-    subscribe: (notify: () => void) => {
-      listeners.add(notify);
-      if (listeners.size === 1) {
-        // The source may have advanced while this panel was unmounted.
-        sample();
-        timer = setInterval(sample, ms);
-      }
-      return () => {
-        listeners.delete(notify);
-        if (!listeners.size) clearInterval(timer);
-      };
-    },
-  };
+const publishers = new WeakMap<object, ReturnType<typeof createLiveObservation>>();
+function publisherFor<T extends object>(source: T) {
+  let publisher = publishers.get(source);
+  if (!publisher) publishers.set(source, (publisher = createLiveObservation(source)));
+  return publisher as ReturnType<typeof createLiveObservation<T>>;
 }
 
-const samplers = new WeakMap<object, Map<number, ReturnType<typeof createSampler>>>();
-/** Publish event-handler changes immediately, including controlled inputs between animation samples. */
+/** Publish a completed command immediately, including controlled inputs between animation samples. */
 export function refreshLiveSnapshot(source: object) {
-  samplers.get(source)?.forEach((sampler) => sampler.sample());
-}
-function samplerFor<T extends object>(source: T, ms: number) {
-  let rates = samplers.get(source);
-  if (!rates) samplers.set(source, (rates = new Map()));
-  let sampler = rates.get(ms);
-  if (!sampler) rates.set(ms, (sampler = createSampler(source, ms)));
-  return sampler as ReturnType<typeof createSampler<T>>;
+  publishers.get(source)?.refresh();
 }
 
-/**
- * Use snapshots in render and pass them explicitly to calculations. Event handlers and useFrame callbacks still
- * read/write the original source. A shared sampler runs only while at least one UI consumer subscribes at this rate.
- */
+/** Select a stable observation; changes elsewhere in the source do not invalidate this consumer. */
+export function useLiveSelector<T extends object, S>(
+  source: T,
+  select: (snapshot: T) => S,
+  ms = 200,
+  equal: (a: S, b: S) => boolean = Object.is,
+): S {
+  const channel = publisherFor(source).channel(ms);
+  const get = useMemo(() => {
+    let previous = channel.getSnapshot();
+    let value = select(previous);
+    const initial = select(channel.getServerSnapshot());
+    return {
+      current: () => {
+        const next = channel.getSnapshot();
+        if (next !== previous) {
+          const selected = select(next);
+          if (!equal(value, selected)) value = selected;
+          previous = next;
+        }
+        return value;
+      },
+      server: () => initial,
+    };
+  }, [channel, select, equal]);
+  return useSyncExternalStore(channel.subscribe, get.current, get.server);
+}
+
+const identity = <T>(value: T) => value;
+
+/** React reads detached, low-rate observations; animation reads original runtime values each frame. */
 export function useLiveSnapshot<T extends object>(source: T, ms = 200): T {
-  const sampler = samplerFor(source, ms);
-  return useSyncExternalStore(sampler.subscribe, sampler.getSnapshot, sampler.getServerSnapshot);
+  return useLiveSelector(source, identity, ms);
 }

@@ -27,6 +27,7 @@ const CTL = "#7C57CF",
   STEEL = "#8C959C";
 // elevator: lateral torque tube under the panel with end levers and the forward cable sector
 part(() => cyl(0.016, ETT.half * 2, "z"), ["controls"], {
+  id: "parts.controls.elevator-torque-tube.001",
   chan: ["elevator"],
   parent: "rig:ett",
   color: STEEL,
@@ -36,6 +37,8 @@ part(() => cyl(0.016, ETT.half * 2, "z"), ["controls"], {
 });
 [-1, 1].forEach((sd) =>
   part(() => box(0.02, ETT.lever, 0.02), ["controls"], {
+    id: "parts.controls.torque-tube-lever.002",
+    instance: [sd],
     chan: ["elevator"],
     parent: "rig:ett",
     pos: [(Math.sin(LEVER_ANG) * ETT.lever) / 2, (Math.cos(LEVER_ANG) * ETT.lever) / 2, sd * CARR.z],
@@ -46,6 +49,7 @@ part(() => cyl(0.016, ETT.half * 2, "z"), ["controls"], {
   }),
 );
 part(() => sectorGeo(ETT.sectorR), ["controls"], {
+  id: "parts.controls.forward-elevator-sector.003",
   chan: ["elevator"],
   parent: "rig:ett",
   pos: [0, 0, ETT.sectorZ],
@@ -55,6 +59,7 @@ part(() => sectorGeo(ETT.sectorR), ["controls"], {
   pin: true,
 });
 part(() => cyl(0.02, 0.05, "z"), ["controls"], {
+  id: "parts.controls.torque-tube-bearing-block.004",
   chan: ["elevator"],
   pos: [ETT.c[0], ETT.c[1], -0.25],
   color: "#5A636A",
@@ -62,6 +67,7 @@ part(() => cyl(0.02, 0.05, "z"), ["controls"], {
   note: "Bearing blocks support the elevator torque tube.",
 });
 part(() => cyl(0.02, 0.05, "z"), ["controls"], {
+  id: "parts.controls.part.005",
   chan: ["elevator"],
   pos: [ETT.c[0], ETT.c[1], 0.25],
   color: "#5A636A",
@@ -70,6 +76,8 @@ part(() => cyl(0.02, 0.05, "z"), ["controls"], {
 [-1, 1].forEach((sd) => {
   const parent = "rig:carr:" + (sd < 0 ? "L" : "R");
   part(() => box(0.2, 0.02, 0.05), ["controls"], {
+    id: "parts.controls.aileron-bearing-carriage.006",
+    instance: [sd, parent],
     chan: ["aileron"],
     parent,
     pos: [0, -0.03, 0],
@@ -79,6 +87,8 @@ part(() => cyl(0.02, 0.05, "z"), ["controls"], {
     pin: sd > 0,
   });
   part(() => box(0.02, CARR.arm, 0.02), ["controls"], {
+    id: "parts.controls.carriage-arm.007",
+    instance: [sd, parent],
     chan: ["aileron"],
     parent,
     pos: [CARR.armX, -CARR.arm / 2, 0],
@@ -95,6 +105,7 @@ part(
   },
   ["controls"],
   {
+    id: "parts.controls.central-aileron-pulley-sector.008",
     chan: ["aileron"],
     parent: "rig:ailSector",
     color: CTL,
@@ -104,6 +115,7 @@ part(
   },
 );
 part(() => box(0.012, 0.02, 0.012), ["controls"], {
+  id: "parts.controls.part.009",
   chan: ["aileron"],
   parent: "rig:ailSector",
   pos: [0, AIL_SECTOR.r, 0],
@@ -111,6 +123,7 @@ part(() => box(0.012, 0.02, 0.012), ["controls"], {
 });
 // rudder: pedal torque tube and cable horn
 part(() => cyl(0.014, PEDAL_TT.half * 2, "z"), ["controls", "gear"], {
+  id: "parts.controls.rudder-pedal-torque-tube.010",
   chan: ["rudder"],
   pos: [PEDAL_TT.x, PEDAL_TT.y, 0],
   color: STEEL,
@@ -119,6 +132,7 @@ part(() => cyl(0.014, PEDAL_TT.half * 2, "z"), ["controls", "gear"], {
   pin: true,
 });
 part(() => box(0.03, 0.02, RUD_HORN.half * 2 + 0.02), ["controls"], {
+  id: "parts.controls.rudder-cable-horn.011",
   chan: ["rudder"],
   parent: "rig:rudHorn",
   color: CTL,
@@ -126,12 +140,19 @@ part(() => box(0.03, 0.02, RUD_HORN.half * 2 + 0.02), ["controls"], {
   note: "Pedal links pivot this horn; its ends pull the two rudder cable strands.",
   pin: true,
 });
-part(() => cyl(0.008, 0.05, "y"), ["controls"], { chan: ["rudder"], pos: RUD_HORN.c, color: STEEL });
+part(() => cyl(0.008, 0.05, "y"), ["controls"], {
+  id: "parts.controls.part.012",
+  chan: ["rudder"],
+  pos: RUD_HORN.c,
+  color: STEEL,
+});
 // arm from each pedal pair's inboard pedal across to its pedal link
 [-1, 1].forEach((sd) => {
   const z0 = sd * 0.14,
     z1 = RUD_HORN.c[2] + sd * RUD_HORN.half;
   part(() => box(0.02, 0.015, Math.abs(z1 - z0) + 0.02), ["controls"], {
+    id: "parts.controls.pedal-arm.013",
+    instance: [sd],
     chan: ["rudder"],
     parent: sd < 0 ? "rig:pedL" : "rig:pedR",
     pos: [PEDAL_TT.x, RUD_HORN.c[1], (z0 + z1) / 2],
@@ -143,6 +164,8 @@ part(() => cyl(0.008, 0.05, "y"), ["controls"], { chan: ["rudder"], pos: RUD_HOR
 // pulleys (each in its own group so it can turn with cable travel)
 Object.entries(PULLEYS).forEach(([k, d]) =>
   part(() => pulleyGeo(d.r, d.axis, d.double, d.gap), ["controls"], {
+    id: "parts.controls.part.014",
+    instance: k,
     chan: chanOfKey(k === "ef" || k === "em" || k === "ea" ? "el" : k.startsWith("a") ? "ail" : "rud"),
     parent: "rig:pul:" + k,
     color: k === "ea" || k === "ra" || k.startsWith("aw") ? CTL : "#A6AEB4",
@@ -153,12 +176,14 @@ Object.entries(PULLEYS).forEach(([k, d]) =>
 );
 // crank pins on the aft sectors
 part(() => cyl(0.008, 0.03, "z"), ["controls"], {
+  id: "parts.controls.part.015",
   chan: ["elevator"],
   parent: "rig:pul:ea",
   pos: [0, -0.06, 0],
   color: STEEL,
 });
 part(() => cyl(0.008, 0.03, "y"), ["controls"], {
+  id: "parts.controls.part.016",
   chan: ["rudder"],
   parent: "rig:pul:ra",
   pos: [0, 0, 0.05],
@@ -169,6 +194,7 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
   const pv = surfacePivot("elevR"),
     c = ELEV_HORN.c;
   part(() => box(0.02, ELEV_HORN.arm, 0.02), ["controls"], {
+    id: "parts.controls.elevator-bellcrank.017",
     parent: "surf:elevR",
     pos: [c[0] - pv[0], c[1] - ELEV_HORN.arm / 2 - pv[1], c[2] - pv[2]],
     color: CTL,
@@ -177,6 +203,7 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
     pin: true,
   });
   part(() => cyl(0.014, 0.2, "z"), ["controls"], {
+    id: "parts.controls.elevator-torque-tube-tail.018",
     parent: "surf:elevR",
     pos: [c[0] - pv[0], c[1] - pv[1], c[2] - pv[2]],
     color: STEEL,
@@ -186,6 +213,7 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
   const rv = surfacePivot("rudder"),
     r = RUD_HORN_AFT.c;
   part(() => box(0.02, 0.02, RUD_HORN_AFT.arm), ["controls"], {
+    id: "parts.controls.rudder-bellcrank.019",
     parent: "surf:rudder",
     pos: [r[0] - rv[0], r[1] - rv[1], RUD_HORN_AFT.arm / 2 - rv[2]],
     color: CTL,
@@ -198,6 +226,8 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
       av = surfacePivot(key);
     const hz = wingP(sd * AIL_DRIVE.z, 0.75, 0);
     part(() => box(0.012, AIL_DRIVE.arm, 0.012), ["controls"], {
+      id: "parts.controls.aileron-conical-drive-arm.020",
+      instance: [sd],
       chan: ["aileron"],
       parent: "surf:" + key,
       pos: [hz.x - av[0], hz.y + AIL_DRIVE.arm / 2 - av[1], hz.z - av[2]],
@@ -206,6 +236,8 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
       note: "Right-angle drive: the arm on the aileron hinge that the wing sector's crank turns.",
     });
     part(() => box(0.012, 0.012, AIL_DRIVE.crank), ["controls"], {
+      id: "parts.controls.wing-sector-crank-arm.021",
+      instance: [sd],
       chan: ["aileron"],
       parent: "rig:pul:aw" + (sd > 0 ? "R" : "L"),
       pos: [0, AIL_DRIVE.lift, (sd * AIL_DRIVE.crank) / 2],
@@ -219,15 +251,17 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
 // is the short wrap round the intermediate pulley, where they would sit inside the pulley wheel.
 (
   [
-    ["elA", 4, 0.25],
-    ["elB", 4, 0.25],
-    ["elA", 4, 0.35],
-    ["elB", 4, 0.35],
-    ["rudR", 2, 0.3],
-    ["rudL", 2, 0.3],
-  ] as [string, number, number][]
-).forEach(([k, i, t], j) =>
+    ["elevator-a-forward", "elA", 4, 0.25],
+    ["elevator-b-forward", "elB", 4, 0.25],
+    ["elevator-a-aft", "elA", 4, 0.35],
+    ["elevator-b-aft", "elB", 4, 0.35],
+    ["rudder-right", "rudR", 2, 0.3],
+    ["rudder-left", "rudL", 2, 0.3],
+  ] as [string, string, number, number][]
+).forEach(([key, k, i, t], j) =>
   part(() => cyl(0.009, 0.07, "x"), ["controls"], {
+    id: "parts.controls.turnbuckle.022",
+    instance: key,
     chan: chanOfKey(k),
     pos: alongCable(k, i, t),
     color: "#C9B98F",
@@ -242,6 +276,8 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
     ["ail" + (sd > 0 ? "R" : "L"), 7],
   ].forEach(([k, i]) =>
     part(() => box(0.03, 0.03, 0.02), ["controls"], {
+      id: "parts.controls.cable-guide.023",
+      instance: [k, sd],
       chan: ["aileron"],
       pos: alongCable(k as string, i as number, 0.5),
       color: "#C9D0D5",
@@ -256,6 +292,8 @@ part(() => cyl(0.008, 0.03, "y"), ["controls"], {
 Object.entries(PULLEYS).forEach(([key, d]) => {
   const chan = key.startsWith("a") ? ["aileron"] : key.startsWith("r") ? ["rudder"] : ["elevator"];
   part(() => box(0.012, 0.014, 0.045), ["controls"], {
+    id: "parts.controls.pulley-cable-retainer.024",
+    instance: key,
     chan: chan as ("aileron" | "rudder" | "elevator")[],
     // Vertical-axis wing sectors need a radial keeper in the x-z plane, inside the wing.
     pos: d.axis === "y" ? [d.c[0] + d.r + 0.009, d.c[1], d.c[2]] : [d.c[0], d.c[1] - d.r - 0.009, d.c[2]],
@@ -268,6 +306,8 @@ for (const key of ["awL", "awR", "ea"]) {
   const d = PULLEYS[key];
   for (const side of [-1, 1])
     part(() => box(0.016, 0.02, 0.018), ["controls"], {
+      id: "parts.controls.primary-control-travel-stop.025",
+      instance: [side, key],
       chan: key === "ea" ? ["elevator"] : ["aileron"],
       pos: [d.c[0] + side * (d.r + 0.014), d.c[1], d.c[2]],
       color: "#C7A774",

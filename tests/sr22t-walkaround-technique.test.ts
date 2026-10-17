@@ -10,7 +10,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Box3, DoubleSide, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from "three";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import "@/aircraft";
 import { FUSE, GROUND_Y, inFus, SPINNER_BASE_X } from "@/aircraft/sr22t/geometry";
 import { initialSim } from "@/aircraft/sr22t/model";
@@ -22,6 +22,15 @@ import { isPoh, NOT_MODELLED, TECHNIQUE_BADGE, WALK } from "@/aircraft/sr22t/wal
 import { spotsPart } from "@/lib/spot";
 import { useView } from "@/lib/view";
 import { fleetTally as tally, HALO_R } from "@/lib/fleet-walk";
+
+// These static cards represent a completed SR22T scene: beforeAll builds all their geometry. There is no mounted
+// route in renderToStaticMarkup, whose Zustand server snapshot is the initial store. Real readiness/owner transitions
+// are exercised by tests/react/fleet-walk-readiness.test.tsx; keep this fixture focused on the authored sight lines.
+vi.mock("@/lib/aircraft-session", async (original) => ({
+  ...(await original<typeof import("@/lib/aircraft-session")>()),
+  useAircraftSceneReady: (aircraft: string) => aircraft === "sr22t",
+}));
+
 const {
   emphasisHalos,
   emphasisPoints,

@@ -7,6 +7,7 @@ import { glow, part, sim } from "./catalogue";
 
 /* ---------- vacuum & flight instruments ---------- */
 part(() => box(0.06, 0.05, 0.05), ["vacuum"], {
+  id: "parts.vacuum.vacuum-regulator.001",
   pos: [FW - 0.08, 0.1, -0.15],
   color: "#3A9448",
   name: "Vacuum regulator",
@@ -14,6 +15,7 @@ part(() => box(0.06, 0.05, 0.05), ["vacuum"], {
   pin: true,
 });
 part(() => cyl(0.03, 0.06, "x"), ["vacuum"], {
+  id: "parts.vacuum.vacuum-filter.002",
   pos: [FW - 0.1, 0.0, -0.35],
   color: "#3A9448",
   name: "Vacuum filter",
@@ -21,6 +23,7 @@ part(() => cyl(0.03, 0.06, "x"), ["vacuum"], {
   pin: true,
 });
 part(() => box(0.02, 0.014, 0.014), ["vacuum"], {
+  id: "parts.vacuum.vacuum-light-test-switch.003",
   pos: [PANEL_X - 0.03, 0.02, -0.4],
   color: "#3F4B54",
   name: "Vacuum light test switch",
@@ -29,11 +32,29 @@ part(() => box(0.02, 0.014, 0.014), ["vacuum"], {
 });
 (
   [
-    [-0.34, "#FF2A2A", "LOW VACUUM light (red)", () => sim().E.vacWarn && live.vac < 4.05],
-    [-0.3, "#FF2A2A", "HIGH VACUUM light (red)", () => sim().E.vacWarn && live.vac > 5.2],
-  ] as [number, string, string, () => boolean][]
-).forEach(([z, c, name, on]) =>
+    [
+      "member-1",
+      [-0.34, "#FF2A2A", "LOW VACUUM light (red)", () => sim().E.vacWarn && live.vac < 4.05] as [
+        number,
+        string,
+        string,
+        () => boolean,
+      ],
+    ],
+    [
+      "member-2",
+      [-0.3, "#FF2A2A", "HIGH VACUUM light (red)", () => sim().E.vacWarn && live.vac > 5.2] as [
+        number,
+        string,
+        string,
+        () => boolean,
+      ],
+    ],
+  ] as const
+).forEach(([instance1, [z, c, name, on]]) =>
   part(() => sph(0.007), ["vacuum", "electrical"], {
+    id: "parts.vacuum.part.004",
+    instance: [instance1],
     pos: [PANEL_X - 0.02, 0.09, z],
     color: c,
     anim: glow("#3A4249", c, on, ["vacuum"]),
@@ -44,6 +65,7 @@ part(() => box(0.02, 0.014, 0.014), ["vacuum"], {
   }),
 );
 part(() => box(0.08, 0.07, 0.07), ["vacuum", "autopilot"], {
+  id: "parts.vacuum.turn-coordinator-electric-vacuum.005",
   pos: [PANEL_X + 0.05, 0.0, -0.44],
   color: "#C8399F",
   name: "Turn coordinator (electric & vacuum)",
@@ -54,6 +76,8 @@ part(() => box(0.08, 0.07, 0.07), ["vacuum", "autopilot"], {
 /* ---------- Positive Control (Brittain) ---------- */
 [1, -1].forEach((s) =>
   part(() => cyl(0.057, 0.06, "y", 18), ["autopilot", "controls"], {
+    instance: [s],
+    id: "parts.vacuum.pc-aileron-servo-brittain-bi-706.006",
     pos: s > 0 ? [SERVO.roll[0], SERVO.roll[1], -SERVO.roll[2]] : SERVO.roll,
     color: "#C8399F",
     anim: glow("#7A3866", "#C8399F", () => pcEngaged(sim().s) && Math.abs(live.pcRoll) > 0.02, [
@@ -68,6 +92,8 @@ part(() => box(0.08, 0.07, 0.07), ["vacuum", "autopilot"], {
 );
 [1, -1].forEach((s) =>
   part(() => cyl(0.057, 0.06, "z", 18), ["autopilot", "controls"], {
+    instance: [s],
+    id: "parts.vacuum.pc-rudder-servo-brittain-bi-706.007",
     pos: [SERVO.yaw[0], SERVO.yaw[1], s * 0.1],
     color: "#C8399F",
     anim: glow("#7A3866", "#C8399F", () => pcEngaged(sim().s) && Math.abs(live.pcYaw) > 0.02, [
@@ -81,6 +107,7 @@ part(() => box(0.08, 0.07, 0.07), ["vacuum", "autopilot"], {
   }),
 );
 part(() => box(0.02, 0.03, 0.015), ["autopilot", "controls"], {
+  id: "parts.vacuum.pc-cut-off-valve-left-grip.008",
   parent: "wheel:L",
   pos: [0.0, 0.06, -0.12],
   color: "#B53A3A",
@@ -90,6 +117,7 @@ part(() => box(0.02, 0.03, 0.015), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => cyl(0.012, 0.02, "x", 12), ["autopilot"], {
+  id: "parts.vacuum.roll-trim-knob.009",
   pos: [PANEL_X - 0.035, -0.03, -0.44],
   color: "#1B1F23",
   anim: (m) => {

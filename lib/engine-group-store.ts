@@ -1,7 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { allGroups, type EngineGroup, type ShownGroups } from "./engine-groups";
-import { useView } from "./view";
+import { useAircraftHover } from "./view";
 
 export interface EngineGroupState {
   shown: ShownGroups;
@@ -17,6 +17,6 @@ export const createEngineGroupStore = (shown: ShownGroups = allGroups()) =>
     shown,
     set: (group, on) => {
       set((state) => ({ shown: { ...state.shown, [group]: on } }));
-      useView.getState().setHover(null);
+      useAircraftHover.getState().setHover(null);
     },
   }));

@@ -7,6 +7,8 @@ export interface MeshAttribute {
 }
 export interface BuiltMesh {
   key: string;
+  /** The isolated authoring recovery worker transfers original buffers without mesh encoding. */
+  procedural?: true;
   attributes: MeshAttribute[];
   index: Uint16Array | Uint32Array | null;
   groups: { start: number; count: number; materialIndex?: number }[];

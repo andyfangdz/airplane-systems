@@ -28,12 +28,11 @@ import { cutMainWell, cutNoseWell } from "../placement";
 
 /* ---------- airframe shells ---------- */
 shell(
-  // The clipper emits a triangle stream with an identity index. Leave it unindexed so
-  // the shared encoder can deduplicate identical position/normal/UV tuples losslessly.
   () => cutNoseWell(fuselageGeo()).setIndex(null),
   "Fuselage",
   "Cabin: welded 4130 steel-tube truss covered with aluminium skins; stainless-steel firewall. Tail cone: conventional aluminium monocoque (OM p. 5–6; Ranger 1-2). Short-body M20C fuselage, unchanged 1962–77.",
   true,
+  "parts.airframe.fuselage.001",
 );
 shell(
   () => {
@@ -50,6 +49,7 @@ shell(
   "Spinner",
   "Spinner over the Hartzell hub (navy on N6947N).",
   flatPaint(NAVY),
+  "parts.airframe.spinner.002",
 );
 const wingSt = [WR, 0.62, 1.0, 1.6, 2.2, 2.95, 3.02, 3.6, 4.2, 4.8, 5.1];
 const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
@@ -67,6 +67,9 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
       ),
     s > 0 ? "Right wing" : "Left wing",
     "One-piece laminar-flow wing (NACA 63-215 root / 64-412 tip): main spar and auxiliary spar with stressed skins, full wrap-around skins flush-riveted over the forward top two-thirds (Ranger 1-2; OM p. 5). Integral fuel bay in the forward inboard section. Dihedral 5.5°.",
+    false,
+    "parts.airframe.shell.003",
+    [s],
   );
   shell(
     () =>
@@ -78,6 +81,9 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
       ),
     "Wing tip",
     "Rounded tip carrying the navigation light.",
+    false,
+    "parts.airframe.wing-tip.004",
+    [s],
   );
   shell(
     () =>
@@ -89,6 +95,9 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
       ),
     "Wing root trailing edge",
     "",
+    false,
+    "parts.airframe.wing-root-trailing-edge.005",
+    [s],
   );
   shell(
     () =>
@@ -100,6 +109,9 @@ const tipSt = [5.1, 5.18, 5.24, 5.29, WTIP];
       ),
     "Wing trailing edge",
     "",
+    false,
+    "parts.airframe.wing-trailing-edge.006",
+    [s],
   );
 });
 

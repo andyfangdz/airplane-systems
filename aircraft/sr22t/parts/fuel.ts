@@ -23,13 +23,22 @@ export const tankTop = (s: number) => {
 /** Anchors for flows.ts. */
 export const COLLECTOR = (s: number) => toVec3(wingP(s * 0.72, 0.45, 0));
 export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add(V(0, -0.006, 0)));
-[1, -1].forEach((s) => {
+(
+  [
+    ["member-01", 1],
+    ["member-02", -1],
+  ] as const
+).forEach(([member1, s]) => {
   part(() => box(0.2, 0.07, 0.16), ["fuel"], {
+    instance: [s, member1],
+    id: "parts.fuel.part.001",
     pos: COLLECTOR(s),
     name: (s > 0 ? "Right" : "Left") + " collector tank / sump",
     note: "Tank fuel gravity-feeds through strainers and a flapper valve into the collector. Flush drain and top vent to the associated tank (POH 13772-007 7-40, Fig 7-8, 7-42; AMM 28-10, PDF pp. 1088–1089, Fig 28-10-3, PDF p. 1105). Root placement and box dimensions approximate. Approximately 2.8 gal each (AMM 13773-002 Rev 7 28-10, PDF p. 1088).",
   });
   part(() => box(0.08, 0.012, 0.12), ["fuel"], {
+    instance: [s, member1],
+    id: "parts.fuel.naca-fuel-vent.002",
     pos: NACA_FUEL_VENT(s),
     color: "#2F7FE6",
     name: "NACA fuel vent",
@@ -37,6 +46,8 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
     ext: true,
   });
   part(() => sph(0.025), ["fuel"], {
+    instance: [s, member1],
+    id: "parts.fuel.tank-drain.003",
     pos: toVec3(wingP(s * 1.3, 0.45, -1)),
     color: "#0B3A80",
     name: "Tank drain",
@@ -44,6 +55,8 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
     ext: true,
   });
   part(() => cyl(0.045, 0.012), ["fuel"], {
+    instance: [s, member1],
+    id: "parts.fuel.filler-cap.004",
     pos: toVec3(wingP(s * 2.7, 0.38, 1)),
     color: "#2F7FE6",
     name: "Filler cap",
@@ -52,6 +65,8 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
   });
   // Append the storage details after the existing wing parts; registration order sets label ownership.
   part(() => cyl(0.025, 0.012), ["fuel"], {
+    instance: [s, member1],
+    id: "parts.fuel.collector-drain.005",
     pos: toVec3(wingP(s * 0.72, 0.45, -1)),
     name: "Collector drain",
     note: "Flush drain in the lower-skin collector access panel at the collector low point. One of 5 drains: 2 tank, 2 collector, 1 gascolator (POH 13772-007 7-40, Fig 7-8, 7-42; AMM 13773-002 Rev 7 28-10, PDF p. 1089, Fig 28-10-4, PDF p. 1110). The drain valve is nutted to wing access panel LW3/RW3, Fuel Tank, Root (AMM 13773-002 Rev 7 28-10, PDF pp. 1107–1108; Fig 6-00-7, PDF p. 124). Position and dimensions approximate.",
@@ -59,8 +74,15 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
     // The left drain carries the label, so the right one leaves the flapper and inboard-sensor labels clear.
     pin: s < 0,
   });
-  [0.37, 0.53].forEach((chord, i) =>
+  (
+    [
+      ["member-01", 0.37],
+      ["member-02", 0.53],
+    ] as const
+  ).forEach(([member2, chord], i) =>
     part(() => cyl(0.022, 0.075, "z"), ["fuel"], {
+      id: "parts.fuel.tank-outlet-strainer.006",
+      instance: [s, member1, member2],
       pos: toVec3(wingP(s * TANK_SPAN[0], chord, 0)),
       name: "Tank outlet strainer",
       note: "1/16-inch mesh strainer at each of two inboard-rib ports (AMM 13773-002 Rev 7 28-10, PDF p. 1088; Fig 28-10-3 item 4, PDF p. 1105). Geometry and port spacing approximate.",
@@ -68,12 +90,19 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
     }),
   );
   part(() => cyl(0.026, 0.06, "z"), ["fuel"], {
+    instance: [s, member1],
+    id: "parts.fuel.flapper-valve.007",
     pos: toVec3(wingP(s * 0.84, 0.45, 0)),
     name: "Flapper valve",
     note: "Flapper valve between the tank and collector retains collector fuel during uncoordinated maneuvers (POH 13772-007 7-40, Fig 7-8, 7-42; AMM 13773-002 Rev 7 28-10, PDF p. 1088). Position and dimensions approximate.",
     pin: true,
   });
-  [2.1, 3.3].forEach((z, i) =>
+  (
+    [
+      ["member-01", 2.1],
+      ["member-02", 3.3],
+    ] as const
+  ).forEach(([member3, z], i) =>
     part(
       () => {
         const center = wingP(s * z, 0.45, 0);
@@ -84,6 +113,8 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
       },
       ["fuel"],
       {
+        id: "parts.fuel.fuel-baffle-rib.008",
+        instance: [s, member1, member3],
         pos: toVec3(wingP(s * z, 0.45, 0)),
         name: "Fuel baffle rib",
         note: "Two integral baffle ribs per tank reduce fuel slosh (AMM 13773-002 Rev 7 28-10, PDF p. 1088; Fig 28-10-3, PDF p. 1105). Spacing, thickness and solid rib shape approximate; openings omitted.",
@@ -92,7 +123,12 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
       },
     ),
   );
-  TANK_SPAN.forEach((z, i) => {
+  (
+    [
+      ["inboard", TANK_SPAN[0]],
+      ["outboard", TANK_SPAN[1]],
+    ] as const
+  ).forEach(([end, z], i) => {
     const inward = i === 0 ? s : -s;
     part(
       () => {
@@ -108,6 +144,8 @@ export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add
       },
       ["fuel"],
       {
+        id: "parts.fuel.part.009",
+        instance: [end, s, member1],
         pos: toVec3(wingP(s * z, 0.48, 0)),
         name: i === 0 ? "Fuel quantity sensor (inboard)" : "Fuel quantity sensor (outboard)",
         note:
@@ -159,24 +197,28 @@ export const SPIDER_DRAIN_PORT: Vec3 = [SPIDER[0] - SPIDER_R, SPIDER[1] - SPIDER
  * exact transducer coordinates are not dimensioned by those sources. */
 export const FUEL_FLOW: Vec3 = [2.96, -0.32, 0.28];
 part(() => box(0.1, 0.08, 0.1), ["fuel"], {
+  id: "parts.fuel.electric-fuel-pump.010",
   pos: FUEL_PUMP,
   name: "Electric fuel pump",
   note: "Two-speed. BOOST: low speed, continuous 4–6 psi for vapor suppression. HIGH BOOST/PRIME: high speed for priming and high-altitude vapor suppression, held to low speed unless MAP ≥ 24 inHg and PA ≥ 10,000 ft, or RPM < 500 (software 2647.M4 or later). 5 A FUEL PUMP, MAIN BUS 2 (POH 13772-007 7-41). Forward of firewall (AMM 13773-002 Rev 7 28-20, PDF p. 1112; Fig 71-00-2 sheet 3 item 24, PDF p. 2489); position and dimensions approximate. FUEL RELAY shown in POH Fig 7-8 (7-42); no physical location specified, so not separately placed. Not a complete engine-driven pump backup (POH 3-24).",
   pin: true,
 });
 part(() => cyl(0.045, 0.1), ["fuel"], {
+  id: "parts.fuel.gascolator.011",
   pos: GASCOLATOR,
   name: "Gascolator",
   note: "Filter/sump ahead of the firewall, after the electric pump (AMM 13773-002 Rev 7 28-20, PDF p. 1112). 100–140 micron filtration; 4.9 fluid ounce bowl (AMM 28-20, PDF p. 1112, Fig 28-20-1, PDF p. 1116). Drain preflight (POH 13772-007 7-40). Position and dimensions approximate.",
   pin: true,
 });
 part(() => cyl(0.045, 0.09, "x"), ["fuel", "engine"], {
+  id: "parts.fuel.engine-driven-fuel-pump.012",
   pos: ENGINE_PUMP,
   name: "Engine-driven fuel pump",
   note: "On the left aft side of the engine (AMM 13773-002 Rev 7 28-20, PDF p. 1112); Fig 71-00-2 sheet 3 (item 31, PDF p. 2489) shows it inboard of the oil filter; position and dimensions approximate; integral mixture control valve and aneroid sensing upper-deck pressure (POH 13772-007 7-38; AMM 13773-002 Rev 7 73-00, PDF p. 2582). Excess fuel returns to the selected tank (POH 7-40, Fig 7-8).",
   groups: ["fuel"],
 });
 part(() => cyl(SPIDER_R, SPIDER_H), ["fuel", "engine"], {
+  id: "parts.fuel.fuel-manifold-valve-spider.013",
   pos: SPIDER,
   name: "Fuel manifold valve (“spider”)",
   note: "Distributes metered fuel to six injector nozzles (POH 13772-007 7-38); opens at approximately 3.5 psi (AMM 13773-002 Rev 7 73-00, PDF p. 2582). Round body on top of the induction manifold at engine centre, injector lines radiating to each bank (AMM Fig 71-00-2 sheet 1 item 4, PDF p. 2487; Continental M-18 Fig 12-10 item 4, p. 12-15). Size and exact position approximate.",
@@ -184,6 +226,7 @@ part(() => cyl(SPIDER_R, SPIDER_H), ["fuel", "engine"], {
   groups: ["fuel"],
 });
 part(() => cyl(0.025, 0.07, "x"), ["fuel", "engine"], {
+  id: "parts.fuel.fuel-flow-transducer.014",
   pos: FUEL_FLOW,
   name: "Fuel flow transducer",
   note: "Right side of the engine, between the engine-driven pump and distribution block (POH 13772-007 7-43; position approximate). AMM 13773-002 Rev 7 73-30 (PDF p. 2594) says aft baffle to throttle metering valve; 28-40 (PDF p. 1138) says metering valve to manifold. POH governs.",
@@ -193,6 +236,7 @@ part(() => cyl(0.025, 0.07, "x"), ["fuel", "engine"], {
 
 // Fuel distribution additions. Keep existing registration order above.
 part(() => box(0.18, 0.16, 0.18), ["fuel"], {
+  id: "parts.fuel.selector-valve-enclosure.015",
   pos: [1.24, -0.36, 0],
   name: "Selector valve enclosure",
   note: "Vented and drained enclosure isolates the selector body below the console from cabin leakage (AMM 13773-002 Rev 7 28-00, PDF p. 1078; 28-20, PDF p. 1113, Fig 28-20-3, PDF p. 1131). Position and box dimensions approximate; handle remains above the enclosure.",
@@ -200,6 +244,7 @@ part(() => box(0.18, 0.16, 0.18), ["fuel"], {
   pin: true,
 });
 part(() => box(0.05, 0.14, 0.18), ["fuel"], {
+  id: "parts.fuel.firewall-fuel-enclosure.016",
   pos: [FW - 0.035, -0.6, 0.15],
   name: "Firewall fuel enclosure",
   note: "Aft-side firewall enclosure keeps fuel from cabin fittings out of the cabin; fittings are vented and drained (AMM 13773-002 Rev 7 28-00, PDF p. 1078; 28-20, PDF p. 1113, Fig 28-20-3 item 10, PDF p. 1131). Position and box dimensions approximate, centred on the schematic supply crossing.",
@@ -217,6 +262,7 @@ export const DRAIN_MANIFOLD: Vec3 = [FW + 0.07, -0.595, 0];
 export const GASCOLATOR_DRAIN: Vec3 = [FW + 0.07, botY(FW + 0.07) - 0.008, 0];
 export const CYL_DRAIN_CHECK: Vec3 = [FW + 0.07, -0.625, -0.05];
 part(() => cyl(0.025, 0.12), ["fuel", "engine"], {
+  id: "parts.fuel.drain-manifold.017",
   pos: DRAIN_MANIFOLD,
   name: "Drain manifold",
   note: "Bottom centre of the firewall: receives auxiliary-pump, gascolator, engine-driven-pump, injection-manifold and cylinder-head drains (AMM 13773-002 Rev 7 28-20, PDF p. 1113; Fig 71-70-2 item 6, PDF p. 2565). Attached to the engine mount inside the lower cowl (AMM 71-70, PDF p. 2564). Position and dimensions approximate: figures are undimensioned; only drain exits reach the skin. Dry drain hoses are static, not fuel feeds.",
@@ -224,6 +270,7 @@ part(() => cyl(0.025, 0.12), ["fuel", "engine"], {
   groups: ["fuel"],
 });
 part(() => cyl(0.013, 0.025), ["fuel"], {
+  id: "parts.fuel.gascolator-drain.018",
   pos: GASCOLATOR_DRAIN,
   name: "Gascolator drain",
   note: "Bowl drain tube leads to the preflight drain valve at the drain manifold (AMM 13773-002 Rev 7 28-20, PDF p. 1112; Fig 28-20-1 items 7–11, PDF p. 1116). One of 5 fuel drains; exits the lower engine cowl just forward of the firewall near the centreline (POH 13772-007 7-40, Fig 7-8, 7-42; 8-17). Short external valve stub at the POH Fig 1-1 (1-4) loft skin; position and dimensions approximate because the drain figures are undimensioned.",
@@ -237,6 +284,7 @@ export const FUEL_PRESSURE_SWITCH: Vec3 = [
   SPIDER[2] + (INTAKE_MANIFOLD_R + 0.026),
 ];
 part(() => cyl(0.018, 0.045), ["fuel", "engine"], {
+  id: "parts.fuel.fuel-pressure-switch.019",
   pos: FUEL_PRESSURE_SWITCH,
   name: "Fuel pressure switch",
   note: "Mounted below the injector manifold (POH 13772-007 Fig 7-8, 7-42; AMM 13773-002 Rev 7 Fig 28-00-3 sheet 1, PDF p. 1086). Position and dimensions approximate; operating threshold and annunciation function are not specified in this schematic.",
@@ -244,6 +292,7 @@ part(() => cyl(0.018, 0.045), ["fuel", "engine"], {
   groups: ["sensors"],
 });
 part(() => cyl(0.018, 0.06), ["fuel", "engine"], {
+  id: "parts.fuel.cylinder-drain-manifold-check-valve.020",
   pos: CYL_DRAIN_CHECK,
   name: "Cylinder drain manifold check valve",
   note: "Cylinder-head drains join a manifold with a check valve at the firewall drain-manifold base, beside the drain manifold and drain valve. It closes when manifold pressure is below ambient pressure to prevent loss of manifold pressure (AMM 13773-002 Rev 7 28-20, PDF p. 1113; Fig 71-70-2 detail A item 12, PDF p. 2565). Inside the lower cowl beside the manifold base. Position and dimensions approximate because the figure is undimensioned; static dry drain plumbing.",

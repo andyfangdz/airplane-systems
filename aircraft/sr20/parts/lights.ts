@@ -34,13 +34,15 @@ export const LIGHTS = {
 };
 (
   [
-    ["Dome light", LIGHTS.dome, false],
-    ["Footwell light", LIGHTS.foot[0], false],
-    ["Entry step light", LIGHTS.step[0], true],
-    ["Baggage light", LIGHTS.bag, false],
-  ] as [string, Vec3, boolean][]
-).forEach(([name, pos, ext]) =>
+    ["dome", "Dome light", LIGHTS.dome, false],
+    ["footwell", "Footwell light", LIGHTS.foot[0], false],
+    ["entry", "Entry step light", LIGHTS.step[0], true],
+    ["baggage", "Baggage light", LIGHTS.bag, false],
+  ] as [string, string, Vec3, boolean][]
+).forEach(([key, name, pos, ext]) =>
   part(() => sph(0.022), ["lighting"], {
+    id: "parts.lights.part.001",
+    instance: key,
     pos,
     color: "#E8C46A",
     name,
@@ -52,11 +54,14 @@ export const LIGHTS = {
 const EXT = "#D9D9D9";
 (
   [
-    [LIGHTS.tipL, "Left wingtip: nav (red) + strobe"],
-    [LIGHTS.tipR, "Right wingtip: nav (green) + strobe"],
-  ] as [Vec3, string][]
-).forEach(([pos, name]) =>
+    ["left", LIGHTS.tipL, "Left wingtip: nav (red) + strobe"],
+    ["right", LIGHTS.tipR, "Right wingtip: nav (green) + strobe"],
+  ] as [string, Vec3, string][]
+).forEach(([key, pos, name]) =>
   part(() => sph(0.035), ["lighting"], {
+    id: "parts.lights.part.002",
+    instance: key,
+
     pos,
     color: EXT,
     name,
@@ -65,8 +70,15 @@ const EXT = "#D9D9D9";
     ext: true,
   }),
 );
-[LIGHTS.aftL, LIGHTS.aftR].forEach((pos, i) =>
+(
+  [
+    ["left", LIGHTS.aftL],
+    ["right", LIGHTS.aftR],
+  ] as const
+).forEach(([key, pos], i) =>
   part(() => sph(0.025), ["lighting"], {
+    id: "parts.lights.aft-position-light-white.003",
+    instance: key,
     pos,
     color: EXT,
     name: "Aft position light (white)",
@@ -75,8 +87,15 @@ const EXT = "#D9D9D9";
     ext: true,
   }),
 );
-[LIGHTS.landL, LIGHTS.landR].forEach((pos, i) =>
+(
+  [
+    ["left", LIGHTS.landL],
+    ["right", LIGHTS.landR],
+  ] as const
+).forEach(([key, pos], i) =>
   part(() => box(0.03, 0.035, 0.14), ["lighting"], {
+    id: "parts.lights.wingtip-landing-light.004",
+    instance: key,
     pos,
     color: EXT,
     name: "Wingtip landing light",
@@ -85,8 +104,15 @@ const EXT = "#D9D9D9";
     ext: true,
   }),
 );
-[LIGHTS.iceL, LIGHTS.iceR].forEach((pos, i) =>
+(
+  [
+    ["left", LIGHTS.iceL],
+    ["right", LIGHTS.iceR],
+  ] as const
+).forEach(([key, pos], i) =>
   part(() => cyl(0.022, 0.02, "z"), ["lighting"], {
+    id: "parts.lights.ice-inspection-light.005",
+    instance: key,
     pos,
     color: EXT,
     name: "Ice inspection light",

@@ -29,9 +29,9 @@ export const FRONT_COWL_FASTENERS = Array.from({ length: FRONT_FASTENERS }, (_, 
     around = cowlAt(x, th + d).sub(cowlAt(x, th - d));
   const n = around.cross(along).normalize();
   if (n.dot(new THREE.Vector3(0, at.y - FUSE.section(x).cy, at.z)) < 0) n.negate();
-  return { at, n };
+  return { key: `fastener-${k}`, at, n };
 });
-FRONT_COWL_FASTENERS.forEach(({ at, n }) =>
+FRONT_COWL_FASTENERS.forEach(({ key, at, n }) =>
   part(
     () => {
       const g = new THREE.CylinderGeometry(FASTENER_R, FASTENER_R, FASTENER_H, 10);
@@ -41,6 +41,8 @@ FRONT_COWL_FASTENERS.forEach(({ at, n }) =>
     },
     ["engine", "airframe"],
     {
+      id: "parts.cowl-fasteners.front-cowl-fastener.001",
+      instance: [key],
       color: "#C9D1D8",
       ext: true,
       name: "Front cowl fastener",

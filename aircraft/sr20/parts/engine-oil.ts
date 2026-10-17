@@ -14,6 +14,7 @@ import {
 import { part } from "./catalogue";
 
 part(() => box(0.55, 0.12, 0.26), ["engine"], {
+  id: "parts.engine-oil.oil-sump.001",
   pos: OIL_SUMP,
   color: "#67757B",
   name: "Oil sump",
@@ -22,6 +23,7 @@ part(() => box(0.55, 0.12, 0.26), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.023, 0.05, "x"), ["engine"], {
+  id: "parts.engine-oil.oil-suction-screen.002",
   pos: OIL_SCREEN,
   color: "#BEA86B",
   name: "Oil suction screen",
@@ -30,6 +32,7 @@ part(() => cyl(0.023, 0.05, "x"), ["engine"], {
   groups: ["oil"],
 });
 part(() => box(0.052, 0.045, 0.06), ["engine"], {
+  id: "parts.engine-oil.engine-oil-pump.003",
   pos: OIL_PUMP,
   color: "#897348",
   name: "Engine oil pump",
@@ -38,6 +41,7 @@ part(() => box(0.052, 0.045, 0.06), ["engine"], {
   groups: ["oil"],
 });
 part(() => box(0.08, 0.16, 0.12), ["engine"], {
+  id: "parts.engine-oil.oil-cooler.004",
   pos: OIL_COOLER,
   color: "#9A6A48",
   name: "Oil cooler",
@@ -46,6 +50,7 @@ part(() => box(0.08, 0.16, 0.12), ["engine"], {
   groups: ["oil"],
 });
 part(() => box(0.12, 0.12, 0.018), ["engine"], {
+  id: "parts.engine-oil.oil-cooler-diffuser-bracket.005",
   pos: [OIL_COOLER[0], OIL_COOLER[1] - 0.03, OIL_COOLER[2] - 0.07],
   color: "#71808A",
   name: "Oil cooler diffuser / bracket",
@@ -53,6 +58,7 @@ part(() => box(0.12, 0.12, 0.018), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.021, 0.035, "x"), ["engine"], {
+  id: "parts.engine-oil.oil-cooler-bypass-valve.006",
   pos: OIL_CONTROL,
   color: "#D1AD59",
   name: "Oil cooler bypass valve",
@@ -61,6 +67,7 @@ part(() => cyl(0.021, 0.035, "x"), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.045, 0.11, "x"), ["engine"], {
+  id: "parts.engine-oil.oil-filter-full-flow.007",
   pos: OIL_FILTER,
   color: "#1F3A5A",
   name: "Oil filter (full-flow)",
@@ -69,6 +76,7 @@ part(() => cyl(0.045, 0.11, "x"), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.017, 0.038, "z"), ["engine"], {
+  id: "parts.engine-oil.oil-pressure-relief-valve.008",
   pos: OIL_RELIEF,
   color: "#D1AD59",
   name: "Oil pressure relief valve",
@@ -77,6 +85,7 @@ part(() => cyl(0.017, 0.038, "z"), ["engine"], {
   groups: ["oil"],
 });
 part(() => mergeGeos([cyl(0.026, 0.017), cyl(0.006, 0.29).translate(0, -0.14, 0)]), ["engine"], {
+  id: "parts.engine-oil.oil-filler-cap-dipstick.009",
   pos: [2.88, 0.09, 0.27],
   color: "#D1AD59",
   name: "Oil filler cap / dipstick",
@@ -85,6 +94,7 @@ part(() => mergeGeos([cyl(0.026, 0.017), cyl(0.006, 0.29).translate(0, -0.14, 0)
   groups: ["oil"],
 });
 part(() => cyl(0.016, 0.025), ["engine"], {
+  id: "parts.engine-oil.sump-quick-drain-valve.010",
   pos: [3.12, -0.453, 0],
   color: "#D1AD59",
   name: "Sump quick-drain valve",
@@ -92,6 +102,7 @@ part(() => cyl(0.016, 0.025), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.032, 0.083), ["engine"], {
+  id: "parts.engine-oil.air-oil-separator.011",
   pos: OIL_SEPARATOR,
   color: "#B6B8A9",
   name: "Air/oil separator",
@@ -100,6 +111,7 @@ part(() => cyl(0.032, 0.083), ["engine"], {
   groups: ["oil"],
 });
 part(() => box(0.015, 0.13, 0.12), ["engine"], {
+  id: "parts.engine-oil.air-oil-separator-and-booster-bracket.012",
   pos: [2.625, 0.015, 0.285],
   color: "#6E7E88",
   name: "Air/oil separator and booster bracket",
@@ -107,6 +119,7 @@ part(() => box(0.015, 0.13, 0.12), ["engine"], {
   groups: ["oil", "ignition"],
 });
 part(() => mergeGeos([box(0.035, 0.025, 0.1), cyl(0.035, 0.105).translate(0, 0.06, 0)]), ["engine", "propeller"], {
+  id: "parts.engine-oil.propeller-governor.013",
   pos: GOVERNOR,
   color: "#C0602F",
   name: "Propeller governor",
@@ -116,6 +129,7 @@ part(() => mergeGeos([box(0.035, 0.025, 0.1), cyl(0.035, 0.105).translate(0, 0.0
 });
 
 part(() => box(0.07, 0.075, 0.07), ["engine"], {
+  id: "parts.engine-oil.oil-filter-base-thermostat-housing.014",
   pos: [2.9, -0.045, 0.16],
   color: "#718086",
   name: "Oil filter base / thermostat housing",

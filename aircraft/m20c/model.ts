@@ -292,7 +292,9 @@ export const ALT_MIN_RPM = 700;
  * N6947N installed equipment is not independently established. MAN 106 § 9-3 places its 1968 output breaker on the right
  * upholstery panel. Magneto ignition is independent of this bus.
  */
-export function solve(s: Sim, prev?: Elec): Elec {
+export type ElectricalMemory = Pick<Elec, "genOn">;
+
+export function solve(s: Sim, prev?: ElectricalMemory): Elec {
   // An alternator already on line sustains its field after battery loss (Ranger 2-13).
   const excited = prev?.genOn ?? false;
   return solveBatteryExcitation((batteryAvailable, allowBatteryExcitation) =>

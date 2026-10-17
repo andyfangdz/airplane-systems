@@ -1,12 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { FLEET_META } from "@/aircraft/metas";
 import { LoadFailed } from "./LoadFailed";
-import { DEFAULT_AIRCRAFT, isAircraftId, type AircraftId } from "@/lib/systems";
-
-/** Before the fleet, links named the SR20's views by a bare system (#electrical). */
-const FIRST_AIRCRAFT: AircraftId = "sr20";
+import { DEFAULT_AIRCRAFT, isAircraftId } from "@/lib/systems";
 
 const read = (k: string) => {
   try {
@@ -16,21 +12,8 @@ const read = (k: string) => {
   }
 };
 
-/**
- * The airplane route the root opens: a view named by the hash of a link made before views had paths (#c172s/electrical,
- * #c172s, or #electrical for the SR20), else the last-viewed airplane, else the default one. An airplane alone opens at
- * its last-viewed system (its route picks it).
- */
-function target(hash: string): string {
-  try {
-    hash = decodeURIComponent(hash);
-  } catch {} // malformed escape (e.g. a truncated link): use the raw text
-  const [a, b] = hash.replace(/^#+\/*/, "").split("/");
-  const named = (id: AircraftId, sys?: string) =>
-    FLEET_META.find((m) => m.id === id)?.systems.some((s) => s.id === sys) ? `/${id}/${sys}` : undefined;
-  if (isAircraftId(a)) return named(a, b) ?? `/${a}`;
-  const first = named(FIRST_AIRCRAFT, a);
-  if (first) return first;
+/** Root opens the last-viewed aircraft; that route owns its saved system selection. Deep links use explicit paths. */
+function target(): string {
   const saved = read("fleetAc");
   return `/${isAircraftId(saved) ? saved : DEFAULT_AIRCRAFT}`;
 }
@@ -39,7 +22,7 @@ function target(hash: string): string {
 export function OpenLastViewed() {
   const router = useRouter();
   useEffect(() => {
-    router.replace(target(location.hash) + location.search);
+    router.replace(target() + location.search);
   }, [router]);
   return (
     <div className="loader" role="status" aria-live="polite" data-building="code">

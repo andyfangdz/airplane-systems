@@ -25,6 +25,7 @@ import {
   nozzlePressure,
 } from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
+import { excessAirRatio } from "./mixture-units";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
 import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
 import { governor, inducedVelocity, propTorque } from "./propeller";
@@ -616,7 +617,7 @@ function substep(
     cy.fuel = evap * 3600;
     // each cylinder takes an even share of the metered air, and a leaking pipe adds its unmetered air to its own
     const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
-    cy.lambda = cy.fuel > 1e-4 ? airCyl / (cy.fuel * AFR_STOICH) : Infinity;
+    cy.lambda = cy.fuel > 1e-4 ? excessAirRatio(airCyl, cy.fuel, AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
     let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower, rich) : 0;
     if (leanCap !== undefined && w > leanCap) w -= frWeight * (w - leanCap);

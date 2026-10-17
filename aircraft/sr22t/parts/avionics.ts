@@ -16,6 +16,7 @@ import { FRONT_CUSHION_X, FRONT_SEAT, REAR_SEAT, STACK } from "./cabin";
 // strip between them carrying the red DISPLAY BACKUP button at the top (PG Fig 1-2, 1-6; Perspective+ brochure).
 const BEZEL_Z = { pfd: -0.241, mfd: 0.054 } as const;
 part(() => box(0.014, 0.198, 0.276), ["avionics"], {
+  id: "parts.avionics.pfd-bezel.001",
   pos: [2.285, 0.092, BEZEL_Z.pfd],
   color: "#15181B",
   name: "PFD bezel",
@@ -23,6 +24,7 @@ part(() => box(0.014, 0.198, 0.276), ["avionics"], {
   note: "COM volume and frequency knobs, BARO, RANGE joystick, menu keys and the FMS knob on its right (inboard) edge; 12 softkeys under the screen.",
 });
 part(() => box(0.014, 0.198, 0.276), ["avionics"], {
+  id: "parts.avionics.mfd-bezel.002",
   pos: [2.285, 0.092, BEZEL_Z.mfd],
   color: "#15181B",
   name: "MFD bezel",
@@ -30,6 +32,7 @@ part(() => box(0.014, 0.198, 0.276), ["avionics"], {
   note: "NAV volume and frequency knobs at the top of its left (inboard) edge; 12 softkeys under the screen.",
 });
 part(() => cyl(0.008, 0.012, "x"), ["avionics"], {
+  id: "parts.avionics.display-backup-button.003",
   pos: [2.274, 0.165, -0.0935],
   color: "#D32640",
   name: "DISPLAY BACKUP button",
@@ -37,22 +40,42 @@ part(() => cyl(0.008, 0.012, "x"), ["avionics"], {
 });
 // bezel controls (decorative): knobs on each inboard strip (PFD: COM volume, COM, BARO, RANGE, FMS; MFD: NAV volume, NAV), 12 softkeys under each screen
 const KNOB = "#2C3136";
-for (const [y, r] of [
-  [0.165, 0.008],
-  [0.127, 0.011],
-  [0.089, 0.009],
-  [0.055, 0.007],
-  [0.008, 0.011],
+for (const [member1, [y, r]] of [
+  ["member-01", [0.165, 0.008]],
+  ["member-02", [0.127, 0.011]],
+  ["member-03", [0.089, 0.009]],
+  ["member-04", [0.055, 0.007]],
+  ["member-05", [0.008, 0.011]],
 ] as const)
-  part(() => cyl(r, 0.014, "x"), ["avionics"], { pos: [2.272, y, BEZEL_Z.pfd + 0.121], color: KNOB });
-for (const [y, r] of [
-  [0.165, 0.008],
-  [0.127, 0.011],
+  part(() => cyl(r, 0.014, "x"), ["avionics"], {
+    id: "parts.avionics.part.004",
+    instance: [member1],
+
+    pos: [2.272, y, BEZEL_Z.pfd + 0.121],
+    color: KNOB,
+  });
+for (const [member2, [y, r]] of [
+  ["member-01", [0.165, 0.008]],
+  ["member-02", [0.127, 0.011]],
 ] as const)
-  part(() => cyl(r, 0.014, "x"), ["avionics"], { pos: [2.272, y, BEZEL_Z.mfd - 0.121], color: KNOB });
-for (const z0 of [BEZEL_Z.pfd, BEZEL_Z.mfd])
+  part(() => cyl(r, 0.014, "x"), ["avionics"], {
+    id: "parts.avionics.part.005",
+    instance: [member2],
+
+    pos: [2.272, y, BEZEL_Z.mfd - 0.121],
+    color: KNOB,
+  });
+for (const [member3, z0] of [
+  ["member-01", BEZEL_Z.pfd],
+  ["member-02", BEZEL_Z.mfd],
+] as const)
   for (let i = 0; i < 12; i++)
-    part(() => box(0.004, 0.006, 0.012), ["avionics"], { pos: [2.277, 0.008, z0 + (i - 5.5) * 0.0176], color: KNOB });
+    part(() => box(0.004, 0.006, 0.012), ["avionics"], {
+      id: "parts.avionics.part.006",
+      instance: [i, member3],
+      pos: [2.277, 0.008, z0 + (i - 5.5) * 0.0176],
+      color: KNOB,
+    });
 /* LRU anchors (centres) other sections and the avionics paths use. Behind-panel x lies between the bezel
  * plane (2.285) and the firewall (FW 2.61). */
 export const ADAHRS_1: Vec3 = [2.43, 0.1, -0.24];
@@ -85,6 +108,7 @@ export const MAG_2: Vec3 = toVec3(wingP(4.9, 0.45, 0));
 export const GMA_350: Vec3 = STACK.at(0.16, 0.006, 0.005);
 
 part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], {
+  id: "parts.avionics.gsu-75-adahrs-1.007",
   pos: ADAHRS_1,
   name: "GSU 75 ADAHRS 1",
   note: "ADAHRS 1, behind the PFD (POH 7-75; Fig 7-20 item 1; AMM 34-10 PDF p. 1630: behind the LH instrument panel), on its rack on the console (AMM Fig 34-10-7 sheet 1, PDF p. 1670): attitude/heading reference plus air data computer, with MAG 1 (POH Fig 7-17). The pitot and static lines tee to it, ADAHRS 2 and the MD302 (POH Fig 7-16 (2 of 2)). Supply: 28 VDC through the 5 A ADAHRS 1 circuit breaker on ESS BUS 1 (POH 7-75; Fig 7-11, 7-52).",
@@ -92,6 +116,7 @@ part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], {
 });
 // Same unit as ADAHRS 1, turned to lie fore-and-aft (POH Fig 7-20 draws both long fore-and-aft); position approximate.
 part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], {
+  id: "parts.avionics.gsu-75-adahrs-2.008",
   pos: ADAHRS_2,
   rot: [0, Math.PI / 2, 0],
   name: "GSU 75 ADAHRS 2",
@@ -100,23 +125,27 @@ part(() => box(0.1, 0.09, 0.15), ["avionics", "pitot"], {
 });
 // Fig 7-20 draws each Integrated Avionics Unit long fore-and-aft; the box follows the figure's proportions (approximate).
 part(() => box(0.25, 0.11, 0.08), ["avionics"], {
+  id: "parts.avionics.gia-1-gia-63w.009",
   pos: GIA_1,
   name: "GIA 1 (GIA 63W)",
   note: "Integrated Avionics Unit 1, behind the PFD, inboard of ADAHRS 1 (AMM 31-40 PDF p. 1326; POH 7-78, Fig 7-20 item 2; position approximate): WAAS GPS, VHF COM/NAV/GS, integration, flight director. Supply: 28 VDC through the 7.5 A COM 1 and 5 A GPS NAV GIA 1 circuit breakers on ESS BUS 1 (POH 7-78; Fig 7-11, 7-52).",
   pin: true,
 });
 part(() => box(0.25, 0.11, 0.08), ["avionics"], {
+  id: "parts.avionics.gia-2-gia-63w.010",
   pos: GIA_2,
   name: "GIA 2 (GIA 63W)",
   note: "Integrated Avionics Unit 2, behind the MFD (AMM 31-40 PDF p. 1326; POH 7-78, Fig 7-20 item 5; position approximate). Supply: 28 VDC through the 7.5 A COM 2 and 5 A GPS NAV GIA 2 circuit breakers on MAIN BUS 2 (POH 7-78; Fig 7-11, 7-52).",
   pin: true,
 });
 part(() => box(0.1, 0.07, 0.1), ["avionics", "engine"], {
+  id: "parts.avionics.gea-71-engine-airframe-unit.011",
   pos: GEA_71,
   name: "GEA 71 Engine Airframe Unit",
   note: "Behind the MFD (POH 7-78, Fig 7-20 item 6; AMM 77-40 PDF p. 2722). Digitizes fuel, CHT, EGT, MAP, RPM and other sensors. Supply: 28 VDC through the 3 A ENGINE INSTR circuit breaker on ESS BUS 2 (POH 7-78; Fig 7-11, 7-52).",
 });
 part(() => box(0.012, 0.085, 0.15), ["avionics"], {
+  id: "parts.avionics.gcu-479-fms-keyboard.012",
   pos: STACK.at(0.29, 0.006, 0.005),
   rot: STACK.rot,
   color: "#15181B",
@@ -124,6 +153,7 @@ part(() => box(0.012, 0.085, 0.15), ["avionics"], {
   note: "Upper section of the centre console, just below the displays (POH 7-75). Data entry, tuning, course. KEYPADS / AP CTRL on MAIN BUS 1.",
 });
 part(() => box(0.012, 0.04, 0.15), ["avionics", "controls"], {
+  id: "parts.avionics.gmc-707-autopilot-mode-controller.013",
   pos: STACK.at(0.215, 0.006, 0.005),
   rot: STACK.rot,
   color: "#15181B",
@@ -131,6 +161,7 @@ part(() => box(0.012, 0.04, 0.15), ["avionics", "controls"], {
   note: "GFC 700 mode controller, below the FMS keyboard in the centre console (POH 7-72, 7-79; position from Fig. 7-4, approximate).",
 });
 part(() => box(0.012, 0.045, 0.15), ["avionics"], {
+  id: "parts.avionics.gma-350-audio-panel.014",
   pos: GMA_350,
   rot: STACK.rot,
   color: "#15181B",
@@ -139,6 +170,7 @@ part(() => box(0.012, 0.045, 0.15), ["avionics"], {
 });
 // Aft of FS 222 on the right (Fig 7-20 item 20); box proportions from the figure (approximate).
 part(() => box(0.16, 0.09, 0.06), ["avionics"], {
+  id: "parts.avionics.gtx-335-345-transponder.015",
   pos: XPDR,
   name: "GTX 335/345 transponder",
   note: "In the empennage avionics compartment, aft of FS 222 on the right side (POH 7-78, 7-83, Fig 7-20 item 20; AMM 34-50 PDF p. 1720: behind the aft cabin bulkhead; access panel RE3 on the RH side, POH 7-5, AMM Fig 6-00-8 PDF p. 125; position approximate). Supply: 28 VDC through the 2 A XPONDER circuit breaker on AVIONICS (POH 7-78, 7-83; Fig 7-11, 7-52). Mode S with Extended Squitter (POH 7-78).",
@@ -152,10 +184,23 @@ const fanSpin =
     if (useSR22T.getState().E[which]) m.rotation.x = phase + t * 30;
   };
 const FAN_HOUSING = "#3A4148";
-const fan = (at: Vec3, which: "fan1" | "fan2", name: string, note: string, pin: boolean) => {
-  part(() => cyl(0.03, 0.025, "x"), ["avionics"], { pos: at, color: FAN_HOUSING, name, note, pin });
-  for (const phase of [0, Math.PI / 2])
+const fan = (id: string, at: Vec3, which: "fan1" | "fan2", name: string, note: string, pin: boolean) => {
+  part(() => cyl(0.03, 0.025, "x"), ["avionics"], {
+    id: "parts.avionics.part.016",
+    instance: [id],
+    pos: at,
+    color: FAN_HOUSING,
+    name,
+    note,
+    pin,
+  });
+  for (const [member4, phase] of [
+    ["member-01", 0],
+    ["member-02", Math.PI / 2],
+  ] as const)
     part(() => box(0.006, 0.05, 0.01), ["avionics"], {
+      id: "parts.avionics.part.017",
+      instance: [id, member4],
       pos: [at[0] + 0.016, at[1], at[2]],
       color: "#9AA3AA",
       name,
@@ -164,6 +209,7 @@ const fan = (at: Vec3, which: "fan1" | "fan2", name: string, note: string, pin: 
     });
 };
 fan(
+  "pfd",
   PFD_FAN,
   "fan2",
   "PFD cooling fan",
@@ -171,6 +217,7 @@ fan(
   true,
 );
 fan(
+  "mfd",
   MFD_FAN,
   "fan1",
   "MFD cooling fan",
@@ -178,6 +225,7 @@ fan(
   true,
 );
 fan(
+  "iau",
   IAU_FAN,
   "fan2",
   "Avionics (IAU) cooling fan",
@@ -187,6 +235,7 @@ fan(
 
 /* ---------- cabin audio (POH Fig 7-20 items 13, 29) ---------- */
 part(() => cyl(0.06, 0.02), ["avionics"], {
+  id: "parts.avionics.cabin-speaker.018",
   pos: [1.03, topY(1.03) - 0.03, 0],
   color: FAN_HOUSING,
   name: "Cabin speaker",
@@ -194,6 +243,7 @@ part(() => cyl(0.06, 0.02), ["avionics"], {
   pin: true,
 });
 part(() => box(0.03, 0.06, 0.02), ["avionics"], {
+  id: "parts.avionics.cabin-microphone.019",
   // Beside the aft half of the pilot's cushion, just aft of the circuit breaker panel on the same console face; approximate.
   pos: [FRONT_CUSHION_X - 0.04, -0.3, -0.14],
   color: FAN_HOUSING,
@@ -204,42 +254,49 @@ part(() => box(0.03, 0.06, 0.02), ["avionics"], {
 
 /* ---------- optional LRUs (POH 7-72 lists them as optional; shown labelled, like their antennas) ---------- */
 part(() => box(0.09, 0.06, 0.03), ["avionics"], {
+  id: "parts.avionics.xm-radio-transceiver-optional.020",
   pos: XM_RADIO,
   name: "XM radio transceiver (optional)",
   note: "Aft of FS 222, right of centre (POH Fig 7-20 item 18; the XM system is optional, POH 7-89); position and size approximate. XM Radio uses the same receiver as XM Weather (AMM 23-30 PDF p. 644). Supply: 28 VDC through the 5 A DATA LINK/WEATHER circuit breaker on AVIONICS (AMM 23-30 PDF p. 644 and 34-50 PDF p. 1721, 22T-1473 thru 22T-9749; panel label DATA LINK/WEATHER, POH Fig 7-11, 7-52; POH 7-84 calls it WEATHER/DATA LINK).",
   pin: true,
 });
 part(() => box(0.16, 0.09, 0.06), ["avionics"], {
+  id: "parts.avionics.gdl-69a-xm-receiver-optional.021",
   pos: GDL_69A,
   name: "GDL 69A XM receiver (optional)",
   note: "XM satellite weather and radio data link receiver, in the empennage avionics compartment beside the transponder (POH 7-83, Fig 7-20 item 21; AMM 34-50 PDF p. 1721); position approximate. Supply: 28 VDC through the 5 A WEATHER/DATA LINK circuit breaker on AVIONICS (POH 7-84; the panel and AMM 34-50 PDF p. 1721 label it DATA LINK/WEATHER, POH Fig 7-11, 7-52).",
   pin: true,
 });
 part(() => box(0.12, 0.05, 0.03), ["avionics"], {
+  id: "parts.avionics.gateway-module-optional.022",
   pos: GATEWAY,
   name: "Gateway Module (optional)",
   note: "Collects aircraft data and sends it over a cellular link on the ground (POH 7-87). RH empennage avionics compartment (AMM 31-70 PDF p. 1366; POH Fig 7-20 item 19), with two internal antennas on the RH side just aft of the empennage access panel (POH 7-89); position approximate. Supply: 28 VDC through the 5 A CONV LIGHTS circuit breaker on the Constant Power Bus (CONV), which BAT 1 feeds through a 5 A fuse on the MCU (POH 7-50, 7-59; Fig 7-10, 7-48; Fig 7-11, 7-52), so pulling CONV LIGHTS disables it (POH 8-11). AMM 31-70 PDF p. 1366 (22T-1473 thru 22T-10614) names the breaker CONV SYS 2 (or CONV LIGHTS) on Conv Bus; this airplane's panel labels it CONV LIGHTS (POH Fig 7-11).",
   pin: true,
 });
 part(() => box(0.2, 0.05, 0.06), ["avionics"], {
+  id: "parts.avionics.gsr-56-iridium-transceiver-optional.023",
   pos: GSR_56,
   name: "GSR 56 Iridium transceiver (optional)",
   note: "Iridium weather, voice and SMS (POH 7-83). Empennage avionics compartment (POH 7-83), aft of FS 222 on the left with Battery 2 (Fig 7-20 item 25; AMM 34-50 PDF p. 1721: immediately behind the aft cabin bulkhead). The plan view draws it over the inboard forward part of item 24, so it sits under the BAT 2 container; height and position approximate. Supply: 28 VDC through the 5 A DATA LINK/WEATHER circuit breaker on AVIONICS (POH 7-83; Fig 7-11, 7-52).",
   pin: true,
 });
 part(() => box(0.25, 0.06, 0.12), ["avionics"], {
+  id: "parts.avionics.wx-500-processor-optional.024",
   pos: WX_500,
   name: "WX-500 processor (optional)",
   note: "Stormscope processor under the aft baggage floor (POH 7-84; AMM 34-40 PDF p. 1696), left of centre (POH Fig 7-20 item 28); position approximate. Supply: 28 VDC through the 5 A DATA LINK/WEATHER circuit breaker on AVIONICS (POH 7-84; Fig 7-11, 7-52).",
   pin: true,
 });
 part(() => box(0.1, 0.06, 0.25), ["avionics"], {
+  id: "parts.avionics.gts-800-traffic-processor-optional.025",
   pos: GTS_800,
   name: "GTS 800 traffic processor (optional)",
   note: "Transmitter Receiver Computer under the LH cockpit seat (POH 7-84, Fig 7-20 item 30; AMM 34-40 PDF p. 1697); position approximate. Supply: 28 VDC through the 5 A TRAFFIC circuit breaker on AVIONICS (POH 7-84; Fig 7-11, 7-52).",
   pin: true,
 });
 part(() => box(0.15, 0.08, 0.1), ["avionics"], {
+  id: "parts.avionics.kn-63-dme-receiver-optional.026",
   pos: KN_63,
   name: "KN 63 DME receiver (optional)",
   note: "In the LH footwell ahead of the pilot seat, beside the fire extinguisher (POH Fig 7-20 item 31; the AMM says under the pilot's seat, AMM 34-50 PDF p. 1722; POH governs); position approximate. Talks to the panel through GIA 2 (POH 7-84). Supply: 28 VDC through the 3 A DME/ADF circuit breaker on AVIONICS (POH 7-84 – 7-85; Fig 7-11, 7-52; AMM 34-50 PDF p. 1722 for 22T-1473 thru 22T-9749).",
@@ -247,6 +304,7 @@ part(() => box(0.15, 0.08, 0.1), ["avionics"], {
 });
 const ANT = "#C8399F";
 part(() => cyl(0.007, 0.3), ["avionics"], {
+  id: "parts.avionics.com-1-antenna.027",
   pos: [0.45, 0.82, 0],
   rot: [0, 0, 0.45],
   color: ANT,
@@ -255,6 +313,7 @@ part(() => cyl(0.007, 0.3), ["avionics"], {
   ext: true,
 });
 part(() => cyl(0.007, 0.26), ["avionics"], {
+  id: "parts.avionics.com-2-antenna.028",
   pos: [-0.35, -0.7, 0],
   rot: [0, 0, -0.45],
   color: ANT,
@@ -263,6 +322,7 @@ part(() => cyl(0.007, 0.26), ["avionics"], {
   ext: true,
 });
 part(() => cyl(0.05, 0.015), ["avionics"], {
+  id: "parts.avionics.gps-1-antenna.029",
   pos: [1.0, 0.72, 0],
   color: ANT,
   name: "GPS 1 antenna",
@@ -270,6 +330,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
   ext: true,
 });
 part(() => cyl(0.05, 0.015), ["avionics"], {
+  id: "parts.avionics.gps-2-iridium-antenna.030",
   pos: [-0.28, 0.54, 0],
   color: ANT,
   name: "GPS 2 / Iridium antenna",
@@ -281,6 +342,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
 // so the antenna sits just below the joint, midway between the fin LE and the hinge; the station is approximate.
 const NAV_H = HH - 0.01;
 part(() => box(0.16, 0.015, 0.015), ["avionics"], {
+  id: "parts.avionics.nav-antenna.031",
   pos: [(fLE(NAV_H) + hingeX(NAV_H)) / 2, NAV_H, 0],
   color: ANT,
   name: "NAV antenna",
@@ -288,6 +350,7 @@ part(() => box(0.16, 0.015, 0.015), ["avionics"], {
   ext: true,
 });
 part(() => box(0.08, 0.08, 0.01), ["avionics"], {
+  id: "parts.avionics.transponder-antenna.032",
   pos: [-0.72, -0.57, 0.12],
   color: ANT,
   name: "Transponder antenna",
@@ -295,6 +358,7 @@ part(() => box(0.08, 0.08, 0.01), ["avionics"], {
   ext: true,
 });
 part(() => box(0.2, 0.012, 0.08), ["avionics"], {
+  id: "parts.avionics.stormscope-antenna-optional.033",
   pos: [0.25, topY(0.25) + 0.004, 0],
   color: ANT,
   name: "Stormscope antenna (optional)",
@@ -302,6 +366,7 @@ part(() => box(0.2, 0.012, 0.08), ["avionics"], {
   ext: true,
 });
 part(() => box(0.14, 0.06, 0.012), ["avionics"], {
+  id: "parts.avionics.traffic-antenna-top-optional.034",
   pos: [1.45, topY(1.45) + 0.03, 0],
   color: ANT,
   name: "Traffic antenna, top (optional)",
@@ -313,6 +378,7 @@ part(() => box(0.14, 0.06, 0.012), ["avionics"], {
 const MARKER = { x: -0.05, len: 0.3 } as const;
 const markerY = (dx: number) => botY(MARKER.x + dx);
 part(() => box(MARKER.len, 0.012, 0.1), ["avionics"], {
+  id: "parts.avionics.marker-beacon-antenna.035",
   pos: [MARKER.x, (markerY(-MARKER.len / 2) + markerY(MARKER.len / 2)) / 2 + 0.012, 0],
   rot: [0, 0, Math.atan((markerY(MARKER.len / 2) - markerY(-MARKER.len / 2)) / MARKER.len)],
   color: ANT,
@@ -320,6 +386,7 @@ part(() => box(MARKER.len, 0.012, 0.1), ["avionics"], {
   note: 'Sled type. "If the optional air conditioning system is installed, this antenna is located below the baggage floor inside of the airplane" (POH 7-89); A/C is fitted on this airplane. Position approximate. Supply: passive antenna, no breaker; it feeds the marker beacon receiver in the GMA 350 audio panel (POH 7-78).',
 });
 part(() => box(0.1, 0.06, 0.012), ["avionics"], {
+  id: "parts.avionics.dme-antenna-optional.036",
   pos: [2.3, botY(2.3) - 0.03, 0.1],
   color: ANT,
   name: "DME antenna (optional)",
@@ -327,6 +394,7 @@ part(() => box(0.1, 0.06, 0.012), ["avionics"], {
   ext: true,
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
+  id: "parts.avionics.magnetometer-gmu-44-mag-1.037",
   pos: MAG_1,
   color: ANT,
   name: "Magnetometer (GMU 44, MAG 1)",
@@ -334,6 +402,7 @@ part(() => box(0.07, 0.04, 0.07), ["avionics"], {
   pin: true,
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
+  id: "parts.avionics.magnetometer-gmu-44-mag-2.038",
   pos: MAG_2,
   color: ANT,
   name: "Magnetometer (GMU 44, MAG 2)",
@@ -392,8 +461,15 @@ export const MAG_WIRES: Record<1 | 2, Vec3[]> = {
     ADAHRS_2,
   ],
 };
-([1, 2] as const).forEach((n) =>
+(
+  [
+    ["member-01", 1],
+    ["member-02", 2],
+  ] as const
+).forEach(([member5, n]) =>
   part(() => tubeGeo(MAG_WIRES[n], 0.004), ["avionics"], {
+    id: "parts.avionics.part.039",
+    instance: [n, member5],
     color: "#D9960F",
     name: `MAG ${n} wiring`,
     note: `GMU 44 MAG ${n} to ADAHRS ${n} (POH Fig 7-17; AMM 34-20 PDF p. 1675: the magnetometer "interfaces with the GSU 75 ADAHRS"). Routing approximate.`,
@@ -402,6 +478,7 @@ export const MAG_WIRES: Record<1 | 2, Vec3[]> = {
 // POH 7-89: "on the bottom RH side of the airplane just forward of the baggage compartment"; station approximate.
 const TRAFFIC_BOTTOM_X = REAR_SEAT.referenceX + 0.02;
 part(() => box(0.1, 0.06, 0.012), ["avionics"], {
+  id: "parts.avionics.traffic-antenna-bottom-optional.040",
   pos: [TRAFFIC_BOTTOM_X, botY(TRAFFIC_BOTTOM_X) - 0.03, 0.15],
   color: ANT,
   name: "Traffic antenna, bottom (optional)",

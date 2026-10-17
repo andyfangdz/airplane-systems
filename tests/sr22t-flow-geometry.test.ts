@@ -87,43 +87,47 @@ function renderFlows() {
   hooks.scope = "flows";
   hooks.index = 0;
   const rendered = Flows(flowElement.props as Parameters<typeof Flows>[0]);
-  const groups = rendered.props.children as ReactElement<{ children: ReactElement[] }>[];
-  return groups.map((group) => {
-    const [mesh, particle] = group.props.children;
-    return {
+  const [groups, particles] = rendered.props.children as [
+    ReactElement<{ children: ReactElement }>[],
+    ReactElement<{ object: THREE.Points }>[],
+  ];
+  return {
+    flows: groups.map((group) => ({
       key: group.key,
-      tube: mesh && (mesh.props as { geometry: THREE.BufferGeometry }).geometry,
-      points: (particle.props as { object: THREE.Points }).object,
-    };
-  });
+      tube: group.props.children && (group.props.children.props as { geometry: THREE.BufferGeometry }).geometry,
+    })),
+    particles: particles.map((particle) => particle.props.object),
+  };
 }
 
 it("view switches preserve flow tubes and particle geometry when group visibility is unchanged", () => {
   useEngineGroups.setState({ shown: allGroups() });
   useView.setState({ sys: "engine" });
   const before = renderFlows();
-  expect(before.length).toBeGreaterThan(100);
+  expect(before.flows.length).toBeGreaterThan(100);
+  expect(before.particles).toHaveLength(1);
   for (const sys of ["fuel", "overview", "propeller", "engine"] as const) {
     useView.setState({ sys });
     const after = renderFlows();
-    expect(after.map((item) => item.key)).toEqual(before.map((item) => item.key));
-    after.forEach((item, i) => {
-      expect(item.tube).toBe(before[i].tube);
-      expect(item.points).toBe(before[i].points);
-      expect(item.points.geometry).toBe(before[i].points.geometry);
+    expect(after.flows.map((item) => item.key)).toEqual(before.flows.map((item) => item.key));
+    after.flows.forEach((item, i) => {
+      expect(item.tube).toBe(before.flows[i].tube);
+    });
+    after.particles.forEach((particle, i) => {
+      expect(particle).toBe(before.particles[i]);
+      expect(particle.geometry).toBe(before.particles[i].geometry);
     });
   }
   // A hidden group must still remove its flows in Engine and restore them elsewhere.
   useEngineGroups.getState().set("oil", false);
   const filtered = renderFlows();
-  expect(filtered.length).toBeLessThan(before.length);
+  expect(filtered.flows.length).toBeLessThan(before.flows.length);
   useView.setState({ sys: "fuel" });
   const restored = renderFlows();
-  expect(restored.map((item) => item.key)).toEqual(before.map((item) => item.key));
+  expect(restored.flows.map((item) => item.key)).toEqual(before.flows.map((item) => item.key));
+  restored.flows.forEach((item, i) => expect(item.tube).toBe(before.flows[i].tube));
   useView.setState({ sys: "overview" });
   const overview = renderFlows();
-  overview.forEach((item, i) => {
-    expect(item.tube).toBe(restored[i].tube);
-    expect(item.points).toBe(restored[i].points);
-  });
+  overview.flows.forEach((item, i) => expect(item.tube).toBe(restored.flows[i].tube));
+  overview.particles.forEach((particle, i) => expect(particle).toBe(restored.particles[i]));
 });

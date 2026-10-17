@@ -11,6 +11,7 @@ import { CAPS_HANDLE_ATTACH, capsHandleDrop } from "./cabin";
 /* ---------- CAPS ---------- */
 export const CAPS_BOX: Vec3 = [-0.76, 0.22, 0];
 part(() => box(0.4, 0.18, 0.26), ["caps"], {
+  id: "parts.caps.caps-canister.001",
   pos: CAPS_BOX,
   name: "CAPS canister",
   fairing: true,
@@ -76,6 +77,8 @@ export const HARNESS: Record<"fwdL" | "fwdR" | "aft", Vec3> = {
 };
 [-1, 1].forEach((s) =>
   part(() => tubeGeo(fwdStrap(s), 0.012), ["caps"], {
+    instance: [s],
+    id: "parts.caps.forward-harness-strap.002",
     dynamicGeo: true,
     anim: tearOut,
     name: "Forward harness strap",
@@ -94,6 +97,7 @@ part(
     ),
   ["caps"],
   {
+    id: "parts.caps.aft-harness-strap.003",
     // stowed in the canister, so it leaves with the bag
     anim: (m) => {
       m.visible = live.capsT < ROCKET_T;
@@ -119,6 +123,7 @@ export const CAPS_CABLE: Vec3[] = [
 ];
 const activationGeometries = new WeakMap<THREE.Mesh, { geometry: THREE.BufferGeometry; drop: number }>();
 part(() => tubeGeo(CAPS_CABLE, 0.003, 0), ["caps"], {
+  id: "parts.caps.caps-activation-cable.004",
   name: "CAPS activation cable",
   pin: true,
   dynamicGeo: true,
@@ -136,6 +141,7 @@ part(() => tubeGeo(CAPS_CABLE, 0.003, 0), ["caps"], {
   note: "Mechanical activation cable from the ceiling handle aft along the roof to the rocket igniter. Pulling the handle first takes up approximately two inches of cable slack, then arms and releases the igniter switch plunger (POH 11934-005 7-98). This cable requires human pull force; it is not an aircraft electrical feed. Bends, roof station and diameter schematic. The cited public SR20 AMM copy omits Chapter 95, so internal igniter geometry is not inferred from SR22T instructions.",
 });
 part(() => box(0.035, 0.03, 0.03), ["caps"], {
+  id: "parts.caps.rocket-igniter.005",
   pos: ROCKET_IGNITER,
   name: "Rocket igniter",
   color: "#D7B463",
@@ -143,6 +149,7 @@ part(() => box(0.035, 0.03, 0.03), ["caps"], {
   note: "Electronic igniter actuated by the mechanical cable's arming/release of the switch plunger (POH 7-98). Placed schematically within the canister; no detailed spring, contact, power-source or maintenance arrangement is asserted from the unavailable SR20 Chapter 95.",
 });
 part(() => cyl(0.024, 0.12, "y", 20), ["caps"], {
+  id: "parts.caps.caps-extraction-rocket.006",
   pos: [-0.637, 0.24, 0.08],
   color: "#BC855D",
   name: "CAPS extraction rocket",
@@ -153,6 +160,7 @@ part(() => cyl(0.024, 0.12, "y", 20), ["caps"], {
   note: "Solid-propellant rocket stored with the parachute behind the baggage bulkhead; exits upward through the thin composite cover and extracts the parachute assembly outward, then rearward in relative wind (POH 7-97, 7-99). Stowed rocket body and nozzle schematic. In-flight rocket is shown by the deployment overlay.",
 });
 part(() => box(0.23, 0.12, 0.18), ["caps"], {
+  id: "parts.caps.parachute-deployment-bag.007",
   pos: [-0.81, 0.215, -0.025],
   color: "#A49983",
   name: "Parachute deployment bag",
@@ -163,6 +171,7 @@ part(() => box(0.23, 0.12, 0.18), ["caps"], {
   note: "Staged deployment bag prevents canopy inflation until the rocket has pulled the suspension lines taut; the round canopy's annular slider then limits initial inflation and moves down the suspension lines (POH 7-97). Bag shape and packed dimensions schematic; deployed lines and slider are in the deployment overlay.",
 });
 part(() => box(0.42, 0.006, 0.28), ["caps"], {
+  id: "parts.caps.caps-composite-cover.008",
   pos: [CAPS_BOX[0], CAPS_BOX[1] + 0.095, CAPS_BOX[2]],
   color: "#B5B9BB",
   name: "CAPS composite cover",
@@ -186,6 +195,7 @@ part(
     ),
   ["caps"],
   {
+    id: "parts.caps.aft-riser-snub-line.009",
     name: "Aft riser snub line",
     color: "#9C784A",
     pin: true,
@@ -196,18 +206,22 @@ part(
   },
 );
 part(() => cyl(0.012, 0.04, "x", 12), ["caps"], {
+  id: "parts.caps.caps-line-cutter-assembly.010",
   pos: [-0.555, 0.245, 0],
   name: "CAPS line-cutter assembly",
   color: "#B19562",
   pin: true,
   note: "Functional schematic at the aft snub release; the SR20 AMM airworthiness limitations require replacement of CAPS reefing line cutters every six years (AMM 12137-002 4-00 p. 3, 19 Dec 2019). POH 7-99 specifies the eight-second snub-line cut. Exact cutter count, routing, initiation and mounting detail require the applicable Chapter 95/CAPS component manual; this model does not transplant those details from an SR22T.",
 });
-for (const [name, at] of [
-  ["Forward CAPS firewall fitting (left)", HARNESS.fwdL],
-  ["Forward CAPS firewall fitting (right)", HARNESS.fwdR],
-  ["Aft CAPS bulkhead fitting", HARNESS.aft],
+for (const [key, name, at] of [
+  ["forward-left", "Forward CAPS firewall fitting (left)", HARNESS.fwdL],
+  ["forward-right", "Forward CAPS firewall fitting (right)", HARNESS.fwdR],
+  ["aft", "Aft CAPS bulkhead fitting", HARNESS.aft],
 ] as const)
   part(() => box(0.028, 0.04, 0.055).translate(at[2] === 0 ? 0 : -0.016, -0.01, -Math.sign(at[2]) * 0.02), ["caps"], {
+    id: "parts.caps.part.011",
+    instance: key,
+
     pos: at,
     name,
     color: "#82939D",

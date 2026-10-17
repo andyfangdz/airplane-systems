@@ -15,7 +15,7 @@ import.meta.glob("../components/scene/Scene.tsx");
 function rig() {
   const source = readFileSync(process.env.CAMERA_RIG_SOURCE || resolve("components/scene/Scene.tsx"), "utf8");
   const body = transpileModule(
-    source.slice(source.indexOf("function clearDamping"), source.indexOf("function SimClock")),
+    source.slice(source.indexOf("function clearDamping"), source.indexOf("function MaterialSync")),
     {
       compilerOptions: { target: ScriptTarget.ES2022 },
     },
@@ -38,7 +38,12 @@ function rig() {
     removeEventListener: (key: string) => listeners.delete(key),
   };
   let building = false;
-  const state = { cam: { p: [10, 4, 10], t: [0, 0, 0], preset: "front" }, sys: "overview" };
+  const owner = { aircraft: "sr20", token: Symbol("camera test") };
+  const state = {
+    cam: { p: [10, 4, 10], t: [0, 0, 0], preset: "front" },
+    sys: "overview",
+    session: owner as typeof owner | null,
+  };
   const three = { scene, camera, controls, size: { width: 2560, height: 1080 } };
   const refs: { current: unknown }[] = [];
   let hook = 0;
@@ -51,6 +56,7 @@ function rig() {
     ease,
     MOVED: 1e-6,
     view: { moves: 0 },
+    registerSceneCamera: () => () => {},
     fitDist: cameraFitDistance,
     airplaneBounds,
     viewPresetCamera,
@@ -62,14 +68,14 @@ function rig() {
     useFrame: (callback: () => void, priority = 0) => frames.push([priority, callback]),
     matchMedia: () => ({ matches: true }),
     performance: { now: () => 0 },
-    CameraRig: undefined as unknown as () => void,
+    CameraRig: undefined as unknown as (props: { owner: typeof owner }) => void,
   };
   runInNewContext(body + ";this.CameraRig = CameraRig;", context);
   function frame() {
     hook = 0;
     effects = [];
     frames = [];
-    context.CameraRig();
+    context.CameraRig({ owner });
     effects.forEach((callback) => callback());
     frames.sort((a, b) => a[0] - b[0]).forEach(([, callback]) => callback());
     camera.lookAt(controls.target);
@@ -109,6 +115,15 @@ function rig() {
 }
 
 describe("overview preset resize", () => {
+  it("a departed scene ignores a replacement route's camera request", () => {
+    const r = rig();
+    r.frame();
+    const before = r.camera.position.clone();
+    r.state.session = null;
+    r.state.cam = { p: [3, 2, 8], t: [1, 0, 0], preset: "left" };
+    r.frame();
+    expect(r.camera.position.toArray()).toEqual(before.toArray());
+  });
   it("applies a held overview preset after an unmoved tap during the build", () => {
     const r = rig();
     r.build(true);

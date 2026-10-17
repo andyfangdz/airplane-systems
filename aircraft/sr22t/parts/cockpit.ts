@@ -31,6 +31,7 @@ const SR = () => useSR22T.getState().s;
 // on the centreline at the top of Fig 7-4 (item 2).
 const COMPASS: Vec3 = [1.69, ceiling(1.69) - 0.03, 0];
 part(() => mergeGeos([box(0.05, 0.05, 0.07), cyl(0.024, 0.06, "z").translate(-0.03, -0.005, 0)]), ["cabin"], {
+  id: "parts.cockpit.magnetic-compass.001",
   pos: COMPASS,
   color: "#20262B",
   name: "Magnetic compass",
@@ -44,6 +45,7 @@ part(() => mergeGeos([box(0.05, 0.05, 0.07), cyl(0.024, 0.06, "z").translate(-0.
 // (2 of 2) item 7 puts it on the RH bolster, mirroring the MD302 on the LH bolster's aft face (x 2.18), outboard of the
 // inboard bolster eyeball outlet (environment.ts, z 0.14; Fig 7-4 item 4).
 part(() => box(0.012, 0.05, 0.16), ["cabin"], {
+  id: "parts.cockpit.adf-optional.002",
   pos: [2.174, -0.07, 0.26],
   color: "#20262B",
   name: "ADF (optional)",
@@ -84,6 +86,7 @@ function flapFaceGeo() {
   return g;
 }
 part(flapFaceGeo, ["flaps"], {
+  id: "parts.cockpit.flap-panel.003",
   pos: STACK.at(FLAP_T, 0.002, 0),
   rot: STACK.rot,
   color: "#20262B",
@@ -92,12 +95,14 @@ part(flapFaceGeo, ["flaps"], {
 });
 (
   [
-    [0, 0.02, "#3FBF5F", "UP (0%)"],
-    [50, 0, "#F2C230", "50%"],
-    [100, -0.02, "#F2C230", "100%"],
-  ] as [0 | 50 | 100, number, string, string][]
-).forEach(([pos, dt, color, label], i) =>
+    ["member-01", [0, 0.02, "#3FBF5F", "UP (0%)"]],
+    ["member-02", [50, 0, "#F2C230", "50%"]],
+    ["member-03", [100, -0.02, "#F2C230", "100%"]],
+  ] as [string, [0 | 50 | 100, number, string, string]][]
+).forEach(([member1, [pos, dt, color, label]], i) =>
   part(() => cyl(0.0045, 0.006, "x", 12), ["flaps"], {
+    id: "parts.cockpit.flap-position-light.004",
+    instance: [member1],
     pos: STACK.at(FLAP_T + dt, 0.007, FLAP_LIGHT_Z),
     rot: STACK.rot,
     color,
@@ -126,24 +131,33 @@ const leverGeo = (grip: THREE.BufferGeometry) =>
 (
   [
     [
-      -0.035,
-      "Power lever",
-      "#20262B",
-      box(0.03, 0.03, 0.05),
-      () => SR().eng.lever,
-      "Single-lever power (throttle) control, labelled MAX-POWER-IDLE: cable-linked to the throttle body / fuel-metering valve; toward MAX opens the throttle and meters more fuel. No propeller control; the governor holds 2500 RPM (POH 13772-007 7-32; Fig 7-7 item 8, 7-34; Fig 7-4 (2 of 2) item 13, 7-15).",
+      "member-01",
+      [
+        -0.035,
+        "Power lever",
+        "#20262B",
+        box(0.03, 0.03, 0.05),
+        () => SR().eng.lever,
+        "Single-lever power (throttle) control, labelled MAX-POWER-IDLE: cable-linked to the throttle body / fuel-metering valve; toward MAX opens the throttle and meters more fuel. No propeller control; the governor holds 2500 RPM (POH 13772-007 7-32; Fig 7-7 item 8, 7-34; Fig 7-4 (2 of 2) item 13, 7-15).",
+      ],
     ],
     [
-      0.04,
-      "Mixture lever",
-      "#C8313B",
-      cyl(0.014, 0.02, "z", 16),
-      () => SR().eng.mix,
-      "Mixture control lever, labelled RICH-MIXTURE-CUTOFF: cable-linked to the mixture valve in the engine-driven fuel pump; forward enriches, full aft (CUTOFF) closes the valve (POH 13772-007 7-32; Fig 7-7 item 10, 7-34; Fig 7-4 (2 of 2) item 13, 7-15).",
+      "member-02",
+      [
+        0.04,
+        "Mixture lever",
+        "#C8313B",
+        cyl(0.014, 0.02, "z", 16),
+        () => SR().eng.mix,
+        "Mixture control lever, labelled RICH-MIXTURE-CUTOFF: cable-linked to the mixture valve in the engine-driven fuel pump; forward enriches, full aft (CUTOFF) closes the valve (POH 13772-007 7-32; Fig 7-7 item 10, 7-34; Fig 7-4 (2 of 2) item 13, 7-15).",
+      ],
     ],
-  ] as [number, string, string, THREE.BufferGeometry, () => number, string][]
-).forEach(([dz, name, color, grip, value, note]) =>
+  ] as [string, [number, string, string, THREE.BufferGeometry, () => number, string]][]
+).forEach(([member2, [dz, name, color, grip, value, note]]) =>
   part(() => leverGeo(grip.clone()), ["engine", "cabin"], {
+    id: "parts.cockpit.part.005",
+    instance: [member2],
+
     pos: [CONSOLE_QUADRANT[0], CONSOLE_QUADRANT[1], CONSOLE_QUADRANT[2] + dz],
     color,
     anim: (m) => {
@@ -157,6 +171,7 @@ const leverGeo = (grip: THREE.BufferGeometry) =>
 );
 // Right side face of the console box (cabin.ts: z 0.13), level with the lever pivot.
 part(() => cyl(0.025, 0.012, "z", 24), ["engine", "cabin"], {
+  id: "parts.cockpit.friction-control-wheel.006",
   pos: [CONSOLE_QUADRANT[0], CONSOLE_QUADRANT[1] + 0.01, 0.136],
   color: "#4A535B",
   name: "Friction control wheel",
@@ -176,6 +191,7 @@ const ARM_FWD = 1.56,
 const USB =
   "USB high-power charging port: charging only, no data or audio; 12V & USB POWER, 5 A on MAIN BUS 3 (POH 13772-007 7-94).";
 part(() => cyl(0.011, 0.01, "x", 20), ["electrical", "cabin"], {
+  id: "parts.cockpit.12-v-convenience-outlet.007",
   pos: [ARM_FWD + 0.005, ARM_Y, 0],
   color: "#15181B",
   name: "12 V convenience outlet",
@@ -183,8 +199,15 @@ part(() => cyl(0.011, 0.01, "x", 20), ["electrical", "cabin"], {
   pinIn: ["cabin"],
   note: '12-volt outlet for a standard cigarette-lighter plug; draw must not exceed 3.5 A. 5 A 12V & USB POWER breaker on MAIN BUS 3 (POH 13772-007 7-94; 7-13 puts it in the console armrest; Fig 7-4 (2 of 2) console inset "USB POWER … AUDIO INPUT", 7-15). Position approximate.',
 });
-[-1, 1].forEach((s, i) =>
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member3, s], i) =>
   part(() => box(0.008, 0.008, 0.014), ["electrical", "cabin"], {
+    id: "parts.cockpit.usb-charging-port-front.008",
+    instance: [s, member3],
     pos: [ARM_FWD + 0.004, ARM_Y, s * 0.028],
     color: "#15181B",
     name: "USB charging port (front)",
@@ -196,6 +219,7 @@ part(() => cyl(0.011, 0.01, "x", 20), ["electrical", "cabin"], {
   }),
 );
 part(() => cyl(0.004, 0.008, "x", 12), ["cabin"], {
+  id: "parts.cockpit.audio-input-jack.009",
   pos: [ARM_FWD + 0.004, ARM_Y, 0.046],
   color: "#15181B",
   name: "AUDIO INPUT jack",
@@ -203,8 +227,15 @@ part(() => cyl(0.004, 0.008, "x", 12), ["cabin"], {
   pinIn: ["cabin"],
   note: 'Single 3.5 mm AUDIO INPUT jack on the centre console near the convenience outlet, for a personal entertainment device; distributed through MUS 1 on the audio panel (POH 13772-007 7-90; Fig 7-4 (2 of 2) console inset "AUDIO INPUT", 7-15). Position approximate.',
 });
-[-1, 1].forEach((s, i) =>
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member4, s], i) =>
   part(() => box(0.008, 0.008, 0.014), ["electrical", "cabin"], {
+    id: "parts.cockpit.usb-charging-port-rear.010",
+    instance: [s, member4],
     pos: [CONSOLE_AFT - 0.004, -0.31, s * 0.11],
     color: "#15181B",
     name: "USB charging port (rear)",
@@ -215,8 +246,15 @@ part(() => cyl(0.004, 0.008, "x", 12), ["cabin"], {
       " One of the two on the aft portion of the centre console, for the rear passengers (Fig 7-4 (2 of 2) item 12, 7-15; Fig 7-20 item 12, 7-88).",
   }),
 );
-[-1, 1].forEach((s, i) =>
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member5, s], i) =>
   part(() => cyl(0.0045, 0.008, "x", 12), ["cabin"], {
+    id: "parts.cockpit.passenger-audio-jacks-if-equipped.011",
+    instance: [s, member5],
     pos: [CONSOLE_AFT - 0.004, -0.35, s * 0.11],
     color: "#15181B",
     name: "Passenger audio jacks (if equipped)",

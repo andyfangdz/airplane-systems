@@ -1,7 +1,7 @@
 "use client";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useRef } from "react";
-import type * as THREE from "three";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import type { Catalogue } from "@/lib/catalogue";
 import type { SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
@@ -49,10 +49,65 @@ export function PinDeclutter({
   const gl = useThree((s) => s.gl),
     camera = useThree((s) => s.camera);
   const acc = useRef(every);
+  const layout = useRef({
+    dirty: true,
+    camera: new THREE.Matrix4(),
+    projection: new THREE.Matrix4(),
+    state: useView.getState(),
+  });
+  useEffect(() => {
+    const root = gl.domElement.parentElement;
+    if (!root) return;
+    const stage = root.closest(".stage") ?? root;
+    const dirty = () => {
+      layout.current.dirty = true;
+    };
+    const observer = new MutationObserver((records) => {
+      // Html's projected transforms and new/changed labels invalidate layout. Ignore our own pin visibility writes.
+      if (
+        records.some(
+          (record) =>
+            record.type !== "attributes" ||
+            !(record.target instanceof Element) ||
+            !record.target.classList.contains("pin"),
+        )
+      )
+        dirty();
+    });
+    observer.observe(stage, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "class"],
+    });
+    const resize = new ResizeObserver(dirty);
+    resize.observe(stage);
+    document.fonts?.addEventListener("loadingdone", dirty);
+    dirty();
+    return () => {
+      observer.disconnect();
+      resize.disconnect();
+      document.fonts?.removeEventListener("loadingdone", dirty);
+    };
+  }, [gl]);
   useFrame((_, dt) => {
     acc.current += dt;
     if (acc.current < every) return;
     acc.current = 0;
+    const last = layout.current,
+      state = useView.getState();
+    if (
+      !last.dirty &&
+      last.state === state &&
+      last.camera.equals(camera.matrixWorld) &&
+      last.projection.equals(camera.projectionMatrix)
+    )
+      return;
+    last.dirty = false;
+    last.state = state;
+    last.camera.copy(camera.matrixWorld);
+    last.projection.copy(camera.projectionMatrix);
     const root = gl.domElement.parentElement;
     if (!root) return;
     const view = gl.domElement.getBoundingClientRect();

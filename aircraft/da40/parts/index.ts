@@ -21,7 +21,7 @@
  * - pitot.ts: pitot-static mast, static system and stall warning
  * - environment.ts: heating and ventilation; canopy and door hardware
  * - lights.ts: exterior and cabin lights
- * Part ids come from a global counter and the first part of each name gets the label pin, so keep the import order,
+ * Part ids are explicit authored tokens. The first pinned part of each name gets its label, so keep the import order,
  * and let a section import anchors only from sections above it (importing a later one would register it first).
  */
 export { CAT, surfacePivot } from "./catalogue";
