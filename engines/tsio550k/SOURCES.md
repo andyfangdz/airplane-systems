@@ -217,6 +217,9 @@ speed. Each is fitted on the running engine so that it reproduces the documented
   - Full-power nozzle pressure: the nozzle curve is anchored at the model's settled full-power flow, 37.23 GPH, not the
     AMM band's mid 38.2 GPH: the POH climb fuel flow (36.08 GPH) caps the full-power flow below the mid, and at the
     mid's anchor full power read 13.8 psid, under M-18 Table 2-4's 14.2–14.8.
+  - Failure depths at the 10,000 ft cruise point (the induction, intercooler, failed-turbocharger and oil-leak cases):
+    measured from that settled point against an unfailed control run for the same seconds, never against the starting
+    reading.
   - Alternate-air power loss: measured from a settled 75 % point (best power, the lever trimmed between looks,
     readings averaged).
   - 75 % at 25,000 ft (POH 5-34, 16.4 GPH): the POH's table flows are lean-of-peak settings (5-32), but at 30.4 in.Hg
@@ -264,8 +267,19 @@ speed. Each is fitted on the running engine so that it reproduces the documented
   stays running. The compressor edge was refitted with it (the critical altitude would otherwise rise to 22,000 ft).
 - **Idle** (`calibration.idleArea` 0.013): 720 rpm at idle with the mixture as leaned for taxi (AMM 73-20 PDF 2589
   (ab) 700 ± 25), 700 at full rich; leaning at idle raises it about 20 rpm (AMM PDF 2591 sets 25–50: not reached).
-- **Not read yet**: the turbo-system failure constants (`turbo.leaks`, `turbo.oil.leakQtPerMin`) keep their starting
-  values until the model runs those failures.
+- **Turbo-system failure constants** (`turbo.leaks`, `turbo.oil.leakQtPerMin`): `inductionArea` 3 × 10⁻³ m², about
+  one induction duct's section, so a split coupling at 10,000 ft cruise brings MAP to within 1 in.Hg of normally
+  aspirated (POH 3-27 cause 1). `intercoolerArea` 1.4 × 10⁻³ m² per leaking side, sized to exceed the controller's
+  reserve at the 10,000 ft cruise point: MAP falls about 4 in.Hg, 4.3 in.Hg less than with a split coupling (POH 3-27
+  cause 1). `deadCompressorArea` 2 × 10⁻³ m² (an optional `turbo.leaks` member): the two compressor and intercooler
+  paths join only at the throttle body (AMM 71-60 PDF 2542, 81-20 PDF 2812) and no check valve is described, so a
+  failed turbocharger's stopped compressor leaves its path open from the deck back to its air box; the working
+  compressor passes that recirculating air as well and cannot hold the cruise deck. At the 10,000 ft cruise point MAP
+  falls about 7 in.Hg within 5 s (POH 3-28 cause 4, "a sudden loss of manifold pressure"); without the path the
+  controller's reserve held it within 0.2 in.Hg. A per-compressor flow limit was not used: a failed side at cruise asks
+  no more corrected flow of its partner than full power at 25,000 ft asks of each. `leakQtPerMin` 0.5 qt/min for an
+  oil leak or a failed turbocharger's bearing: from the POH 4-8 minimum of six quarts, oil pressure falls about 5–7 min
+  after a turbocharger fails, the MAP loss first (POH 3-28 cause 4). `exhaustArea` (8 × 10⁻⁴ m²) is illustrative.
 
 `calibration.lambdaFullRich` (0.58) records the rated end of the full-rich schedule; this engine does not read it.
 

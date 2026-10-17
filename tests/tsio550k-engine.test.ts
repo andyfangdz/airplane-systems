@@ -2,8 +2,8 @@
  * The standalone engine model against what Continental and Cirrus document for the TSIO-550-K (M-18, 21 September
  * 2017; SR22T POH 13772-007; AMM 13773-002 Rev 7). Chart values were digitized (engines/tsio550k/SOURCES.md); the
  * literals below are the chart readings, not read back from the spec. Calibration targets carry a T-n label the
- * tests use to refer to each other (this file's own numbering). The engine is not registered yet, so these drive the
- * model directly: the POH 4-12 start and taxi warm-up are set up here, not by a page scenario.
+ * tests use to refer to each other (this file's own numbering). These drive the model directly: the POH 4-12 start
+ * and taxi warm-up are set up here. Where each Start-from setup lands is tests/tsio550k-scenarios.test.ts.
  */
 import { beforeAll, describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
@@ -38,7 +38,7 @@ import {
   mixtureForFlow,
   ratedAirLbH,
 } from "@/engines/model/fuel";
-import { engineAirFlow, inductionCal } from "@/engines/model/induction";
+import { engineAirFlow, inductionCal, solveManifold, throttleArea } from "@/engines/model/induction";
 import { mixturePower } from "@/engines/model/mixture";
 import {
   chartHp,
@@ -49,7 +49,7 @@ import {
   pumpingHp,
   seaLevelHpContinental,
 } from "@/engines/model/performance";
-import { type Setup, warmStart } from "@/engines/model/scenarios";
+import { scenariosFor, type Setup, warmStart } from "@/engines/model/scenarios";
 import { meanLambda, settle, type Hold } from "@/engines/model/trim";
 import {
   altAirDoorNext,
@@ -1323,7 +1323,88 @@ describe("part throttle and a misadjusted controller (POH 3-29, 3A-9, 4-22)", ()
   }, 60_000);
 });
 
-describe("T-35: the -K keeps a finite state under every failure the model runs", () => {
+/** The MAP the same throttle would give with no turbocharger: inlet air through the throttle alone. */
+function normallyAspiratedMap(x: ReturnType<typeof copy>) {
+  const ind = inductionCal(K);
+  const cdA = ind.cdAFull * throttleArea(x.c.throttle, K.calibration.idleArea);
+  return solveManifold(K, ind, cdA, x.s.inletInHg, x.s.inletC, x.s.rpm, atmosphere(x.e.altFt).p * 1.02).map;
+}
+
+describe("turbo-system failures (SR22T POH 3-27, 3-28: the four causes of a loss of manifold pressure)", () => {
+  test("an induction leak at 10,000 ft cruise loses the boost: MAP within 2 in.Hg of normally aspirated, the engine runs (POH 3-27 cause 1)", () => {
+    const x = cruise10k();
+    const before = x.s.map;
+    x.f.inductionLeak = true;
+    run(x, 30);
+    expect(x.s.map).toBeLessThan(before - 5);
+    expect(Math.abs(x.s.map - normallyAspiratedMap(x))).toBeLessThanOrEqual(2);
+    expect(x.s.running).toBe(true);
+  }, 60_000);
+
+  test("a leaking intercooler loses manifold pressure, less than a split induction coupling, the controller shutting the gate against it (POH 3-27 cause 1)", () => {
+    const x = cruise10k();
+    const before = { gate: x.s.gate! };
+    x.f.intercoolerLeak = [true, false];
+    run(x, 30);
+    const control = cruise10k();
+    run(control, 30);
+    const coupling = cruise10k();
+    coupling.f.inductionLeak = true;
+    run(coupling, 30);
+    expect(x.s.gate!).toBeLessThan(before.gate);
+    expect(x.s.map).toBeLessThan(control.s.map - 1);
+    expect(x.s.map).toBeGreaterThan(coupling.s.map + 1);
+  }, 60_000);
+
+  test("an exhaust leak ahead of the turbines leaves them less gas: lower turbine-inlet pressure and full-throttle MAP at 15,000 ft (POH 3-28 cause 2)", () => {
+    const climbAt = (leak: boolean) => {
+      const x = copy(rated());
+      x.e.altFt = 15000;
+      x.e.tasKt = climbTas(15000);
+      x.f.exhaustLeak = leak;
+      run(x, 40);
+      return x.s;
+    };
+    const sound = climbAt(false),
+      leaking = climbAt(true);
+    expect(leaking.turbineInletInHg!).toBeLessThan(sound.turbineInletInHg!);
+    expect(leaking.map).toBeLessThanOrEqual(sound.map - 0.5);
+  }, 60_000);
+
+  test("a failed turbocharger: its shaft stops and MAP drops at once, oil pressure falls minutes later as its bearing vents oil (POH 3-28 cause 4)", () => {
+    const x = cruise10k();
+    x.e.oilQt = 6; // the POH 4-8 minimum
+    const control5 = cruise10k();
+    control5.e.oilQt = 6;
+    run(control5, 5);
+    const before = { oilP: control5.s.oilP };
+    x.f.turboInternal = [true, false];
+    run(x, 5);
+    expect(x.s.turboRpm![0]).toBe(0);
+    expect(x.s.turboRpm![1]).toBeGreaterThan(0);
+    expect(x.s.map).toBeLessThanOrEqual(control5.s.map - 3);
+    expect(Math.abs(x.s.oilP - before.oilP)).toBeLessThanOrEqual(2);
+    run(x, 175); // 3 min: the MAP is gone, the oil pressure still holds
+    expect(x.s.oilP).toBeGreaterThanOrEqual(before.oilP - 2);
+    run(x, 300); // 8 min
+    expect(x.s.oilLossQt!).toBeGreaterThan(2.5);
+    expect(x.s.oilP).toBeLessThan(30);
+  }, 60_000);
+
+  test("an oil leak loses turbo.oil.leakQtPerMin while the engine runs, nothing stopped", () => {
+    const x = cruise10k();
+    x.f.oilLeak = true;
+    run(x, 60);
+    expect(Math.abs(x.s.oilLossQt! / K.turbo!.oil.leakQtPerMin - 1)).toBeLessThan(0.05); // one minute's worth
+    const e = defaultEnvironment();
+    const s = initialState(K, e);
+    const f = { ...noFailures(K), oilLeak: true };
+    for (let t = 0; t < 60; t += 0.05) step(K, s, defaultControls(), e, f, 0.05);
+    expect(s.oilLossQt).toBe(0);
+  }, 60_000);
+});
+
+describe("T-35: the -K keeps a finite state in every Start-from setup under every failure", () => {
   const FAILURES: [string, (f: Failures) => void][] = [
     ["left magneto", (f) => (f.magL = true)],
     ["both magnetos", (f) => ((f.magL = true), (f.magR = true))],
@@ -1338,7 +1419,32 @@ describe("T-35: the -K keeps a finite state under every failure the model runs",
     ["wastegate seized open", (f) => (f.wastegateSeized = "open")],
     ["wastegate seized closed", (f) => (f.wastegateSeized = "closed")],
     ["wastegate actuator oil", (f) => (f.wastegateOil = true)],
+    ["oil leak", (f) => (f.oilLeak = true)],
+    ["induction leak", (f) => (f.inductionLeak = true)],
+    ["left intercooler leak", (f) => (f.intercoolerLeak = [true, false])],
+    ["right intercooler leak", (f) => (f.intercoolerLeak = [false, true])],
+    ["exhaust leak", (f) => (f.exhaustLeak = true)],
+    ["left turbocharger", (f) => (f.turboInternal = [true, false])],
+    ["right turbocharger", (f) => (f.turboInternal = [false, true])],
+    ["both turbochargers", (f) => (f.turboInternal = [true, true])],
     ["controller misadjusted", (f) => (f.controllerMisadjust = true)],
+    ["left TIT probe", (f) => (f.titProbe = [true, false])],
+    ["right TIT probe", (f) => (f.titProbe = [false, true])],
+    [
+      "every turbo-system failure at once",
+      (f) =>
+        Object.assign(f, {
+          wastegateSeized: "closed",
+          wastegateOil: true,
+          oilLeak: true,
+          inductionLeak: true,
+          intercoolerLeak: [true, true],
+          exhaustLeak: true,
+          turboInternal: [true, true],
+          controllerMisadjust: true,
+          titProbe: [true, true],
+        }),
+    ],
   ];
   /** Paths of non-finite numbers in the state; a cylinder with no fuel has λ = ∞, which is the one allowed. */
   const nonFinite = (o: unknown, path = ""): string[] =>
@@ -1350,20 +1456,13 @@ describe("T-35: the -K keeps a finite state under every failure the model runs",
         ? Object.entries(o).flatMap(([k, v]) => nonFinite(v, `${path}.${k}`))
         : [];
 
-  // each setup is made once, then every failure starts from a copy of it
+  // each Start-from setup is made once, then every failure starts from a copy of it
   let setups: { id: string; setup: Setup }[] = [];
   beforeAll(() => {
-    const env = defaultEnvironment();
-    const asSetup = (x: ReturnType<typeof copy>): Setup => ({ s: x.s, c: x.c, env: x.e });
-    setups = [
-      { id: "cold", setup: { s: initialState(K, env), c: defaultControls(), env } },
-      { id: "idle", setup: idle() },
-      { id: "takeoff", setup: asSetup(copy(rated())) },
-      { id: "cruise 10,000 ft", setup: asSetup(cruise10k()) },
-    ];
+    setups = scenariosFor(K).map((sc) => ({ id: sc.id, setup: sc.run(K) }));
   }, 120_000);
 
-  test.each(FAILURES)("20 s at 60 Hz from each setup: %s", (_, fail) => {
+  test.each(FAILURES)("20 s at 60 Hz in every setup: %s", (_, fail) => {
     for (const sc of setups) {
       const { s, c, env } = structuredClone(sc.setup);
       const f = noFailures(K);

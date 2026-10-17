@@ -36,6 +36,11 @@ export const TSIO550K: EngineSpec = {
       "Cirrus SR22T POH 13772-007, Section 2 (pp. 2-6, 2-9, 2-10, 2-19), and Continental M-18, Tables 2-1 to 2-9 " +
       "(pp. 2-24 to 2-30).",
     leaning: "POH 4-22",
+    altAirOpen: "POH 3A-11 (ALT AIR OPEN caution); 7-37",
+    relief: "POH 3-29, 3-30 (Overboost / Pressure Relief Valve)",
+    lossOfMap: "POH 3-27, 3-28 (Unexpected Loss of Manifold Pressure)",
+    manPressure: "POH 3-29, 3A-9 (MAN PRESSURE); 4-17",
+    sensorFailure: "POH 3-31 (EGT, TIT or CHT Temperature Sensor Failure)",
   },
   modelNotes: [
     "Power follows Continental's sea-level chart (M-18 Fig 2-37): full rich above 30.5 in.Hg, best power at or below; " +
@@ -387,13 +392,20 @@ export const TSIO550K: EngineSpec = {
     // drive the turbine"), and may not end the surge (its "If noticeable surging is present"); at 24 in.Hg the valve
     // reseats (fit). The AMM 81-20 "35 inHg" is below the normal 36.0 and is not used.
     overboost: { crackInHg: 39.5, hystInHg: 1.0, area: 4.0e-3 },
-    // Not read yet: the leak areas and `oil.leakQtPerMin` belong to the turbo-system failures the model does not run
-    // yet (a split induction coupling, an intercooler or exhaust leak, an oil leak: POH 3-27, 3-28). Starting values,
-    // to be fitted with them.
-    leaks: { inductionArea: 1.5e-3, intercoolerArea: 8e-4, exhaustArea: 8e-4 },
+    // Not published: the failure leak areas, m². inductionArea, about one induction duct's section: a split coupling at
+    // the 10,000 ft cruise point brings MAP to within 1 in.Hg of normally aspirated (POH 3-27 cause 1). The model's
+    // compressor has no choke line, so it is the area, not a flow limit, that sets how far the boost falls.
+    // intercoolerArea per leaking side: larger than the controller's reserve at that cruise point, so MAP falls, less
+    // than with a split coupling. deadCompressorArea: the passage a failed turbocharger's stopped compressor leaves
+    // from the deck back to its air box, so the working one cannot hold the cruise deck (POH 3-28 cause 4, "a sudden
+    // loss of manifold pressure"). exhaustArea, ahead of the turbines, is illustrative (POH 3-28 cause 2).
+    leaks: { inductionArea: 3e-3, intercoolerArea: 1.4e-3, exhaustArea: 8e-4, deadCompressorArea: 2e-3 },
     // bearingHeatK: hp per turbocharger at rpmRef (∝ N²); bleedPsi: oil-pressure drop the turbochargers' supply takes
     // at rated rpm. Not published; small against the engine's own oil heat and pressure (AMM 79-00 PDF 2764).
-    oil: { bearingHeatK: 1.0, bleedPsi: 2, leakQtPerMin: 0.2 },
+    // leakQtPerMin: the oil an engine oil leak or a failed turbocharger's bearing loses, not published: from the POH
+    // 4-8 minimum of six quarts, oil pressure falls about 5–7 min after a turbocharger fails, the MAP loss coming first
+    // (POH 3-28 cause 4: "later observes declining oil pressure").
+    oil: { bearingHeatK: 1.0, bleedPsi: 2, leakQtPerMin: 0.5 },
   },
 
   limits: {

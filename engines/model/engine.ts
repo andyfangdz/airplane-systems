@@ -24,7 +24,7 @@ import {
   nozzleFlow,
   nozzlePressure,
 } from "./fuel";
-import { inductionCal, series, solveManifold, throttleArea } from "./induction";
+import { inductionCal, orificeFlow, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
 import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
 import { governor, inducedVelocity, propTorque } from "./propeller";
@@ -40,6 +40,7 @@ import {
   INH2O_PA,
   intercool,
   intercoolerDrop,
+  oilLossQtPerMin,
   reliefFlow,
   reliefOpenNext,
   titContinuousMaxF,
@@ -711,6 +712,11 @@ function substep(
     s.tit = [approach(s.tit![0], target[0], dt, tau), approach(s.tit![1], target[1], dt, tau)];
     const limit = titContinuousMaxF(spec);
     s.titOverS = limit === undefined ? 0 : titOverNext(s.titOverS!, s.tit, limit, dt);
+    // oil lost overboard while the pump pressurises it: an engine oil leak, and each failed turbocharger's bearing
+    // (POH 3-28 causes 3, 4); the sump runs down and the pickup then uncovers (below)
+    const sources = (f.oilLeak ? 1 : 0) + (f.turboInternal?.filter(Boolean).length ?? 0);
+    if (sources && s.oilP > 0.5)
+      s.oilLossQt = Math.min(env.oilQt, s.oilLossQt! + (oilLossQtPerMin(spec.turbo, sources) / 60) * dt);
   }
 
   // ---- oil: friction and piston-cooling heat in; thermostatic cooler and crankcase out
@@ -727,7 +733,7 @@ function substep(
   let oilP = s.rpm > 0 ? cal.oilPressPerRpm * Math.pow(s.rpm / 1000, 0.7) * Math.sqrt(visc) : 0;
   if (oilP > cal.oilRelief) oilP = cal.oilRelief + (oilP - cal.oilRelief) * 0.12;
   const [bare, covered] = spec.oil.pickupQt ?? [1.5, 3];
-  const sump = clamp((env.oilQt - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
+  const sump = clamp((env.oilQt - (s.oilLossQt ?? 0) - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
   oilP *= sump < 1 ? sump * (0.85 + 0.15 * Math.sin(s.t * 7)) : 1;
   // the turbochargers' supply from the oil cooler is a branch in parallel with the engine's passages: it takes
   // `turbo.oil.bleedPsi` at rated rpm, in proportion to the pump's flow (AMM 79-00 PDF 2764)
@@ -772,16 +778,33 @@ function turboStep(
   const relief = reliefOpenNext(turbo, !!s.reliefOpen, s.deckInHg!);
   const mR = relief ? reliefFlow(turbo, s.deckInHg!, s.matC! + 273.15, air.p) : 0;
   s.reliefOpen = relief;
+  // a split induction coupling or a leaking intercooler vents deck air into the cowl the same way: the compressors
+  // pass it as well, and the engine falls back toward normally aspirated (POH 3-27 cause 1)
+  const failed = f.turboInternal ?? [false, false];
+  const deckLeak =
+    (f.inductionLeak ? turbo.leaks.inductionArea : 0) +
+    (f.intercoolerLeak ?? [false, false]).filter(Boolean).length * turbo.leaks.intercoolerArea;
+  const mL = deckLeak > 0 ? orificeFlow(deckLeak, s.deckInHg! * INHG_PA, s.matC! + 273.15, air.p * INHG_PA) : 0;
+  // a failed turbocharger's stopped compressor is an open path from the deck back through its intercooler to its air
+  // box (the two paths join only at the throttle body, AMM 71-60 PDF 2542): the working compressor passes that
+  // recirculating air as well (POH 3-28 cause 4: "a sudden loss of manifold pressure")
+  const deadArea = (turbo.leaks.deadCompressorArea ?? 0) * failed.filter(Boolean).length;
+  const mB = deadArea > 0 ? orificeFlow(deadArea, s.deckInHg! * INHG_PA, s.matC! + 273.15, source * INHG_PA) : 0;
   const mA = (s.air * LB_KG) / 3600,
     mE = ((s.air + s.fuel) * LB_KG) / 3600;
   // the gas the turbines expand: the cylinders' mean exhaust gas temperature (the probes' `tit` reading, with its
-  // offset and lag, is display and limits only, so fitting it does not move the turbocharger's calibration)
+  // offset and lag, is display and limits only, so fitting it does not move the turbocharger's calibration). An
+  // exhaust leak ahead of the turbines bypasses them (POH 3-28 cause 2); a failed turbocharger passes its gas but
+  // does no work, and the working one compresses all the air (cause 4).
   const titK = fToK(s.cyl.reduce((a, cy) => a + cy.egt, 0) / s.cyl.length);
-  const pTI = turbineInletPressure(turbo, mE, titK, pTail, gate);
-  const pr = equilibriumPR(turbo, turbinePowerW(turbo, mE, titK, pTI, pTail, gate), mA + mR, t1);
+  const exhaustLeak = f.exhaustLeak ? turbo.leaks.exhaustArea : 0;
+  const working = turbo.count - failed.filter(Boolean).length;
+  const pTI = turbineInletPressure(turbo, mE, titK, pTail, gate, exhaustLeak);
+  const power = turbinePowerW(turbo, mE, titK, pTI, pTail, gate, exhaustLeak, working);
+  const pr = equilibriumPR(turbo, power, mA + mR + mL + mB, t1);
   const ref = turboRef(spec, ve);
   const rho2 = (s.deckInHg! * INHG_PA) / (R_AIR * (s.compressorOutC! + 273.15));
-  const drop = intercoolerDrop(turbo, mA + mR, ref.mRef, rho2, ref.rhoRef);
+  const drop = intercoolerDrop(turbo, mA + mR + mL, ref.mRef, rho2, ref.rhoRef);
   const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
   const prNow = Math.max(1, (deck + drop) / source);
   const t2 = compressorOut(turbo, t1, prNow);
@@ -791,7 +814,7 @@ function turboStep(
   s.gate = gate;
   s.bleed = bleed;
   s.pActPsi = pAct;
-  s.turboRpm = [n, n];
+  s.turboRpm = [failed[0] ? 0 : n, failed[1] ? 0 : n];
   s.compressorOutC = t2 - 273.15;
   s.matC = mat - 273.15;
   s.turbineInletInHg = pTI;

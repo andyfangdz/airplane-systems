@@ -100,8 +100,12 @@ export interface TurboSpec {
   intercooler: { effectiveness: number; dpInHgRated: number; coolRiseC: number };
   /** Relief valve on the upper deck: opens at `crackInHg`, reseats `hystInHg` lower; flow area m². */
   overboost: { crackInHg: number; hystInHg: number; area: number };
-  /** Leak areas for the turbo-system failures, m². */
-  leaks: { inductionArea: number; intercoolerArea: number; exhaustArea: number };
+  /**
+   * Leak areas for the turbo-system failures, m². `deadCompressorArea` (optional, absent = 0): the passage a failed
+   * turbocharger's stopped compressor leaves open from the deck back to its air box, the two compressor and intercooler
+   * paths being joined only at the throttle body (AMM 71-60 PDF 2542, 81-20 PDF 2812).
+   */
+  leaks: { inductionArea: number; intercoolerArea: number; exhaustArea: number; deadCompressorArea?: number };
   /** Bearing heat into the oil (coefficient), oil bled to the turbochargers (psi), oil lost through a leak (qt/min). */
   oil: { bearingHeatK: number; bleedPsi: number; leakQtPerMin: number };
 }
@@ -135,6 +139,16 @@ export interface EngineSpec {
     leaning: string;
     /** Carburetor heat and icing (carbureted engines). */
     carbHeat?: string;
+    /** The alternate-air-door-open annunciation (an automatic alternate-air door). */
+    altAirOpen?: string;
+    /** The overboost relief valve's procedure (a turbocharged engine). */
+    relief?: string;
+    /** The unexpected-loss-of-manifold-pressure procedure and its causes (a turbocharged engine's failures). */
+    lossOfMap?: string;
+    /** The high-manifold-pressure annunciations and the full-throttle manifold pressure (a misadjusted controller). */
+    manPressure?: string;
+    /** The temperature-sensor failure procedure (a failed TIT probe). */
+    sensorFailure?: string;
   };
   /** Engine-specific names and notes for 3D parts, keyed by the part's default name (scene/parts.tsx). */
   parts?: Record<string, { name?: string; note: string }>;
