@@ -35,15 +35,17 @@ order), each component's model and `SOURCES.md` sit in `engines/components/<id>/
 uses too: `ComponentStage` (canvas, lights, orbit controls and hover tip; the page gives the camera and target),
 `useSimLoop` and `createViewStore` (`components/engine/sim.ts`), `ViewToggles` (`chrome.tsx`) and `f0`
 (`lib/format.ts`). Adding one: an entry in `COMPONENTS`, one in `ComponentPage`'s `PAGES` (typed by `ComponentId`, so
-the two can't drift), and the id in `COMPONENT_IDS` in `infra/cloudfront/view-rewrite.js`.
+the two can't drift), then run `npm run fleet:generate` to write `infra/cloudfront/view-rewrite.js` and its
+CloudFormation copy in `infra/aws/site.json`. `npm run fleet:check` catches stale copies.
 
 ## Adding an engine
 
 1. Make `engines/<id>/spec.ts` exporting an `EngineSpec`, and a `SOURCES.md` beside it. Published numbers cite the
    document and page; chart values say how they were read. Put anything the documents don't give in `calibration` (or
    the marked propeller fields) and say so.
-2. Add it to `ENGINES` in `engines/index.ts` and to `ENGINE_IDS` in `infra/cloudfront/view-rewrite.js` (a test checks
-   the copy).
+2. Add it to `ENGINES` in `engines/index.ts`, then run `npm run fleet:generate` to write
+   `infra/cloudfront/view-rewrite.js` and its CloudFormation copy in `infra/aws/site.json`.
+   `npm run fleet:check` catches stale copies.
 3. Calibrate against the manufacturer's numbers, then write tests named after them in `tests/` (see
    `tests/io390-engine.test.ts`, `tests/o360-engine.test.ts`): rated power at full throttle, cruise fuel flows, idle,
    magneto drop, limits in a climb.
