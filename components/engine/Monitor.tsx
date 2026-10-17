@@ -63,9 +63,39 @@ const scaleOf = (spec: EngineSpec, gauge: Marking["gauge"]) => spec.markings?.fi
 const fill = (v: number, [lo, hi]: [number, number]) => `${Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100))}%`;
 const peakText = (off: number, side: string) => (side === "peak" ? "at peak" : `${f0(off)} ${side}`);
 
+/**
+ * A TIT bar per turbocharger, the digits above it as the airplane's display has them (SR22T POH 7-35), and a failed
+ * probe's field crossed out in red (POH 7-32). Its own component, so the monitor around it stays compiled: reading the
+ * failures from the page's store is the only store read the monitor would otherwise make.
+ */
+function TitBars({ sim, tit, scale }: { sim: EngineSim; tit: readonly number[] | undefined; scale: [number, number] }) {
+  const titProbe = sim.useUi((x) => x.failures.titProbe);
+  return (["L", "R"] as const).map((sd, i) => {
+    const t = tit?.[i] ?? scale[0],
+      failed = !!titProbe?.[i],
+      tone = bandTone(sim.spec, "tit", t);
+    // the bar is a digit row shorter than a cylinder's so it ends level with theirs
+    return (
+      <div key={sd} className="mon-cyl mon-tit">
+        <small className={failed ? "bad" : tone}>{failed ? "X" : Math.round(t)}</small>
+        <div className="bar tit" title={failed ? `TIT ${sd}: no valid data` : `TIT ${sd} ${f0(t)} °F`}>
+          {failed ? (
+            <i className="x" role="img" aria-label={`TIT ${sd} invalid`} />
+          ) : (
+            <div className={tone} style={{ height: fill(t, scale) }} />
+          )}
+        </div>
+        <span>{sd}</span>
+        {/* two empty rows for the cylinders' EGT and CHT digits, so the labels and bar feet line up */}
+        <small aria-hidden="true">&nbsp;</small>
+        <small aria-hidden="true">&nbsp;</small>
+      </div>
+    );
+  });
+}
+
 export function Monitor({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 150);
-  const titProbe = sim.useUi((x) => x.failures.titProbe);
   const spec = sim.spec,
     L = spec.limits,
     turbo = !!spec.turbo,
@@ -143,30 +173,7 @@ export function Monitor({ sim }: { sim: EngineSim }) {
             <small className={hot(c.cht)}>{Math.round(c.cht)}</small>
           </div>
         ))}
-        {turbo &&
-          (["L", "R"] as const).map((sd, i) => {
-            const t = s.tit?.[i] ?? titScale[0],
-              failed = !!titProbe?.[i],
-              tone = bandTone(spec, "tit", t);
-            // the airplane's display puts the TIT digits above the bar (SR22T POH 7-35) and crosses out a field with
-            // no valid data in red (POH 7-32); the bar is a digit row shorter so it ends level with the cylinders'
-            return (
-              <div key={sd} className="mon-cyl mon-tit">
-                <small className={failed ? "bad" : tone}>{failed ? "X" : Math.round(t)}</small>
-                <div className="bar tit" title={failed ? `TIT ${sd}: no valid data` : `TIT ${sd} ${f0(t)} °F`}>
-                  {failed ? (
-                    <i className="x" role="img" aria-label={`TIT ${sd} invalid`} />
-                  ) : (
-                    <div className={tone} style={{ height: fill(t, titScale) }} />
-                  )}
-                </div>
-                <span>{sd}</span>
-                {/* two empty rows for the cylinders' EGT and CHT digits, so the labels and bar feet line up */}
-                <small aria-hidden="true">&nbsp;</small>
-                <small aria-hidden="true">&nbsp;</small>
-              </div>
-            );
-          })}
+        {turbo && <TitBars sim={sim} tit={s.tit} scale={titScale} />}
         <div className="mon-key">
           <span>
             <i className="egt" /> EGT
