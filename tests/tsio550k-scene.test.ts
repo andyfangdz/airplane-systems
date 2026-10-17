@@ -66,6 +66,7 @@ import { shownLabels } from "@/components/engine/EngineScene";
 import {
   actuatorTravel,
   chargeAirColor,
+  DRAWN_PER_RPM,
   gatePlateAngle,
   oilInletNote,
   reliefLift,
@@ -1190,6 +1191,16 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
       for (const g of G.intercoolers) expect(b.intersectsBox(box(g.core))).toBe(false);
     }
     cover.dispose();
+  });
+
+  test("the wheels turn at DRAWN_PER_RPM drawn rpm per turbocharger rpm: slowed, but visibly turning in flight", () => {
+    // rad/s back to drawn rpm
+    const drawnRpm = (turboRpm: number) => (wheelRate(turboRpm, true, false) * 60) / (2 * Math.PI);
+    for (const n of [1210, 46789, 68670, 90000, 112261]) expect(drawnRpm(n)).toBeCloseTo(n * DRAWN_PER_RPM, 9);
+    // the model's turbine speeds at takeoff and in cruise (engines/tsio550k/scenarios.ts): about 94 and 137 rpm drawn
+    expect(drawnRpm(46789)).toBeGreaterThan(60);
+    expect(drawnRpm(68670)).toBeGreaterThan(120);
+    expect(drawnRpm(112261)).toBeLessThan(300);
   });
 
   test("animation maps: gate plate, wheels, relief poppet, charge-air tint", () => {

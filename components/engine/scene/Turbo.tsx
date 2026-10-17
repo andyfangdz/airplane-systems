@@ -153,8 +153,11 @@ export const gatePlateAngle = (gate: number) => clamp01(gate) * 75 * (Math.PI / 
 /** How far the actuator rod has moved (m) at a gate position: illustrative, 15 mm over the full travel. */
 export const actuatorTravel = (gate: number) => clamp01(gate) * 0.015;
 
-/** Drawn rpm per turbocharger rpm: the wheels turn far too fast to draw, so they are shown slowed (illustrative). */
-export const DRAWN_PER_RPM = 1 / 30000;
+/**
+ * Drawn rpm per turbocharger rpm: the wheels turn far too fast to draw, so they are shown slowed (illustrative), about
+ * 95 rpm at takeoff and 140 rpm in cruise, and barely turning at idle.
+ */
+export const DRAWN_PER_RPM = 1 / 500;
 
 /**
  * Drawn wheel speed (rad/s): still when the engine isn't running or that turbocharger has failed, otherwise
@@ -162,7 +165,7 @@ export const DRAWN_PER_RPM = 1 / 30000;
  */
 export function wheelRate(turboRpm: number, running: boolean, failed: boolean) {
   if (!running || failed) return 0;
-  return Math.max(0, turboRpm) * DRAWN_PER_RPM * 2 * Math.PI;
+  return ((Math.max(0, turboRpm) * DRAWN_PER_RPM) / 60) * 2 * Math.PI;
 }
 
 /** Overboost poppet lift (m): up while the relief valve is open, seated otherwise. Illustrative. */
