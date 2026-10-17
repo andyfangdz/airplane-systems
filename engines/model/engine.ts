@@ -832,7 +832,9 @@ function turboStep(
   const pr = equilibriumPR(turbo, power, mA + mR + mL + mB, t1);
   const ref = turboRef(spec, ve);
   const rho2 = (s.deckInHg! * INHG_PA) / (R_AIR * (s.compressorOutC! + 273.15));
-  const drop = intercoolerDrop(turbo, mA + mR + mL, ref.mRef, rho2, ref.rhoRef);
+  // The working compressor's outlet also passes the recirculating flow through its intercooler. The effective
+  // deadCompressorArea includes the return path's stopped compressor, intercooler and duct losses (AMM 71-60).
+  const drop = intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef, rho2, ref.rhoRef);
   const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
   const prNow = Math.max(1, (deck + drop) / source);
   const t2 = compressorOut(turbo, t1, prNow);
