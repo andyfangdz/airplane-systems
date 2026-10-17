@@ -13,6 +13,7 @@ import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { skinMat } from "@/lib/materials";
 import { D2R, type Vec3 } from "@/lib/math";
 import { beginParts, endParts, markAdded, nextFrame, publishParts, setBuild, useBuild } from "@/lib/build";
+import { markAircraftSceneReady } from "@/lib/aircraft-session";
 import { specGeo, type PartSpec } from "@/lib/catalogue";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { narrowLayout, useView } from "@/lib/view";
@@ -454,6 +455,7 @@ export function SceneModel() {
     if (!current()) return;
     endParts(CAT);
     setBuild("ready");
+    markAircraftSceneReady(owner);
   }, []);
   const start = useCallback(
     (compiled: Promise<unknown>) => {

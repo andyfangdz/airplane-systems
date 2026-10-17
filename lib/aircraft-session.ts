@@ -29,11 +29,20 @@ export function mountAircraftSession(def: AircraftDef): AircraftSession {
       clearSceneCamera(owner);
       clearSceneParts(owner);
       useAircraftHover.getState().setHover(null);
-      useView.setState({ session: null, walking: false, spot: null, focus: null });
+      useView.setState({ session: null, sceneReady: null, walking: false, spot: null, focus: null });
       mounted = null;
     },
   };
   mounted = session;
-  useView.setState({ session: owner });
+  useView.setState({ session: owner, sceneReady: null });
   return session;
+}
+
+/** Geometry-dependent projections may run only after this mounted scene has completed its load. */
+export function markAircraftSceneReady(owner: AircraftSessionOwner) {
+  if (useView.getState().session === owner) useView.setState({ sceneReady: owner });
+}
+
+export function useAircraftSceneReady(aircraft: AircraftSessionOwner["aircraft"]) {
+  return useView((view) => view.session?.aircraft === aircraft && view.sceneReady === view.session);
 }

@@ -2,6 +2,41 @@
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { test, errors as playwrightErrors } from "@playwright/test";
+function observeGeometry() {
+  localStorage.setItem("tourDone", "1");
+  window.__geometry = { scene: null, frames: 0, workers: [] };
+  const dev = new EventTarget();
+  dev.addEventListener("observe", ({ detail: o }) => {
+    if (o?.isWebGLRenderer) {
+      const render = o.render.bind(o);
+      o.render = (...args) => {
+        window.__geometry.scene = args[0];
+        window.__geometry.frames++;
+        return render(...args);
+      };
+    }
+  });
+  window.__THREE_DEVTOOLS__ = dev;
+  const NativeWorker = window.Worker;
+  window.Worker = class extends NativeWorker {
+    constructor(...args) {
+      super(...args);
+      this.record = { start: performance.now(), meshes: 0, terminated: false };
+      window.__geometry.workers.push(this.record);
+      this.addEventListener("message", ({ data }) => {
+        if (data?.meshes) {
+          this.record.meshes = data.meshes.length;
+          this.record.ms = performance.now() - this.record.start;
+        }
+      });
+    }
+    terminate() {
+      this.record.terminated = true;
+      super.terminate();
+    }
+  };
+}
+
 const ids = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
 for (const id of ids) {
   test(`${id} prebuilt geometry and fallback`, async ({ browser, baseURL: base }) => {
@@ -21,40 +56,7 @@ for (const id of ids) {
           await delay(3000);
           await r.continue();
         });
-      await context.addInitScript(() => {
-        localStorage.setItem("tourDone", "1");
-        window.__geometry = { scene: null, frames: 0, workers: [] };
-        const dev = new EventTarget();
-        dev.addEventListener("observe", ({ detail: o }) => {
-          if (o?.isWebGLRenderer) {
-            const render = o.render.bind(o);
-            o.render = (...args) => {
-              window.__geometry.scene = args[0];
-              window.__geometry.frames++;
-              return render(...args);
-            };
-          }
-        });
-        window.__THREE_DEVTOOLS__ = dev;
-        const NativeWorker = window.Worker;
-        window.Worker = class extends NativeWorker {
-          constructor(...args) {
-            super(...args);
-            this.record = { start: performance.now(), meshes: 0, terminated: false };
-            window.__geometry.workers.push(this.record);
-            this.addEventListener("message", ({ data }) => {
-              if (data?.meshes) {
-                this.record.meshes = data.meshes.length;
-                this.record.ms = performance.now() - this.record.start;
-              }
-            });
-          }
-          terminate() {
-            this.record.terminated = true;
-            super.terminate();
-          }
-        };
-      });
+      await context.addInitScript(observeGeometry);
       const page = await context.newPage();
       const errors = [],
         warnings = [];
@@ -135,3 +137,58 @@ for (const id of ids) {
     }
   });
 }
+
+test("stalled scene manifest reaches authoring recovery", async ({ browser, baseURL: base }) => {
+  const context = await browser.newContext({ viewport: { width: 640, height: 480 }, reducedMotion: "reduce" });
+  try {
+    await context.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
+    // Leave the response pending: the asset deadline must abort this request and recover.
+    await context.route("**/geometry/*.scene.json", () => {});
+    await context.addInitScript(observeGeometry);
+    const page = await context.newPage();
+    const errors = [],
+      warnings = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      if (message.type() === "warning") warnings.push(message.text());
+    });
+    const recovery = page.waitForRequest(
+      (request) => /\/geometry\/recovery-[a-f0-9]+\.js(?:\?|$)/.test(request.url()),
+      { timeout: 60_000 },
+    );
+    await page.goto(`${base}/sr20/engine`);
+    await recovery;
+    await page.waitForFunction(
+      () =>
+        window.__geometry.scene?.children.length &&
+        window.__geometry.frames > 1 &&
+        !document.querySelector("[data-building]"),
+      null,
+      { timeout: 120_000 },
+    );
+    const result = await page.evaluate(() => {
+      let named = 0,
+        baked = 0;
+      window.__geometry.scene.traverse((object) => {
+        if (!object.isMesh) return;
+        if (object.userData.pick?.name) named++;
+        if ("unindexedSource" in object.geometry.userData) baked++;
+      });
+      return { named, baked, workers: window.__geometry.workers };
+    });
+    assert.deepEqual(errors, [], "stalled manifest: no runtime errors");
+    assert.ok(result.named > 200, "stalled manifest: recovery renders the complete model");
+    assert.equal(result.baked, 0, "stalled manifest: original source recovery is used");
+    assert.ok(
+      result.workers.every((worker) => worker.terminated),
+      "stalled manifest: workers released",
+    );
+    assert.ok(
+      warnings.some((message) => message.includes("Prebuilt geometry unavailable") && message.includes("timeout")),
+      "stalled manifest: deadline triggered recovery",
+    );
+    console.log(`stalled manifest recovered: ${result.named} named meshes; ${result.workers.length} workers released`);
+  } finally {
+    await context.close();
+  }
+});

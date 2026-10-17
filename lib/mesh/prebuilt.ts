@@ -3,6 +3,25 @@ import { primeGeo, type Catalogue } from "@/lib/catalogue";
 import type { BuiltMesh } from "./format";
 import { bindSceneManifest, type RuntimeAssets } from "./scene-manifest";
 
+/** Bounds asynchronous downloads, stream reads and decoder loading; synchronous Wasm work cannot be preempted. */
+const ASSET_TIMEOUT_MS = 15_000;
+async function withAssetDeadline<T>(read: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error("Aircraft asset download/decode timeout"));
+    }, ASSET_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([read(controller.signal), deadline]);
+  } finally {
+    clearTimeout(timer!);
+    controller.abort();
+  }
+}
+
 /** Keys are independent of optional-equipment state. Factories remain the source of truth and the fallback. */
 export const geometryEntries = (cat: Catalogue) => [
   ...cat.shells.map((spec) => ({ key: spec.id, spec })),
@@ -47,7 +66,8 @@ export function prepareGeometry(cat: Catalogue): Promise<boolean> {
       const [meshes, manifest] = await Promise.all([
         loadGeometry(path, cat.prefix),
         asset
-          ? fetch(asset.scene).then(async (response) => {
+          ? withAssetDeadline(async (signal) => {
+              const response = await fetch(asset.scene, { signal });
               if (!response.ok) throw new Error(`Scene manifest: HTTP ${response.status}`);
               return response.json();
             })
@@ -124,7 +144,7 @@ export function loadGeometry(path: string, aircraft: string): Promise<BuiltMesh[
       if (error) console.warn("Geometry worker failed; decoding on the main thread", error);
       resolve(meshes ?? loadWithoutWorker(path, aircraft));
     };
-    const timer = setTimeout(() => finish(null, "download/decode timeout"), 15_000);
+    const timer = setTimeout(() => finish(null, "download/decode timeout"), ASSET_TIMEOUT_MS);
     worker.onmessage = ({ data }) =>
       Array.isArray(data?.meshes) ? finish(data.meshes) : finish(null, data?.error || "invalid reply");
     worker.onerror = (error) => finish(null, error.message);
@@ -138,11 +158,16 @@ export function loadGeometry(path: string, aircraft: string): Promise<BuiltMesh[
 
 async function loadWithoutWorker(path: string, aircraft: string): Promise<BuiltMesh[] | null> {
   try {
-    const response = await fetch(path);
-    if (!response.ok || !response.body) return null;
-    const bytes = await new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
-    const { decodeMeshes } = await import("./decode");
-    return await decodeMeshes(bytes, aircraft);
+    return await withAssetDeadline(async (signal) => {
+      const response = await fetch(path, { signal });
+      if (!response.ok || !response.body || signal.aborted) return null;
+      const bytes = await new Response(
+        response.body.pipeThrough(new DecompressionStream("gzip"), { signal }),
+      ).arrayBuffer();
+      const { decodeMeshes } = await import("./decode");
+      if (signal.aborted) return null;
+      return decodeMeshes(bytes, aircraft);
+    });
   } catch {
     return null;
   }

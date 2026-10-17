@@ -38,6 +38,8 @@ export interface AircraftSessionOwner {
 
 export interface View {
   session: AircraftSessionOwner | null;
+  /** The exact mounted session whose geometry and scene have finished loading. */
+  sceneReady: AircraftSessionOwner | null;
   ac: AircraftId;
   /** Navigation selection, reflected in the URL and system rail. */
   selectedSys: SysId;
@@ -106,6 +108,7 @@ let focusTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useView = create<ViewStore>((set) => ({
   session: null,
+  sceneReady: null,
   ac: DEFAULT_AIRCRAFT,
   selectedSys: "overview",
   sys: "overview",

@@ -139,3 +139,29 @@ it("decodes the original asset on the main thread after asynchronous worker refu
   expect(bytes(rebuildMesh(meshes![0]).attributes.position.array)).toEqual(bytes(source.attributes.position.array));
   expect(terminate).toHaveBeenCalledOnce();
 });
+
+it.each(["download", "body"])(
+  "bounds a stalled main-thread %s and releases the fetch/stream and timer",
+  async (stall) => {
+    vi.useFakeTimers();
+    vi.stubGlobal("Worker", undefined);
+    const cancelled = vi.fn();
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_path: string, init: RequestInit) => {
+        signal = init.signal!;
+        // A non-cooperating request proves that AbortController alone does not bound the caller's wait.
+        return stall === "download"
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(new Response(new ReadableStream({ cancel: cancelled })));
+      }),
+    );
+    const loaded = loadGeometry("/geometry/test.bin.gz", "test");
+    await vi.advanceTimersByTimeAsync(15_000);
+    await expect(loaded).resolves.toBeNull();
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    if (stall === "body") expect(cancelled).toHaveBeenCalledOnce();
+  },
+);

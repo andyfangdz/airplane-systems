@@ -19,6 +19,9 @@ A preflight walk runs in a fork. Closing it releases and disposes that fork, wit
 original state. A route session owns the walk, camera, part registry, hover, and focus timer. Owner tokens prevent late
 cleanup from a previous route affecting the next one. Navigation selection and temporary walk highlighting are
 separate; choosing a system closes the walk and selects the corresponding URL.
+Geometry-dependent walk markers, minimap projections, and item framing wait for the exact mounted scene to become
+ready. Begin, Resume, and checklist navigation remain usable while assets load. Deferred framing yields to camera
+gestures or newer requests, and stale scene completions cannot unlock a replacement session.
 
 Simulation advancement belongs to the route rather than the Canvas. Fleet and component runtimes use fixed-step
 clocks with explicit bounded catch-up. Hidden documents pause the RAF driver and resume from a new wall-time origin.
@@ -52,6 +55,9 @@ build checks its actual emitted module graph for forbidden authoring/triangulati
 Compilation is cached by transitive source inputs, compiler/encoder inputs, and toolchain. Production builds reject
 missing or stale compiler output. Recovery and normal loading preserve the original geometry; inability to load both
 paths produces a route error with Retry. The source factories remain available for development and authoring tests.
+Normal worker loading, main-thread downloads/stream reads/decoder loading, and scene-manifest downloads have bounded
+deadlines. Stalled requests are aborted; recovery has its own deadline, and failed recovery clears the pending entry
+so Retry can make a fresh attempt. These deadlines cannot preempt synchronous main-thread Wasm execution.
 
 One lightweight `aircraft/fleet.json` registration generates the ID tuple, metadata registry, authoring registry,
 picker labels, individual route imports, and edge routing IDs. Picker labels are compiled from aircraft metadata;
@@ -104,8 +110,8 @@ host behavior remain tested, and the static artifact is the AWS promotion contra
 
 The starting revision is `bcdece1aba69597cbd79239c9835d5edd5ee15b1`. Validation uses pinned Node 22.23.3 and npm 10.9.9.
 
-`npm run check` passes: formatting, generated fleet freshness, TypeScript, 386 compiled React functions, 4,491 unit
-tests across 251 files, 28 compiled React tests, and 99 trusted-preview tests. The mesh-clearance suite retains its
+`npm run check` passes: formatting, generated fleet freshness, TypeScript, 387 compiled React functions, 4,496 unit
+tests across 251 files, 34 compiled React tests, and 99 trusted-preview tests. The mesh-clearance suite retains its
 geometric assertions with a 30-second budget for its 66 BVH comparisons, replacing a five-second timeout hit under
 concurrent validation load.
 
@@ -144,10 +150,11 @@ Four comparisons pass the 0.5% pixel threshold. The two running-engine views exc
 with differences dominated by propeller phase and smaller ignition/particle changes. No screenshot baseline was replaced
 to hide those differences, and no application runtime errors occurred.
 
-All six desktop/phone route-session regressions pass against the production server. The static export passes eight
+All six desktop/phone route-session regressions pass against the production server. The static export passes nine
 browser cases: all six aircraft load both baked and recovery geometry (including delayed SR22T decoding), navigation
-switches and returns correctly, and immutable asset policies match the sealed release. Its 697 files verify against an
-independently retained manifest digest. These local checks exercise a working-tree artifact; CI seals a clean commit
+switches and returns correctly, stalled scene-manifest downloads reach recovery, and immutable asset policies match
+the sealed release. Its 697 files verify against an independently retained manifest digest. These local checks exercise
+a working-tree artifact; CI seals a clean commit
 for promotion.
 
 WebKit fleet interaction tests also pass at 390×844 in light mode and 320×640 in dark mode, covering touch, keyboard,

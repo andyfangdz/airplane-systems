@@ -11,6 +11,7 @@ import { V, clamp, ease } from "@/lib/math";
 import { registerSceneCamera, view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
 import { nextFrame, setBuild, useBuild } from "@/lib/build";
+import { markAircraftSceneReady } from "@/lib/aircraft-session";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { airplaneBounds, CAMERA_FOV, cameraFitDistance as fitDist, viewPresetCamera } from "@/lib/camera";
 import { useAircraftHover, useView, type AircraftSessionOwner, type CamRequest } from "@/lib/view";
@@ -280,8 +281,10 @@ function BuildMarks({
       useView.getState().session === owner &&
       useBuild.getState().stage !== "ready" &&
       modelRef.current?.children.length
-    )
+    ) {
       setBuild("ready");
+      markAircraftSceneReady(owner);
+    }
   });
   return null;
 }

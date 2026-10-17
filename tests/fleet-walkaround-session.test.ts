@@ -7,7 +7,7 @@ import type { FleetWalkController } from "@/lib/fleet-walk-store";
 import { assignLive } from "@/lib/simulation";
 import type { SimStore } from "@/lib/simStore";
 import { flashFocus, useAircraftHover, useView } from "@/lib/view";
-import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
+import { markAircraftSceneReady, mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
 import { aircraft, selectAircraft, selectSys } from "@/lib/fleet";
 import { partObjects, registerPart, registerSceneCamera, view as scene } from "@/lib/registry";
 import { walkController as c172 } from "@/aircraft/c172s/walk-store";
@@ -78,6 +78,21 @@ function browserLocation(pathname: string) {
 }
 
 describe("mounted aircraft session ownership", () => {
+  it("owns scene readiness across replacement and ignores stale scene completion", () => {
+    browserLocation("/c172s/fuel");
+    const previous = openRoute("c172s");
+    markAircraftSceneReady(previous.owner);
+    expect(useView.getState().sceneReady).toBe(previous.owner);
+    const current = openRoute("c172s");
+    expect(useView.getState().sceneReady).toBeNull();
+    markAircraftSceneReady(previous.owner);
+    expect(useView.getState().sceneReady).toBeNull();
+    markAircraftSceneReady(current.owner);
+    expect(useView.getState().sceneReady).toBe(current.owner);
+    current.dispose();
+    markAircraftSceneReady(current.owner);
+    expect(useView.getState().sceneReady).toBeNull();
+  });
   it("runs walk steps on a fork while the original runtime and its clock remain untouched", () => {
     browserLocation("/c172s/fuel");
     const route = openRoute("c172s");
