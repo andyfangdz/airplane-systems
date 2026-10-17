@@ -384,7 +384,8 @@ function Failures({ sim }: { sim: EngineSim }) {
   const f = sim.useUi((x) => x.failures),
     set = sim.useUi((x) => x.setFailures);
   const cyls = sim.spec.geometry.cylinders,
-    injected = sim.spec.fuelSystem.kind === "injected";
+    // the nozzles of either injection system (a carburetor has none); the model blocks them for both (fuel.ts)
+    injected = sim.spec.fuelSystem.kind !== "carburetor";
   return (
     <>
       <H3>Failures</H3>

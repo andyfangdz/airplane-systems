@@ -186,6 +186,24 @@ describe("TSIO-550-K panel", () => {
   });
 });
 
+describe("failures table (each cylinder's plugs, nozzle and intake)", () => {
+  it.each([
+    { spec: K, headers: ["Cyl", "Top plug", "Bottom plug", "Nozzle blocked", "Intake leak"], nozzles: 6 },
+    { spec: IO390, headers: ["Cyl", "Top plug", "Bottom plug", "Nozzle blocked", "Intake leak"], nozzles: 4 },
+    { spec: O360, headers: ["Cyl", "Top plug", "Bottom plug", "Intake leak"], nozzles: 0 },
+  ])("offers $spec.name's nozzle blockage where it has injection nozzles", ({ spec, headers, nozzles }) => {
+    const sim = fresh(spec);
+    const { container } = render(<EnginePanel sim={sim} />);
+    expect([...container.querySelectorAll(".eng-fail th")].map((th) => th.textContent)).toEqual(headers);
+    const sliders = container.querySelectorAll('input[aria-label$="nozzle blockage"]');
+    expect(sliders).toHaveLength(nozzles);
+    if (nozzles) {
+      fireEvent.change(sliders[0], { target: { value: "0.5" } });
+      expect(sim.useUi.getState().failures.nozzle[0]).toBe(0.5);
+    }
+  });
+});
+
 describe("panel parts and the pages that stay as they were", () => {
   it.each([K, IO390, O360])("lists $name's part groups", (spec) => {
     const { container } = render(<EnginePanel sim={fresh(spec)} />);
