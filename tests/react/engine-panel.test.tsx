@@ -6,11 +6,12 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
-import { initialState, noFailures } from "@/engines/model/engine";
-import { egtOffset } from "@/engines/model/mixture";
+import { initialState, noFailures, ratedGrossHp } from "@/engines/model/engine";
+import { egtOffset, mixturePower } from "@/engines/model/mixture";
 import { labelOf, scenarioById, scenariosFor } from "@/engines/model/scenarios";
 import { titFromPeak } from "@/engines/model/tit";
 import { settle } from "@/engines/model/trim";
+import { titTargets } from "@/engines/model/turbo";
 import { IO390 } from "@/engines/io390/spec";
 import { O360 } from "@/engines/o360/spec";
 import { TSIO550K } from "@/engines/tsio550k/spec";
@@ -444,6 +445,57 @@ describe("TIT from peak against the TIT bars (POH 4-22, 7-35)", () => {
       `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ${side}`,
     ).toBeLessThanOrEqual(5);
   }, 120_000);
+
+  it.each([
+    { lam: 0.46, map: 36 },
+    { lam: 0.5, map: 36 },
+    { lam: 0.46, map: 30.5 },
+  ])(
+    "with the work cap leaning meets above 30.5 in.Hg (calibration.leanGainMax), full rich at λ $lam and $map in.Hg, TIT pk agrees with the engine's capped work, EGT and TIT laws swept, within 5 °F",
+    ({ lam, map }) => {
+      // the engine's laws at a fixed air charge, written out from engine.ts substep: each cylinder's work is
+      // mixturePower(λ), and above the cap (leanGainMax × its full-rich work) the cap's weight (performance.ts
+      // fullRichWeight: 1 at 31.5 in.Hg and up, ½ at 30.5) of the excess is taken off; its hp is the gross power's
+      // share at that work (rated gross here), its load hp × n ÷ rated gross, its EGT egtBase + egtGain √load +
+      // egtOffset(λ), and the bars read the cylinders through titTargets
+      const cal = K.calibration,
+        n = 6,
+        rated = ratedGrossHp(K),
+        oatF = 59;
+      const raw = (l: number) => mixturePower(l, cal.lambdaBestPower, cal.peakEgtPower, cal.richMisfireLambda);
+      const weight = Math.min(1, Math.max(0, (map - 29.5) / 2));
+      const cap = { work: cal.leanGainMax! * raw(lam), weight };
+      const work = (l: number) => {
+        let w = raw(l);
+        if (w > cap.work) w -= cap.weight * (w - cap.work);
+        return w;
+      };
+      const bars = (l: number) => {
+        const egt = cal.egtBase + cal.egtGain * Math.sqrt(work(l)) + egtOffset(l, cal.richMisfireLambda);
+        const [left, right] = titTargets(K, Array(n).fill(egt), oatF);
+        return (left + right) / 2;
+      };
+      // every cylinder leaned together, in steps of 0.0001 in λ
+      let peak = { tit: bars(lam), lambda: lam };
+      for (let l = lam; l <= 1.5; l += 0.0001) if (bars(l) > peak.tit) peak = { tit: bars(l), lambda: l };
+      const below = peak.tit - bars(lam);
+      // the monitor at that state: every cylinder at λ, its hp the rated gross share at its work, the cap on the state
+      const sim = fresh(K);
+      const { container } = render(<Monitor sim={sim} />);
+      live(sim, (s) => {
+        s.running = true;
+        s.leanCap = cap;
+        s.cyl.forEach((c) => Object.assign(c, { lambda: lam, plugs: 2, work: work(lam), hp: (rated / n) * work(lam) }));
+      });
+      const shown = monCell(container, "TIT pk")?.querySelector("b")?.textContent ?? "";
+      const [deg, word] = shown.split(" ");
+      const msg = `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ROP, peak at λ ${peak.lambda.toFixed(4)}`;
+      expect(word, msg).toBe("ROP");
+      expect(Math.abs(Number(deg) - below), msg).toBeLessThanOrEqual(5);
+      // unrounded, the reading follows the swept law to a tenth of a degree
+      expect(Math.abs(titFromPeak(K, sim.s.cyl, cap)!.off - below)).toBeLessThan(0.1);
+    },
+  );
 });
 
 describe("cylinder pressure chart", () => {

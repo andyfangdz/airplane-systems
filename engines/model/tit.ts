@@ -2,12 +2,12 @@
  * How far the turbine-inlet temperature is from its peak as the mixture is leaned (the monitor's "TIT pk"; SR22T POH
  * 4-22 leans by TIT, 7-35 its probes). Read off the model's own TIT path rather than an EGT shape alone: each
  * cylinder's EGT law (engine.ts: `egtBase + egtGain √load + egtOffset(λ)`, the load following the cylinder's work,
- * `mixturePower(λ)`, at the air it takes now) and the probes' reading of the banks (turbo.ts `titTargets`: crossover,
- * gain over outside air, offset).
+ * engine.ts `cylinderWork(λ)` with the leaning cap the engine applies, at the air it takes now) and the probes' reading
+ * of the banks (turbo.ts `titTargets`: crossover, gain over outside air, offset).
  */
 import type { EngineSpec } from "../types";
-import { ratedGrossHp, type CylState } from "./engine";
-import { egtOffset, mixturePower } from "./mixture";
+import { cylinderWork, ratedGrossHp, type CylState, type LeanCap } from "./engine";
+import { egtOffset } from "./mixture";
 import { titTargets } from "./turbo";
 
 export interface TitFromPeak {
@@ -23,16 +23,24 @@ export interface TitFromPeak {
  * °F below the peak TIT for the cylinders' present mixtures, and on which side of it they are: every cylinder's λ is
  * scaled by one leaning factor k at the air it takes now (the lever moved, the throttle and rpm held), its EGT follows
  * the model's law, and the probes read the banks as `titTargets` does. The reading is the mean of the two probes. A
- * cylinder that is not firing keeps its EGT. The outside air temperature cancels from the difference; it is taken only
- * so `titTargets` applies `titGain`. Null without a turbocharger or a burning cylinder.
+ * cylinder that is not firing keeps its EGT. `leanCap` is the cap the engine's step put on the cylinders' work
+ * (EngineState `leanCap`; absent, none), held as the lever moves: its full-rich λ and manifold pressure do not move
+ * with the lever. The manifold pressure and the gross power are held too: at full throttle the turbochargers' boost
+ * rises as leaning heats the exhaust, and this reading does not follow that. The outside air temperature cancels from
+ * the difference; it is taken only so `titTargets` applies `titGain`. Null without a turbocharger or a burning cylinder.
  */
-export function titFromPeak(spec: EngineSpec, cyl: readonly CylState[], oatF = 59): TitFromPeak | null {
+export function titFromPeak(
+  spec: EngineSpec,
+  cyl: readonly CylState[],
+  leanCap?: LeanCap,
+  oatF = 59,
+): TitFromPeak | null {
   if (!spec.turbo) return null;
   const cal = spec.calibration,
     rich = cal.richMisfireLambda,
     nCyl = cyl.length,
     rated = ratedGrossHp(spec);
-  const work = (lambda: number) => mixturePower(lambda, cal.lambdaBestPower, cal.peakEgtPower, rich);
+  const work = (lambda: number) => cylinderWork(spec, lambda, leanCap);
   const burning = cyl.map((c) => Number.isFinite(c.lambda) && c.work > 0.02 && work(c.lambda) > 0);
   if (!burning.some(Boolean)) return null;
   // each burning cylinder's load at its present mixture (engine.ts: hp × cylinders ÷ rated gross)

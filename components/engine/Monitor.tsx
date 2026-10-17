@@ -48,7 +48,7 @@ export function Monitor({ sim }: { sim: EngineSim }) {
   const peak = Number.isFinite(lam) && s.running ? -egtOffset(lam, rich) : NaN;
   const side = !Number.isFinite(peak) ? "" : lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak";
   // the TIT bars' own path (engines/model/tit.ts): the °F they rise to their peak as the mixture is leaned
-  const titPeak = turbo && s.running ? titFromPeak(spec, s.cyl) : null;
+  const titPeak = turbo && s.running ? titFromPeak(spec, s.cyl, s.leanCap) : null;
   const egtScale = scaleOf(spec, "egt") ?? [300, Math.max(1700, ...s.cyl.map((c) => c.egt))];
   const chtScale = scaleOf(spec, "cht") ?? [50, 500];
   const titScale = scaleOf(spec, "tit") ?? [1000, 1800];
