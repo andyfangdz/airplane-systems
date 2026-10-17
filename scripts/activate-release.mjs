@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /** Prepare an optimistic CloudFront origin switch. Uploads complete before this configuration is applied. */
 import { readFile, writeFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
 
 export function activation(distribution, release) {
   if (!/^[a-f0-9]{40}-[a-f0-9]{64}$/.test(release)) throw new Error("Invalid release identifier");
@@ -31,7 +30,7 @@ export function activation(distribution, release) {
   return { etag: distribution.ETag, config };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   try {
     const [source, release, destination] = process.argv.slice(2);
     const { etag, config } = activation(JSON.parse(await readFile(source, "utf8")), release);

@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { lstat, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 
 export const MANIFEST = "release-manifest.json";
 export const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -234,7 +233,7 @@ async function main() {
     }),
   );
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+if (import.meta.main)
   main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
