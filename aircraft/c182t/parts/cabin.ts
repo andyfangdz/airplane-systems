@@ -13,6 +13,7 @@ const AIR = "#149C94";
 /** Approximate height above the rudder bars; the POH locates the manifold just aft of the firewall. */
 export const MANIFOLD: Vec3 = P3(4.5, 0, 32);
 part(() => box(0.08, 0.08, 0.08), ["environment"], {
+  id: "parts.cabin.heater-valve.001",
   pos: P3(0.6, -5, 39),
   color: "#E0522B",
   anim: (m) => {
@@ -23,6 +24,7 @@ part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.08, 0.08, 0.08), ["environment"], {
+  id: "parts.cabin.ventilating-air-door.002",
   pos: P3(0.6, 13, 38),
   color: AIR,
   anim: (m) => {
@@ -33,6 +35,7 @@ part(() => box(0.08, 0.08, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.08, 0.06, 0.6), ["environment"], {
+  id: "parts.cabin.cabin-manifold.003",
   pos: MANIFOLD,
   color: AIR,
   name: "Cabin manifold",
@@ -41,6 +44,7 @@ part(() => box(0.08, 0.06, 0.6), ["environment"], {
 });
 const knobAt = (bl: number): Vec3 => P3(18.4, bl, 46);
 part(() => cyl(0.012, 0.03, "x"), ["environment"], {
+  id: "parts.cabin.cabin-air-knob.004",
   pos: knobAt(12.6),
   color: AIR,
   anim: pushPull(X(18.4), () => 1 - S().env.air),
@@ -49,6 +53,7 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
   pin: true,
 });
 part(() => cyl(0.012, 0.03, "x"), ["environment"], {
+  id: "parts.cabin.cabin-ht-knob.005",
   pos: knobAt(15),
   color: "#E0522B",
   anim: pushPull(X(18.4), () => 1 - S().env.heat),
@@ -57,6 +62,7 @@ part(() => cyl(0.012, 0.03, "x"), ["environment"], {
   pin: true,
 });
 part(() => cyl(0.014, 0.02, "x"), ["environment"], {
+  id: "parts.cabin.defrost-knob.006",
   pos: knobAt(17.4),
   color: "#3E4A52",
   anim: (m) => {
@@ -67,6 +73,7 @@ part(() => cyl(0.014, 0.02, "x"), ["environment"], {
   pin: true,
 });
 part(() => box(0.012, 0.012, 0.03), ["environment"], {
+  id: "parts.cabin.part.007",
   pos: knobAt(17.4),
   color: "#E8ECEE",
   anim: (m) => {
@@ -75,6 +82,8 @@ part(() => box(0.012, 0.012, 0.03), ["environment"], {
 });
 [1, -1].forEach((s) => {
   part(() => box(0.03, 0.012, 0.12), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.defroster-outlet.008",
     pos: P3(17.0, s * 7, 67.35),
     color: AIR,
     name: "Defroster outlet",
@@ -82,6 +91,8 @@ part(() => box(0.012, 0.012, 0.03), ["environment"], {
     pin: s > 0,
   });
   part(() => cyl(0.025, 0.02, "y"), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.wing-root-fresh-air-inlet.009",
     pos: wp(s * 19, 0.01, 0, -0.005),
     color: AIR,
     name: "Wing-root fresh air inlet",
@@ -90,6 +101,8 @@ part(() => box(0.012, 0.012, 0.03), ["environment"], {
     pin: s > 0,
   });
   part(() => sph(0.025), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.adjustable-ventilator-forward.010",
     pos: P3(30, s * 18.8, 76),
     color: AIR,
     name: "Adjustable ventilator (forward)",
@@ -97,12 +110,16 @@ part(() => box(0.012, 0.012, 0.03), ["environment"], {
     pin: s > 0,
   });
   part(() => cyl(0.022, 0.012, "z"), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.forward-cabin-lower-air-outlet.011",
     pos: P3(31, s * 19.5, 34),
     color: AIR,
     name: "Forward cabin lower air outlet",
     note: "Round outlet below each wing-root duct, facing inboard (Fig. 7-8).",
   });
   part(() => sph(0.022), ["environment"], {
+    instance: [s],
+    id: "parts.cabin.rear-cabin-ventilator.012",
     pos: P3(74, s * 18, 76),
     color: AIR,
     name: "Rear cabin ventilator",
@@ -110,6 +127,7 @@ part(() => box(0.012, 0.012, 0.03), ["environment"], {
   });
 });
 part(() => box(0.05, 0.04, 0.06), ["environment", "cabin"], {
+  id: "parts.cabin.co-detector.013",
   pos: P3(14, 4, 50.5),
   color: "#E0263B",
   anim: glow("#E0263B", () => live.coPpm >= 50, ["environment", "cabin"], "#FF5050"),
@@ -123,6 +141,7 @@ const CAB = "#6F7F8C";
 // arm 29.0 puts it against the aft end of the pedestal, where the rudder trim wheel, its indicator and the fuel selector sit on the
 // centreline: shown just left of them, standing on the floor (h ≈ 27)
 part(() => cyl(0.04, 0.3), ["cabin"], {
+  id: "parts.cabin.fire-extinguisher.014",
   pos: P3(29, -5, 33),
   color: "#D32640",
   name: "Fire extinguisher",
@@ -130,6 +149,7 @@ part(() => cyl(0.04, 0.3), ["cabin"], {
   pin: true,
 });
 part(() => box(0.12, 0.08, 0.1), ["cabin"], {
+  id: "parts.cabin.elt.015",
   pos: P3(150.8, 7, 47),
   color: "#EB7A12",
   anim: glow("#EB7A12", () => S().cabin.elt === "ON", ["cabin"], "#FF3B30"),
@@ -138,6 +158,7 @@ part(() => box(0.12, 0.08, 0.1), ["cabin"], {
   pin: true,
 });
 part(() => box(0.012, 0.03, 0.03), ["cabin"], {
+  id: "parts.cabin.elt-remote-switch.016",
   pos: P3(18.1, 10.9, 64.2),
   color: "#EB7A12",
   anim: (m) => {
@@ -149,6 +170,7 @@ part(() => box(0.012, 0.03, 0.03), ["cabin"], {
   pin: true,
 });
 part(() => cyl(0.004, 0.18), ["cabin"], {
+  id: "parts.cabin.elt-antenna.017",
   pos: [X(152.6), AF.topY(X(152.6)) + 0.09, 0],
   color: "#EB7A12",
   name: "ELT antenna",
@@ -156,6 +178,7 @@ part(() => cyl(0.004, 0.18), ["cabin"], {
   ext: true,
 });
 part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
+  id: "parts.cabin.hour-hobbs-meter.018",
   pos: P3(18.1, 12.5, 64.2),
   color: "#20262B",
   name: "Hour (Hobbs) meter",
@@ -164,6 +187,8 @@ part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.06, 0.06, 0.04), ["cabin"], {
+    instance: [s],
+    id: "parts.cabin.inertia-reel-front-seat.019",
     pos: P3(50.3, s * 3, 76),
     color: CAB,
     name: "Inertia reel (front seat)",
@@ -172,6 +197,7 @@ part(() => box(0.012, 0.025, 0.04), ["cabin", "engine"], {
   }),
 );
 part(() => box(0.68, 0.008, 0.6), ["cabin"], {
+  id: "parts.cabin.baggage-area-a-fs-82-109.020",
   pos: P3(95.5, 0, 29),
   color: "#B7A27E",
   name: "Baggage area A (FS 82–109)",
@@ -179,6 +205,7 @@ part(() => box(0.68, 0.008, 0.6), ["cabin"], {
   pin: true,
 });
 part(() => box(0.38, 0.008, 0.48), ["cabin"], {
+  id: "parts.cabin.baggage-area-b-fs-109-124.021",
   pos: P3(116.5, 0, 32),
   color: "#B7A27E",
   name: "Baggage area B (FS 109–124)",
@@ -186,6 +213,7 @@ part(() => box(0.38, 0.008, 0.48), ["cabin"], {
   pin: true,
 });
 part(() => box(0.25, 0.008, 0.36), ["cabin"], {
+  id: "parts.cabin.baggage-area-c-shelf.022",
   pos: P3(129, 0, 41),
   color: "#B7A27E",
   name: "Baggage area C (shelf)",
@@ -194,6 +222,7 @@ part(() => box(0.25, 0.008, 0.36), ["cabin"], {
 });
 // the door outline is drawn on the skin (windowOutlines); this is its key lock and handle at the aft edge
 part(() => box(0.07, 0.025, 0.012), ["cabin"], {
+  id: "parts.cabin.baggage-door.023",
   pos: PV(onSkin(X(109.5), Y(40), -1, 1.012)),
   color: "#5C666E",
   name: "Baggage door",
@@ -203,6 +232,8 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.12, 0.025, 0.02), ["cabin"], {
+    instance: [s],
+    id: "parts.cabin.cabin-door-handle.024",
     pos: PV(onSkin(X(60.3), Y(48.3), s, 1.02)),
     color: "#5C666E",
     name: "Cabin door handle",
@@ -213,6 +244,8 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], {
 );
 [1, -1].forEach((s) =>
   part(() => box(0.5, 0.008, 0.008), ["cabin"], {
+    instance: [s],
+    id: "parts.cabin.openable-door-window.025",
     pos: PV(onSkin(X(48), Y(53), s, 1.012)),
     color: "#0B1014",
     name: "Openable door window",
@@ -223,6 +256,7 @@ part(() => box(0.07, 0.025, 0.012), ["cabin"], {
 );
 // cowl flap lever, right side of the pedestal (Fig 7-2 item 26): down = CLOSED, right-then-up = OPEN
 part(() => box(0.06, 0.012, 0.012), ["engine", "cabin"], {
+  id: "parts.cabin.cowl-flap-lever.026",
   pos: P3(24.5, 3.3, 36),
   color: "#E8ECEE",
   anim: (m) => {

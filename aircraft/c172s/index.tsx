@@ -13,9 +13,8 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
-import { useC172 } from "./store";
+import { c172Runtime, useC172 } from "./store";
 import { C172S_META } from "./meta";
-import { simTick } from "./tick";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window: shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
@@ -53,7 +52,7 @@ export const C172S: AircraftDef = {
     avionics: Avionics,
     autopilot: Autopilot,
   },
-  tick: simTick,
+  advance: c172Runtime.advance,
   Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: WALK.walk,

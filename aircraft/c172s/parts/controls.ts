@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 /** C172S catalogue: flight controls (POH Figure 7-1), the GFC 700 servos and controls, and the electric flap drive. */
 import * as THREE from "three";
 import { chanOfKey } from "@/lib/catalogue";
@@ -25,6 +26,8 @@ YOKES.forEach(({ side }) => {
     wh = "wheel:" + side,
     colLen = (RIG_SPEC.yoke.fs - RIG_SPEC.yoke.colFs) * IN;
   part(() => cyl(0.016, colLen, "x"), ["controls"], {
+    id: "parts.controls.control-column.001",
+    instance: [side],
     parent: yk,
     pos: [colLen / 2, 0, 0],
     color: STEEL,
@@ -34,6 +37,8 @@ YOKES.forEach(({ side }) => {
     pin: side === "L",
   });
   part(controlWheelGeo, ["controls"], {
+    id: "parts.controls.part.002",
+    instance: [side],
     parent: wh,
     color: "#20262B",
     chan: ["elevator", "aileron"],
@@ -44,10 +49,17 @@ YOKES.forEach(({ side }) => {
         : "Dual controls, right seat: copilot control wheel at FS 26.0 (POH 6-21).",
     pin: true,
   });
-  part(wheelEmblemGeo, ["controls"], { parent: wh, color: "#5C666E", chan: ["elevator", "aileron"] });
+  part(wheelEmblemGeo, ["controls"], {
+    id: "parts.controls.part.003",
+    instance: [side],
+    parent: wh,
+    color: "#5C666E",
+    chan: ["elevator", "aileron"],
+  });
 });
 // control-wheel switches (left horn of the pilot's wheel)
 part(() => box(0.012, 0.006, 0.012), ["autopilot", "controls"], {
+  id: "parts.controls.a-p-trim-disc-button.004",
   parent: "wheel:L",
   pos: onCap(-1, 0.007, CAP_END + 0.002, 0.007),
   rot: capRot(-1),
@@ -57,6 +69,7 @@ part(() => box(0.012, 0.006, 0.012), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.006, 0.014, 0.012), ["autopilot", "controls"], {
+  id: "parts.controls.cws-button.005",
   parent: "wheel:L",
   pos: gripAft(-1, 0.72),
   rot: capRot(-1),
@@ -66,6 +79,7 @@ part(() => box(0.006, 0.014, 0.012), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.012, 0.008, 0.016), ["autopilot", "controls"], {
+  id: "parts.controls.manual-electric-trim-met-switch.006",
   parent: "wheel:L",
   pos: onCap(-1, -0.008, CAP_END + 0.003, -0.006),
   rot: capRot(-1),
@@ -75,6 +89,7 @@ part(() => box(0.012, 0.008, 0.016), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.026, 0.008, 0.026), ["lighting"], {
+  id: "parts.controls.control-wheel-map-light.007",
   parent: "wheel:L",
   pos: [HUB_LOW[0], HUB_LOW[1] - 0.003, -0.022],
   color: "#E8C46A",
@@ -83,6 +98,7 @@ part(() => box(0.026, 0.008, 0.026), ["lighting"], {
   pin: true,
 });
 part(() => box(0.03, 0.05, Z(RIG_SPEC.yoke.bl) * 2 + 0.04), ["controls"], {
+  id: "parts.controls.column-interconnect.008",
   parent: "rig:cross",
   color: STEEL,
   chan: ["elevator", "aileron"],
@@ -92,6 +108,8 @@ part(() => box(0.03, 0.05, Z(RIG_SPEC.yoke.bl) * 2 + 0.04), ["controls"], {
 });
 [-1, 1].forEach((s) =>
   part(() => box(0.02, Y(RIG_SPEC.yoke.h) - Y(RIG_SPEC.yoke.crossH), 0.02), ["controls"], {
+    instance: [s],
+    id: "parts.controls.part.009",
     parent: "rig:cross",
     pos: [0, (Y(RIG_SPEC.yoke.h) - Y(RIG_SPEC.yoke.crossH)) / 2, s * Z(RIG_SPEC.yoke.bl)],
     color: STEEL,
@@ -99,6 +117,7 @@ part(() => box(0.03, 0.05, Z(RIG_SPEC.yoke.bl) * 2 + 0.04), ["controls"], {
   }),
 );
 part(() => box(0.04, RIG_SPEC.elev.arm * IN * 3.2, 0.03), ["controls"], {
+  id: "parts.controls.elevator-bellcrank-forward.010",
   parent: "rig:crank",
   color: CTL,
   chan: ["elevator"],
@@ -108,6 +127,8 @@ part(() => box(0.04, RIG_SPEC.elev.arm * IN * 3.2, 0.03), ["controls"], {
 });
 Object.entries(PULLEYS).forEach(([k, d]) =>
   part(() => pulleyGeo(d.r, d.axis, d.double, d.gap), d.chan === "trim" ? ["controls", "autopilot"] : ["controls"], {
+    id: "parts.controls.part.011",
+    instance: [k],
     chan: d.chan === "trim" ? ["elevator"] : [d.chan as Chan],
     parent: "rig:pul:" + k,
     color: k.startsWith("aw") ? CTL : "#A6AEB4",
@@ -118,6 +139,8 @@ Object.entries(PULLEYS).forEach(([k, d]) =>
 );
 (["L", "R"] as const).forEach((sd) =>
   part(() => box(0.16, 0.012, 0.016), ["controls"], {
+    id: "parts.controls.part.012",
+    instance: [sd],
     parent: "rig:pul:aw" + sd,
     pos: [-0.04, -0.012, 0],
     color: STEEL,
@@ -126,6 +149,7 @@ Object.entries(PULLEYS).forEach(([k, d]) =>
 );
 // rudder bars and pedals (the pilot's pedals carry the brake master cylinders)
 part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
+  id: "parts.controls.rudder-bars.013",
   pos: P3(RIG_SPEC.rud.barFs, 0, RIG_SPEC.rud.barH),
   color: STEEL,
   chan: ["rudder"],
@@ -133,9 +157,18 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   note: "The interconnected rudder/brake pedals pivot on the rudder bars; the rudder cables and the nose-gear steering bungees attach to them (POH 7-22, 7-46).",
   pin: true,
 });
-[-16, -8, 8, 16].forEach((bl) => {
+(
+  [
+    ["row-001", -16],
+    ["row-002", -8],
+    ["row-003", 8],
+    ["row-004", 16],
+  ] as const
+).forEach(([rowKey1, bl]) => {
   const parent = bl < 0 ? "rig:pedL" : "rig:pedR";
   part(() => box(0.03, 0.17, 0.08), ["controls", "gear"], {
+    id: "parts.controls.rudder-brake-pedal.014",
+    instance: [rowKey1],
     parent,
     pos: P3(6.8, bl, 33),
     rot: [0, 0, 0.3],
@@ -146,6 +179,8 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   });
   if (bl < 0)
     part(() => cyl(0.014, 0.1), ["gear"], {
+      id: "parts.controls.brake-master-cylinder.015",
+      instance: [rowKey1],
       parent,
       pos: P3(5.5, bl * 0.9, 30.2),
       color: STEEL,
@@ -158,6 +193,7 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   const pv = surfacePivot("elevR"),
     arm = RIG_SPEC.elev.hornArm * IN;
   part(() => box(0.025, arm * 2.2, 0.025), ["controls"], {
+    id: "parts.controls.elevator-bellcrank-tail.016",
     parent: "surf:elevR",
     pos: [0.02, 0, -pv[2] + 0.02],
     color: CTL,
@@ -168,6 +204,7 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
     pin: true,
   });
   part(() => cyl(0.012, Z(4) * 2, "z"), ["controls"], {
+    id: "parts.controls.elevator-torque-tube.017",
     parent: "surf:elevR",
     pos: [0, 0, -pv[2]],
     color: STEEL,
@@ -178,6 +215,7 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   const rv = surfacePivot("rudder"),
     hy = Y(RIG_SPEC.rud.hornH);
   part(() => box(0.03, 0.025, Z(RIG_SPEC.rud.hornArm) * 2), ["controls"], {
+    id: "parts.controls.rudder-horn.018",
     parent: "surf:rudder",
     pos: [hingeX(hy) + 0.02 - rv[0], hy - rv[1], 0],
     color: CTL,
@@ -191,6 +229,8 @@ part(() => cyl(0.014, Z(RIG_SPEC.rud.half) * 2, "z"), ["controls", "gear"], {
   const sd = s > 0 ? "R" : "L",
     aw = PULLEYS["aw" + sd].c;
   onSurf("ail" + sd, [aw[0] - 0.16, aw[1] - 0.035, aw[2]], () => box(0.03, 0.04, 0.012), {
+    instance: [s],
+    id: "parts.controls.aileron-horn.019",
     color: CTL,
     name: "Aileron horn",
     ext: true,
@@ -206,6 +246,7 @@ part(
   },
   ["controls", "autopilot"],
   {
+    id: "parts.controls.elevator-trim-wheel.020",
     parent: "rig:trimWheel",
     color: "#20262B",
     chan: ["elevator"],
@@ -215,12 +256,14 @@ part(
   },
 );
 part(() => box(0.012, 0.012, 0.035), ["controls", "autopilot"], {
+  id: "parts.controls.part.021",
   parent: "rig:trimWheel",
   pos: [0, RIG_SPEC.trim.r * IN, 0],
   color: "#E8ECEE",
   chan: ["elevator"],
 });
 part(() => box(0.01, 0.02, 0.01), ["controls"], {
+  id: "parts.controls.trim-position-indicator.022",
   pos: P3(25.8, 2.6, 37.5),
   color: "#FFFFFF",
   chan: ["elevator"],
@@ -231,6 +274,7 @@ part(() => box(0.01, 0.02, 0.01), ["controls"], {
   note: "Pointer beside the wheel; TAKEOFF when it lines up with the index mark on the pedestal cover (POH 4-31). Required for all operations (KOEL).",
 });
 part(() => box(0.06, 0.035, 0.05), ["controls"], {
+  id: "parts.controls.elevator-trim-tab-actuator.023",
   pos: RIG.p3(RIG_SPEC.trim.actuator),
   color: CTL,
   chan: ["elevator"],
@@ -243,6 +287,8 @@ part(() => box(0.06, 0.035, 0.05), ["controls"], {
     a = c[c.length - 3],
     b = c[c.length - 2];
   part(() => cyl(0.008, 0.06, "x"), ["controls"], {
+    id: "parts.controls.turnbuckle.024",
+    instance: [k],
     pos: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2],
     color: "#C9B98F",
     chan: chanOfKey(k === "trim" ? "el" : k),
@@ -252,6 +298,7 @@ part(() => box(0.06, 0.035, 0.05), ["controls"], {
   });
 });
 part(() => cyl(0.006, 0.05), ["controls", "cabin"], {
+  id: "parts.controls.control-lock.025",
   pos: P3(19, -RIG_SPEC.yoke.bl, RIG_SPEC.yoke.h),
   color: "#C8313B",
   anim: (m) => {
@@ -266,6 +313,7 @@ part(() => cyl(0.006, 0.05), ["controls", "cabin"], {
 /** Servos drive only while engaged and not released by CWS; the trim servo needs the AUTO PILOT breaker (no AFCS failure). */
 const apEngaged = () => gfc700Engaged(live.afcs);
 part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], {
+  id: "parts.controls.gfc-700-roll-servo.026",
   pos: RIG.p3(RIG_SPEC.servo.roll),
   color: "#C8399F",
   chan: ["aileron"],
@@ -275,6 +323,7 @@ part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], {
+  id: "parts.controls.gfc-700-pitch-servo.027",
   pos: RIG.p3(RIG_SPEC.servo.pitch),
   color: "#C8399F",
   chan: ["elevator"],
@@ -284,6 +333,7 @@ part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], {
+  id: "parts.controls.gfc-700-pitch-trim-servo.028",
   pos: RIG.p3(RIG_SPEC.servo.trim),
   color: "#C8399F",
   chan: ["elevator"],
@@ -298,6 +348,7 @@ part(() => cyl(0.045, 0.1, "z"), ["autopilot", "controls"], {
   pin: true,
 });
 part(() => box(0.02, 0.022, 0.022), ["autopilot"], {
+  id: "parts.controls.ga-button.029",
   pos: P3(18.3, -2.2, 48.8),
   color: "#20262B",
   name: "GA button",
@@ -307,11 +358,13 @@ part(() => box(0.02, 0.022, 0.022), ["autopilot"], {
 // left strip of each GDU 1040 bezel (FS 17.9, WL 61), between the HDG and ALT knobs (aircraft/cessna/faceplate.ts)
 (
   [
-    [NAV3_BL.pfd, "PFD bezel AFCS keys"],
-    [NAV3_BL.mfd, "MFD bezel AFCS keys"],
-  ] as [number, string][]
-).forEach(([bl, name], i) =>
+    ["row-001", NAV3_BL.pfd, "PFD bezel AFCS keys"],
+    ["row-002", NAV3_BL.mfd, "MFD bezel AFCS keys"],
+  ] as [string, number, string][]
+).forEach(([rowKey2, bl, name], i) =>
   part(afcsKeys, ["autopilot", "avionics"], {
+    id: "parts.controls.part.030",
+    instance: [rowKey2],
     pos: [X(17.9) - 0.018, Y(61), Z(bl)],
     color: "#4A525A",
     name,
@@ -322,6 +375,7 @@ part(() => box(0.02, 0.022, 0.022), ["autopilot"], {
 
 /* ---------- flaps: electric motor drive (POH 7-23, Figure 7-3) ---------- */
 part(() => box(0.012, 0.06, 0.02), ["flaps"], {
+  id: "parts.controls.wing-flap-control-lever.031",
   pos: P3(18.3, 8.6, 48.5),
   color: "#E8ECEE",
   anim: (m) => {
@@ -332,6 +386,7 @@ part(() => box(0.012, 0.06, 0.02), ["flaps"], {
   pin: true,
 });
 part(() => box(0.008, 0.008, 0.012), ["flaps"], {
+  id: "parts.controls.flap-position-indicator.032",
   pos: P3(18.3, 7.3, 50),
   color: "#FFD34D",
   anim: (m) => {
@@ -342,6 +397,7 @@ part(() => box(0.008, 0.008, 0.012), ["flaps"], {
   pin: true,
 });
 part(() => box(0.16, 0.08, 0.09), ["flaps", "electrical"], {
+  id: "parts.controls.flap-motor-and-actuator.033",
   pos: wp(30, 0.6, 0, 0),
   color: "#7C57CF",
   anim: glowAnim("#7C57CF", () => S().flaps.moving, ["flaps", "electrical"], "#B9A3F0"),
@@ -351,6 +407,8 @@ part(() => box(0.16, 0.08, 0.09), ["flaps", "electrical"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.08, 0.05, 0.03), ["flaps"], {
+    instance: [s],
+    id: "parts.controls.flap-bellcrank.034",
     pos: wp(s * 24, 0.66, 0, 0),
     color: "#9F85E6",
     name: "Flap bellcrank",
@@ -359,6 +417,7 @@ part(() => box(0.16, 0.08, 0.09), ["flaps", "electrical"], {
   }),
 );
 part(() => tubeGeo([wp(-24, 0.66), wp(-12, 0.64, 0, -0.03), wp(12, 0.64, 0, -0.03), wp(24, 0.66)], 0.006), ["flaps"], {
+  id: "parts.controls.flap-interconnect.035",
   color: "#9F85E6",
   name: "Flap interconnect",
   note: "Cables/rods across the cabin ceiling tie the left flap to the right-side drive so both flaps move together (Fig. 7-3).",
@@ -369,6 +428,7 @@ part(
     tubeGeo([P3(16.5, 9, 50), P3(22, 17.5, 60), P3(31, 18.4, 74), P3(33, 17.2, 79.5), wp(26, 0.55, 0, -0.03)], 0.004),
   ["flaps"],
   {
+    id: "parts.controls.flap-follow-up-control-cable.036",
     color: "#B9A3F0",
     name: "Flap follow-up / control cable",
     note: "From the panel lever up the door post to the drive; the motor stops when the flap matches the lever (Fig. 7-3; internals not described).",

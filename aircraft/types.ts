@@ -58,8 +58,8 @@ export interface AircraftDef extends AircraftMeta {
   Overlay?: ComponentType<ModelRefs>;
   /** Side-panel body per system. */
   panels: Partial<Record<SysId, ComponentType>>;
-  /** Per-frame simulation step (dt seconds, clamped). */
-  tick: (dt: number) => void;
+  /** Wall time for the active runtime's own integration clock; driven by the route, independently of WebGL. */
+  advance: (elapsed: number) => void;
   /** Aircraft-specific alert window with statically bound hooks. */
   Alerts: ComponentType;
   /** Optional overlay in the viewport (SR20 CAPS timeline HUD). */

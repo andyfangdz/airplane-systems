@@ -23,8 +23,10 @@ shell(
   },
   "Cowling nose",
   "Front face of the cowling around the spinner, with the two round cooling-air inlets (AFM 4A-9).",
+  false,
+  "parts.cowling.cowling-nose.001",
 );
-COWL_INLETS.da40.slice(0, 2).forEach(({ y, z, width, height, exponent }) => {
+COWL_INLETS.da40.slice(0, 2).forEach(({ id: inletId, y, z, width, height, exponent }) => {
   const s = Math.sign(z);
   part(
     () => {
@@ -35,6 +37,9 @@ COWL_INLETS.da40.slice(0, 2).forEach(({ y, z, width, height, exponent }) => {
     },
     ["engine", "airframe"],
     {
+      id: "parts.cowling.part.002",
+      instance: [inletId],
+
       color: "#1E2A33",
       ext: true,
       pin: true,
@@ -50,7 +55,7 @@ COWL_INLETS.da40.slice(0, 2).forEach(({ y, z, width, height, exponent }) => {
       return cowlOpeningGeo(() => fs(0.478), y, z, width, height, exponent);
     },
     ["engine", "airframe"],
-    { color: "#0B1014", ext: true },
+    { id: "parts.cowling.part.003", instance: [inletId], color: "#0B1014", ext: true },
   );
 });
 part(
@@ -60,6 +65,7 @@ part(
   },
   ["engine", "airframe"],
   {
+    id: "parts.cowling.lower-cowl-inlet.004",
     color: "#1E2A33",
     ext: true,
     name: "Lower cowl inlet",

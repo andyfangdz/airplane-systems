@@ -19,6 +19,8 @@ import { dimSolidMat, ghostMat, mats, plateMat, seeMat, shellMat, skinMat } from
 import { partSide, SPOT_COLOR, type Spot } from "@/lib/spot";
 import { sysColor, type Chan, type SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
+import { animatePart } from "@/lib/anims";
+import type { PartAppearance } from "@/lib/scene/part-animations";
 
 const frame = vi.hoisted(() => ({ cbs: [] as ((s: unknown) => void)[], seen: [] as { active: boolean }[] }));
 vi.mock("react", async (original) => ({
@@ -31,6 +33,10 @@ vi.mock("react", async (original) => ({
 vi.mock("@react-three/fiber", () => ({
   useFrame: (cb: (s: unknown) => void) => frame.cbs.push(cb),
   useThree: () => null,
+}));
+vi.mock("@/components/scene/PartAnimations", () => ({
+  usePartAnimation: (ref: { current: THREE.Mesh }, spec: PartSpec, appearance: PartAppearance) =>
+    frame.cbs.push(() => animatePart(ref.current, 0, spec, appearance)),
 }));
 vi.mock("@/lib/anims", async (original) => ({
   ...(await original<typeof import("@/lib/anims")>()),
@@ -191,17 +197,14 @@ describe("tanks, fuel lines and linkages dim with the rest (7c: fuel drains)", (
   /** Fuel line pipe material, and whether its moving dots show while fuel flows. */
   const lineLook = () => {
     frame.cbs = [];
-    const group = (
-      (
-        Flows({
-          flows: [{ ...line, pts: line.pts.map((q) => [...q] as [number, number, number]) }],
-          rates: () => ({ f: 1 }),
-        }) as El
-      ).props.children as El[]
-    )[0];
-    const [pipe, dots] = group.props.children as ReactElement<{ material: THREE.Material; object: THREE.Points }>[];
+    const rendered = Flows({
+      flows: [{ ...line, pts: line.pts.map((q) => [...q] as [number, number, number]) }],
+      rates: () => ({ f: 1 }),
+    }) as El;
+    const [groups, particles] = rendered.props.children as [El[], ReactElement<{ object: THREE.Points }>[]];
+    const pipe = groups[0].props.children as El;
     frame.cbs.forEach((cb) => (cb as (s: unknown, dt: number) => void)({}, 0.02));
-    return { pipe: pipe.props.material, dots: dots.props.object.visible };
+    return { pipe: pipe.props.material, dots: particles[0].props.object.visible };
   };
   const cableLook = () =>
     ((Links({ links: { c: cable }, points: () => ({}) }) as El).props.children as El[])[0].props.material;

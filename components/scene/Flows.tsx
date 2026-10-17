@@ -3,48 +3,18 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { FlowSpec } from "@/lib/catalogue";
-import { curveOf } from "@/lib/geometry";
 import { dimSolidMat, dotTex, mats } from "@/lib/materials";
+import { createFlowParticleBatches, FlowResources, type FlowResource } from "@/lib/scene/flow-resources";
 import { sysColor } from "@/lib/systems";
 import { useView } from "@/lib/view";
 import type { PickInfo } from "./Part";
 
-const noRaycast = () => {};
 const chanDim = (f: FlowSpec, sysNow: string, focus: string) =>
   sysNow === "controls" && focus !== "all" && !f.chan?.includes(focus as never);
 
-/** Allocate imperative Three.js resources once per specification list. */
-function createFlows(flows: FlowSpec[]) {
-  return flows.map((f) => {
-    const curve = curveOf(f.pts, f.tension ?? 0.3);
-    const len = curve.getLength();
-    const n = f.count ?? Math.max(6, Math.round(len * 9));
-    const off = Float32Array.from({ length: n }, () => Math.random());
-    const tube =
-      f.tube === false
-        ? null
-        : new THREE.TubeGeometry(curve, Math.max(24, Math.round(len * 28)), f.r ?? 0.012, 6, false);
-    const pgeo = new THREE.BufferGeometry();
-    pgeo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));
-    const pts = new THREE.Points(
-      pgeo,
-      new THREE.PointsMaterial({
-        map: dotTex(),
-        size: f.size ?? 0.08,
-        transparent: true,
-        depthWrite: false,
-        sizeAttenuation: true,
-      }),
-    );
-    pts.raycast = noRaycast;
-    pts.visible = false;
-    return { f, curve, len, n, off, tube, pts, t: 0 };
-  });
-}
-
 /** Advance particles imperatively; only view-dependent mesh props participate in React rendering. */
 function advanceFlows(
-  items: ReturnType<typeof createFlows>,
+  items: FlowResource[],
   dt: number,
   rates: () => Record<string, number>,
   color: ((key: string, out: THREE.Color) => boolean) | undefined,
@@ -93,21 +63,19 @@ export function Flows({
   const cf = useView((x) => x.ctrlFocus);
   const spot = useView((x) => !!x.spot);
 
-  const items = useMemo(() => createFlows(flows), [flows]);
-  // free the GPU buffers when the airplane is switched away (the shared dot texture stays)
-  useEffect(
-    () => () =>
-      items.forEach((it) => {
-        it.tube?.dispose();
-        it.pts.geometry.dispose();
-        (it.pts.material as THREE.Material).dispose();
-      }),
-    [items],
-  );
+  const resources = useMemo(() => new FlowResources(dotTex()), []);
+  const items = useMemo(() => resources.select(flows), [resources, flows]);
+  const batches = useMemo(() => createFlowParticleBatches(items, dotTex()), [items]);
+  // Filtering retains each flow's geometry and phase; the mounted aircraft releases all resources together.
+  useEffect(() => () => resources.dispose(), [resources]);
+  useEffect(() => () => batches.forEach((batch) => batch.dispose()), [batches]);
 
   const tmp = useRef(new THREE.Vector3());
   const live = useRef(new THREE.Color());
-  useFrame((_, dt) => advanceFlows(items, dt, rates, color, tmp.current, live.current));
+  useFrame(({ camera }, dt) => {
+    advanceFlows(items, dt, rates, color, tmp.current, live.current);
+    for (const batch of batches) batch.sync(camera);
+  });
 
   return (
     <>
@@ -127,10 +95,12 @@ export function Flows({
                 userData={{ pick }}
               />
             )}
-            <primitive object={it.pts} />
           </group>
         );
       })}
+      {batches.map((batch, i) => (
+        <primitive key={i} object={batch.points} />
+      ))}
     </>
   );
 }

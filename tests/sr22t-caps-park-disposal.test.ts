@@ -19,6 +19,7 @@ vi.mock("react", async (original) => ({
   },
 }));
 vi.mock("@react-three/fiber", () => ({ useFrame: () => {} }));
+vi.mock("@/components/scene/PartAnimations", () => ({ usePartAnimation: () => {} }));
 vi.mock("@/lib/view", async (original) => {
   const actual = await original<typeof import("@/lib/view")>();
   return {

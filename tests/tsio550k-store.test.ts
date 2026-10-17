@@ -156,9 +156,8 @@ describe("the page", () => {
   });
 
   test("an id the engine doesn't list applies nothing", async () => {
-    const { store, sim, warn } = await freshSim();
-    store.startScenario(sim, "cruise75");
-    expect(warn).toHaveBeenCalled();
+    const { store, sim } = await freshSim();
+    expect(() => store.startScenario(sim, "cruise75")).toThrow("Unknown engine scenario cruise75");
     expect(sim.useUi.getState().view.scenario).toBeNull();
     expect(sim.s.rpm).toBe(0);
   });

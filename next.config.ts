@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 
 const sharedConfig: NextConfig = {
   reactStrictMode: true,
@@ -17,13 +19,40 @@ const sharedConfig: NextConfig = {
 export default function nextConfig(phase: string): NextConfig {
   // A build embeds exact hashed asset URLs. Dev deliberately uses factories for immediate geometry edits.
   const manifest = "public/geometry/manifest.json";
+  const runtime = "public/geometry/runtime.json";
+  const compiled = phase !== PHASE_DEVELOPMENT_SERVER;
+  if (compiled) {
+    const inputs = ".geometry-runtime/inputs.json";
+    if (!existsSync(runtime) || !existsSync(manifest) || !existsSync(inputs))
+      throw new Error("Compiled aircraft artifacts are missing. Run npm run geometry:build before build:site.");
+    const digests = JSON.parse(readFileSync(inputs, "utf8")) as Record<string, string>;
+    for (const [path, expected] of Object.entries(digests)) {
+      if (!existsSync(path) || createHash("sha256").update(readFileSync(path)).digest("hex") !== expected)
+        throw new Error(`Compiled aircraft input changed: ${path}. Run npm run geometry:build before build:site.`);
+    }
+  }
   const env =
     phase !== PHASE_DEVELOPMENT_SERVER && existsSync(manifest)
-      ? { NEXT_PUBLIC_GEOMETRY_ASSETS: readFileSync(manifest, "utf8").trim() }
+      ? {
+          NEXT_PUBLIC_GEOMETRY_ASSETS: readFileSync(manifest, "utf8").trim(),
+          ...(compiled ? { NEXT_PUBLIC_GEOMETRY_RUNTIME: readFileSync(runtime, "utf8").trim() } : {}),
+        }
       : {};
+  const compiler = compiled
+    ? {
+        turbopack: {
+          rules: {
+            "*.{ts,tsx}": {
+              condition: { not: "foreign" as const },
+              loaders: [{ loader: "./scripts/geometry/runtime-loader.cjs", options: { root: resolve(".") } }],
+            },
+          },
+        },
+      }
+    : {};
   if (phase !== PHASE_DEVELOPMENT_SERVER && process.env.STATIC_EXPORT === "1") {
     // NEXT_PUBLIC_STATIC_EXPORT drops Vercel Analytics from the export (lib/staticExport.ts)
-    return { ...sharedConfig, output: "export", env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" } };
+    return { ...sharedConfig, ...compiler, output: "export", env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" } };
   }
-  return { ...sharedConfig, env };
+  return { ...sharedConfig, ...compiler, env };
 }

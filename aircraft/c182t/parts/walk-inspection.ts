@@ -19,6 +19,8 @@ for (const side of [-1, 1]) {
       ),
     ["airframe"],
     {
+      id: "parts.walk-inspection.wing-tip.001",
+      instance: [side],
       name: "Wing tip",
       ext: true,
       fairing: true,
@@ -36,6 +38,8 @@ for (const side of [-1, 1]) {
       ),
     ["airframe"],
     {
+      id: "parts.walk-inspection.wing-leading-edge.002",
+      instance: [side],
       name: "Wing leading edge",
       ext: true,
       fairing: true,
@@ -56,6 +60,8 @@ for (const side of [-1, 1]) {
     },
     ["airframe"],
     {
+      id: "parts.walk-inspection.cowling-inspection-region.003",
+      instance: [side],
       name: "Cowling inspection region",
       ext: true,
       fairing: true,

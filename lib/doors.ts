@@ -83,6 +83,8 @@ export function registerDoorPanels(
     const edge = insetOutline(door.outline);
     const add = (name: string, geo: () => THREE.BufferGeometry, glazing = false) =>
       cat.part(geo, systems, {
+        id: "lib.doors.part.001",
+        instance: [door.key, glazing],
         // Exterior skin is checked against the surface itself, not the envelope for internal equipment.
         name,
         note: door.note,
@@ -97,6 +99,8 @@ export function registerDoorPanels(
     if (door.window && !door.windowKey) add(`${door.name} window`, () => skin.patch(door.window!, [], door.side), true);
     if (door.edgeSeal === false) continue;
     cat.part(() => doorSeal(skin, door), systems, {
+      id: "lib.doors.part.002",
+      instance: [door.key],
       name: `${door.name} edge seal`,
       note: `${door.note} Seal profile and edge clearance illustrative.`,
       parent: `door:${door.key}`,

@@ -105,6 +105,8 @@ const WICK = "#2A2F33";
 [1, -1].forEach((s) => {
   const side = s > 0 ? "R" : "L";
   onSurf("ail" + side, wingP(s * 5.0, 1.0, 0).add(V(-0.05, 0, 0)), () => cyl(0.004, 0.12, "x", 6), {
+    instance: [s],
+    id: "parts.surfaces.static-discharger.001",
     color: WICK,
     name: "Static discharger",
     note: wickNote,
@@ -112,6 +114,8 @@ const WICK = "#2A2F33";
     pin: s > 0,
   });
   part(() => cyl(0.004, 0.12, "x", 6), ["controls"], {
+    instance: [s],
+    id: "parts.surfaces.static-discharger.002",
     pos: toVec3(wingP(s * 5.9, 1.0, 0).add(V(-0.05, 0, 0))),
     color: WICK,
     name: "Static discharger",
@@ -119,13 +123,26 @@ const WICK = "#2A2F33";
     ext: true,
   });
   onSurf("elev", V(ELEV_HINGE_X - 0.27, SY, s * 1.5), () => cyl(0.004, 0.11, "x", 6), {
+    instance: [s],
+    id: "parts.surfaces.static-discharger.003",
     color: WICK,
     name: "Static discharger",
     note: wickNote,
     ext: true,
   });
-  [1.6, 2.0, 2.4, 2.8, 3.2, 3.6].forEach((z, i) =>
+  (
+    [
+      ["member-1", 1.6],
+      ["member-2", 2.0],
+      ["member-3", 2.4],
+      ["member-4", 2.8],
+      ["member-5", 3.2],
+      ["member-6", 3.6],
+    ] as const
+  ).forEach(([instance1, z], i) =>
     part(() => box(0.11, 0.035, 0.02), ["flaps"], {
+      id: "parts.surfaces.flap-hinge-bracket.004",
+      instance: [instance1, s],
       pos: toVec3(wingP(s * z, FLAP.hinge, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name: "Flap hinge bracket",
@@ -134,8 +151,17 @@ const WICK = "#2A2F33";
       pin: s > 0 && i === 0,
     }),
   );
-  [4.1, 4.5, 4.95, 5.35].forEach((z, i) =>
+  (
+    [
+      ["member-1", 4.1],
+      ["member-2", 4.5],
+      ["member-3", 4.95],
+      ["member-4", 5.35],
+    ] as const
+  ).forEach(([instance2, z], i) =>
     part(() => box(0.09, 0.03, 0.02), ["controls"], {
+      id: "parts.surfaces.aileron-hinge.005",
+      instance: [instance2, s],
       chan: ["aileron"],
       pos: toVec3(wingP(s * z, 0.79, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
@@ -146,8 +172,15 @@ const WICK = "#2A2F33";
     }),
   );
   // stall strips: 2 per wing (AFM 4A-7)
-  [1.6, 2.0].forEach((z, i) =>
+  (
+    [
+      ["member-1", 1.6],
+      ["member-2", 2.0],
+    ] as const
+  ).forEach(([instance3, z], i) =>
     part(() => box(0.03, 0.025, 0.22), ["airframe"], {
+      id: "parts.surfaces.stall-strips.006",
+      instance: [instance3, s],
       pos: toVec3(wingP(s * z, 0.0, 0).add(V(0.005, 0, 0))),
       color: "#8C959C",
       name: "Stall strips",
@@ -157,6 +190,8 @@ const WICK = "#2A2F33";
     }),
   );
   part(() => box(0.18, 0.012, 0.16), ["airframe", "cabin"], {
+    instance: [s],
+    id: "parts.surfaces.wing-step.007",
     pos: toVec3(wingP(s * 0.75, 0.45, 1).add(V(0, 0.008, 0))),
     color: "#30363B",
     name: "Wing step",
@@ -165,6 +200,8 @@ const WICK = "#2A2F33";
     pin: s > 0,
   });
   part(() => cyl(0.012, 0.03), ["airframe"], {
+    instance: [s],
+    id: "parts.surfaces.tie-down-eyelet.008",
     pos: toVec3(wingP(s * 5.4, 0.45, -1).add(V(0, -0.02, 0))),
     color: "#9AA3AA",
     name: "Tie-down eyelet",
@@ -173,6 +210,7 @@ const WICK = "#2A2F33";
   });
 });
 onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x", 6), {
+  id: "parts.surfaces.static-discharger.009",
   color: WICK,
   name: "Static discharger",
   note: wickNote,
@@ -180,6 +218,8 @@ onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x
 });
 [1, -1].forEach((s) =>
   onSurf("elev", V(sLE(1.58) - 0.3 * sC(1.58), SY, s * 1.58), () => box(0.05, 0.03, 0.08), {
+    instance: [s],
+    id: "parts.surfaces.elevator-horn-balance.010",
     color: "#6E7A84",
     name: "Elevator horn balance",
     ext: true,
@@ -188,6 +228,7 @@ onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x
   }),
 );
 onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.004), {
+  id: "parts.surfaces.rudder-trim-tab.011",
   color: "#8C99A3",
   name: "Rudder trim tab",
   note: "Rudder trim tab — a walk-around item (visual inspection, AFM 4A-7). There is no cockpit rudder trim; the tab's type and position on the rudder are not in the documents, so it is shown as a fixed tab. The GFC 700 out-of-trim check then means 'centre the ball with rudder'.",
@@ -199,6 +240,7 @@ onSurf("rudder", V(fLE(0.0) - fC(0.0) - 0.03, 0.0, 0), () => box(0.07, 0.12, 0.0
   const pv = surfacePivot("elev"),
     axis = V(...TAB.axis);
   part(TAB.geo, ["controls"], {
+    id: "parts.surfaces.elevator-trim-tab.012",
     parent: "surf:elev",
     chan: ["elevator"],
     pos: [TAB.pivot[0] - pv[0], TAB.pivot[1] - pv[1], TAB.pivot[2] - pv[2]],

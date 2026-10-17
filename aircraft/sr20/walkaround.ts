@@ -74,10 +74,10 @@ export const WALK: FleetWalkStation<Sim>[] = [
       item("1a", "Required Documents", "ON BOARD", ["Required documents"], "cabin"),
       item("1b", "AVIONICS Switch", "OFF", ["AVIONICS switch"], "electrical", { sim: power("avionics", false) }),
       item("1c", "BAT 2 Switch", "ON", ["BAT 2 switch"], "electrical", { sim: power("bat2", true) }),
-      item("1d", "PFD", "VERIFY ON", ["PFD bezel"], "avionics", {
+      item("1d", "PFD", "VERIFY ON", ["sr20/avionics.pfd"], "avionics", {
         why: "This check precedes BAT 1: the PFD is supplied by the essential battery circuit.",
       }),
-      item("1e", "Essential Bus Voltage", "23–25 VOLTS", ["PFD bezel"], "electrical"),
+      item("1e", "Essential Bus Voltage", "23–25 VOLTS", ["sr20/avionics.pfd"], "electrical"),
       item("1f", "Flap Position Light", "OUT", ["FLAPS switch"], "flaps", {
         why: "BAT 2 alone does not supply the flap motor's nonessential bus.",
       }),
@@ -93,7 +93,7 @@ export const WALK: FleetWalkStation<Sim>[] = [
         },
       ),
       item("1i", "AVIONICS Switch", "ON", ["AVIONICS switch"], "electrical", { sim: power("avionics", true) }),
-      item("1j", "Fuel Quantity", "CHECK", ["MFD bezel", "Filler cap"], "fuel", {
+      item("1j", "Fuel Quantity", "CHECK", ["sr20/avionics.mfd", "Filler cap"], "fuel", {
         why: "The subsequent wing checks verify quantity at each filler; displayed quantities alone are not the whole inspection.",
       }),
       item("1k", "Fuel Selector", "SELECT FULLER TANK", ["Fuel selector valve"], "fuel", {
@@ -159,12 +159,19 @@ export const WALK: FleetWalkStation<Sim>[] = [
     map: [-0.9, -1.7],
     items: [
       item("2a", "Door Lock", "UNLOCK", ["Cabin door key lock"], "cabin"),
-      item("2b", "COM 1 Antenna (top)", "CONDITION AND ATTACHMENT", ["COM 1 antenna"], "avionics"),
-      item("2c", "Transponder Antenna (underside)", "CONDITION AND ATTACHMENT", ["Transponder antenna"], "avionics", {
-        side: "any",
-        crouch: true,
-      }),
-      item("2d", "COM 2 Antenna (underside)", "CONDITION AND ATTACHMENT", ["COM 2 antenna"], "avionics", {
+      item("2b", "COM 1 Antenna (top)", "CONDITION AND ATTACHMENT", ["sr20/avionics.antenna.com1"], "avionics"),
+      item(
+        "2c",
+        "Transponder Antenna (underside)",
+        "CONDITION AND ATTACHMENT",
+        ["sr20/avionics.antenna.transponder"],
+        "avionics",
+        {
+          side: "any",
+          crouch: true,
+        },
+      ),
+      item("2d", "COM 2 Antenna (underside)", "CONDITION AND ATTACHMENT", ["sr20/avionics.antenna.com2"], "avionics", {
         crouch: true,
       }),
       item("2e", "Wing/Fuselage Fairing", "CHECK", ["Wing/fuselage fairing"], "airframe", {
@@ -350,7 +357,13 @@ export const WALK: FleetWalkStation<Sim>[] = [
       item("10b", "Cowling", "ATTACHMENTS SECURE", ["Cowling inspection region"], "airframe", {
         target: toVec3(onSkin(3.1, -0.15, -1, 1)), // approximate inspection point on the actual cowl side skin
       }),
-      item("10c", "External Power", "DOOR SECURE", ["External power door", "Ground service receptacle"], "electrical"),
+      item(
+        "10c",
+        "External Power",
+        "DOOR SECURE",
+        ["External power door", "sr20/electrical.externalPower"],
+        "electrical",
+      ),
       item("10d", "Gascolator (underside)", "DRAIN FOR 3 SECONDS, SAMPLE", ["Gascolator drain"], "fuel", {
         crouch: true,
       }),

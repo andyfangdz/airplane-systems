@@ -3,11 +3,11 @@
  * airplane's power, fuel-flow and EGT models in its `model.ts` and `tick.ts` build on these.
  */
 
-/** Relative fuel/air (λ ≈ 1 at peak EGT): full rich gets richer with altitude. */
-export const lambda = (mix: number, alt: number) => mix * 1.22 * (1 + Math.max(0, alt) / 25000);
+/** Fuel equivalence ratio φ (normalized fuel/air, φ ≈ 1 at peak EGT): full rich gets richer with altitude. */
+export const fuelEquivalenceRatio = (mix: number, alt: number) => mix * 1.22 * (1 + Math.max(0, alt) / 25000);
 
 /**
- * Power multiplier from mixture: best power at λ ≈ 1.12, rich of peak EGT (≈ 100 °F rich of peak in the C172S model;
+ * Power multiplier from mixture: best power at φ ≈ 1.12, rich of peak EGT (≈ 100 °F rich of peak in the C172S model;
  * ≈ 125 °F in the C182T POH Fig 4-4).
  */
 export function mixPower(l: number) {

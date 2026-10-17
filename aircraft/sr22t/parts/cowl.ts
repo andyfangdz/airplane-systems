@@ -19,6 +19,8 @@ import { part } from "./catalogue";
     },
     ["engine", "airframe"],
     {
+      instance: [s],
+      id: "parts.cowl.cowl-inlet-cooling.001",
       color: "#1E2A33",
       ext: true,
       pin: true,
@@ -35,7 +37,7 @@ import { part } from "./catalogue";
       return g;
     },
     ["engine", "airframe"],
-    { color: "#0B1014", ext: true, groups: [] },
+    { instance: [s], id: "parts.cowl.part.002", color: "#0B1014", ext: true, groups: [] },
   );
 });
 
@@ -45,6 +47,8 @@ export const NACA_INDUCTION = (s: number): Vec3 => inductionAnchor(s).toArray() 
 export const COWL_LOUVERS = (s: number): Vec3 => [2.95, -0.622, s * 0.18];
 [1, -1].forEach((s) => {
   part(() => inductionGeo(s).translate(...(NACA_INDUCTION(s).map((v) => -v) as Vec3)), ["engine", "airframe"], {
+    instance: [s],
+    id: "parts.cowl.naca-induction-duct.003",
     pos: NACA_INDUCTION(s),
     color: "#0B1014",
     ext: true,
@@ -54,6 +58,8 @@ export const COWL_LOUVERS = (s: number): Vec3 => [2.95, -0.622, s * 0.18];
     groups: ["induction"],
   });
   part(() => box(0.16, 0.012, 0.12), ["engine", "airframe"], {
+    instance: [s],
+    id: "parts.cowl.cowl-exit-louvers.004",
     pos: COWL_LOUVERS(s),
     rot: [s * 0.06, 0, 0.18],
     color: "#1E2A33",
@@ -92,6 +98,7 @@ part(
   },
   ["engine", "airframe"],
   {
+    id: "parts.cowl.oil-filler-access-door.005",
     pos: OIL_DOOR,
     color: "#3A4148",
     ext: true,

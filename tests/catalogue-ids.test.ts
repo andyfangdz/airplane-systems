@@ -1,10 +1,9 @@
 // vitest: isolate
 /**
  * Prebuilt geometry is keyed by part and shell id (lib/mesh/prebuilt.ts). `npm run build` bakes it from every catalogue
- * loaded in one Node process (scripts/build-geometry.mjs); the browser evaluates one airplane's catalogue on its own and
- * `primeCatalogue` rejects the asset on any mismatch, after which the airplane quietly draws its procedural geometry.
- * These make that mismatch loud: each airplane's catalogue, built alone in a fresh module graph, has the ids the build
- * baked and primes from them; and an id depends only on its name and the same-named parts before it.
+ * loaded in one Node process (scripts/build-geometry.mjs). These tests load each authoring catalogue in a fresh module
+ * graph and require the same explicit identity mapping as the fleet compiler, then verify prebuilt priming against it.
+ * Production mounts validated compiled scene metadata; authored identities survive label edits and insertions.
  */
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -44,26 +43,43 @@ describe("prebuilt geometry keys", () => {
 describe("part ids", () => {
   const box = () => new THREE.BoxGeometry();
 
-  it("count only same-named parts and shells, so adding a part leaves every other id unchanged", () => {
+  it("preserve authored identities when another declaration is inserted", () => {
     const build = (extra: boolean) => {
       const cat = new Catalogue("t");
-      cat.shell(box, "Fuselage", "");
-      cat.part(box, ["engine"], { name: "Pump", pin: true });
-      if (extra) cat.part(box, ["fuel"], { name: "Inserted", pin: true });
-      cat.part(box, ["engine"], { name: "Pump" });
-      cat.part(box, ["engine"], { name: "Fuselage" });
-      cat.part(box, ["engine"]);
+      cat.shell(box, "Fuselage", "", false, "tests.catalogue-ids.test.fuselage.001");
+      cat.part(box, ["engine"], {
+        id: "tests.catalogue-ids.test.pump.002",
+        name: "Pump",
+        pin: true,
+      });
+      if (extra)
+        cat.part(box, ["fuel"], {
+          id: "tests.catalogue-ids.test.inserted.003",
+          name: "Inserted",
+          pin: true,
+        });
+      cat.part(box, ["engine"], { id: "tests.catalogue-ids.test.pump.004", name: "Pump" });
+      cat.part(box, ["engine"], { id: "tests.catalogue-ids.test.fuselage.005", name: "Fuselage" });
+      cat.part(box, ["engine"], { id: "tests.catalogue-ids.test.part.006" });
       return cat;
     };
     const ids = (cat: Catalogue) => [...cat.shells, ...cat.parts].map((p) => p.id);
-    expect(ids(build(false))).toEqual(["t/Fuselage-0", "t/Pump-0", "t/Pump-1", "t/Fuselage-1", "t/part-0"]);
-    expect(ids(build(true)).filter((id) => id !== "t/Inserted-0")).toEqual(ids(build(false)));
+    expect(ids(build(false))).toEqual([
+      "t/tests.catalogue-ids.test.fuselage.001",
+      "t/tests.catalogue-ids.test.pump.002",
+      "t/tests.catalogue-ids.test.pump.004",
+      "t/tests.catalogue-ids.test.fuselage.005",
+      "t/tests.catalogue-ids.test.part.006",
+    ]);
+    expect(ids(build(true)).filter((id) => id !== "t/tests.catalogue-ids.test.inserted.003")).toEqual(
+      ids(build(false)),
+    );
   });
 
   it("leave the label pin on the first part of each name", () => {
     const cat = new Catalogue("t");
-    const first = cat.part(box, ["engine"], { name: "Pump", pin: true });
-    const second = cat.part(box, ["engine"], { name: "Pump", pin: true });
+    const first = cat.part(box, ["engine"], { id: "tests.catalogue-ids.test.pump.007", name: "Pump", pin: true });
+    const second = cat.part(box, ["engine"], { id: "tests.catalogue-ids.test.pump.008", name: "Pump", pin: true });
     expect(cat.pinned("engine")).toEqual([first]);
     expect(cat.isPinned(first, "engine")).toBe(true);
     expect(cat.isPinned(second, "engine")).toBe(false);

@@ -11,6 +11,7 @@ import { CAPS_HANDLE_ATTACH, capsHandleDrop } from "./cabin";
 /* ---------- CAPS ---------- */
 export const CAPS_BOX: Vec3 = [-0.76, 0.22, 0];
 part(() => box(0.4, 0.18, 0.26), ["caps"], {
+  id: "parts.caps.caps-canister.001",
   pos: CAPS_BOX,
   name: "CAPS canister",
   // POH 13772-007 7-95: an enclosure containing the rocket; ghost its cover to expose the igniter in X-ray.
@@ -89,6 +90,8 @@ const tearOut: PartAnim = (m) => {
     },
     ["caps"],
     {
+      instance: [s],
+      id: "parts.caps.forward-harness-strap.002",
       dynamicGeo: true,
       anim: tearOut,
       name: "Forward harness strap",
@@ -108,6 +111,7 @@ part(
     ),
   ["caps"],
   {
+    id: "parts.caps.aft-harness-strap.003",
     // Stowed in the canister: leaves with the bag, independently of the later three-link release.
     anim: (m) => {
       m.visible = live.capsT < ROCKET_T;
@@ -150,6 +154,7 @@ export const CAPS_CABLE: Vec3[] = [
 const activationGeometries = new WeakMap<THREE.Mesh, { geometry: THREE.BufferGeometry; drop: number }>();
 // Zero tangents keep the short vertical attachment lead from bowing forward or into the handle.
 part(() => tubeGeo(CAPS_CABLE, 0.003, 0), ["caps"], {
+  id: "parts.caps.caps-activation-cable.004",
   dynamicGeo: true,
   anim: (m) => {
     const drop = capsHandleDrop(live.capsT);
@@ -167,6 +172,7 @@ part(() => tubeGeo(CAPS_CABLE, 0.003, 0), ["caps"], {
   pin: true,
 });
 part(() => box(...IGNITER_SIZE), ["caps"], {
+  id: "parts.caps.rocket-igniter.005",
   pos: ROCKET_IGNITER,
   name: "Rocket igniter",
   note: "Electronic igniter at the forward end of the rocket inside the canister (SR22T POH 13772-007 7-95–7-96; AMM 13773-002 Rev 7 95-00, PDF p. 2852; Fig 95-00-1, PDF p. 2853). The activation cable compresses a steel spring and cocks the plunger; one half-inch of plunger travel releases captured ball-bearings so the contacts close and ignite the primary booster (AMM PDF p. 2852). Position and size schematic.",

@@ -1,7 +1,7 @@
 import type { Vec3 } from "@/lib/math";
 import { brakeAmount, brakeAnim } from "@/lib/anims";
 import { box, cyl, fs, pantGeo, tubeGeo } from "../geometry";
-import { PEDALS } from "../rig";
+import { PEDALS, PEDAL_STATIONS } from "../rig";
 import { part, sim } from "./catalogue";
 
 /* ---------- landing gear (track 2.97 m, AFM 1-7) ---------- */
@@ -12,6 +12,8 @@ const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
   const top: Vec3 = [fs(2.62), -0.6, s * 0.62],
     mid: Vec3 = [fs(2.66), -0.66, s * 0.92];
   part(() => tubeGeo([top, mid, [MG.x + 0.02, MG.y + 0.04, s * (MG.z - 0.12)]], 0.03, 0.2), ["gear"], {
+    instance: [s],
+    id: "parts.gear.main-gear-leg-spring-steel.001",
     color: "#6E7A84",
     name: "Main gear leg (spring steel)",
     note: "Sprung steel strut — the only shock absorption on the mains (AFM 7-13). Walk-around: strut, fairing, tyre, brake, brake line and slip marks (AFM 4A-6).",
@@ -19,6 +21,8 @@ const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
     pin: s > 0,
   });
   part(() => cyl(MG.r, 0.15, "z", 28), ["gear"], {
+    instance: [s],
+    id: "parts.gear.main-wheel.002",
     pos: [MG.x, MG.y, s * MG.z],
     color: "#2A2F33",
     name: "Main wheel",
@@ -27,6 +31,8 @@ const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
     pin: s > 0,
   });
   part(() => pantGeo(0.95, 0.2), ["gear"], {
+    instance: [s],
+    id: "parts.gear.wheel-fairing.003",
     pos: [MG.x + 0.02, MG.y + 0.03, s * MG.z],
     scale: [1, 1, 0.65],
     fairing: true,
@@ -37,6 +43,8 @@ const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
     pin: s > 0,
   });
   part(() => cyl(0.11, 0.03, "z", 20), ["gear"], {
+    instance: [s],
+    id: "parts.gear.disc-brake-cleveland-30-239.004",
     pos: [MG.x, MG.y, s * (MG.z - 0.1)],
     color: "#9AA3AA",
     ext: true,
@@ -61,6 +69,8 @@ const PARK_VALVE: Vec3 = [fs(1.9), -0.58, 0.1];
       ),
     ["gear"],
     {
+      instance: [s],
+      id: "parts.gear.part.005",
       name: "Brake line (" + (s > 0 ? "R" : "L") + ")",
       ext: true,
       note: "Parking-brake valve → brake cylinder at the wheel (AFM 7-14 hydraulic schematic).",
@@ -82,6 +92,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-gear-strut.006",
     parent: "noseGear",
     color: "#6E7A84",
     name: "Nose gear strut",
@@ -91,6 +102,7 @@ part(
   },
 );
 part(() => cyl(0.06, 0.16, "y", 14), ["gear"], {
+  id: "parts.gear.elastomer-package.007",
   parent: "noseGear",
   pos: [0.05, -0.06, 0],
   rot: [0, 0, 0.69],
@@ -101,6 +113,7 @@ part(() => cyl(0.06, 0.16, "y", 14), ["gear"], {
   pin: true,
 });
 part(() => cyl(0.178, 0.12, "z", 24), ["gear"], {
+  id: "parts.gear.nose-wheel.008",
   parent: "caster",
   pos: [0.0, -0.005, 0],
   color: "#2A2F33",
@@ -110,6 +123,7 @@ part(() => cyl(0.178, 0.12, "z", 24), ["gear"], {
   pin: true,
 });
 part(() => pantGeo(0.72, 0.18), ["gear"], {
+  id: "parts.gear.nose-wheel-fairing.009",
   parent: "caster",
   pos: [0.02, 0.02, 0],
   scale: [1, 1, 0.66],
@@ -120,6 +134,7 @@ part(() => pantGeo(0.72, 0.18), ["gear"], {
   ext: true,
 });
 part(() => box(0.06, 0.12, 0.03), ["gear", "environment"], {
+  id: "parts.gear.parking-brake-lever.010",
   pos: [fs(1.86), -0.36, 0.05],
   color: "#B53A3A",
   anim: (m) => {
@@ -130,14 +145,17 @@ part(() => box(0.06, 0.12, 0.03), ["gear", "environment"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.06), ["gear"], {
+  id: "parts.gear.parking-brake-valve-cleveland-60-59.011",
   pos: PARK_VALVE,
   color: "#7E8A93",
   name: "Parking brake valve (Cleveland 60-59)",
   note: "Between the master cylinders and the wheel brake cylinders; traps pressure while set (AFM 7-14, 6-23). Location assumed.",
 });
-PEDALS.z.forEach((z, i) => {
+PEDAL_STATIONS.forEach(({ id: pedalId, z }, i) => {
   const parent = i % 2 === 0 ? "rig:pedL" : "rig:pedR"; // outer-left and inner-right pedals are the left pedals
   part(() => box(0.035, 0.16, 0.08), ["gear", "controls"], {
+    id: "parts.gear.rudder-pedal-toe-brake.012",
+    instance: [pedalId],
     chan: ["rudder"],
     parent,
     pos: [PEDALS.x, PEDALS.y, z],
@@ -148,6 +166,8 @@ PEDALS.z.forEach((z, i) => {
     pin: i === 0,
   });
   part(() => cyl(0.014, 0.1), ["gear"], {
+    id: "parts.gear.brake-master-cylinder-cleveland-10-54.013",
+    instance: [pedalId],
     parent,
     pos: [PEDALS.x + 0.05, PEDALS.y + 0.01, z],
     color: "#8C959C",
@@ -157,6 +177,7 @@ PEDALS.z.forEach((z, i) => {
   });
 });
 part(() => box(0.05, 0.03, 0.06), ["gear", "cabin"], {
+  id: "parts.gear.pedal-adjustment-rocker-breaker.014",
   pos: [fs(1.95), -0.52, -0.3],
   color: "#3F4B54",
   name: "Pedal adjustment rocker + breaker",

@@ -23,11 +23,14 @@ export const LIGHTS = {
 };
 (
   [
-    [LIGHTS.tipL, "Left navigation light (red)"],
-    [LIGHTS.tipR, "Right navigation light (green)"],
-  ] as [Vec3, string][]
-).forEach(([pos, name]) =>
+    ["member-1", [LIGHTS.tipL, "Left navigation light (red)"] as [Vec3, string]],
+    ["member-2", [LIGHTS.tipR, "Right navigation light (green)"] as [Vec3, string]],
+  ] as const
+).forEach(([instance1, [pos, name]]) =>
   part(() => sph(0.03), ["lighting"], {
+    id: "parts.lights.part.001",
+    instance: [instance1],
+
     pos,
     color: "#D9D9D9",
     name,
@@ -37,6 +40,7 @@ export const LIGHTS = {
   }),
 );
 part(() => sph(0.022), ["lighting"], {
+  id: "parts.lights.tail-navigation-light-white.002",
   parent: "tail",
   pos: relTv(LIGHTS.tail),
   color: "#D9D9D9",
@@ -46,6 +50,7 @@ part(() => sph(0.022), ["lighting"], {
   ext: true,
 });
 part(() => cyl(0.035, 0.06, "y", 12), ["lighting"], {
+  id: "parts.lights.rotating-beacon.003",
   pos: LIGHTS.beacon,
   color: "#D9442A",
   name: "Rotating beacon",
@@ -61,6 +66,7 @@ part(
   },
   ["lighting"],
   {
+    id: "parts.lights.landing-light.004",
     pos: LIGHTS.landing,
     color: "#F2F2E8",
     name: "Landing light",
@@ -69,8 +75,15 @@ part(
     ext: true,
   },
 );
-[LIGHTS.spotL, LIGHTS.spotR].forEach((pos, i) =>
+(
+  [
+    ["member-1", LIGHTS.spotL],
+    ["member-2", LIGHTS.spotR],
+  ] as const
+).forEach(([instance2, pos], i) =>
   part(() => sph(0.02), ["lighting"], {
+    id: "parts.lights.adjustable-spot-light.005",
+    instance: [instance2],
     pos,
     color: "#E8C46A",
     anim: glow("#6A5A30", "#FFE7B0", () => sim().E.bus > 0 && sim().s.lights.spot > 0, ["lighting"]),
@@ -80,6 +93,7 @@ part(
   }),
 );
 part(() => sph(0.025), ["lighting", "cabin"], {
+  id: "parts.lights.cabin-dome-light.006",
   pos: LIGHTS.dome,
   color: "#E8C46A",
   anim: glow("#6A5A30", "#FFE7B0", () => sim().E.bus > 0 && sim().s.lights.cabin, ["lighting", "cabin"]),
@@ -88,6 +102,7 @@ part(() => sph(0.025), ["lighting", "cabin"], {
   pin: true,
 });
 part(() => box(0.03, 0.01, 0.6), ["lighting"], {
+  id: "parts.lights.instrument-lights.007",
   pos: [PANEL_X + 0.03, 0.2, -0.1],
   color: "#E8C46A",
   anim: glow("#6A5A30", "#FFE7B0", () => sim().E.instLts && sim().s.lights.instr > 0, ["lighting"]),
@@ -95,13 +110,17 @@ part(() => box(0.03, 0.01, 0.6), ["lighting"], {
   note: "Instrument lighting with the rheostat on the panel; INST LTS breaker.",
   pin: true,
 });
-[
-  ["BEACON", -0.5, "beacon"],
-  ["NAV LTS", -0.48, "nav"],
-  ["LDG LT", -0.44, "landing"],
-  ["PITOT HEAT", -0.52, "pitotHeat"],
-].forEach(([name, z, k]) =>
+(
+  [
+    ["beacon", ["BEACON", -0.5, "beacon"]],
+    ["nav-lts", ["NAV LTS", -0.48, "nav"]],
+    ["ldg-lt", ["LDG LT", -0.44, "landing"]],
+    ["pitot-heat", ["PITOT HEAT", -0.52, "pitotHeat"]],
+  ] as const
+).forEach(([instance3, [name, z, k]]) =>
   part(() => box(0.02, 0.045, 0.018), ["lighting", "electrical"], {
+    id: "parts.lights.part.008",
+    instance: [instance3, k],
     pos: [PANEL_X - 0.03, -0.22, z as number],
     color: "#3F4B54",
     anim: (m) => {

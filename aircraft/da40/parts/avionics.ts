@@ -5,6 +5,7 @@ import { GMA_Z } from "./cabin";
 
 /* ---------- avionics LRUs (SMM §2, Fig. 2-2 / 2-6) ---------- */
 part(() => box(0.03, 0.2, 0.058), ["avionics", "autopilot"], {
+  id: "parts.avionics.gma-1347-audio-panel.001",
   pos: [PANEL_X - 0.035, -0.03, GMA_Z],
   color: "#1B1F23",
   pinIn: [],
@@ -13,6 +14,7 @@ part(() => box(0.03, 0.2, 0.058), ["avionics", "autopilot"], {
   pin: true,
 });
 part(() => box(0.012, 0.022, 0.026), ["avionics"], {
+  id: "parts.avionics.display-backup-button.002",
   pos: [PANEL_X - 0.056, -0.112, GMA_Z],
   color: "#B53A3A",
   anim: glow("#6E2424", "#FF4A4A", () => sim().s.avx.backup, ["avionics"]),
@@ -28,11 +30,13 @@ const BEZEL = "#1B1F23",
   KNOB = "#3A4148";
 (
   [
-    [-0.26, "PFD (GDU 1040)"],
-    [0.13, "MFD (GDU 1042 / 1044)"],
-  ] as [number, string][]
-).forEach(([z, which], d) => {
+    ["member-1", [-0.26, "PFD (GDU 1040)"] as [number, string]],
+    ["member-2", [0.13, "MFD (GDU 1042 / 1044)"] as [number, string]],
+  ] as const
+).forEach(([instance1, [z, which]], d) => {
   part(() => box(0.025, 0.21, 0.32), ["avionics", "autopilot"], {
+    id: "parts.avionics.part.003",
+    instance: [instance1],
     pos: [PANEL_X - 0.032, -0.03, z],
     color: BEZEL,
     name: `${which} bezel`,
@@ -41,12 +45,38 @@ const BEZEL = "#1B1F23",
       : "Knobs NAV, HDG, ALT (left) and COM, CRS/BARO, RANGE/PAN, FMS (right), 12 softkeys under the screen (CRG §1).",
   });
   // dual concentric knobs down each side of the screen
-  [
-    [-1, [0.04, -0.015, -0.11]],
-    [1, [0.05, 0.005, -0.04, -0.085, -0.115]],
-  ].forEach(([side, ys]) =>
-    (ys as number[]).forEach((y) =>
+  (
+    [
+      [
+        "member-1",
+        [
+          -1,
+          [
+            ["nav", 0.04],
+            ["hdg", -0.015],
+            ["alt", -0.11],
+          ],
+        ],
+      ],
+      [
+        "member-2",
+        [
+          1,
+          [
+            ["com", 0.05],
+            ["crs-baro", 0.005],
+            ["range", -0.04],
+            ["fms-upper", -0.085],
+            ["fms-lower", -0.115],
+          ],
+        ],
+      ],
+    ] as const
+  ).forEach(([instance2, [side, ys]]) =>
+    ys.forEach(([knobId, y]) =>
       part(() => cyl(0.011, 0.016, "x", 16), ["avionics"], {
+        id: "parts.avionics.part.004",
+        instance: [instance1, instance2, knobId],
         pos: [PANEL_X - 0.052, y, z + (side as number) * 0.134],
         color: KNOB,
       }),
@@ -55,14 +85,29 @@ const BEZEL = "#1B1F23",
   // softkey row under the screen
   for (let k = 0; k < 12; k++)
     part(() => box(0.006, 0.008, 0.011), ["avionics"], {
+      id: "parts.avionics.part.005",
+      instance: [instance1, k],
       pos: [PANEL_X - 0.047, -0.124, z - 0.1 + k * 0.0182],
       color: "#5A636B",
     });
 });
-[-0.107, -0.008, 0.089].forEach((z) =>
-  part(() => box(0.016, 0.09, 0.09), ["avionics"], { pos: [STBY_X, 0.15, z], color: BEZEL }),
+(
+  [
+    ["member-1", -0.107],
+    ["member-2", -0.008],
+    ["member-3", 0.089],
+  ] as const
+).forEach(([instance3, z]) =>
+  part(() => box(0.016, 0.09, 0.09), ["avionics"], {
+    id: "parts.avionics.part.006",
+    instance: [instance3],
+
+    pos: [STBY_X, 0.15, z],
+    color: BEZEL,
+  }),
 );
 part(() => box(0.05, 0.05, 0.06), ["avionics"], {
+  id: "parts.avionics.magnetic-compass.007",
   pos: [PANEL_X - 0.045, 0.15, 0.168],
   color: BEZEL,
   name: "Magnetic compass",
@@ -70,8 +115,13 @@ part(() => box(0.05, 0.05, 0.06), ["avionics"], {
   pin: true,
   pinIn: [],
 });
-part(() => box(0.006, 0.026, 0.034), ["avionics"], { pos: [PANEL_X - 0.072, 0.15, 0.168], color: "#E8E2CF" });
+part(() => box(0.006, 0.026, 0.034), ["avionics"], {
+  id: "parts.avionics.part.008",
+  pos: [PANEL_X - 0.072, 0.15, 0.168],
+  color: "#E8E2CF",
+});
 part(() => box(0.012, 0.03, 0.045), ["cabin", "avionics"], {
+  id: "parts.avionics.elt-remote-switch.009",
   pos: [PANEL_X - 0.026, 0.15, 0.31],
   color: "#2B2F33",
   name: "ELT remote switch",
@@ -79,8 +129,13 @@ part(() => box(0.012, 0.03, 0.045), ["cabin", "avionics"], {
   pin: true,
   pinIn: [],
 });
-part(() => box(0.006, 0.014, 0.016), ["cabin", "avionics"], { pos: [PANEL_X - 0.034, 0.15, 0.316], color: "#D9442A" });
+part(() => box(0.006, 0.014, 0.016), ["cabin", "avionics"], {
+  id: "parts.avionics.part.010",
+  pos: [PANEL_X - 0.034, 0.15, 0.316],
+  color: "#D9442A",
+});
 part(() => box(0.1, 0.16, 0.05), ["avionics", "engine"], {
+  id: "parts.avionics.gea-71-engine-airframe-unit.011",
   pos: [PANEL_X + 0.1, -0.05, -0.3],
   pinIn: ["avionics"],
   color: "#C8399F",
@@ -89,6 +144,7 @@ part(() => box(0.1, 0.16, 0.05), ["avionics", "engine"], {
   pin: true,
 });
 part(() => box(0.15, 0.06, 0.12), ["avionics", "pitot"], {
+  id: "parts.avionics.gdc-74a-air-data-computer.012",
   pos: [PANEL_X + 0.1, 0.06, 0.12],
   color: "#C8399F",
   name: "GDC 74A air data computer",
@@ -97,11 +153,14 @@ part(() => box(0.15, 0.06, 0.12), ["avionics", "pitot"], {
 });
 (
   [
-    [-0.18, "PFD cooling fan"],
-    [0.22, "MFD cooling fan"],
-  ] as [number, string][]
-).forEach(([z, name]) =>
+    ["member-1", [-0.18, "PFD cooling fan"] as [number, string]],
+    ["member-2", [0.22, "MFD cooling fan"] as [number, string]],
+  ] as const
+).forEach(([instance4, [z, name]]) =>
   part(() => cyl(0.03, 0.03, "x", 14), ["avionics", "electrical"], {
+    id: "parts.avionics.part.013",
+    instance: [instance4],
+
     pos: [PANEL_X + 0.06, 0.03, z],
     color: "#8A6C9A",
     anim: glow("#5A4A62", "#C8399F", () => sim().E.cduFan, ["avionics", "electrical"]),
@@ -114,6 +173,7 @@ part(() => box(0.15, 0.06, 0.12), ["avionics", "pitot"], {
 );
 export const ENCL: Vec3 = [fs(3.83), -0.56, 0];
 part(() => box(0.32, 0.12, 0.34), ["avionics"], {
+  id: "parts.avionics.remote-avionics-enclosure.014",
   pos: ENCL,
   color: "#5A3550",
   fairing: true,
@@ -124,24 +184,36 @@ part(() => box(0.32, 0.12, 0.34), ["avionics"], {
 (
   [
     [
-      -0.11,
-      "GIA 63W #1",
-      "WAAS GPS 1, COM 1, NAV 1/GS 1 and integration; flight-director logic. COM 1 + GPS/NAV 1 on ESSENTIAL (SMM 2-3).",
+      "member-1",
+      [
+        -0.11,
+        "GIA 63W #1",
+        "WAAS GPS 1, COM 1, NAV 1/GS 1 and integration; flight-director logic. COM 1 + GPS/NAV 1 on ESSENTIAL (SMM 2-3).",
+      ] as [number, string, string],
     ],
     [
-      0.0,
-      "GIA 63W #2",
-      "GPS 2, COM 2, NAV 2/GS 2. On the MAIN AVIONICS bus — its loss stops the autopilot and electric trim (AFMS p. 10).",
+      "member-2",
+      [
+        0.0,
+        "GIA 63W #2",
+        "GPS 2, COM 2, NAV 2/GS 2. On the MAIN AVIONICS bus — its loss stops the autopilot and electric trim (AFMS p. 10).",
+      ] as [number, string, string],
     ],
     [
-      0.11,
-      "GTX 33 transponder",
-      "Mode S, remote-mounted in the enclosure; XPDR 5 A on ESSENTIAL. (N949KC is reported as later upgraded to a GTX 345R.)",
+      "member-3",
+      [
+        0.11,
+        "GTX 33 transponder",
+        "Mode S, remote-mounted in the enclosure; XPDR 5 A on ESSENTIAL. (N949KC is reported as later upgraded to a GTX 345R.)",
+      ] as [number, string, string],
     ],
-  ] as [number, string, string][]
-).forEach(([z, name, note]) =>
+  ] as const
+).forEach(([instance5, [z, name, note]]) =>
   // Low-profile envelopes fit below the baggage floor and above the elevator push rod.
   part(() => box(0.28, 0.07, 0.1), ["avionics"], {
+    id: "parts.avionics.part.015",
+    instance: [instance5],
+
     pos: [ENCL[0], ENCL[1] + 0.02, z],
     color: "#C8399F",
     name,
@@ -150,6 +222,7 @@ part(() => box(0.32, 0.12, 0.34), ["avionics"], {
   }),
 );
 part(() => box(0.1, 0.06, 0.08), ["avionics"], {
+  id: "parts.avionics.avionics-enclosure-blower.016",
   pos: [ENCL[0] - 0.22, ENCL[1], 0.0],
   color: "#8A6C9A",
   anim: glow("#5A4A62", "#C8399F", () => sim().E.avFan, ["avionics", "electrical"]),
@@ -157,6 +230,7 @@ part(() => box(0.1, 0.06, 0.08), ["avionics"], {
   note: "Remote avionics blower with an air duct to the enclosure; AV FAN 3 A, MAIN. Failure → white GIA FAN FAIL (SMM 2-9, 5-9).",
 });
 part(() => box(0.12, 0.07, 0.1), ["avionics"], {
+  id: "parts.avionics.grs-77-ahrs.017",
   pos: [fs(3.83), -0.39, 0.174],
   color: "#C8399F",
   name: "GRS 77 AHRS",
@@ -164,6 +238,7 @@ part(() => box(0.12, 0.07, 0.1), ["avionics"], {
   pin: true,
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
+  id: "parts.avionics.gmu-44-magnetometer.018",
   pos: toVec3(wingP(2.6, 0.45, 0)),
   color: "#C8399F",
   name: "GMU 44 magnetometer",
@@ -181,6 +256,7 @@ part(
     ),
   ["avionics", "pitot"],
   {
+    id: "parts.avionics.gtp-59-oat-probe.019",
     color: "#8C959C",
     name: "GTP 59 OAT probe",
     note: "On the bottom starboard side of the fuselage; feeds the GDC 74A (SMM 2-5).",
@@ -197,6 +273,7 @@ part(
   },
   ["avionics"],
   {
+    id: "parts.avionics.com-1-antenna.020",
     pos: [fs(4.55), topY(fs(4.55)) + 0.18, 0],
     color: ANT,
     solidColor: "#E3E6E8",
@@ -220,6 +297,7 @@ part(
   },
   ["avionics"],
   {
+    id: "parts.avionics.com-2-antenna.021",
     pos: [fs(4.25), botY(fs(4.25)), 0],
     color: ANT,
     solidColor: "#E3E6E8",
@@ -229,11 +307,16 @@ part(
     pin: true,
   },
 );
-[
-  [fs(3.95), "GPS 1 antenna"],
-  [fs(4.25), "GPS 2 / XM antenna"],
-].forEach(([x, name]) =>
+(
+  [
+    ["member-1", [fs(3.95), "GPS 1 antenna"]],
+    ["member-2", [fs(4.25), "GPS 2 / XM antenna"]],
+  ] as const
+).forEach(([instance6, [x, name]]) =>
   part(() => cyl(0.045, 0.02), ["avionics"], {
+    id: "parts.avionics.part.022",
+    instance: [instance6],
+
     pos: [x as number, topY(x as number) + 0.01, 0],
     color: ANT,
     solidColor: "#E3E6E8",
@@ -244,6 +327,7 @@ part(
   }),
 );
 part(() => box(0.08, 0.06, 0.012), ["avionics"], {
+  id: "parts.avionics.transponder-antenna.023",
   pos: [fs(3.55), botY(fs(3.55)) - 0.03, 0.08],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -253,6 +337,7 @@ part(() => box(0.08, 0.06, 0.012), ["avionics"], {
   pin: true,
 });
 part(() => box(0.24, 0.012, 0.08), ["avionics"], {
+  id: "parts.avionics.marker-beacon-antenna.024",
   pos: [fs(4.85), botY(fs(4.85)) - 0.006, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -261,6 +346,7 @@ part(() => box(0.24, 0.012, 0.08), ["avionics"], {
   ext: true,
 });
 part(() => box(0.3, 0.01, 0.02), ["avionics"], {
+  id: "parts.avionics.nav-vor-loc-gs-antenna.025",
   pos: [fs(7.3), 0.25, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -268,6 +354,7 @@ part(() => box(0.3, 0.01, 0.02), ["avionics"], {
   note: "Comant CI 157P (AFM 6-27), through the CI-1125 diplexer to both GIAs. Shown inside the composite fin — location not in the documents.",
 });
 part(() => cyl(0.004, 0.3), ["avionics", "cabin"], {
+  id: "parts.avionics.elt-antenna.026",
   pos: [fs(4.9), topY(fs(4.9)) + 0.15, 0.06],
   color: ANT,
   solidColor: "#E3E6E8",

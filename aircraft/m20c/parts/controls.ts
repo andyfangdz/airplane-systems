@@ -15,12 +15,21 @@ const crank = (
   chan: "elevator" | "aileron" | "rudder",
   name: string,
   note: string,
-  arms: Vec3[],
+  arms: [id: string, vector: Vec3][],
   pin = true,
   axis: "y" | "z" = "z",
 ) => {
-  part(() => cyl(0.02, 0.04, axis, 14), ["controls"], { parent, chan: [chan], color: CTL, name, note, pin });
-  arms.forEach((a) =>
+  part(() => cyl(0.02, 0.04, axis, 14), ["controls"], {
+    id: "parts.controls.part.001",
+    instance: [parent, chan],
+    parent,
+    chan: [chan],
+    color: CTL,
+    name,
+    note,
+    pin,
+  });
+  arms.forEach(([armId, a]) =>
     part(
       () => {
         const v = V(...a),
@@ -31,7 +40,13 @@ const crank = (
         return g;
       },
       ["controls"],
-      { parent, chan: [chan], color: CTL },
+      {
+        id: "parts.controls.part.002",
+        instance: [parent, chan, armId],
+        parent,
+        chan: [chan],
+        color: CTL,
+      },
     ),
   );
 };
@@ -40,7 +55,7 @@ crank(
   "elevator",
   "Elevator tube idler",
   "Supports the long elevator push-pull tube under the rear cabin floor (position inferred).",
-  [[0, -ARMS.e, 0]],
+  [["arm-1", [0, -ARMS.e, 0]]],
 );
 crank(
   "rig:eTail",
@@ -48,8 +63,8 @@ crank(
   "Elevator bellcrank (tail cone)",
   "At the tail-cone bulkhead ahead of the empennage pivot: turns the fore-aft tube into the short rod to the elevator horn. The horn moves with the tail, so a trim change does not move the elevator — the trim bungees do that (OM p. 9).",
   [
-    [0, -ARMS.e, 0],
-    [-ARMS.e * 0.6, -ARMS.e * 0.3, 0],
+    ["arm-1", [0, -ARMS.e, 0]],
+    ["arm-2", [-ARMS.e * 0.6, -ARMS.e * 0.3, 0]],
   ],
 );
 crank(
@@ -58,8 +73,8 @@ crank(
   "Aileron bellcrank (forward)",
   "Under the floor below the control wheels: turns the wheel's rotation into the fore-aft aileron tube (inferred).",
   [
-    [ARMS.a, 0, 0],
-    [0, 0, -ARMS.a],
+    ["arm-1", [ARMS.a, 0, 0]],
+    ["arm-2", [0, 0, -ARMS.a]],
   ],
   true,
   "y",
@@ -70,9 +85,9 @@ crank(
   "Aileron centre bellcrank",
   "At the main-spar carry-through: splits the run into the two spanwise push-pull tubes in the wings (inferred).",
   [
-    [0, 0, -ARMS.a],
-    [ARMS.a * 0.6, 0, 0],
-    [-ARMS.a * 0.6, 0, 0],
+    ["arm-1", [0, 0, -ARMS.a]],
+    ["arm-2", [ARMS.a * 0.6, 0, 0]],
+    ["arm-3", [-ARMS.a * 0.6, 0, 0]],
   ],
   true,
   "y",
@@ -84,8 +99,8 @@ crank(
     "Aileron bellcrank (wing)",
     "In the wing behind the main spar: the spanwise tube ends here and a short rod with rod-end bearings drives the aileron horn (OM p. 8).",
     [
-      [0.06, 0, 0],
-      [0, 0, s * 0.06],
+      ["arm-1", [0.06, 0, 0]],
+      ["arm-2", [0, 0, s * 0.06]],
     ],
     s > 0,
     "y",
@@ -96,6 +111,8 @@ crank(
     pv = surfacePivot(key),
     hz = wingP(s * (AIL.z0 + 0.16), AIL.hinge, -1);
   part(() => box(0.012, 0.05, 0.03), ["controls"], {
+    instance: [s],
+    id: "parts.controls.aileron-control-horn.003",
     chan: ["aileron"],
     parent: "surf:" + key,
     pos: [hz.x - pv[0], hz.y - 0.025 - pv[1], hz.z - pv[2]],
@@ -107,6 +124,7 @@ crank(
   });
 });
 part(() => box(0.012, ELEV_HORN.len, 0.03), ["controls"], {
+  id: "parts.controls.elevator-horn.004",
   parent: "surf:elev",
   chan: ["elevator"],
   pos: (() => {
@@ -124,6 +142,7 @@ part(() => box(0.012, ELEV_HORN.len, 0.03), ["controls"], {
     pv = surfacePivot("rudder"),
     w = relTv([rh[0] - RUD_HORN.len / 2, rh[1] - 0.03, 0]);
   part(() => box(RUD_HORN.len, 0.025, 0.03), ["controls"], {
+    id: "parts.controls.rudder-horn.005",
     chan: ["rudder"],
     parent: "surf:rudder",
     pos: [w[0] - pv[0], w[1] - pv[1], w[2] - pv[2]],
@@ -139,8 +158,8 @@ crank(
   "Rudder pedal lever",
   "Pedal torque-tube lever: drives the rudder tube aft and the nose-wheel steering rods forward (OM p. 15; Ranger 2-12).",
   [
-    [0, -0.06, 0],
-    [0, 0, 0.1],
+    ["arm-1", [0, -0.06, 0]],
+    ["arm-2", [0, 0, 0.1]],
   ],
   true,
   "y",
@@ -155,6 +174,7 @@ part(
   },
   ["flaps"],
   {
+    id: "parts.controls.flap-pump-handle.006",
     parent: "pump",
     color: "#7C57CF",
     name: "Flap pump handle",
@@ -162,8 +182,14 @@ part(
     pin: true,
   },
 );
-part(() => sph(0.018), ["flaps"], { parent: "pump", pos: [-FLAP_PUMP.len, 0, 0], color: "#1B1F23" });
+part(() => sph(0.018), ["flaps"], {
+  id: "parts.controls.part.007",
+  parent: "pump",
+  pos: [-FLAP_PUMP.len, 0, 0],
+  color: "#1B1F23",
+});
 part(() => box(0.04, 0.02, 0.03), ["flaps"], {
+  id: "parts.controls.flap-control-up-down.008",
   pos: [FLAP_PUMP.pivot[0] - 0.06, FLAP_PUMP.pivot[1] + 0.04, FLAP_PUMP.pivot[2] + 0.05],
   color: "#F2F5F7",
   anim: (m) => {
@@ -174,6 +200,7 @@ part(() => box(0.04, 0.02, 0.03), ["flaps"], {
   pin: true,
 });
 part(() => cyl(0.03, 0.22, "x"), ["flaps"], {
+  id: "parts.controls.flap-hydraulic-cylinder.009",
   pos: [0.25, -0.62, 0.0],
   color: "#7C57CF",
   anim: glow("#5C4A8A", "#B9A3F0", () => live.pumpAnim > 0.3, ["flaps"]),
@@ -182,6 +209,7 @@ part(() => cyl(0.03, 0.22, "x"), ["flaps"], {
   pin: true,
 });
 part(() => cyl(0.018, 0.65, "z"), ["flaps"], {
+  id: "parts.controls.flap-torque-tube.010",
   pos: [0.05, -0.6, 0],
   color: "#9F85E6",
   name: "Flap torque tube",
@@ -193,6 +221,8 @@ part(() => cyl(0.018, 0.65, "z"), ["flaps"], {
     pv = surfacePivot(key),
     hz = wingP(s * 0.7, FLAP.hinge, 0);
   part(() => box(0.012, 0.03, 0.03), ["flaps"], {
+    instance: [s],
+    id: "parts.controls.flap-horn.011",
     parent: "surf:" + key,
     pos: [hz.x - pv[0], hz.y - 0.015 - pv[1], hz.z - pv[2]],
     color: CTL,

@@ -40,6 +40,7 @@ part(
     ]),
   ["engine"],
   {
+    id: "parts.engine-oil.oil-suction-screen.001",
     pos: OIL_SCREEN,
     color: "#B49246",
     name: "Oil suction screen",
@@ -49,6 +50,7 @@ part(
   },
 );
 part(() => box(0.07, 0.08, 0.07), ["engine"], {
+  id: "parts.engine-oil.oil-pump.002",
   pos: OIL_PUMP,
   color: "#897348",
   name: "Oil pump",
@@ -57,6 +59,7 @@ part(() => box(0.07, 0.08, 0.07), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.014, 0.04, "z"), ["engine"], {
+  id: "parts.engine-oil.oil-pressure-relief-valve.003",
   pos: [2.78, -0.22, -0.105],
   color: "#D1AD59",
   name: "Oil pressure relief valve",
@@ -65,6 +68,7 @@ part(() => cyl(0.014, 0.04, "z"), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.018, 0.045, "z"), ["engine"], {
+  id: "parts.engine-oil.oil-temperature-control-valve.004",
   pos: OIL_CONTROL,
   color: "#D1AD59",
   name: "Oil temperature control valve",
@@ -81,6 +85,7 @@ const OIL_PRESSURE_PORT: Vec3 = [ACCESSORY_FACE_X - 1 * IN, CRANK_Y - 4.56 * IN,
  * and 4.2 in. below the crankshaft (scaled); its lateral is not shown, 8 in. left is approximate. */
 const OIL_TEMP_PORT: Vec3 = [ACCESSORY_FACE_X + 2.8 * IN, CRANK_Y - 4.2 * IN, -8 * IN];
 part(() => cyl(0.014, 0.04, "y"), ["engine"], {
+  id: "parts.engine-oil.oil-pressure-sensor.005",
   pos: OIL_PRESSURE_PORT,
   color: "#79A5BD",
   name: "Oil pressure sensor",
@@ -89,6 +94,7 @@ part(() => cyl(0.014, 0.04, "y"), ["engine"], {
   groups: ["sensors"],
 });
 part(() => cyl(0.012, 0.04, "z"), ["engine"], {
+  id: "parts.engine-oil.oil-temperature-sensor.006",
   pos: OIL_TEMP_PORT,
   color: "#79A5BD",
   name: "Oil temperature sensor",
@@ -97,6 +103,7 @@ part(() => cyl(0.012, 0.04, "z"), ["engine"], {
   groups: ["sensors"],
 });
 part(() => mergeGeos([cyl(0.023, 0.014), cyl(0.004, 0.27).translate(0, -0.14, 0)]), ["engine"], {
+  id: "parts.engine-oil.oil-filler-cap-dipstick.007",
   pos: [2.82, 0.125, -0.26],
   color: "#D1AD59",
   name: "Oil filler cap / dipstick",
@@ -117,6 +124,7 @@ const BREATHER: Vec3[] = [
   [2.64, 0.11, -0.34],
 ];
 part(() => tubeGeo(BREATHER, 0.012).translate(-BREATHER[3][0], -BREATHER[3][1], -BREATHER[3][2]), ["engine"], {
+  id: "parts.engine-oil.oil-breather-line.008",
   color: "#6E7F88",
   name: "Oil breather line",
   pin: true,
@@ -125,6 +133,7 @@ part(() => tubeGeo(BREATHER, 0.012).translate(-BREATHER[3][0], -BREATHER[3][1], 
   groups: ["oil"],
 });
 part(() => cyl(0.033, 0.085), ["engine"], {
+  id: "parts.engine-oil.oil-separator.009",
   pos: [2.64, 0.065, -0.34],
   color: "#B6B8A9",
   name: "Oil separator",
@@ -146,6 +155,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.engine-oil.oil-separator-breather-hose.010",
     color: "#6E7F88",
     name: "Oil separator breather hose",
     note: "Breather hose from separator (AMM 13773-002 Rev 7 Fig 79-20-3 PDF p. 2776). Static schematic routing and diameter approximate.",
@@ -164,6 +174,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.engine-oil.oil-separator-return-line.011",
     color: "#B49246",
     name: "Oil separator return line",
     note: "Oil return connection below the separator (AMM 13773-002 Rev 7 Fig 79-20-3 PDF p. 2776). Static schematic routing and diameter approximate.",
@@ -171,6 +182,7 @@ part(
   },
 );
 part(() => cyl(0.016, 0.025), ["engine"], {
+  id: "parts.engine-oil.crankcase-oil-drain.012",
   pos: [3.12, -0.45, 0],
   color: "#D1AD59",
   name: "Crankcase oil drain",
@@ -179,6 +191,7 @@ part(() => cyl(0.016, 0.025), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.014, 0.035), ["engine"], {
+  id: "parts.engine-oil.turbo-oil-check-valve.013",
   pos: OIL_CHECK,
   color: "#D1AD59",
   name: "Turbo oil check valve",
@@ -187,6 +200,7 @@ part(() => cyl(0.014, 0.035), ["engine"], {
   groups: ["oil"],
 });
 part(() => mergeGeos([cyl(0.012, 0.04, "z"), cyl(0.012, 0.025).translate(0, 0.0125, 0)]), ["engine"], {
+  id: "parts.engine-oil.turbo-oil-tee.014",
   pos: OIL_TEE,
   color: "#D1AD59",
   name: "Turbo oil tee",

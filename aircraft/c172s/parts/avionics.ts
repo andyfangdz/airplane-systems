@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 /** C172S catalogue: G1000 avionics (POH 7-68 – 7-74) — displays, audio panel, remote units, cooling fans and antennas. */
 import { mats } from "@/lib/materials";
 import { glowAnim as glow } from "@/lib/anims";
@@ -19,18 +20,21 @@ import { P3, part, S, EL, wp, top } from "./catalogue";
 /* ---------- avionics (POH 7-68 – 7-74) ---------- */
 const AVX = "#C8399F";
 part(() => box(0.03, GDU_H, GDU_W), ["avionics"], {
+  id: "parts.avionics.pfd-gdu-1040.001",
   pos: P3(17.9, NAV3_BL.pfd, 61),
   color: "#1A1F23",
   name: "PFD — GDU 1040",
   note: "In front of the pilot. Dual-fed: PFD breakers on the ESSENTIAL BUS and AVIONICS BUS 1 (Fig. 7-7). Shows the EIS during engine start, reversion or DISPLAY BACKUP (POH 7-10).",
 });
 part(() => box(0.03, GDU_H, GDU_W), ["avionics"], {
+  id: "parts.avionics.mfd-gdu-1040.002",
   pos: P3(17.9, NAV3_BL.mfd, 61),
   color: "#1A1F23",
   name: "MFD — GDU 1040",
   note: "Right of the audio panel. MFD breaker, AVIONICS BUS 2 (with its fan) (POH 7-49).",
 });
 part(() => box(0.03, GDU_H, GMA_W), ["avionics"], {
+  id: "parts.avionics.gma-1347-audio-panel.003",
   pos: P3(17.9, NAV3_BL.gma, 61),
   color: "#24292E",
   name: "GMA 1347 audio panel",
@@ -38,6 +42,7 @@ part(() => box(0.03, GDU_H, GMA_W), ["avionics"], {
   pin: true,
 });
 part(() => box(0.012, 0.014, 0.022), ["avionics"], {
+  id: "parts.avionics.display-backup-button.004",
   pos: P3(18.6, NAV3_BL.gma, 57.4),
   color: "#D32626",
   anim: (m) => {
@@ -48,31 +53,64 @@ part(() => box(0.012, 0.014, 0.022), ["avionics"], {
   pin: true,
 });
 // faceplate detail (POH Figure 7-2; CRG): GDU 1040 knobs and softkeys (the AFCS keys are in controls.ts), GMA 1347 keys and knob
-[NAV3_BL.pfd, NAV3_BL.mfd].forEach((bl) => {
+(
+  [
+    ["row-001", NAV3_BL.pfd],
+    ["row-002", NAV3_BL.mfd],
+  ] as const
+).forEach(([rowKey1, bl]) => {
   const c = P3(17.9, bl, 61),
     x = c[0] - 0.015 - 0.006; // just aft of the bezel face
-  part(() => gduKnobs(true), ["avionics"], { pos: [x, c[1], c[2]], color: "#3A4046" });
-  part(gduKeys, ["avionics"], { pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]], color: "#4A525A" });
+  part(() => gduKnobs(true), ["avionics"], {
+    instance: [rowKey1],
+
+    id: "parts.avionics.part.005",
+
+    pos: [x, c[1], c[2]],
+    color: "#3A4046",
+  });
+  part(gduKeys, ["avionics"], {
+    instance: [rowKey1],
+
+    id: "parts.avionics.part.006",
+
+    pos: [x + 0.003, c[1] + GDU_KEYS_Y, c[2]],
+    color: "#4A525A",
+  });
 });
-part(gmaKeys, ["avionics"], { pos: [X(17.9) - 0.018, Y(61), Z(NAV3_BL.gma)], color: "#4A525A" });
-part(gmaKnob, ["avionics"], { pos: [X(17.9) - 0.02, Y(61) + GMA_KNOB_Y, Z(NAV3_BL.gma)], color: "#3A4046" });
+part(gmaKeys, ["avionics"], {
+  id: "parts.avionics.part.007",
+  pos: [X(17.9) - 0.018, Y(61), Z(NAV3_BL.gma)],
+  color: "#4A525A",
+});
+part(gmaKnob, ["avionics"], {
+  id: "parts.avionics.part.008",
+  pos: [X(17.9) - 0.02, Y(61) + GMA_KNOB_Y, Z(NAV3_BL.gma)],
+  color: "#3A4046",
+});
 (
   [
     [
+      "row-001",
       113.3,
       -4,
       "GIA 63W #1",
       "Integrated avionics unit in the tailcone racks: GPS, VHF NAV/COM and main processor; hosts the GFC 700 flight director. COMM 1 and NAV 1 ENG breakers (ESS) (POH 7-69).",
     ],
     [
+      "row-002",
       113.3,
       4,
       "GIA 63W #2",
       "Second integrated avionics unit: COMM 2 and NAV 2 breakers, AVIONICS BUS 2. The first GIA to acquire a 3-D GPS fix is the active GPS source.",
     ],
-  ] as [number, number, string, string][]
-).forEach(([fs, bl, name, note]) =>
+  ] as [string, number, number, string, string][]
+).forEach(([rowKey2, fs, bl, name, note]) =>
   part(() => box(0.24, 0.07, 0.13), ["avionics", "autopilot"], {
+    instance: [rowKey2],
+
+    id: "parts.avionics.part.009",
+
     pos: P3(fs, bl, 50),
     color: AVX,
     name,
@@ -81,6 +119,7 @@ part(gmaKnob, ["avionics"], { pos: [X(17.9) - 0.02, Y(61) + GMA_KNOB_Y, Z(NAV3_B
   }),
 );
 part(() => box(0.12, 0.08, 0.1), ["avionics", "pitot"], {
+  id: "parts.avionics.grs-77-ahrs.010",
   pos: P3(134, 0, 45.5),
   color: AVX,
   name: "GRS 77 AHRS",
@@ -88,6 +127,7 @@ part(() => box(0.12, 0.08, 0.1), ["avionics", "pitot"], {
   pin: true,
 });
 part(() => box(0.12, 0.06, 0.1), ["avionics", "pitot"], {
+  id: "parts.avionics.gdc-74a-air-data-computer.011",
   pos: P3(118.7, -4, 55),
   color: AVX,
   name: "GDC 74A air data computer",
@@ -95,6 +135,7 @@ part(() => box(0.12, 0.06, 0.1), ["avionics", "pitot"], {
   pin: true,
 });
 part(() => box(0.1, 0.07, 0.12), ["avionics", "engine"], {
+  id: "parts.avionics.gea-71-engine-airframe-unit.012",
   pos: P3(11.4, 8, 57),
   color: AVX,
   name: "GEA 71 engine/airframe unit",
@@ -102,6 +143,7 @@ part(() => box(0.1, 0.07, 0.12), ["avionics", "engine"], {
   pin: true,
 });
 part(() => box(0.14, 0.06, 0.12), ["avionics"], {
+  id: "parts.avionics.gtx-33-transponder.013",
   pos: P3(134, 4, 52.5),
   color: AVX,
   name: "GTX 33 transponder",
@@ -109,6 +151,7 @@ part(() => box(0.14, 0.06, 0.12), ["avionics"], {
   pin: true,
 });
 part(() => box(0.06, 0.03, 0.06), ["avionics"], {
+  id: "parts.avionics.gmu-44-magnetometer.014",
   pos: wp(-170, 0.42, 0, 0),
   color: AVX,
   name: "GMU 44 magnetometer",
@@ -116,6 +159,7 @@ part(() => box(0.06, 0.03, 0.06), ["avionics"], {
   pin: true,
 });
 part(() => box(0.12, 0.05, 0.1), ["avionics"], {
+  id: "parts.avionics.gdl-69a-data-link-optional.015",
   pos: P3(112, -2, 60),
   color: "#9C4C88",
   solidColor: "#E3E6E8",
@@ -123,6 +167,7 @@ part(() => box(0.12, 0.05, 0.1), ["avionics"], {
   note: "XM weather and radio in the tailcone (POH 7-70). FIS breaker, AVIONICS BUS 1 (if installed).",
 });
 part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], {
+  id: "parts.avionics.forward-avionics-cooling-fan.016",
   pos: P3(12.4, 0, 64),
   color: "#5A6168",
   anim: glow("#5A6168", () => EL().fwdFan, ["avionics", "electrical"], "#9FE3FF"),
@@ -131,6 +176,7 @@ part(() => box(0.06, 0.05, 0.1), ["avionics", "electrical"], {
   pin: true,
 });
 part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], {
+  id: "parts.avionics.aft-avionics-cooling-fan.017",
   pos: P3(109.5, 0, 56),
   color: "#5A6168",
   anim: glow("#5A6168", () => EL().aftFan, ["avionics", "electrical"], "#9FE3FF"),
@@ -140,6 +186,7 @@ part(() => box(0.06, 0.08, 0.08), ["avionics", "electrical"], {
 });
 const ANT = "#C8399F";
 part(() => box(0.03, 0.2, 0.006), ["avionics"], {
+  id: "parts.avionics.com-1-gps-1-antenna.018",
   pos: [X(61.2), top(61.2, 7) + 0.095, Z(7)],
   rot: [0, 0, 0.35],
   color: ANT,
@@ -150,6 +197,7 @@ part(() => box(0.03, 0.2, 0.006), ["avionics"], {
   pin: true,
 });
 part(() => box(0.03, 0.2, 0.006), ["avionics"], {
+  id: "parts.avionics.com-2-gps-2-antenna.019",
   pos: [X(61.2), top(61.2, -7) + 0.095, Z(-7)],
   rot: [0, 0, 0.35],
   color: ANT,
@@ -160,6 +208,7 @@ part(() => box(0.03, 0.2, 0.006), ["avionics"], {
   pin: true,
 });
 part(() => cyl(0.04, 0.015), ["avionics"], {
+  id: "parts.avionics.gdl-xm-antenna.020",
   pos: [X(43.5), top(43.5) + 0.008, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -169,6 +218,8 @@ part(() => cyl(0.04, 0.015), ["avionics"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.36, 0.02, 0.006), ["avionics"], {
+    instance: [s],
+    id: "parts.avionics.vor-gs-navigation-antenna.021",
     pos: [fLE(Y(88)) - 0.12, Y(88), s * 0.06],
     rot: [s * 0.5, 0, -0.1],
     color: ANT,
@@ -180,6 +231,7 @@ part(() => cyl(0.04, 0.015), ["avionics"], {
   }),
 );
 part(() => box(0.28, 0.012, 0.08), ["avionics"], {
+  id: "parts.avionics.marker-beacon-antenna.022",
   pos: [X(129), botY(X(129)) - 0.006, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -189,6 +241,7 @@ part(() => box(0.28, 0.012, 0.08), ["avionics"], {
   pin: true,
 });
 part(() => cyl(0.006, 0.08), ["avionics"], {
+  id: "parts.avionics.transponder-antenna.023",
   pos: [X(86.3), botY(X(86.3)) - 0.04, Z(2)],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -198,6 +251,7 @@ part(() => cyl(0.006, 0.08), ["avionics"], {
   pin: true,
 });
 part(() => box(0.08, 0.05, 0.008), ["avionics"], {
+  id: "parts.avionics.dme-antenna-if-installed.024",
   pos: [X(114.5), botY(X(114.5)) - 0.026, Z(-2)],
   color: "#9C4C88",
   solidColor: "#E3E6E8",

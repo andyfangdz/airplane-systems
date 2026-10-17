@@ -6,6 +6,8 @@ import { part, sim, glow, selPtrAnim } from "./catalogue";
 [1, -1].forEach((s) => {
   const nm = s > 0 ? "Right" : "Left";
   part(() => cyl(0.04, 0.012), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.fuel-filler-neck.001",
     pos: toVec3(wingP(s * 3.45, 0.32, 1).add(V(0, 0.006, 0))),
     color: "#2F7FE6",
     name: "Fuel filler neck",
@@ -14,6 +16,8 @@ import { part, sim, glow, selPtrAnim } from "./catalogue";
     pin: s > 0,
   });
   part(() => sph(0.022), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.part.002",
     pos: toVec3(wingP(s * 1.22, 0.42, -1)),
     color: "#0B3A80",
     name: nm + " tank drain",
@@ -22,13 +26,22 @@ import { part, sim, glow, selPtrAnim } from "./catalogue";
     pin: s > 0,
   });
   part(() => box(0.08, 0.025, 0.04), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.finger-filter.003",
     pos: toVec3(wingP(s * 1.24, 0.44, 0)),
     color: "#2F7FE6",
     name: "Finger filter",
     note: "Coarse filter before the tank outlet (AFM 7-35).",
   });
-  [3.9, 4.04].forEach((z, i) =>
+  (
+    [
+      ["member-1", 3.9],
+      ["member-2", 4.04],
+    ] as const
+  ).forEach(([instance1, z], i) =>
     part(() => cyl(0.008, 0.05), ["fuel"], {
+      id: "parts.fuel.part.004",
+      instance: [instance1, s],
       pos: toVec3(wingP(s * z, 0.45, -1).add(V(0, -0.02, 0))),
       color: "#2F7FE6",
       name: i ? "Tank vent — check valve" : "Tank vent — capillary",
@@ -42,17 +55,20 @@ import { part, sim, glow, selPtrAnim } from "./catalogue";
 });
 export const SEL: Vec3 = [fs(2.38), -0.32, 0];
 part(() => cyl(0.04, 0.025, "y"), ["fuel"], {
+  id: "parts.fuel.fuel-tank-selector.005",
   pos: SEL,
   name: "Fuel tank selector",
   note: "On the centre console: LEFT / RIGHT / OFF. To reach OFF, pull up the safety catch while turning right. No BOTH position — switch tanks to stay within 8 US gal (AFM 7-33, 2-23).",
   pin: true,
 });
 part(() => box(0.07, 0.012, 0.015), ["fuel"], {
+  id: "parts.fuel.part.006",
   pos: [SEL[0], SEL[1] + 0.016, SEL[2]],
   color: "#F2F5F7",
   anim: selPtrAnim,
 });
 part(() => box(0.02, 0.045, 0.02), ["fuel", "electrical"], {
+  id: "parts.fuel.fuel-pump-switch.007",
   pos: [PANEL_X - 0.03, -0.17, 0.025],
   color: "#3F4B54",
   anim: (m) => {
@@ -64,6 +80,7 @@ part(() => box(0.02, 0.045, 0.02), ["fuel", "electrical"], {
   pin: true,
 });
 part(() => cyl(0.04, 0.1), ["fuel"], {
+  id: "parts.fuel.gascolator.008",
   pos: [fs(1.89), -0.56, 0],
   color: "#7E8A93",
   name: "Gascolator",
@@ -71,6 +88,7 @@ part(() => cyl(0.04, 0.1), ["fuel"], {
   pin: true,
 });
 part(() => cyl(0.015, 0.05), ["fuel"], {
+  id: "parts.fuel.gascolator-drain.009",
   pos: [fs(1.89), botY(fs(1.89)) - 0.015, 0],
   color: "#0B3A80",
   name: "Gascolator drain",
@@ -78,6 +96,7 @@ part(() => cyl(0.015, 0.05), ["fuel"], {
   ext: true,
 });
 part(() => box(0.1, 0.08, 0.09), ["fuel", "electrical"], {
+  id: "parts.fuel.electric-fuel-pump.010",
   pos: [fs(1.6), -0.55, 0.07],
   color: "#2F7FE6",
   anim: glow("#245C9E", "#7FB8FF", () => sim().s.fuel.pump && sim().E.pumpPwr, ["fuel", "electrical"]),
@@ -86,6 +105,7 @@ part(() => box(0.1, 0.08, 0.09), ["fuel", "electrical"], {
   pin: true,
 });
 part(() => box(0.04, 0.04, 0.04), ["fuel", "engine", "avionics"], {
+  id: "parts.fuel.fuel-pressure-sensor-kulite.011",
   pos: [fs(0.83), -0.28, 0.08],
   color: "#2F7FE6",
   name: "Fuel-pressure sensor (Kulite)",

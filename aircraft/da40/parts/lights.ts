@@ -21,11 +21,19 @@ export const LIGHTS = {
 };
 (
   [
-    [LIGHTS.tipL, "Left wing tip: position (red) + strobe", "Whelen A600-PR-D-28"],
-    [LIGHTS.tipR, "Right wing tip: position (green) + strobe", "Whelen A600-PG-D-28"],
-  ] as [Vec3, string, string][]
-).forEach(([pos, name, pn]) =>
+    [
+      "member-1",
+      [LIGHTS.tipL, "Left wing tip: position (red) + strobe", "Whelen A600-PR-D-28"] as [Vec3, string, string],
+    ],
+    [
+      "member-2",
+      [LIGHTS.tipR, "Right wing tip: position (green) + strobe", "Whelen A600-PG-D-28"] as [Vec3, string, string],
+    ],
+  ] as const
+).forEach(([instance1, [pos, name, pn]]) =>
   part(() => sph(0.035), ["lighting"], {
+    id: "parts.lights.part.001",
+    instance: [instance1],
     pos,
     color: "#D9D9D9",
     name,
@@ -34,8 +42,15 @@ export const LIGHTS = {
     ext: true,
   }),
 );
-[LIGHTS.aftL, LIGHTS.aftR].forEach((pos, i) =>
+(
+  [
+    ["member-1", LIGHTS.aftL],
+    ["member-2", LIGHTS.aftR],
+  ] as const
+).forEach(([instance2, pos], i) =>
   part(() => sph(0.022), ["lighting"], {
+    id: "parts.lights.aft-position-light-white.002",
+    instance: [instance2],
     pos,
     color: "#D9D9D9",
     name: "Aft position light (white)",
@@ -45,6 +60,7 @@ export const LIGHTS = {
   }),
 );
 part(() => box(0.03, 0.05, 0.12), ["lighting"], {
+  id: "parts.lights.landing-light.003",
   pos: LIGHTS.land,
   color: "#F2F2E8",
   name: "Landing light",
@@ -53,6 +69,7 @@ part(() => box(0.03, 0.05, 0.12), ["lighting"], {
   ext: true,
 });
 part(() => box(0.03, 0.05, 0.1), ["lighting"], {
+  id: "parts.lights.taxi-light.004",
   pos: LIGHTS.taxi,
   color: "#F2F2E8",
   name: "Taxi light",
@@ -62,6 +79,8 @@ part(() => box(0.03, 0.05, 0.1), ["lighting"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.12, 0.05, 0.06), ["lighting", "electrical"], {
+    instance: [s],
+    id: "parts.lights.strobe-power-supply.005",
     pos: toVec3(wingP(s * 1.45, 0.3, 0)),
     color: "#7A6A3A",
     name: "Strobe power supply",
@@ -70,6 +89,7 @@ part(() => box(0.03, 0.05, 0.1), ["lighting"], {
   }),
 );
 part(() => box(0.03, 0.01, 0.7), ["lighting"], {
+  id: "parts.lights.flood-light-glareshield-el-panel.006",
   pos: LIGHTS.flood,
   color: "#E8C46A",
   anim: glow(
@@ -86,6 +106,7 @@ part(() => box(0.03, 0.01, 0.7), ["lighting"], {
   pin: true,
 });
 part(() => sph(0.02), ["lighting", "cabin"], {
+  id: "parts.lights.map-reading-light.007",
   pos: LIGHTS.map,
   color: "#E8C46A",
   name: "Map / reading light",

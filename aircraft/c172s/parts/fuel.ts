@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 /** C172S catalogue: fuel system (POH Figure 7-6). */
 import type { Vec3 } from "@/lib/math";
 import { glowAnim as glow, pushPull } from "@/lib/anims";
@@ -8,6 +9,8 @@ import { P3, part, S, EL, wp } from "./catalogue";
 const FUEL = "#2F7FE6";
 [1, -1].forEach((s) => {
   part(() => cyl(0.04, 0.012), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.fuel-filler-cap.001",
     pos: wp(s * 36, 0.2, 1, 0.006),
     color: FUEL,
     name: "Fuel filler cap",
@@ -16,12 +19,16 @@ const FUEL = "#2F7FE6";
     pin: s > 0,
   });
   part(() => box(0.02, 0.05, 0.02), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.reduced-capacity-filler-tab.002",
     pos: wp(s * 36, 0.2, 1, -0.04),
     color: "#7EB3F5",
     name: "Reduced capacity filler tab",
     note: "Inside the filler neck: filling to its bottom edge gives 17.5 gal usable per tank (POH 7-44).",
   });
   part(() => box(0.03, 0.03, 0.03), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.tank-outlet-screen.003",
     pos: wp(s * 23.5, 0.28, -1, 0.02),
     color: FUEL,
     name: "Tank outlet screen",
@@ -29,14 +36,26 @@ const FUEL = "#2F7FE6";
     pin: s > 0,
   });
   part(() => cyl(0.012, 0.08), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.fuel-quantity-transmitter.004",
     pos: wp(s * 47, 0.36, 0, 0),
     color: "#0B3A80",
     name: "Fuel quantity transmitter",
     note: "One per tank (FS 47.4) → GEA 71 → FUEL QTY GAL. Reads 0 at 1.5 gal unusable; tops out at ~24 gal — check the tanks visually before flight (POH 7-39).",
     pin: s > 0,
   });
-  [24, 42, 60, 78, 94].forEach((b, i) =>
+  (
+    [
+      ["row-001", 24],
+      ["row-002", 42],
+      ["row-003", 60],
+      ["row-004", 78],
+      ["row-005", 94],
+    ] as const
+  ).forEach(([rowKey1, b], i) =>
     part(() => sph(0.018), ["fuel"], {
+      id: "parts.fuel.fuel-tank-sump-drain.005",
+      instance: [s, rowKey1],
       pos: wp(s * b, 0.5, -1, -0.012),
       color: "#0B3A80",
       name: "Fuel tank sump drain",
@@ -51,6 +70,7 @@ part(
     tubeGeo([wp(-23, 0.15, 1, -0.02), wp(-8, 0.15, 1, -0.04), wp(8, 0.15, 1, -0.04), wp(23, 0.15, 1, -0.02)], 0.006),
   ["fuel"],
   {
+    id: "parts.fuel.fuel-vent-interconnect.006",
     color: "#7EB3F5",
     name: "Fuel vent interconnect",
     note: "Interconnecting vent line between the tanks (POH 7-44). Fuel can slosh between nearly full tanks if the wings aren't level — park with the selector on LEFT or RIGHT (POH 4-22).",
@@ -58,6 +78,7 @@ part(
   },
 );
 part(() => tubeGeo([wp(-92, 0.3, -1, 0.01), wp(-92, 0.3, -1, -0.08)], 0.008), ["fuel"], {
+  id: "parts.fuel.overboard-fuel-vent-check-valve.007",
   color: FUEL,
   name: "Overboard fuel vent (check valve)",
   note: "Protrudes from the bottom of the LEFT wing just inboard of the strut fitting. Vacuum-vented caps provide backup if this overboard vent blocks; complete vent-system blockage can eventually stop the engine. Check this outlet on preflight (POH 7-44, 4-10).",
@@ -66,6 +87,7 @@ part(() => tubeGeo([wp(-92, 0.3, -1, 0.01), wp(-92, 0.3, -1, -0.08)], 0.008), ["
 });
 export const FSEL: Vec3 = P3(26.4, 0, 27);
 part(() => cyl(0.05, 0.025), ["fuel"], {
+  id: "parts.fuel.fuel-selector-valve.008",
   pos: FSEL,
   color: "#20262B",
   name: "Fuel selector valve",
@@ -73,6 +95,7 @@ part(() => cyl(0.05, 0.025), ["fuel"], {
   pin: true,
 });
 part(() => box(0.1, 0.012, 0.022), ["fuel"], {
+  id: "parts.fuel.part.009",
   pos: [FSEL[0], FSEL[1] + 0.02, FSEL[2]],
   color: "#F2F5F7",
   anim: (m) => {
@@ -81,6 +104,7 @@ part(() => box(0.1, 0.012, 0.022), ["fuel"], {
   },
 });
 part(() => sph(0.014), ["fuel"], {
+  id: "parts.fuel.fuel-selector-drain.010",
   pos: P3(24, 0, 23.4),
   color: "#0B3A80",
   name: "Fuel selector drain",
@@ -88,6 +112,7 @@ part(() => sph(0.014), ["fuel"], {
   ext: true,
 });
 part(() => box(0.12, 0.06, 0.12), ["fuel"], {
+  id: "parts.fuel.fuel-reservoir-tank.011",
   pos: P3(14.5, 0, 25.6),
   color: FUEL,
   name: "Fuel reservoir tank",
@@ -95,6 +120,7 @@ part(() => box(0.12, 0.06, 0.12), ["fuel"], {
   pin: true,
 });
 part(() => sph(0.014), ["fuel"], {
+  id: "parts.fuel.fuel-reservoir-drain.012",
   pos: P3(14.5, 0, 23.6),
   color: "#0B3A80",
   name: "Fuel reservoir drain",
@@ -102,6 +128,7 @@ part(() => sph(0.014), ["fuel"], {
   ext: true,
 });
 part(() => cyl(0.035, 0.12, "x"), ["fuel", "electrical"], {
+  id: "parts.fuel.auxiliary-fuel-pump.013",
   pos: P3(9.5, -3, 26),
   color: "#5D8FD6",
   anim: glow("#5D8FD6", () => EL().fuelPumpOn, ["fuel", "electrical"], "#A9CCFF"),
@@ -110,6 +137,7 @@ part(() => cyl(0.035, 0.12, "x"), ["fuel", "electrical"], {
   pin: true,
 });
 part(() => cyl(0.025, 0.05), ["fuel"], {
+  id: "parts.fuel.fuel-shutoff-valve.014",
   pos: P3(4.5, -2.5, 26.5),
   color: FUEL,
   name: "Fuel shutoff valve",
@@ -117,6 +145,7 @@ part(() => cyl(0.025, 0.05), ["fuel"], {
   pin: true,
 });
 part(() => cyl(0.014, 0.03, "x"), ["fuel"], {
+  id: "parts.fuel.fuel-shutoff-knob.015",
   pos: P3(25.9, 2.2, 31),
   color: "#C8313B",
   anim: pushPull(X(25.9), () => (S().fuel.shutoff ? 1 : 0), 0.04),
@@ -125,6 +154,7 @@ part(() => cyl(0.014, 0.03, "x"), ["fuel"], {
   pin: true,
 });
 part(() => cyl(0.035, 0.08), ["fuel"], {
+  id: "parts.fuel.fuel-strainer.016",
   pos: P3(-4, -4, 29),
   color: FUEL,
   name: "Fuel strainer",
@@ -132,6 +162,7 @@ part(() => cyl(0.035, 0.08), ["fuel"], {
   pin: true,
 });
 part(() => sph(0.014), ["fuel"], {
+  id: "parts.fuel.fuel-strainer-quick-drain.017",
   pos: P3(-4, -4, 24.8),
   color: "#0B3A80",
   name: "Fuel strainer quick drain",
@@ -140,6 +171,7 @@ part(() => sph(0.014), ["fuel"], {
 });
 // on the accessory case face (block aft face FS −6.4), outboard of the vacuum pump; must match the fuelEdp / fuelServo ends in flows.ts
 part(() => cyl(0.035, 0.08, "x"), ["fuel", "engine"], {
+  id: "parts.fuel.engine-driven-fuel-pump.018",
   pos: P3(-5.8, -9, 45),
   color: FUEL,
   anim: glow(FUEL, () => S().eng.fail.edp, ["fuel", "engine"], "#E0263B"),
@@ -148,6 +180,7 @@ part(() => cyl(0.035, 0.08, "x"), ["fuel", "engine"], {
   pin: true,
 });
 part(() => cyl(0.018, 0.06, "x"), ["fuel", "engine"], {
+  id: "parts.fuel.fuel-flow-transducer.019",
   pos: P3(-22.6, 3, 57),
   color: "#0B3A80",
   name: "Fuel flow transducer",
@@ -155,6 +188,7 @@ part(() => cyl(0.018, 0.06, "x"), ["fuel", "engine"], {
   pin: true,
 });
 part(() => box(0.06, 0.04, 0.06), ["fuel", "engine"], {
+  id: "parts.fuel.fuel-distribution-unit-flow-divider.020",
   pos: P3(-18, 0, 58.5),
   color: FUEL,
   name: "Fuel distribution unit (flow divider)",
@@ -162,12 +196,14 @@ part(() => box(0.06, 0.04, 0.06), ["fuel", "engine"], {
   pin: true,
 });
 part(() => cyl(0.012, 0.03), ["fuel"], {
+  id: "parts.fuel.fuel-return-check-valve.021",
   pos: P3(4, 3, 27.5),
   color: "#7EB3F5",
   name: "Fuel return check valve",
   note: "On the return line from the orifice in the top of the fuel/air control unit to the reservoir: lowers fuel temperature and vapor in hot weather (POH 7-44).",
 });
 part(() => box(0.03, 0.04, 0.03), ["fuel", "cabin"], {
+  id: "parts.fuel.fuel-sampler-cup-stowed.022",
   pos: P3(14.3, 12, 40),
   color: "#7EB3F5",
   name: "Fuel sampler cup (stowed)",

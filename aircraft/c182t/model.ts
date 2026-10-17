@@ -8,7 +8,7 @@
  * and 18281870–18281875, which includes N8050J s/n 18281633 and N21200 s/n 18281732; G1000 Cockpit Reference Guide 190-00384-13 Rev. B; the 2007 GFC 700 edition
  * (182TPHBUS-01) only where the 2005 text is silent, and marked as such.
  */
-import { lambda, mixPower } from "../cessna/engine";
+import { fuelEquivalenceRatio, mixPower } from "../cessna/engine";
 import type { CasLevel } from "../types";
 import {
   nav3Init,
@@ -184,6 +184,8 @@ export const kapReady = (): Kap140State => ({
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
 export const initialLive = () => ({
+  /** Remaining simulation seconds in an illustrative run-up propeller cycle; zero means none pending. */
+  propCycleRemaining: 0,
   rpm: 2300,
   map: 21.0,
   oilP: 72,
@@ -315,7 +317,7 @@ export const elecCfg = (s: Pick<Sim, "altAmps">): Nav3Cfg => ({
 /* ---------- engine helpers (pure) ---------- */
 /** Ambient pressure (in.Hg) at a pressure altitude (ft), standard atmosphere. */
 export const pAmb = (alt: number) => 29.92 * Math.pow(1 - 6.8756e-6 * Math.max(-1000, alt), 5.2559);
-export { lambda, mixPower };
+export { fuelEquivalenceRatio, mixPower };
 const magOk = (g: Sim["eng"], m: "L" | "R") => !(m === "L" ? g.fail.magL : g.fail.magR);
 /** Magnetos producing sparks for the selected switch position (0, 1 or 2). */
 export const magsLive = (g: Sim["eng"]) =>
@@ -350,7 +352,11 @@ export function powerFrac(s: Sim, map: number, rpm: number, alt: number) {
     magF = m === 2 ? 1 : m === 1 ? 0.93 : 0;
   return Math.max(
     0,
-    0.046 * (map - 7.6) * Math.pow(Math.max(rpm, 0) / 2400, 0.84) * mixPower(lambda(s.eng.mix, alt)) * magF,
+    0.046 *
+      (map - 7.6) *
+      Math.pow(Math.max(rpm, 0) / 2400, 0.84) *
+      mixPower(fuelEquivalenceRatio(s.eng.mix, alt)) *
+      magF,
   );
 }
 /** Governor setting from the PROPELLER knob: full in 2,400 RPM (red line, POH 2-6) … full out ≈ 1,500 RPM (bottom of range assumed). */
@@ -455,7 +461,9 @@ export function fuelOk(s: Sim) {
   return f.sel === "BOTH" ? tankHas(s, "L") || tankHas(s, "R") : tankHas(s, f.sel === "LEFT" ? "L" : "R");
 }
 
-export function solve(s: Sim, prev?: Elec): Elec {
+export type ElectricalMemory = Pick<Elec, "altOn">;
+
+export function solve(s: Sim, prev?: ElectricalMemory): Elec {
   const N = solveNav3(s.elec, elecCfg(s), breakerLoads(s), s.eng.rpm, prev?.altOn);
   const on = (bus: string, label: string) => !!N.on[`${bus}:${label}`];
   const either = (label: string) => on("ESS", label) || on("AV1", label);

@@ -17,6 +17,7 @@ export function spanPose(mesh: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector
 export function telescopingStrut(
   cat: Catalogue,
   {
+    id,
     name,
     note,
     sys,
@@ -24,6 +25,7 @@ export function telescopingStrut(
     fraction,
     replace,
   }: {
+    id: string;
     name: string;
     note: string;
     sys: SysId[];
@@ -61,10 +63,12 @@ export function telescopingStrut(
       Object.assign(replace, opts, { geo, sys, pin: replace.pin });
       return replace;
     }
-    return cat.part(geo, sys, opts);
+    return cat.part(geo, sys, { id: "lib.strut.part.001", instance: [id, rod], ...opts });
   });
   for (const key of ["fixed", "moving"] as const)
     cat.part(() => sph(0.011), sys, {
+      id: "lib.strut.part.002",
+      instance: [id, key],
       name: `${name} ${key} ball joint`,
       note,
       pos: toVec3(rest[key]),

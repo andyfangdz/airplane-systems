@@ -1,0 +1,11 @@
+{
+  "default": "sr20",
+  "aircraft": [
+    { "id": "sr20", "walk": true },
+    { "id": "sr22t", "walk": true, "preload": true },
+    { "id": "c172s", "walk": true },
+    { "id": "c182t", "walk": true },
+    { "id": "da40", "walk": true },
+    { "id": "m20c", "walk": true }
+  ]
+}

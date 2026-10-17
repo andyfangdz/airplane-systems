@@ -6,9 +6,10 @@ import { HH, box, botY, cyl, fLE, hingeX, topY, tubeGeo, wingP } from "../geomet
 import { part } from "./catalogue";
 import { STACK } from "./cabin";
 import { useSR20 } from "../store";
+import { loadFitted } from "../electrical-installation";
 
 const S = () => useSR20.getState();
-export const dualAdahrsFitted = () => S().s.avx.dualAdahrs;
+export const dualAdahrsFitted = () => loadFitted("adahrs2", S().s.avx);
 /** POH Fig 7-20, 7-89. Positions and dimensions approximate; primary ADAHRS anchor retained. */
 export const ADAHRS_1: Vec3 = [2.43, 0.1, -0.24];
 export const ADAHRS_2: Vec3 = [2.43, 0.105, -0.03];
@@ -42,6 +43,8 @@ export const MICROPHONE: Vec3 = [1.39, -0.3, -0.14];
 // strip between them carrying the red DISPLAY BACKUP button at the top (PG Fig 1-2, 1-6; Perspective+ brochure).
 const BEZEL_Z = { pfd: -0.241, mfd: 0.054 } as const;
 part(() => box(0.014, 0.198, 0.276), ["avionics"], {
+  id: "avionics.pfd",
+  equipment: "load.pfd",
   pos: [2.285, 0.092, BEZEL_Z.pfd],
   color: "#15181B",
   name: "PFD bezel",
@@ -49,6 +52,8 @@ part(() => box(0.014, 0.198, 0.276), ["avionics"], {
   note: "COM volume and frequency knobs, BARO, RANGE joystick, menu keys and the FMS knob on its right (inboard) edge; 12 softkeys under the screen.",
 });
 part(() => box(0.014, 0.198, 0.276), ["avionics"], {
+  id: "avionics.mfd",
+  equipment: "load.mfd",
   pos: [2.285, 0.092, BEZEL_Z.mfd],
   color: "#15181B",
   name: "MFD bezel",
@@ -56,6 +61,7 @@ part(() => box(0.014, 0.198, 0.276), ["avionics"], {
   note: "NAV volume and frequency knobs at the top of its left (inboard) edge; 12 softkeys under the screen.",
 });
 part(() => cyl(0.008, 0.012, "x"), ["avionics"], {
+  id: "avionics.displayBackup",
   pos: [2.274, 0.165, -0.0935],
   color: "#D32640",
   name: "DISPLAY BACKUP button",
@@ -63,23 +69,43 @@ part(() => cyl(0.008, 0.012, "x"), ["avionics"], {
 });
 // bezel controls (decorative): knobs on each inboard strip (PFD: COM volume, COM, BARO, RANGE, FMS; MFD: NAV volume, NAV), 12 softkeys under each screen
 const KNOB = "#2C3136";
-for (const [y, r] of [
-  [0.165, 0.008],
-  [0.127, 0.011],
-  [0.089, 0.009],
-  [0.055, 0.007],
-  [0.008, 0.011],
+for (const [control, y, r] of [
+  ["com-volume", 0.165, 0.008],
+  ["com", 0.127, 0.011],
+  ["baro", 0.089, 0.009],
+  ["range", 0.055, 0.007],
+  ["fms", 0.008, 0.011],
 ] as const)
-  part(() => cyl(r, 0.014, "x"), ["avionics"], { pos: [2.272, y, BEZEL_Z.pfd + 0.121], color: KNOB });
-for (const [y, r] of [
-  [0.165, 0.008],
-  [0.127, 0.011],
+  part(() => cyl(r, 0.014, "x"), ["avionics"], {
+    id: "parts.avionics.part.004",
+    instance: [control],
+    pos: [2.272, y, BEZEL_Z.pfd + 0.121],
+    color: KNOB,
+  });
+for (const [control, y, r] of [
+  ["nav-volume", 0.165, 0.008],
+  ["nav", 0.127, 0.011],
 ] as const)
-  part(() => cyl(r, 0.014, "x"), ["avionics"], { pos: [2.272, y, BEZEL_Z.mfd - 0.121], color: KNOB });
-for (const z0 of [BEZEL_Z.pfd, BEZEL_Z.mfd])
+  part(() => cyl(r, 0.014, "x"), ["avionics"], {
+    id: "parts.avionics.part.005",
+    instance: [control],
+    pos: [2.272, y, BEZEL_Z.mfd - 0.121],
+    color: KNOB,
+  });
+for (const [display, z0] of [
+  ["pfd", BEZEL_Z.pfd],
+  ["mfd", BEZEL_Z.mfd],
+] as const)
   for (let i = 0; i < 12; i++)
-    part(() => box(0.004, 0.006, 0.012), ["avionics"], { pos: [2.277, 0.008, z0 + (i - 5.5) * 0.0176], color: KNOB });
+    part(() => box(0.004, 0.006, 0.012), ["avionics"], {
+      id: "parts.avionics.part.006",
+      instance: [display, i],
+      pos: [2.277, 0.008, z0 + (i - 5.5) * 0.0176],
+      color: KNOB,
+    });
 part(() => box(0.1, 0.09, 0.075), ["avionics", "pitot"], {
+  id: "avionics.adahrs1",
+  equipment: "load.adahrs1",
   pos: ADAHRS_1,
   name: "GSU 75 ADAHRS 1",
   note: "Behind the PFD: combined AHRS and air data computer (POH 7-76; Fig 7-20 item 1, 7-89). Accelerometers/rate sensors, MAG 1 magnetic field, pitot/static/OAT air data and GPS from both GIAs support attitude/heading. ARINC 429 data interface (Garmin 190-02183-01 Rev A p. 1). Powered by 5 A ADAHRS 1 on ESS BUS 1. Individual position and rack dimensions approximate.",
@@ -87,6 +113,8 @@ part(() => box(0.1, 0.09, 0.075), ["avionics", "pitot"], {
   anim: glowAnim("#4B5860", () => S().E.ahrs1, ["avionics", "pitot"]),
 });
 part(() => box(0.1, 0.09, 0.075), ["avionics", "pitot"], {
+  id: "avionics.adahrs2",
+  equipment: "load.adahrs2",
   pos: ADAHRS_2,
   name: "GSU 75 ADAHRS 2 (optional)",
   note: "Optional second GSU 75 with its own MAG 2 and OAT channel, behind the panel beside GIA 1 (POH Fig 7-20 item 3, 7-89). Powered by 5 A ADAHRS 2 on MAIN BUS 2 (POH 7-76). Fig 7-17 (7-74) connects it to the MFD and both GIAs. This study's dual-ADAHRS equipment option controls its presence; it is not asserted installed on every SR20. Position approximate.",
@@ -99,6 +127,8 @@ for (const [n, pos] of [
   [2, ADAHRS_2],
 ] as const)
   part(() => box(0.115, 0.004, 0.09), ["avionics"], {
+    id: "parts.avionics.part.009",
+    instance: [n],
     pos: [pos[0], pos[1] - 0.047, pos[2]],
     color: "#8C949A",
     name: `ADAHRS ${n} mounting rack`,
@@ -111,22 +141,30 @@ for (const [n, pos, bus] of [
 ] as const)
   part(() => box(0.25, 0.11, 0.07), ["avionics"], {
     pos,
+    id: `avionics.gia${n}`,
+    equipment: `load.gia${n}`,
     name: `GIA ${n} (GIA 63W/64W)`,
     note: `Integrated avionics unit ${n}, behind the ${n === 1 ? "PFD" : "MFD"}: WAAS GPS, VHF COM, NAV/localizer/glideslope, integration processors and flight director (POH 7-79; AMM 31-40 p. 1). Its own display has an Ethernet HSDB link; the two GIAs do not communicate directly. Powered by 7.5 A COM ${n} and 5 A GPS NAV GIA ${n} on ${bus}. GIA63W/64W is an equipment variant named by the POH. Geometry approximate.`,
     pin: true,
   });
 part(() => box(0.1, 0.07, 0.1), ["avionics", "engine"], {
+  id: "avionics.gea",
+  equipment: "load.eis",
   pos: GEA_71,
   name: "GEA 71/71B Engine Airframe Unit",
   note: "Behind the MFD. Processes analog CHT, EGT, MAP, RPM, fuel quantity and other sensors (POH 7-79, Fig 7-20 item 6). Electrical current/voltage also reach the engine indicating system through this unit (POH 7-56). RS-485 to both GIAs (Garmin 190-02183-01 p. 1; POH Fig 7-17). Powered by 3 A ENGINE INSTR on ESS BUS 2. Size and position approximate.",
   pin: true,
 });
 part(() => box(0.09, 0.06, 0.14), ["avionics", "pitot"], {
+  id: "avionics.standby",
+  equipment: "load.standby",
   pos: MD302_POS,
   name: "MD302 standby instrument body",
   note: "Combined airspeed, altitude and attitude standby in the LH bolster (POH 7-13–7-16; AMM 34-20 p. 1). Its electronic attitude sensors and pneumatic pitot/static inputs are independent of Perspective+ ADAHRS. Dual diode-isolated 5 A STDBY ATTD A (ESS BUS 1) and B (MAIN BUS 1) supplies. Manual or automatically synchronized barometric setting (POH 7-16). Body dimensions approximate; live display remains on the bolster face.",
 });
 part(() => box(0.012, 0.085, 0.15), ["avionics"], {
+  id: "avionics.keyboard",
+  equipment: "load.keypads",
   pos: GCU_479,
   rot: STACK.rot,
   color: "#15181B",
@@ -134,6 +172,8 @@ part(() => box(0.012, 0.085, 0.15), ["avionics"], {
   note: "Upper section of the centre console, just below the displays (POH 7-76). Data entry, tuning, course. KEYPADS / AP CTRL on MAIN BUS 1.",
 });
 part(() => box(0.012, 0.04, 0.15), ["avionics", "controls"], {
+  id: "avionics.autopilotController",
+  equipment: "load.keypads",
   pos: GMC_707,
   rot: STACK.rot,
   color: "#15181B",
@@ -141,6 +181,8 @@ part(() => box(0.012, 0.04, 0.15), ["avionics", "controls"], {
   note: "GFC 700 mode controller, below the FMS keyboard in the centre console (POH 7-73; position from Fig. 7-4, approximate).",
 });
 part(() => box(0.012, 0.045, 0.15), ["avionics"], {
+  id: "avionics.audio",
+  equipment: "load.audio",
   pos: GMA_350,
   rot: STACK.rot,
   color: "#15181B",
@@ -148,6 +190,8 @@ part(() => box(0.012, 0.045, 0.15), ["avionics"], {
   note: "GMA 350 (350c Bluetooth option), intercom, NAV/COM audio, telephone and marker-beacon receiver in the center-console stack (POH 7-80; Fig 7-18). RS-232 to both GIAs (Garmin 190-02183-01 p. 1). Powered by 5 A AUDIO PANEL on AVIONICS. With power lost, its fail-safe audio connects the pilot headset to COM 1 (POH 7-80). Position approximate.",
 });
 part(() => box(0.16, 0.09, 0.12), ["avionics"], {
+  id: "avionics.transponder",
+  equipment: "load.transponder",
   pos: XPDR,
   name: "GTX 335/345 transponder",
   note: "Empennage avionics bay aft of FS 222, RH side (POH 7-79, 7-84; Fig 7-20 item 19). GTX335 Mode S or optional GTX345 with ADS-B In. RS-232 connections to the GIAs (AMM 34-50 troubleshooting; Garmin 190-02183-01 p. 2). Powered by 2 A XPONDER on AVIONICS. Position approximate.",
@@ -155,6 +199,7 @@ part(() => box(0.16, 0.09, 0.12), ["avionics"], {
 });
 const ANT = "#C8399F";
 part(() => cyl(0.007, 0.3), ["avionics"], {
+  id: "avionics.antenna.com1",
   pos: [0.45, 0.82, 0],
   rot: [0, 0, 0.45],
   color: ANT,
@@ -164,6 +209,7 @@ part(() => cyl(0.007, 0.3), ["avionics"], {
   ext: true,
 });
 part(() => cyl(0.007, 0.26), ["avionics"], {
+  id: "avionics.antenna.com2",
   pos: [-0.35, -0.7, 0],
   rot: [0, 0, -0.45],
   color: ANT,
@@ -173,6 +219,7 @@ part(() => cyl(0.007, 0.26), ["avionics"], {
   ext: true,
 });
 part(() => cyl(0.05, 0.015), ["avionics"], {
+  id: "avionics.antenna.gps1",
   pos: [1.0, 0.72, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -181,6 +228,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
   ext: true,
 });
 part(() => cyl(0.05, 0.015), ["avionics"], {
+  id: "avionics.antenna.gps2",
   pos: [-0.28, 0.54, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -191,6 +239,7 @@ part(() => cyl(0.05, 0.015), ["avionics"], {
 // SR20 POH 7-90: top of vertical fin. Fixed-fin placement below the rudder horn is approximate.
 const NAV_H = HH - 0.01;
 part(() => box(0.16, 0.015, 0.015), ["avionics"], {
+  id: "avionics.antenna.nav",
   pos: [(fLE(NAV_H) + hingeX(NAV_H)) / 2, NAV_H, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -199,6 +248,7 @@ part(() => box(0.16, 0.015, 0.015), ["avionics"], {
   ext: true,
 });
 part(() => box(0.08, 0.08, 0.01), ["avionics"], {
+  id: "avionics.antenna.transponder",
   pos: [-0.72, -0.57, 0.12],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -207,6 +257,7 @@ part(() => box(0.08, 0.08, 0.01), ["avionics"], {
   ext: true,
 });
 part(() => box(0.2, 0.012, 0.08), ["avionics"], {
+  id: "avionics.antenna.stormscope",
   pos: [0.25, topY(0.25) + 0.004, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -215,6 +266,7 @@ part(() => box(0.2, 0.012, 0.08), ["avionics"], {
   ext: true,
 });
 part(() => box(0.14, 0.06, 0.012), ["avionics"], {
+  id: "avionics.antenna.trafficTop",
   pos: [1.45, topY(1.45) + 0.03, 0],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -224,12 +276,14 @@ part(() => box(0.14, 0.06, 0.012), ["avionics"], {
 });
 export const MARKER_ANTENNA: Vec3 = [-0.05, botY(-0.05) + 0.055, 0];
 part(() => box(0.3, 0.012, 0.1), ["avionics"], {
+  id: "avionics.antenna.marker",
   pos: MARKER_ANTENNA,
   color: ANT,
   name: "Marker beacon antenna",
   note: "Sled type below the baggage floor. With the optional air-conditioning installation represented here, it is inside the airplane (POH 7-90). Passive connection to marker receiver in GMA350. Position and dimensions approximate.",
 });
 part(() => box(0.1, 0.06, 0.012), ["avionics"], {
+  id: "avionics.antenna.dme",
   pos: [2.3, botY(2.3) - 0.03, 0.1],
   color: ANT,
   solidColor: "#E3E6E8",
@@ -243,6 +297,8 @@ for (const [n, pos] of [
   [2, MAG_2],
 ] as const)
   part(() => box(0.07, 0.04, 0.07), ["avionics"], {
+    id: "parts.avionics.part.027",
+    instance: [n],
     pos,
     color: ANT,
     name: `Magnetometer (GMU 44, MAG ${n})${n === 2 ? " (optional)" : ""}`,
@@ -275,6 +331,8 @@ export const MAG_WIRES: Record<1 | 2, Vec3[]> = {
 };
 for (const n of [1, 2] as const)
   part(() => tubeGeo(MAG_WIRES[n], 0.004, 0.1), ["avionics"], {
+    id: "parts.avionics.part.028",
+    instance: [n],
     name: `MAG ${n} wiring`,
     color: "#B68C3E",
     note: `GMU44 MAG ${n} to its GSU75 via RS-485 (Garmin 190-02183-01 p. 1; POH Fig 7-17, 7-74). Routing schematic; no installation dimensions asserted.`,
@@ -287,15 +345,17 @@ const fanSpin =
   (m, t) => {
     if (S().E[which]) m.rotation.x = phase + t * 30;
   };
-for (const [pos, which, name, note] of [
-  [PFD_FAN, "fan2", "PFD cooling fan", "5 A AVIONICS FAN 2 on MAIN BUS 2; blows on PFD heat sink."],
+for (const [key, pos, which, name, note] of [
+  ["pfd", PFD_FAN, "fan2", "PFD cooling fan", "5 A AVIONICS FAN 2 on MAIN BUS 2; blows on PFD heat sink."],
   [
+    "mfd",
     MFD_FAN,
     "fan1",
     "MFD cooling fan",
     "5 A AVIONICS FAN 1 on NON ESS BUS; blows on MFD heat sink. AMM 21-20 p. 1 says 3 A; POH 7-91 and breaker panel Fig 7-11 specify 5 A, which this model follows.",
   ],
   [
+    "iau",
     IAU_FAN,
     "fan2",
     "Integrated avionics cooling fan",
@@ -303,6 +363,8 @@ for (const [pos, which, name, note] of [
   ],
 ] as const) {
   part(() => cyl(0.027, 0.022, "x"), ["avionics"], {
+    id: "parts.avionics.part.029",
+    instance: [key],
     pos,
     name,
     color: "#3A4148",
@@ -311,8 +373,13 @@ for (const [pos, which, name, note] of [
       note +
       " POH 7-91; AMM 21-20 p. 1. Display fans mount to upper RH corners of support brackets. Dimensions and positions approximate.",
   });
-  for (const phase of [0, Math.PI / 2])
+  for (const [blade, phase] of [
+    [0, 0],
+    [1, Math.PI / 2],
+  ] as const)
     part(() => box(0.004, 0.043, 0.008), ["avionics"], {
+      id: "parts.avionics.part.030",
+      instance: [key, blade],
       pos: [pos[0] + 0.013, pos[1], pos[2]],
       color: "#9AA3AA",
       name,
@@ -321,6 +388,7 @@ for (const [pos, which, name, note] of [
     });
 }
 part(() => cyl(0.06, 0.018), ["avionics"], {
+  id: "avionics.speaker",
   pos: SPEAKER,
   color: "#3A4148",
   name: "Cabin speaker",
@@ -328,6 +396,7 @@ part(() => cyl(0.06, 0.018), ["avionics"], {
   note: "Ceiling centerline over rear seats (POH Fig 7-20 item 13, 7-89). GMA350 audio output; no separate breaker. Position approximate.",
 });
 part(() => box(0.025, 0.045, 0.022), ["avionics"], {
+  id: "avionics.microphone",
   pos: MICROPHONE,
   color: "#3A4148",
   name: "Cabin microphone (optional)",
@@ -335,57 +404,67 @@ part(() => box(0.025, 0.045, 0.022), ["avionics"], {
 });
 
 /* Optional LRUs are source-labelled equipment, rather than assumed universal SR20 fittings. */
-for (const [pos, size, name, note] of [
+for (const [key, pos, size, name, note] of [
   [
+    "gdl69a",
     GDL_69A,
     [0.16, 0.08, 0.06],
     "GDL 69A XM receiver (optional)",
     "Empennage avionics compartment (POH 7-84–7-85, Fig 7-20 item 20). Satellite weather to displays and entertainment audio to GMA. 5 A DATA LINK/WEATHER on AVIONICS.",
   ],
   [
+    "gsr56",
     GSR_56,
     [0.2, 0.05, 0.06],
     "GSR 56 Iridium transceiver (optional)",
     "Empennage avionics compartment beside BAT 2 (POH 7-84, Fig 7-20 item 23). Primary GIA RS-232 plus analog telephone audio to GMA. 5 A DATA LINK/WEATHER on AVIONICS.",
   ],
   [
+    "gateway",
     GATEWAY,
     [0.12, 0.05, 0.04],
     "Gateway module (optional)",
     "RH empennage avionics compartment with two internal LTE antennas. Read-only ARINC429 aircraft data, cellular upload on ground and remote wake; 5 A CONV LIGHTS on constant-power CONV bus (AMM 31-70 p. 1; POH 7-88–7-90).",
   ],
   [
+    "wx500",
     WX_500,
     [0.23, 0.06, 0.1],
     "WX-500 processor (optional)",
     "Under aft baggage floor, left side (POH 7-85, Fig 7-20 item 26). Digitizes lightning discharges and sends range/bearing to MFD through secondary GIA every two seconds. 5 A DATA LINK/WEATHER on AVIONICS.",
   ],
   [
+    "gts800",
     GTS_800,
     [0.1, 0.055, 0.24],
     "GTS 800 traffic processor (optional)",
     "Under LH cockpit seat (POH 7-85, Fig 7-20 item 28). Uses secondary GIA via primary ADC inputs and two exterior directional antennas. 5 A TRAFFIC on AVIONICS.",
   ],
   [
+    "kn63",
     KN_63,
     [0.15, 0.065, 0.085],
     "KN 63 DME receiver (optional)",
     "LH footwell ahead of pilot seat in POH Fig 7-20 item 29 (7-89). DME pulse-pair ranging; data through secondary GIA. 3 A DME/ADF on AVIONICS (POH 7-86).",
   ],
-] as [Vec3, Vec3, string, string][])
+] as [string, Vec3, Vec3, string, string][])
   part(() => box(...size), ["avionics"], {
+    id: "parts.avionics.part.033",
+    instance: [key],
     pos,
     name,
     note: note + " Position and dimensions approximate.",
     pin: true,
   });
 part(() => box(0.09, 0.03, 0.018), ["avionics"], {
+  id: "avionics.antenna.lte",
   pos: [GATEWAY[0] - 0.08, GATEWAY[1] + 0.05, GATEWAY[2]],
   name: "Gateway internal LTE antennas (optional)",
   note: "Two internally mounted antennas on the RH side just aft of empennage access panel (POH 7-90; AMM 31-70 p. 1). Approximate paired assembly.",
 });
 const trafficX = 0.32;
 part(() => box(0.1, 0.06, 0.012), ["avionics"], {
+  id: "avionics.antenna.trafficBottom",
   pos: [trafficX, botY(trafficX) - 0.03, 0.15],
   color: ANT,
   solidColor: "#E3E6E8",

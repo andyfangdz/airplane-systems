@@ -12,21 +12,28 @@ export const MOUNT_ATTACH: Vec3[] = [
   [FW + 0.016, -0.42, -0.25],
   [FW + 0.016, -0.42, 0.25],
 ];
-export const MOUNT_FEET: Vec3[] = [
-  [2.83, -0.045, -0.175],
-  [2.83, -0.045, 0.175],
-  [2.83, -0.29, -0.175],
-  [2.83, -0.29, 0.175],
+const MOUNT_FOOT_ROWS: { key: string; point: Vec3 }[] = [
+  { key: "upper-left", point: [2.83, -0.045, -0.175] },
+  { key: "upper-right", point: [2.83, -0.045, 0.175] },
+  { key: "lower-left", point: [2.83, -0.29, -0.175] },
+  { key: "lower-right", point: [2.83, -0.29, 0.175] },
 ];
-export const MOUNT_RUNS: Vec3[][] = [
-  ...MOUNT_ATTACH.map((p, i) => [p, MOUNT_FEET[i]]),
-  [MOUNT_ATTACH[0], MOUNT_FEET[2]],
-  [MOUNT_ATTACH[1], MOUNT_FEET[3]],
-  [MOUNT_ATTACH[2], MOUNT_FEET[0]],
-  [MOUNT_ATTACH[3], MOUNT_FEET[1]],
+export const MOUNT_FEET: Vec3[] = MOUNT_FOOT_ROWS.map((row) => row.point);
+const MOUNT_ROUTE_ROWS: { key: string; run: Vec3[] }[] = [
+  { key: "upper-left", run: [MOUNT_ATTACH[0], MOUNT_FEET[0]] },
+  { key: "upper-right", run: [MOUNT_ATTACH[1], MOUNT_FEET[1]] },
+  { key: "lower-left", run: [MOUNT_ATTACH[2], MOUNT_FEET[2]] },
+  { key: "lower-right", run: [MOUNT_ATTACH[3], MOUNT_FEET[3]] },
+  { key: "left-down", run: [MOUNT_ATTACH[0], MOUNT_FEET[2]] },
+  { key: "right-down", run: [MOUNT_ATTACH[1], MOUNT_FEET[3]] },
+  { key: "left-up", run: [MOUNT_ATTACH[2], MOUNT_FEET[0]] },
+  { key: "right-up", run: [MOUNT_ATTACH[3], MOUNT_FEET[1]] },
 ];
-MOUNT_RUNS.forEach((run, i) =>
+export const MOUNT_RUNS: Vec3[][] = MOUNT_ROUTE_ROWS.map((row) => row.run);
+MOUNT_ROUTE_ROWS.forEach(({ key, run }, i) =>
   part(() => tubeGeo(run, 0.009), ["engine"], {
+    id: "parts.engine-installation.tubular-steel-engine-mount.001",
+    instance: key,
     color: "#758188",
     name: "Tubular steel engine mount",
     pin: i === 0,
@@ -34,8 +41,11 @@ MOUNT_RUNS.forEach((run, i) =>
     groups: [],
   }),
 );
-MOUNT_FEET.forEach((pos) =>
+MOUNT_FOOT_ROWS.forEach(({ key, point: pos }) =>
   part(() => cyl(0.029, 0.033, "x"), ["engine"], {
+    id: "parts.engine-installation.engine-mount-vibration-isolator.002",
+    instance: key,
+
     pos,
     color: "#4A5054",
     name: "Engine mount vibration isolator",
@@ -70,6 +80,8 @@ const sideBaffleGeo = (side: number) =>
 
 for (const side of [-1, 1]) {
   part(() => sideBaffleGeo(side), ["engine"], {
+    id: "parts.engine-installation.side-cooling-baffle.003",
+    instance: [side],
     color: "#6D8994",
     fairing: true,
     name: "Side cooling baffle",
@@ -86,6 +98,8 @@ for (const side of [-1, 1]) {
       ),
     ["engine"],
     {
+      id: "parts.engine-installation.cooling-baffle-seal.004",
+      instance: [side],
       color: "#332F35",
       name: "Cooling baffle seal",
       note: "Flexible reinforced silicone seal against the cowling; leaks can divert air from other cylinders and raise temperatures (AMM 71-00 pp. 1,19). Shape and cowling contact schematic.",
@@ -93,6 +107,8 @@ for (const side of [-1, 1]) {
     },
   );
   part(() => box(0.115, 0.09, 0.23), ["engine"], {
+    id: "parts.engine-installation.inter-cylinder-cooling-baffle.005",
+    instance: [side],
     pos: [side === 1 ? 3.18 : 3.035, -0.24, side * 0.28],
     color: "#6D8994",
     fairing: true,
@@ -102,6 +118,7 @@ for (const side of [-1, 1]) {
   });
 }
 part(() => box(0.006, 0.145, 0.84), ["engine"], {
+  id: "parts.engine-installation.aft-cooling-baffle.006",
   pos: [2.755, -0.015, 0],
   color: "#6D8994",
   fairing: true,

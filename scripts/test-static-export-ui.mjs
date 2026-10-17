@@ -9,6 +9,8 @@
  * `next start`, which must behave the same.)
  */
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { test } from "@playwright/test";
 
 const current = (page) => page.locator(".fleet-current-name");
@@ -69,4 +71,11 @@ test("the static site switches between airplanes and back", async ({ page, conte
 
   assert.deepEqual(failed, [], "every request the site made succeeded");
   assert.deepEqual(errors, [], "no page errors");
+});
+
+// This smoke exercises the downloaded, sealed artifact through the same local edge rewrite and cache classes.
+test("the static release serves its declared immutable assets", async ({ baseURL }) => {
+  test.skip(process.env.STATIC_EXPORT !== "1", "Release cache semantics belong to the static host");
+  const { stdout } = await promisify(execFile)(process.execPath, ["scripts/smoke.mjs", baseURL]);
+  assert.equal(JSON.parse(stdout).ok, true);
 });

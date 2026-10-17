@@ -23,6 +23,8 @@ const bladeGeo = () => {
 };
 for (let i = 0; i < 3; i++)
   part(bladeGeo, ["propeller", "engine"], {
+    id: "parts.engine.propeller-blade.001",
+    instance: [i],
     parent: "blade:" + i,
     color: "#2E3439",
     name: "Propeller blade",
@@ -39,6 +41,7 @@ export const CYLS = [
   { n: 4, x: fs(1.07), s: -1 },
 ];
 part(() => box(0.7, 0.24, 0.3), ["engine"], {
+  id: "parts.engine.lycoming-io-360-m1a.002",
   pos: [fs(0.92), -0.02, 0],
   color: "#7C858C",
   name: "Lycoming IO-360-M1A",
@@ -47,6 +50,7 @@ part(() => box(0.7, 0.24, 0.3), ["engine"], {
   pin: true,
 });
 part(() => box(0.48, 0.1, 0.26), ["engine"], {
+  id: "parts.engine.oil-sump.003",
   pos: [fs(0.9), -0.2, 0],
   color: "#6A737A",
   name: "Oil sump",
@@ -57,6 +61,8 @@ part(() => box(0.48, 0.1, 0.26), ["engine"], {
 CYLS.forEach((c) => {
   const parent = "cyl:" + c.n;
   part(() => cyl(0.07, 0.18, "z", 18), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.004",
     parent,
     color: "#7C858C",
     name: "Cylinder " + c.n,
@@ -67,12 +73,16 @@ CYLS.forEach((c) => {
   });
   for (let k = -2; k <= 2; k++)
     part(() => cyl(0.085, 0.008, "z", 18), ["engine"], {
+      id: "parts.engine.part.005",
+      instance: [k, c.n, parent],
       parent,
       pos: [0, 0, k * 0.032],
       color: "#8C959C",
       fairing: true,
     });
   part(() => box(0.16, 0.16, 0.06), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.006",
     parent,
     pos: [0, 0, c.s * 0.115],
     color: "#6A737A",
@@ -82,12 +92,14 @@ CYLS.forEach((c) => {
   });
   (
     [
-      ["U", 0.055],
-      ["L", -0.055],
+      ["u", ["U", 0.055]],
+      ["l", ["L", -0.055]],
     ] as const
-  ).forEach(([pos, dy]) => {
+  ).forEach(([instance1, [pos, dy]]) => {
     const mag = c.s > 0 === (pos === "U") ? "R" : "L";
     part(() => cyl(0.014, 0.05, "x", 10), ["engine"], {
+      id: "parts.engine.part.007",
+      instance: [instance1, c.n, parent],
       parent,
       pos: [-0.1, dy, c.s * 0.115],
       color: "#DADFE2",
@@ -98,6 +110,7 @@ CYLS.forEach((c) => {
   });
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
+  id: "parts.engine.right-magneto.008",
   pos: [fs(1.27), 0.07, 0.1],
   color: "#3E4A52",
   anim: magAnim(fires("R")),
@@ -106,6 +119,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
+  id: "parts.engine.left-magneto.009",
   pos: [fs(1.27), 0.07, -0.1],
   color: "#3E4A52",
   anim: magAnim(fires("L")),
@@ -114,6 +128,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => box(0.1, 0.09, 0.1), ["engine", "propeller"], {
+  id: "parts.engine.propeller-governor.010",
   pos: [fs(0.75), 0.12, 0.06],
   color: "#C0602F",
   name: "Propeller governor",
@@ -122,6 +137,7 @@ part(() => box(0.1, 0.09, 0.1), ["engine", "propeller"], {
 });
 export const ALTERNATOR: Vec3 = [fs(0.64), -0.18, -0.2];
 part(() => cyl(0.065, 0.12, "x"), ["electrical", "engine"], {
+  id: "parts.engine.alternator-28-v-70-a.011",
   pos: ALTERNATOR,
   color: "#D9960F",
   anim: glow("#5A5040", "#D9960F", () => sim().E.altFeed, ["electrical", "engine"]),
@@ -132,6 +148,7 @@ part(() => cyl(0.065, 0.12, "x"), ["electrical", "engine"], {
 /** Representative starter envelope, beside the sump and inside the lower cowl; height/lateral position approximate. */
 export const STARTER: Vec3 = [fs(0.64), -0.18, 0.2];
 part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
+  id: "parts.engine.starter-skytec-149-24ls.012",
   pos: STARTER,
   color: "#4B5860",
   anim: glow("#4B5860", "#E7B416", () => sim().E.starterOn, ["engine", "electrical"]),
@@ -140,6 +157,7 @@ part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
   pin: true,
 });
 part(() => box(0.08, 0.08, 0.1), ["engine", "fuel"], {
+  id: "parts.engine.engine-driven-fuel-pump.013",
   pos: [fs(1.28), -0.12, -0.12],
   color: "#7E8A93",
   name: "Engine-driven fuel pump",
@@ -147,6 +165,7 @@ part(() => box(0.08, 0.08, 0.1), ["engine", "fuel"], {
   pin: true,
 });
 part(() => cyl(0.05, 0.14, "x"), ["engine", "fuel"], {
+  id: "parts.engine.fuel-servo-injection-timing-device.014",
   pos: [fs(1.08), -0.31, 0],
   color: "#7E8A93",
   name: "Fuel servo (injection timing device)",
@@ -154,6 +173,7 @@ part(() => cyl(0.05, 0.14, "x"), ["engine", "fuel"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.06), ["engine", "fuel"], {
+  id: "parts.engine.fuel-distributor.015",
   pos: [fs(0.92), 0.15, 0],
   color: "#7E8A93",
   name: "Fuel distributor",
@@ -161,18 +181,21 @@ part(() => box(0.06, 0.05, 0.06), ["engine", "fuel"], {
   pin: true,
 });
 part(() => box(0.06, 0.04, 0.05), ["engine", "fuel", "avionics"], {
+  id: "parts.engine.fuel-flow-transducer-shadin.016",
   pos: [fs(0.98), -0.27, 0.15],
   color: "#2F7FE6",
   name: "Fuel-flow transducer (Shadin)",
   note: "Inline in the fuel hose in a fire sleeve, on a bracket at the oil sump; read by the GEA 71 (SMM 2-19).",
 });
 part(() => box(0.08, 0.14, 0.1), ["engine"], {
+  id: "parts.engine.oil-cooler.017",
   pos: [fs(0.6), -0.06, 0.32],
   color: "#9A6A48",
   name: "Oil cooler",
   note: "Oil cooler attached to brackets on the engine-mounting frame; cold oil bypasses it through the thermostatic valve (AMM 79-00-00 p. 1). Right-side position approximate.",
 });
 part(() => box(0.09, 0.1, 0.11), ["engine"], {
+  id: "parts.engine.induction-air-filter.018",
   pos: AIR_FILTER,
   color: "#C9B98F",
   name: "Induction air filter",
@@ -180,6 +203,7 @@ part(() => box(0.09, 0.1, 0.11), ["engine"], {
   pin: true,
 });
 part(() => box(0.03, 0.08, 0.1), ["engine"], {
+  id: "parts.engine.alternate-air-door.019",
   pos: ALTERNATE_AIR,
   color: "#E0B040",
   anim: (m) => {
@@ -189,6 +213,7 @@ part(() => box(0.03, 0.08, 0.1), ["engine"], {
   note: "Rotary alternate-air sleeve at the fuel injector: Bowden cable aligns six body/flange holes to admit engine-compartment air; o-rings seal each end. Pilot-controlled, not an automatic door (AFM 7-23; AMM 71-60-00 pp. 1–2). Schematic sleeve position.",
 });
 part(() => cyl(0.06, 0.3, "z"), ["engine", "environment"], {
+  id: "parts.engine.tuned-exhaust-power-flow.020",
   pos: [fs(0.95), -0.36, 0.06],
   color: "#8A5A3C",
   name: "Tuned exhaust (Power Flow)",
@@ -214,6 +239,7 @@ part(
   },
   ["environment", "engine"],
   {
+    id: "parts.engine.muffler-heat-shroud.021",
     pos: [fs(0.95), -0.36, 0.155],
     color: "#E0522B",
     fairing: true,
@@ -227,31 +253,42 @@ const Q = { x: fs(2.0), y: -0.27 };
 (
   [
     [
-      "Throttle",
-      -0.045,
-      "#1B1F23",
-      () => sim().s.eng.throttle,
-      "Left lever, large black knob. Forward = MAX PWR. At the forward stop extra fuel is supplied for high power. The GFC 700 GA button is on the left side of the knob (AFM 7-21; AFMS p. 57).",
+      "throttle",
+      [
+        "Throttle",
+        -0.045,
+        "#1B1F23",
+        () => sim().s.eng.throttle,
+        "Left lever, large black knob. Forward = MAX PWR. At the forward stop extra fuel is supplied for high power. The GFC 700 GA button is on the left side of the knob (AFM 7-21; AFMS p. 57).",
+      ] as [string, number, string, () => number, string],
     ],
     [
-      "RPM lever",
-      0,
-      "#2D63B8",
-      () => sim().s.eng.rpmLever,
-      "Centre lever, blue handle. Forward = HIGH RPM (fine pitch). Sets the governor; RPM then holds regardless of airspeed and throttle (AFM 7-21).",
+      "rpm-lever",
+      [
+        "RPM lever",
+        0,
+        "#2D63B8",
+        () => sim().s.eng.rpmLever,
+        "Centre lever, blue handle. Forward = HIGH RPM (fine pitch). Sets the governor; RPM then holds regardless of airspeed and throttle (AFM 7-21).",
+      ] as [string, number, string, () => number, string],
     ],
     [
-      "Mixture lever",
-      0.045,
-      "#C8313B",
-      () => sim().s.eng.mix,
-      "Right lever, red handle with a lock. Forward = RICH; pull to the rear stop to shut the engine down (AFM 7-22, 7-23).",
+      "mixture-lever",
+      [
+        "Mixture lever",
+        0.045,
+        "#C8313B",
+        () => sim().s.eng.mix,
+        "Right lever, red handle with a lock. Forward = RICH; pull to the rear stop to shut the engine down (AFM 7-22, 7-23).",
+      ] as [string, number, string, () => number, string],
     ],
-  ] as [string, number, string, () => number, string][]
-).forEach(([name, z, color, val, note], i) => {
+  ] as const
+).forEach(([instance2, [name, z, color, val, note]], i) => {
   // each lever is tagged with the systems it works; in the engine view the quadrant carries the one label
   const sys: SysId[] = [["engine"], ["engine", "propeller"], ["engine", "fuel"]][i] as SysId[];
   part(() => box(0.03, 0.04, 0.03), sys, {
+    id: "parts.engine.part.022",
+    instance: [instance2],
     pos: [Q.x, Q.y, z],
     color,
     anim: leverAnim(Q.x, val),
@@ -262,6 +299,7 @@ const Q = { x: fs(2.0), y: -0.27 };
   });
 });
 part(() => box(0.14, 0.06, 0.15), ["engine", "cabin"], {
+  id: "parts.engine.throttle-quadrant.023",
   pos: [Q.x, Q.y - 0.07, 0],
   color: "#39424A",
   name: "Throttle quadrant",
@@ -270,6 +308,7 @@ part(() => box(0.14, 0.06, 0.15), ["engine", "cabin"], {
   pinIn: ["engine"],
 });
 part(() => box(0.02, 0.012, 0.012), ["autopilot"], {
+  id: "parts.engine.ga-button.024",
   pos: [Q.x + 0.0, Q.y + 0.01, -0.063],
   color: "#D9D9D9",
   anim: leverAnim(Q.x, () => sim().s.eng.throttle),
@@ -278,6 +317,7 @@ part(() => box(0.02, 0.012, 0.012), ["autopilot"], {
   pin: true,
 });
 part(() => box(0.05, 0.05, 0.03), ["engine"], {
+  id: "parts.engine.alternate-air-lever.025",
   pos: [fs(1.86), -0.33, -0.14],
   color: "#E0B040",
   anim: (m) => {
@@ -289,6 +329,7 @@ part(() => box(0.05, 0.05, 0.03), ["engine"], {
   pinIn: [],
 });
 part(() => box(0.03, 0.03, 0.03), ["engine", "electrical"], {
+  id: "parts.engine.ignition-key-switch.026",
   pos: [PANEL_X - 0.035, -0.17, -0.01],
   pinIn: ["electrical"],
   color: "#A8B0B6",

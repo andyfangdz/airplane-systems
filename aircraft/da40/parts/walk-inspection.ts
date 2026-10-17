@@ -21,6 +21,8 @@ for (const side of [-1, 1])
       ),
     ["airframe"],
     {
+      id: "parts.walk-inspection.wing-leading-edge.001",
+      instance: [side],
       name: "Wing leading edge",
       ext: true,
       fairing: true,
@@ -30,6 +32,7 @@ for (const side of [-1, 1])
     },
   );
 part(() => loft([FW, FW + 0.12, fs(0.9), fs(0.6), fs(0.46)].map((x) => fRing(x))), ["airframe", "engine"], {
+  id: "parts.walk-inspection.cowling-inspection-region.002",
   name: "Cowling inspection region",
   ext: true,
   anim: only("Cowling inspection region"),
@@ -39,12 +42,14 @@ part(() => loft([FW, FW + 0.12, fs(0.9), fs(0.6), fs(0.46)].map((x) => fRing(x))
 // Dipstick location is schematic inside the upper engine cowl; the AFM/AMM establishes the filler and access door.
 const filler: Vec3 = [fs(1.17), 0.1, -0.16];
 part(() => cyl(0.015, 0.14), ["engine"], {
+  id: "parts.walk-inspection.oil-dipstick-filler.003",
   name: "Oil dipstick / filler",
   pos: filler,
   note: "Oil filler neck and dipstick through the cowling access door: check 4–8 qt, IFR minimum 6 qt (AFM 2-5,4A-9; Lycoming IPC 72-50 pp 32–33). Neck station schematic.",
   pin: true,
 });
 part(() => box(0.055, 0.008, 0.065), ["engine", "airframe"], {
+  id: "parts.walk-inspection.oil-access-door.004",
   name: "Oil-access door",
   pos: (() => {
     const v = onSkin(fs(1.17), 0.2, -1, 1.002);

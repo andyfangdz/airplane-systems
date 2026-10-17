@@ -16,11 +16,13 @@ import { glowAnim } from "@/lib/anims";
 
 /* ---------- cockpit / cabin ---------- */
 part(() => sectionSlab(2.3, -0.18, 0.3, 0.97, 0.04, 2.32), ["avionics", "cabin"], {
+  id: "parts.cabin.instrument-panel.001",
   color: "#2B3238",
   name: "Instrument panel",
   note: "All-metal sectional panel under a composite glareshield.",
 });
 part(() => sectionSlab(2.24, 0.3, 0.35, 0.95, 0.2, 2.36), ["cabin"], {
+  id: "parts.cabin.glareshield.002",
   color: "#2B3238",
   name: "Glareshield",
   note: "Projects over the panel; windshield diffuser outlet runs along its base.",
@@ -54,6 +56,7 @@ function slope(a: [number, number], b: [number, number]) {
 // the displays down to the console between the bolster halves.
 const BOLSTER_TOP = slope([2.18, -0.005], [2.28, -0.005]);
 part(() => box(0.1, 0.145, 0.8), ["cabin", "lighting", "electrical"], {
+  id: "parts.cabin.bolster-switch-panel.003",
   pos: [2.23, -0.0775, 0],
   color: "#39424A",
   name: "Bolster switch panel",
@@ -69,40 +72,57 @@ const slot = (px: number) => -0.385 + (px - 205) * (0.285 / 420);
 const onStrip = (z: number, out: number, dt = 0) => BOLSTER_TOP.at(0.05 + dt, out, z);
 const SR = () => useSR22T.getState().s;
 part(() => box(0.004, 0.048, 0.285), ["cabin", "lighting", "electrical"], {
+  id: "parts.cabin.part.004",
   pos: onStrip(slot(415), 0.001),
   rot: BOLSTER_TOP.rot,
   color: "#20262B",
 });
 part(() => box(0.003, 0.03, 0.06), ["cabin"], {
+  id: "parts.cabin.part.005",
   pos: onStrip(slot(255), 0.004),
   rot: BOLSTER_TOP.rot,
   color: "#9AA3AA",
 });
 (
   [
-    [312, "BAT 2", "Battery 2 relay: BAT 2 feeds ESS BUS 1 and charges from it.", () => SR().elec.bat2],
+    ["member-01", [312, "BAT 2", "Battery 2 relay: BAT 2 feeds ESS BUS 1 and charges from it.", () => SR().elec.bat2]],
     [
-      329,
-      "BAT 1",
-      "Battery 1 relay: BAT 1 on the Main Dist Bus 1 side, for starting; ALT 1 needs it on.",
-      () => SR().elec.bat1,
+      "member-02",
+      [
+        329,
+        "BAT 1",
+        "Battery 1 relay: BAT 1 on the Main Dist Bus 1 side, for starting; ALT 1 needs it on.",
+        () => SR().elec.bat1,
+      ],
     ],
-    [346, "ALT 1", "Alternator 1 field; needs BAT 1 on.", () => SR().elec.alt1],
-    [363, "ALT 2", "Alternator 2 field.", () => SR().elec.alt2],
-    [380, "AVIONICS", "AVIONICS bus.", () => SR().elec.avionics],
-    [397, "NAV", "Wingtip position and aft position lights.", () => SR().lights.nav],
-    [414, "STROBE", "Wingtip anti-collision strobes.", () => SR().lights.strobe],
-    [431, "LAND", "Lower-cowl HID landing light and wingtip recognition lights.", () => SR().lights.land],
+    ["member-03", [346, "ALT 1", "Alternator 1 field; needs BAT 1 on.", () => SR().elec.alt1]],
+    ["member-04", [363, "ALT 2", "Alternator 2 field.", () => SR().elec.alt2]],
+    ["member-05", [380, "AVIONICS", "AVIONICS bus.", () => SR().elec.avionics]],
+    ["member-06", [397, "NAV", "Wingtip position and aft position lights.", () => SR().lights.nav]],
+    ["member-07", [414, "STROBE", "Wingtip anti-collision strobes.", () => SR().lights.strobe]],
     [
-      448,
-      "ICE",
-      "Wing ice inspection lights. The AMM names an ICE LIGHT switch on the bolster panel (AMM 33-40); POH Fig. 7-12 shows only NAV, STROBE and LAND, so it is shown after LAND, position approximate.",
-      () => SR().lights.ice,
+      "member-08",
+      [431, "LAND", "Lower-cowl HID landing light and wingtip recognition lights.", () => SR().lights.land],
     ],
-    [470, "PITOT HEAT", "Heated pitot tube; a current sensor drives PITOT HEAT FAIL.", () => SR().pitot.heat],
-  ] as [number, string, string, () => boolean][]
-).forEach(([px, label, note, on]) =>
+    [
+      "member-09",
+      [
+        448,
+        "ICE",
+        "Wing ice inspection lights. The AMM names an ICE LIGHT switch on the bolster panel (AMM 33-40); POH Fig. 7-12 shows only NAV, STROBE and LAND, so it is shown after LAND, position approximate.",
+        () => SR().lights.ice,
+      ],
+    ],
+    [
+      "member-10",
+      [470, "PITOT HEAT", "Heated pitot tube; a current sensor drives PITOT HEAT FAIL.", () => SR().pitot.heat],
+    ],
+  ] as [string, [number, string, string, () => boolean]][]
+).forEach(([member1, [px, label, note, on]]) =>
   part(() => box(0.01, 0.02, 0.0095), ["electrical", "lighting"], {
+    id: "parts.cabin.part.006",
+    instance: [member1],
+
     pos: onStrip(slot(px), 0.007),
     rot: BOLSTER_TOP.rot,
     color: "#D8DDE0",
@@ -117,12 +137,15 @@ part(() => box(0.003, 0.03, 0.06), ["cabin"], {
 const fiki = () => SR().equip.fiki;
 (
   [
-    [495, 0.0095],
-    [512, 0.0095],
-    [537, 0.02],
-  ] as [number, number][]
-).forEach(([px, w]) =>
+    ["member-01", [495, 0.0095]],
+    ["member-02", [512, 0.0095]],
+    ["member-03", [537, 0.02]],
+  ] as [string, [number, number]][]
+).forEach(([member2, [px, w]]) =>
   part(() => box(0.004, 0.02, w), ["cabin"], {
+    id: "parts.cabin.blank-switch-position.007",
+    instance: [member2],
+
     pos: onStrip(slot(px), 0.004),
     rot: BOLSTER_TOP.rot,
     color: "#3A4148",
@@ -137,16 +160,22 @@ const fiki = () => SR().equip.fiki;
 const ICE_NOTE = "ICE PROTECT controls on the bolster switch panel (POH Fig. 7-12; AMM 30-00, PDF 1166–1167).";
 (
   [
-    [495, "ICE PROTECT switch", "ON / OFF: powers the TKS system, up = ON.", () => SR().ice.on],
+    ["member-01", [495, "ICE PROTECT switch", "ON / OFF: powers the TKS system, up = ON.", () => SR().ice.on]],
     [
-      512,
-      "ICE PROTECT mode switch",
-      "HIGH / NORM: up = HIGH, pump 1 continuous (200 %); NORM cycles both pumps 30 s on, 90 s off (100 %).",
-      () => SR().ice.mode === "HIGH",
+      "member-02",
+      [
+        512,
+        "ICE PROTECT mode switch",
+        "HIGH / NORM: up = HIGH, pump 1 continuous (200 %); NORM cycles both pumps 30 s on, 90 s off (100 %).",
+        () => SR().ice.mode === "HIGH",
+      ],
     ],
-  ] as [number, string, string, () => boolean][]
-).forEach(([px, name, note, up]) =>
+  ] as [string, [number, string, string, () => boolean]][]
+).forEach(([member3, [px, name, note, up]]) =>
   part(() => box(0.01, 0.02, 0.0095), ["ice"], {
+    id: "parts.cabin.part.008",
+    instance: [member3],
+
     pos: onStrip(slot(px), 0.007),
     rot: BOLSTER_TOP.rot,
     color: "#D8DDE0",
@@ -162,29 +191,41 @@ const ICE_NOTE = "ICE PROTECT controls on the bolster switch panel (POH Fig. 7-1
 (
   [
     [
-      -0.0068,
-      "MAX switch",
-      "Both pumps continuous for 2 minutes (400 %), then the selected mode; lit while running with IPS power.",
-      () => SR().ice.maxT > 0,
+      "member-01",
+      [
+        -0.0068,
+        "MAX switch",
+        "Both pumps continuous for 2 minutes (400 %), then the selected mode; lit while running with IPS power.",
+        () => SR().ice.maxT > 0,
+      ],
     ],
     [
-      0,
-      "WINDSHLD switch",
-      "Windshield pump for about 3 seconds; lit while running with IPS power.",
-      () => SR().ice.ws > 0,
+      "member-02",
+      [
+        0,
+        "WINDSHLD switch",
+        "Windshield pump for about 3 seconds; lit while running with IPS power.",
+        () => SR().ice.ws > 0,
+      ],
     ],
     [
-      0.0068,
-      "PUMP BKUP switch",
-      "Bypasses the Timer Box to run pump 2 continuously (200 %); shown pressed in while selected, lit while selected with IPS power.",
-      () => SR().ice.bkup,
+      "member-03",
+      [
+        0.0068,
+        "PUMP BKUP switch",
+        "Bypasses the Timer Box to run pump 2 continuously (200 %); shown pressed in while selected, lit while selected with IPS power.",
+        () => SR().ice.bkup,
+      ],
     ],
-  ] as [number, string, string, () => boolean][]
-).forEach(([dz, name, note, cmd]) => {
+  ] as [string, [number, string, string, () => boolean]][]
+).forEach(([member4, [dz, name, note, cmd]]) => {
   // the lamp needs both ICE PROTECT feeds, as the ice panel's pump readouts do (E.ipsPwr); the latch is mechanical
   const glow = glowAnim("#D8DDE0", () => useSR22T.getState().E.ipsPwr && cmd(), ["ice"]),
     latch = name === "PUMP BKUP switch";
   part(() => box(0.006, 0.014, 0.006), ["ice"], {
+    id: "parts.cabin.part.009",
+    instance: [member4],
+
     pos: onStrip(slot(537) + dz, 0.005),
     rot: BOLSTER_TOP.rot,
     color: "#D8DDE0",
@@ -200,11 +241,14 @@ const ICE_NOTE = "ICE PROTECT controls on the bolster switch panel (POH Fig. 7-1
 });
 (
   [
-    [0.012, "PANEL dimmer"],
-    [-0.012, "INSTRUMENT dimmer"],
-  ] as [number, string][]
-).forEach(([dt, name]) =>
+    ["member-01", [0.012, "PANEL dimmer"]],
+    ["member-02", [-0.012, "INSTRUMENT dimmer"]],
+  ] as [string, [number, string]][]
+).forEach(([member5, [dt, name]]) =>
   part(() => cyl(0.008, 0.014, "x", 16), ["lighting"], {
+    id: "parts.cabin.part.010",
+    instance: [member5],
+
     pos: onStrip(slot(588), 0.008, dt),
     rot: BOLSTER_TOP.rot,
     color: "#20262B",
@@ -214,11 +258,13 @@ const ICE_NOTE = "ICE PROTECT controls on the bolster switch panel (POH Fig. 7-1
 );
 // POH 7-13, Fig. 7-4 item 19: left side of the instrument panel, outboard of the PFD; above the yoke tube here (height approximate)
 part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], {
+  id: "parts.cabin.part.011",
   pos: [2.276, 0.03, -0.47],
   color: "#3E4A52",
   groups: [],
 });
 part(() => box(0.012, 0.03, 0.008), ["engine", "electrical"], {
+  id: "parts.cabin.ignition-key-switch.012",
   pos: IGNITION_SWITCH,
   color: "#C9D0D5",
   anim: (m) => {
@@ -251,6 +297,7 @@ part(
   },
   ["cabin"],
   {
+    id: "parts.cabin.center-console.013",
     pos: [1.63, -0.4, 0],
     color: "#39424A",
     name: "Center console",
@@ -276,6 +323,7 @@ part(
     ),
   ["cabin", "avionics"],
   {
+    id: "parts.cabin.avionics-panel-centre-console.014",
     color: "#39424A",
     name: "Avionics panel (centre console)",
     fairing: true,
@@ -285,6 +333,7 @@ part(
 /** Anchor for flows.ts. */
 export const CB_PANEL: Vec3 = [1.78, -0.4, -0.14];
 part(() => box(0.4, 0.18, 0.02), ["electrical"], {
+  id: "parts.cabin.circuit-breaker-panel.015",
   pos: CB_PANEL,
   color: "#5A4A1C",
   name: "Circuit breaker panel",
@@ -331,14 +380,16 @@ export const FRONT_CUSHION_X = FRONT_SEAT.referenceX + FRONT_SEAT.cushionOffset;
 export const FRONT_BACK_X = FRONT_SEAT.referenceX + FRONT_SEAT.backOffset;
 (
   [
-    [FRONT_CUSHION_X, -FRONT_SEAT.z, "Pilot seat", 0.4],
-    [FRONT_CUSHION_X, FRONT_SEAT.z, "Front passenger seat", 0.4],
-    [REAR_CUSHION_X, -0.24, "Rear seat (2+1 bench)", 0.46],
-    [REAR_CUSHION_X, 0.28, "Rear seat", 0.4],
-  ] as [number, number, string, number][]
-).forEach(([x, z, name, w], i) => {
+    ["member-01", [FRONT_CUSHION_X, -FRONT_SEAT.z, "Pilot seat", 0.4]],
+    ["member-02", [FRONT_CUSHION_X, FRONT_SEAT.z, "Front passenger seat", 0.4]],
+    ["member-03", [REAR_CUSHION_X, -0.24, "Rear seat (2+1 bench)", 0.46]],
+    ["member-04", [REAR_CUSHION_X, 0.28, "Rear seat", 0.4]],
+  ] as [string, [number, number, string, number]][]
+).forEach(([member6, [x, z, name, w]], i) => {
   const back = i < 2 ? Math.sign(z) * FRONT_SEAT.backZ : z;
   part(() => box(i < 2 ? FRONT_SEAT.cushionLength : REAR_SEAT.cushionLength, 0.1, w), ["cabin"], {
+    id: "parts.cabin.part.016",
+    instance: [member6],
     pos: [x, -0.4 + (i < 2 ? FRONT_SEAT.lift : 0), z],
     color: "#6B5A48",
     name,
@@ -349,6 +400,8 @@ export const FRONT_BACK_X = FRONT_SEAT.referenceX + FRONT_SEAT.backOffset;
     pin: true,
   });
   part(() => box(0.09, 0.58, w * 0.92), ["cabin"], {
+    id: "parts.cabin.part.017",
+    instance: [member6],
     pos: [
       i < 2 ? FRONT_BACK_X : REAR_SEAT.referenceX + REAR_SEAT.backOffset,
       -0.08 + (i < 2 ? FRONT_SEAT.lift : 0),
@@ -408,6 +461,8 @@ YOKES.forEach(({ side }) => {
     grip = "grip:" + side,
     top = HEAD.d + HEAD.l / 2;
   part(() => cyl(0.018, 0.5, "x"), ["controls"], {
+    id: "parts.cabin.yoke-tube.018",
+    instance: [side],
     parent: "yoke:" + side,
     chan: ["elevator", "aileron"],
     pos: [0.27, 0, 0],
@@ -416,6 +471,8 @@ YOKES.forEach(({ side }) => {
     note: "Slides fore/aft in its bearing carriage for pitch (driving the elevator drop link) and rotates the carriage for roll.",
   });
   part(() => sideYokeGeo(s), ["controls"], {
+    id: "parts.cabin.side-yoke.019",
+    instance: [side, grip],
     parent: grip,
     chan: ["elevator", "aileron"],
     color: "#20262B",
@@ -430,6 +487,8 @@ YOKES.forEach(({ side }) => {
     },
     ["controls"],
     {
+      id: "parts.cabin.trim-switch.020",
+      instance: [side, grip],
       parent: grip,
       chan: ["elevator", "aileron"],
       pos: onGrip(s, HEAD.x - 0.004, top, s * 0.01),
@@ -440,6 +499,8 @@ YOKES.forEach(({ side }) => {
     },
   );
   part(() => cyl(0.0065, 0.006), ["controls"], {
+    id: "parts.cabin.a-p-disc-button.021",
+    instance: [side, grip],
     parent: grip,
     chan: ["elevator", "aileron"],
     pos: onGrip(s, HEAD.x + 0.004, top + 0.002, -s * 0.011),
@@ -451,6 +512,7 @@ YOKES.forEach(({ side }) => {
 });
 export const FT = { x: 0.73, y: -0.54 };
 part(() => cyl(0.02, 1.9, "z"), ["flaps"], {
+  id: "parts.cabin.flap-torque-tube.022",
   pos: [FT.x, FT.y, 0],
   color: "#9F85E6",
   name: "Flap torque tube",
@@ -486,6 +548,7 @@ part(
   },
   ["flaps"],
   {
+    id: "parts.cabin.flap-actuator.023",
     pos: [0, ACT_Y, FLAP_ACT.z],
     color: "#7C57CF",
     name: "Flap actuator",
@@ -504,6 +567,7 @@ part(
     ]),
   ["flaps"],
   {
+    id: "parts.cabin.flap-torque-tube-coupler.024",
     pos: [FT.x, FT.y, 0],
     color: "#9F85E6",
     name: "Flap torque tube coupler",
@@ -514,6 +578,7 @@ part(
 // approximate.
 const BRACKET_BASE = lowerSkinY(FLAP_ACT.pinX, FLAP_ACT.z) + 0.003;
 part(() => box(0.05, ACT_Y - BRACKET_BASE, 0.05), ["flaps"], {
+  id: "parts.cabin.flap-actuator-bracket.025",
   pos: [FLAP_ACT.pinX, (ACT_Y + BRACKET_BASE) / 2, FLAP_ACT.z],
   color: "#9F85E6",
   name: "Flap actuator bracket",
@@ -522,6 +587,7 @@ part(() => box(0.05, ACT_Y - BRACKET_BASE, 0.05), ["flaps"], {
 // POH 7-23: at the bottom of the console's vertical section. Fig. 7-4 (7-14/7-15) item 10 is the panel between the avionics panel
 // (15) and the engine controls (13), knob on its right: here at the foot of the upright avionics panel, right of centre.
 part(() => box(0.04, 0.04, 0.07), ["flaps"], {
+  id: "parts.cabin.flaps-switch.026",
   pos: STACK.at(0.08, 0.02, 0.04),
   rot: STACK.rot,
   color: "#7C57CF",
@@ -532,13 +598,20 @@ part(() => box(0.04, 0.04, 0.07), ["flaps"], {
 /** Anchor for flows.ts. */
 export const FUEL_SELECTOR: Vec3 = [1.24, -0.25, 0];
 part(() => cyl(0.045, 0.03, "y"), ["fuel"], {
+  id: "parts.cabin.fuel-selector-valve.027",
   pos: FUEL_SELECTOR,
   name: "Fuel selector valve",
   note: "LEFT / RIGHT / OFF at the rear of the console. Positive detent at each position; handle points to the selected tank (AMM 13773-002 Rev 7 28-20, PDF p. 1113). Lift the release to select OFF; placarded 46 U.S. gallons usable each side (POH 13772-007 2-27, 7-41).",
   pin: true,
 });
-part(() => box(0.09, 0.02, 0.02), ["fuel"], { pos: [1.24, -0.23, 0], color: "#F2F5F7", anim: selPtrAnim });
+part(() => box(0.09, 0.02, 0.02), ["fuel"], {
+  id: "parts.cabin.part.028",
+  pos: [1.24, -0.23, 0],
+  color: "#F2F5F7",
+  anim: selPtrAnim,
+});
 part(() => box(0.04, 0.03, 0.04), ["fuel"], {
+  id: "parts.cabin.fuel-pump-switch.029",
   pos: [1.34, -0.26, 0.08],
   name: "Fuel Pump switch",
   note: "Rocker next to the selector: BOOST – OFF – HIGH BOOST/PRIME; both on positions are non-momentary (AMM 13773-002 Rev 7 73-20, PDF p. 2586). Placard: TURN BOOST PUMP ON DURING TAKE OFF, CLIMB, LANDING AND SWITCHING FUEL TANKS. (POH 13772-007 2-27, 7-41).",
@@ -567,6 +640,7 @@ part(
   () => mergeGeos([cyl(0.012, CAPS_HANDLE_HEIGHT, "x"), box(0.03, 0.02, 0.15).translate(CAPS_HANDLE_HEIGHT / 2, 0, 0)]),
   ["caps", "cabin"],
   {
+    id: "parts.cabin.caps-activation-t-handle.030",
     pos: CAPS_HANDLE_POS,
     anim: handleAnim,
     color: "#D32640",
@@ -586,6 +660,7 @@ part(
     ]),
   ["caps", "cabin"],
   {
+    id: "parts.cabin.caps-handle-receptacle.031",
     pos: CAPS_HANDLE_POS,
     color: "#4A535B",
     name: "CAPS handle receptacle",
@@ -597,6 +672,7 @@ const coverAnim = (m: THREE.Mesh) => {
 };
 // POH Fig 7-4 (7-14): close the cover against the rim bottom; the 0.018 m offset is schematic.
 part(() => box(0.18, 0.006, 0.21), ["caps", "cabin"], {
+  id: "parts.cabin.caps-activation-handle-cover.032",
   pos: [CAPS_HANDLE_POS[0], CAPS_HANDLE_POS[1] - 0.018, 0],
   color: "#D32640",
   fairing: true,
@@ -605,6 +681,7 @@ part(() => box(0.18, 0.006, 0.21), ["caps", "cabin"], {
   note: "Placarded cover held by hook-and-loop fasteners; remove by pulling the black tab at its forward edge (POH 13772-007 7-96; Fig 7-4, 7-14/7-15). Cover dimensions schematic. Removed before handle extraction.",
 });
 part(() => box(0.03, 0.004, 0.025), ["caps", "cabin"], {
+  id: "parts.cabin.caps-cover-black-forward-tab.033",
   pos: [CAPS_HANDLE_POS[0] + 0.1, CAPS_HANDLE_POS[1] - 0.023, 0],
   color: "#151515",
   anim: coverAnim,
@@ -612,6 +689,7 @@ part(() => box(0.03, 0.004, 0.025), ["caps", "cabin"], {
   note: "Pull this black tab at the forward edge to remove the cover (POH 13772-007 7-96). Size schematic.",
 });
 part(() => cyl(0.04, 0.24), ["cabin"], {
+  id: "parts.cabin.fire-extinguisher.034",
   // Forward outboard side of the pilot-side footwell (POH 13772-007 7-93; Fig 7-20 item 32, p. 7-88). The POH gives no
   // dimensions: position approximate, set 30 mm higher and 20 mm inboard so the bottle clears the curved belly.
   pos: [2.18, -0.42, -0.48],
@@ -623,6 +701,7 @@ part(() => cyl(0.04, 0.24), ["cabin"], {
 // POH 7-94: the egress hammer lies in the centre armrest (aft end here; size and position approximate). Registered
 // first, it carries the armrest's label, which keeps it clear of the fire extinguisher's in the default cabin view.
 part(() => box(0.06, 0.02, 0.03), ["cabin"], {
+  id: "parts.cabin.armrest-egress-hammer-hour-meters.035",
   pos: [1.37, -0.26, 0.04],
   color: "#4A535B",
   name: "Armrest: egress hammer & hour meters",
@@ -630,6 +709,7 @@ part(() => box(0.06, 0.02, 0.03), ["cabin"], {
   pin: true,
 });
 part(() => box(0.22, 0.05, 0.12), ["cabin"], {
+  id: "parts.cabin.armrest-egress-hammer-hour-meters.036",
   pos: [1.45, -0.24, 0],
   color: "#8A6A3A",
   name: "Armrest: egress hammer & hour meters",
@@ -669,6 +749,7 @@ export const ELT_RCPI: Vec3 = [2.02, -0.44, -0.14];
 // Rear face is toward the console interior (+z), per AMM Fig 25-60-1 sheet 2, PDF 913.
 export const ELT_RCPI_JACK: Vec3 = [ELT_RCPI[0], ELT_RCPI[1], ELT_RCPI[2] + ELT_RCPI_SIZE[2] / 2];
 part(() => box(...ELT_SIZE), ["cabin", "caps"], {
+  id: "parts.cabin.elt-artex-elt-1000.037",
   pos: ELT_POS,
   color: "#EB7A12",
   name: "ELT — Artex ELT 1000",
@@ -677,6 +758,7 @@ part(() => box(...ELT_SIZE), ["cabin", "caps"], {
 });
 // POH 7-91: on the left side of the console (face z −0.13), just forward of the circuit breaker panel (x 1.58 … 1.98)
 part(() => box(...ELT_RCPI_SIZE), ["cabin"], {
+  id: "parts.cabin.elt-remote-switch-rcpi.038",
   pos: ELT_RCPI,
   color: "#EB7A12",
   name: "ELT remote switch (RCPI)",
@@ -698,6 +780,7 @@ part(
   },
   ["cabin", "caps"],
   {
+    id: "parts.cabin.elt-shelf.039",
     pos: ELT_SHELF,
     color: "#717A82",
     name: "ELT shelf",
@@ -714,6 +797,7 @@ part(
     ]),
   ["cabin", "caps"],
   {
+    id: "parts.cabin.elt-antenna.040",
     pos: ELT_ANTENNA_BASE,
     color: "#B6BDC3",
     name: "ELT antenna",
@@ -722,6 +806,7 @@ part(
   },
 );
 part(() => cyl(0.012, 0.03), ["cabin", "caps"], {
+  id: "parts.cabin.elt-buzzer.041",
   pos: ELT_BUZZER,
   color: "#313940",
   name: "ELT buzzer",
@@ -742,6 +827,7 @@ part(
     ),
   ["cabin", "caps"],
   {
+    id: "parts.cabin.elt-shelf-cable-grommet.042",
     color: "#272F36",
     name: "ELT shelf cable grommet",
     note: "Rubber lining of the shelf-edge cable pass, per AMM Fig 25-60-1 sheet 1 item 12 (13773-002 Rev 7, PDF 912). Notch width/depth and lining radius 0.002 m approximate: figure undimensioned. Centres at ±0.008 m from the notch centre and z −0.057 m from the shelf centre seat the outside of the lining against the ±0.010 m side walls and −0.055 m back wall.",
@@ -768,6 +854,7 @@ part(
     ]),
   ["cabin", "caps"],
   {
+    id: "parts.cabin.elt-antenna-cable-clamp.043",
     pos: ELT_CLAMP,
     color: "#717A82",
     name: "ELT antenna cable clamp",
@@ -775,6 +862,7 @@ part(
   },
 );
 part(() => tubeGeo(ELT_ANTENNA_CABLE, 0.002, 0), ["cabin", "caps"], {
+  id: "parts.cabin.elt-antenna-cable.044",
   color: "#272F36",
   name: "ELT antenna cable",
   note: "Antenna jack to shelf-mounted whip, passing through grommet 12 at the shelf edge and below the shelf, per AMM Fig 25-60-1 (POH 13772-007 Fig 7-21 items 3/6, 7-92; AMM 13773-002 Rev 7 Fig 25-60-1 sheet 1 item 1, PDF 912). Radius 0.002 m and bends illustrative; endpoints derived from installation anchors.",
@@ -807,6 +895,7 @@ export const ELT_REMOTE_CABLE = eltRemoteCable(ELT_RCPI);
 // Keep the named jack identical to the cable terminal for catalogue consumers.
 ELT_REMOTE_CABLE[0] = ELT_RCPI_JACK;
 part(() => tubeGeo(ELT_REMOTE_CABLE, 0.002, 0), ["cabin", "caps"], {
+  id: "parts.cabin.elt-remote-cable.045",
   color: "#EB7A12",
   name: "ELT remote cable",
   note: "Connects the rear of the console RCPI to the ELT transmitter, per AMM Fig 25-60-1 (POH 13772-007 Fig 7-21 item 4, 7-92; AMM 13773-002 Rev 7 Fig 25-60-1 sheets 1–2 item 2, PDF 912–913). Radius 0.002 m and cabin-floor routing illustrative; level floor centreline y −0.51 m is approximate (undimensioned figure), 5 mm below the console bottom; the 0.22 m aft bend and 0.025 m rear-jack clearance are approximate to avoid adjacent harnesses so the cable exits only underneath; connector endpoints derive from their hardware anchors. Optional Garmin GPS data line omitted (avionics scope).",

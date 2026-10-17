@@ -17,6 +17,7 @@ import { ALT2_PULLEY, PROP } from "./engine";
 export const MCU: Vec3 = [2.66, -0.08, -0.33];
 export const MCU_SIZE: Vec3 = [0.07, 0.18, 0.14];
 part(() => box(...MCU_SIZE), ["electrical"], {
+  id: "parts.electrical.master-control-unit.001",
   pos: MCU,
   name: "Master Control Unit",
   note: "Left firewall (SR22T POH 13772-007 7-47, 7-49; AMM 13773-002 Fig 71-00-2 item 9). Controls ALT 1, ALT 2, starter, landing light and external power; regulates both alternators and gives external-power reverse-polarity and alternator overvoltage protection. Holds the three distribution buses, their fuses, the MDB 1 → MDB 2 fuse and diode and the relays (POH 7-49). Neither the POH nor the AMM draws its inside: the parts in it are schematic, placed for legibility.",
@@ -26,6 +27,7 @@ part(() => box(...MCU_SIZE), ["electrical"], {
 /** Anchor for flows.ts. */
 export const BAT_1: Vec3 = [2.7, -0.04, 0.34];
 part(() => box(0.13, 0.17, 0.2), ["electrical"], {
+  id: "parts.electrical.bat-1-24-v-10-ah.002",
   pos: BAT_1,
   name: "BAT 1 — 24 V, 10 Ah",
   note: "Lead-acid, right firewall. Charged from Main Dist Bus 1; used for starting (SR22T POH 13772-007 7-47). AMM 24-00 PDF p. 694 says 11 Ah; POH governs.",
@@ -44,6 +46,7 @@ export const BAT2_SHELF = {
 };
 
 part(() => box(...BAT2_SIZE), ["electrical"], {
+  id: "parts.electrical.bat-2-2-12-v-7-ah.003",
   pos: BAT2_BOX,
   name: "BAT 2 — 2 × 12 V, 7 Ah",
   note: 'Vented, acid-resistant container behind the aft cabin bulkhead (FS 222) below the parachute canister, holding two 12 V, 7 Ah sealed lead-acid batteries in series for 24 V; charged from ESS BUS 1 (SR22T POH 13772-007 7-47). Left of the parachute in POH Fig 7-20 item 24 (7-88); AMM 24-00 PDF p. 694 says only "in the empennage". Position and size approximate.',
@@ -51,6 +54,7 @@ part(() => box(...BAT2_SIZE), ["electrical"], {
   fairing: true,
 });
 part(() => box(0.08, 0.07, 0.02), ["electrical"], {
+  id: "parts.electrical.ground-service-receptacle.004",
   pos: [2.45, -0.3, -0.6],
   name: "Ground service receptacle",
   note: "Left side just aft of the cowl. Regulated 28 V; works only with BAT 1 on: the external power contactor is wired through the BAT 1 switch (SR22T POH 13772-007 7-54). Three contacts: the two longer ones carry power, the shorter one engages the external power relay in the MCU, and an isolation diode keeps reverse polarity from engaging it (AMM 13773-002 24-40 PDF p. 748). AMM 24-40 places it on the MCU at the forward LH firewall; POH governs.",
@@ -58,8 +62,14 @@ part(() => box(0.08, 0.07, 0.02), ["electrical"], {
 });
 
 /* ---------- BAT 2 batteries ---------- */
-for (const dx of [-0.07, 0.07])
+for (const [member1, dx] of [
+  ["member-01", -0.07],
+  ["member-02", 0.07],
+] as const)
   part(() => box(0.12, 0.09, 0.1), ["electrical"], {
+    id: "parts.electrical.bat-2-battery-12-v-7-ah.005",
+    instance: [member1],
+
     pos: [BAT2_BOX[0] + dx, BAT2_BOX[1] - 0.01, BAT2_BOX[2]],
     color: "#3C4650",
     name: "BAT 2 battery — 12 V, 7 Ah",
@@ -70,37 +80,44 @@ for (const dx of [-0.07, 0.07])
 const S = () => useSR22T.getState();
 const [mx, my, mz] = MCU;
 /** The MCU relays and when each is energized. External power is not modelled, so its relay never is. */
-export const MCU_RELAYS: [name: string, on: (s: Sim, E: Elec) => boolean, note: string][] = [
+export const MCU_RELAYS: [name: string, on: (s: Sim, E: Elec) => boolean, note: string, id: string][] = [
   [
     "ALT 1 relay",
     (_, E) => E.alt1,
     "Connects ALT 1 to Main Distribution Bus 1; energized while ALT 1 is on line (SR22T POH 13772-007 Fig 7-10, 7-48).",
+    "alt1",
   ],
   [
     "BAT 1 relay",
     (_, E) => E.bat1ok,
     "Connects BAT 1 to the MCU distribution buses and the starter relay; energized while the BAT 1 switch is on and the battery is serviceable (SR22T POH 13772-007 Fig 7-10, 7-48).",
+    "bat1",
   ],
   [
     "Starter relay",
     (s, E) => E.starterPwr && s.eng.key === "START",
     "Energized while the key is held at START with STARTER power available (SR22T POH 13772-007 7-37; Fig 7-10, 7-48).",
+    "starter",
   ],
   [
     "External power relay",
     () => false,
     "Engaged by the short contact of the ground service receptacle, connecting external power to Main Distribution Bus 1 (AMM 13773-002 24-40 PDF p. 748; POH Fig 7-10). External power is not modelled here, so it stays open.",
+    "external-power",
   ],
   [
     "Landing light relay",
     (s, E) => extLit(s, E).land,
     "LAND energizes it, completing a 28 VDC circuit from Main Distribution Bus 1 through a 7.5 A fuse to the ballast on the firewall (SR22T POH 13772-007 7-57).",
+    "landing-light",
   ],
 ];
 /** Centre of MCU relay `i` (an index into MCU_RELAYS): one row along the top of the box, schematic. */
 export const mcuRelayPos = (i: number): Vec3 => [mx, my + 0.07, mz - 0.048 + i * 0.024];
-MCU_RELAYS.forEach(([name, on, note], i) =>
+MCU_RELAYS.forEach(([name, on, note, id], i) =>
   part(() => box(0.03, 0.018, 0.018), ["electrical"], {
+    id: "parts.electrical.part.006",
+    instance: [id],
     pos: mcuRelayPos(i),
     color: "#7A8288",
     name,
@@ -111,26 +128,37 @@ MCU_RELAYS.forEach(([name, on, note], i) =>
 (
   [
     [
-      "Main Distribution Bus 1",
-      "mdb1",
-      0.04,
-      "Fed by ALT 1 through a 100 A fuse and by BAT 1; powers A/C BUS 1, A/C BUS 2 and MAIN BUS 3 through 30 A fuses and the landing light through a 7.5 A fuse (SR22T POH 13772-007 7-49).",
+      "member-01",
+      [
+        "Main Distribution Bus 1",
+        "mdb1",
+        0.04,
+        "Fed by ALT 1 through a 100 A fuse and by BAT 1; powers A/C BUS 1, A/C BUS 2 and MAIN BUS 3 through 30 A fuses and the landing light through a 7.5 A fuse (SR22T POH 13772-007 7-49).",
+      ],
     ],
     [
-      "Main Distribution Bus 2",
-      "mdb2",
-      0.015,
-      "Fed by ALT 2 through an 80 A fuse, and from Main Distribution Bus 1 through the interconnect fuse and diode; powers NON ESS BUS, MAIN BUS 1 and MAIN BUS 2 through 30 A fuses (SR22T POH 13772-007 7-49). POH Fig 7-10 (7-48) prints 60 A for the ALT 2 and interconnect fuses; the 7-49 text governs.",
+      "member-02",
+      [
+        "Main Distribution Bus 2",
+        "mdb2",
+        0.015,
+        "Fed by ALT 2 through an 80 A fuse, and from Main Distribution Bus 1 through the interconnect fuse and diode; powers NON ESS BUS, MAIN BUS 1 and MAIN BUS 2 through 30 A fuses (SR22T POH 13772-007 7-49). POH Fig 7-10 (7-48) prints 60 A for the ALT 2 and interconnect fuses; the 7-49 text governs.",
+      ],
     ],
     [
-      "Essential Distribution Bus",
-      "edb",
-      -0.01,
-      "Fed by both main distribution buses through two 50 A fuses; powers ESS BUS 1 and ESS BUS 2 through 30 A fuses (SR22T POH 13772-007 7-49).",
+      "member-03",
+      [
+        "Essential Distribution Bus",
+        "edb",
+        -0.01,
+        "Fed by both main distribution buses through two 50 A fuses; powers ESS BUS 1 and ESS BUS 2 through 30 A fuses (SR22T POH 13772-007 7-49).",
+      ],
     ],
   ] as const
-).forEach(([name, bus, dy, note]) =>
+).forEach(([member2, [name, bus, dy, note]]) =>
   part(() => box(0.03, 0.008, 0.11), ["electrical"], {
+    id: "parts.electrical.part.007",
+    instance: [bus, member2],
     pos: [mx, my + dy, mz],
     color: "#B87333",
     name,
@@ -141,20 +169,28 @@ MCU_RELAYS.forEach(([name, on, note], i) =>
 (
   [
     [
-      "ALT 1 voltage regulator",
-      "alt1",
-      -0.03,
-      "Regulates ALT 1 to 28 V (SR22T POH 13772-007 7-47, 7-49; Fig 7-10 VOLT REG).",
+      "member-01",
+      [
+        "ALT 1 voltage regulator",
+        "alt1",
+        -0.03,
+        "Regulates ALT 1 to 28 V (SR22T POH 13772-007 7-47, 7-49; Fig 7-10 VOLT REG).",
+      ],
     ],
     [
-      "ALT 2 voltage regulator",
-      "alt2",
-      0.03,
-      "Regulates ALT 2 to 28.75 V, slightly above ALT 1's 28 V, which further assures bus separation (SR22T POH 13772-007 7-47, 7-49; Fig 7-10 VOLT REG).",
+      "member-02",
+      [
+        "ALT 2 voltage regulator",
+        "alt2",
+        0.03,
+        "Regulates ALT 2 to 28.75 V, slightly above ALT 1's 28 V, which further assures bus separation (SR22T POH 13772-007 7-47, 7-49; Fig 7-10 VOLT REG).",
+      ],
     ],
   ] as const
-).forEach(([name, alt, dz, note]) =>
+).forEach(([member3, [name, alt, dz, note]]) =>
   part(() => box(0.035, 0.025, 0.04), ["electrical"], {
+    id: "parts.electrical.part.008",
+    instance: [alt, member3],
     pos: [mx, my - 0.065, mz + dz],
     color: "#4B5860",
     name,
@@ -163,24 +199,28 @@ MCU_RELAYS.forEach(([name, on, note], i) =>
   }),
 );
 part(() => box(0.02, 0.012, 0.08), ["electrical"], {
+  id: "parts.electrical.mcu-bus-fuses.009",
   pos: [mx, my - 0.035, mz - 0.015],
   color: "#C9B458",
   name: "MCU bus fuses",
   note: "ALT 1 → Main Dist Bus 1: 100 A. ALT 2 → Main Dist Bus 2: 80 A. Main Dist Buses → Essential Dist Bus: two 50 A. Each circuit breaker panel bus (ESS BUS 1 and 2, A/C BUS 1 and 2, MAIN BUS 1, 2 and 3, NON ESS BUS): 30 A. Landing light: 7.5 A (SR22T POH 13772-007 7-49, 7-57). POH Fig 7-10 (7-48) prints 60 A for the ALT 2 fuse; the 7-49 text governs.",
 });
 part(() => box(0.02, 0.012, 0.025), ["electrical"], {
+  id: "parts.electrical.mdb-interconnect-fuse-and-diode.010",
   pos: [mx, my - 0.035, mz + 0.045],
   color: "#C98A58",
   name: "MDB interconnect fuse and diode",
   note: "Main Distribution Bus 1 feeds Main Distribution Bus 2 through an 80 A fuse and a diode; the diode keeps ALT 2 from feeding Main Distribution Bus 1 (SR22T POH 13772-007 7-49). AMM 13773-002 24-30 PDF p. 704 says a 60 A fuse; POH governs. POH Fig 7-10 (7-48) also prints 60 A; the 7-49 text governs.",
 });
 part(() => box(0.02, 0.012, 0.02), ["electrical"], {
+  id: "parts.electrical.conv-bus-fuse-5-a.011",
   pos: [mx, my + MCU_SIZE[1] / 2 + 0.006, mz + 0.03],
   color: "#C9B458",
   name: "CONV bus fuse (5 A)",
   note: "On top of the MCU: feeds the Constant Power Bus (CONV) from BAT 1 (SR22T POH 13772-007 7-50).",
 });
 part(() => box(0.003, MCU_SIZE[1] + 0.04, MCU_SIZE[2] + 0.04), ["electrical", "engine"], {
+  id: "parts.electrical.mcu-heat-shield.012",
   pos: [mx + MCU_SIZE[0] / 2 + 0.01, my, mz],
   color: "#B9BEC2",
   name: "MCU heat shield",
@@ -192,6 +232,7 @@ part(() => box(0.003, MCU_SIZE[1] + 0.04, MCU_SIZE[2] + 0.04), ["electrical", "e
 /** Landing light ballast on the firewall (POH 7-57); position approximate. */
 export const LAND_BALLAST: Vec3 = [2.64, -0.4, -0.18];
 part(() => box(0.04, 0.08, 0.12), ["electrical", "lighting"], {
+  id: "parts.electrical.landing-light-ballast.013",
   pos: LAND_BALLAST,
   color: "#5A6168",
   name: "Landing light ballast",
@@ -221,19 +262,27 @@ const beltLoop = (): Vec3[] => {
   return pts;
 };
 part(() => tubeGeo(beltLoop(), 0.006, 0), ["electrical", "engine"], {
+  id: "parts.electrical.alt-2-drive-belt.014",
   color: "#2A2D30",
   name: "ALT 2 drive belt",
   note: "ALT 2 is belt-driven (SR22T POH 13772-007 7-47), from a pulley on the crankshaft behind the propeller. Belt path and pulley sizes approximate.",
   groups: [],
 });
-for (const dx of [-0.05, 0.05])
+for (const [member4, dx] of [
+  ["member-01", -0.05],
+  ["member-02", 0.05],
+] as const)
   part(() => cyl(0.012, 0.03, "z"), ["electrical"], {
+    id: "parts.electrical.transient-voltage-suppressor.015",
+    instance: [member4],
+
     pos: [1.65 + dx, -0.42, 0.1],
     color: "#2F3A44",
     name: "Transient voltage suppressor",
     note: "One of two TVS on the RH side of the center console (AMM 13773-002 24-50 PDF p. 752): a high-power suppressor at a power entry point that lets lightning-induced transients dissipate to ground (SR22T POH 13772-007 7-50). The AMM also lists eight TVS integral to the wiring harnesses: those are the Harness TVS parts (parts/electrical-harness.ts). Position approximate.",
   });
 part(() => box(0.14, 0.04, 0.1), ["electrical"], {
+  id: "parts.electrical.convenience-system-controller.016",
   // POH 13772-007 Fig 7-20 item 15, 7-88; AMM 13773-002 Rev 7 24-50 PDF p. 755.
   // Illustrative inboard placement under the RH cushion, clear of the cross-over pulley and static2 line.
   pos: [REAR_CUSHION_X, -0.58, 0.17],

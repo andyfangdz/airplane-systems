@@ -20,6 +20,8 @@ const bladeGeo = () => {
 };
 for (let i = 0; i < 3; i++)
   part(bladeGeo, ["propeller", "engine"], {
+    id: "parts.engine.propeller-blade.001",
+    instance: [i],
     parent: "blade:" + i,
     color: "#3A4148",
     name: "Propeller blade",
@@ -28,6 +30,7 @@ for (let i = 0; i < 3; i++)
     groups: [],
   });
 part(() => cyl(0.09, 0.17, "x"), ["propeller", "engine"], {
+  id: "parts.engine.propeller-hub-pitch-piston.002",
   pos: PROP,
   color: "#8C969E",
   name: "Propeller hub / pitch piston",
@@ -37,6 +40,7 @@ part(() => cyl(0.09, 0.17, "x"), ["propeller", "engine"], {
   groups: ["oil"],
 });
 part(() => box(0.78, 0.26, 0.26), ["engine"], {
+  id: "parts.engine.lycoming-io-390-c3b6.003",
   pos: [3.14, -0.16, 0],
   name: "Lycoming IO-390-C3B6",
   note: "Normally aspirated, four-cylinder horizontally opposed, air-cooled, wet-sump, continuous-flow fuel injection. 215 hp at 2,700 RPM; published 2,200-hour TBO may be eligible for extension under Lycoming SI 1009 (POH 7-33; AMM 71-00 p. 1). Installation geometry approximate.",
@@ -44,6 +48,7 @@ part(() => box(0.78, 0.26, 0.26), ["engine"], {
   groups: [],
 });
 part(() => box(0.105, 0.255, 0.28), ["engine"], {
+  id: "parts.engine.rear-accessory-housing.004",
   pos: [2.785, -0.16, 0],
   color: "#646E75",
   name: "Rear accessory housing",
@@ -51,6 +56,7 @@ part(() => box(0.105, 0.255, 0.28), ["engine"], {
   groups: [],
 });
 part(() => cyl(0.052, 0.22, "x"), ["engine", "propeller"], {
+  id: "parts.engine.crankshaft-propeller-flange.005",
   pos: [3.61, CRANK_Y, 0],
   color: "#68757D",
   name: "Crankshaft / propeller flange",
@@ -60,6 +66,8 @@ part(() => cyl(0.052, 0.22, "x"), ["engine", "propeller"], {
 CYLS.forEach((c) => {
   const parent = "cyl:" + c.n;
   part(() => cyl(0.085, 0.2, "z", 18), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.006",
     parent,
     color: "#7C858C",
     name: "Cylinder " + c.n,
@@ -70,12 +78,16 @@ CYLS.forEach((c) => {
   });
   for (let k = -2; k <= 2; k++)
     part(() => cyl(0.1, 0.01, "z", 18), ["engine"], {
+      id: "parts.engine.part.007",
+      instance: [k, c.n, parent],
       parent,
       pos: [0, 0, k * 0.035],
       color: "#8C959C",
       groups: [],
     });
   part(() => box(0.19, 0.19, 0.07), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.008",
     parent,
     pos: [0, 0, c.s * 0.13],
     color: "#6A737A",
@@ -84,6 +96,8 @@ CYLS.forEach((c) => {
     groups: [],
   });
   part(() => box(0.155, 0.145, 0.022), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.009",
     parent,
     pos: [0, 0, c.s * 0.174],
     color: "#596970",
@@ -95,6 +109,8 @@ CYLS.forEach((c) => {
     () => mergeGeos([-1, 1].map((side) => cyl(0.009, 0.18, "z").translate(side * 0.053, -0.078, -c.s * 0.023))),
     ["engine"],
     {
+      instance: [c.n, parent],
+      id: "parts.engine.part.010",
       parent,
       color: "#B0B6B7",
       name: "Pushrod housings — cyl " + c.n,
@@ -104,6 +120,7 @@ CYLS.forEach((c) => {
   );
 });
 part(() => cyl(0.07, 0.12, "x"), ["electrical", "engine"], {
+  id: "parts.engine.alt-1-100-a.011",
   pos: [3.5, -0.3, 0.22],
   color: "#D9960F",
   anim: altAnim("alt1"),
@@ -113,6 +130,7 @@ part(() => cyl(0.07, 0.12, "x"), ["electrical", "engine"], {
   groups: [],
 });
 part(() => cyl(0.06, 0.11, "x"), ["electrical", "engine"], {
+  id: "parts.engine.alt-2-70-a.012",
   pos: [3.5, -0.3, -0.22],
   color: "#D9960F",
   anim: altAnim("alt2"),

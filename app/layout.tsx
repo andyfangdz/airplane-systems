@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, Saira_Condensed } from "next/font/google";
 import localFont from "next/font/local";
+import { studyFontStyle } from "./fonts/study-fonts";
 import { Analytics } from "@vercel/analytics/next";
 import { vercelAnalytics } from "@/lib/staticExport";
 import "./globals.css";
 
-const disp = Saira_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-disp" });
 // Keep Source Sans local: Google's generated URLs can break Turbopack's font query parser in clean CI builds.
 const body = localFont({
   src: [
@@ -16,7 +15,6 @@ const body = localFont({
   variable: "--font-body",
   display: "swap",
 });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
 // Each airplane's route names its airplane in the tab title (app/(fleet)/airplane-route.ts); the root keeps this one.
 export const metadata: Metadata = {
@@ -36,7 +34,7 @@ const loadFailedScript = `addEventListener('error',function(e){var s=e.target;if
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${disp.variable} ${body.variable} ${mono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={body.variable} style={studyFontStyle} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: loadFailedScript }} />

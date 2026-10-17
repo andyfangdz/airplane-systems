@@ -20,7 +20,13 @@ import { ELEV_HINGE_X, FLAP, SY, fs, hingeX, sC, sLE, stabSec, wingP } from "./g
 /** Pivot just under the cabin floor; the grip sits between the pilot's knees, below the panel's lower edge. */
 export const STICK = { x: fs(2.02), y: -0.51, z: 0.28, len: 0.28, pitchMax: 16 * D2R, rollMax: 14 * D2R };
 /** Rudder pedals (pilot −0.36/−0.21, co-pilot +0.21/+0.36) in the narrowing foot well. Left pedals move aft when the right pedals go forward. */
-export const PEDALS = { x: fs(1.52), y: -0.41, z: [-0.36, -0.21, 0.21, 0.36], travel: 0.06 };
+export const PEDAL_STATIONS = [
+  { id: "pilot-left", z: -0.36 },
+  { id: "pilot-right", z: -0.21 },
+  { id: "copilot-left", z: 0.21 },
+  { id: "copilot-right", z: 0.36 },
+] as const;
+export const PEDALS = { x: fs(1.52), y: -0.41, z: PEDAL_STATIONS.map(({ z }) => z), travel: 0.06 };
 /** Pedal cross tubes (left pedals, right pedals): height. */
 const PED_BAR = { L: -0.48, R: -0.495 };
 

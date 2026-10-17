@@ -113,4 +113,10 @@ describe("route code splitting", () => {
       expect(files, entry).not.toContain("aircraft/index.ts");
     }
   });
+
+  it("the root redirect does not download every aircraft's system descriptions", () => {
+    const files = reach("components/OpenLastViewed.tsx");
+    expect(files).not.toContain("aircraft/metas.ts");
+    for (const id of AIRCRAFT_IDS) expect(files).not.toContain(`aircraft/${id}/systems.ts`);
+  });
 });

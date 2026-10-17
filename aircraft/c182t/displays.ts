@@ -3,7 +3,7 @@
  * own display; only the red PITCH TRIM annunciation reaches the PFD), MFD with the 182T EIS (ENGINE or SYSTEM page, CRG pp. 5 and 11,
  * POH Figure 2-3 markings), reversionary mode, the KAP 140 LCD, and the mechanical standby airspeed, vacuum attitude and altimeter.
  */
-import { flightData, type FlightState } from "@/lib/avionics/flight";
+import { flightData } from "@/lib/avionics/flight";
 import {
   drawMFD,
   drawPFD,
@@ -17,7 +17,8 @@ import {
   type SpeedBands,
 } from "@/lib/avionics/g1000";
 import { drawKap140, kap140Pfd } from "@/lib/avionics/kap140";
-import { lin } from "@/lib/geometry";
+import { indicated } from "./indications";
+export { indicated } from "./indications";
 import { nav3ElecGauges } from "../cessna/annunciations";
 import { annunciations, fuelInd, live, type Elec, type Sim } from "./model";
 
@@ -42,45 +43,6 @@ const clock = (t: number) => {
   const s = Math.floor(14 * 3600 + 5 * 60 + t);
   return [Math.floor(s / 3600) % 24, Math.floor(s / 60) % 60, s % 60].map((v) => String(v).padStart(2, "0")).join(":");
 };
-/** Alternate static source, flaps UP (POH Fig 5-1 Sheet 2): normal KIAS → alternate KIAS. */
-const ALT_KIAS = [
-  [55, 53],
-  [60, 58],
-  [70, 70],
-  [80, 81],
-  [90, 91],
-  [100, 101],
-  [120, 121],
-  [140, 141],
-  [160, 161],
-];
-/** Altimeter correction with the alternate static source, flaps UP, sea level to 4,000 ft (POH Fig 5-2): indicated = true + correction. */
-const ALT_FT = [
-  [60, 30],
-  [80, 10],
-  [100, -20],
-  [120, -30],
-  [140, -50],
-  [160, -50],
-];
-
-/** Air data as the instruments see it: pitot/static blockages and the alternate static source (POH 3-13, 3-30, Figs 5-1, 5-2). */
-export function indicated(s: Sim, fs: FlightState, sample: typeof live = live) {
-  let ias = fs.ias,
-    alt = fs.alt,
-    vs = fs.vs;
-  if (s.pitot.pitotBlocked) ias = 0;
-  if (s.pitot.staticBlocked && !s.pitot.altStatic) {
-    alt = sample.staticAlt ?? fs.alt;
-    vs = 0;
-  }
-  if (s.pitot.altStatic && ias > 40) {
-    ias = lin(ALT_KIAS, ias)[0];
-    alt += lin(ALT_FT, fs.ias)[0];
-  }
-  return { ias, alt, vs };
-}
-
 function data(s: Sim, E: Elec): FlightData {
   const fs = live.fs,
     ind = indicated(s, fs);

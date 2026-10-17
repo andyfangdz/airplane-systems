@@ -19,6 +19,7 @@ import {
 import { altDoorAnim, part } from "./catalogue";
 
 part(() => box(0.1, 0.12, 0.14), ["engine"], {
+  id: "parts.engine-air.induction-air-filter.001",
   pos: AIR_FILTER,
   color: "#C9B98F",
   name: "Induction air filter",
@@ -27,6 +28,7 @@ part(() => box(0.1, 0.12, 0.14), ["engine"], {
   groups: ["induction"],
 });
 part(() => box(0.06, 0.115, 0.13), ["engine"], {
+  id: "parts.engine-air.induction-duct-alternate-air-junction.002",
   pos: [3.515, -0.16, 0.2],
   color: "#7D929C",
   name: "Induction duct / alternate-air junction",
@@ -34,6 +36,7 @@ part(() => box(0.06, 0.115, 0.13), ["engine"], {
   groups: ["induction"],
 });
 part(() => box(0.022, 0.075, 0.085), ["engine"], {
+  id: "parts.engine-air.alternate-air-door.003",
   pos: ALT_AIR,
   color: "#E0B040",
   anim: altDoorAnim(ALT_AIR[0]),
@@ -43,6 +46,7 @@ part(() => box(0.022, 0.075, 0.085), ["engine"], {
   groups: ["induction"],
 });
 part(() => cyl(0.055, 0.14, "x"), ["engine", "fuel"], {
+  id: "parts.engine-air.throttle-body-fuel-servo.004",
   pos: THROTTLE,
   color: "#7E8A93",
   name: "Throttle body / fuel servo",
@@ -51,6 +55,7 @@ part(() => cyl(0.055, 0.14, "x"), ["engine", "fuel"], {
   groups: ["induction", "fuel"],
 });
 part(() => box(0.085, 0.065, 0.06), ["engine", "fuel"], {
+  id: "parts.engine-air.fuel-servo-regulator-mixture-valve.005",
   pos: [THROTTLE[0], THROTTLE[1] + 0.012, THROTTLE[2] + 0.07],
   color: "#9D8A74",
   name: "Fuel servo regulator / mixture valve",
@@ -58,6 +63,7 @@ part(() => box(0.085, 0.065, 0.06), ["engine", "fuel"], {
   groups: ["fuel"],
 });
 part(() => box(0.38, 0.065, 0.26), ["engine"], {
+  id: "parts.engine-air.induction-plenum.006",
   pos: INDUCTION_PLENUM,
   color: "#708993",
   name: "Induction plenum",
@@ -66,6 +72,7 @@ part(() => box(0.38, 0.065, 0.26), ["engine"], {
   groups: ["induction"],
 });
 part(() => cyl(0.044, 0.075, "x"), ["fuel", "engine"], {
+  id: "parts.engine-air.engine-driven-fuel-pump.007",
   pos: ENGINE_FUEL_PUMP,
   color: "#5C8AA5",
   name: "Engine-driven fuel pump",
@@ -74,6 +81,7 @@ part(() => cyl(0.044, 0.075, "x"), ["fuel", "engine"], {
   groups: ["fuel"],
 });
 part(() => box(0.055, 0.04, 0.055), ["fuel", "engine", "avionics"], {
+  id: "parts.engine-air.fuel-flow-transducer.008",
   pos: FUEL_FLOW_SENSOR,
   color: "#79A5BD",
   name: "Fuel flow transducer",
@@ -82,6 +90,7 @@ part(() => box(0.055, 0.04, 0.055), ["fuel", "engine", "avionics"], {
   groups: ["sensors"],
 });
 part(() => cyl(0.042, 0.048), ["fuel", "engine"], {
+  id: "parts.engine-air.fuel-flow-divider-spider.009",
   pos: FUEL_DIVIDER,
   color: "#6C8799",
   name: "Fuel flow divider (spider)",
@@ -91,6 +100,8 @@ part(() => cyl(0.042, 0.048), ["fuel", "engine"], {
 });
 for (const c of CYLS) {
   part(() => mergeGeos([cyl(0.012, 0.035), cyl(0.009, 0.017, "z").translate(0, 0.013, 0)]), ["fuel", "engine"], {
+    instance: [c.n],
+    id: "parts.engine-air.part.010",
     pos: injectorPoint(c),
     color: "#BE9A56",
     name: "Fuel injector nozzle — cyl " + c.n,
@@ -99,6 +110,7 @@ for (const c of CYLS) {
   });
 }
 part(() => cyl(0.027, 0.12, "x"), ["engine"], {
+  id: "parts.engine-air.exhaust-collector-weldment.011",
   pos: EXHAUST_COLLECTOR,
   color: "#8A5A3C",
   name: "Exhaust collector weldment",
@@ -107,6 +119,7 @@ part(() => cyl(0.027, 0.12, "x"), ["engine"], {
   groups: ["exhaust"],
 });
 part(() => cyl(0.06, 0.28, "z"), ["engine", "environment"], {
+  id: "parts.engine-air.muffler.012",
   pos: MUFFLER,
   color: "#8A5A3C",
   name: "Muffler",
@@ -115,6 +128,7 @@ part(() => cyl(0.06, 0.28, "z"), ["engine", "environment"], {
   groups: ["exhaust"],
 });
 part(() => cyl(0.08, 0.2, "z"), ["environment", "engine"], {
+  id: "parts.engine-air.heat-exchanger-muff.013",
   pos: MUFFLER,
   color: "#E0522B",
   fairing: true,
@@ -124,6 +138,7 @@ part(() => cyl(0.08, 0.2, "z"), ["environment", "engine"], {
 });
 
 part(() => tubeGeo(TAILPIPE, 0.024), ["engine"], {
+  id: "parts.engine-air.exhaust-tailpipe.014",
   color: "#8A5A3C",
   name: "Exhaust tailpipe",
   pin: true,

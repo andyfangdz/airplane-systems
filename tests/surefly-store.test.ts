@@ -2,11 +2,12 @@
  * The SureFly page's bench: timing the SIM to the engine (SF1001 §2.9–2.11) and running it (§3.3, tech page).
  */
 import { beforeEach, describe, expect, test } from "vitest";
-import { advance, bench, syncError, useUi } from "@/components/engine/surefly/store";
+import { advance, bench, benchClock, syncError, useUi } from "@/components/engine/surefly/store";
 import { dipFor, LED_CYCLES, cycleLength, SYNC_TOLERANCE } from "@/engines/components/surefly/model";
 
 const initial = useUi.getState();
 beforeEach(() => {
+  benchClock.reset();
   useUi.setState(initial, true);
   Object.assign(bench, { t: 0, onAt: 0, crank: 0, rpm: 0, spark: [9, 9, 9, 9, 9] });
 });
@@ -67,8 +68,9 @@ describe("running", () => {
     set({ stage: "run", ignition: true, rpm: 1200, map: 22 });
     bench.rpm = 1200;
     const fired = [0, 0, 0, 0, 0];
-    for (let i = 0; i < 100; i++) {
-      advance(0.01);
+    // Inspect every integration boundary so a later step in one render frame cannot age a spark before it is counted.
+    for (let i = 0; i < 120; i++) {
+      advance(1 / 120);
       bench.spark.forEach((age, cyl) => cyl && age === 0 && fired[cyl]++);
     }
     // one second at 1,200 rpm is 20 revolutions

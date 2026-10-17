@@ -1,5 +1,6 @@
 // Types for scripts/smoke.mjs, so tests/smoke.test.ts can import its pure helpers under strict TypeScript.
 export interface Expect {
+  sha256?: string;
   status?: number;
   contentType?: string;
   bodyIncludes?: string;
@@ -11,6 +12,7 @@ export interface Expect {
   locationEndsWith?: string;
 }
 export interface SmokeResponse {
+  sha256?: string;
   status: number;
   headers: Record<string, string>;
   body: string;

@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 /** C172S catalogue: exterior and interior lighting (POH 7-59). */
 import type { Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
@@ -29,6 +30,8 @@ const ext = (s: SysId[] = ["lighting"]) => s;
   ] as const
 ).forEach(([k, name]) =>
   part(() => sph(0.035), ext(), {
+    id: "parts.lighting.part.001",
+    instance: [k],
     pos: LIGHTS[k],
     color: "#D9D9D9",
     name,
@@ -38,6 +41,7 @@ const ext = (s: SysId[] = ["lighting"]) => s;
   }),
 );
 onSurf("rudder", LIGHTS.tail, () => sph(0.022), {
+  id: "parts.lighting.tail-position-light-white.002",
   sys: ["lighting"],
   color: "#F2F2F2",
   name: "Tail position light (white)",
@@ -46,6 +50,7 @@ onSurf("rudder", LIGHTS.tail, () => sph(0.022), {
   pin: true,
 });
 part(() => cyl(0.03, 0.06), ["lighting"], {
+  id: "parts.lighting.flashing-beacon.003",
   pos: LIGHTS.beacon,
   color: "#C8313B",
   name: "Flashing beacon",
@@ -54,6 +59,7 @@ part(() => cyl(0.03, 0.06), ["lighting"], {
   pin: true,
 });
 part(() => box(0.02, 0.06, 0.1), ["lighting"], {
+  id: "parts.lighting.landing-light.004",
   pos: LIGHTS.land,
   color: "#F5F2E4",
   name: "Landing light",
@@ -62,6 +68,7 @@ part(() => box(0.02, 0.06, 0.1), ["lighting"], {
   pin: true,
 });
 part(() => box(0.02, 0.06, 0.1), ["lighting"], {
+  id: "parts.lighting.taxi-light.005",
   pos: LIGHTS.taxi,
   color: "#F5F2E4",
   name: "Taxi light",
@@ -69,8 +76,15 @@ part(() => box(0.02, 0.06, 0.1), ["lighting"], {
   ext: true,
   pin: true,
 });
-[LIGHTS.courtesyL, LIGHTS.courtesyR].forEach((p, i) =>
+(
+  [
+    ["row-001", LIGHTS.courtesyL],
+    ["row-002", LIGHTS.courtesyR],
+  ] as const
+).forEach(([rowKey1, p], i) =>
   part(() => sph(0.018), ["lighting", "cabin"], {
+    id: "parts.lighting.courtesy-light-under-wing.006",
+    instance: [rowKey1],
     pos: p,
     color: "#E8C46A",
     name: "Courtesy light (under wing)",
@@ -80,14 +94,22 @@ part(() => box(0.02, 0.06, 0.1), ["lighting"], {
   }),
 );
 part(() => box(0.5, 0.03, 0.16), ["lighting", "cabin"], {
+  id: "parts.lighting.overhead-console.007",
   pos: P3(58, 0, 77),
   color: "#39424A",
   name: "Overhead console",
   note: "Two front FLOOD LIGHT knobs (rotatable lights), the rear dome light and its push button (with the courtesy lights), and the overhead speaker (POH 7-60, 7-75). CABIN LTS/PWR breaker.",
   pin: true,
 });
-LIGHTS.flood.forEach((p, i) =>
+(
+  [
+    ["left", LIGHTS.flood[0]],
+    ["right", LIGHTS.flood[1]],
+  ] as const
+).forEach(([lamp, p], i) =>
   part(() => cyl(0.02, 0.02), ["lighting"], {
+    id: "parts.lighting.flood-light.008",
+    instance: [lamp],
     pos: p,
     color: "#E8C46A",
     name: "Flood light",
@@ -96,6 +118,7 @@ LIGHTS.flood.forEach((p, i) =>
   }),
 );
 part(() => cyl(0.03, 0.012), ["lighting"], {
+  id: "parts.lighting.rear-dome-light.009",
   pos: LIGHTS.dome,
   color: "#E8C46A",
   name: "Rear dome light",
@@ -103,6 +126,7 @@ part(() => cyl(0.03, 0.012), ["lighting"], {
   pin: true,
 });
 part(() => box(0.012, 0.06, 0.06), ["lighting"], {
+  id: "parts.lighting.dimming-panel.010",
   pos: P3(17.8, -17.8, 53.4),
   color: "#2F3A42",
   name: "DIMMING panel",
