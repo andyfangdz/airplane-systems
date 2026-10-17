@@ -11,7 +11,8 @@ export default defineConfig({
   testMatch: /test-.*-ui\.mjs/,
   // Software WebGL and timing measurements need an uncontended renderer.
   workers: 1,
-  fullyParallel: false,
+  // Shard individual cases while keeping software WebGL and camera measurements serial on each runner.
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
   // A case can exercise a complete study walk; keep time for slower CI rendering.
