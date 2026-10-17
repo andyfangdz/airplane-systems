@@ -23,20 +23,19 @@ import {
   type Dims,
   type Mats,
 } from "./kit";
-import { layoutFor } from "./layout";
+import { layoutFor, type EngineLayout } from "./layout";
 import { P } from "./parts";
 
 /** The crankcase, accessory housing and sump geometries. */
-export function caseGeometry(d: Dims) {
+export function caseGeometry(d: Dims, L: EngineLayout) {
   const bolts: THREE.BufferGeometry[] = [];
   for (let x = d.caseRear + 0.03; x < d.front - 0.01; x += 0.055)
     bolts.push(
       zrod(0.004, -0.02, 0.02, 8).translate(x, d.caseTop + 0.004, 0),
       zrod(0.0075, 0.012, 0.02, 6).translate(x, d.caseTop + 0.004, 0),
     );
-  const mounts = [1, -1].flatMap((y) =>
-    [1, -1].map((z) => rod(0.02, 0.045, 16).translate(d.caseRear + 0.012, y * 0.075, z * (d.caseHalf - 0.025))),
-  );
+  const M = L.mounts(d);
+  const mounts = M.bosses.map(([x, y, z]) => rod(0.02, 0.045, 16).translate(x, y, z));
   return {
     right: slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
     left: slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
@@ -44,6 +43,7 @@ export function caseGeometry(d: Dims) {
     bolts: merge(bolts),
     nose: rod(0.05, 0.034, 28).translate(d.front + 0.017, 0, 0),
     mounts: merge(mounts),
+    ...(M.brackets.length ? { brackets: merge(M.brackets.map(([a, b]) => tube([a, b], 0.009, 4, 8))) } : {}),
     acc: slab(d.accRear, d.caseRear, d.accBottom, d.accTop, -0.125, 0.125, 0.03),
     sump: slab(d.caseRear + 0.005, d.front - 0.04, d.sumpBottom, d.caseBottom + 0.01, -0.12, 0.12, 0.03),
   };
@@ -51,7 +51,7 @@ export function caseGeometry(d: Dims) {
 
 export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
-  const geo = useMemo(() => caseGeometry(d), [d]);
+  const geo = useMemo(() => caseGeometry(d, L), [d, L]);
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
   return (
     <>
@@ -88,10 +88,18 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
       />
       <P
         name="Engine mount bosses"
-        note="Mounting points to the airframe's engine mount."
+        note={L.notes.mounts ?? "Mounting points to the airframe's engine mount."}
         geometry={geo.mounts}
         material={mats.darkSteel}
       />
+      {geo.brackets && (
+        <P
+          name="Engine mount brackets"
+          note={L.notes.mounts ?? "Mounting points to the airframe's engine mount."}
+          geometry={geo.brackets}
+          material={mats.darkSteel}
+        />
+      )}
       <P
         name="Accessory housing"
         note={
