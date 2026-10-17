@@ -1329,6 +1329,19 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
     });
     if (disc.current) disc.current.visible = blur;
   });
+  // Let the pointer reach parts behind a switched-off propeller without unmounting its meshes.
+  useEffect(() => {
+    const originals = new Map<THREE.Mesh, THREE.Mesh["raycast"]>();
+    prop.current?.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const original = o.raycast;
+      originals.set(o, original);
+      o.raycast = (raycaster, intersections) => {
+        if (sim.useUi.getState().view.prop) original.call(o, raycaster, intersections);
+      };
+    });
+    return () => originals.forEach((raycast, mesh) => (mesh.raycast = raycast));
+  }, [sim]);
   const n = spec.propeller.blades;
   return (
     <group ref={prop} position={[d.flangeX + 0.008 + layoutFor(spec).propSpacer, 0, 0]}>
