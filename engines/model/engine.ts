@@ -9,6 +9,7 @@
  * and propeller torque (propeller.ts), then exhaust, head and oil temperatures and oil pressure.
  */
 import type { EngineSpec, Side, TurboSpec } from "../types";
+import { leanGaugeAbove, leanOverNext } from "./alerts";
 import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
 import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
@@ -219,6 +220,11 @@ export interface EngineState {
   /** The manifold pressure a turbocharged spec's metering reads as its throttle-angle stand-in (turbo.ts
    * `turboMetering`): the MAP without an intake leak. Set by `step` for a turbocharged spec only; absent, `map`. */
   meterMapInHg?: number;
+  /** The leaning flag's timer (alerts.ts `leanOverNext`), only on a spec with `limits.leanMaxMap` (POH 4-22): net
+   * seconds the manifold-pressure gauge has read above the limit with the mixture off full rich, 0 … `LEAN_DWELL_S`,
+   * and the flag it latches. Without the limit the members are absent. */
+  leanOverS?: number;
+  leanOver?: boolean;
 }
 
 export const defaultControls = (): Controls => ({
@@ -319,6 +325,7 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     altAirOpen: false,
     oilLossQt: 0,
     highBoostOn: false,
+    ...(spec.limits.leanMaxMap && { leanOverS: 0, leanOver: false }),
   };
 }
 
@@ -739,6 +746,19 @@ function substep(
   // `turbo.oil.bleedPsi` at rated rpm, in proportion to the pump's flow (AMM 79-00 PDF 2764)
   if (spec.turbo) oilP = Math.max(0, oilP - spec.turbo.oil.bleedPsi * clamp(s.rpm / rated.rpm, 0, 1));
   s.oilP = approach(s.oilP, oilP, dt, 0.4);
+
+  // ---- the leaning limit's timer, in real time: the flag reads the power setting, not the controller's hunting
+  const lean = spec.limits.leanMaxMap;
+  if (lean) {
+    const next = leanOverNext(
+      { s: s.leanOverS ?? 0, on: s.leanOver ?? false },
+      s.running && c.mixture < 0.99,
+      leanGaugeAbove(s.map, lean.value),
+      dt,
+    );
+    s.leanOverS = next.s;
+    s.leanOver = next.on;
+  }
 }
 
 /**

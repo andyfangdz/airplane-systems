@@ -38,6 +38,7 @@ import {
   mixtureForFlow,
   ratedAirLbH,
 } from "@/engines/model/fuel";
+import { limitFlags } from "@/engines/model/alerts";
 import { engineAirFlow, inductionCal, solveManifold, throttleArea } from "@/engines/model/induction";
 import { mixturePower } from "@/engines/model/mixture";
 import {
@@ -1274,6 +1275,11 @@ const cruise10k = () =>
 const run = (x: ReturnType<typeof copy>, seconds: number) => {
   for (let t = 0; t < seconds; t += 0.05) step(K, x.s, x.c, x.e, x.f, 0.05);
 };
+/** The levels of the flags named `cas` (the POH's annunciation) on a run's current state. */
+const casLevels = (x: ReturnType<typeof copy>, cas: string) =>
+  limitFlags(K, x.s, x.e)
+    .filter((f) => f.cas === cas)
+    .map((f) => f.level);
 /** POH 2-9's manifold-pressure bands: the caution (MAN PRESSURE) and warning edges. */
 const mapBand = (color: "yellow" | "red") =>
   K.markings!.find((m) => m.gauge === "map")!.bands.find((b) => b.color === color)!;
@@ -1306,12 +1312,16 @@ describe("part throttle and a misadjusted controller (POH 3-29, 3A-9, 4-22)", ()
     expect(w.hi).toBeLessThanOrEqual(mapBand("yellow").to);
     expect(w.reliefOpenings).toBe(0);
     expect(x.s.reliefOpen).toBe(false);
+    expect(casLevels(x, "MAN PRESSURE")).toEqual(["caut"]);
   }, 60_000);
 
-  test("T-24: at rated power and in the full-power climb at 5,000 and 15,000 ft both TITs stay below 1750 °F (POH 2-9; M-18 Table 2-1)", () => {
+  test("T-24: at rated power and in the full-power climb at 5,000 and 15,000 ft both TITs stay below 1750 °F, with no TIT flag (POH 2-9; M-18 Table 2-1)", () => {
+    const titFlags = (x: ReturnType<typeof copy>) =>
+      limitFlags(K, x.s, x.e).filter((f) => f.cas === "TIT" || f.src === K.limits.titTransient!.src);
     const r = copy(rated());
     expect(Math.max(...r.s.tit!)).toBeLessThan(1750);
     expect(r.s.titOverS).toBe(0);
+    expect(titFlags(r)).toEqual([]);
     for (const alt of [5000, 15000]) {
       const x = copy(rated());
       x.e.altFt = alt;
@@ -1319,6 +1329,7 @@ describe("part throttle and a misadjusted controller (POH 3-29, 3A-9, 4-22)", ()
       run(x, 30);
       expect(Math.max(...x.s.tit!), `${alt} ft`).toBeLessThan(1750);
       expect(x.s.titOverS, `${alt} ft`).toBe(0);
+      expect(titFlags(x), `${alt} ft`).toEqual([]);
     }
   }, 60_000);
 });
@@ -1331,7 +1342,7 @@ function normallyAspiratedMap(x: ReturnType<typeof copy>) {
 }
 
 describe("turbo-system failures (SR22T POH 3-27, 3-28: the four causes of a loss of manifold pressure)", () => {
-  test("an induction leak at 10,000 ft cruise loses the boost: MAP within 2 in.Hg of normally aspirated, the engine runs (POH 3-27 cause 1)", () => {
+  test("an induction leak at 10,000 ft cruise loses the boost: MAP within 2 in.Hg of normally aspirated, no MAN PRESSURE, the engine runs (POH 3-27 cause 1)", () => {
     const x = cruise10k();
     const before = x.s.map;
     x.f.inductionLeak = true;
@@ -1339,6 +1350,7 @@ describe("turbo-system failures (SR22T POH 3-27, 3-28: the four causes of a loss
     expect(x.s.map).toBeLessThan(before - 5);
     expect(Math.abs(x.s.map - normallyAspiratedMap(x))).toBeLessThanOrEqual(2);
     expect(x.s.running).toBe(true);
+    expect(casLevels(x, "MAN PRESSURE")).toEqual([]);
   }, 60_000);
 
   test("a leaking intercooler loses manifold pressure, less than a split induction coupling, the controller shutting the gate against it (POH 3-27 cause 1)", () => {
@@ -1389,6 +1401,7 @@ describe("turbo-system failures (SR22T POH 3-27, 3-28: the four causes of a loss
     run(x, 300); // 8 min
     expect(x.s.oilLossQt!).toBeGreaterThan(2.5);
     expect(x.s.oilP).toBeLessThan(30);
+    expect(casLevels(x, "OIL PRESS").length).toBe(1);
   }, 60_000);
 
   test("an oil leak loses turbo.oil.leakQtPerMin while the engine runs, nothing stopped", () => {
@@ -1401,6 +1414,29 @@ describe("turbo-system failures (SR22T POH 3-27, 3-28: the four causes of a loss
     const f = { ...noFailures(K), oilLeak: true };
     for (let t = 0; t < 60; t += 0.05) step(K, s, defaultControls(), e, f, 0.05);
     expect(s.oilLossQt).toBe(0);
+  }, 60_000);
+});
+
+describe("the POH flags on the running -K (POH 2-9, 3-29, 3-30, 3A-11; M-18 Table 2-1)", () => {
+  test("a wastegate seized closed raises the MAN PRESSURE warning and the relief-valve flag while it surges (POH 3-29, 3-30)", () => {
+    const x = copy(rated());
+    x.f.wastegateSeized = "closed";
+    const seen = new Set<string>();
+    for (let i = 0; i < 30 * 60; i++) {
+      step(K, x.s, x.c, x.e, x.f, 1 / 60);
+      for (const f of limitFlags(K, x.s, x.e))
+        seen.add(f.cas ? `${f.cas} ${f.level}` : f.src === K.refs.relief ? "relief" : f.text);
+    }
+    expect(seen).toContain("MAN PRESSURE warn");
+    expect(seen).toContain("relief");
+  }, 60_000);
+
+  test("an obstructed filter opens the automatic door and raises ALT AIR OPEN (POH 3A-11)", () => {
+    const x = copy(rated());
+    x.f.filter = true;
+    run(x, 20);
+    expect(x.s.altAirOpen).toBe(true);
+    expect(casLevels(x, "ALT AIR OPEN")).toEqual(["caut"]);
   }, 60_000);
 });
 
@@ -1474,7 +1510,23 @@ describe("T-35: the -K keeps a finite state in every Start-from setup under ever
       }
       expect(first).toEqual([]);
       expect(nonFinite(s).map((p) => `${sc.id} at 20 s: ${p}`)).toEqual([]);
+      expect(nonFinite(limitFlags(K, s, env, { failures: f, controls: c }))).toEqual([]);
     }
+  });
+
+  test("no -K Start-from setup raises a TIT, TIT-transient, turbine-speed or MAN PRESSURE flag (POH 2-9; M-18 Table 2-1, Figure 2-41)", () => {
+    const bad = setups.flatMap(({ id, setup }) =>
+      limitFlags(K, setup.s, setup.env, { failures: noFailures(K), controls: setup.c })
+        .filter(
+          (f) =>
+            f.cas === "TIT" ||
+            f.cas === "MAN PRESSURE" ||
+            f.src === K.limits.titTransient!.src ||
+            f.src === K.limits.turbineRpmMax!.src,
+        )
+        .map((f) => `${id}: ${f.text}`),
+    );
+    expect(bad).toEqual([]);
   });
 });
 

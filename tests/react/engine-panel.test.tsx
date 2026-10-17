@@ -6,6 +6,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
+import { markingBand } from "@/engines/model/alerts";
 import { initialState } from "@/engines/model/engine";
 import { egtOffset } from "@/engines/model/mixture";
 import { labelOf, scenariosFor } from "@/engines/model/scenarios";
@@ -14,7 +15,7 @@ import { O360 } from "@/engines/o360/spec";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
 import { EnginePanel } from "@/components/engine/EnginePanel";
-import { Monitor, bandTone, titFromPeak } from "@/components/engine/Monitor";
+import { Flags, Monitor, bandTone, titFromPeak } from "@/components/engine/Monitor";
 import { PressureChart, chartCaption, chartInputs } from "@/components/engine/PressureChart";
 import { GROUPS } from "@/components/engine/scene/parts";
 import { replaceState, simFor, type EngineSim } from "@/components/engine/store";
@@ -287,6 +288,16 @@ describe("engine monitor", () => {
     expect(cols.map((c) => c.firstElementChild?.textContent)).toEqual(["1600", "1620"]);
   });
 
+  it("draws a red X on the bar of a failed TIT probe (POH 7-32, 3-31)", () => {
+    const sim = fresh(K);
+    const { container } = render(<Monitor sim={sim} />);
+    act(() => sim.useUi.getState().setFailures({ titProbe: [true, false] }));
+    const [l, r] = container.querySelectorAll(".mon-tit");
+    expect(l.querySelector(".x")).not.toBeNull();
+    expect(l.firstElementChild?.textContent).toBe("X");
+    expect(r.querySelector(".x")).toBeNull();
+  });
+
   it("says the airplane's display computes percent power its own way (POH 7-36)", () => {
     const { container } = render(<Monitor sim={fresh(K)} />);
     expect(monCell(container, "Power")?.querySelector("b")?.getAttribute("title")).toContain("POH 7-36");
@@ -366,6 +377,117 @@ describe("engine monitor", () => {
     live(sim, (s) => (s.rpm = 2726));
     expect(monCell(container, "RPM")?.querySelector("b")?.className).toBe("bad");
     expect(monCell(container, "Power")?.querySelector("b")?.getAttribute("title")).toBeNull();
+  });
+});
+
+describe("limit flags on the page (POH 2-9, 3-29 to 3-31, 4-22)", () => {
+  const items = (c: HTMLElement) => [...c.querySelectorAll(".eng-flags li")];
+
+  it("leaves out a failed TIT probe's side: it reads nothing (POH 3-31)", () => {
+    const sim = fresh(K);
+    const { container } = render(<Flags sim={sim} />);
+    live(sim, (s) => (s.tit = [1760, 1760]));
+    expect(items(container).find((li) => li.textContent?.startsWith("TIT:"))?.textContent).toContain(
+      "L 1,760 °F and R 1,760 °F",
+    );
+    act(() => sim.useUi.getState().setFailures({ titProbe: [false, true] }));
+    const tit = items(container).filter((li) => li.textContent?.startsWith("TIT:"));
+    expect(tit).toHaveLength(1);
+    expect(tit[0].textContent).toContain("L 1,760 °F");
+    expect(tit[0].textContent).not.toContain("R 1,760");
+  });
+
+  it("flags leaning above 30.5 in.Hg, held for the dwell, as a study advisory (POH 4-22)", () => {
+    const sim = fresh(K);
+    const { container } = render(<Flags sim={sim} />);
+    act(() => sim.useUi.getState().setControls({ mixture: 0.8 }));
+    // the engine's leaning timer has latched (engines/model/alerts.ts LEAN_DWELL_S)
+    live(sim, (s) =>
+      Object.assign(s, { running: true, rpm: 2500, oilP: 45, oilT: 180, map: 31.0, leanOverS: 3, leanOver: true }),
+    );
+    const lean = items(container).find((li) => li.textContent?.startsWith("Leaned at"));
+    expect(lean?.textContent).toBe("Leaned at 31.0 in.Hg: cruise leaning only at 30.5 in.Hg or less");
+    expect(lean?.className).toBe("adv");
+  });
+
+  it("puts the CAS name first in a POH annunciation, and shows the study limits as advisories (POH 2-9, 3-29, 3-30)", () => {
+    const sim = fresh(K);
+    const { container } = render(<Flags sim={sim} />);
+    live(sim, (s) => Object.assign(s, { map: 37.8, reliefOpen: true }));
+    const man = items(container).find((li) => li.textContent?.startsWith("MAN PRESSURE"))!;
+    expect(man.className).toBe("warn");
+    expect(man.firstElementChild?.tagName).toBe("B");
+    expect(man.firstElementChild?.textContent).toBe("MAN PRESSURE");
+    expect(man.textContent).toBe("MAN PRESSURE: 37.8 in.Hg, above the 37.5 in.Hg band edge (POH 13772-007 2-9)");
+    const relief = items(container).find((li) => li.textContent?.startsWith("Overboost relief valve open"))!;
+    expect(relief.className).toBe("adv");
+    expect(relief.querySelector("b")).toBeNull();
+    live(sim, (s) => Object.assign(s, { map: 37.0, reliefOpen: false }));
+    expect(items(container).map((li) => li.className)).toEqual(["caut"]);
+  });
+
+  it("captions the -K's flags as study flags, not the airplane's CAS; the IO-390's list is as it was", () => {
+    const sim = fresh(K);
+    const { container } = render(<Flags sim={sim} />);
+    const box = () => container.querySelector(".eng-flags") as HTMLElement;
+    expect(box().hidden).toBe(true);
+    live(sim, (s) => (s.map = 37.0));
+    expect(box().hidden).toBe(false);
+    expect(box().getAttribute("aria-label")).toBe("Limits exceeded");
+    expect(box().querySelector(".hd")?.textContent).toBe("Study flags, not the airplane's CAS");
+    cleanup();
+    const io = fresh(IO390);
+    const r = render(<Flags sim={io} />);
+    live(io, (s) => (s.rpm = 2800));
+    const ul = r.container.querySelector("ul.eng-flags")!;
+    expect(ul.querySelector(".hd")).toBeNull();
+    const rows = [...ul.children];
+    expect(rows.find((li) => li.textContent?.startsWith("Overspeed"))?.className).toBe("warn");
+    for (const li of rows) {
+      expect(li.tagName).toBe("LI");
+      expect(["warn", "caut"]).toContain(li.className);
+      expect([...li.childNodes].map((n) => n.nodeType)).toEqual([Node.TEXT_NODE]);
+    }
+  });
+
+  it("renders every flag at once without a duplicate React key", () => {
+    const sim = fresh(K);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<Flags sim={sim} />);
+    act(() => {
+      sim.useUi.getState().setEnv({ oilQt: 5 });
+      sim.useUi.getState().setControls({ mixture: 0.5 });
+    });
+    live(sim, (s) => {
+      Object.assign(s, {
+        running: true,
+        rpm: 2600,
+        map: 38,
+        oilP: 5,
+        oilT: 245,
+        pct: 75,
+        tit: [1860, 1800],
+        titOverS: 40,
+        turboRpm: [130000, 130000],
+        starterS: 31,
+        altAirOpen: true,
+        reliefOpen: true,
+      });
+      s.cyl.forEach((c) => (c.cht = 470));
+    });
+    expect(document.querySelectorAll(".eng-flags li").length).toBeGreaterThan(10);
+    expect(errors.mock.calls.filter((c) => /same key/.test(String(c[0])))).toEqual([]);
+    errors.mockRestore();
+  });
+
+  it("colours each -K gauge by the band its flag reads, at every band edge (one predicate)", () => {
+    const tone = { green: "", yellow: "warnc", red: "bad" } as const;
+    for (const m of K.markings!)
+      for (const b of m.bands)
+        for (const v of [b.from - 0.05, b.from, b.from + 0.05, b.to - 0.05, b.to, b.to + 0.05]) {
+          const band = markingBand(m, v);
+          expect(bandTone(K, m.gauge, v), `${m.gauge} ${v}`).toBe(band ? tone[band.color] : "");
+        }
   });
 });
 

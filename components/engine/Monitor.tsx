@@ -6,7 +6,7 @@
  * beside it.
  */
 import { egtOffset } from "@/engines/model/mixture";
-import { limitFlags, markingBand } from "@/engines/model/alerts";
+import { limitFlags, markingBand, type LimitFlag } from "@/engines/model/alerts";
 import { meanLambda } from "@/engines/model/trim";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import type { EngineSpec, Marking } from "@/engines/types";
@@ -28,7 +28,7 @@ export type Tone = (typeof TONES)[number];
 export function bandTone(spec: EngineSpec, gauge: Marking["gauge"], v: number): Tone | undefined {
   const m = spec.markings?.find((x) => x.gauge === gauge);
   if (!m) return undefined;
-  // one band predicate for every gauge (alerts.ts), so a value on a band edge is coloured one way
+  // the band the limit flags read too (alerts.ts), so a gauge's colour and its flag never disagree
   const b = markingBand(m, v);
   return b ? TONES[SEVERITY[b.color]] : "";
 }
@@ -65,6 +65,7 @@ const peakText = (off: number, side: string) => (side === "peak" ? "at peak" : `
 
 export function Monitor({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 150);
+  const titProbe = sim.useUi((x) => x.failures.titProbe);
   const spec = sim.spec,
     L = spec.limits,
     turbo = !!spec.turbo,
@@ -145,14 +146,19 @@ export function Monitor({ sim }: { sim: EngineSim }) {
         {turbo &&
           (["L", "R"] as const).map((sd, i) => {
             const t = s.tit?.[i] ?? titScale[0],
+              failed = !!titProbe?.[i],
               tone = bandTone(spec, "tit", t);
-            // the airplane's display puts the TIT digits above the bar (SR22T POH 7-35); the bar is a digit row shorter
-            // so it ends level with the cylinders'
+            // the airplane's display puts the TIT digits above the bar (SR22T POH 7-35) and crosses out a field with
+            // no valid data in red (POH 7-32); the bar is a digit row shorter so it ends level with the cylinders'
             return (
               <div key={sd} className="mon-cyl mon-tit">
-                <small className={tone}>{Math.round(t)}</small>
-                <div className="bar tit" title={`TIT ${sd} ${f0(t)} °F`}>
-                  <div className={tone} style={{ height: fill(t, titScale) }} />
+                <small className={failed ? "bad" : tone}>{failed ? "X" : Math.round(t)}</small>
+                <div className="bar tit" title={failed ? `TIT ${sd}: no valid data` : `TIT ${sd} ${f0(t)} °F`}>
+                  {failed ? (
+                    <i className="x" role="img" aria-label={`TIT ${sd} invalid`} />
+                  ) : (
+                    <div className={tone} style={{ height: fill(t, titScale) }} />
+                  )}
                 </div>
                 <span>{sd}</span>
                 {/* two empty rows for the cylinders' EGT and CHT digits, so the labels and bar feet line up */}
@@ -187,17 +193,45 @@ export function Monitor({ sim }: { sim: EngineSim }) {
   );
 }
 
+/**
+ * A flag's row. With the POH's instrument markings: an annunciation's name comes first, in bold, and a study limit the
+ * POH gives no annunciation for shows as an advisory (white, as the airplane's advisories are) unless it is a hard
+ * engine limit (a warning). Without markings: the text alone, coloured by its level.
+ */
+function flagRow(f: LimitFlag, marked: boolean) {
+  const tier = marked && !f.cas && f.level === "caut" ? "adv" : f.level;
+  return (
+    <li key={f.src} className={tier} title={f.src}>
+      {f.cas ? (
+        <>
+          <b>{f.cas}</b>
+          {f.text.slice(f.cas.length)}
+        </>
+      ) : (
+        f.text
+      )}
+    </li>
+  );
+}
+
 export function Flags({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 300);
-  const env = sim.useUi((x) => x.env);
-  const flags = limitFlags(sim.spec, s, env);
+  const env = sim.useUi((x) => x.env),
+    failures = sim.useUi((x) => x.failures),
+    controls = sim.useUi((x) => x.controls);
+  // the failures (a failed TIT probe reads nothing) and the controls (leaning) are part of what is flagged
+  const flags = limitFlags(sim.spec, s, env, { failures, controls });
+  if (!sim.spec.markings)
+    return (
+      <ul className="eng-flags" aria-label="Limits exceeded" hidden={!flags.length}>
+        {flags.map((f) => flagRow(f, false))}
+      </ul>
+    );
+  // flags named after the POH's annunciations, so the box says what they are: study flags, not the airplane's CAS
   return (
-    <ul className="eng-flags" aria-label="Limits exceeded" hidden={!flags.length}>
-      {flags.map((f) => (
-        <li key={f.src} className={f.level} title={f.src}>
-          {f.text}
-        </li>
-      ))}
-    </ul>
+    <div className="eng-flags" role="group" aria-label="Limits exceeded" hidden={!flags.length}>
+      <p className="hd">Study flags, not the airplane&apos;s CAS</p>
+      <ul>{flags.map((f) => flagRow(f, true))}</ul>
+    </div>
   );
 }
