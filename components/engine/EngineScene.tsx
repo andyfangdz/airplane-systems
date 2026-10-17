@@ -20,6 +20,8 @@ import { Group, PartNotesProvider } from "./scene/parts";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
+import { Exhaust } from "./scene/Exhaust";
+import { Turbo } from "./scene/Turbo";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
 
 function EngineModel({ sim }: { sim: EngineSim }) {
@@ -71,6 +73,16 @@ function EngineModel({ sim }: { sim: EngineSim }) {
         <Group sim={sim} id="induction">
           <Induction {...p} />
         </Group>
+        {layoutFor(sim.spec).turbo && (
+          <Group sim={sim} id="turbo">
+            <Turbo {...p} />
+          </Group>
+        )}
+        {layoutFor(sim.spec).exhaust && (
+          <Group sim={sim} id="exhaust">
+            <Exhaust {...p} />
+          </Group>
+        )}
         <Group sim={sim} id="drives">
           <Drives {...p} />
         </Group>
@@ -81,19 +93,29 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   );
 }
 
+/** The layout's labels left showing: a label tied to a part group hides while that group is hidden. */
+export const shownLabels = <T extends [string, unknown, { group?: string }?]>(items: T[], hidden: readonly string[]) =>
+  items.filter(([, , o]) => !(o?.group && hidden.includes(o.group)));
+
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
+  const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
+  const exhaustHidden = sim.useUi((x) => x.view.hidden.includes("exhaust"));
+  const hidden = sim.useUi((x) => x.view.hidden);
   const gl = useThree((s) => s.gl),
     scene = useThree((s) => s.scene);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
-  const items: [string, [number, number, number], { occlude: true }?][] = [
+  const items: [string, [number, number, number], { occlude?: true; group?: string }?][] = [
     ...sim.spec.geometry.cylinders.map((c): [string, [number, number, number]] => [
       `Cyl ${c.n}`,
       [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
     ]),
-    ...layoutFor(sim.spec).labels(d, sim.spec),
+    ...shownLabels(layoutFor(sim.spec).labels(d, sim.spec), hidden),
+    // the turbo group's labels go with its parts
+    ...((!turboHidden && layoutFor(sim.spec).turbo?.labels) || []),
+    ...((!exhaustHidden && layoutFor(sim.spec).exhaust?.labels) || []),
   ];
   if (propOn) items.push(["Propeller", [d.flangeX + 0.1, 0.55, 0]]);
   return (

@@ -7,7 +7,11 @@
  */
 import { TSIO550K_LAYOUT } from "@/engines/tsio550k/layout";
 import type { EngineSpec } from "@/engines/types";
+import type { ExhaustLayout } from "./Exhaust";
 import type { Dims } from "./kit";
+import type { GroupId } from "./parts";
+import type { ContinentalFuelLayout, TopInductionLayout } from "./Systems";
+import type { TurboLayout } from "./Turbo";
 
 export type V3 = [number, number, number];
 
@@ -81,6 +85,8 @@ export type NoteKey =
   | "drain"
   | "dipTube"
   | "oilSupply"
+  | "oilCooler"
+  | "vernatherm"
   | "magneto"
   | "magCap"
   | "magGear"
@@ -92,6 +98,8 @@ export type NoteKey =
   | "starter"
   | "starterShaftGear"
   | "starterWorm"
+  | "starterAdapter"
+  | "clutchSpring"
   | "governor"
   | "altDriveGear"
   | "altPulley"
@@ -165,13 +173,27 @@ export interface EngineLayout {
    */
   mounts: (d: Dims) => { bosses: V3[]; brackets: [V3, V3][] };
   /**
-   * Label pins: text and position. `occlude` hides the label while a solid part stands between it and the camera, other
-   * than the part it names (the scene group of the label's name; kit.ts labelOccluder).
+   * Engine-mounted oil cooler: its side and the cylinder it sits behind, and (`box`, drawn by Case.tsx Lubrication) its
+   * core's centre and half sizes and its temperature control valve, m.
    */
-  labels: (d: Dims, spec: EngineSpec) => [string, V3, { occlude: true }?][];
+  oilCooler: { side: "L" | "R"; behindCyl: number; src: string; box?: { at: V3; half: V3; control: V3 } } | null;
+  /**
+   * Label pins: text and position. `occlude` hides the label while a solid part stands between it and the camera, other
+   * than the part it names (the scene group of the label's name; kit.ts labelOccluder); `group` hides it with that part
+   * group.
+   */
+  labels: (d: Dims, spec: EngineSpec) => [string, V3, { occlude?: true; group?: GroupId }?][];
   /** Initial camera position and orbit target, and the furthest zoom. */
   camera: { position: V3; target: V3; maxDistance: number };
   notes: Partial<Record<NoteKey, string>>;
+  /** Turbochargers, wastegate and intercoolers (scene/Turbo.tsx, an engine with a turbo layout only). */
+  turbo?: TurboLayout;
+  /** Risers, collectors, crossover, wastegate transition and tailpipes (scene/Exhaust.tsx, a turbo layout only). */
+  exhaust?: ExhaustLayout;
+  /** Downdraft induction from the air boxes to the runners (Systems.tsx TopInduction; intake ports on top only). */
+  induction?: TopInductionLayout;
+  /** Continental injection's pump, metering assembly and lines (Systems.tsx ContinentalFuel). */
+  fuel?: ContinentalFuelLayout;
 }
 
 /** The IO-390 scene's constants: today's drawing, unchanged. */
@@ -201,6 +223,7 @@ export const IO390_DEFAULTS: EngineLayout = {
   oilFilter: { mount: "rear" },
   oilFiller: { side: "R" },
   oilPumpDrive: "crank",
+  oilCooler: null,
   // four bosses on the crankcase's rear face
   mounts: (d) => ({
     bosses: [1, -1].flatMap((y) => [1, -1].map((z): V3 => [d.caseRear + 0.012, y * 0.075, z * (d.caseHalf - 0.025)])),

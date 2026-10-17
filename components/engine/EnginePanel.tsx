@@ -22,7 +22,7 @@ import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { EngineSpec, Marking } from "@/engines/types";
 import { PressureChart } from "./PressureChart";
-import { GROUPS } from "./scene/parts";
+import { groupsFor } from "./scene/parts";
 import { startScenario, type EngineSim } from "./store";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
@@ -656,7 +656,7 @@ function Parts({ sim }: { sim: EngineSim }) {
       <H3>Parts</H3>
       <Small>Point at any part for its name and what it does. Untick a group to see what it hides.</Small>
       <div className="eng-parts">
-        {GROUPS.map((g) => (
+        {groupsFor(sim.spec).map((g) => (
           <Check
             key={g.id}
             id={`part-${g.id}`}
