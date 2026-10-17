@@ -179,6 +179,7 @@
   grid-template-columns: 11px;
 }
 .mon-cyl .bar.tit {
+  position: relative;
   /* the cylinder bar less one digit row (10 px × 1.1 line) and its 2 px gap: the digits sit above it, and the bar's
      foot stays level with the cylinders' */
   height: 57px;
@@ -189,6 +190,26 @@
 }
 .mon-cyl .tit > div.bad {
   background: var(--warn);
+}
+/* a field with no valid data is crossed out in red */
+.mon-tit .x {
+  position: absolute;
+  inset: 0;
+}
+.mon-tit .x::before,
+.mon-tit .x::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--warn);
+  transform: rotate(9deg);
+}
+.mon-tit .x::after {
+  transform: rotate(-9deg);
 }
 .eng-mon.turbo .mon-small {
   grid-template-columns: repeat(6, auto auto);
@@ -208,6 +229,25 @@
 }
 .eng-flags li.caut {
   color: var(--caut);
+}
+/* a study limit with no annunciation of its own: white, as the airplane's advisories are */
+.eng-flags li.adv {
+  color: var(--adv);
+}
+.eng-flags li b {
+  font-weight: 700;
+}
+/* with the POH's markings the box carries a caption line (as the airplane pages' CAS window does) over its list */
+.eng-flags ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.eng-flags .hd {
+  margin: 0 0 3px;
+  font-size: 10px;
+  color: #7e8e99;
+  letter-spacing: 0.08em;
 }
 
 /* panel */
@@ -243,6 +283,13 @@
   grid-template-columns: 1fr 1fr;
   gap: 2px 10px;
   margin-bottom: 8px;
+}
+/* a group inside a panel section (the turbocharged engine's own failures) */
+.eng-sub {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
 }
 .eng-table {
   width: 100%;
@@ -283,6 +330,12 @@
   width: 3.2em;
   font-size: 12px;
   color: var(--muted);
+}
+/* with its nozzle and intake columns the turbocharged engine's table is a pixel too wide for a 320-px screen */
+@media (max-width: 359px) {
+  .eng-fail.turbo input[type="range"] {
+    width: 80px;
+  }
 }
 .eng-chart {
   width: 100%;

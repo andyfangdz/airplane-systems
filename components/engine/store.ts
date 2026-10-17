@@ -92,7 +92,7 @@ let worker: Worker | null | undefined;
 let seq = 0;
 const pending = new Map<number, { apply: (setup: Setup) => void; fallback: () => void }>();
 
-const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"]) =>
+const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilChanged: () => void) =>
   create<EngineUi>((set, get) => {
     // a change made while a "Start from" setup is still running wins: the setup is dropped, not applied over it
     const cancel = () => {
@@ -124,6 +124,7 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"]) =>
       },
       setEnv: (p) => {
         cancel();
+        if (p.oilQt !== undefined && p.oilQt !== get().env.oilQt) oilChanged();
         set((x) => ({ env: { ...x.env, ...p } }));
       },
       setFailures: (p) => {
@@ -172,7 +173,10 @@ export function createEngineSimulation(spec: EngineSpec): EngineSim {
     s: initialState(spec),
     anim: { crank: 0 },
     resets: 0,
-    useUi: createUi(spec, scenarioRequest),
+    useUi: createUi(spec, scenarioRequest, () => {
+      sim.s.oilLossQt = 0;
+      refreshLiveSnapshot(sim.s);
+    }),
     scenarioRequest,
     clock,
     get disposed() {

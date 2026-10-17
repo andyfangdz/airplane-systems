@@ -8,7 +8,9 @@
  * chart scaled by what each cylinder actually burns (performance.ts, mixture.ts), shaft speed from engine, starter
  * and propeller torque (propeller.ts), then exhaust, head and oil temperatures and oil pressure.
  */
+import { remainingOilQt } from "./oil";
 import type { EngineSpec, Side, TurboSpec } from "../types";
+import { leanGaugeAbove, leanOverNext } from "./alerts";
 import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
 import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
@@ -24,7 +26,7 @@ import {
   nozzleFlow,
   nozzlePressure,
 } from "./fuel";
-import { inductionCal, series, solveManifold, throttleArea } from "./induction";
+import { inductionCal, orificeFlow, series, solveManifold, throttleArea } from "./induction";
 import { excessAirRatio } from "./mixture-units";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
 import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
@@ -41,6 +43,7 @@ import {
   INH2O_PA,
   intercool,
   intercoolerDrop,
+  oilLossQtPerMin,
   reliefFlow,
   reliefOpenNext,
   titContinuousMaxF,
@@ -208,10 +211,14 @@ export interface EngineState {
   tit?: [number, number];
   /** Seconds above the continuous TIT limit (the transient timer). Neutral: 0. */
   titOverS?: number;
+  /** Seconds above continuous TIT per side, independent of probe failures; populated by step (POH 3-31). */
+  titProbeOverS?: [number, number];
   /** Overboost relief valve open. Neutral: false. */
   reliefOpen?: boolean;
   /** Automatic alternate-air door open. Neutral: false. */
   altAirOpen?: boolean;
+  /** Previous turbo step's deck leakage and relief flow, kg/s; absent in older checkpoints means 0. */
+  deckLossKgS?: number;
   /** Oil lost to leaks this run, qt. Neutral: 0. */
   oilLossQt?: number;
   /** HIGH BOOST actually running (after the lockout). Neutral: false. */
@@ -219,6 +226,11 @@ export interface EngineState {
   /** The manifold pressure a turbocharged spec's metering reads as its throttle-angle stand-in (turbo.ts
    * `turboMetering`): the MAP without an intake leak. Set by `step` for a turbocharged spec only; absent, `map`. */
   meterMapInHg?: number;
+  /** The leaning flag's timer (alerts.ts `leanOverNext`), only on a spec with `limits.leanMaxMap` (POH 4-22): net
+   * seconds the manifold-pressure gauge has read above the limit with the mixture off full rich, 0 … `LEAN_DWELL_S`,
+   * and the flag it latches. Without the limit the members are absent. */
+  leanOverS?: number;
+  leanOver?: boolean;
   /** The leaning cap the cylinders' work follows this step (`leanCapAt`; undefined: none). Set by `step` for a spec
    * with `calibration.leanGainMax` only. */
   leanCap?: LeanCap;
@@ -322,6 +334,7 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     altAirOpen: false,
     oilLossQt: 0,
     highBoostOn: false,
+    ...(spec.limits.leanMaxMap && { leanOverS: 0, leanOver: false }),
   };
 }
 
@@ -468,7 +481,12 @@ function substep(
     // against its magnets, and the engine then draws unfiltered, warmer air from inside the cowl (turbo.ts). A clean
     // filter is no restriction.
     const box = f.filter
-      ? filterOutletInHg((intake.filterBlockedArea ?? 0.12) * ind.cdAFull, ram, air.t + 273.15, (s.air * LB_KG) / 3600)
+      ? filterOutletInHg(
+          (intake.filterBlockedArea ?? 0.12) * ind.cdAFull,
+          ram,
+          air.t + 273.15,
+          (s.air * LB_KG) / 3600 + (s.deckLossKgS ?? 0),
+        )
       : ram;
     const door = altAirDoorNext(spec, !!s.altAirOpen, ((air.p - box) * INHG_PA) / INH2O_PA);
     s.altAirOpen = door;
@@ -709,7 +727,18 @@ function substep(
     const tau = cal.titTauS ?? 5;
     s.tit = [approach(s.tit![0], target[0], dt, tau), approach(s.tit![1], target[1], dt, tau)];
     const limit = titContinuousMaxF(spec);
+    // Legacy checkpoints retain only aggregate dwell; inherit it once, before advancing either history.
+    const previous = s.titProbeOverS ?? [s.titOverS ?? 0, s.titOverS ?? 0];
     s.titOverS = limit === undefined ? 0 : titOverNext(s.titOverS!, s.tit, limit, dt);
+    // Probe failures change the displayed readings, not either turbine's temperature history (POH 3-31).
+    s.titProbeOverS = [0, 1].map((i) =>
+      limit === undefined ? 0 : titOverNext(previous[i], [s.tit![i]], limit, dt),
+    ) as [number, number];
+    // oil lost overboard while the pump pressurises it: an engine oil leak, and each failed turbocharger's bearing
+    // (POH 3-28 causes 3, 4); the sump runs down and the pickup then uncovers (below)
+    const sources = (f.oilLeak ? 1 : 0) + (f.turboInternal?.filter(Boolean).length ?? 0);
+    if (sources && s.oilP > 0.5)
+      s.oilLossQt = Math.min(env.oilQt, (s.oilLossQt ?? 0) + (oilLossQtPerMin(spec.turbo, sources) / 60) * dt);
   }
 
   // ---- oil: friction and piston-cooling heat in; thermostatic cooler and crankcase out
@@ -726,12 +755,25 @@ function substep(
   let oilP = s.rpm > 0 ? cal.oilPressPerRpm * Math.pow(s.rpm / 1000, 0.7) * Math.sqrt(visc) : 0;
   if (oilP > cal.oilRelief) oilP = cal.oilRelief + (oilP - cal.oilRelief) * 0.12;
   const [bare, covered] = spec.oil.pickupQt ?? [1.5, 3];
-  const sump = clamp((env.oilQt - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
+  const sump = clamp((remainingOilQt(env.oilQt, s.oilLossQt) - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
   oilP *= sump < 1 ? sump * (0.85 + 0.15 * Math.sin(s.t * 7)) : 1;
   // the turbochargers' supply from the oil cooler is a branch in parallel with the engine's passages: it takes
   // `turbo.oil.bleedPsi` at rated rpm, in proportion to the pump's flow (AMM 79-00 PDF 2764)
   if (spec.turbo) oilP = Math.max(0, oilP - spec.turbo.oil.bleedPsi * clamp(s.rpm / rated.rpm, 0, 1));
   s.oilP = approach(s.oilP, oilP, dt, 0.4);
+
+  // ---- the leaning limit's timer, in real time: the flag reads the power setting, not the controller's hunting
+  const lean = spec.limits.leanMaxMap;
+  if (lean) {
+    const next = leanOverNext(
+      { s: s.leanOverS ?? 0, on: s.leanOver ?? false },
+      s.running && c.mixture < 0.99,
+      leanGaugeAbove(s.map, lean.value),
+      dt,
+    );
+    s.leanOverS = next.s;
+    s.leanOver = next.on;
+  }
 }
 
 /**
@@ -771,16 +813,42 @@ function turboStep(
   const relief = reliefOpenNext(turbo, !!s.reliefOpen, s.deckInHg!);
   const mR = relief ? reliefFlow(turbo, s.deckInHg!, s.matC! + 273.15, air.p) : 0;
   s.reliefOpen = relief;
+  // a split induction coupling or a leaking intercooler vents deck air into the cowl the same way: the compressors
+  // pass it as well, and the engine falls back toward normally aspirated (POH 3-27 cause 1)
+  const failed = f.turboInternal ?? [false, false];
+  const deckLeak =
+    (f.inductionLeak ? turbo.leaks.inductionArea : 0) +
+    (f.intercoolerLeak ?? [false, false]).filter(Boolean).length * turbo.leaks.intercoolerArea;
+  const mL = deckLeak > 0 ? orificeFlow(deckLeak, s.deckInHg! * INHG_PA, s.matC! + 273.15, air.p * INHG_PA) : 0;
+  // Both vented flows must enter through the filter on the next induction step. Keep the neutral field absent
+  // for existing no-failure setups and default old checkpoints to zero at the reader.
+  if (mL + mR > 0 || s.deckLossKgS !== undefined) s.deckLossKgS = mL + mR;
+  // a failed turbocharger's stopped compressor is an open path from the deck back through its intercooler to its air
+  // box (the two paths join only at the throttle body, AMM 71-60 PDF 2542): the working compressor passes that
+  // recirculating air as well (POH 3-28 cause 4: "a sudden loss of manifold pressure")
+  const deadArea = (turbo.leaks.deadCompressorArea ?? 0) * failed.filter(Boolean).length;
+  const mB = deadArea > 0 ? orificeFlow(deadArea, s.deckInHg! * INHG_PA, s.matC! + 273.15, source * INHG_PA) : 0;
   const mA = (s.air * LB_KG) / 3600,
     mE = ((s.air + s.fuel) * LB_KG) / 3600;
   // the gas the turbines expand: the cylinders' mean exhaust gas temperature (the probes' `tit` reading, with its
-  // offset and lag, is display and limits only, so fitting it does not move the turbocharger's calibration)
+  // offset and lag, is display and limits only, so fitting it does not move the turbocharger's calibration). An
+  // exhaust leak ahead of the turbines bypasses them (POH 3-28 cause 2); a failed turbocharger passes its gas but
+  // does no work, and the working one compresses all the air (cause 4).
   const titK = fToK(s.cyl.reduce((a, cy) => a + cy.egt, 0) / s.cyl.length);
-  const pTI = turbineInletPressure(turbo, mE, titK, pTail, gate);
-  const pr = equilibriumPR(turbo, turbinePowerW(turbo, mE, titK, pTI, pTail, gate), mA + mR, t1);
+  const exhaustLeak = f.exhaustLeak ? turbo.leaks.exhaustArea : 0;
+  const working = turbo.count - failed.filter(Boolean).length;
+  const pTI = turbineInletPressure(turbo, mE, titK, pTail, gate, exhaustLeak);
+  const power = turbinePowerW(turbo, mE, titK, pTI, pTail, gate, exhaustLeak, working);
+  const pr = equilibriumPR(turbo, power, mA + mR + mL + mB, t1);
   const ref = turboRef(spec, ve);
   const rho2 = (s.deckInHg! * INHG_PA) / (R_AIR * (s.compressorOutC! + 273.15));
-  const drop = intercoolerDrop(turbo, mA + mR, ref.mRef, rho2, ref.rhoRef);
+  // The working compressor's outlet also passes the recirculating flow through its intercooler. The effective
+  // deadCompressorArea includes the return path's stopped compressor, intercooler and duct losses (AMM 71-60).
+  // Rated flow is shared by all paths; only the working paths carry the forward flow after a failure.
+  const drop =
+    working > 0
+      ? intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef * (working / turbo.count), rho2, ref.rhoRef)
+      : intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef, rho2, ref.rhoRef);
   const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
   const prNow = Math.max(1, (deck + drop) / source);
   const t2 = compressorOut(turbo, t1, prNow);
@@ -790,7 +858,7 @@ function turboStep(
   s.gate = gate;
   s.bleed = bleed;
   s.pActPsi = pAct;
-  s.turboRpm = [n, n];
+  s.turboRpm = [failed[0] ? 0 : n, failed[1] ? 0 : n];
   s.compressorOutC = t2 - 273.15;
   s.matC = mat - 273.15;
   s.turbineInletInHg = pTI;

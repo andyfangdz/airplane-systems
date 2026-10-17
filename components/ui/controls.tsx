@@ -110,15 +110,18 @@ export function Check({
   checked,
   disabled,
   onChange,
+  title,
 }: {
   id: string;
   label: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (v: boolean) => void;
+  /** Hover text for the whole control, e.g. what it does and its source. */
+  title?: string;
 }) {
   return (
-    <label className="chk">
+    <label className="chk" title={title}>
       <input
         id={id}
         type="checkbox"

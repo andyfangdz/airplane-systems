@@ -96,17 +96,25 @@ export function equilibriumPR(turbo: TurboSpec, powerW: number, mA: number, t1K:
   return (lo + hi) / 2;
 }
 
-/** Effective exhaust area (m²): both turbines plus the open part of the wastegate. */
-export const exhaustArea = (turbo: TurboSpec, gate: number) =>
-  turbo.count * turbo.turbineArea + clamp(gate, 0, 1) * turbo.wastegate.area;
+/** Effective exhaust area (m²): both turbines plus the open part of the wastegate, plus a leak ahead of the turbines
+ * (the exhaust-leak failure, `leak` m²). */
+export const exhaustArea = (turbo: TurboSpec, gate: number, leak = 0) =>
+  turbo.count * turbo.turbineArea + clamp(gate, 0, 1) * turbo.wastegate.area + leak;
 
 /**
- * Turbine-inlet pressure (inHg) that passes `mE` kg/s of exhaust at `tK` through the turbines and the open wastegate
- * to the tailpipe pressure `pTailInHg` (the same orifice law as the throttle, induction.ts).
+ * Turbine-inlet pressure (inHg) that passes `mE` kg/s of exhaust at `tK` through the turbines, the open wastegate and
+ * any leak ahead of them to the tailpipe pressure `pTailInHg` (the same orifice law as the throttle, induction.ts).
  */
-export function turbineInletPressure(turbo: TurboSpec, mE: number, tK: number, pTailInHg: number, gate: number) {
+export function turbineInletPressure(
+  turbo: TurboSpec,
+  mE: number,
+  tK: number,
+  pTailInHg: number,
+  gate: number,
+  leak = 0,
+) {
   if (mE <= 0) return pTailInHg;
-  const area = exhaustArea(turbo, gate);
+  const area = exhaustArea(turbo, gate, leak);
   const flow = (p: number) => orificeFlow(area, p * INHG_PA, tK, pTailInHg * INHG_PA);
   let lo = pTailInHg,
     hi = pTailInHg * 1.5;
@@ -119,10 +127,23 @@ export function turbineInletPressure(turbo: TurboSpec, mE: number, tK: number, p
   return (lo + hi) / 2;
 }
 
-/** Power (W) the turbines extract: their share of the exhaust expanding from the turbine inlet to the tailpipe. */
-export function turbinePowerW(turbo: TurboSpec, mE: number, tK: number, pTI: number, pTailInHg: number, gate: number) {
-  if (mE <= 0 || pTI <= pTailInHg) return 0;
-  const share = (turbo.count * turbo.turbineArea) / exhaustArea(turbo, gate);
+/**
+ * Power (W) the turbines extract: their share of the exhaust expanding from the turbine inlet to the tailpipe. A failed
+ * turbocharger still passes its share of the gas but does no work, so only the `working` ones count; gas through a
+ * leak ahead of the turbines (`leak` m²) does none either.
+ */
+export function turbinePowerW(
+  turbo: TurboSpec,
+  mE: number,
+  tK: number,
+  pTI: number,
+  pTailInHg: number,
+  gate: number,
+  leak = 0,
+  working: number = turbo.count,
+) {
+  if (mE <= 0 || pTI <= pTailInHg || working <= 0) return 0;
+  const share = (working * turbo.turbineArea) / exhaustArea(turbo, gate, leak);
   return mE * share * CP_EXHAUST * tK * turbo.etaTurbine * (1 - Math.pow(pTailInHg / pTI, KAPPA_E));
 }
 
@@ -357,6 +378,12 @@ export function turbineRpmLimit(spec: EngineSpec, titF: number) {
       return P[i - 1][1] + ((P[i][1] - P[i - 1][1]) * (titF - P[i - 1][0])) / (P[i][0] - P[i - 1][0]);
   return P[P.length - 1][1];
 }
+
+/**
+ * Oil lost overboard (qt/min) by the failures that leak it: an engine oil leak, and each failed turbocharger, whose
+ * bearing vents oil through the tailpipe (SR22T POH 3-28 cause 4); `turbo.oil.leakQtPerMin` each.
+ */
+export const oilLossQtPerMin = (turbo: TurboSpec, sources: number) => turbo.oil.leakQtPerMin * Math.max(0, sources);
 
 /** Heat (W) the turbochargers' bearings put into the oil: `oil.bearingHeatK` hp per turbocharger at `rpmRef`, ∝ N². */
 export const bearingHeatW = (turbo: TurboSpec, turboRpm: readonly number[]) =>

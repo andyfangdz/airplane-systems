@@ -1,5 +1,6 @@
 "use client";
 /** The engine page's side panel: start-from scenarios, controls, environment, failures, cylinders, and the documents. */
+import { remainingOilQt } from "@/engines/model/oil";
 import type { ReactNode } from "react";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import { governedRpm, prime, type MagSwitch } from "@/engines/model/engine";
@@ -380,12 +381,18 @@ export function Environment({ sim }: { sim: EngineSim }) {
   );
 }
 
+/** A hover text: what a failure does, then the page that describes it (none without a page). */
+const cite = (what: string, ref: string | undefined) => (ref ? `${what} · ${ref}` : undefined);
+
 function Failures({ sim }: { sim: EngineSim }) {
   const f = sim.useUi((x) => x.failures),
     set = sim.useUi((x) => x.setFailures);
-  const cyls = sim.spec.geometry.cylinders,
-    // the nozzles of either injection system (a carburetor has none); the model blocks them for both (fuel.ts)
-    injected = sim.spec.fuelSystem.kind !== "carburetor";
+  const spec = sim.spec,
+    cyls = spec.geometry.cylinders,
+    turbo = !!spec.turbo,
+    // the nozzles of either injection system (a carburetor has none)
+    injected = spec.fuelSystem.kind !== "carburetor",
+    se = spec.limits.startEngaged;
   return (
     <>
       <H3>Failures</H3>
@@ -398,16 +405,27 @@ function Failures({ sim }: { sim: EngineSim }) {
           checked={f.fuelPump}
           onChange={(v) => set({ fuelPump: v })}
         />
-        <Check id="f-filter" label="Air filter blocked" checked={f.filter} onChange={(v) => set({ filter: v })} />
+        <Check
+          id="f-filter"
+          label={autoAltAir(spec) ? "Induction filter blocked (ice or debris)" : "Air filter blocked"}
+          title={autoAltAir(spec) ? cite("The alternate-air door opens by itself", spec.refs.altAirOpen) : undefined}
+          checked={f.filter}
+          onChange={(v) => set({ filter: v })}
+        />
         <Check id="f-starter" label="Starter" checked={f.starter} onChange={(v) => set({ starter: v })} />
         <Check
           id="f-starter-stuck"
           label="Starter stuck engaged"
+          title={
+            se &&
+            cite(`Its solenoid stays closed after START: START ENGAGED after ${se.caution} and ${se.warning} s`, se.src)
+          }
           checked={f.starterStuck}
           onChange={(v) => set({ starterStuck: v })}
         />
       </div>
-      <table className="eng-table eng-fail">
+      {turbo && <TurboFailures sim={sim} />}
+      <table className={turbo ? "eng-table eng-fail turbo" : "eng-table eng-fail"}>
         <thead>
           <tr>
             <th>Cyl</th>
@@ -468,6 +486,142 @@ function Failures({ sim }: { sim: EngineSim }) {
         </tbody>
       </table>
     </>
+  );
+}
+
+type Side = [boolean, boolean];
+const side = (pair: Side | undefined, i: 0 | 1, v: boolean): Side => {
+  const out: Side = [...(pair ?? [false, false])];
+  out[i] = v;
+  return out;
+};
+
+/**
+ * A turbocharged engine's own failures, in pairs so a left and right share a row: the wastegate and its controller,
+ * the turbochargers, the leaks, the TIT probes and an oil leak, each titled with what the model does and its page.
+ */
+function TurboFailures({ sim }: { sim: EngineSim }) {
+  const f = sim.useUi((x) => x.failures),
+    set = sim.useUi((x) => x.setFailures);
+  const r = sim.spec.refs,
+    map = r.lossOfMap;
+  // one seized-gate field: ticking a position sets it, un-ticking it frees the gate
+  const gate = (pos: "open" | "closed") => (v: boolean) => set({ wastegateSeized: v ? pos : null });
+  const items: [string, string, boolean, (v: boolean) => void, string | undefined][] = [
+    [
+      "f-wg-closed",
+      "Wastegate stuck closed",
+      f.wastegateSeized === "closed",
+      gate("closed"),
+      cite(
+        "The gate stays shut: manifold pressure rises into the MAN PRESSURE bands and the relief valve surges",
+        r.relief,
+      ),
+    ],
+    [
+      "f-wg-open",
+      "Wastegate stuck open",
+      f.wastegateSeized === "open",
+      gate("open"),
+      cite("The gate stays open: manifold pressure falls back towards a normally aspirated engine's", map),
+    ],
+    [
+      "f-wg-oil",
+      "Actuator oil loss",
+      !!f.wastegateOil,
+      (v) => set({ wastegateOil: v }),
+      cite("No oil pressure on the wastegate actuator, so its spring opens the gate (cause 3)", map),
+    ],
+    [
+      "f-misadjust",
+      "Controller misadjusted",
+      !!f.controllerMisadjust,
+      (v) => set({ controllerMisadjust: v }),
+      cite(
+        "Manifold pressure stays high with warm oil, in the MAN PRESSURE caution band: the controller needs a maintenance adjustment",
+        r.manPressure,
+      ),
+    ],
+    ...([0, 1] as const).map((i): (typeof items)[number] => [
+      `f-turbo-${i ? "r" : "l"}`,
+      `Turbocharger failed ${i ? "R" : "L"}`,
+      !!f.turboInternal?.[i],
+      (v) => set({ turboInternal: side(f.turboInternal, i, v) }),
+      cite(
+        "Its shaft stops and it does no work: manifold pressure drops at once, then oil pressure falls as its bearing vents oil overboard (cause 4)",
+        map,
+      ),
+    ]),
+    ...([0, 1] as const).map((i): (typeof items)[number] => [
+      `f-ic-${i ? "r" : "l"}`,
+      `Intercooler leak ${i ? "R" : "L"}`,
+      !!f.intercoolerLeak?.[i],
+      (v) => set({ intercoolerLeak: side(f.intercoolerLeak, i, v) }),
+      cite("Charge air escapes at that intercooler's coupling (cause 1)", map),
+    ]),
+    [
+      "f-ind-leak",
+      "Induction leak",
+      !!f.inductionLeak,
+      (v) => set({ inductionLeak: v }),
+      cite(
+        "A split induction coupling between the compressors and the throttle: about normally aspirated manifold pressure (cause 1)",
+        map,
+      ),
+    ],
+    [
+      "f-exh-leak",
+      "Exhaust leak",
+      !!f.exhaustLeak,
+      (v) => set({ exhaustLeak: v }),
+      cite("Exhaust escapes ahead of the turbines: less turbine power, lower manifold pressure (cause 2)", map),
+    ],
+    ...([0, 1] as const).map((i): (typeof items)[number] => [
+      `f-tit-${i ? "r" : "l"}`,
+      `TIT probe failed ${i ? "R" : "L"}`,
+      !!f.titProbe?.[i],
+      (v) => set({ titProbe: side(f.titProbe, i, v) }),
+      cite("That probe reads nothing: a red X on its bar and no TIT flag from it", r.sensorFailure),
+    ]),
+    [
+      "f-oil-leak",
+      "Oil leak",
+      !!f.oilLeak,
+      (v) => set({ oilLeak: v }),
+      cite(
+        "Engine oil lost overboard: the sump empties, then oil pressure falls and the wastegate opens (cause 3)",
+        map,
+      ),
+    ],
+  ];
+  return (
+    <>
+      <h4 className="eng-sub">Turbo system</h4>
+      <div className="eng-checks">
+        {items.map(([id, label, checked, onChange, title]) => (
+          <Check key={id} id={id} label={label} title={title} checked={checked} onChange={onChange} />
+        ))}
+      </div>
+      <OilLost sim={sim} />
+    </>
+  );
+}
+
+/** Oil lost overboard (a leak or a failed turbocharger's bearing) and what is left in the sump. */
+function OilLost({ sim }: { sim: EngineSim }) {
+  const s = useLiveSnapshot(sim.s, 250);
+  const qt = sim.useUi((x) => x.env.oilQt);
+  const lost = s.oilLossQt ?? 0,
+    left = remainingOilQt(qt, lost);
+  return (
+    <Readouts
+      items={[
+        [
+          "Oil lost overboard",
+          [`${lost.toFixed(1)} qt (${left.toFixed(1)} qt left)`, left < sim.spec.limits.oilMinQt.value ? "warnc" : ""],
+        ],
+      ]}
+    />
   );
 }
 

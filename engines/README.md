@@ -11,14 +11,15 @@ engines/
     atmosphere.ts ISA and unit constants
     performance.ts  The manufacturer's power chart (the reference the model is calibrated to), friction, pumping
     induction.ts  Throttle as a compressible orifice, manifold pressure, volumetric efficiency from the chart
-    fuel.ts       Servo metering, flow divider and nozzles, per-cylinder distribution (injected engines)
+    fuel.ts       Servo and Continental continuous-flow metering, nozzles, per-cylinder distribution (injected engines)
     carburetor.ts Float carburetor: venturi and idle metering, mixture-chamber cooling, carburetor ice
     mixture.ts    Power, EGT and head heat against excess-air ratio λ
     propeller.ts  Constant-speed propeller and governor
+    turbo.ts      Turbochargers, wastegate and controller, intercoolers, relief valve, TIT, turbo-system failures
     cycle.ts      Crank kinematics, valve events, firing order, the cylinder-pressure trace
     trim.ts       settle(): hold a manifold pressure, rpm or λ while the engine runs (pages and tests)
     scenarios.ts  "Start from" setups for the page
-    alerts.ts     Limit flags from the spec's limits
+    alerts.ts     Limit flags from the spec's limits, or from its POH markings with the POH's CAS names
     tit.ts        Turbocharged engine TIT peak from the model's cylinder work and probe laws
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
   o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md

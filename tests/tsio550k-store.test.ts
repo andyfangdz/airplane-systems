@@ -8,7 +8,7 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
-import { noFailures, step } from "@/engines/model/engine";
+import { noFailures, step, type Failures } from "@/engines/model/engine";
 import { labelOf, scenarioById, scenariosFor, type Setup } from "@/engines/model/scenarios";
 import { O360 } from "@/engines/o360/spec";
 import { tasFor } from "@/engines/tsio550k/scenarios";
@@ -202,6 +202,82 @@ describe("the TSIO-550-K setups", () => {
       sim.dispose();
     }
   });
+
+  test("a cold checkpoint clears oil loss and the leaning timer after a turbo oil leak (POH 3-28, 4-22)", async () => {
+    const { createEngineSimulation, replaceState } = await import("@/components/engine/store");
+    const sim = createEngineSimulation(K);
+    try {
+      const root = sim.s;
+      const cold = sim.checkpoint();
+      // Older cold checkpoints omit optional failure state entirely.
+      delete cold.s.oilLossQt;
+      delete cold.s.leanOverS;
+      delete cold.s.leanOver;
+      replaceState(sim, run("takeoff").s);
+      const takeoff = run("takeoff");
+      sim.useUi.getState().setControls(takeoff.c);
+      sim.useUi.getState().setEnv(takeoff.env);
+      sim.useUi.getState().setFailures({ oilLeak: true });
+      sim.useUi.getState().setControls({ mixture: 0.8 });
+      for (let i = 0; i < 600; i++) sim.advance(1 / 120);
+      expect(sim.s.oilLossQt).toBeGreaterThan(0);
+      expect(sim.s.leanOverS).toBeGreaterThan(0);
+      sim.restore(cold);
+      expect(sim.s).toBe(root);
+      for (const key of ["oilLossQt", "leanOverS", "leanOver"]) expect(Object.hasOwn(sim.s, key), key).toBe(false);
+      expect(sim.s.running).toBe(false);
+      expect(sim.s.rpm).toBe(0);
+      expect(sim.checkpoint()).toEqual(cold);
+    } finally {
+      sim.dispose();
+    }
+  });
+
+  test.each<[string, Partial<Failures>]>([
+    ["oil leak", { oilLeak: true }],
+    ["failed turbocharger", { turboInternal: [true, false] }],
+  ])(
+    "a restored cold checkpoint without oilLossQt still loses oil through a %s (POH 3-28 causes 3, 4)",
+    async (_, failure) => {
+      const { createEngineSimulation } = await import("@/components/engine/store");
+      const sim = createEngineSimulation(K);
+      try {
+        const cold = sim.checkpoint();
+        delete cold.s.oilLossQt;
+        sim.restore(cold);
+        expect(Object.hasOwn(sim.s, "oilLossQt")).toBe(false);
+        const ui = sim.useUi.getState();
+        ui.setEnv({ oilQt: K.limits.oilMinQt.value });
+        ui.setControls({ mixture: 1, throttle: 0.15, boost: true, mags: "START" });
+        const advance = (seconds: number) => {
+          for (let i = 0; i < seconds * 120; i++) sim.advance(1 / 120);
+        };
+        const free = K.accessories.starterFreeRpm ?? 380;
+        for (let t = 0; t < K.limits.starterMaxS!.value && !(sim.s.running && sim.s.rpm > free); t += 0.25)
+          advance(0.25);
+        ui.setControls({ mags: "BOTH", throttle: 0.4 });
+        advance(10);
+        expect(sim.s.running).toBe(true);
+        expect(sim.s.oilP).toBeGreaterThan(0.5);
+        const pressure = sim.s.oilP;
+        ui.setFailures(failure);
+        advance(5);
+        expect(Number.isFinite(sim.s.oilLossQt)).toBe(true);
+        expect(sim.s.oilLossQt).toBeGreaterThan(0);
+        // The panel's OilLost readout subtracts the accumulated loss from the environment's quantity.
+        const oilLeft = () => sim.useUi.getState().env.oilQt - (sim.s.oilLossQt ?? 0);
+        expect(Number.isFinite(oilLeft())).toBe(true);
+        advance(595);
+        expect(Number.isFinite(sim.s.oilLossQt)).toBe(true);
+        expect(Number.isFinite(oilLeft())).toBe(true);
+        expect(oilLeft()).toBeLessThan(K.oil.pickupQt![1]);
+        expect(sim.s.oilP).toBeLessThan(pressure / 2);
+      } finally {
+        sim.dispose();
+      }
+    },
+    60_000,
+  );
 
   test("every TSIO-550-K setup runs to completion with a finite state", () => {
     for (const id of K_IDS) expect(nonFinite(run(id)), id).toEqual([]);
