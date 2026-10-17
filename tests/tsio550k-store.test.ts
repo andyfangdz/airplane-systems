@@ -203,6 +203,36 @@ describe("the TSIO-550-K setups", () => {
     }
   });
 
+  test("a cold checkpoint clears oil loss and the leaning timer after a turbo oil leak (POH 3-28, 4-22)", async () => {
+    const { createEngineSimulation, replaceState } = await import("@/components/engine/store");
+    const sim = createEngineSimulation(K);
+    try {
+      const root = sim.s;
+      const cold = sim.checkpoint();
+      // Older cold checkpoints omit optional failure state entirely.
+      delete cold.s.oilLossQt;
+      delete cold.s.leanOverS;
+      delete cold.s.leanOver;
+      replaceState(sim, run("takeoff").s);
+      const takeoff = run("takeoff");
+      sim.useUi.getState().setControls(takeoff.c);
+      sim.useUi.getState().setEnv(takeoff.env);
+      sim.useUi.getState().setFailures({ oilLeak: true });
+      sim.useUi.getState().setControls({ mixture: 0.8 });
+      for (let i = 0; i < 600; i++) sim.advance(1 / 120);
+      expect(sim.s.oilLossQt).toBeGreaterThan(0);
+      expect(sim.s.leanOverS).toBeGreaterThan(0);
+      sim.restore(cold);
+      expect(sim.s).toBe(root);
+      for (const key of ["oilLossQt", "leanOverS", "leanOver"]) expect(Object.hasOwn(sim.s, key), key).toBe(false);
+      expect(sim.s.running).toBe(false);
+      expect(sim.s.rpm).toBe(0);
+      expect(sim.checkpoint()).toEqual(cold);
+    } finally {
+      sim.dispose();
+    }
+  });
+
   test("every TSIO-550-K setup runs to completion with a finite state", () => {
     for (const id of K_IDS) expect(nonFinite(run(id)), id).toEqual([]);
   });
