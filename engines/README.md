@@ -19,9 +19,11 @@ engines/
     trim.ts       settle(): hold a manifold pressure, rpm or λ while the engine runs (pages and tests)
     scenarios.ts  "Start from" setups for the page
     alerts.ts     Limit flags from the spec's limits
+    tit.ts        Turbocharged engine TIT peak from the model's cylinder work and probe laws
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
   o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md
-  tsio550k/       Continental TSIO-550-K (turbocharged): data only, not in ENGINES until the model can run it
+  tsio550k/       Continental TSIO-550-K (turbocharged, the Cirrus SR22T's): spec.ts, its own Start-from setups
+                  (scenarios.ts) and SOURCES.md
 components/engine/  The page: store (zustand UI + per-frame loop, sim.ts), ComponentStage (canvas), 3D scene (scene/: dims, materials and builders in kit.ts, one file per part group), monitor, panel, pressure chart
 app/engines/[engine]/page.tsx  One static page per engine id
 ```
@@ -54,8 +56,9 @@ CloudFormation copy in `infra/aws/site.json`. `npm run fleet:check` catches stal
 The model reads the spec only, so a new engine of a kind already modelled (air-cooled, injected or float-carbureted,
 constant-speed propeller) needs no model changes: `fuelSystem.kind` picks the injector or the carburetor, and
 `fuelFlow.kind` takes either a fuel-flow chart or, when the manual has none, a specific consumption from a cruise point.
-A turbocharged or fixed-pitch engine needs those pieces added to `model/` behind a spec field, keeping the existing
-engines' behaviour (their tests guard it).
+Turbocharged engines use the spec's `turbo` fields for the compressors, intercoolers, wastegate and TIT probes. A new
+engine kind needs its pieces added to `model/` behind a spec field, keeping the existing engines' behaviour (their tests
+guard it).
 
 The 3D scene is shared and its part notes cite the IO-390's manual; an engine's `parts` replaces a part's name and note
 with its own manual's words (keyed by the default name, numbers written `#`), and `modelNotes` is its "How the model

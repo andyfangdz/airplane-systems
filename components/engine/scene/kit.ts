@@ -158,6 +158,27 @@ export type Mats = ReturnType<typeof makeMats>;
 /** Materials that turn translucent in X-ray. */
 export const XRAY_MATS = ["case", "sump", "acc", "barrel", "head", "cover", "shroud"] as const;
 
+/**
+ * What hides an occluding label (drei `Html occlude` takes it as its one target): the parts under `root` the pointer
+ * would stop on, never the part the label names (the group called `own`). Hidden parts and parts X-ray has turned
+ * see-through (the pointer's rule, parts.tsx) don't count, so the label shows from every side its part is seen from.
+ */
+export function labelOccluder(root: THREE.Object3D, own: string): { current: THREE.Object3D } {
+  const target = new THREE.Object3D();
+  target.raycast = (ray, hits) => {
+    const visit = (o: THREE.Object3D) => {
+      if (!o.visible || o.name === own) return;
+      if (o instanceof THREE.Mesh) {
+        const m = o.material as THREE.Material;
+        if (!(m.transparent && m.opacity < 0.5 && !m.userData.hoverWhenClear)) o.raycast(ray, hits);
+      }
+      o.children.forEach(visit);
+    };
+    visit(root);
+  };
+  return { current: target };
+}
+
 /** Cylinder along +x (lathe axis), centred. */
 export function rod(radius: number, length: number, segs = 16) {
   const g = new THREE.CylinderGeometry(radius, radius, length, segs);
@@ -366,30 +387,88 @@ export const GEAR_TEETH = { crank: 24, cam: 48 };
 /** An idler gear between the crankshaft gear and the magneto drive gears: drawn the camshaft gear's size. */
 export const IDLER = { r: 0.08, teeth: 48 };
 
+/** Teeth on each gear of the pair behind the accessory face (a layout that sets the magnetos' height): drawn. */
+export const MAG_PAIR_TEETH = 20;
+
 /**
- * Magneto drive gears, behind the accessory housing at ±z from the centreline. Each meshes with the camshaft gear, or
- * with the idler gear above the crankshaft gear (the layout's `magDrive`), sized so the magneto turns at the published
- * magneto drive ratio. Through an idler the idler's own size drops out: crankshaft-gear teeth over magneto-gear teeth.
+ * Magneto drive gears at ±z from the centreline (the layout's `magnetos.z`), sized so the magneto turns at the published
+ * magneto drive ratio. Each meshes with the camshaft gear, or with an idler gear above the crankshaft gear (the layout's
+ * `magDrive`), all in the crankshaft gear's plane; through an idler the idler's own size drops out, crankshaft-gear
+ * teeth over magneto-gear teeth.
+ *
+ * A layout that sets the magnetos' height puts them on their own axes behind the accessory face, where their drive
+ * couplings enter the accessory case. The idler is then two gears on one shaft: a front gear on the crankshaft gear with
+ * the magneto gear's teeth, so the idler turns at the magneto drive ratio, small enough to stay inside the housing and
+ * clear of the magnetos, and a rear gear behind the face driving each magneto gear tooth for tooth.
  */
 export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
-  const z = 0.1;
+  const M = L.magnetos;
+  const z = M.z;
   const ratio = spec.accessories.magnetoRatio;
+  const x = d.caseRear - 0.018;
   if (L.magDrive === "idler") {
     const teeth = Math.round(GEAR_TEETH.crank / ratio),
       r = (d.crankGearR * teeth) / GEAR_TEETH.crank;
+    if (M.y !== null) {
+      const idlerY = d.crankGearR + r;
+      // the rear pair shares the centre distance from the idler's axis to the magneto's
+      const pairR = Math.hypot(M.y - idlerY, z) / 2;
+      const rearX = d.accRear - 0.012;
+      return {
+        r: pairR,
+        teeth: MAG_PAIR_TEETH,
+        z,
+        y: M.y,
+        x: rearX,
+        idler: { y: idlerY, r, teeth, x, rearR: pairR, rearTeeth: MAG_PAIR_TEETH, rearX },
+      };
+    }
     const idlerY = d.crankGearR + IDLER.r;
     return {
       r,
       teeth,
       z,
       y: idlerY + Math.sqrt((IDLER.r + r) ** 2 - z * z),
-      x: d.caseRear - 0.018,
-      idler: { y: idlerY, ...IDLER },
+      x,
+      idler: { y: idlerY, ...IDLER, x, rearR: IDLER.r, rearTeeth: IDLER.teeth, rearX: x },
     };
   }
   const r = (d.camGearR * 0.5) / ratio,
     teeth = Math.round((GEAR_TEETH.cam * 0.5) / ratio);
-  return { r, teeth, z, y: d.camY + Math.sqrt((d.camGearR + r) ** 2 - z * z), x: d.caseRear - 0.018, idler: null };
+  return { r, teeth, z, y: d.camY + Math.sqrt((d.camGearR + r) ** 2 - z * z), x, idler: null };
+}
+
+/**
+ * A magneto body on its fore-aft axis over its drive gear: the drive end on the accessory mounting face, the distributor
+ * cap end aft of it, or forward (the layout's `magnetos.mount`). `k` is +1 when the body runs forward.
+ */
+export function magnetoPose(spec: EngineSpec, d: Dims, side: "L" | "R", L: EngineLayout = layoutFor(spec)) {
+  const M = L.magnetos;
+  const drive = magDrive(spec, d, L);
+  const y = drive.y,
+    z = side === "R" ? drive.z : -drive.z;
+  const k = M.mount === "forward" ? 1 : -1;
+  return {
+    k,
+    r: M.r,
+    len: M.len,
+    driveEnd: [d.accRear, y, z] as V3,
+    capEnd: [d.accRear + k * M.len, y, z] as V3,
+    centre: [d.accRear + (k * M.len) / 2, y, z] as V3,
+  };
+}
+
+/** The oil filter's centre, axis, radius and length: on the rear of the accessory housing, or standing on its adapter. */
+export function oilFilterPose(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
+  const f = L.oilFilter;
+  if (f.mount === "rear")
+    return { centre: [d.accRear - 0.05, 0.015, 0] as V3, axis: [1, 0, 0] as V3, r: 0.045, len: 0.1 };
+  return {
+    centre: [d.accRear - f.aftIn * IN, f.yIn * IN, f.zIn * IN] as V3,
+    axis: [0, 1, 0] as V3,
+    r: f.r,
+    len: f.len,
+  };
 }
 
 /**
@@ -534,8 +613,8 @@ export function driveLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutF
       shaft,
       wheel,
       worm,
-      // the motor on the worm's axis, across the engine to the right
-      at: [x, worm.at[1], shaft.z + 0.08] as V3,
+      // the motor on the worm's axis, from the adapter (the worm's outboard end) across the engine to the right
+      at: [x, worm.at[1], shaft.z + 0.04] as V3,
     };
   }
   const alternators = L.alternators.map((a) => {

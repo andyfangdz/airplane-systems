@@ -20,11 +20,35 @@ import {
 } from "@/components/ui/controls";
 import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
+import type { EngineSpec, Marking } from "@/engines/types";
 import { PressureChart } from "./PressureChart";
 import { GROUPS } from "./scene/parts";
 import { startScenario, type EngineSim } from "./store";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
+const fahrenheit = (c: number) => (c * 9) / 5 + 32;
+
+// What the spec says about the installation's controls (no engine is named here):
+/** A governor with no pilot control: a single power lever and a mixture lever on the console. */
+const fixedGovernor = (spec: EngineSpec) => spec.propeller.control === "fixed";
+/** A fuel system with a HIGH BOOST/PRIME position and its lockout. */
+const highBoostPump = (spec: EngineSpec) => spec.fuelSystem.kind === "continental";
+/** An alternate-air door that opens by itself, with no pilot control. */
+const autoAltAir = (spec: EngineSpec) => spec.induction?.altAir === "automatic";
+
+const startTitle = (spec: EngineSpec) =>
+  spec.ignition.startMags === "both"
+    ? "Hold to crank: START turns the starter and fires both magnetos; the switch springs back to BOTH"
+    : `Hold to crank: the starter turns the engine and only the ${
+        spec.ignition.retardMag === "L" ? "left" : "right"
+      } (retard-breaker) magneto fires`;
+
+type Pump = "OFF" | "BOOST" | "HIGH";
+const PUMP: [Pump, string][] = [
+  ["OFF", "Off"],
+  ["BOOST", "Boost"],
+  ["HIGH", "High boost/prime"],
+];
 
 export function StartFrom({ sim }: { sim: EngineSim }) {
   const note = sim.useUi((x) => x.view.scenario),
@@ -56,7 +80,12 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
   const c = sim.useUi((x) => x.controls),
     set = sim.useUi((x) => x.setControls);
   const spec = sim.spec,
-    carb = spec.fuelSystem.kind === "carburetor";
+    carb = spec.fuelSystem.kind === "carburetor",
+    single = fixedGovernor(spec),
+    pump3 = highBoostPump(spec),
+    autoAir = autoAltAir(spec);
+  // the checkbox row: a two-position boost pump, and the primer or a pilot alternate-air control
+  const checks = !pump3 || carb || !autoAir;
   const mags: [MagSwitch, string][] = [
     ["OFF", "Off"],
     ["R", "R"],
@@ -76,7 +105,7 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
         />
         <HoldButton
           className={`btn eng-start${c.mags === "START" ? " on" : ""}`}
-          title="Hold to crank: the starter turns the engine and only the left (retard-breaker) magneto fires"
+          title={startTitle(spec)}
           onDown={() => set({ mags: "START" })}
           onUp={() => set({ mags: "BOTH" })}
         >
@@ -85,7 +114,7 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
       </div>
       <Slider
         id="throttle"
-        label="Throttle"
+        label={single ? "Power lever (MAX – IDLE)" : "Throttle"}
         min={0}
         max={1}
         step={0.01}
@@ -93,25 +122,27 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
         onChange={(v) => set({ throttle: v })}
         fmt={pct}
       />
-      <Slider
-        id="prop"
-        label="Propeller"
-        min={0}
-        max={1}
-        step={0.01}
-        value={c.prop}
-        onChange={(v) => set({ prop: v })}
-        fmt={(v) => `governs ${f0(governedRpm(spec, v))} rpm`}
-      />
+      {!single && (
+        <Slider
+          id="prop"
+          label="Propeller"
+          min={0}
+          max={1}
+          step={0.01}
+          value={c.prop}
+          onChange={(v) => set({ prop: v })}
+          fmt={(v) => `governs ${f0(governedRpm(spec, v))} rpm`}
+        />
+      )}
       <Slider
         id="mixture"
-        label="Mixture"
+        label={single ? "Mixture (RICH – CUTOFF)" : "Mixture"}
         min={0}
         max={1}
         step={0.005}
         value={c.mixture}
         onChange={(v) => set({ mixture: v })}
-        fmt={(v) => (v < 0.03 ? "idle cut-off" : v > 0.995 ? "full rich" : pct(v))}
+        fmt={(v) => (v < 0.03 ? (single ? "cutoff" : "idle cut-off") : v > 0.995 ? "full rich" : pct(v))}
       />
       {carb && (
         <Slider
@@ -125,22 +156,73 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
           fmt={(v) => (v < 0.03 ? "cold" : v > 0.97 ? "full hot" : pct(v))}
         />
       )}
-      <div className="eng-checks">
-        <Check id="boost" label="Boost pump" checked={c.boost} onChange={(v) => set({ boost: v })} />
-        {carb ? (
-          <button
-            type="button"
-            className="btn eng-prime"
-            title={`One stroke of the primer: fuel straight into the intake ports (${spec.refs.start})`}
-            onClick={() => (onPrime ? onPrime() : prime(spec, sim.s))}
-          >
-            Prime
-          </button>
-        ) : (
-          <Check id="altair" label="Alternate air" checked={c.altAir} onChange={(v) => set({ altAir: v })} />
-        )}
-      </div>
+      {pump3 && (
+        <>
+          <Seg
+            id="pump"
+            label="Fuel pump"
+            options={PUMP}
+            value={c.highBoost ? "HIGH" : c.boost ? "BOOST" : "OFF"}
+            onChange={(v) => set({ boost: v !== "OFF", highBoost: v === "HIGH" })}
+          />
+          <PumpNote sim={sim} />
+        </>
+      )}
+      {(single || autoAir) && <ControlReadouts sim={sim} />}
+      {checks && (
+        <div className="eng-checks">
+          {!pump3 && <Check id="boost" label="Boost pump" checked={c.boost} onChange={(v) => set({ boost: v })} />}
+          {carb ? (
+            <button
+              type="button"
+              className="btn eng-prime"
+              title={`One stroke of the primer: fuel straight into the intake ports (${spec.refs.start})`}
+              onClick={() => (onPrime ? onPrime() : prime(spec, sim.s))}
+            >
+              Prime
+            </button>
+          ) : (
+            !autoAir && (
+              <Check id="altair" label="Alternate air" checked={c.altAir} onChange={(v) => set({ altAir: v })} />
+            )
+          )}
+        </div>
+      )}
     </>
+  );
+}
+
+/** Whether the HIGH BOOST/PRIME the switch asks for is running, or the lockout relay holds the pump at BOOST. */
+function PumpNote({ sim }: { sim: EngineSim }) {
+  const high = sim.useUi((x) => !!x.controls.highBoost);
+  const s = useLiveSnapshot(sim.s, 250);
+  const fs = sim.spec.fuelSystem;
+  if (!high || fs.kind !== "continental") return null;
+  const hb = fs.highBoost;
+  return (
+    <Small>
+      {s.highBoostOn
+        ? "HIGH BOOST/PRIME running"
+        : `Locked out: the relay runs the pump as BOOST. HIGH BOOST/PRIME needs ${hb.mapInHg} inHg and ${f0(
+            hb.altFt,
+          )} ft, or the engine below ${f0(hb.belowRpm)} rpm.`}
+    </Small>
+  );
+}
+
+/** Readouts in place of the controls an installation does without: a factory-set governor, an automatic door. */
+function ControlReadouts({ sim }: { sim: EngineSim }) {
+  const s = useLiveSnapshot(sim.s, 250);
+  const spec = sim.spec;
+  return (
+    <Readouts
+      items={[
+        ...(fixedGovernor(spec)
+          ? ([["Governor (factory set)", `${f0(governedRpm(spec, 1))} rpm`]] as [string, string][])
+          : []),
+        ...(autoAltAir(spec) ? ([["Alternate air door", s.altAirOpen ? "open" : "closed"]] as [string, string][]) : []),
+      ]}
+    />
   );
 }
 
@@ -163,6 +245,19 @@ function Readings({ sim }: { sim: EngineSim }) {
           ["Through cooler", `${f0(s.coolerValve * 100)} %`],
         ]
       : [];
+  const turbo: [string, string][] = spec.turbo
+    ? [
+        ["Deck", `${s.deckInHg!.toFixed(1)} inHg`],
+        // the spring holds the gate open until oil pressure on the actuator closes it
+        ["Wastegate", s.rpm < 1 ? "spring open" : `${f0(s.gate! * 100)} % open`],
+        ["TIT L", `${f0(s.tit![0])} °F`],
+        ["TIT R", `${f0(s.tit![1])} °F`],
+        ["Turbo speed L (illustrative)", `${f0(s.turboRpm![0])} rpm`],
+        ["Turbo speed R (illustrative)", `${f0(s.turboRpm![1])} rpm`],
+        ["Charge air", `${f0(fahrenheit(s.matC!))} °F`],
+        ["Overboost valve", s.reliefOpen ? "relieving" : "closed"],
+      ]
+    : [];
   return (
     <>
       <H3>Engine</H3>
@@ -180,6 +275,7 @@ function Readings({ sim }: { sim: EngineSim }) {
           ...cooler,
           ["Inlet", `${s.inletInHg.toFixed(1)} inHg`],
           ...(carb ? ([["Inlet air", `${f0((s.inletC * 9) / 5 + 32)} °F`]] as [string, string][]) : []),
+          ...turbo,
         ]}
       />
       <table className="eng-table">
@@ -202,7 +298,7 @@ function Readings({ sim }: { sim: EngineSim }) {
               <td>{(c.fuel / AVGAS_LB_GAL).toFixed(2)}</td>
               <td>
                 {Number.isFinite(c.lambda) && c.work > 0.02
-                  ? `${f0(-egtOffset(c.lambda))} ${c.lambda < 1 ? "R" : "L"}`
+                  ? `${f0(-egtOffset(c.lambda, spec.calibration.richMisfireLambda))} ${c.lambda < 1 ? "R" : "L"}`
                   : "–"}
               </td>
               <td>{f0(c.egt)}</td>
@@ -223,7 +319,8 @@ function Readings({ sim }: { sim: EngineSim }) {
 export function Environment({ sim }: { sim: EngineSim }) {
   const e = sim.useUi((x) => x.env),
     set = sim.useUi((x) => x.setEnv);
-  const L = sim.spec.limits;
+  const L = sim.spec.limits,
+    top = sim.spec.envelope;
   return (
     <>
       <H3>Conditions</H3>
@@ -231,7 +328,7 @@ export function Environment({ sim }: { sim: EngineSim }) {
         id="alt"
         label="Pressure altitude"
         min={0}
-        max={17500}
+        max={top?.maxAltFt ?? 17500}
         step={500}
         value={e.altFt}
         onChange={(v) => set({ altFt: v })}
@@ -251,7 +348,7 @@ export function Environment({ sim }: { sim: EngineSim }) {
         id="tas"
         label="True airspeed"
         min={0}
-        max={180}
+        max={top?.maxTasKt ?? 180}
         step={5}
         value={e.tasKt}
         onChange={(v) => set({ tasKt: v })}
@@ -261,7 +358,7 @@ export function Environment({ sim }: { sim: EngineSim }) {
         id="oil"
         label="Oil quantity"
         min={2}
-        max={L.oilSumpQt.value}
+        max={top?.maxOilQt ?? L.oilSumpQt.value}
         step={0.5}
         value={e.oilQt}
         onChange={(v) => set({ oilQt: v })}
@@ -287,7 +384,8 @@ function Failures({ sim }: { sim: EngineSim }) {
   const f = sim.useUi((x) => x.failures),
     set = sim.useUi((x) => x.setFailures);
   const cyls = sim.spec.geometry.cylinders,
-    injected = sim.spec.fuelSystem.kind === "injected";
+    // the nozzles of either injection system (a carburetor has none); the model blocks them for both (fuel.ts)
+    injected = sim.spec.fuelSystem.kind !== "carburetor";
   return (
     <>
       <H3>Failures</H3>
@@ -426,7 +524,12 @@ function Specs({ sim }: { sim: EngineSim }) {
     L = spec.limits;
   const rows: [ReactNode, ReactNode][] = [
     ["Model", spec.model],
-    ["Rated power", `${spec.rating.hp} hp at ${f0(spec.rating.rpm)} rpm`],
+    [
+      "Rated power",
+      `${spec.rating.hp} hp at ${f0(spec.rating.rpm)} rpm${
+        spec.rating.map !== undefined ? ` and ${spec.rating.map.toFixed(1)} inHg` : ""
+      }`,
+    ],
     ["Displacement", `${g.displacementIn3} cu in`],
     ["Bore × stroke", `${g.boreIn} × ${g.strokeIn} in`],
     ["Compression ratio", `${g.compressionRatio}:1`],
@@ -437,7 +540,7 @@ function Specs({ sim }: { sim: EngineSim }) {
     ["Dry weight", `${a.weightLb} lb`],
     ...spec.rating.cruise.map((c): [ReactNode, ReactNode] => [
       c.label,
-      `${c.pct} %: ${c.hp} hp at ${f0(c.rpm)} rpm, ${c.mixture}, ${c.gph} gph`,
+      `${c.pct} %: ${f0(c.hp)} hp at ${f0(c.rpm)} rpm, ${c.mixture}, ${c.gph} gph`,
     ]),
   ];
   const limits: [ReactNode, ReactNode][] = [
@@ -480,10 +583,113 @@ function Specs({ sim }: { sim: EngineSim }) {
       <H3>Specifications</H3>
       <Facts rows={rows} />
       <H3>Operating limits</H3>
-      <Facts rows={limits} />
+      <Facts rows={spec.markings ? markedLimits(spec) : limits} />
       <Small>{spec.refs.tables}</Small>
     </>
   );
+}
+
+const GAUGE: Record<Marking["gauge"], string> = {
+  cht: "CHT",
+  rpm: "Engine speed",
+  egt: "EGT",
+  map: "Manifold pressure",
+  oilP: "Oil pressure",
+  oilT: "Oil temperature",
+  pct: "Percent power",
+  tit: "TIT",
+  ff: "Fuel flow",
+};
+
+/** One instrument marking as a row: its scale and its coloured bands, with the alert each band raises. */
+function markingRow(m: Marking): [string, string] {
+  const range = (from: number, to: number) => (from === to ? `> ${from}` : `${from}–${to}`);
+  const bands = m.bands.map(
+    (b) => `${b.color} ${range(b.from, b.to)}${b.cas ? ` (${[b.cas, b.level].filter(Boolean).join(" ")})` : ""}`,
+  );
+  return [GAUGE[m.gauge], [`scale ${m.scale[0]}–${m.scale[1]} ${m.unit}`, ...bands].join("; ") + ` · ${m.src}`];
+}
+
+/**
+ * The operating limits of an engine whose airplane manual marks its instruments: the instrument markings themselves,
+ * then each limit the spec gives, each with its source.
+ */
+function markedLimits(spec: EngineSpec): [ReactNode, ReactNode][] {
+  const L = spec.limits;
+  const row = (label: string, text: string, src: string): [string, string] => [label, `${text} · ${src}`];
+  const opt = (r: [string, string] | false | undefined) => (r ? [r] : []);
+  return [
+    row("Maximum rpm", `${f0(L.rpmMax.value)}`, L.rpmMax.src),
+    row("Idle", `${L.idleRpm.min}–${L.idleRpm.max} rpm`, L.idleRpm.src),
+    ...(spec.markings ?? []).map(markingRow),
+    ...opt(
+      L.oilTempMinTakeoff &&
+        row("Takeoff oil temperature", `${L.oilTempMinTakeoff.value} °F minimum`, L.oilTempMinTakeoff.src),
+    ),
+    ...opt(
+      L.mapMinAbove &&
+        row(
+          "Manifold pressure at altitude",
+          `not below ${L.mapMinAbove.map} inHg above ${f0(L.mapMinAbove.altFt)} ft`,
+          L.mapMinAbove.src,
+        ),
+    ),
+    ...opt(L.maxAltFt && row("Maximum operating altitude", `${f0(L.maxAltFt.value)} ft`, L.maxAltFt.src)),
+    ...opt(L.leanMaxMap && row("Leaning", `only at ${L.leanMaxMap.value} inHg or less`, L.leanMaxMap.src)),
+    ...opt(L.chtMinDescent && row("CHT in a descent", `${L.chtMinDescent.value} °F minimum`, L.chtMinDescent.src)),
+    ...opt(
+      L.titTransient &&
+        row(
+          "TIT transient",
+          `${f0(L.titTransient.value)} °F for up to ${L.titTransient.seconds} s`,
+          L.titTransient.src,
+        ),
+    ),
+    ...opt(
+      L.turbineRpmMax &&
+        row(
+          "Turbine speed",
+          L.turbineRpmMax.points.map(([tit, rpm]) => `${f0(rpm)} rpm at ${f0(tit)} °F TIT`).join(", ") +
+            " (straight lines between)",
+          L.turbineRpmMax.src,
+        ),
+    ),
+    ...opt(
+      L.exhaustBackPressureMax &&
+        row("Exhaust back pressure", `${L.exhaustBackPressureMax.value} inHg maximum`, L.exhaustBackPressureMax.src),
+    ),
+    ...opt(
+      L.startEngaged &&
+        row(
+          "Starter engaged",
+          `START ENGAGED caution after ${L.startEngaged.caution} s, warning after ${L.startEngaged.warning} s`,
+          L.startEngaged.src,
+        ),
+    ),
+    ...opt(
+      L.oilPressCautionMinRpm &&
+        row(
+          "Oil pressure caution",
+          `at ${f0(L.oilPressCautionMinRpm.value)} rpm and above`,
+          L.oilPressCautionMinRpm.src,
+        ),
+    ),
+    row("Oil", `${L.oilSumpQt.value} qt sump, ${L.oilMinQt.value} qt minimum`, `${L.oilSumpQt.src}; ${L.oilMinQt.src}`),
+    row(
+      "Magneto check",
+      `drop ≤ ${L.magDropMax.value} rpm, within ${L.magDiffMax.value} rpm of each other${
+        L.magCheckRpm.min === L.magCheckRpm.max ? ` at ${f0(L.magCheckRpm.min)} rpm` : ""
+      }`,
+      L.magDropMax.src,
+    ),
+    ...opt(L.starterMaxS && row("Starter", `${L.starterMaxS.value} s at a time`, L.starterMaxS.src)),
+    ...opt(
+      spec.oil.coolerMaxBtuMin !== undefined && [
+        "Oil cooler",
+        `≤ ${spec.oil.coolerMaxBtuMin} Btu/min; thermostat closes at ${spec.oil.thermostatF} °F`,
+      ],
+    ),
+  ];
 }
 
 function Model({ sim }: { sim: EngineSim }) {
@@ -521,7 +727,8 @@ export function EnginePanel({ sim }: { sim: EngineSim }) {
   const spec = sim.spec;
   return (
     <div className="panel-inner">
-      <div className="ref">Engine simulation · Lycoming {spec.doc}</div>
+      {/* without a reference line of its own, the maker and the manual in two text runs, so it lays out as before */}
+      <div className="ref">{spec.ref ?? [`Engine simulation · ${spec.model.split(" ")[0]} `, spec.doc]}</div>
       <p className="lead">{spec.lead}</p>
       <StartFrom sim={sim} />
       <Controls sim={sim} />

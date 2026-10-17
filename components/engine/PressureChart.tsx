@@ -8,11 +8,58 @@ import { pressureTrace, phaseOf, sparkBTC } from "@/engines/model/cycle";
 import { H3, Seg, Small } from "@/components/ui/controls";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { HP_W } from "@/engines/model/atmosphere";
+import type { EngineState } from "@/engines/model/engine";
+import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "./store";
 
 const W = 330,
   H = 170,
   PAD = { l: 34, r: 8, t: 10, b: 22 };
+
+/**
+ * The pressures at the two ends of the trace: manifold pressure on intake (inlet pressure while stopped) and the
+ * exhaust back pressure. A turbocharged engine exhausts into its turbine inlet (`turbineInletInHg`); otherwise the
+ * exhaust is taken as just above the inlet pressure.
+ */
+export const chartInputs = (spec: EngineSpec, s: EngineState) => ({
+  map: s.rpm > 30 ? s.map : s.inletInHg,
+  exhaust: spec.turbo ? s.turbineInletInHg! : s.inletInHg * 1.02,
+});
+
+// The caption's words for a spec that cites no source for its timing: the page's text as it was.
+const DEFAULT_CAPTION = {
+  advanceSrc: "IOM Table A-1",
+  startNote: "an assumed angle: the IOM does not give one",
+  maker: "Lycoming",
+};
+
+/**
+ * The caption under the charts, in two parts (the spark sentence, then the note on the trace) as the page lays them
+ * out. A spec that cites its spark timing (`ignition.advanceSrc`) gets that source, its own start ignition and its
+ * manufacturer's name; any other keeps the caption as it was, word for word.
+ */
+export function captionParts(
+  spec: EngineSpec,
+  t: { firing: boolean; mags: string; advance: number; peakPsi: number; peakAtdc: number },
+): [string, string] {
+  const src = spec.ignition.advanceSrc;
+  const words = src ? { advanceSrc: src, startNote: "", maker: spec.model.split(" ")[0] } : DEFAULT_CAPTION;
+  const spark =
+    t.mags !== "START"
+      ? `spark at ${t.advance}° before (${words.advanceSrc}). `
+      : src && spec.ignition.startMags === "both"
+        ? "both magnetos fire at top centre for the start (impulse couplings). "
+        : `spark retarded to ${-t.advance}° after top centre for the start${words.startNote ? ` (${words.startNote})` : ""}. `;
+  return [
+    t.firing
+      ? `Peak ${Math.round(t.peakPsi)} psia at ${Math.round(t.peakAtdc)}° after top centre, ${spark}`
+      : "Not firing: the trace is compression and expansion of the charge alone. ",
+    `The trace is the model's work per cycle drawn as pressure, with an assumed burn duration; it is not measured ${words.maker} data.`,
+  ];
+}
+
+/** The caption as one string. */
+export const chartCaption = (...a: Parameters<typeof captionParts>) => captionParts(...a).join("");
 
 export function PressureChart({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 200);
@@ -28,8 +75,7 @@ export function PressureChart({ sim }: { sim: EngineSim }) {
   const firing = s.rpm > 30 && cyl.work > 0.02;
   const work = firing ? (cyl.hp * HP_W * 120) / Math.max(s.rpm, 1) : 0;
   const t = pressureTrace(spec, {
-    map: s.rpm > 30 ? s.map : s.inletInHg,
-    exhaust: s.inletInHg * 1.02,
+    ...chartInputs(spec, s),
     grossWork: work,
     advance,
     // one flame front burns slower (model assumption, see the notes)
@@ -109,17 +155,7 @@ export function PressureChart({ sim }: { sim: EngineSim }) {
         </text>
         <path d={loop} className="trace" />
       </svg>
-      <Small>
-        {firing
-          ? `Peak ${Math.round(t.peakPsi)} psia at ${Math.round(t.peakAtdc)}° after top centre, ${
-              mags === "START"
-                ? `spark retarded to ${-advance}° after top centre for the start (an assumed angle: the IOM does not give one). `
-                : `spark at ${advance}° before (IOM Table A-1). `
-            }`
-          : "Not firing: the trace is compression and expansion of the charge alone. "}
-        The trace is the model&apos;s work per cycle drawn as pressure, with an assumed burn duration; it is not
-        measured Lycoming data.
-      </Small>
+      <Small>{captionParts(spec, { firing, mags, advance, peakPsi: t.peakPsi, peakAtdc: t.peakAtdc })}</Small>
     </>
   );
 }

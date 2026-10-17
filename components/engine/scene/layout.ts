@@ -85,6 +85,7 @@ export type NoteKey =
   | "magCap"
   | "magGear"
   | "idler"
+  | "magDriveHousing"
   | "harness"
   | "fuelManifold"
   | "fuelLines"
@@ -132,8 +133,28 @@ export interface EngineLayout {
   /** Propeller governor: on the front top, spur-driven from the camshaft, or front lower left on a camshaft bevel gear. */
   governor: "front-top" | "front-lower-left";
   alternators: AlternatorDef[];
+  /**
+   * Propeller standoff forward of the flange face, m: the alternator drive sheave and its adapter sandwiched between them
+   * (0: the propeller bolts to the flange).
+   */
+  propSpacer: number;
   /** Magneto drive gears mesh with the camshaft gear, or with an idler gear the crankshaft gear drives. */
   magDrive: "cam" | "idler";
+  /**
+   * The magnetos, side by side on fore-aft axes: drive end on the accessory mounting face with the body and distributor
+   * cap aft of it, or forward of it (drive coupling aft into the accessory case, cap and leads forward). Body radius and
+   * length, pad centres either side of the centreline and height above the crankshaft axis, m (`y` null: on the drive
+   * gear's axis; given, the idler is sized so the magneto drive gear lands on it).
+   */
+  magnetos: { mount: "aft" | "forward"; r: number; len: number; z: number; y: number | null };
+  /**
+   * Oil filter: on the rear of the accessory housing, its axis fore and aft on the centreline, or a spin-on canister
+   * standing vertically on an adapter, its centre (inches aft of the accessory face, above the crankshaft axis, right of
+   * the centreline), radius and length, m.
+   */
+  oilFilter:
+    | { mount: "rear" }
+    | { mount: "vertical"; aftIn: number; yIn: number; zIn: number; r: number; len: number; src: string };
   /** Oil filler tube and dipstick: up behind the crankcase on the right or the left. */
   oilFiller: { side: "L" | "R" };
   /** Oil pump drive gear meshes with the crankshaft gear, or turns with the camshaft gear (splined into it). */
@@ -143,8 +164,11 @@ export interface EngineLayout {
    * bosses standing off the crankcase, each a bar between two points (none: the bosses sit on the case).
    */
   mounts: (d: Dims) => { bosses: V3[]; brackets: [V3, V3][] };
-  /** Label pins: text and position. */
-  labels: (d: Dims, spec: EngineSpec) => [string, V3][];
+  /**
+   * Label pins: text and position. `occlude` hides the label while a solid part stands between it and the camera, other
+   * than the part it names (the scene group of the label's name; kit.ts labelOccluder).
+   */
+  labels: (d: Dims, spec: EngineSpec) => [string, V3, { occlude: true }?][];
   /** Initial camera position and orbit target, and the furthest zoom. */
   camera: { position: V3; target: V3; maxDistance: number };
   notes: Partial<Record<NoteKey, string>>;
@@ -171,7 +195,10 @@ export const IO390_DEFAULTS: EngineLayout = {
   starterAftIn: null,
   governor: "front-top",
   alternators: [{ name: "Alternator", drive: "belt", ratio: null, angleDeg: 135, r: 0.27, src: "IOM Table A-4" }],
+  propSpacer: 0,
   magDrive: "cam",
+  magnetos: { mount: "aft", r: 0.04, len: 0.1, z: 0.1, y: null },
+  oilFilter: { mount: "rear" },
   oilFiller: { side: "R" },
   oilPumpDrive: "crank",
   // four bosses on the crankcase's rear face

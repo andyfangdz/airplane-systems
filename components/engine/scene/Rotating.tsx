@@ -62,13 +62,17 @@ export function crankGeometry(spec: EngineSpec, d: Dims) {
           rod(d.ringR - 0.018, 0.006, 48).translate(d.flangeX - 0.03, 0, 0),
         ])
       : null;
-  // belt alternator pulley; drive gear for a gear-driven alternator
+  // belt alternator pulley (with a propeller standoff, the sheave adapter it sits on, from the flange to the
+  // propeller); drive gear for a gear-driven alternator
   const belt = drives.alternators.find((a) => !a.gear);
   const pulley = belt
     ? merge([
         rod(d.pulleyR, 0.004, 48).translate(belt.x + 0.009, 0, 0),
         rod(d.pulleyR - 0.008, 0.016, 48).translate(belt.x, 0, 0),
         rod(d.pulleyR, 0.004, 48).translate(belt.x - 0.009, 0, 0),
+        ...(L.propSpacer > 0
+          ? [rod(0.06, L.propSpacer + 0.001, 32).translate(d.flangeX + 0.0075 + L.propSpacer / 2, 0, 0)]
+          : []),
       ])
     : null;
   const geared = drives.alternators.find((a) => a.gear);
