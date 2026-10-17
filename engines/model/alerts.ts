@@ -224,6 +224,10 @@ function markingFlags(
 
   // ---- turbine inlet temperature past its continuous limit: above the maximum allowable, or for too long
   const tt = L.titTransient;
+  // When a probe has failed, the raw hottest-side timer also counts heat the display cannot read.
+  const titOverS = ctx.failures?.titProbe?.some(Boolean)
+    ? Math.max(0, ...SIDES.map((_, i) => (ctx.failures?.titProbe?.[i] ? 0 : (s.titProbeOverS?.[i] ?? 0))))
+    : (s.titOverS ?? 0);
   if (tt && tit.length) {
     const over = tit.filter((x) => x.v > tt.value);
     const continuous = titContinuousMaxF(spec);
@@ -233,10 +237,10 @@ function markingFlags(
         `TIT ${over.map((x) => `${x.side} ${f0(x.v)} °F`).join(" and ")}: above the ${f0(tt.value)} °F maximum allowable`,
         tt.src,
       );
-    else if (continuous !== undefined && (s.titOverS ?? 0) > tt.seconds && tit.some((x) => x.v > continuous))
+    else if (continuous !== undefined && titOverS > tt.seconds && tit.some((x) => x.v > continuous))
       add(
         "warn",
-        `TIT above ${f0(continuous)} °F for ${Math.floor(s.titOverS!)} s: more than the ${tt.seconds} s allowed`,
+        `TIT above ${f0(continuous)} °F for ${Math.floor(titOverS)} s: more than the ${tt.seconds} s allowed`,
         tt.src,
       );
   }
