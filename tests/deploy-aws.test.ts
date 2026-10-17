@@ -20,6 +20,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { contentType } from "../scripts/release-manifest.mjs";
+
+import.meta.glob("../scripts/deploy-aws.sh");
 
 // Every test here runs deploy-aws.sh as a subprocess that starts dozens of git and node stub processes. On a loaded
 // machine a single deploy took 6.7 s, over vitest's 5 s default; 20 s leaves about 3x that worst case.
@@ -289,14 +292,18 @@ describe("a normal deploy", () => {
     expect(rest).toContain("--recursive");
     expect(assets.slice(3, 5)).toEqual(["out/_next/static", "s3://test-bucket/_next/static"]);
     expect(flag(assets, "--cache-control")).toBe("public, max-age=31536000, immutable");
-    expect(flags(assets, "--exclude")).toEqual(["*.woff2", "*.js", "*.css"]);
-    // SecurityHeadersPolicy sends nosniff, so fonts, scripts and stylesheets carry an explicit type.
-    expect(typedAndRest.map((c) => [flag(c, "--include"), flag(c, "--content-type")])).toEqual([
-      ["*.woff2", "font/woff2"],
-      ["*.js", "text/javascript"],
-      ["*.css", "text/css"],
+    const manifestSource = readFileSync(join(SCRIPTS, "release-manifest.mjs"), "utf8");
+    const expectedTypes = [...manifestSource.matchAll(/"\.(\w+)": "([^"]+)"/g)].map(([, ext, type]) => [
+      `*.${ext}`,
+      type,
     ]);
+    expect(expectedTypes).toHaveLength(11);
+    expect(typedAndRest.map((c) => [flag(c, "--include"), flag(c, "--content-type")]).sort()).toEqual(
+      expectedTypes.sort(),
+    );
+    expect(flags(assets, "--exclude").sort()).toEqual(expectedTypes.map(([pattern]) => pattern).sort());
     for (const typed of typedAndRest) {
+      expect(flag(typed, "--content-type")).toBe(contentType(flag(typed, "--include")));
       expect(typed.slice(3, 5)).toEqual(["out/_next/static", "s3://test-bucket/_next/static"]);
       expect(flag(typed, "--exclude")).toBe("*");
       expect(flag(typed, "--cache-control")).toBe("public, max-age=31536000, immutable");
@@ -309,6 +316,17 @@ describe("a normal deploy", () => {
     expect(flag(rest, "--cache-control")).toBe("public, max-age=60");
     expect(calls.flat()).not.toContain("--delete");
     expect(calls.some((c) => c.join(" ").includes("delete"))).toBe(false);
+  });
+
+  it("uploads source maps, worker sources and unknown extensions as octet-stream", () => {
+    const { calls } = deploy();
+    const [assets] = awsCalls(calls, "s3 sync");
+    // Unrecognized extensions, including source maps and worker sources, must bypass the local MIME database.
+    for (const extension of ["map", "ts", "unknown"]) {
+      expect(flags(assets, "--exclude")).not.toContain(`*.${extension}`);
+      expect(contentType(`asset.${extension}`)).toBe("application/octet-stream");
+      expect(flag(assets, "--content-type")).toBe(contentType(`asset.${extension}`));
+    }
   });
 
   it("invalidates and waits for that invalidation", () => {
@@ -555,7 +573,7 @@ describe("failures after the guards", () => {
     const { code, summary, calls } = deploy();
     expect(code).toBe(9);
     expect(summary).toMatchObject({ step: "invalidate", invalidation_id: null, smoke: null });
-    expect(awsCalls(calls, "s3 sync")).toHaveLength(7);
+    expect(awsCalls(calls, "s3 sync")).toHaveLength(15);
     expect(awsCalls(calls, "s3 cp")).toHaveLength(1);
     expect(awsCalls(calls, "cloudfront wait").map((call) => call[3])).toEqual(["distribution-deployed"]);
     expect(calls.some((c) => c[0] === "smoke")).toBe(false);
@@ -600,7 +618,7 @@ describe("--rollback-to", () => {
     expect(origins[0].OriginPath).toBe(`/releases/${previous}-${env.DEPLOY_RELEASE_SHA256}`);
     expect(origins[1]).not.toHaveProperty("OriginPath");
     expect(awsCalls(calls, "s3 sync").map((call) => call[4])).toEqual([
-      ...Array(4).fill("s3://test-bucket/_next/static"),
+      ...Array(12).fill("s3://test-bucket/_next/static"),
       ...Array(3).fill("s3://test-bucket/geometry"),
     ]);
     expect(calls.flat()).not.toContain("--delete");
