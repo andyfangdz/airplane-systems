@@ -97,6 +97,12 @@ export function headlinerPoint(x: number, z: number, depth: number): Vec3 {
 }
 /** OM p. 3: headliner lamps; p. 11: four ceiling outlets; Ranger 2-7: stall horn.
  * Preserve the approximate fore/aft locations; place the full housings below the roof. */
+export const OVERHEAD_OUTLETS = [
+  { id: "rear-left", x: 0.3, z: -0.2 },
+  { id: "rear-right", x: 0.3, z: 0.2 },
+  { id: "front-left", x: 0.95, z: -0.06 },
+  { id: "front-right", x: 0.95, z: 0.06 },
+].map(({ id, x, z }) => ({ id, pos: headlinerPoint(x, z, 0.027) }));
 export const OVERHEAD = {
   // Keep fixed headliner equipment inboard of the right door's roof-wrapping aperture.
   // Lateral offsets are schematic; the lights/ducts must not float when the door opens.
@@ -105,12 +111,7 @@ export const OVERHEAD = {
   dome: headlinerPoint(0.4, 0, 0.03),
   horn: headlinerPoint(1, 0, 0.02),
   inlet: headlinerPoint(0.2, 0, 0.035),
-  outlets: [
-    [0.3, -0.2],
-    [0.3, 0.2],
-    [0.95, -0.06],
-    [0.95, 0.06],
-  ].map(([x, z]) => headlinerPoint(x, z, 0.027)),
+  outlets: OVERHEAD_OUTLETS.map(({ pos }) => pos),
 };
 /** Approximate aft-hinged roof scoop. Its opening edge rises while the rear stays on the skin. */
 export const ROOF_SCOOP = {

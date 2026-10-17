@@ -1,9 +1,10 @@
 /**
  * Airplane load in the browser, on the production build. Once each airplane's scene is complete, its final scene must equal
- * the reviewed baseline (main a1d3cdf0 plus PR47 seat placement): every mesh and line, compared as a sorted multiset of exact keys (kind, part name, attribute
+ * the reviewed baseline: every mesh and line, compared as a sorted multiset of exact keys (kind, part name, attribute
  * layout, vertex and index counts, index hash) plus sums of their geometry under their local transforms, within tolerances
  * (the last bit of trig differs between runtimes; tests/scene-snapshot.test.ts measures it and checks each part to the
- * micrometre). Objects an animation moves are left out and counted. The camera framing must equal a1d3cdf0's too: the
+ * micrometre). The SR22T scene baseline includes PR101's controller, hose and flow changes, captured from unchanged
+ * main bcdece1. Objects an animation moves are left out and counted. The camera framing remains unchanged: the
  * SR22T overview, a system view and Reset view after a drag. Each load shows the loader, then a frame with every skin
  * shell, then no loader. The SR22T builds progressively: the deep-linked system's and the walk-around station's parts come
  * first; a part that mounts late is still found by "tap to locate"; a walk-around begun while the fuselage worker still
@@ -85,7 +86,7 @@ function hookThree() {
     if (shown) marks.loaderSeen ??= performance.now();
     else if (marks.loaderSeen !== null && marks.loaderGone === null) marks.loaderGone = performance.now();
   }).observe(document, { childList: true, subtree: true });
-  const objs = (window.__three = { scenes: [], camera: null });
+  const objs = (window.__three = { scenes: [], camera: null, currentScene: null });
   const dev = new EventTarget();
   dev.addEventListener("observe", (e) => {
     const d = e.detail;
@@ -94,6 +95,7 @@ function hookThree() {
       const render = d.render.bind(d);
       d.render = (scene, camera) => {
         objs.camera = camera;
+        objs.currentScene = scene;
         marks.frames++;
         let n = 0;
         scene.traverse((o) => {
@@ -355,6 +357,7 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const got = { scenes: {}, cameras: {} };
+  const want = update ? null : JSON.parse(readFileSync(BASELINE, "utf8"));
 
   for (const route of ROUTES) {
     await page.goto(base + route);
@@ -363,6 +366,7 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
     got.scenes[route] = await fingerprint(page);
     const { objects, animated, multiset } = got.scenes[route];
     console.log(`${route}: ${JSON.stringify({ objects, animated, multiset })}`);
+    if (want) assert.deepEqual(sceneDiff(got.scenes[route], want.scenes[route]), [], `final scene of ${route}`);
   }
   for (const route of CAMERAS) {
     await page.goto(base + route);
@@ -387,6 +391,9 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
   );
   // This invariant replaces a redundant baseline that previously captured an unsettled post-drag direction.
   delete got.cameras["/sr22t/overview Reset view after a drag"];
+  if (want)
+    for (const [k, v] of Object.entries(want.cameras))
+      assert.ok(!cameraDiff(got.cameras[k], v), `camera for ${k}: ${got.cameras[k]} vs ${v}`);
 
   if (!update) {
     // the deep-linked system's parts, and the walk-around station's, are added first; the overview adds them later
@@ -696,52 +703,6 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
       await ctx.close();
     }
 
-    // A one-shot airplane must paint an opaque loader before synchronous geometry construction on a fleet switch.
-    {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "no-preference" });
-      await ctx.addInitScript(hookThree);
-      await ctx.route("**/_vercel/**", (route) => route.abort());
-      const p = await ctx.newPage();
-      await p.goto(base + "/sr20/overview");
-      await sceneComplete(p);
-      const cdp = await ctx.newCDPSession(p);
-      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
-      await p.evaluate(() => {
-        window.__switchFrames = [];
-        window.__switchSampling = true;
-        const sample = () => {
-          if (!window.__switchSampling) return;
-          const loader = document.querySelector(".loader");
-          let parts = 0;
-          window.__three.scenes
-            .find((s) => s.children.length)
-            ?.traverse((o) => {
-              if (o.isMesh && o.userData.pick) parts++;
-            });
-          window.__switchFrames.push({
-            stage: loader?.dataset.building,
-            opacity: loader ? Number(getComputedStyle(loader).opacity) : 0,
-            parts,
-          });
-          requestAnimationFrame(sample);
-        };
-        requestAnimationFrame(sample);
-      });
-      await p.getByRole("button", { name: /^Switch Airplanes/ }).click();
-      await p.getByRole("button", { name: /C182T Skylane/ }).click();
-      await sceneComplete(p);
-      const frames = await p.evaluate(() => {
-        window.__switchSampling = false;
-        return window.__switchFrames;
-      });
-      assert.ok(
-        frames.some((f) => f.stage === "airframe" && f.opacity === 1 && f.parts === 0),
-        `opaque loader painted before the C182T model mounted: ${JSON.stringify(frames)}`,
-      );
-      console.log("One-shot fleet switch: opaque loader paints before uncached C182T geometry (4x CPU slowdown)");
-      await ctx.close();
-    }
-
     // a browser that refuses to create the fuselage worker: the page builds the fuselage itself and completes the same scene
     {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
@@ -762,11 +723,7 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
       await loaderThenScene(p, "/sr22t/overview, worker refused");
       const fp = await fingerprint(p);
       assert.deepEqual(errs, [], "no page errors with the worker refused");
-      assert.deepEqual(
-        sceneDiff(fp, JSON.parse(readFileSync(BASELINE, "utf8")).scenes["/sr22t"]),
-        [],
-        "the same final scene without the worker",
-      );
+      assert.deepEqual(sceneDiff(fp, want.scenes["/sr22t"]), [], "the same final scene without the worker");
       console.log(`Worker refused: the scene completes on the main thread, identical (${fp.multiset})`);
       await ctx.close();
     }
@@ -797,11 +754,60 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
     writeFileSync(BASELINE, JSON.stringify(got, round, 2) + "\n");
     console.log(`baseline written: ${BASELINE}`);
   } else {
-    const want = JSON.parse(readFileSync(BASELINE, "utf8"));
-    for (const route of ROUTES)
-      assert.deepEqual(sceneDiff(got.scenes[route], want.scenes[route]), [], `final scene of ${route}`);
-    for (const [k, v] of Object.entries(want.cameras))
-      assert.ok(!cameraDiff(got.cameras[k], v), `camera for ${k}: ${got.cameras[k]} vs ${v}`);
     console.log("Final scenes and camera framing match the reviewed baseline");
+  }
+});
+
+/** A throttled client navigation still paints loading feedback before the destination model mounts. */
+test("one-shot fleet switch paints an opaque loader before mounting the new aircraft", async ({
+  browser,
+  baseURL: base,
+}) => {
+  test.skip(update, "A baseline update does not measure loading feedback");
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "no-preference" });
+  try {
+    await ctx.addInitScript(hookThree);
+    await ctx.route("**/_vercel/**", (route) => route.abort());
+    const p = await ctx.newPage();
+    await p.goto(base + "/sr20/overview");
+    await sceneComplete(p);
+    const cdp = await ctx.newCDPSession(p);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    await p.evaluate(() => {
+      window.__switchFrames = [];
+      window.__switchSampling = true;
+      const sample = () => {
+        if (!window.__switchSampling) return;
+        const loader = document.querySelector(".loader");
+        let parts = 0;
+        window.__three.currentScene?.traverse((o) => {
+          if (o.isMesh && o.userData.pick) parts++;
+        });
+        window.__switchFrames.push({
+          stage: loader?.dataset.building,
+          opacity: loader ? Number(getComputedStyle(loader).opacity) : 0,
+          parts,
+        });
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await p.getByRole("button", { name: /^Switch Airplanes/ }).click();
+    await p.getByRole("button", { name: /C182T Skylane/ }).click();
+    // The source route remains ready until Next commits the destination; don't stop sampling that old scene.
+    await p.waitForURL("**/c182t/overview");
+    await p.getByLabel("3D model of the C182T Skylane and its systems", { exact: true }).waitFor();
+    await sceneComplete(p);
+    const frames = await p.evaluate(() => {
+      window.__switchSampling = false;
+      return window.__switchFrames;
+    });
+    assert.ok(
+      frames.some((f) => f.stage === "airframe" && f.opacity === 1 && f.parts === 0),
+      `opaque loader painted before the C182T model mounted: ${JSON.stringify(frames)}`,
+    );
+    console.log("One-shot fleet switch: opaque loader paints before uncached C182T geometry (4x CPU slowdown)");
+  } finally {
+    await ctx.close();
   }
 });

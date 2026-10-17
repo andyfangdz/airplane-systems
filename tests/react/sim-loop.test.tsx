@@ -57,3 +57,29 @@ test("view toggles show and flip their store's settings", () => {
   expect(useV.getState()).toMatchObject({ xray: true, labels: true });
   expect(labels.getAttribute("aria-pressed")).toBe("true");
 });
+
+test("a hidden page pauses its driver and resumes without advancing the hidden duration", () => {
+  let hidden = false;
+  let frame: FrameRequestCallback | null = null;
+  let now = 1000;
+  vi.spyOn(document, "hidden", "get").mockImplementation(() => hidden);
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => ((frame = cb), 1));
+  const cancel = vi.fn();
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+  const advance = vi.fn();
+  const { unmount } = render(<Loop advance={advance} maxDt={1} />);
+  frame!(1010);
+  expect(advance).toHaveBeenLastCalledWith(0.01);
+  hidden = true;
+  document.dispatchEvent(new Event("visibilitychange"));
+  frame!(20_000);
+  expect(advance).toHaveBeenCalledTimes(1);
+  now = 30_000;
+  hidden = false;
+  document.dispatchEvent(new Event("visibilitychange"));
+  frame!(30_020);
+  expect(advance).toHaveBeenLastCalledWith(0.02);
+  unmount();
+  expect(cancel).toHaveBeenCalled();
+});

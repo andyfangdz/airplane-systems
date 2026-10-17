@@ -32,6 +32,8 @@ for (const side of [-1, 1]) {
       ),
     ["doors", "cabin"],
     {
+      id: "parts.doors.cabin-door-perimeter-seal.001",
+      instance: [side],
       color: "#42494D",
       name: "Cabin door perimeter seal",
       pin: side < 0,
@@ -39,11 +41,13 @@ for (const side of [-1, 1]) {
       note: "Seal around each forward-hinged cabin door opening. Trapped unvented air in a seal bulb can make closure difficult (AMM 52-10 p. 2; seal practices in 53-40). Outline follows the model's photographed G6 seam; seal thickness and loft inset approximate.",
     },
   );
-  for (const [y, name] of [
-    [0.39, "Upper cabin door hinge"],
-    [-0.22, "Lower cabin door hinge"],
+  for (const [hinge, y, name] of [
+    ["upper", 0.39, "Upper cabin door hinge"],
+    ["lower", -0.22, "Lower cabin door hinge"],
   ] as const)
     part(() => cyl(0.011, 0.06, "y"), ["doors", "cabin"], {
+      id: "parts.doors.part.002",
+      instance: [side, hinge],
       pos: doorHardwarePoint(y > 0 ? 1.81 : 1.95, y, side, y > 0 ? 0.05 : 0.025),
       color: "#85939C",
       name,
@@ -54,6 +58,8 @@ for (const side of [-1, 1]) {
   const strutA = doorHardwarePoint(1.85, 0.05, side, 0.12),
     strutB = doorHardwarePoint(1.48, -0.03, side, 0.045);
   part(() => tubeGeo([strutA, strutB], 0.01, 0), ["doors", "cabin"], {
+    id: "parts.doors.cabin-door-gas-strut.003",
+    instance: [side],
     color: "#85939C",
     name: "Cabin door gas strut",
     pin: side < 0,
@@ -61,6 +67,8 @@ for (const side of [-1, 1]) {
     note: "Gas-charged strut assists opening and holds the forward-hinged door open against gusts (POH 7-33; AMM 52-10 p. 1 and Fig 52-10-1). Attachment stations and extension are schematic; no loads are calculated.",
   });
   part(() => box(0.035, 0.025, 0.025), ["doors"], {
+    id: "parts.doors.gas-strut-catcher-diverter.004",
+    instance: [side],
     pos: strutA,
     color: "#85939C",
     name: "Gas strut catcher/diverter",
@@ -68,6 +76,8 @@ for (const side of [-1, 1]) {
     note: "Catcher/diverter mounted on top of the forward gas-strut attach bracket, positioned to capture the strut rod end (AMM 52-10 p. 17). Schematic form and position.",
   });
   part(() => box(0.3, 0.035, 0.08), ["doors", "cabin"], {
+    id: "parts.doors.cabin-door-armrest.005",
+    instance: [side],
     pos: doorHardwarePoint(1.3, -0.075, side, 0.055),
     color: "#837C70",
     name: "Cabin door armrest",
@@ -76,6 +86,8 @@ for (const side of [-1, 1]) {
     note: "Front-seat armrest integral to each cabin door. The inside handle nests flush into it when latched; when unlatched the lever projects upward into the occupant's forearm as a tactile indication (POH 7-33; AMM 52-10 p. 1). Dimensions approximate.",
   });
   part(() => box(0.13, 0.014, 0.018), ["doors", "cabin"], {
+    id: "parts.doors.interior-cabin-door-handle.006",
+    instance: [side],
     pos: handle,
     color: "#D9DEE1",
     name: "Interior cabin door handle",
@@ -84,6 +96,8 @@ for (const side of [-1, 1]) {
     note: "Centered beneath the window, in the door armrest. Lifting either handle operates the pull cable and linkage to release both upper and lower aft latches; either handle can also draw a partly closed door into positive engagement (AMM 52-10 p. 1, Fig 52-10-3). Handle travel and dimensions approximate.",
   });
   part(() => box(0.15, 0.026, 0.008), ["doors"], {
+    id: "parts.doors.exterior-cabin-door-handle.007",
+    instance: [side],
     pos: doorHardwarePoint(1.28, 0.02, side, 0.008),
     color: "#667079",
     name: "Exterior cabin door handle",
@@ -91,6 +105,8 @@ for (const side of [-1, 1]) {
     note: "Flush-mount outside lever in a recessed housing. Rotate upward to disengage both rear latches; a slam catch and handle-operated draw-in latch provide positive closure (AMM 52-10 p. 1, Fig 52-10-3). Size and recess schematic.",
   });
   part(() => cyl(0.011, 0.008, "z", 16), ["doors"], {
+    id: "parts.doors.cabin-door-key-lock.008",
+    instance: [side],
     pos: doorHardwarePoint(1.17, 0.015, side, 0.008),
     color: "#C6CED3",
     name: "Cabin door key lock",
@@ -102,6 +118,8 @@ for (const side of [-1, 1]) {
     [false, latchL],
   ] as const)
     part(() => box(0.03, 0.035, 0.025), ["doors"], {
+      id: "parts.doors.part.009",
+      instance: [upper, side],
       pos: at,
       color: "#8B949B",
       name: upper ? "Upper aft door latch" : "Lower aft door latch",
@@ -109,12 +127,16 @@ for (const side of [-1, 1]) {
       note: "Rear-perimeter latch operated through the handle actuation assembly, pull cable and linkage. It engages its jamb pin and provides slam-catch or manually commanded draw-in engagement (AMM 52-10 p. 1, Fig 52-10-3). The POH calls these latching pins in frame receptacles (7-33). Size and latch stations approximate.",
     });
   part(() => tubeGeo([handle, doorHardwarePoint(1.05, 0.08, side), latchU], 0.003, 0), ["doors"], {
+    id: "parts.doors.cabin-door-latch-pull-cable.010",
+    instance: [side],
     name: "Cabin door latch pull cable",
     pin: side < 0,
     color: "#C9A755",
     note: "Handle assembly to upper latch pull-cable branch; lower latch also uses a link/gearbox connection (AMM 52-10 p. 1, Fig 52-10-3). Cable path, bends and thickness schematic; no powered flow is implied.",
   });
   part(() => tubeGeo([handle, doorHardwarePoint(1.05, -0.2, side), latchL], 0.005, 0), ["doors"], {
+    id: "parts.doors.cabin-door-lower-latch-linkage.011",
+    instance: [side],
     name: "Cabin door lower latch linkage",
     pin: side < 0,
     color: "#C9A755",
@@ -132,6 +154,7 @@ part(
     ),
   ["doors", "cabin"],
   {
+    id: "parts.doors.baggage-door.012",
     name: "Baggage door",
     color: "#85939C",
     pin: true,
@@ -140,6 +163,7 @@ part(
   },
 );
 part(() => cyl(0.012, 0.008, "z", 16), ["doors"], {
+  id: "parts.doors.baggage-door-key-lock.013",
   pos: BAGGAGE_HANDLE,
   name: "Baggage door key lock",
   color: "#C6CED3",
@@ -147,6 +171,7 @@ part(() => cyl(0.012, 0.008, "z", 16), ["doors"], {
   note: "Outside key lock at the rear edge; uses the same key as the cabin doors (POH 7-26). Pre-2901 installation follows AMM 53-40 Fig 53-40-7 sheet 1; dimensions and position approximate.",
 });
 part(() => cyl(0.011, 0.14, "y"), ["doors"], {
+  id: "parts.doors.baggage-door-forward-hinge.014",
   pos: doorHardwarePoint(0.07, -0.11, -1, 0.035),
   name: "Baggage door forward hinge",
   color: "#85939C",

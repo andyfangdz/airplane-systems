@@ -1,6 +1,5 @@
 "use client";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
-import { useEffect } from "react";
 import {
   BtnRow,
   Caution,
@@ -15,7 +14,16 @@ import {
   Slider,
   Small,
 } from "@/components/ui/controls";
-import { fuelInd, govRpm, lambda, live, powerFrac, type EisPage, type FuelSel, type Mags } from "../model";
+import {
+  fuelInd,
+  govRpm,
+  fuelEquivalenceRatio,
+  live,
+  powerFrac,
+  type EisPage,
+  type FuelSel,
+  type Mags,
+} from "../model";
 import { Nav3MagSwitch } from "../../cessna/panels";
 import { CAT } from "../parts";
 import { useC182 } from "../store";
@@ -120,7 +128,7 @@ export function Engine() {
     up = useC182((x) => x.update);
   const g = s.eng,
     alt = snapshot.fs.alt;
-  const lam = lambda(g.mix, alt),
+  const lam = fuelEquivalenceRatio(g.mix, alt),
     P = g.running ? powerFrac(s, snapshot.map, snapshot.rpm, alt) : 0;
   const state = g.running
     ? snapshot.primeRun > 0
@@ -440,7 +448,6 @@ export function Engine() {
 
 export function Propeller() {
   const snapshot = useLiveSnapshot(live, 150);
-  useEffect(() => cancelPropCycle, []);
   const s = useC182((x) => x.s),
     up = useC182((x) => x.update);
   const g = s.eng,
@@ -449,14 +456,7 @@ export function Propeller() {
   const governing = g.running && !g.fail.gov && snapshot.blade > 15.2;
   const P = g.running ? powerFrac(s, snapshot.map, snapshot.rpm, snapshot.fs.alt) : 0;
   const cycle = () => {
-    up((d) => {
-      d.eng.prop = 0;
-    });
-    startPropCycle(() =>
-      useC182.getState().update((d) => {
-        d.eng.prop = 1;
-      }),
-    );
+    startPropCycle();
   };
   return (
     <>

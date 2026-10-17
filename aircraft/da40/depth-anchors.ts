@@ -55,9 +55,9 @@ export const PITOT_FILTER: Vec3 = [fs(2.3), -0.5, -0.5];
 export const STATIC_FILTER: Vec3 = [fs(2.3) - 0.018, -0.5, -0.477];
 export const ALTERNATE_STATIC: Vec3 = [fs(1.86), -0.3, -0.42];
 export const FUEL_CHAMBERS = [
-  { name: "Inboard fuel chamber", z0: 1.18, z1: 2.08 },
-  { name: "Outboard fuel chamber", z0: 2.13, z1: 2.95 },
-  { name: "Long-range fuel chamber", z0: 3.0, z1: 3.55 },
+  { id: "inboard", name: "Inboard fuel chamber", z0: 1.18, z1: 2.08 },
+  { id: "outboard", name: "Outboard fuel chamber", z0: 2.13, z1: 2.95 },
+  { id: "long-range", name: "Long-range fuel chamber", z0: 3.0, z1: 3.55 },
 ] as const;
 export const FUEL_PROBE = (s: number, longRange: boolean) => toVec3(wingP(s * (longRange ? 3.04 : 1.22), 0.5, 0));
 export const VENT = (s: number, check: boolean) =>

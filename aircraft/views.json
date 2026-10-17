@@ -1,0 +1,128 @@
+[
+  {
+    "id": "sr20",
+    "systems": [
+      "overview",
+      "airframe",
+      "controls",
+      "flaps",
+      "gear",
+      "doors",
+      "engine",
+      "propeller",
+      "fuel",
+      "electrical",
+      "lighting",
+      "environment",
+      "pitot",
+      "avionics",
+      "cabin",
+      "caps"
+    ]
+  },
+  {
+    "id": "sr22t",
+    "systems": [
+      "overview",
+      "airframe",
+      "doors",
+      "controls",
+      "flaps",
+      "gear",
+      "engine",
+      "propeller",
+      "fuel",
+      "electrical",
+      "lighting",
+      "environment",
+      "pitot",
+      "ice",
+      "avionics",
+      "cabin",
+      "oxygen",
+      "caps"
+    ]
+  },
+  {
+    "id": "c172s",
+    "systems": [
+      "overview",
+      "airframe",
+      "controls",
+      "gear",
+      "flaps",
+      "cabin",
+      "engine",
+      "propeller",
+      "fuel",
+      "electrical",
+      "lighting",
+      "environment",
+      "pitot",
+      "vacuum",
+      "avionics",
+      "autopilot"
+    ]
+  },
+  {
+    "id": "c182t",
+    "systems": [
+      "overview",
+      "airframe",
+      "controls",
+      "gear",
+      "flaps",
+      "cabin",
+      "engine",
+      "propeller",
+      "fuel",
+      "electrical",
+      "lighting",
+      "environment",
+      "pitot",
+      "vacuum",
+      "avionics",
+      "autopilot"
+    ]
+  },
+  {
+    "id": "da40",
+    "systems": [
+      "overview",
+      "airframe",
+      "controls",
+      "flaps",
+      "gear",
+      "cabin",
+      "environment",
+      "engine",
+      "propeller",
+      "fuel",
+      "electrical",
+      "lighting",
+      "pitot",
+      "avionics",
+      "autopilot"
+    ]
+  },
+  {
+    "id": "m20c",
+    "systems": [
+      "overview",
+      "airframe",
+      "controls",
+      "autopilot",
+      "flaps",
+      "gear",
+      "engine",
+      "propeller",
+      "fuel",
+      "electrical",
+      "lighting",
+      "vacuum",
+      "pitot",
+      "environment",
+      "cabin"
+    ]
+  }
+]

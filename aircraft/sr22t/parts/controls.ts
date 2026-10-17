@@ -20,7 +20,7 @@ import {
   CARR,
   ELEV_HORN,
   ETT,
-  FAIRLEADS,
+  FAIRLEAD_ITEMS,
   FWD_GANG,
   LEVER_ANG,
   PEDAL_TT,
@@ -41,6 +41,7 @@ const CTL = "#7C57CF",
   STEEL = "#8C959C";
 // elevator: lateral torque tube under the panel with end levers and the forward cable sector
 part(() => cyl(0.016, ETT.half * 2, "z"), ["controls"], {
+  id: "parts.controls.elevator-torque-tube.001",
   chan: ["elevator"],
   parent: "rig:ett",
   color: STEEL,
@@ -48,8 +49,15 @@ part(() => cyl(0.016, ETT.half * 2, "z"), ["controls"], {
   note: "Lateral torque tube under the panel. Drop links from both yoke tubes rotate it; its forward sector drives the elevator cables (POH Fig. 7-1).",
   pin: true,
 });
-[-1, 1].forEach((sd) =>
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member1, sd]) =>
   part(() => box(0.02, ETT.lever, 0.02), ["controls"], {
+    id: "parts.controls.torque-tube-lever.002",
+    instance: [sd, member1],
     chan: ["elevator"],
     parent: "rig:ett",
     pos: [(Math.sin(LEVER_ANG) * ETT.lever) / 2, (Math.cos(LEVER_ANG) * ETT.lever) / 2, sd * CARR.z],
@@ -60,6 +68,7 @@ part(() => cyl(0.016, ETT.half * 2, "z"), ["controls"], {
   }),
 );
 part(() => sectorGeo(ETT.sectorR), ["controls"], {
+  id: "parts.controls.forward-elevator-sector.003",
   chan: ["elevator"],
   parent: "rig:ett",
   pos: [0, 0, ETT.sectorZ],
@@ -69,6 +78,7 @@ part(() => sectorGeo(ETT.sectorR), ["controls"], {
   pin: true,
 });
 part(() => cyl(0.02, 0.05, "z"), ["controls"], {
+  id: "parts.controls.torque-tube-bearing-block.004",
   chan: ["elevator"],
   pos: [ETT.c[0], ETT.c[1], -0.25],
   color: "#5A636A",
@@ -76,14 +86,22 @@ part(() => cyl(0.02, 0.05, "z"), ["controls"], {
   note: "Bearing blocks support the elevator torque tube.",
 });
 part(() => cyl(0.02, 0.05, "z"), ["controls"], {
+  id: "parts.controls.part.005",
   chan: ["elevator"],
   pos: [ETT.c[0], ETT.c[1], 0.25],
   color: "#5A636A",
 });
 // aileron: pivoting bearing carriages, central pulley sector
-[-1, 1].forEach((sd) => {
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member2, sd]) => {
   const parent = "rig:carr:" + (sd < 0 ? "L" : "R");
   part(() => box(0.2, 0.02, 0.05), ["controls"], {
+    id: "parts.controls.aileron-bearing-carriage.006",
+    instance: [sd, parent, member2],
     chan: ["aileron"],
     parent,
     pos: [0, -0.03, 0],
@@ -93,6 +111,8 @@ part(() => cyl(0.02, 0.05, "z"), ["controls"], {
     pin: sd > 0,
   });
   part(() => box(0.02, CARR.arm, 0.02), ["controls"], {
+    id: "parts.controls.carriage-arm.007",
+    instance: [sd, parent, member2],
     chan: ["aileron"],
     parent,
     pos: [CARR.armX, -CARR.arm / 2, 0],
@@ -109,6 +129,7 @@ part(
   },
   ["controls"],
   {
+    id: "parts.controls.central-aileron-pulley-sector.008",
     chan: ["aileron"],
     parent: "rig:ailSector",
     color: CTL,
@@ -118,6 +139,7 @@ part(
   },
 );
 part(() => box(0.012, 0.02, 0.012), ["controls"], {
+  id: "parts.controls.part.009",
   chan: ["aileron"],
   parent: "rig:ailSector",
   pos: [0, AIL_SECTOR.r, 0],
@@ -125,6 +147,7 @@ part(() => box(0.012, 0.02, 0.012), ["controls"], {
 });
 // rudder: pedal torque tube and cable horn
 part(() => cyl(0.014, PEDAL_TT.half * 2, "z"), ["controls", "gear"], {
+  id: "parts.controls.rudder-pedal-torque-tube.010",
   chan: ["rudder"],
   pos: [PEDAL_TT.x, PEDAL_TT.y, 0],
   color: STEEL,
@@ -133,6 +156,7 @@ part(() => cyl(0.014, PEDAL_TT.half * 2, "z"), ["controls", "gear"], {
   pin: true,
 });
 part(() => box(0.03, 0.02, RUD_HORN.half * 2 + 0.02), ["controls"], {
+  id: "parts.controls.rudder-cable-horn.011",
   chan: ["rudder"],
   parent: "rig:rudHorn",
   color: CTL,
@@ -140,12 +164,24 @@ part(() => box(0.03, 0.02, RUD_HORN.half * 2 + 0.02), ["controls"], {
   note: "Pedal links pivot this horn; its ends pull the two rudder cable strands.",
   pin: true,
 });
-part(() => cyl(0.008, 0.05, "y"), ["controls"], { chan: ["rudder"], pos: RUD_HORN.c, color: STEEL });
+part(() => cyl(0.008, 0.05, "y"), ["controls"], {
+  id: "parts.controls.part.012",
+  chan: ["rudder"],
+  pos: RUD_HORN.c,
+  color: STEEL,
+});
 // arm from each pedal pair's inboard pedal across to its pedal link
-[-1, 1].forEach((sd) => {
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member3, sd]) => {
   const z0 = sd * 0.14,
     z1 = RUD_HORN.c[2] + sd * RUD_HORN.half;
   part(() => box(0.02, 0.015, Math.abs(z1 - z0) + 0.02), ["controls"], {
+    id: "parts.controls.pedal-arm.013",
+    instance: [sd, member3],
     chan: ["rudder"],
     parent: sd < 0 ? "rig:pedL" : "rig:pedR",
     pos: [PEDAL_TT.x, RUD_HORN.c[1], (z0 + z1) / 2],
@@ -158,6 +194,8 @@ part(() => cyl(0.008, 0.05, "y"), ["controls"], { chan: ["rudder"], pos: RUD_HOR
 const pulleyPart = (k: string) => {
   const d = PULLEYS[k];
   part(() => pulleyGeo(d.r, d.axis, d.double, d.gap), ["controls"], {
+    id: "parts.controls.part.014",
+    instance: [k],
     chan: chanOfKey(k === "ef" || k === "em" || k === "ea" ? "el" : k.startsWith("a") ? "ail" : "rud"),
     parent: "rig:pul:" + k,
     color: k === "ea" || k === "ra" || k.startsWith("aw") ? CTL : "#A6AEB4",
@@ -173,12 +211,14 @@ Object.keys(PULLEYS)
   .forEach(pulleyPart);
 // crank pins on the aft sectors
 part(() => cyl(0.008, 0.03, "z"), ["controls"], {
+  id: "parts.controls.part.015",
   chan: ["elevator"],
   parent: "rig:pul:ea",
   pos: [0, -0.06, 0],
   color: STEEL,
 });
 part(() => cyl(0.008, 0.03, "z"), ["controls"], {
+  id: "parts.controls.part.016",
   chan: ["rudder"],
   parent: "rig:pul:ra",
   pos: [0, -0.05, 0],
@@ -189,6 +229,7 @@ part(() => cyl(0.008, 0.03, "z"), ["controls"], {
   const pv = surfacePivot("elevR"),
     c = ELEV_HORN.c;
   part(() => box(0.02, ELEV_HORN.arm, 0.02), ["controls"], {
+    id: "parts.controls.elevator-bellcrank.017",
     parent: "surf:elevR",
     pos: [c[0] - pv[0], c[1] - ELEV_HORN.arm / 2 - pv[1], c[2] - pv[2]],
     color: CTL,
@@ -197,6 +238,7 @@ part(() => cyl(0.008, 0.03, "z"), ["controls"], {
     pin: true,
   });
   part(() => cyl(0.014, 0.2, "z"), ["controls"], {
+    id: "parts.controls.elevator-torque-tube-tail.018",
     parent: "surf:elevR",
     pos: [c[0] - pv[0], c[1] - pv[1], c[2] - pv[2]],
     color: STEEL,
@@ -206,6 +248,7 @@ part(() => cyl(0.008, 0.03, "z"), ["controls"], {
   const rv = surfacePivot("rudder"),
     r = RUD_HORN_AFT.c;
   part(() => box(0.02, 0.02, RUD_HORN_AFT.arm), ["controls"], {
+    id: "parts.controls.rudder-bellcrank.019",
     parent: "surf:rudder",
     pos: [r[0] - rv[0], r[1] - rv[1], RUD_HORN_AFT.arm / 2 - rv[2]],
     color: CTL,
@@ -213,11 +256,18 @@ part(() => cyl(0.008, 0.03, "z"), ["controls"], {
     note: "Horn at the bottom of the rudder; the push-pull tube from the rudder empennage bellcrank drives it. The AMM calls it the aft rudder bellcrank, bolted directly to the rudder (AMM 27-20 PDF p. 986).",
     pin: true,
   });
-  [1, -1].forEach((sd) => {
+  (
+    [
+      ["member-01", 1],
+      ["member-02", -1],
+    ] as const
+  ).forEach(([member4, sd]) => {
     const key = "ail" + (sd > 0 ? "R" : "L"),
       av = surfacePivot(key);
     const hz = wingP(sd * AIL_DRIVE.z, 0.75, 0);
     part(() => box(0.012, AIL_DRIVE.arm, 0.012), ["controls"], {
+      id: "parts.controls.aileron-conical-drive-arm.020",
+      instance: [sd, member4],
       chan: ["aileron"],
       parent: "surf:" + key,
       pos: [hz.x - av[0], hz.y + AIL_DRIVE.arm / 2 - av[1], hz.z - av[2]],
@@ -226,6 +276,8 @@ part(() => cyl(0.008, 0.03, "z"), ["controls"], {
       note: "Right-angle drive: the arm on the aileron hinge that the wing sector's crank turns.",
     });
     part(() => box(0.012, 0.012, AIL_DRIVE.crank), ["controls"], {
+      id: "parts.controls.wing-sector-crank-arm.021",
+      instance: [sd, member4],
       chan: ["aileron"],
       parent: "rig:pul:aw" + (sd > 0 ? "R" : "L"),
       pos: [0, AIL_DRIVE.lift, (sd * AIL_DRIVE.crank) / 2],
@@ -249,6 +301,8 @@ const tbAxis = (key: string, p: Vec3): "x" | "y" | "z" => {
 };
 TURNBUCKLES.forEach((t, j) =>
   part(() => cyl(0.009, 0.07, tbAxis(t.key, t.pos)), ["controls"], {
+    id: "parts.controls.part.022",
+    instance: [t.key],
     chan: chanOfKey(t.key),
     pos: t.pos,
     color: "#C9B98F",
@@ -258,8 +312,10 @@ TURNBUCKLES.forEach((t, j) =>
   }),
 );
 // a fairlead at each flap hinge
-FAIRLEADS.forEach((p, j) =>
+FAIRLEAD_ITEMS.forEach(({ key, pos: p }, j) =>
   part(() => box(0.16, 0.03, 0.02), ["controls"], {
+    id: "parts.controls.aileron-cable-fairlead.023",
+    instance: [key],
     chan: ["aileron"],
     pos: p,
     color: "#C9D0D5",
@@ -270,6 +326,7 @@ FAIRLEADS.forEach((p, j) =>
 );
 // pulley gang brackets and the shared empennage bellcrank shaft
 part(() => box(0.06, 0.012, 0.27), ["controls"], {
+  id: "parts.controls.forward-pulley-gang-bracket.024",
   pos: [FWD_GANG.x, FWD_GANG.y + 0.045, 0.045],
   color: STEEL,
   name: "Forward pulley gang bracket",
@@ -277,6 +334,7 @@ part(() => box(0.06, 0.012, 0.27), ["controls"], {
   pin: true,
 });
 part(() => box(0.012, 0.06, 0.15), ["controls"], {
+  id: "parts.controls.rudder-elevator-pulley-gang-bracket.025",
   pos: [AFT_GANG.x - 0.038, AFT_GANG.y, 0.1],
   color: STEEL,
   name: "Rudder/elevator pulley gang bracket",
@@ -284,6 +342,7 @@ part(() => box(0.012, 0.06, 0.15), ["controls"], {
   pin: true,
 });
 part(() => cyl(0.01, 0.13, "z"), ["controls"], {
+  id: "parts.controls.empennage-bellcrank-shaft-fs-306.026",
   pos: [BELLCRANK_SHAFT.x, BELLCRANK_SHAFT.y, 0.0025],
   color: STEEL,
   name: "Empennage bellcrank shaft (FS 306)",
@@ -302,9 +361,16 @@ const stopAnim = (chan: Chan, k: keyof ReturnType<typeof stopsInContact>): PartA
     else glow(m, t);
   };
 };
-[1, -1].forEach((sd) => {
+(
+  [
+    ["member-01", 1],
+    ["member-02", -1],
+  ] as const
+).forEach(([member5, sd]) => {
   const c = (sd > 0 ? PULLEYS.awR : PULLEYS.awL).c;
   part(() => box(0.02, 0.025, 0.03), ["controls"], {
+    id: "parts.controls.aileron-control-stop.027",
+    instance: [sd, member5],
     chan: ["aileron"],
     pos: [c[0] - 0.075, c[1], c[2]],
     color: STOP,
@@ -317,23 +383,31 @@ const stopAnim = (chan: Chan, k: keyof ReturnType<typeof stopsInContact>): PartA
 (
   [
     [
-      "ea",
-      "elevator",
-      "Elevator control stop",
-      "elev",
-      "Fixed stops at the elevator empennage bellcrank limit elevator travel (AMM 27-30 PDF p. 1008): 25° up, 15° down (AMM 6-00 PDF p. 117). Lights at full travel.",
+      "member-01",
+      [
+        "ea",
+        "elevator",
+        "Elevator control stop",
+        "elev",
+        "Fixed stops at the elevator empennage bellcrank limit elevator travel (AMM 27-30 PDF p. 1008): 25° up, 15° down (AMM 6-00 PDF p. 117). Lights at full travel.",
+      ],
     ],
     [
-      "ra",
-      "rudder",
-      "Rudder control stop",
-      "rud",
-      "Fixed stops at the rudder empennage bellcrank limit rudder travel (AMM 27-20 PDF p. 986): 20° left and right (AMM 6-00 PDF p. 117). Lights at full travel.",
+      "member-02",
+      [
+        "ra",
+        "rudder",
+        "Rudder control stop",
+        "rud",
+        "Fixed stops at the rudder empennage bellcrank limit rudder travel (AMM 27-20 PDF p. 986): 20° left and right (AMM 6-00 PDF p. 117). Lights at full travel.",
+      ],
     ],
   ] as const
-).forEach(([k, chan, name, stop, note]) => {
+).forEach(([member6, [k, chan, name, stop, note]]) => {
   const d = PULLEYS[k];
   part(() => box(0.02, 0.02, 0.016), ["controls"], {
+    id: "parts.controls.part.028",
+    instance: [k, chan, stop, member6],
     chan: [chan],
     pos: [d.c[0] - d.r - 0.015, d.c[1], d.c[2]],
     color: STOP,
@@ -344,8 +418,15 @@ const stopAnim = (chan: Chan, k: keyof ReturnType<typeof stopsInContact>): PartA
   });
 });
 // rudder springs: pedal assembly to firewall
-[1, -1].forEach((sd) =>
+(
+  [
+    ["member-01", 1],
+    ["member-02", -1],
+  ] as const
+).forEach(([member7, sd]) =>
   part(() => cyl(0.008, FW - PEDAL_TT.x, "x"), ["controls"], {
+    id: "parts.controls.rudder-return-spring.029",
+    instance: [sd, member7],
     chan: ["rudder"],
     pos: [(FW + PEDAL_TT.x) / 2, PEDAL_TT.y + 0.03, sd * 0.2],
     color: "#B7BEC4",
@@ -392,35 +473,47 @@ const FIG_7_20 = "POH Fig 7-20 (7-88)";
 (
   [
     [
-      "Pitch servo actuator (GSA 81)",
-      SERVO_BODIES.pitch.c,
-      SERVO_BODIES.pitch.size,
-      "elevator",
-      `On the centreline at the forward end of the baggage floor (${FIG_7_20} item 17), below the baggage compartment at access panel CF5 (AMM 22-10 PDF p. 554). GSA 81 actuator on a GSM 86 capstan mount, whose slip clutch lets the pilot override it; its bridle cable is clamped to both elevator cables (AMM 22-10 PDF pp. 555, 579). 5 A AP SERVOS breaker, MAIN BUS 1 (AMM 22-10). Position approximate.`,
+      "member-01",
+      [
+        "Pitch servo actuator (GSA 81)",
+        SERVO_BODIES.pitch.c,
+        SERVO_BODIES.pitch.size,
+        "elevator",
+        `On the centreline at the forward end of the baggage floor (${FIG_7_20} item 17), below the baggage compartment at access panel CF5 (AMM 22-10 PDF p. 554). GSA 81 actuator on a GSM 86 capstan mount, whose slip clutch lets the pilot override it; its bridle cable is clamped to both elevator cables (AMM 22-10 PDF pp. 555, 579). 5 A AP SERVOS breaker, MAIN BUS 1 (AMM 22-10). Position approximate.`,
+      ],
     ],
     [
-      "Roll servo actuator (GSA 81)",
-      SERVO_BODIES.roll.c,
-      SERVO_BODIES.roll.size,
-      "aileron",
-      `On the centreline just aft of the front seats (${FIG_7_20} item 14), below the passenger seat at access panel CF4C (AMM 22-10 PDF p. 555). GSA 81 actuator on a GSM 86 capstan mount, whose slip clutch lets the pilot override it; its bridle cable is clamped to the LH and RH aileron cables (AMM 22-10 PDF p. 589). 5 A AP SERVOS breaker, MAIN BUS 1 (AMM 22-10). Position approximate.`,
+      "member-02",
+      [
+        "Roll servo actuator (GSA 81)",
+        SERVO_BODIES.roll.c,
+        SERVO_BODIES.roll.size,
+        "aileron",
+        `On the centreline just aft of the front seats (${FIG_7_20} item 14), below the passenger seat at access panel CF4C (AMM 22-10 PDF p. 555). GSA 81 actuator on a GSM 86 capstan mount, whose slip clutch lets the pilot override it; its bridle cable is clamped to the LH and RH aileron cables (AMM 22-10 PDF p. 589). 5 A AP SERVOS breaker, MAIN BUS 1 (AMM 22-10). Position approximate.`,
+      ],
     ],
     [
-      "Yaw servo actuator (GSA 80)",
-      SERVO_BODIES.yaw.c,
-      SERVO_BODIES.yaw.size,
-      "rudder",
-      `Yaw damper servo aft of the FS 222 bulkhead, just left of the centreline between Battery 2 and the ELT (${FIG_7_20} item 23); in the empennage avionics bay, reached through access panel RE3 "Avionics Bay" (AMM 22-10 PDF p. 556; Fig 6-00-8 PDF p. 125). GSA 80 actuator on a GSM 86 capstan mount with slip clutch; its bridle cable is clamped to the rudder cables (AMM 22-10 PDF p. 598). Height above the Battery 2 shelf follows the lead ruling: AMM Fig 22-10-6 sheet 3 (PDF p. 606), rather than the previous illustrative height. Optional on the SR22T; installed on this airplane. 3 A YAW SERVO breaker, MAIN BUS 3 (AMM 22-10). Position approximate.`,
+      "member-03",
+      [
+        "Yaw servo actuator (GSA 80)",
+        SERVO_BODIES.yaw.c,
+        SERVO_BODIES.yaw.size,
+        "rudder",
+        `Yaw damper servo aft of the FS 222 bulkhead, just left of the centreline between Battery 2 and the ELT (${FIG_7_20} item 23); in the empennage avionics bay, reached through access panel RE3 "Avionics Bay" (AMM 22-10 PDF p. 556; Fig 6-00-8 PDF p. 125). GSA 80 actuator on a GSM 86 capstan mount with slip clutch; its bridle cable is clamped to the rudder cables (AMM 22-10 PDF p. 598). Height above the Battery 2 shelf follows the lead ruling: AMM Fig 22-10-6 sheet 3 (PDF p. 606), rather than the previous illustrative height. Optional on the SR22T; installed on this airplane. 3 A YAW SERVO breaker, MAIN BUS 3 (AMM 22-10). Position approximate.`,
+      ],
     ],
     [
-      "Pitch trim adapter",
-      GTA82.c,
-      GTA82.size,
-      "elevator",
-      `GTA 82, right of the centreline at the aft edge of the rear-seat bay (${FIG_7_20} item 16); the AMM says below the passenger seat (AMM 22-10 PDF p. 554), bolted to the RH aft longeron behind access panels CF4C and CF4R (AMM 22-10 PDF p. 571), and the POH figure governs. Takes input from the trim switches, Integrated Avionics Units and the pitch servo to allow the GFC 700 to drive the pitch servo; yoke trim commands are routed through it when the autopilot is disconnected. 2 A PITCH TRIM breaker, ESS BUS 2 (AMM 22-10). Position approximate.`,
+      "member-04",
+      [
+        "Pitch trim adapter",
+        GTA82.c,
+        GTA82.size,
+        "elevator",
+        `GTA 82, right of the centreline at the aft edge of the rear-seat bay (${FIG_7_20} item 16); the AMM says below the passenger seat (AMM 22-10 PDF p. 554), bolted to the RH aft longeron behind access panels CF4C and CF4R (AMM 22-10 PDF p. 571), and the POH figure governs. Takes input from the trim switches, Integrated Avionics Units and the pitch servo to allow the GFC 700 to drive the pitch servo; yoke trim commands are routed through it when the autopilot is disconnected. 2 A PITCH TRIM breaker, ESS BUS 2 (AMM 22-10). Position approximate.`,
+      ],
     ],
-  ] as [string, Vec3, Vec3, "elevator" | "aileron" | "rudder", string][]
-).forEach(([name, pos, size, chan, note]) =>
+  ] as [string, [string, Vec3, Vec3, "elevator" | "aileron" | "rudder", string]][]
+).forEach(([member8, [name, pos, size, chan, note]]) =>
   part(
     () => {
       if (name === "Pitch trim adapter") return box(...size);
@@ -434,6 +527,15 @@ const FIG_7_20 = "POH Fig 7-20 (7-88)";
       return g.translate(...offset);
     },
     ["controls"],
-    { chan: [chan], pos, color: SERVO, name, note, pin: true },
+    {
+      id: "parts.controls.part.030",
+      instance: [chan, member8],
+      chan: [chan],
+      pos,
+      color: SERVO,
+      name,
+      note,
+      pin: true,
+    },
   ),
 );

@@ -1,3 +1,4 @@
+import type { InstanceKey } from "@/lib/catalogue";
 import { toVec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
 import { PANEL_X, box, cyl, fs, onSkin } from "../geometry";
@@ -7,6 +8,7 @@ import { CBP_Z } from "./cabin";
 /* ---------- electrical ---------- */
 // arm 1.19 m puts it between the rear right cylinder (cyl 3) and the firewall, so it stands with its narrow side fore-aft
 part(() => box(0.1, 0.18, 0.24), ["electrical", "engine"], {
+  id: "parts.electrical.main-battery-24-v-11-ah.001",
   pos: [fs(1.19), -0.14, 0.31],
   pinIn: ["electrical"],
   color: "#D9960F",
@@ -15,6 +17,7 @@ part(() => box(0.1, 0.18, 0.24), ["electrical", "engine"], {
   pin: true,
 });
 part(() => box(0.1, 0.08, 0.12), ["electrical"], {
+  id: "parts.electrical.relay-box.002",
   pos: [fs(1.3), -0.04, 0.32],
   color: "#6E5A2A",
   name: "Relay box",
@@ -22,6 +25,7 @@ part(() => box(0.1, 0.08, 0.12), ["electrical"], {
   pin: true,
 });
 part(() => box(0.08, 0.07, 0.02), ["electrical"], {
+  id: "parts.electrical.external-power-receptacle.003",
   pos: toVec3(onSkin(fs(1.42), -0.36, 1, 1.01)),
   color: "#3F4B54",
   name: "External power receptacle",
@@ -30,12 +34,14 @@ part(() => box(0.08, 0.07, 0.02), ["electrical"], {
   pin: true,
 });
 part(() => box(0.1, 0.06, 0.08), ["electrical"], {
+  id: "parts.electrical.voltage-regulator-vr2000.004",
   pos: [fs(0.58), -0.06, -0.22],
   color: "#5A5040",
   name: "Voltage regulator (VR2000)",
   note: "Regulates the alternator field; its over-voltage protection opens the field (AFM 6-20, 7-41 figure). Location not in the documents.",
 });
 part(() => box(0.02, 0.19, 0.15), ["electrical"], {
+  id: "parts.electrical.circuit-breaker-panel.005",
   pos: [PANEL_X - 0.03, -0.03, CBP_Z],
   color: "#3A3F44",
   pinIn: [],
@@ -44,6 +50,7 @@ part(() => box(0.02, 0.19, 0.15), ["electrical"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.05), ["electrical"], {
+  id: "parts.electrical.alternator-current-sensor.006",
   pos: [PANEL_X + 0.08, -0.08, 0.37],
   pinIn: [],
   color: "#D9960F",
@@ -52,12 +59,14 @@ part(() => box(0.06, 0.05, 0.05), ["electrical"], {
   pin: true,
 });
 part(() => box(0.05, 0.04, 0.04), ["electrical"], {
+  id: "parts.electrical.transient-voltage-suppressors-3-2-a-fuses.007",
   pos: [PANEL_X + 0.08, 0.0, 0.42],
   color: "#B85A2A",
   name: "Transient voltage suppressors + 3.2 A fuses",
   note: "Lightning protection: TVS on the battery and alternator breakers, each with a 3.2 A slow-blow fuse; replace every 2 years (SMM 2-12, 4-1).",
 });
 part(() => box(0.12, 0.08, 0.1), ["electrical", "avionics", "lighting"], {
+  id: "parts.electrical.emergency-battery-lithium-pack.008",
   pos: [fs(1.69), -0.16, 0.3],
   color: "#D9960F",
   anim: glow("#6E5A2A", "#FFD24A", () => sim().s.elec.emerg && !sim().E.emergDead, [
@@ -71,6 +80,7 @@ part(() => box(0.12, 0.08, 0.1), ["electrical", "avionics", "lighting"], {
 });
 // switch rows (SMM Fig. 2-1)
 const SW = (
+  identity: InstanceKey,
   name: string,
   z: number,
   y: number,
@@ -82,6 +92,9 @@ const SW = (
   pinIn?: SysId[],
 ) =>
   part(() => box(0.02, 0.045, 0.018), sys, {
+    id: "parts.electrical.part.009",
+    instance: identity,
+
     pos: [PANEL_X - 0.03, y, z],
     color,
     anim: (m) => {
@@ -93,6 +106,7 @@ const SW = (
     pinIn,
   });
 SW(
+  ["master-switch-alt-bat"],
   "Master switch ALT / BAT",
   -0.3,
   -0.17,
@@ -101,6 +115,7 @@ SW(
   () => sim().s.elec.bat,
 );
 SW(
+  ["avionic-master-switch"],
   "AVIONIC MASTER switch",
   -0.34,
   -0.17,
@@ -112,6 +127,7 @@ SW(
   ["avionics", "autopilot"],
 );
 SW(
+  ["ess-bus-switch"],
   "ESS. BUS switch",
   -0.37,
   -0.17,
@@ -120,6 +136,7 @@ SW(
   () => sim().s.elec.essBus,
 );
 SW(
+  ["horizon-emergency-switch"],
   "HORIZON EMERGENCY switch",
   -0.18,
   0.15,
@@ -131,6 +148,7 @@ SW(
   ["avionics", "lighting"],
 );
 SW(
+  ["pitot-switch"],
   "PITOT switch",
   0.055,
   -0.17,
@@ -142,6 +160,7 @@ SW(
   ["pitot"],
 );
 SW(
+  ["landing-light-switch"],
   "LANDING light switch",
   -0.275,
   0.15,
@@ -150,6 +169,7 @@ SW(
   () => sim().s.lights.landing,
 );
 SW(
+  ["taxi-light-switch"],
   "TAXI light switch",
   -0.253,
   0.15,
@@ -160,6 +180,7 @@ SW(
   false,
 );
 SW(
+  ["position-light-switch"],
   "POSITION light switch",
   -0.231,
   0.15,
@@ -170,6 +191,7 @@ SW(
   false,
 );
 SW(
+  ["strobe-light-switch"],
   "STROBE light switch",
   -0.209,
   0.15,
@@ -182,20 +204,29 @@ SW(
 (
   [
     [
-      "INSTRUMENT dimmer",
-      -0.35,
-      () => sim().s.lights.instr,
-      "Rotary knob in the LIGHTS group: switches on and dims the instrument lighting (INST 3 A, MAIN) (AFM 7-44).",
+      "instrument-dimmer",
+      [
+        "INSTRUMENT dimmer",
+        -0.35,
+        () => sim().s.lights.instr,
+        "Rotary knob in the LIGHTS group: switches on and dims the instrument lighting (INST 3 A, MAIN) (AFM 7-44).",
+      ] as [string, number, () => number, string],
     ],
     [
-      "FLOOD dimmer",
-      -0.31,
-      () => sim().s.lights.flood,
-      "Rotary knob: switches on and dims the glareshield flood light (FLOOD 5 A, ESSENTIAL; or the emergency battery) (AFM 7-44).",
+      "flood-dimmer",
+      [
+        "FLOOD dimmer",
+        -0.31,
+        () => sim().s.lights.flood,
+        "Rotary knob: switches on and dims the glareshield flood light (FLOOD 5 A, ESSENTIAL; or the emergency battery) (AFM 7-44).",
+      ] as [string, number, () => number, string],
     ],
-  ] as [string, number, () => number, string][]
-).forEach(([name, z, v, note]) =>
+  ] as const
+).forEach(([instance1, [name, z, v, note]]) =>
   part(() => cyl(0.014, 0.02, "x", 16), ["lighting"], {
+    id: "parts.electrical.part.010",
+    instance: [instance1],
+
     pos: [PANEL_X - 0.03, 0.15, z],
     color: "#1B1F23",
     anim: (m) => {

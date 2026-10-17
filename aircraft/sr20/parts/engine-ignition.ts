@@ -11,6 +11,8 @@ for (const c of CYLS) {
   for (const level of ["U", "L"] as const) {
     const mag = plugMag(c, level);
     part(() => cyl(0.017, 0.06, "x", 10), ["engine"], {
+      id: "parts.engine-ignition.part.001",
+      instance: [level, c.n],
       parent: "cyl:" + c.n,
       pos: [-0.12, level === "U" ? 0.065 : -0.065, c.s * 0.13],
       color: "#DADFE2",
@@ -23,6 +25,8 @@ for (const c of CYLS) {
 }
 for (const mag of ["R", "L"] as const) {
   part(() => cyl(0.05, 0.13, "x"), ["engine"], {
+    id: "parts.engine-ignition.part.002",
+    instance: [mag],
     pos: MAGNETO(mag),
     color: "#3E4A52",
     anim: magAnim(fires(mag)),
@@ -36,6 +40,8 @@ for (const mag of ["R", "L"] as const) {
     groups: ["ignition"],
   });
   part(() => cyl(0.045, 0.014, "x"), ["engine"], {
+    id: "parts.engine-ignition.part.003",
+    instance: [mag],
     pos: [MAGNETO(mag)[0] - 0.068, MAGNETO(mag)[1], MAGNETO(mag)[2]],
     color: "#7A8790",
     name: "Magneto harness cap — " + mag,
@@ -44,6 +50,7 @@ for (const mag of ["R", "L"] as const) {
   });
 }
 part(() => box(0.055, 0.07, 0.075), ["engine", "electrical"], {
+  id: "parts.engine-ignition.slickstart-magneto-booster.004",
   pos: SLICKSTART,
   color: "#825848",
   name: "SlickSTART magneto booster",
@@ -52,6 +59,7 @@ part(() => box(0.055, 0.07, 0.075), ["engine", "electrical"], {
   groups: ["ignition"],
 });
 part(() => mergeGeos([cyl(0.044, 0.15, "x"), cyl(0.018, 0.035, "x").translate(0.085, 0.04, 0)]), ["engine"], {
+  id: "parts.engine-ignition.starter-motor.005",
   pos: STARTER,
   color: "#4B5860",
   name: "Starter motor",
@@ -60,6 +68,7 @@ part(() => mergeGeos([cyl(0.044, 0.15, "x"), cyl(0.018, 0.035, "x").translate(0.
   groups: ["ignition"],
 });
 part(() => new TorusGeometry(0.143, 0.012, 8, 48).rotateY(Math.PI / 2), ["engine"], {
+  id: "parts.engine-ignition.flywheel-starter-ring-gear.006",
   pos: [3.57, CRANK_Y, 0],
   color: "#7E898E",
   name: "Flywheel / starter ring gear",

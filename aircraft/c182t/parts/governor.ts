@@ -12,6 +12,7 @@ import { KNOB } from "./engine";
 /* ---------- propeller governor and engine control cables (POH 7-27, 7-37, 6-24) ---------- */
 export const GOVERNOR: Vec3 = P3(-42.5, -7, 55.5);
 part(() => cyl(0.04, 0.07), ["propeller", "engine"], {
+  id: "parts.governor.propeller-governor.001",
   pos: GOVERNOR,
   color: "#8C959C",
   anim: glow("#8C959C", () => S().eng.fail.gov, ["propeller", "engine"], "#E0263B"),
@@ -34,6 +35,7 @@ part(
     ),
   ["propeller"],
   {
+    id: "parts.governor.propeller-control-cable.002",
     color: "#2F64C8",
     name: "Propeller control cable",
     note: "Push-pull cable from the blue PROPELLER knob through the firewall to the governor arm: in = high RPM (low pitch), out = low RPM (POH 7-38).",
@@ -48,6 +50,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.governor.throttle-cable.003",
     color: "#3E4A52",
     name: "Throttle cable",
     note: "Throttle knob → fuel/air control unit throttle valve (POH 7-27, 7-35). Sheath bends and end ferrules are illustrative.",
@@ -61,6 +64,7 @@ part(
     ),
   ["engine"],
   {
+    id: "parts.governor.mixture-cable.004",
     color: "#C8313B",
     name: "Mixture cable",
     note: "Mixture knob → fuel/air control unit: full in = RICH, full out = IDLE CUTOFF (POH 7-28). Sheath bends and end ferrules are illustrative.",

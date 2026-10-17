@@ -26,6 +26,7 @@ shell(
   "Fuselage",
   "Composite monocoque with integral roll cage. Cabin runs from the firewall (FS 100) to the aft baggage bulkhead (FS 222).",
   true,
+  "parts.airframe.fuselage.001",
 );
 shell(
   () => {
@@ -43,6 +44,8 @@ shell(
   },
   "Spinner",
   "Spinner dome on a bulkhead at the rear of the hub, coaxial with the crankshaft (AMM 13773-002 Rev 7 61-10 p. 1, PDF 2438). Size and scene registration approximate.",
+  false,
+  "parts.airframe.spinner.002",
 );
 const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.55, 5.65, 5.72, 5.78, 5.84];
 [1, -1].forEach((s) => {
@@ -56,12 +59,15 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.55, 5.65, 5.7
       ),
     s > 0 ? "Right wing" : "Left wing",
     "Composite torsion box: carbon spar, ribs and bonded skins. Holds a 47.25 gal integral fuel tank (46 gal usable) and the main gear.",
+    false,
+    "parts.airframe.shell.003",
+    [s],
   );
   [
-    [WR, 0.94],
-    [3.62, 3.68],
-    [5.0, 5.2, 5.45, 5.55, 5.65, 5.72, 5.78, 5.84],
-  ].forEach((st) =>
+    { key: "root", stations: [WR, 0.94] },
+    { key: "between-controls", stations: [3.62, 3.68] },
+    { key: "tip", stations: [5.0, 5.2, 5.45, 5.55, 5.65, 5.72, 5.78, 5.84] },
+  ].forEach(({ key, stations: st }) =>
     shell(
       () =>
         loft(
@@ -72,6 +78,9 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.55, 5.65, 5.7
         ),
       "Wing trailing edge",
       "",
+      false,
+      "parts.airframe.wing-trailing-edge.004",
+      [key, s],
     ),
   );
   shell(
@@ -84,12 +93,17 @@ const wingSpanSt = [WR, 0.9, 1.6, 2.4, 3.2, 4.0, 4.6, 5.2, 5.45, 5.55, 5.65, 5.7
       ),
     "Horizontal stabilizer",
     "Single composite structure tip to tip.",
+    false,
+    "parts.airframe.horizontal-stabilizer.005",
+    [s],
   );
 });
 shell(
   () => loft(finHs.map((h) => finSec(h, 0, finCut(h)))),
   "Vertical stabilizer",
   "Composite, integral with the fuselage shell; swept leading edge blends into a dorsal fillet.",
+  false,
+  "parts.airframe.vertical-stabilizer.006",
 );
 
 // Every SR22T has both strips; FIKI replaces only the inboard one (AMM Fig 57-20-2, PDF 2389).
@@ -98,6 +112,8 @@ for (const side of [-1, 1]) {
   for (const section of ["inboard", "outboard"] as const) {
     const fitted = section === "inboard" ? () => !useSR22T.getState().s.equip.fiki : undefined;
     part(() => tubeGeo(stallStripPath(side, section), STALL_STRIP_RADIUS), ["airframe"], {
+      id: "parts.airframe.part.007",
+      instance: [section, side],
       name: `${label} ${section} stall strip`,
       note: `Plain ${section} stall strip on the wing leading edge (AMM 13773-002 Rev 7 57-20, PDF 2378; Fig 57-20-2 Detail ${section === "inboard" ? "B" : "A"}, PDF 2389; POH 13772-007 preflight 4-7, 4-9). ${section === "inboard" ? "Replaced by the porous strip with FIKI." : "Present with or without FIKI."} Span, size and round tube depiction approximate.`,
       ext: true,

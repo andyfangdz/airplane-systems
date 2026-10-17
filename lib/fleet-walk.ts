@@ -23,14 +23,14 @@ export interface FleetWalkItem<S = unknown> {
   text: string;
   /** Checklist action or standard, e.g. "DRAIN AND SAMPLE". */
   standard: string;
-  /** Catalogue part, surface or shell names to highlight; names in the data's `missing` are shown as text only. */
+  /** Authored catalogue IDs (preferred), or legacy part/surface/shell names; `missing` entries are text only. */
   parts: string[];
   /** X-ray system shown with the item (the overview when absent). */
   system?: SysId;
   ref: string;
   /** Applicable supplement when an inspection differs from the base manual. */
   sourceUrl?: string;
-  /** Part name or point anchoring the label and camera instead of averaging the highlighted parts. */
+  /** Authored ID, legacy part name, or point anchoring the camera instead of averaging highlighted parts. */
   target?: string | Vec3;
   /** Which side's instances of a shared part name; defaults to the station's side, "any" for both. */
   side?: "L" | "R" | "any";
@@ -277,7 +277,31 @@ export function createFleetWalk<S>(options: {
     shown: step.item.parts.filter((name) => !(name in data.missing)),
     missing: step.item.parts.filter((name) => name in data.missing),
   });
-  const inCatalogue = (name: string) => [...cat.parts, ...cat.surfaces, ...shells].some((p) => p.name === name);
+  const matches = (reference: string, spec: { id?: string; key?: string; name?: string }) =>
+    reference === spec.name ||
+    reference === spec.id ||
+    `${cat.prefix}/${reference}` === spec.id ||
+    reference === spec.key ||
+    (spec.key !== undefined && reference === `surface:${spec.key}`);
+  const inCatalogue = (reference: string) =>
+    [...cat.parts, ...cat.surfaces, ...shells].some((p) => matches(reference, p));
+  /** Preserve exact instance selection all the way to the scene; labels remain presentation data. */
+  const stepSpot = (step: FleetWalkStep<S>) => {
+    const names: string[] = [],
+      ids: string[] = [];
+    for (const reference of stepParts(step).shown) {
+      const spec = cat.byId(reference);
+      if (spec) ids.push(spec.id);
+      else {
+        const surface = cat.surfaces.find(
+          (surface) => reference === surface.key || reference === `surface:${surface.key}`,
+        );
+        if (surface) ids.push(`surface:${surface.key}`);
+        else names.push(reference);
+      }
+    }
+    return { names, ids, side: fleetStepSide(step) };
+  };
   function parentMatrix(part: PartSpec) {
     return part.parent
       ? part.parent.startsWith("surf:")
@@ -296,7 +320,7 @@ export function createFleetWalk<S>(options: {
     // approximate: within 5 cm of the centreline counts as both sides, as in lib/spot.ts
     const keep = (z: number) => !side || Math.abs(z) < 0.05 || Math.sign(z) === side;
     for (const part of cat.parts) {
-      if (part.name !== name) continue;
+      if (!matches(name, part)) continue;
       const geometry = specGeo(part);
       const matrix = parentMatrix(part);
       if (!matrix) continue;
@@ -306,7 +330,7 @@ export function createFleetWalk<S>(options: {
       if (keep(centre.z) && (!side || !s || s === side)) points.push(centre);
     }
     for (const shell of shells) {
-      if (shell.name !== name) continue;
+      if (!matches(name, shell)) continue;
       const geometry = specGeo(shell);
       if (!geometry.boundingBox) geometry.computeBoundingBox();
       const centre = geometry
@@ -315,7 +339,7 @@ export function createFleetWalk<S>(options: {
       if (keep(centre.z)) points.push(centre);
     }
     for (const surface of cat.surfaces) {
-      if (surface.name !== name) continue;
+      if (!matches(name, surface)) continue;
       const geometry = specGeo(surface);
       if (!geometry.boundingBox) geometry.computeBoundingBox();
       const centre = geometry
@@ -335,7 +359,7 @@ export function createFleetWalk<S>(options: {
       if (!side || Math.abs(z) < 0.05 || Math.sign(z) === side) bounds.union(box);
     };
     for (const part of cat.parts) {
-      if (!names.has(part.name ?? "")) continue;
+      if (![...names].some((name) => matches(name, part))) continue;
       const parent = parentMatrix(part);
       if (!parent) continue;
       const geometry = specGeo(part);
@@ -348,13 +372,13 @@ export function createFleetWalk<S>(options: {
       include(geometry.boundingBox!.clone().applyMatrix4(parent.clone().multiply(object.matrix)));
     }
     for (const shell of shells) {
-      if (!names.has(shell.name)) continue;
+      if (![...names].some((name) => matches(name, shell))) continue;
       const geometry = specGeo(shell);
       if (!geometry.boundingBox) geometry.computeBoundingBox();
       include(geometry.boundingBox!.clone().applyMatrix4(options.shellMatrix?.(shell.name) ?? new THREE.Matrix4()));
     }
     for (const surface of cat.surfaces) {
-      if (!names.has(surface.name)) continue;
+      if (![...names].some((name) => matches(name, surface))) continue;
       const geometry = specGeo(surface);
       if (!geometry.boundingBox) geometry.computeBoundingBox();
       include(
@@ -521,6 +545,7 @@ export function createFleetWalk<S>(options: {
     stepOf,
     progressKey,
     stepParts,
+    stepSpot,
     stepSide: fleetStepSide,
     inCatalogue,
     nameCentres,

@@ -27,6 +27,7 @@ part(
   },
   ["pitot"],
   {
+    id: "parts.pitot.pitot-tube.001",
     pos: P(pitotBase),
     color: "#3A9448",
     anim: (m) => {
@@ -45,6 +46,7 @@ part(
   },
 );
 part(() => sph(0.01), ["pitot"], {
+  id: "parts.pitot.pitot-system-drain.002",
   pos: P(wingP(-0.8, 0.15, -1)),
   color: "#0B1014",
   name: "Pitot system drain",
@@ -62,6 +64,8 @@ export const STAT_X = -2.65;
     },
     ["pitot"],
     {
+      instance: [s],
+      id: "parts.pitot.static-port.003",
       pos: P(onSkin(STAT_X, -0.3, s, 1.003)),
       color: "#0B1014",
       name: "Static port",
@@ -72,6 +76,7 @@ export const STAT_X = -2.65;
   ),
 );
 part(() => sph(0.01), ["pitot"], {
+  id: "parts.pitot.static-system-drain.004",
   pos: [-2.4, botY(-2.4) - 0.005, 0],
   color: "#0B1014",
   name: "Static system drain",
@@ -79,6 +84,7 @@ part(() => sph(0.01), ["pitot"], {
   ext: true,
 });
 part(() => box(0.04, 0.03, 0.03), ["pitot"], {
+  id: "parts.pitot.alternate-static-source-valve-sb-m20-158.005",
   pos: [PANEL_X + 0.06, -0.28, -0.4],
   color: "#3A9448",
   anim: (m) => {
@@ -90,6 +96,7 @@ part(() => box(0.04, 0.03, 0.03), ["pitot"], {
 });
 export const STALL_Z = -1.9;
 part(() => box(0.02, 0.012, 0.03), ["pitot"], {
+  id: "parts.pitot.stall-warning-vane-safe-flight-model-r.006",
   pos: P(wingP(STALL_Z, 0.0, 0).add(V(0.005, -0.01, 0))),
   color: "#E0263B",
   anim: (m) => {
@@ -101,6 +108,7 @@ part(() => box(0.02, 0.012, 0.03), ["pitot"], {
   pin: true,
 });
 part(() => cyl(0.025, 0.03, "y", 16), ["pitot", "electrical"], {
+  id: "parts.pitot.stall-warning-horn.007",
   pos: OVERHEAD.horn,
   color: "#3A9448",
   anim: glow("#2A6A34", "#FF4A4A", () => hornLevel(sim().s, sim().E) > 0, ["pitot"]),

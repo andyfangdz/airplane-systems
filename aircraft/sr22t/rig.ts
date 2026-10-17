@@ -92,7 +92,12 @@ const XOVER = { x: 0.74, y: -0.6, z: 0.28, r: 0.04 };
  * WS ≈ 36.5, 89.0 and 142.4, scaled from AMM Fig 51-10-18 (PDF p. 1889) and Fig 6-00-4 (PDF p. 121); the inboard and
  * outboard ones held 20 mm inside the model flap's ends (z 0.94 and 3.62). Approximate.
  */
-export const FLAP_HINGE_Z = [0.96, 2.261, 3.6];
+export const FLAP_HINGES = [
+  { key: "inboard", z: 0.96 },
+  { key: "middle", z: 2.261 },
+  { key: "outboard", z: 3.6 },
+] as const;
+export const FLAP_HINGE_Z = FLAP_HINGES.map((hinge) => hinge.z);
 
 const wingSectorAt = (s: number) => {
   const p = wingP(s * 3.6, 0.66, 0);
@@ -468,13 +473,14 @@ export const TURNBUCKLES: TurnbuckleDef[] = [
   })),
 ];
 /** Fairlead at each flap hinge, per wing, where the direct and cross-over aileron cables pass (AMM 27-10 PDF p. 946). */
-export const FAIRLEADS: Vec3[] = [1, -1].flatMap((s) =>
-  FLAP_HINGE_Z.map((z) => {
+export const FAIRLEAD_ITEMS = [1, -1].flatMap((s) =>
+  FLAP_HINGES.map(({ key, z }) => {
     const a = wp(s * z, 0.62),
       b = wp(s * z, 0.7);
-    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, s * z] as Vec3;
+    return { key: `${s}.${key}`, pos: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, s * z] as Vec3 };
   }),
 );
+export const FAIRLEADS: Vec3[] = FAIRLEAD_ITEMS.map((fairlead) => fairlead.pos);
 
 /* ---------- kinematics ---------- */
 export interface RigPose {

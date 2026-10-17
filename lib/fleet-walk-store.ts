@@ -1,19 +1,25 @@
 "use client";
 /**
- * A separate reversible study session and progress store for each airplane's walk (logic in fleet-walk.ts). Opening it
- * remembers the airplane's systems state, its animated values (`live`) and the view, camera framing included; closing it
- * puts all of them back exactly. While it is open the cabin items drive the model through their `sim` steps, and the
- * progress is saved (when storage allows) so a walk can be resumed.
+ * A separate study session and progress store for each airplane's walk (logic in fleet-walk.ts). Opening it forks the
+ * airplane simulation and retains the user's original runtime untouched. Closing releases that fork and restores the
+ * view. Cabin items drive only the study runtime; progress is saved (when storage allows) so a walk can be resumed.
  */
 import { PerspectiveCamera } from "three";
-import { createStore, type StoreApi, type UseBoundStore } from "zustand";
+import { createStore, type StoreApi } from "zustand";
 import { cameraFitDistance } from "./camera";
 import { selectAircraft } from "./fleet";
 import { toVec3 } from "./math";
 import { view as scene } from "./registry";
-import type { SimStore } from "./simStore";
+import type { SimulationBinding } from "./simulationBinding";
 import type { SysDef } from "./systems";
-import { useView, type CamRequest, type View } from "./view";
+import {
+  useAircraftHover,
+  useView,
+  type AircraftSessionOwner,
+  type CamRequest,
+  type HoverInfo,
+  type View,
+} from "./view";
 import { fleetStationStart, type FleetWalk, type FleetWalkProgress, type FleetWalkStep } from "./fleet-walk";
 
 export type FleetWalkPhase = "intro" | "resume" | "walk" | "done";
@@ -69,60 +75,28 @@ export interface FleetWalkController<S> {
   /** Forget a pending framing retry (another step, another screen, or the walk closed). */
   cancelFrame: () => void;
 }
-type ViewKeep = Pick<View, "sys" | "xray" | "labels" | "spin" | "ctrlFocus" | "focus" | "hover" | "spot" | "cam">;
-/** Preserve nested live-object identities: animation functions may retain them. */
-export function restoreFleetWalkLive(target: object, source: object) {
-  const into = target as Record<string, unknown>;
-  for (const key of Object.keys(into)) if (!(key in source)) delete into[key];
-  for (const [key, value] of Object.entries(source)) {
-    const current = into[key];
-    if (value && typeof value === "object" && current && typeof current === "object")
-      restoreFleetWalkLive(current, value);
-    else into[key] = value;
-  }
-}
-interface LiveReferences {
-  ref: object;
-  children: Record<string, LiveReferences>;
-}
-function captureReferences(ref: object): LiveReferences {
-  return {
-    ref,
-    children: Object.fromEntries(
-      Object.entries(ref)
-        .filter(([, value]) => value && typeof value === "object")
-        .map(([key, value]) => [key, captureReferences(value as object)]),
-    ),
-  };
-}
-/** Simulation ticks replace nested objects, so put the original references back before restoring their values. */
-function restoreReferences(saved: LiveReferences) {
-  for (const [key, child] of Object.entries(saved.children)) {
-    (saved.ref as Record<string, unknown>)[key] = child.ref;
-    restoreReferences(child);
-  }
-}
+type ViewKeep = Pick<View, "selectedSys" | "sys" | "xray" | "labels" | "spin" | "ctrlFocus" | "focus" | "spot" | "cam">;
 /** The camera as the user left it (the live orbit, which may have moved since the last request), else the last request. */
-function framing(cam: CamRequest | null): CamRequest | null {
+function framing(owner: AircraftSessionOwner | null, cam: CamRequest | null): CamRequest | null {
   const { camera, target } = scene;
-  if (!camera || !target) return cam;
+  if (!owner || scene.owner !== owner || !camera || !target) return cam;
   if (!(camera instanceof PerspectiveCamera))
     return { p: toVec3(camera.position), t: toVec3(target), id: cam?.id ?? 0, exact: true };
   // Save before the viewport fit, so leaving the taller phone stage fits this pose only once.
   const p = camera.position.clone().sub(target).divideScalar(cameraFitDistance(camera.aspect)).add(target);
   return { p: toVec3(p), t: toVec3(target), id: cam?.id ?? 0, restore: true };
 }
-export function createFleetWalkStore<S, E, L extends object>(options: {
+export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
   logic: FleetWalk<S>;
-  sim: UseBoundStore<StoreApi<SimStore<S, E>>>;
-  live: L;
+  runtime: SimulationBinding<S, E, L, M, C>;
   systems: SysDef[];
   /** Stop flight/engine timers and set the model's ramp pose without starting or priming the engine. */
-  resetLive: (s: S) => void;
+  resetLive: (s: S, live: L) => void;
   /** Demonstrate the selected item's cumulative physical pose, even after electrical power is turned off. */
-  syncLive?: (s: S, step: FleetWalkSync<S>) => void;
+  syncLive?: (s: S, step: FleetWalkSync<S>, live: L) => void;
 }): FleetWalkController<S> {
-  const { logic, sim, live, systems } = options;
+  const { logic, runtime, systems } = options;
+  const sim = runtime.useStore;
   const id = logic.data.id;
   const store = createStore<FleetWalkState<S>>(() => ({
     steps: [],
@@ -137,7 +111,13 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   }));
   const bigKey = `${id}-walkaround-big`;
   /** What opening the walk changed, to put back on close. */
-  let prior: { s: S; E: E; live: L; liveReferences: LiveReferences; view: ViewKeep } | null = null;
+  let prior: {
+    s: S;
+    release: () => void;
+    owner: AircraftSessionOwner | null;
+    hover: HoverInfo | null;
+    view: ViewKeep;
+  } | null = null;
   const now = () => performance.now();
   const elapsed = (w: FleetWalkState<S>) => w.ms + (w.since === null ? 0 : now() - w.since);
   const setSim = (s: S) => sim.getState().update((draft) => Object.assign(draft as object, s));
@@ -148,7 +128,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
    */
   function first(): Set<string> {
     const { spot, walking } = useView.getState();
-    if (spot) return new Set(spot.names);
+    if (spot) return new Set([...spot.names, ...(spot.ids ?? [])]);
     if (!walking) return new Set();
     const { from, steps } = store.getState();
     return new Set(steps.filter((x) => x.station.n === from).flatMap((x) => x.item.parts));
@@ -164,6 +144,8 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
    * the intro.
    */
   function open(n?: number) {
+    const owner = useView.getState().session;
+    if (owner && owner.aircraft !== id) return;
     if (prior && useView.getState().walking) {
       if (n) {
         checkpoint();
@@ -173,22 +155,27 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
     }
     if (useView.getState().ac !== id) selectAircraft(id);
     const v = useView.getState(),
-      { s, E } = sim.getState();
+      { s } = sim.getState();
+    const child = runtime.fork();
+    const release = runtime.activate(child);
     prior = {
       s,
-      E,
-      live: structuredClone(live),
-      liveReferences: captureReferences(live),
+      release: () => {
+        release();
+        child.dispose();
+      },
+      owner: v.session,
+      hover: useAircraftHover.getState().hover,
       view: {
+        selectedSys: v.selectedSys,
         sys: v.sys,
         xray: v.xray,
         labels: v.labels,
         spin: v.spin,
         ctrlFocus: v.ctrlFocus,
         focus: v.focus,
-        hover: v.hover,
         spot: v.spot,
-        cam: framing(v.cam),
+        cam: framing(v.session, v.cam),
       },
     };
     const steps = logic.walkSteps(s);
@@ -217,12 +204,12 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
       spin: false,
       ctrlFocus: "all",
       focus: null,
-      hover: null,
       spot: null,
     });
+    useAircraftHover.getState().setHover(null);
     const ramp = logic.rampState(s);
     setSim(ramp);
-    options.resetLive(ramp);
+    options.resetLive(ramp, runtime.current().live);
   }
   /**
    * Leave the walk: progress is saved, and the airplane state, its animated values and the view (camera framing, focus
@@ -235,25 +222,24 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
     store.setState({ since: null });
     const saved = prior;
     prior = null;
-    const here = useView.getState().ac === id;
-    sim.setState({ s: saved.s, E: saved.E });
-    restoreReferences(saved.liveReferences);
-    restoreFleetWalkLive(live, saved.live);
-    const { sys, focus, hover, spot, cam, ...toggles } = saved.view;
+    const current = useView.getState();
+    const here = current.ac === id && current.session === saved.owner;
+    saved.release();
+    const { selectedSys, sys, focus, spot, cam, ...toggles } = saved.view;
     useView.setState({
       walking: false,
       spot: null,
       focus: null,
-      hover: null,
       ...toggles,
-      ...(here ? { sys, focus, hover, spot, cam } : {}),
+      ...(here ? { selectedSys, sys, focus, spot, cam } : {}),
     });
+    useAircraftHover.getState().setHover(here ? saved.hover : null);
     // back to the user's own framing; with none recorded, the system's view
     if (here && !cam) useView.getState().flyTo(...(systems.find((s) => s.id === sys) ?? systems[0]).cam);
   }
   // switching to another airplane ends the walk; only this module's active walk can close it
   useView.subscribe((v) => {
-    if (prior && v.walking && v.ac !== id) close();
+    if (prior && (v.ac !== id || v.session !== prior.owner)) close();
   });
   /** Page load: `?walk=n` opens station n (and leaves the address bar); otherwise unfinished saved progress is offered. */
   function boot(search: string) {
@@ -263,7 +249,7 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
       query.delete("walk");
       const rest = query.toString();
       try {
-        history.replaceState(null, "", location.pathname + (rest ? `?${rest}` : ""));
+        history.replaceState(history.state, "", location.pathname + (rest ? `?${rest}` : ""));
       } catch {}
       open(n);
     } else {
@@ -334,21 +320,34 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
       at = on ? w.at : -1;
     const s = logic.simAt(prior.s, at, w.steps);
     setSim(s);
-    options.syncLive?.(s, {
-      at,
-      steps: w.steps,
-      prior: prior.s,
-      forward: on && (was.phase === "walk" || was.phase === "done") && w.at === was.at + 1,
-    });
+    options.syncLive?.(
+      s,
+      {
+        at,
+        steps: w.steps,
+        prior: prior.s,
+        forward: on && (was.phase === "walk" || was.phase === "done") && w.at === was.at + 1,
+      },
+      runtime.current().live,
+    );
   });
 
   /** The item framed from the station while it waits for the page's hull, and the camera state when it was framed. */
-  let waiting: { step: FleetWalkStep<S>; moves: number; cam: number | undefined } | null = null;
+  let waiting: {
+    step: FleetWalkStep<S>;
+    owner: AircraftSessionOwner | null;
+    moves: number;
+    cam: number | undefined;
+  } | null = null;
   function frame(step: FleetWalkStep<S>) {
+    const view = useView.getState();
+    if (!prior || !view.walking || view.session !== prior.owner || view.ac !== id) return;
     const pose = logic.framePose(step);
     const { p, t } = pose ?? step.station.cam;
     useView.getState().flyTo(p, t);
-    waiting = pose ? null : { step, moves: scene.moves, cam: useView.getState().cam?.id };
+    waiting = pose
+      ? null
+      : { step, owner: useView.getState().session, moves: scene.moves, cam: useView.getState().cam?.id };
   }
   function cancelFrame() {
     waiting = null;
@@ -357,7 +356,8 @@ export function createFleetWalkStore<S, E, L extends object>(options: {
   logic.hull?.onSettled(() => {
     const w = waiting;
     waiting = null;
-    if (!w || scene.moves !== w.moves || useView.getState().cam?.id !== w.cam) return;
+    const view = useView.getState();
+    if (!w || view.session !== w.owner || scene.moves !== w.moves || view.cam?.id !== w.cam) return;
     const { p, t } = logic.stepPose(w.step);
     useView.getState().flyTo(p, t);
   });

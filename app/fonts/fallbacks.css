@@ -1,0 +1,17 @@
+/* Preserve the audited Google loader's metric-adjusted fallbacks during font loading. */
+@font-face {
+  font-family: "Saira Condensed Fallback";
+  src: local("Arial");
+  ascent-override: 143.34%;
+  descent-override: 55.44%;
+  line-gap-override: 0%;
+  size-adjust: 79.18%;
+}
+@font-face {
+  font-family: "IBM Plex Mono Fallback";
+  src: local("Arial");
+  ascent-override: 76.16%;
+  descent-override: 20.43%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}

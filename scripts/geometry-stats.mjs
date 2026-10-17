@@ -16,10 +16,18 @@ const server = await createServer({
 try {
   const { decodeMeshes } = await server.ssrLoadModule("/lib/mesh/decode.ts");
   const manifest = JSON.parse(await readFile(resolve(root, "public/geometry/manifest.json"), "utf8"));
+  const runtime = JSON.parse(await readFile(resolve(root, "public/geometry/runtime.json"), "utf8"));
   const rows = [];
   for (const [aircraft, asset] of Object.entries(manifest)) {
     const gzip = await readFile(resolve(root, `public${asset}`)),
       bytes = gunzipSync(gzip);
+    const sceneBytes = await readFile(resolve(root, `public${runtime.aircraft[aircraft].scene}`));
+    const scene = JSON.parse(sceneBytes.toString("utf8"));
+    const hullIds = new Set(
+      scene.entries
+        .filter((entry) => entry.kind === "shell" && entry.metadata.name === "Fuselage")
+        .map((entry) => entry.id),
+    );
     const meshes = await decodeMeshes(
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
       aircraft,
@@ -29,7 +37,7 @@ try {
       aircraft,
       meshes: meshes.length,
       triangles: meshes.reduce((n, m) => n + triangles(m), 0),
-      fuselageTriangles: meshes.filter((m) => m.key.includes("/Fuselage-")).reduce((n, m) => n + triangles(m), 0),
+      fuselageTriangles: meshes.filter((m) => hullIds.has(m.key)).reduce((n, m) => n + triangles(m), 0),
       decodedMiB: +(
         meshes.reduce(
           (n, m) => n + (m.index?.byteLength ?? 0) + m.attributes.reduce((s, a) => s + a.array.byteLength, 0),
@@ -37,6 +45,7 @@ try {
         ) / 1048576
       ).toFixed(3),
       gzipMiB: +(gzip.byteLength / 1048576).toFixed(3),
+      sceneKiB: +(sceneBytes.byteLength / 1024).toFixed(1),
       asset,
     });
   }

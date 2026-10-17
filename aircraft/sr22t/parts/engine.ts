@@ -80,6 +80,8 @@ const bladeGeo = () => {
 };
 for (let i = 0; i < 3; i++)
   part(bladeGeo, ["propeller", "engine"], {
+    id: "parts.engine.propeller-blade.001",
+    instance: [i],
     parent: "blade:" + i,
     color: "#3A4148",
     name: "Propeller blade",
@@ -105,6 +107,7 @@ export const GOV: Vec3 = [3.58, -0.24, -0.09];
 export const CRANKCASE: Vec3 = [3.15, EY, 0];
 export const CRANKCASE_SIZE: Vec3 = [0.8, 0.28, 0.3];
 part(() => box(...CRANKCASE_SIZE), ["engine"], {
+  id: "parts.engine.continental-tsio-550-k.002",
   pos: CRANKCASE,
   name: "Continental TSIO-550-K",
   note: "Six-cylinder, horizontally opposed, twin-turbocharged, fuel-injected, 550 cu in. 315 bhp at 2500 RPM; 2000-hour TBO; six-point steel mount (POH 7-31). Size approximate.",
@@ -114,6 +117,7 @@ part(() => box(...CRANKCASE_SIZE), ["engine"], {
 /** Anchor for flows.ts. */
 export const OIL_SUMP: Vec3 = [3.12, -0.38, 0];
 part(() => box(0.6, 0.12, 0.28), ["engine"], {
+  id: "parts.engine.oil-sump.003",
   pos: OIL_SUMP,
   name: "Oil sump",
   note: "Wet sump, 8 quart capacity (SR22T POH 13772-007 1-8, 7-36). Contains the suction screen / pickup; gravity return from engine galleries (AMM 13773-002 Rev 7 79-00 PDF p. 2764). Filler cap/dipstick at the left rear, door on the top left of the cowling (POH 7-37).",
@@ -234,6 +238,8 @@ CYLS.forEach((c) => {
   const parent = "cyl:" + c.n;
   const barrel = CYL_BARREL_END - CYL_BARREL_START;
   part(() => cyl(0.085, barrel, "z", 18), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.004",
     parent,
     pos: [0, 0, c.s * ((CYL_BARREL_START + CYL_BARREL_END) / 2 - cylOrigin(c)[2] * c.s)],
     color: "#7C858C",
@@ -243,8 +249,16 @@ CYLS.forEach((c) => {
       " bank, numbered from the rear (AMM Fig 74-20-2 PDF p. 2625). Cooling fins; aluminum baffles direct the cooling air over them, no cowl flaps (POH 7-38).",
   });
   for (let k = -2; k <= 2; k++)
-    part(() => cyl(CYL_ENVELOPE / 2, 0.01, "z", 18), ["engine"], { parent, pos: [0, 0, k * 0.035], color: "#8C959C" });
+    part(() => cyl(CYL_ENVELOPE / 2, 0.01, "z", 18), ["engine"], {
+      id: "parts.engine.part.005",
+      instance: [k, c.n, parent],
+      parent,
+      pos: [0, 0, k * 0.035],
+      color: "#8C959C",
+    });
   part(() => box(...CYL_HEAD_SIZE), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.006",
     parent,
     pos: cylHeadOffset(c),
     color: "#6A737A",
@@ -252,6 +266,8 @@ CYLS.forEach((c) => {
     note: "Outboard head, upper intake and lower exhaust (AMM Fig 72-00-2 PDF p. 2574; Continental M-18 Fig 5-34 p. 5-54). Two spark plugs, CHT probe, fuel injector nozzle; EGT probe in the exhaust pipe (POH 7-35, 7-37, 7-38). Shape and attachment offsets illustrative; fin diameter and head width fit within the documented 7.31-in. cylinder pitch.",
   });
   part(() => cyl(0.012, 0.03, "y"), ["engine", "fuel"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.007",
     parent,
     pos: injectorOffset(c),
     color: "#B89B52",
@@ -272,6 +288,8 @@ CYLS.forEach((c) => {
       },
       ["engine"],
       {
+        id: "parts.engine.part.008",
+        instance: [pos, c.n, parent],
         parent,
         pos: plugOffset(c, pos),
         color: "#DADFE2",
@@ -287,6 +305,7 @@ CYLS.forEach((c) => {
 const MAGNETO_COMMON =
   "Drive coupling aft into the accessory case, distributor cap and lead outlets forward (AMM Fig 74-20-1 Detail A PDF p. 2624; Fig 74-10-2 PDF p. 2618). Impulse coupling for engine starting (AMM 74-00 PDF p. 2604). Pressurized from the upper-deck reference through the desiccant filter (AMM 74-00 PDF p. 2604; Fig 74-10-2 PDF p. 2618).";
 part(() => cyl(MAGNETO_R, MAGNETO_LEN, "x"), ["engine"], {
+  id: "parts.engine.right-magneto.009",
   pos: MAGNETO("R"),
   color: "#3E4A52",
   anim: magAnim(fires("R")),
@@ -296,6 +315,7 @@ part(() => cyl(MAGNETO_R, MAGNETO_LEN, "x"), ["engine"], {
   groups: ["ignition"],
 });
 part(() => cyl(MAGNETO_R, MAGNETO_LEN, "x"), ["engine"], {
+  id: "parts.engine.left-magneto.010",
   pos: MAGNETO("L"),
   color: "#3E4A52",
   anim: magAnim(fires("L")),
@@ -305,6 +325,7 @@ part(() => cyl(MAGNETO_R, MAGNETO_LEN, "x"), ["engine"], {
   groups: ["ignition"],
 });
 part(() => box(0.1, 0.09, 0.12), ["engine", "propeller"], {
+  id: "parts.engine.propeller-governor.011",
   pos: GOV,
   color: "#C0602F",
   name: "Propeller governor",
@@ -320,6 +341,7 @@ export const OIL_COOLER: Vec3 = [2.745, CRANK_Y + ((6.5 - 2.9) / 2) * IN, -((5.4
  * shield aft and the left lower ignition leads forward; the depth is undimensioned. */
 export const OIL_COOLER_SIZE: Vec3 = [0.06, 0.14, 0.12];
 part(() => box(...OIL_COOLER_SIZE), ["engine"], {
+  id: "parts.engine.oil-cooler.012",
   pos: OIL_COOLER,
   color: "#9A6A48",
   name: "Oil cooler",
@@ -346,6 +368,8 @@ const airBoxGeo = () =>
   ]);
 [1, -1].forEach((s) => {
   part(airBoxGeo, ["engine"], {
+    instance: [s],
+    id: "parts.engine.air-box-induction-filter.013",
     pos: AIR_BOX(s),
     color: "#C9B98F",
     name: "Air box / induction filter",
@@ -356,6 +380,8 @@ const airBoxGeo = () =>
   });
   for (const k of [-1, 1])
     part(() => box(...AIR_FILTER_PANEL), ["engine"], {
+      id: "parts.engine.air-filter-element.014",
+      instance: [k, s],
       pos: AIR_BOX(s).map((v, i) => v + AIR_FILTER_OFFSET(k)[i]) as Vec3,
       color: "#E8DFC0",
       name: "Air filter element",
@@ -383,6 +409,7 @@ export const OIL_FILTER_ADAPTER: Vec3 = [
   OIL_FILTER[2],
 ];
 part(() => cyl(OIL_FILTER_R, OIL_FILTER_LEN, "y", 24), ["engine"], {
+  id: "parts.engine.oil-filter-full-flow.015",
   pos: OIL_FILTER,
   color: "#1F3A5A",
   name: "Oil filter (full-flow)",
@@ -391,6 +418,7 @@ part(() => cyl(OIL_FILTER_R, OIL_FILTER_LEN, "y", 24), ["engine"], {
   groups: ["oil"],
 });
 part(() => box(...OIL_FILTER_ADAPTER_SIZE), ["engine"], {
+  id: "parts.engine.oil-filter-adapter.016",
   pos: OIL_FILTER_ADAPTER,
   color: "#5B6670",
   name: "Oil filter adapter",
@@ -398,6 +426,7 @@ part(() => box(...OIL_FILTER_ADAPTER_SIZE), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(THROTTLE_R, THROTTLE_LEN, "x"), ["engine", "fuel"], {
+  id: "parts.engine.throttle-body-fuel-metering-valve.017",
   pos: THROTTLE,
   color: "#7E8A93",
   name: "Throttle body / fuel-metering valve",
@@ -406,6 +435,7 @@ part(() => cyl(THROTTLE_R, THROTTLE_LEN, "x"), ["engine", "fuel"], {
   groups: ["induction", "fuel"],
 });
 part(() => box(0.06, 0.08, 0.16), ["engine"], {
+  id: "parts.engine.alternate-air-assembly.018",
   pos: ALT_AIR,
   color: "#E0B040",
   anim: altDoorAnim(ALT_AIR[0]),
@@ -415,6 +445,7 @@ part(() => box(0.06, 0.08, 0.16), ["engine"], {
   groups: ["induction"],
 });
 part(() => cyl(0.06, 0.2, "z"), ["environment", "engine"], {
+  id: "parts.engine.exhaust-crossover-heat-exchanger.019",
   pos: HEAT_X,
   color: "#E0522B",
   fairing: true,
@@ -426,6 +457,8 @@ part(() => cyl(0.06, 0.2, "z"), ["environment", "engine"], {
 export const TAILPIPE = (s: number): Vec3 => TAILPIPE_RUN(s).at(-1)!;
 [1, -1].forEach((s) =>
   part(() => tubeGeo(TAILPIPE_RUN(s), TAILPIPE_RADIUS), ["engine"], {
+    instance: [s],
+    id: "parts.engine.tailpipe.020",
     color: "#8A5A3C",
     name: "Tailpipe",
     note: `${s > 0 ? "Right" : "Left"} turbocharger's continuous tailpipe, swept aft and down through a lower-cowl opening; the LH pipe also receives the wastegate outlet. Geometry approximate, no installation angle is specified (POH 13772-007 7-38; AMM 13773-002 Rev 7 Fig 78-20-4 PDF p. 2756). Turbocharger connection uses a clamped butt joint (AMM 78-00 PDF p. 2732).`,
@@ -476,6 +509,8 @@ const intercoolerGeo = (s: number) => {
 for (const side of [-1, 1]) {
   const name = side < 0 ? "LH" : "RH";
   part(turboGeo, ["engine"], {
+    id: "parts.engine.part.021",
+    instance: [side],
     pos: TURBO(side),
     color: "#AD7656",
     name: name + " turbocharger",
@@ -484,6 +519,8 @@ for (const side of [-1, 1]) {
     groups: ["induction", "exhaust"],
   });
   part(() => intercoolerGeo(side), ["engine", "environment"], {
+    id: "parts.engine.part.022",
+    instance: [side],
     pos: INTERCOOLER(side),
     color: "#7BABB4",
     name: name + " intercooler",
@@ -492,6 +529,8 @@ for (const side of [-1, 1]) {
     groups: ["induction"],
   });
   part(() => cyl(0.009, 0.06, "z"), ["engine"], {
+    id: "parts.engine.part.023",
+    instance: [side],
     pos: TIT_PROBE(side),
     color: "#E6D580",
     name: "TIT probe — " + name,
@@ -500,6 +539,8 @@ for (const side of [-1, 1]) {
     groups: ["sensors"],
   });
   part(() => box(0.03, 0.02, 0.04), ["engine"], {
+    id: "parts.engine.part.024",
+    instance: [side],
     pos: TURBO_OIL_RES(side),
     color: "#897348",
     name: name + " turbo oil reservoir",
@@ -528,6 +569,7 @@ export const OVERBOOST: Vec3 = [
 ];
 export const TURBO_SCAVENGE: Vec3 = [2.74, -0.29, 0.14];
 part(() => cyl(0.05, 0.07, "z"), ["engine"], {
+  id: "parts.engine.wastegate.025",
   pos: WASTEGATE,
   color: "#C39660",
   name: "Wastegate",
@@ -537,6 +579,7 @@ part(() => cyl(0.05, 0.07, "z"), ["engine"], {
   groups: ["induction", "exhaust"],
 });
 part(() => cyl(0.025, 0.07, "z"), ["engine"], {
+  id: "parts.engine.wastegate-actuator.026",
   pos: WASTEGATE_ACTUATOR,
   color: "#8F7650",
   name: "Wastegate actuator",
@@ -545,6 +588,7 @@ part(() => cyl(0.025, 0.07, "z"), ["engine"], {
   groups: ["induction", "exhaust"],
 });
 part(() => box(...GATE_CONTROLLER_SIZE), ["engine"], {
+  id: "parts.engine.wastegate-controller.027",
   pos: GATE_CONTROLLER,
   color: "#B7A16D",
   name: "Wastegate controller",
@@ -553,6 +597,7 @@ part(() => box(...GATE_CONTROLLER_SIZE), ["engine"], {
   groups: ["induction", "exhaust"],
 });
 part(() => cyl(0.025, OVERBOOST_LEN, "x"), ["engine"], {
+  id: "parts.engine.overboost-valve.028",
   pos: OVERBOOST,
   color: "#D8BE7A",
   name: "Overboost valve",
@@ -561,6 +606,7 @@ part(() => cyl(0.025, OVERBOOST_LEN, "x"), ["engine"], {
   groups: ["induction"],
 });
 part(() => box(0.07, 0.07, 0.06), ["engine"], {
+  id: "parts.engine.turbo-oil-scavenge-pump.029",
   pos: TURBO_SCAVENGE,
   color: "#897348",
   name: "Turbo oil scavenge pump",
@@ -569,6 +615,7 @@ part(() => box(0.07, 0.07, 0.06), ["engine"], {
   groups: ["oil"],
 });
 part(() => cyl(0.03, 0.06, "z"), ["engine"], {
+  id: "parts.engine.wastegate-transition.030",
   pos: GATE_TRANSITION,
   color: "#AD7656",
   name: "Wastegate transition",
@@ -620,6 +667,7 @@ export const ALT2: Vec3 = [ALT2_PULLEY[0] - 0.01 - ALT2_LEN / 2, ALT2_PULLEY[1],
 /** ALT 2 terminals, on top of the body near its rear (Fig 24-30-4 items 10, 11 and the cables). */
 export const ALT2_TERM: Vec3 = [ALT2[0] - ALT2_LEN / 2 + 0.02, ALT2[1] + ALT2_R + 0.006, ALT2[2]];
 part(() => cyl(ALT1_R, ALT1_LEN, "z"), ["electrical", "engine"], {
+  id: "parts.engine.alt-1-100-a.031",
   pos: ALT1,
   color: "#D9960F",
   anim: altAnim("alt1"),
@@ -629,6 +677,7 @@ part(() => cyl(ALT1_R, ALT1_LEN, "z"), ["electrical", "engine"], {
   groups: [],
 });
 part(() => cyl(ALT1_R + 0.005, ALT1_PAD[2] - CASE_RIGHT, "z"), ["electrical", "engine"], {
+  id: "parts.engine.alt-1-drive-pad-and-gasket.032",
   pos: [ALT1_PAD[0], ALT1_PAD[1], (CASE_RIGHT + ALT1_PAD[2]) / 2],
   color: "#8C8C84",
   name: "ALT 1 drive pad and gasket",
@@ -636,6 +685,7 @@ part(() => cyl(ALT1_R + 0.005, ALT1_PAD[2] - CASE_RIGHT, "z"), ["electrical", "e
   groups: [],
 });
 part(() => box(0.035, 0.035, 0.012), ["electrical", "engine"], {
+  id: "parts.engine.alt-1-terminals.033",
   pos: ALT1_TERM,
   color: "#2F3A44",
   name: "ALT 1 terminals",
@@ -643,6 +693,7 @@ part(() => box(0.035, 0.035, 0.012), ["electrical", "engine"], {
   groups: [],
 });
 part(() => cyl(ALT2_R, ALT2_LEN, "x"), ["electrical", "engine"], {
+  id: "parts.engine.alt-2-70-a.034",
   pos: ALT2,
   color: "#D9960F",
   anim: altAnim("alt2"),
@@ -652,6 +703,7 @@ part(() => cyl(ALT2_R, ALT2_LEN, "x"), ["electrical", "engine"], {
   groups: [],
 });
 part(() => cyl(0.045, 0.02, "x"), ["electrical", "engine"], {
+  id: "parts.engine.alt-2-pulley.035",
   pos: ALT2_PULLEY,
   color: "#6E7378",
   name: "ALT 2 pulley",
@@ -662,6 +714,7 @@ part(() => cyl(0.045, 0.02, "x"), ["electrical", "engine"], {
 export const ALT2_BRACKET: Vec3 = [CASE_FRONT - 0.01, ALT2[1] + 0.045, CASE_LEFT - 0.025];
 export const ALT2_BRACKET_SIZE: Vec3 = [0.12, 0.04, 0.05];
 part(() => box(...ALT2_BRACKET_SIZE), ["electrical", "engine"], {
+  id: "parts.engine.alt-2-mounting-bracket.036",
   pos: ALT2_BRACKET,
   color: "#8C8C84",
   name: "ALT 2 mounting bracket",
@@ -671,6 +724,7 @@ part(() => box(...ALT2_BRACKET_SIZE), ["electrical", "engine"], {
 /** Starter motor, across the rear of its right-angle drive adapter (engine-ignition.ts); position approximate. */
 export const STARTER: Vec3 = [2.655, -0.25, 0.03];
 part(() => cyl(0.045, 0.12, "z"), ["engine"], {
+  id: "parts.engine.starter.037",
   pos: STARTER,
   color: "#4B5860",
   name: "Starter",
@@ -683,6 +737,8 @@ for (const s of [-1, 1]) {
   const inlet = COMPRESSOR_INLET(s);
   const housingFront = TURBO(s)[0] + TURBO_HOUSINGS.at(-1)!.x1;
   part(() => cyl(COMPRESSOR_INLET_R, inlet[0] - housingFront, "x"), ["engine"], {
+    instance: [s],
+    id: "parts.engine.compressor-inlet-neck.038",
     pos: [(inlet[0] + housingFront) / 2, inlet[1], inlet[2]],
     name: "Compressor inlet neck",
     pin: false,
@@ -691,6 +747,8 @@ for (const s of [-1, 1]) {
     groups: ["induction"],
   });
   part(() => new THREE.TorusGeometry(COMPRESSOR_INLET_R + 0.002, 0.004, 8, 20).rotateY(Math.PI / 2), ["engine"], {
+    instance: [s],
+    id: "parts.engine.air-box-compressor-clamp.039",
     pos: inlet,
     name: "Air box / compressor clamp",
     pin: false,
@@ -706,6 +764,8 @@ for (const s of [-1, 1]) {
 for (const s of [-1, 1]) {
   const inlet = TURBINE_INLET(s);
   part(() => cyl(EXHAUST_RADIUS, 0.04, "y"), ["engine"], {
+    instance: [s],
+    id: "parts.engine.turbine-housing-inlet-neck.040",
     pos: [inlet[0], inlet[1] - 0.02, inlet[2]],
     name: "Turbine housing inlet neck",
     pin: false,

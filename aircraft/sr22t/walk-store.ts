@@ -5,21 +5,20 @@
  * there item by item.
  */
 import { createFleetWalkStore } from "@/lib/fleet-walk-store";
-import { FLAP_DEG, live } from "./model";
-import { useSR22T } from "./store";
+import { FLAP_DEG } from "./model";
+import { sr22Runtime, useSR22T } from "./store";
 import { SYS } from "./systems";
 import { flapsAt, walk } from "./walk";
 
 export const walkController = createFleetWalkStore({
   logic: walk,
-  sim: useSR22T,
-  live,
+  runtime: sr22Runtime,
   systems: SYS,
-  resetLive: () => {
+  resetLive: (_s, live) => {
     live.rpm = 0;
     live.flapAng = FLAP_DEG[0];
   },
-  syncLive: (_s, { at, steps, prior, forward }) => {
+  syncLive: (_s, { at, steps, prior, forward }, live) => {
     live.flapAng = flapsAt(prior, steps, at, forward && useSR22T.getState().E.flapsPwr);
   },
 });

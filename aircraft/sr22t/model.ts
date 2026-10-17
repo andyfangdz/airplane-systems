@@ -3,6 +3,7 @@
  * Everything here is pure so it can run in the store, in useFrame, or in tests.
  */
 import type { CasLevel } from "../types";
+import { displayBreakerRow, displayFeedPowered, displayLoadPowered } from "./electrical-installation";
 import { D2R } from "@/lib/math";
 
 /** Flap detent angles: SR22T POH 13772-007 7-22; AMM 6-00 (PDF p. 117). */
@@ -178,7 +179,7 @@ export const initialSimFor = (search: string): Sim => {
 };
 
 /** Fast-changing values advanced every frame; kept out of React state on purpose. */
-export const live = {
+export const initialLive = () => ({
   /** Door animation fractions; discrete commands stay in Sim (70° display approximation). */
   doors: { L: 0, R: 0, bag: 0 },
   rpm: 2500,
@@ -200,7 +201,8 @@ export const live = {
   above12k5Min: 0,
   /** The `Sim.oxy.above12k5Min` value the tick last wrote; any other store value came from a slider or scenario. */
   above12k5Written: 0,
-};
+});
+export const live = initialLive();
 
 export type BusId =
   "mdb1" | "mdb2" | "edb" | "ess1" | "ess2" | "main1" | "main2" | "main3" | "nonEss" | "ac1" | "ac2" | "avx" | "conv";
@@ -272,7 +274,9 @@ export const iceLightBreaker = (equip: Equip) => (equip.fiki ? "ICE PROTECT 1" :
  * BAT 1 has no published endurance and does not run down on a timer. Battery voltages
  * and the 0.7 V diode drop are illustrative, not POH performance predictions.
  */
-export function solve(s: Sim, prev?: Elec): Elec {
+export type ElectricalMemory = Pick<Elec, "alt1" | "alt2" | "envHeld">;
+
+export function solve(s: Sim, prev?: ElectricalMemory): Elec {
   const e = s.elec,
     run = s.eng.running,
     t = e.tBat;
@@ -341,13 +345,13 @@ export function solve(s: Sim, prev?: Elec): Elec {
     a1: alt1 ? (alt2 ? 23 : 36) : 0,
     a2: alt2 ? (alt1 ? 13 : 22) : 0,
     b1: !bat1ok ? 0 : alt1 ? 1 : alt2 ? -14 : -36,
-    pfd: !s.avx.pfdFail && (pw("ess1", "PFD A") || pw("main2", "PFD B")),
-    mfd: pw("main3", "MFD A") || pw("main1", "MFD B"),
-    stby: pw("ess1", "STDBY ATTD A") || pw("main1", "STDBY ATTD B"),
+    pfd: !s.avx.pfdFail && displayLoadPowered("pfd", buses, s.cb),
+    mfd: displayLoadPowered("mfd", buses, s.cb),
+    stby: displayLoadPowered("standby", buses, s.cb),
     adahrs1: !s.avx.fail.adahrs1 && pw("ess1", "ADAHRS 1"),
     adahrs2: !s.avx.fail.adahrs2 && pw("main2", "ADAHRS 2"),
-    mag1: !s.avx.fail.mag1 && pw("ess1", "PFD A"),
-    mag2: !s.avx.fail.mag2 && pw("main2", "PFD B"),
+    mag1: !s.avx.fail.mag1 && displayFeedPowered("pfdA", buses, s.cb),
+    mag2: !s.avx.fail.mag2 && displayFeedPowered("pfdB", buses, s.cb),
     flapsPwr: pw("nonEss", "FLAPS"),
     pitotPwr: pw("nonEss", "PITOT HEAT"),
     stallPwr: pw("ess2", "STALL WARNING"),
@@ -495,7 +499,15 @@ export const oxyDisplay = (s: Sim, E: Elec): number | null => (s.oxy.on && E.oxy
  * The earlier AFMS's 12,000 ft panel reminder is separate from the governing POH CAS thresholds.
  * Wiring-fault latching is not simulated. Power loss darkens the lamps, without changing the latched oxygen selection.
  */
-export const OXY_CAPACITY_LABELS = ["FULL", "1600", "1200", "800", "400", "EMPTY"] as const;
+export const OXY_CAPACITY_LEVELS = [
+  { key: "full", label: "FULL" },
+  { key: "1600", label: "1600" },
+  { key: "1200", label: "1200" },
+  { key: "800", label: "800" },
+  { key: "400", label: "400" },
+  { key: "empty", label: "EMPTY" },
+] as const;
+export const OXY_CAPACITY_LABELS = OXY_CAPACITY_LEVELS.map((level) => level.label);
 export type OxygenLamp = "dark" | "on" | "flash";
 export function oxyPanelLamps(s: Sim, E: Elec) {
   const enabled = s.oxy.on && E.oxyPwr;
@@ -646,11 +658,11 @@ const BUSES: BusRow[] = [
     "Ess Dist Bus via ESSENTIAL POWER · BAT 2",
     [
       ["ESSENTIAL POWER", 20],
-      ["PFD A", 5],
+      displayBreakerRow("pfdA"),
       ["ADAHRS 1", 5],
       ["COM 1", 7.5],
       ["GPS NAV GIA 1", 5],
-      ["STDBY ATTD A", 5],
+      displayBreakerRow("standbyA"),
       ["BAT 2", 20],
     ],
   ],
@@ -671,8 +683,8 @@ const BUSES: BusRow[] = [
     "MAIN BUS 1",
     "Main Dist Bus 2",
     [
-      ["MFD B", 5],
-      ["STDBY ATTD B", 5],
+      displayBreakerRow("mfdB"),
+      displayBreakerRow("standbyB"),
       ["KEYPADS / AP CTRL", 5],
       ["CABIN LIGHTS / OXYGEN", 5],
       ["CABIN AIR CONTROL", 2],
@@ -686,7 +698,7 @@ const BUSES: BusRow[] = [
     "MAIN BUS 2",
     "Main Dist Bus 2",
     [
-      ["PFD B", 5],
+      displayBreakerRow("pfdB"),
       ["FUEL PUMP", 5],
       ["COM 2", 7.5],
       ["GPS NAV GIA 2", 5],
@@ -723,13 +735,7 @@ const BUSES: BusRow[] = [
     "main3",
     "MAIN BUS 3",
     "Main Dist Bus 1",
-    [
-      ["LANDING LIGHTS", 15],
-      ["YAW SERVO", 3],
-      ["MFD A", 5],
-      ["12V & USB", 5],
-      ["EVS CAMERA", 5],
-    ],
+    [["LANDING LIGHTS", 15], ["YAW SERVO", 3], displayBreakerRow("mfdA"), ["12V & USB", 5], ["EVS CAMERA", 5]],
   ],
   [
     "ac1",

@@ -15,9 +15,8 @@ import { Airframe, Lighting, Overview } from "./panels/general";
 import { PositiveControl } from "./panels/pc";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { Vacuum } from "./panels/vacuum";
-import { useM20C } from "./store";
+import { m20cRuntime, useM20C } from "./store";
 import { M20C_META } from "./meta";
-import { simTick } from "./tick";
 import { walkController } from "./walk-store";
 
 /** Warning lights and horns: all dead with the master switch off (Ranger 4-9). */
@@ -62,7 +61,7 @@ export const M20C: AircraftDef = {
     environment: Environment,
     cabin: Cabin,
   },
-  tick: simTick,
+  advance: m20cRuntime.advance,
   Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: WALK.walk,

@@ -25,6 +25,7 @@ import { P, part } from "./catalogue";
 /* ---------- structure ---------- */
 const FRAME = "#3D5A73";
 part(() => planeRing(FW), ["airframe", "engine"], {
+  id: "parts.structure.firewall.001",
   plate: true,
   pin: true,
   pinIn: ["airframe"],
@@ -32,6 +33,7 @@ part(() => planeRing(FW), ["airframe", "engine"], {
   note: "Stainless steel (OM p. 5). The battery sits on its forward left side, the starting vibrator on its upper forward face, the brake / flap hydraulic reservoir on its top aft side (OM p. 3, 2, 10).",
 });
 part(() => planeRing(TAIL_BH, 0.95), ["airframe", "controls"], {
+  id: "parts.structure.tail-cone-bulkhead.002",
   plate: true,
   pin: true,
   pinIn: ["airframe"],
@@ -47,39 +49,83 @@ part(() => planeRing(TAIL_BH, 0.95), ["airframe", "controls"], {
   const xs = [FW, 1.65, 1.38, 1.0, 0.6, 0.25, CABIN_AFT];
   [1, -1].forEach((s) => {
     part(() => tube(xs.map((x) => lower(x, s))), ["airframe"], {
+      instance: [s],
+      id: "parts.structure.steel-tube-cabin-frame.003",
       color: FRAME,
       name: "Steel-tube cabin frame",
       note: "Welded 4130 chrome-moly steel-tube cabin structure covered with aluminium sheet — the Mooney 'roll cage' (OM p. 5; Ranger 1-2).",
       pin: s > 0,
     });
-    part(() => tube(xs.slice(1).map((x) => upper(x, s))), ["airframe"], { color: FRAME });
-    [1.38, 1.0, 0.6, 0.25, CABIN_AFT].forEach((x) =>
+    part(() => tube(xs.slice(1).map((x) => upper(x, s))), ["airframe"], {
+      instance: [s],
+      id: "parts.structure.part.004",
+      color: FRAME,
+    });
+    (
+      [
+        ["member-1", 1.38],
+        ["member-2", 1.0],
+        ["member-3", 0.6],
+        ["member-4", 0.25],
+        ["member-5", CABIN_AFT],
+      ] as const
+    ).forEach(([instance1, x]) =>
       part(() => tube([lower(x, s), P(onSkin(x, (topY(x) + botY(x)) / 2, s, IN_SKIN)), upper(x, s)]), ["airframe"], {
+        id: "parts.structure.part.005",
+        instance: [instance1, s],
         color: FRAME,
       }),
     );
   });
-  [1.38, 0.6, CABIN_AFT].forEach((x) =>
+  (
+    [
+      ["member-1", 1.38],
+      ["member-2", 0.6],
+      ["member-3", CABIN_AFT],
+    ] as const
+  ).forEach(([instance2, x]) =>
     part(() => tube([upper(x, -1), P(onSkin(x, topY(x) - 0.08, 0, IN_SKIN)), upper(x, 1)]), ["airframe"], {
+      id: "parts.structure.part.006",
+      instance: [instance2],
+
       color: FRAME,
     }),
   );
-  [FW, 1.0, CABIN_AFT].forEach((x) =>
-    part(() => tube([lower(x, -1), [x, botY(x) + 0.08, 0], lower(x, 1)]), ["airframe"], { color: FRAME }),
+  (
+    [
+      ["member-1", FW],
+      ["member-2", 1.0],
+      ["member-3", CABIN_AFT],
+    ] as const
+  ).forEach(([instance3, x]) =>
+    part(() => tube([lower(x, -1), [x, botY(x) + 0.08, 0], lower(x, 1)]), ["airframe"], {
+      id: "parts.structure.part.007",
+      instance: [instance3],
+
+      color: FRAME,
+    }),
   );
 }
-[
+(
   [
-    MAIN_SPAR,
-    "Main spar carry-through",
-    "The one-piece wing's main spar runs under the front seats; the main gear trunnions and the aileron centre bellcrank hang on it (service-manual arrangement).",
-  ],
-  [
-    AUX_SPAR,
-    "Auxiliary (rear) spar",
-    "Rear spar carrying the flap and aileron hinges and the torsion loads with the stressed skin (OM p. 5).",
-  ],
-].forEach(([xc, name, note]) => {
+    [
+      "member-1",
+      [
+        MAIN_SPAR,
+        "Main spar carry-through",
+        "The one-piece wing's main spar runs under the front seats; the main gear trunnions and the aileron centre bellcrank hang on it (service-manual arrangement).",
+      ],
+    ],
+    [
+      "member-2",
+      [
+        AUX_SPAR,
+        "Auxiliary (rear) spar",
+        "Rear spar carrying the flap and aileron hinges and the torsion loads with the stressed skin (OM p. 5).",
+      ],
+    ],
+  ] as const
+).forEach(([instance4, [xc, name, note]]) => {
   part(
     () =>
       tubeGeo(
@@ -91,7 +137,15 @@ part(() => planeRing(TAIL_BH, 0.95), ["airframe", "controls"], {
         0.05,
       ),
     ["airframe"],
-    { name: name as string, note: note as string, pin: true, color: FRAME },
+    {
+      id: "parts.structure.part.008",
+      instance: [instance4],
+
+      name: name as string,
+      note: note as string,
+      pin: true,
+      color: FRAME,
+    },
   );
 });
 /** Patch draped over the wing's upper surface between chord fractions c0..c1 and span stations z0..z1, lifted `h` above the skin. */
@@ -120,6 +174,7 @@ function wingPatch(z0: number, z1: number, c0: number, c1: number, h = 0.004, nz
   return g;
 }
 part(() => wingPatch(0.6, 1.5, 0.06, 0.9), ["airframe", "cabin"], {
+  id: "parts.structure.wing-walk.009",
   color: "#2A3447",
   name: "Wing walk",
   note: "Non-slip walkway on the right wing root, where you board over the wing to the single door (dark navy panel in the N6947N photo).",
@@ -128,6 +183,8 @@ part(() => wingPatch(0.6, 1.5, 0.06, 0.9), ["airframe", "cabin"], {
 });
 [1, -1].forEach((s) =>
   part(() => cyl(0.012, 0.03), ["airframe", "gear"], {
+    instance: [s],
+    id: "parts.structure.hoist-point-tie-down.010",
     pos: P(wingP(s * 1.75, 0.45, -1).add(V(0, -0.01, 0))),
     color: "#9AA3AA",
     name: "Hoist point / tie-down",
@@ -137,6 +194,7 @@ part(() => wingPatch(0.6, 1.5, 0.06, 0.9), ["airframe", "cabin"], {
   }),
 );
 part(() => box(0.1, 0.05, 0.03), ["airframe"], {
+  id: "parts.structure.tail-skid-tie-down-ring.011",
   pos: [-2.75, -0.62, 0],
   color: "#8C959C",
   name: "Tail skid & tie-down ring",
@@ -145,6 +203,7 @@ part(() => box(0.1, 0.05, 0.03), ["airframe"], {
   pin: true,
 });
 part(() => box(0.08, 0.06, 0.1), ["airframe", "controls"], {
+  id: "parts.structure.empennage-pivot.012",
   parent: "tail",
   pos: [0, 0, 0],
   color: "#E0522B",
@@ -156,6 +215,7 @@ part(() => box(0.08, 0.06, 0.1), ["airframe", "controls"], {
 // https://www.mooneyevents.com/chrono.htm). Project the mount into the skin rather
 // than ending a vertical post outside the rounded belly. Positions are approximate.
 part(() => box(0.1, 0.03, 0.14), ["airframe", "cabin"], {
+  id: "parts.structure.entry-step.013",
   pos: [-0.35, -0.88, 0.52],
   color: "#8C959C",
   name: "Entry step",
@@ -167,6 +227,7 @@ part(
   () => tubeGeo([onSkin(-0.35, -0.58, 1, 0.98), [-0.35, -0.74, 0.5], [-0.35, -0.88, 0.5]], 0.014),
   ["airframe", "cabin"],
   {
+    id: "parts.structure.entry-step.014",
     color: "#8C959C",
     name: "Entry step",
     note: "Fixed support joins the right fuselage to the tread. It stays extended on this 1968 Ranger; it is not linked to the gear or vacuum system. Mount and tube shape are approximate.",

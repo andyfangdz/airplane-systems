@@ -14,15 +14,16 @@ import {
 } from "@/lib/build";
 import { box } from "@/lib/geometry";
 
-const cat = new Catalogue("probe");
+let cat: Catalogue;
 /** Fresh parts for each case: a part's glow is remembered per part. */
 const parts = () => [
-  cat.part(() => box(0.1, 0.1, 0.1), ["electrical"], { name: "A" }),
-  cat.part(() => box(0.1, 0.1, 0.1), ["fuel"], { name: "B" }),
+  cat.part(() => box(0.1, 0.1, 0.1), ["electrical"], { id: "tests.build.test.a.001", name: "A" }),
+  cat.part(() => box(0.1, 0.1, 0.1), ["fuel"], { id: "tests.build.test.b.002", name: "B" }),
 ];
 
 let reduce = false;
 beforeEach(() => {
+  cat = new Catalogue("probe");
   reduce = false;
   vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("reduce") && reduce }));
   vi.useFakeTimers({ toFake: ["performance"] });

@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -14,75 +17,135 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2 # on a pull request, its merge commit and both parents, so HEAD^1 is the base branch
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Formatting (fix with npm run format)
-        run: npm run format:check
-      - run: npm run typecheck
-      - run: npm run check:compiler
-      # A pull request runs the test files its changes reach (vitest --changed, see vitest.config.mts); main runs them all.
-      - name: Unit tests
-        run: npm test -- ${{ github.event_name == 'pull_request' && '--changed HEAD^1 --passWithNoTests' || '' }}
-      - run: npm run test:react
-      - run: npm run test:trusted-preview
-      - run: npm run build
+      - run: npm run check
+      # Offline subprocess fixtures; no credentials or AWS calls reach a real account.
+      - run: npm run test:deploy
 
-  # The browser tests, split into jobs of a few minutes each that run alongside `check`; each builds the site itself.
-  ui:
-    name: ui (${{ matrix.name }})
+  build:
     runs-on: ubuntu-latest
-    env:
-      STATIC_EXPORT: ${{ matrix.static && '1' || '' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: geometry, M20C, tour, load failure
-            tests: scripts/test-geometry-ui.mjs scripts/test-m20c-ui.mjs scripts/test-tour-ui.mjs scripts/test-load-failure-ui.mjs
-          - name: doors
-            tests: scripts/test-door-mechanisms-ui.mjs
-          - name: fleet picker
-            tests: scripts/test-fleet-ui.mjs
-            webkit: true
-          - name: study walks, desktop
-            tests: scripts/test-fleet-depth-ui.mjs --project=desktop
-          - name: study walks, phone
-            tests: scripts/test-fleet-depth-ui.mjs --project=phone
-          # the deployed files: out/ from the static export, served through the CloudFront view rewrite
-          - name: static export
-            tests: scripts/test-static-export-ui.mjs --project=desktop
-            static: true
+    outputs:
+      manifest-sha256: ${{ steps.seal.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - run: npm run build
-      # Mesa's EGL (not among Chromium's own dependencies) lets Chromium render WebGL with llvmpipe: scripts/software-gl.mjs
-      - name: Install browsers and Mesa's EGL
+      # The compiler runs once. Both hosts and every browser shard consume these exact assets.
+      - run: npm run geometry:build
+      - run: npm run build:site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-under-test
+          include-hidden-files: true
+          path: |
+            .next/
+            !.next/cache/
+            public/geometry/
+            .geometry-runtime/
+      - run: STATIC_EXPORT=1 npm run build:site
+      - id: seal
         run: |
-          npx playwright install --with-deps chromium ${{ matrix.webkit && 'webkit' || '' }}
+          node scripts/release-manifest.mjs seal out > "$RUNNER_TEMP/release-seal.json"
+          node -e 'const fs = require("fs"); const seal = JSON.parse(fs.readFileSync(process.argv[1])); fs.appendFileSync(process.env.GITHUB_OUTPUT, `sha256=${seal.sha256}\n`)' "$RUNNER_TEMP/release-seal.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: static-under-test
+          path: out/
+
+  ui:
+    name: ui (${{ matrix.shard }}/6)
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: server-under-test
+          path: .
+      - name: Install browsers and software WebGL
+        run: |
+          npx playwright install --with-deps chromium webkit
           sudo apt-get install -y --no-install-recommends libegl1 libegl-mesa0
           test -f /usr/share/glvnd/egl_vendor.d/50_mesa.json
-      - run: npx playwright test ${{ matrix.tests }}
+      # Discovery, rather than a filename allowlist, makes newly added suites part of CI automatically.
+      # Each shard still uses one renderer at a time (playwright.config.mjs).
+      - run: npx playwright test --shard=${{ matrix.shard }}/6
         env:
           DOOR_SHOTS: "1"
       - uses: actions/upload-artifact@v4
-        if: always() && matrix.name == 'doors'
+        if: always()
         with:
-          name: fleet-door-review
-          path: .shots/mechanisms
+          name: browser-details-${{ matrix.shard }}
+          path: |
+            test-results/
+            .shots/mechanisms/
           if-no-files-found: ignore
+
+  static:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      STATIC_EXPORT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-under-test
+          path: out
+      - run: node scripts/release-manifest.mjs verify out '${{ needs.build.outputs.manifest-sha256 }}'
+      - name: Install browser and software WebGL
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y --no-install-recommends libegl1 libegl-mesa0
+      - run: npx playwright test scripts/test-static-export-ui.mjs --project=desktop
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: browser-failure-details-${{ strategy.job-index }}
+          name: static-browser-failure
           path: test-results/
-          if-no-files-found: ignore
+
+  release:
+    # Only a successfully checked main build receives the deployable release name.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, build, ui, static]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-under-test
+          path: out
+      - run: node scripts/release-manifest.mjs verify out '${{ needs.build.outputs.manifest-sha256 }}' '${{ github.sha }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+          path: out/
+          retention-days: 90
+      - name: Record the independently supplied promotion checksum
+        run: |
+          echo 'Release commit: `${{ github.sha }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Manifest SHA256: `${{ needs.build.outputs.manifest-sha256 }}`' >> "$GITHUB_STEP_SUMMARY"

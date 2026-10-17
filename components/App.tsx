@@ -16,8 +16,10 @@ import {
   useAircraft,
 } from "@/lib/fleet";
 import { setBuild } from "@/lib/build";
+import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
+import { useSimulationLoop } from "@/lib/useSimulationLoop";
 import { sysColor, type SysId, type Theme } from "@/lib/systems";
-import { revealStage, useView } from "@/lib/view";
+import { revealStage, useAircraftHover, useView } from "@/lib/view";
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
@@ -32,7 +34,7 @@ const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () =
 const RouteSys = createContext<{ sys: SysId; booted: boolean }>({ sys: "overview", booted: false });
 function useShownSys() {
   const route = useContext(RouteSys),
-    sys = useView((x) => x.sys);
+    sys = useView((x) => x.selectedSys);
   return route.booted ? sys : route.sys;
 }
 
@@ -201,7 +203,7 @@ function tipColor(c: string, theme: Theme) {
 }
 
 function Tooltip() {
-  const hover = useView((x) => x.hover),
+  const hover = useAircraftHover((x) => x.hover),
     theme = useView((x) => x.theme);
   const ref = useRef<HTMLDivElement>(null);
   // below-right of the cursor; flipped above it when the note would run past the bottom of the 3D view
@@ -249,7 +251,7 @@ function show(def: AircraftDef, sys?: string | null) {
   const start: SysId = hasSys(def, sys) ? sys : "overview",
     v = useView.getState();
   if (def.id !== v.ac) selectAircraft(def.id, start);
-  else if (start !== v.sys) selectSys(start);
+  else if (start !== v.selectedSys) selectSys(start);
   else showInUrl(def.id, start); // already in the view state (e.g. the default airplane's overview on a fresh load): still put the view in the address bar
   try {
     localStorage.setItem("fleetAc", def.id);
@@ -282,18 +284,28 @@ function useTheme() {
  * in the address bar (an insertion effect), so the path and query read here are this route's, and before the first paint.
  */
 function useBoot(def: AircraftDef) {
-  const [booted, setBooted] = useState(false);
+  const [session, setSession] = useState<AircraftSession | null>(null);
+  // Strict Mode may rehearse setup after cleanup; consuming ?walk must not lose the original boot intent.
+  const bootSearch = useRef<{ aircraft: AircraftDef["id"]; search: string } | null>(null);
   useLayoutEffect(() => {
-    def.prepare?.();
-    setBuild("code");
-    show(def, sysInPath(def));
-    const search = location.search,
-      preset = parseCameraPreset(new URLSearchParams(search).get("cam"));
-    if (preset) applyCameraPreset(preset);
-    def.walk?.boot(search);
-    setBooted(true);
+    const session = mountAircraftSession(def);
+    try {
+      def.prepare?.();
+      setBuild("code");
+      show(def, sysInPath(def));
+      const search = bootSearch.current?.aircraft === def.id ? bootSearch.current.search : location.search,
+        preset = parseCameraPreset(new URLSearchParams(search).get("cam"));
+      bootSearch.current = { aircraft: def.id, search };
+      if (preset) applyCameraPreset(preset);
+      def.walk?.boot(search);
+      setSession(session);
+    } catch (error) {
+      session.dispose();
+      throw error;
+    }
+    return session.dispose;
   }, [def]);
-  return booted;
+  return session;
 }
 
 /**
@@ -304,17 +316,25 @@ function useBoot(def: AircraftDef) {
 export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
   registerAircraft(def); // for the view-state helpers in lib/fleet (idempotent)
   useTheme();
-  const booted = useBoot(def);
+  const session = useBoot(def);
+  // Next may retain this client shell when its catch-all system parameter changes. Apply that navigation without
+  // replacing the aircraft session; the URL guard ignores an older server prop after the rail's replaceState.
+  useLayoutEffect(() => {
+    const view = useView.getState();
+    if (session && view.session === session.owner && sys && sysInPath(def) === sys && view.selectedSys !== sys)
+      selectSys(sys);
+  }, [def, session, sys]);
+  useSimulationLoop(session?.advance ?? def.advance, 1, !!session);
   const walking = useView((x) => x.walking);
   const Alerts = def.Alerts;
   return (
     <AircraftContext value={def}>
-      <RouteSys value={{ sys: sys ?? "overview", booted }}>
+      <RouteSys value={{ sys: sys ?? "overview", booted: !!session }}>
         <div className={walking ? "app walking" : "app"}>
           <Rail />
           <main className="stage">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
-            {booted ? <Scene /> : <div />}
+            {session ? <Scene owner={session.owner} /> : <div />}
             <Loader />
             <Toolbar />
             <div className="stage-foot">

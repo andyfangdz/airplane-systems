@@ -10,6 +10,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import { runInNewContext } from "node:vm";
+import { cacheControl } from "./release-manifest.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const out = join(root, "out");
@@ -42,7 +43,7 @@ function event(url) {
 /** The export's file at a key, or null when there is none. */
 async function file(uri) {
   const path = normalize(join(out, uri));
-  if (!path.startsWith(out)) return null;
+  if (path !== out && !path.startsWith(out + "/")) return null;
   try {
     return await readFile(path);
   } catch (err) {
@@ -61,7 +62,10 @@ const server = createServer(async (req, res) => {
     const key = result.uri === "/" ? "/index.html" : result.uri;
     const body = await file(key);
     if (body) {
-      res.writeHead(200, { "content-type": TYPES[extname(key)] ?? "application/octet-stream" });
+      res.writeHead(200, {
+        "content-type": TYPES[extname(key)] ?? "application/octet-stream",
+        "cache-control": cacheControl(key.slice(1)),
+      });
       return res.end(body);
     }
     res.writeHead(404, { "content-type": TYPES[".html"] });

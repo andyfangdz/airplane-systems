@@ -135,7 +135,14 @@ export const ENGINE_CROSSINGS: Record<string, [mm: number, why: Why]> = {
   "acSuction / Firewall — FS 100": [8.0, "pass"],
   "alt2 / Cylinder 6": [8.4, "overlap"],
   "alt2 / MCU heat shield": [13.1, "overlap"],
-  "alt2 / sr22t/part-8": [11.5, "overlap"],
+  // Cylinder 6 cooling fin k=-1 (formerly sr22t/part-8); exact vertex/index bytes and local transform are unchanged.
+  [`alt2 / sr22t/parts.engine.part.005@${encodeURIComponent(
+    JSON.stringify([
+      ["number", -1],
+      ["number", 6],
+      ["string", "cyl:6"],
+    ]),
+  )}`]: [11.5, "overlap"],
   "altAirL / Alternate air duct": [43.2, "host"],
   "altAirR / Alternate air duct": [43.2, "host"],
   "cbEss / Firewall — FS 100": [5.0, "pass"],

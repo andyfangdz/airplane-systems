@@ -47,6 +47,7 @@ const running = (m: THREE.Mesh) => {
 };
 
 part(() => cyl(0.05, 0.12, "x"), ["environment", "engine"], {
+  id: "parts.aircon.a-c-compressor-optional.001",
   pos: AC.compressor,
   color: "#7E8A93",
   name: "A/C compressor (optional)",
@@ -57,6 +58,7 @@ part(() => cyl(0.05, 0.12, "x"), ["environment", "engine"], {
 /** Both belt pulleys lie in the flywheel plane; body/offsets remain schematic. */
 export const AC_CLUTCH: Vec3 = [3.57, AC.compressor[1], AC.compressor[2]];
 part(() => cyl(0.063, 0.018, "x", 28), ["environment", "engine"], {
+  id: "parts.aircon.a-c-compressor-clutch-pulley.002",
   pos: AC_CLUTCH,
   color: "#596B76",
   name: "A/C compressor clutch pulley",
@@ -91,6 +93,7 @@ part(
   },
   ["environment", "engine"],
   {
+    id: "parts.aircon.a-c-compressor-drive-belt.003",
     color: "#30363A",
     name: "A/C compressor drive belt",
     pin: true,
@@ -99,6 +102,7 @@ part(
   },
 );
 part(() => box(0.09, 0.02, 0.07), ["environment", "engine"], {
+  id: "parts.aircon.a-c-compressor-mounting-link.004",
   pos: [AC.compressor[0], AC.compressor[1] - 0.063, AC.compressor[2]],
   color: "#7E8A93",
   name: "A/C compressor mounting link",
@@ -107,6 +111,7 @@ part(() => box(0.09, 0.02, 0.07), ["environment", "engine"], {
   note: "Compressor mounting bracket and adjustable link; the forward mounting boss also connects to the alternator link, and shims set pulley alignment (AMM 21-50 pp. 4–6, Fig 21-50-1 sheets 2–3). Schematic bracket only; dimensions and bolt locations approximate.",
 });
 part(() => box(0.2, 0.07, 0.2), ["environment"], {
+  id: "parts.aircon.a-c-evaporator-optional.005",
   pos: AC.evaporator,
   color: "#6EC9E6",
   name: "A/C evaporator (optional)",
@@ -114,6 +119,7 @@ part(() => box(0.2, 0.07, 0.2), ["environment"], {
   note: "Under the RH crew/front passenger seat. Refrigerant vaporizes in the coils, removing heat from cabin supply air; condensed moisture drains through the belly. The blower motor and wheel bolt to the evaporator (POH 7-65–66; AMM 21-50 pp. 1, 9–10, Fig 21-50-1 sheet 6). Optional installation represented schematically; size and under-seat station approximate.",
 });
 part(() => box(0.035, 0.04, 0.035), ["environment"], {
+  id: "parts.aircon.expansion-valve.006",
   pos: AC.expansion,
   color: "#C9A227",
   name: "Expansion valve",
@@ -121,6 +127,7 @@ part(() => box(0.035, 0.04, 0.035), ["environment"], {
   note: "Temperature-controlled refrigerant metering valve integral to the evaporator assembly, between the receiver-drier liquid supply and evaporator (POH 7-66; AMM 21-50 p. 1, Fig 21-50-1 sheet 6 item 30). Dimensions and attachment offsets schematic.",
 });
 part(() => box(0.12, 0.004, 0.08), ["environment"], {
+  id: "parts.aircon.recirculation-check-valve.007",
   pos: AC.recircValve,
   color: "#4E9DB5",
   name: "Recirculation check valve",
@@ -131,6 +138,7 @@ part(() => box(0.12, 0.004, 0.08), ["environment"], {
   note: "Valves in the evaporator assembly open to admit cabin return air in recirculation, shown as RECIRCULATION CHECK VALVE in the SR20 AMM Fig 21-00-1 sheet 2. A/C and blower selection are required (POH 7-67; AMM 21-50 p. 1). Door shape, location and travel schematic.",
 });
 part(() => box(0.24, 0.055, 0.24), ["environment"], {
+  id: "parts.aircon.a-c-condenser.008",
   pos: AC.condenser,
   color: "#6EC9E6",
   name: "A/C condenser",
@@ -138,6 +146,7 @@ part(() => box(0.24, 0.055, 0.24), ["environment"], {
   note: "Under the baggage compartment floor, accessed through CF5, with integral receiver-drier and blower (AMM 21-50 pp. 1, 12–15, Fig 21-50-1 sheet 7). Removes heat from refrigerant and changes compressor discharge vapor into liquid. Its cooling-air circuit is separate from conditioned cabin air. Size and underfloor station approximate.",
 });
 part(() => cyl(0.022, 0.08, "y"), ["environment"], {
+  id: "parts.aircon.receiver-drier.009",
   pos: AC.receiver,
   color: "#4E9DB5",
   name: "Receiver-drier",
@@ -145,6 +154,7 @@ part(() => cyl(0.022, 0.08, "y"), ["environment"], {
   note: "Clamped to the condenser; filters refrigerant, removes moisture and supplies steady liquid flow to the expansion valve (POH 7-66; AMM 21-50 pp. 1, 13–14, Fig 21-50-1 sheet 7 item 39). Location and shape schematic.",
 });
 part(() => cyl(0.04, 0.08, "x"), ["environment"], {
+  id: "parts.aircon.condenser-blower.010",
   pos: AC.condenserFan,
   color: "#5A6A74",
   name: "Condenser blower",
@@ -164,6 +174,8 @@ for (const [key, name, note] of [
   ],
 ] as const)
   part(() => box(0.09, 0.008, 0.085), ["environment"], {
+    id: "parts.aircon.part.011",
+    instance: [key],
     pos: AC[key],
     color: "#596B76",
     name,
@@ -172,6 +184,7 @@ for (const [key, name, note] of [
     note: `${note} (AMM 21-50 Fig 21-50-1 sheet 7). Screen stations and sizes schematic; this air does not supply cabin vents.`,
   });
 part(() => cyl(0.007, 0.016, "y", 10), ["environment"], {
+  id: "parts.aircon.evaporator-condensate-drain.012",
   pos: AC.drain,
   color: "#92ADBD",
   name: "Evaporator condensate drain",
@@ -180,6 +193,7 @@ part(() => cyl(0.007, 0.016, "y", 10), ["environment"], {
   note: "Drain hose from the evaporator exits through the fuselage belly and is secured to a rivnut (POH 7-66; AMM 21-50 pp. 9–10, Fig 21-50-1 sheet 6 items 24–26). Schematic exit location.",
 });
 part(() => mergeGeos([-1, 1].map((s) => cyl(0.008, 0.022, "z", 10).translate(s * 0.017, 0, 0))), ["environment"], {
+  id: "parts.aircon.a-c-service-ports.013",
   pos: AC.service,
   color: "#C9A227",
   name: "A/C service ports",

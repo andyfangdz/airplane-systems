@@ -5,6 +5,7 @@
  * `useFrame` and by panels through `useLiveSnapshot`.
  */
 import { create } from "zustand";
+import { createSimulationClock } from "@/lib/simulationClock";
 import { GOVERNOR } from "@/engines/components/governor/spec";
 import {
   bladeAngle,
@@ -58,7 +59,7 @@ export const useGov = create<GovUi>((set) => ({
 /** Slow motion turns the drawn shafts at most this fast, rpm. */
 const SLOW_RPM = 12;
 
-export function advance(dt: number) {
+export function stepGovernor(dt: number) {
   const ui = useGov.getState(),
     view = useGovView.getState();
   if (view.paused) return;
@@ -68,5 +69,11 @@ export function advance(dt: number) {
   anim.gov = (anim.gov + ((rpm * spec.engine.driveRatio) / 60) * dt) % 1;
 }
 
+/** This retained accessory session owns its integration remainder across route mounts. */
+export const governorClock = createSimulationClock(stepGovernor);
+export const advance = (elapsed: number) => {
+  if (!useGovView.getState().paused) governorClock.advance(elapsed);
+};
+
 /** Run the simulation on animation frames while the page is mounted. */
-export const useGovLoop = () => useSimLoop(advance, 0.1);
+export const useGovLoop = () => useSimLoop(advance);

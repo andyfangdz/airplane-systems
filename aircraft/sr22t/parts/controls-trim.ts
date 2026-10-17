@@ -59,6 +59,7 @@ const PT = {
 };
 const PT_AFT = ELEV_HORN.c[0] + 0.006;
 part(() => cyl(0.02, PT.motorLen, "z"), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-motor.001",
   chan: ["elevator"],
   pos: [PT.x, PT.motorY, PT.motorZ],
   color: MOTOR,
@@ -69,11 +70,13 @@ part(() => cyl(0.02, PT.motorLen, "z"), ["controls"], {
 // motor shaft, from the motor's left end to the actuation arm
 const ptShaft = [PT.motorZ - PT.motorLen / 2, PT.armZ + 0.004];
 part(() => cyl(0.005, ptShaft[0] - ptShaft[1], "z"), ["controls"], {
+  id: "parts.controls-trim.part.002",
   chan: ["elevator"],
   pos: [PT.x, PT.motorY, (ptShaft[0] + ptShaft[1]) / 2],
   color: STEEL,
 });
 part(() => box(0.012, PT.motorY - PT.cartY + 0.012, 0.008), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-actuation-arm.003",
   chan: ["elevator"],
   pos: [PT.x, (PT.motorY + PT.cartY) / 2, PT.armZ],
   color: STEEL,
@@ -81,6 +84,7 @@ part(() => box(0.012, PT.motorY - PT.cartY + 0.012, 0.008), ["controls"], {
   note: "Set-screwed to the flat of the pitch trim motor shaft; the cartridge's rod end bolts to it (AMM 27-30 PDF pp. 1026–1027; Fig 27-30-7 PDF p. 1029).",
 });
 part(() => cyl(0.012, PT.x - PT_AFT, "x"), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-cartridge.004",
   chan: ["elevator"],
   pos: [(PT.x + PT_AFT) / 2, PT.cartY, PT.cartZ],
   color: CART,
@@ -90,6 +94,7 @@ part(() => cyl(0.012, PT.x - PT_AFT, "x"), ["controls"], {
 });
 // bolt from the cartridge's aft end to the elevator bellcrank
 part(() => cyl(0.005, -PT.cartZ - 0.022, "z"), ["controls"], {
+  id: "parts.controls-trim.part.005",
   chan: ["elevator"],
   pos: [PT_AFT - 0.006, PT.cartY, (PT.cartZ + 0.012 - 0.01) / 2],
   color: STEEL,
@@ -121,6 +126,7 @@ const rtZ0 = PULLEYS.awL.c[2] + 0.0182,
   rtB = rtA.map((v, i) => v + (rtSpan[i] * RT.len) / Math.hypot(...rtSpan)) as Vec3,
   rtZ1 = rtB[2];
 part(() => tubeGeo([rtA, rtB], 0.012, 0), ["controls"], {
+  id: "parts.controls-trim.roll-trim-cartridge.006",
   chan: ["aileron"],
   color: CART,
   name: "Roll trim cartridge",
@@ -128,6 +134,7 @@ part(() => tubeGeo([rtA, rtB], 0.012, 0), ["controls"], {
   pin: true,
 });
 part(() => cyl(RT.motorR, RT.motorLen, "z"), ["controls"], {
+  id: "parts.controls-trim.roll-trim-motor.007",
   chan: ["aileron"],
   pos: onWing(rtZ1 + RT.arm + RT.motorLen / 2, RT.motorDy, RT.motorChord),
   color: MOTOR,
@@ -141,6 +148,7 @@ part(
   () => box(Math.abs(rtArm[0][0] - rtArm[1][0]) + 0.024, Math.abs(rtArm[0][1] - rtArm[1][1]) + 0.012, RT.arm),
   ["controls"],
   {
+    id: "parts.controls-trim.roll-trim-motor-offset-arm.008",
     chan: ["aileron"],
     pos: rtArm[0].map((v, i) => (v + rtArm[1][i]) / 2) as Vec3,
     color: STEEL,
@@ -151,6 +159,7 @@ part(
 
 /* ---------- yaw trim (POH 7-11; AMM 27-20 PDF p. 986) ---------- */
 part(() => box(0.08, 0.04, 0.06), ["controls"], {
+  id: "parts.controls-trim.yaw-trim-spring-cartridge.009",
   pos: [PEDAL_TT.x - 0.014 - 0.042, PEDAL_TT.y, -0.22],
   color: CART,
   chan: ["rudder"],
@@ -163,8 +172,15 @@ part(() => box(0.08, 0.04, 0.06), ["controls"], {
 // Fig 6-00-6 labels CF4C "Trim System Relays"; AMM 27-10 PDF p. 984 reaches the roll relays through CF3R and Fig 27-10-8 shows
 // them on the RH longeron. Drawn under CF4C as specified (open question); position approximate.
 const CF4C = FLOOR_HOLES.CF4C;
-[-1, 1].forEach((sd, i) =>
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member1, sd], i) =>
   part(() => box(0.03, 0.03, 0.03), ["controls"], {
+    id: "parts.controls-trim.trim-system-relays.010",
+    instance: [sd, member1],
     chan: ["aileron"],
     pos: [CF4C.x - 0.03, -0.63, sd * 0.045],
     color: "#3C4A57",
@@ -174,6 +190,7 @@ const CF4C = FLOOR_HOLES.CF4C;
   }),
 );
 part(() => box(0.08, 0.03, 0.06), ["controls"], {
+  id: "parts.controls-trim.rudder-aileron-interconnect.011",
   chan: ["aileron", "rudder"],
   pos: [FLOOR_HOLES.CF3C.x, -0.615, 0],
   color: "#6D7F8C",
@@ -188,6 +205,7 @@ part(() => box(0.08, 0.03, 0.06), ["controls"], {
 const yokeL = YOKES.find((y) => y.side === "L")!;
 const MARK_X = 2.176;
 part(() => box(0.003, 0.002, 0.012), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-reference-mark.012",
   chan: ["elevator"],
   parent: "yoke:L",
   pos: [MARK_X - YOKE_X, 0.0195, 0],
@@ -196,6 +214,7 @@ part(() => box(0.003, 0.002, 0.012), ["controls"], {
   note: "Reference mark on the yoke tube: neutral (takeoff) pitch trim is indicated by its alignment with the tab on the instrument panel bolster (POH 7-7). Drawn at neutral trim.",
 });
 part(() => box(0.008, 0.002, 0.065), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-reference-tab.013",
   chan: ["elevator"],
   pos: [MARK_X, YOKE_Y + 0.03, yokeL.z + 0.0275],
   color: MARK,
@@ -204,6 +223,7 @@ part(() => box(0.008, 0.002, 0.065), ["controls"], {
   pin: true,
 });
 part(() => box(0.03, 0.001, 0.002), ["controls"], {
+  id: "parts.controls-trim.roll-trim-reference-line.014",
   chan: ["aileron"],
   parent: "grip:L",
   pos: [0.016, 0.0225, 0],
@@ -212,6 +232,7 @@ part(() => box(0.03, 0.001, 0.002), ["controls"], {
   note: "Line etched on the control yoke: neutral roll trim is indicated by its alignment with the centering indication marked on the instrument panel (POH 7-9). Drawn at neutral trim.",
 });
 part(() => box(0.004, 0.012, 0.002), ["controls"], {
+  id: "parts.controls-trim.roll-trim-centering-mark.015",
   chan: ["aileron"],
   pos: [2.276, YOKE_Y + 0.048, yokeL.z],
   color: MARK,
@@ -491,6 +512,7 @@ part(
   },
   ["controls"],
   {
+    id: "parts.controls-trim.battery-2-shelf.016",
     pos: [BAT2_SHELF.c[0], BAT2_SHELF.c[1] - BAT2_SHELF.size[1] / 2, BAT2_SHELF.c[2]],
     color: STEEL,
     name: "Battery 2 shelf",
@@ -547,8 +569,22 @@ export const YAW_BRACKET = {
   elt: eltAnchor(),
   deck: yawDeck,
 };
-function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: Parameters<typeof part>[2] = {}) {
-  part(geo, ["controls"], { chan: [BRIDLES[k].chan], color: STEEL, name, note: DETAIL_NOTE(k), ...opts });
+function detail(
+  id: string,
+  geo: () => THREE.BufferGeometry,
+  k: Axis3,
+  name: string,
+  opts: Omit<Parameters<typeof part>[2], "id" | "instance"> = {},
+) {
+  part(geo, ["controls"], {
+    id: "parts.controls-trim.part.017",
+    instance: [id, k],
+    chan: [BRIDLES[k].chan],
+    color: STEEL,
+    name,
+    note: DETAIL_NOTE(k),
+    ...opts,
+  });
 }
 (["pitch", "roll", "yaw"] as const).forEach((k) => {
   const { c, axis } = SERVO_CAPSTANS[k],
@@ -557,27 +593,34 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
   // Mount is at the actuator's output face, rather than overlapping its body.
   const sign = k === "pitch" ? 1 : -1;
   const mountC = shift(c, axis, sign * (CAPSTAN.width / 2 + 0.003));
-  detail(() => cyl(0.03, 0.006, axis), k, "GSM 86 servo mount", { pos: mountC });
-  detail(() => cyl(CAPSTAN.r, CAPSTAN.width, axis), k, k[0].toUpperCase() + k.slice(1) + " servo capstan", {
-    pos: c,
-    color: "#B9A3F0",
-    fairing: true,
-    anim: rotationAnim(k),
-    note: `GSM 86 capstan transmits actuator torque through its slip clutch; sufficient pilot force overrides it (AMM 22-10 PDF pp. 555–556). Diameter 0.04 m approximate; rate is illustrative, driven by primary pulley cable travel, not an autopilot simulation. ${DETAIL_NOTE(k)}`,
-  });
-  detail(() => cyl(0.008, 0.014, axis), k, "Slip clutch cartridge", { pos: c, color: "#E0A146" });
+  detail("servo-detail.01", () => cyl(0.03, 0.006, axis), k, "GSM 86 servo mount", { pos: mountC });
+  detail(
+    "servo-detail.02",
+    () => cyl(CAPSTAN.r, CAPSTAN.width, axis),
+    k,
+    k[0].toUpperCase() + k.slice(1) + " servo capstan",
+    {
+      pos: c,
+      color: "#B9A3F0",
+      fairing: true,
+      anim: rotationAnim(k),
+      note: `GSM 86 capstan transmits actuator torque through its slip clutch; sufficient pilot force overrides it (AMM 22-10 PDF pp. 555–556). Diameter 0.04 m approximate; rate is illustrative, driven by primary pulley cable travel, not an autopilot simulation. ${DETAIL_NOTE(k)}`,
+    },
+  );
+  detail("servo-detail.03", () => cyl(0.008, 0.014, axis), k, "Slip clutch cartridge", { pos: c, color: "#E0A146" });
   // Wire-sized guard rods and a stiffener ring outside the wrap envelope, so the bridle can move freely.
   const ring = () => {
     const g = new THREE.TorusGeometry(0.027, 0.0015, 8, 48);
     if (axis === "x") g.rotateY(Math.PI / 2);
     return g;
   };
-  detail(ring, k, "Capstan stiffener ring", { pos: shift(c, axis, -sign * 0.013) });
+  detail("servo-detail.04", ring, k, "Capstan stiffener ring", { pos: shift(c, axis, -sign * 0.013) });
   for (const sd of [-1, 1]) {
     const guardC: Vec3 = axis === "z" ? [c[0], c[1] + sd * 0.027, c[2]] : [c[0], c[1] + sd * 0.027, c[2]];
-    detail(() => cyl(0.0015, 0.026, axis), k, "Capstan cable guard", { pos: guardC });
+    detail(`servo-detail.05.${sd}`, () => cyl(0.0015, 0.026, axis), k, "Capstan cable guard", { pos: guardC });
   }
   detail(
+    "servo-detail.06",
     () =>
       new THREE.TubeGeometry(
         new THREE.CatmullRomCurve3(
@@ -600,22 +643,26 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
       note: `${b.turns} nominal turns, stop-ball at ${b.clock} o'clock at centre travel (AMM 22-10 PDF p. ${k === "pitch" ? "579" : k === "roll" ? "589" : "598"}). ${k === "pitch" ? "Pitch reassembly gives about 480° each way (PDF p. 577); this illustrative wrap follows the adjustment step's approximately 2.5 turns." : `Reassembly wraps each end about 540° (PDF p. ${k === "roll" ? "587" : "597"}), three turns in all.`} Diameter, groove pitch and exit transitions approximate.`,
     },
   );
-  detail(() => new THREE.SphereGeometry(0.003, 12, 8), k, "Bridle stop-ball", {
+  detail("servo-detail.07", () => new THREE.SphereGeometry(0.003, 12, 8), k, "Bridle stop-ball", {
     pos: stopBallPosition(k),
     color: "#E0A146",
     anim: (m) => m.position.set(...stopBallPosition(k, capstanAngle(k, livePose()))),
   });
   if (k === "yaw") {
-    detail(() => box(body.size[0], YAW_DECK_THICKNESS, body.size[2]), k, "Servo mounting bracket", {
+    detail("servo-detail.08", () => box(body.size[0], YAW_DECK_THICKNESS, body.size[2]), k, "Servo mounting bracket", {
       pos: YAW_BRACKET.deck,
       note: "Horizontal deck beneath the unchanged actuator footprint; 4 mm thick, approximate (AMM Fig 22-10-6 sh 3, PDF 606).",
     });
-    for (const edge of [YAW_BRACKET.battery, YAW_BRACKET.elt])
-      detail(() => bracketStrip(edge, yawUnderside), k, "Servo mounting bracket", {
+    for (const [shelf, edge] of [
+      ["battery", YAW_BRACKET.battery],
+      ["elt", YAW_BRACKET.elt],
+    ] as const)
+      detail(`servo-detail.09.${shelf}`, () => bracketStrip(edge, yawUnderside), k, "Servo mounting bracket", {
         note: "Raised bracket spans Battery 2 and ELT shelves; actuator sits above its deck (lead ruling; AMM Fig 22-10-6 sheet 3, PDF p. 606). ELT shelf per POH Fig 7-21 (7-92) and AMM Fig 25-60-1 (PDF 912). Dimensions approximate.",
       });
   } else {
     detail(
+      "servo-detail.10",
       // Pitch plate matches the actuator height so the ELT remote cable's floor run passes above it.
       () => box(...((axis === "z" ? [0.004, body.size[1], 0.12] : [0.004, 0.055, 0.075]) as Vec3)),
       k,
@@ -632,34 +679,40 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
   if (k === "pitch") {
     const face = body.c[0] + body.size[0] / 2,
       bulkhead = fsX(186);
-    detail(() => box(bulkhead - face, 0.014, 0.006), k, "Servo mounting bracket", {
+    detail("servo-detail.11", () => box(bulkhead - face, 0.014, 0.006), k, "Servo mounting bracket", {
       pos: [(face + bulkhead) / 2, body.c[1], body.c[2] + body.size[2] / 2 + 0.003],
       note: "Pitch bracket flange reaches bulkhead FS 186 (AMM Fig 22-10-4, PDF p. 584); dimensions approximate. Endpoints derive from actuator and bulkhead anchors.",
     });
   }
   const pulley = BRIDLE_PULLEYS[k];
   if (pulley) {
-    detail(() => cyl(pulley.r - 0.002, 0.009, "z"), k, "Bridle pulley", {
+    detail("servo-detail.12", () => cyl(pulley.r - 0.002, 0.009, "z"), k, "Bridle pulley", {
       pos: pulley.c,
       anim: (m) => {
         m.rotation.z = cableTravel(livePose(), b.keys[pulley.end]) / pulley.r;
       },
     });
-    detail(() => box(0.036, 0.003, 0.012), k, "Cable keeper", {
+    detail("servo-detail.13", () => box(0.036, 0.003, 0.012), k, "Cable keeper", {
       pos: [pulley.c[0], pulley.c[1] - pulley.r - 0.002, pulley.c[2]],
     });
-    detail(() => box(0.003, 0.012, 0.018), k, "Cable diverter", { pos: [c[0], c[1] - 0.037, c[2]] });
+    detail("servo-detail.14", () => box(0.003, 0.012, 0.018), k, "Cable diverter", { pos: [c[0], c[1] - 0.037, c[2]] });
   }
   for (const end of [0, 1])
-    detail(() => tubeGeo(grooveExit(k, end), CAPSTAN.cableR, 0), k, "Capstan groove exit transitions", {
-      color: "#DDD3B6",
-      note: `Bridle joins the groove ends to the tangential exits; routing and motion illustrative. ${DETAIL_NOTE(k)}`,
-      dynamicGeo: true,
-      anim: cableAnim(k, (pose) => tubeGeo(grooveExit(k, end, capstanAngle(k, pose)), CAPSTAN.cableR, 0)),
-    });
+    detail(
+      `servo-detail.15.${end}`,
+      () => tubeGeo(grooveExit(k, end), CAPSTAN.cableR, 0),
+      k,
+      "Capstan groove exit transitions",
+      {
+        color: "#DDD3B6",
+        note: `Bridle joins the groove ends to the tangential exits; routing and motion illustrative. ${DETAIL_NOTE(k)}`,
+        dynamicGeo: true,
+        anim: cableAnim(k, (pose) => tubeGeo(grooveExit(k, end, capstanAngle(k, pose)), CAPSTAN.cableR, 0)),
+      },
+    );
   // One tube per run, exit to clamp: the groove exit transitions and the wrap already join the two exits on the drum.
   for (const end of [0, 1])
-    detail(() => tubeGeo(bridleRun(k, end), CAPSTAN.cableR, 0), k, b.name, {
+    detail(`servo-detail.16.${end}`, () => tubeGeo(bridleRun(k, end), CAPSTAN.cableR, 0), k, b.name, {
       color: "#D8DDE1",
       note: b.note + " Motion and routing illustrative; clamp travel derives from primary pulley arc length.",
       pin: end === 0,
@@ -685,7 +738,7 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
           new THREE.Vector3(...offset).applyQuaternion(frame).add(new THREE.Vector3(...clampPosition(k, end, pose))),
         );
       };
-    detail(() => box(0.03, 0.012, 0.012), k, "Bridle cable clamp", {
+    detail(`servo-detail.17.${end}`, () => box(0.03, 0.012, 0.012), k, "Bridle cable clamp", {
       pos: p,
       rot,
       color: "#C9B98F",
@@ -693,7 +746,7 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
       note: `Bolted clamp on ${b.keys[end]} holding the ${k === "roll" ? (end === 0 ? "RH wing" : "LH wing") : end === 0 ? "long" : "short"} bridle end to its primary segment (${DETAIL_NOTE(k)}). Aligned with the local cable tangent through travel (AMM 22-10 PDF p. 589). Positions and motion illustrative. Clamp nuts 50 ± 5 in-lb (AMM 22-10 PDF p. ${k === "pitch" ? "579" : k === "roll" ? "589" : "598"}).${k === "roll" ? " The AMM names the roll ends by wing (PDF p. 587)." : ""}`,
     });
     const fitting: Vec3 = [0, BRIDLE_EXIT[k] * 0.008, 0];
-    detail(() => cyl(0.003, 0.02, "x"), k, "Bridle cable end fitting", {
+    detail(`servo-detail.18.${end}`, () => cyl(0.003, 0.02, "x"), k, "Bridle cable end fitting", {
       pos: at(fitting),
       rot,
       color: "#C9B98F",
@@ -701,7 +754,7 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
     });
     if (k === "pitch") {
       const spacer: Vec3 = [0, 0, 0.007];
-      detail(() => box(0.022, 0.002, 0.012), k, "Bridle clamp spacer", {
+      detail(`servo-detail.19.${end}`, () => box(0.022, 0.002, 0.012), k, "Bridle clamp spacer", {
         pos: at(spacer),
         rot,
         anim: anim(spacer),
@@ -710,6 +763,7 @@ function detail(geo: () => THREE.BufferGeometry, k: Axis3, name: string, opts: P
   });
 });
 part(() => box(GTA82.size[0] + 0.012, 0.003, GTA82.size[2] + 0.012), ["controls"], {
+  id: "parts.controls-trim.gta-82-mounting-plate.018",
   chan: ["elevator"],
   pos: [GTA82.c[0], GTA82.c[1] - GTA82.size[1] / 2 - 0.0015, GTA82.c[2]],
   color: STEEL,
@@ -723,6 +777,7 @@ export const GTA82_HARNESS: Vec3[] = [
   [SERVO_BODIES.pitch.c[0], SERVO_BODIES.pitch.c[1], SERVO_BODIES.pitch.c[2] + SERVO_BODIES.pitch.size[2] / 2],
 ];
 part(() => tubeGeo(GTA82_HARNESS, 0.002, 0), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-adapter-pitch-servo-harness.019",
   chan: ["elevator"],
   color: "#E0A146",
   name: "Pitch trim adapter → pitch servo harness",

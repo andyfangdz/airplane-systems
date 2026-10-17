@@ -285,8 +285,8 @@ describe("simulation snapshots", () => {
 
   it("publishes successive part batches and restores all parts after a progressive build", () => {
     const cat = new Catalogue("compiler-probe");
-    const a = cat.part(() => box(1, 1, 1), ["fuel"], { name: "A" });
-    const b = cat.part(() => box(1, 1, 1), ["fuel"], { name: "B" });
+    const a = cat.part(() => box(1, 1, 1), ["fuel"], { id: "tests.react.compiler.test.a.001", name: "A" });
+    const b = cat.part(() => box(1, 1, 1), ["fuel"], { id: "tests.react.compiler.test.b.002", name: "B" });
     const building = beginParts(cat);
     render(<BuiltPartNames cat={cat} />);
     expect(document.body.textContent).toBe("");

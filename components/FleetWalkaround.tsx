@@ -11,17 +11,12 @@ import * as THREE from "three";
 import { useStore } from "zustand";
 import { Pin } from "./scene/Part";
 import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
-import {
-  fleetStationStart,
-  fleetStepSide,
-  fleetTally,
-  fleetWalkClock,
-  WALK_MAP_MARK_R,
-  type FleetWalkStep,
-} from "@/lib/fleet-walk";
+import { fleetStationStart, fleetTally, fleetWalkClock, WALK_MAP_MARK_R, type FleetWalkStep } from "@/lib/fleet-walk";
 import type { FleetWalkController, FleetWalkPhase } from "@/lib/fleet-walk-store";
+import { useAircraftSceneReady } from "@/lib/aircraft-session";
+import { view as scene } from "@/lib/registry";
 import { SPOT_COLOR } from "@/lib/spot";
-import { revealStage, useView } from "@/lib/view";
+import { revealStage, useView, type AircraftSessionOwner } from "@/lib/view";
 import "./walkaround.css";
 
 /** Wait after flying to a station before framing the item, ms (the camera flight takes 1 s). */
@@ -62,9 +57,24 @@ function useStepScene<S>(
   phase: FleetWalkPhase,
 ) {
   const previousStation = useRef<number | null>(null);
+  const ready = useAircraftSceneReady(controller.logic.data.id);
+  const canFrame = !!step && ready;
+  const deferred = useRef<{
+    owner: AircraftSessionOwner | null;
+    step: FleetWalkStep<S>;
+    moves: number;
+    cam: number | undefined;
+  } | null>(null);
   useEffect(() => {
-    const { flyTo } = useView.getState();
+    const { flyTo, session: owner, walking } = useView.getState();
+    const session = controller.session();
+    if (!walking || !session.prior || (owner && owner.aircraft !== controller.logic.data.id)) return;
+    const isCurrent = () => {
+      const view = useView.getState();
+      return view.session === owner && view.walking && controller.session().steps === session.steps;
+    };
     if (!step) {
+      deferred.current = null;
       // intro and resume: the first station's view; finished: the whole airplane
       useView.setState({ spot: null, sys: "overview" });
       const first = controller.logic.data.stations[0].cam;
@@ -75,9 +85,23 @@ function useStepScene<S>(
     }
     useView.setState({
       sys: step.item.system ?? "overview",
-      spot: { names: controller.logic.stepParts(step).shown, side: fleetStepSide(step) },
+      spot: controller.logic.stepSpot(step),
       focus: null,
     });
+    if (!canFrame) {
+      // The card and station selection work while assets load; exact part framing needs prepared geometry.
+      flyTo(step.station.cam.p, step.station.cam.t);
+      previousStation.current = step.station.n;
+      deferred.current = { owner, step, moves: scene.moves, cam: useView.getState().cam?.id };
+      return controller.cancelFrame;
+    }
+    const pending = deferred.current;
+    deferred.current = null;
+    if (pending?.owner === owner && pending.step === step) {
+      // A camera gesture or another camera request while loading takes precedence over late item framing.
+      if (pending.moves === scene.moves && pending.cam === useView.getState().cam?.id) controller.frame(step);
+      return controller.cancelFrame;
+    }
     if (previousStation.current === step.station.n) {
       controller.frame(step);
       return controller.cancelFrame;
@@ -85,12 +109,14 @@ function useStepScene<S>(
     // a new station: walk to it first, then look at the item
     previousStation.current = step.station.n;
     flyTo(step.station.cam.p, step.station.cam.t);
-    const timer = setTimeout(() => controller.frame(step), STATION_SETTLE_MS);
+    const timer = setTimeout(() => {
+      if (isCurrent()) controller.frame(step);
+    }, STATION_SETTLE_MS);
     return () => {
       clearTimeout(timer);
       controller.cancelFrame();
     };
-  }, [controller, step, phase]);
+  }, [controller, step, phase, canFrame]);
 }
 /** Escape leaves the walk; the arrow keys step through the items, unless a form control has focus. */
 function useSession<S>(controller: FleetWalkController<S>, at: number, walking: boolean) {
@@ -167,12 +193,13 @@ function MiniMap<S>({
   marks: Record<string, string>;
 }) {
   const { data, copy, sightLine } = controller.logic;
+  const ready = useAircraftSceneReady(data.id);
   // airplane [x, z] → map: right wing to the right, nose up
   const px = (z: number) => z * 10,
     py = (x: number) => -x * 10;
   // an item checked from somewhere else: the line of sight from where the pilot stands
   const step = steps[at];
-  const sight = useMemo(() => (step ? sightLine(step) : null), [sightLine, step]);
+  const sight = useMemo(() => (ready && step ? sightLine(step) : null), [ready, sightLine, step]);
   return (
     <svg className="walk-map" viewBox={copy.map.viewBox} role="group" aria-label={copy.mapLabel}>
       <title>{copy.mapTitle}</title>
@@ -513,11 +540,12 @@ const ARROW_LEN = 0.12, // approximate: display size, not a source value
  * the model doesn't have stay explicit in the study card.
  */
 export function FleetWalkMarker<S>({ controller }: { controller: FleetWalkController<S> }) {
+  const ready = useAircraftSceneReady(controller.logic.data.id);
   const walking = useView((v) => v.walking && v.ac === controller.logic.data.id),
     phase = useStore(controller.store, (w) => w.phase),
     at = useStore(controller.store, (w) => w.at),
     steps = useStore(controller.store, (w) => w.steps);
-  const step = walking && phase === "walk" ? steps[at] : undefined;
+  const step = ready && walking && phase === "walk" ? steps[at] : undefined;
   const centre = useMemo(() => (step ? controller.logic.stepCentroid(step) : null), [controller, step]);
   if (!step || !centre) return null;
   return (

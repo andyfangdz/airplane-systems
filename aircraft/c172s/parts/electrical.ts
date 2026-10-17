@@ -14,6 +14,7 @@ export const MAIN_BATTERY: Vec3 = P3(-5, -15.5, 50.5);
 export const BATTERY_TERMINAL: Vec3 = [MAIN_BATTERY[0], MAIN_BATTERY[1] - 0.1, MAIN_BATTERY[2]];
 export const JBOX: Vec3 = P3(-2.5, -15, 43);
 part(() => box(0.12, 0.2, 0.18), ["electrical"], {
+  id: "parts.electrical.main-battery-24-v.001",
   pos: MAIN_BATTERY,
   color: ELEC,
   anim: glow(ELEC, () => EL().mBatt < -0.5, ["electrical"], "#FF8A3D"),
@@ -22,6 +23,7 @@ part(() => box(0.12, 0.2, 0.18), ["electrical"], {
   pin: true,
 });
 part(() => box(0.1, 0.16, 0.14), ["electrical"], {
+  id: "parts.electrical.power-distribution-module-j-box.002",
   pos: JBOX,
   color: "#8A7A3A",
   fairing: true,
@@ -30,6 +32,7 @@ part(() => box(0.1, 0.16, 0.14), ["electrical"], {
   pin: true,
 });
 part(() => box(0.05, 0.05, 0.04), ["electrical"], {
+  id: "parts.electrical.alternator-control-unit-acu.003",
   pos: P3(-1.75, -14, 44.5),
   color: "#C9B98F",
   name: "Alternator Control Unit (ACU)",
@@ -37,12 +40,14 @@ part(() => box(0.05, 0.05, 0.04), ["electrical"], {
   pin: true,
 });
 part(() => box(0.03, 0.03, 0.05), ["electrical"], {
+  id: "parts.electrical.main-battery-current-shunt.004",
   pos: P3(-2, -16.5, 41.5),
   color: "#8C959C",
   name: "Main battery current shunt",
   note: "Ammeter transducer → M BATT AMPS. The starter draws upstream of it, so cranking current doesn't show (Fig. 7-7 Sheet 1).",
 });
 part(() => box(0.07, 0.08, 0.015), ["electrical"], {
+  id: "parts.electrical.external-power-receptacle.005",
   pos: PV(onSkin(X(-3), Y(40), -1, 1.012)),
   color: ELEC,
   name: "External power receptacle",
@@ -58,6 +63,7 @@ const DRIVE = alternatorDrive(P3, {
 });
 export const ALTERNATOR = DRIVE.position;
 part(DRIVE.bodyGeo, ["electrical", "engine"], {
+  id: "parts.electrical.alternator-28-v-60-a.006",
   pos: ALTERNATOR,
   color: ELEC,
   anim: glow(ELEC, () => EL().altOn, ["electrical", "engine", "overview"], "#FFD34D"),
@@ -66,11 +72,13 @@ part(DRIVE.bodyGeo, ["electrical", "engine"], {
   pin: true,
 });
 part(DRIVE.beltGeo, ["electrical", "engine"], {
+  id: "parts.electrical.alternator-belt.007",
   color: "#20262B",
   name: "Alternator belt",
   note: "A broken belt is a common cause of alternator failure (POH 3-36).",
 });
 part(() => box(0.14, 0.12, 0.16), ["electrical"], {
+  id: "parts.electrical.standby-battery.008",
   pos: P3(11.2, -14, 51),
   color: ELEC,
   anim: glow(ELEC, () => EL().stbyOnline, ["electrical"], "#FF8A3D"),
@@ -79,12 +87,14 @@ part(() => box(0.14, 0.12, 0.16), ["electrical"], {
   pin: true,
 });
 part(() => box(0.06, 0.05, 0.08), ["electrical"], {
+  id: "parts.electrical.standby-battery-controller.009",
   pos: P3(12, -9.5, 54.7),
   color: "#8A7A3A",
   name: "Standby battery controller",
   note: "On/off control, test load and overheat switch, current shunt with two 5 A fuses; senses main bus voltage through the WARN breaker. 25 A fuse at the battery (Fig. 7-7 Sheet 3).",
 });
 part(() => box(0.012, 0.025, 0.02), ["electrical"], {
+  id: "parts.electrical.stby-batt-switch.010",
   pos: P3(18.1, -18.3, 64.4),
   color: "#C9D0D5",
   anim: (m) => {
@@ -97,6 +107,7 @@ part(() => box(0.012, 0.025, 0.02), ["electrical"], {
 });
 // right of the switch, short of the PFD's left edge (BL −15.9)
 part(() => sph(0.008), ["electrical"], {
+  id: "parts.electrical.stby-batt-test-lamp.011",
   pos: P3(18.1, -17.2, 64.4),
   color: "#1E5A2A",
   anim: glow("#1E5A2A", () => EL().testLamp, ["electrical"], "#33FF66"),
@@ -105,6 +116,7 @@ part(() => sph(0.008), ["electrical"], {
 });
 // MASTER and AVIONICS side by side below STBY BATT (POH 7-10, Fig. 7-2; photos)
 part(() => box(0.012, 0.04, 0.03), ["electrical"], {
+  id: "parts.electrical.master-switch-alt-bat.012",
   pos: P3(18.1, -18.4, 60.6),
   color: "#C8313B",
   anim: (m) => {
@@ -115,6 +127,7 @@ part(() => box(0.012, 0.04, 0.03), ["electrical"], {
   pin: true,
 });
 part(() => box(0.012, 0.04, 0.03), ["electrical", "avionics"], {
+  id: "parts.electrical.avionics-switch-bus-1-bus-2.013",
   pos: P3(18.1, -16.9, 60.6),
   color: "#E8ECEE",
   anim: (m) => {
@@ -126,6 +139,7 @@ part(() => box(0.012, 0.04, 0.03), ["electrical", "avionics"], {
 });
 // three rows just below the switch panel, under the control wheel, with panel below them to the lower edge (NAV III panel photos)
 part(() => box(0.012, 0.075, 0.25), ["electrical"], {
+  id: "parts.electrical.circuit-breaker-panel.014",
   pos: P3(17.8, -10.2, 49.6),
   color: "#3A3424",
   name: "Circuit breaker panel",
@@ -133,6 +147,7 @@ part(() => box(0.012, 0.075, 0.25), ["electrical"], {
   pin: true,
 });
 part(() => box(0.012, 0.07, 0.12), ["electrical", "lighting"], {
+  id: "parts.electrical.switch-panel.015",
   pos: P3(17.8, -13.3, 53.4),
   color: "#2F3A42",
   name: "Switch panel",
@@ -142,15 +157,22 @@ part(() => box(0.012, 0.07, 0.12), ["electrical", "lighting"], {
 // switch panel rockers, up = ON (POH 7-11): BEACON, LAND, TAXI, NAV, STROBE on top; FUEL PUMP, PITOT HEAT, CABIN PWR 12V below
 switchRows([
   [
-    () => S().lights.beacon,
-    () => S().lights.land,
-    () => S().lights.taxi,
-    () => S().lights.nav,
-    () => S().lights.strobe,
+    { id: "lights-beacon", on: () => S().lights.beacon },
+    { id: "lights-land", on: () => S().lights.land },
+    { id: "lights-taxi", on: () => S().lights.taxi },
+    { id: "lights-nav", on: () => S().lights.nav },
+    { id: "lights-strobe", on: () => S().lights.strobe },
   ],
-  [() => S().fuel.pump, () => S().pitot.heat, () => S().lights.cabinPwr],
-]).forEach(([y, z, on]) =>
+  [
+    { id: "fuel-pump", on: () => S().fuel.pump },
+    { id: "pitot-heat", on: () => S().pitot.heat },
+    { id: "lights-cabinPwr", on: () => S().lights.cabinPwr },
+  ],
+]).forEach(([y, z, { id, on }]) =>
   part(() => box(0.01, 0.022, 0.012), ["electrical", "lighting"], {
+    id: "parts.electrical.part.016",
+    instance: [id],
+
     pos: [X(17.8) - 0.011, Y(53.4) + y, Z(-13.3) + z],
     color: "#D8DDE0",
     anim: (m) => {
@@ -159,14 +181,20 @@ switchRows([
   }),
 );
 // breaker heads: CROSSFEED, BUS 1 and BUS 2 on the left, ESS, AVN BUS 1 and AVN BUS 2 on the right
-part(() => cbHeads(13), ["electrical", "avionics"], { pos: [X(17.8) - 0.009, Y(49.6), Z(-10.2)], color: "#1A1D20" });
+part(() => cbHeads(13), ["electrical", "avionics"], {
+  id: "parts.electrical.part.017",
+  pos: [X(17.8) - 0.009, Y(49.6), Z(-10.2)],
+  color: "#1A1D20",
+});
 part(() => box(0.08, 0.06, 0.1), ["electrical", "cabin"], {
+  id: "parts.electrical.12-v-power-converter.018",
   pos: P3(12, 16, 50),
   color: "#8A7A3A",
   name: "12 V power converter",
   note: "Forward of the right panel: 28 → 12 V, up to 10 A to the POWER OUTLET 12V–10A on the pedestal. CABIN PWR 12V switch; not for flight-critical devices; off for takeoff and landing (POH 7-77, 2-19).",
 });
 part(() => cyl(0.012, 0.02, "x"), ["electrical", "cabin"], {
+  id: "parts.electrical.power-outlet-12v-10a.019",
   pos: P3(25.9, -1, 33.5),
   color: "#20262B",
   name: "POWER OUTLET 12V–10A",

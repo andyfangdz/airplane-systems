@@ -27,6 +27,8 @@ const bladeGeo = () => {
 };
 for (let i = 0; i < 2; i++)
   part(bladeGeo, ["propeller", "engine"], {
+    id: "parts.engine.propeller-blade.001",
+    instance: [i],
     parent: "blade:" + i,
     color: "#2E3439",
     name: "Propeller blade",
@@ -36,6 +38,7 @@ for (let i = 0; i < 2; i++)
     pinIn: [],
   });
 part(() => cyl(0.09, 0.1, "x", 20), ["propeller"], {
+  id: "parts.engine.propeller-hub.002",
   pos: [PROP[0] - 0.02, 0, 0],
   color: "#4A5158",
   name: "Propeller hub",
@@ -52,6 +55,7 @@ export const CYLS = [
   { n: 4, x: 2.51, s: -1 },
 ];
 part(() => box(0.62, 0.26, 0.3), ["engine"], {
+  id: "parts.engine.lycoming-o-360-a1d.003",
   pos: [2.58, -0.02, 0],
   color: "#7C858C",
   fairing: true,
@@ -60,6 +64,7 @@ part(() => box(0.62, 0.26, 0.3), ["engine"], {
   pin: true,
 });
 part(() => box(0.44, 0.1, 0.26), ["engine"], {
+  id: "parts.engine.oil-sump-wet-sump.004",
   pos: [2.58, -0.2, 0],
   color: "#6A737A",
   fairing: true,
@@ -70,6 +75,8 @@ part(() => box(0.44, 0.1, 0.26), ["engine"], {
 CYLS.forEach((c) => {
   const parent = "cyl:" + c.n;
   part(() => cyl(0.07, 0.18, "z", 18), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.005",
     parent,
     color: "#7C858C",
     fairing: true,
@@ -80,12 +87,16 @@ CYLS.forEach((c) => {
   });
   for (let k = -2; k <= 2; k++)
     part(() => cyl(0.085, 0.008, "z", 18), ["engine"], {
+      id: "parts.engine.part.006",
+      instance: [k, c.n, parent],
       parent,
       pos: [0, 0, k * 0.032],
       color: "#8C959C",
       fairing: true,
     });
   part(() => box(0.14, 0.14, 0.05), ["engine"], {
+    instance: [c.n, parent],
+    id: "parts.engine.part.007",
     parent,
     pos: [0, 0, c.s * 0.11],
     color: "#6A737A",
@@ -95,12 +106,14 @@ CYLS.forEach((c) => {
   });
   (
     [
-      ["U", 0.055],
-      ["L", -0.055],
+      ["u", ["U", 0.055]],
+      ["l", ["L", -0.055]],
     ] as const
-  ).forEach(([pos, dy]) => {
+  ).forEach(([instance1, [pos, dy]]) => {
     const mag = c.s > 0 === (pos === "L") ? "R" : "L";
     part(() => cyl(0.014, 0.05, "x", 10), ["engine"], {
+      id: "parts.engine.part.008",
+      instance: [instance1, c.n, parent],
       parent,
       pos: [-0.09, dy, c.s * 0.11],
       color: "#DADFE2",
@@ -111,6 +124,7 @@ CYLS.forEach((c) => {
   });
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
+  id: "parts.engine.right-magneto.009",
   pos: [2.26, 0.07, 0.11],
   color: "#3E4A52",
   anim: magAnim(fires("R")),
@@ -119,6 +133,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
+  id: "parts.engine.left-magneto-retard-points.010",
   pos: [2.26, 0.07, -0.11],
   color: "#3E4A52",
   anim: magAnim(fires("L")),
@@ -127,6 +142,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => box(0.06, 0.08, 0.1), ["engine", "electrical"], {
+  id: "parts.engine.starting-vibrator.011",
   pos: [FW + 0.04, 0.12, 0.0],
   color: "#4B5860",
   anim: glow("#4B5860", "#6FD8FF", () => sim().E.vibrator, ["engine", "electrical"]),
@@ -135,6 +151,7 @@ part(() => box(0.06, 0.08, 0.1), ["engine", "electrical"], {
   pin: true,
 });
 part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
+  id: "parts.engine.starter.012",
   pos: EQUIPMENT.starter,
   color: "#4B5860",
   anim: glow("#4B5860", "#E7B416", () => sim().E.starterOn, ["engine", "electrical"]),
@@ -143,6 +160,7 @@ part(() => box(0.12, 0.11, 0.12), ["engine", "electrical"], {
   pin: true,
 });
 part(() => box(0.1, 0.12, 0.1), ["engine", "fuel"], {
+  id: "parts.engine.carburetor-marvel-schebler-ma-4-5.013",
   pos: EQUIPMENT.carburetor,
   color: "#7E8A93",
   fairing: true,
@@ -151,6 +169,7 @@ part(() => box(0.1, 0.12, 0.1), ["engine", "fuel"], {
   pin: true,
 });
 part(() => box(0.14, 0.1, 0.16), ["engine"], {
+  id: "parts.engine.carburetor-air-box-filter.014",
   pos: EQUIPMENT.airbox,
   color: "#C9B98F",
   anim: (m) => {
@@ -161,6 +180,7 @@ part(() => box(0.14, 0.1, 0.16), ["engine"], {
   pin: true,
 });
 part(() => box(0.03, 0.08, 0.1), ["engine"], {
+  id: "parts.engine.carburetor-heat-valve.015",
   pos: EQUIPMENT.carbHeatValve,
   color: "#E0B040",
   anim: (m) => {
@@ -172,6 +192,7 @@ part(() => box(0.03, 0.08, 0.1), ["engine"], {
   pinIn: [],
 });
 part(() => cyl(0.055, 0.28, "z"), ["engine", "environment"], {
+  id: "parts.engine.exhaust-manifold-muffler.016",
   pos: EQUIPMENT.exhaust,
   color: "#8A5A3C",
   name: "Exhaust manifold & muffler",
@@ -194,6 +215,7 @@ part(
   },
   ["environment", "engine"],
   {
+    id: "parts.engine.heat-muff.017",
     pos: EQUIPMENT.exhaust,
     color: "#E0522B",
     fairing: true,
@@ -203,6 +225,7 @@ part(
   },
 );
 part(() => box(0.1, 0.16, 0.06), ["engine"], {
+  id: "parts.engine.oil-cooler.018",
   pos: [2.55, -0.26, -0.3],
   color: "#9A6A48",
   name: "Oil cooler",
@@ -210,6 +233,7 @@ part(() => box(0.1, 0.16, 0.06), ["engine"], {
   pin: true,
 });
 part(() => cyl(0.04, 0.1, "x"), ["engine"], {
+  id: "parts.engine.oil-filter-optional.019",
   pos: [FW + 0.06, -0.1, -0.2],
   color: "#9A6A48",
   name: "Oil filter (optional)",
@@ -218,6 +242,8 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
 });
 [1, -1].forEach((s) =>
   part(() => box(0.2, 0.012, 0.16), ["engine"], {
+    instance: [s],
+    id: "parts.engine.cowl-flap-fixed.020",
     pos: [2.08, botY(2.08) + 0.03, s * 0.16],
     rot: [0, 0, 0.2],
     color: "#8C959C",
@@ -227,13 +253,18 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
     pin: s > 0,
   }),
 );
-[
-  [1, 1],
-  [1, -1],
-  [-1, 1],
-  [-1, -1],
-].forEach(([a, b]) =>
+(
+  [
+    ["member-1", [1, 1]],
+    ["member-2", [1, -1]],
+    ["member-3", [-1, 1]],
+    ["member-4", [-1, -1]],
+  ] as const
+).forEach(([instance2, [a, b]]) =>
   part(() => cyl(0.03, 0.04, "x", 12), ["engine", "airframe"], {
+    id: "parts.engine.engine-mount-bushing-lord.021",
+    instance: [instance2],
+
     pos: [FW + 0.25, a * 0.16 - 0.05, b * 0.2],
     color: "#1E2226",
     name: "Engine mount bushing (Lord)",
@@ -242,6 +273,7 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
   }),
 );
 part(() => cyl(0.025, 0.05, "x"), ["engine", "vacuum"], {
+  id: "parts.engine.engine-driven-vacuum-pump.022",
   pos: [2.28, -0.08, 0.0],
   color: "#3A9448",
   anim: glow("#2A6A34", "#5FD36E", () => live.vac > 3.5, ["vacuum", "engine"]),
@@ -250,6 +282,7 @@ part(() => cyl(0.025, 0.05, "x"), ["engine", "vacuum"], {
   pin: true,
 });
 part(() => cyl(0.06, 0.12, "x"), ["electrical", "engine"], {
+  id: "parts.engine.alternator-12-v-60-a.023",
   pos: [2.8, -0.18, -0.2],
   color: "#D9960F",
   anim: glow("#5A5040", "#D9960F", () => sim().E.genOn, ["electrical", "engine"]),
@@ -258,6 +291,7 @@ part(() => cyl(0.06, 0.12, "x"), ["electrical", "engine"], {
   pin: true,
 });
 part(() => box(0.08, 0.08, 0.1), ["engine", "fuel"], {
+  id: "parts.engine.engine-driven-fuel-pump.024",
   pos: [2.3, -0.2, -0.16],
   color: "#7E8A93",
   name: "Engine-driven fuel pump",
@@ -270,40 +304,55 @@ const Q = { x: PANEL_X - 0.02, y: -0.17 };
 (
   [
     [
-      "Throttle",
-      -0.1,
-      "#1B1F23",
-      () => sim().s.eng.throttle,
-      "Push-pull throttle control on the panel regulates manifold pressure (OM p. 2). Pump it twice to prime (OM p. 15). Full retard with the gear up sounds the horn.",
-      ["engine"],
+      "throttle",
+      [
+        "Throttle",
+        -0.1,
+        "#1B1F23",
+        () => sim().s.eng.throttle,
+        "Push-pull throttle control on the panel regulates manifold pressure (OM p. 2). Pump it twice to prime (OM p. 15). Full retard with the gear up sounds the horn.",
+        ["engine"],
+      ] as [string, number, string, () => number, string, SysId[]],
     ],
     [
-      "Mixture (hexagon knob)",
-      -0.05,
-      "#C8313B",
-      () => sim().s.eng.mix,
-      "Hexagon-shaped push-pull control between throttle and propeller (OM p. 2). Full forward = rich; full out = idle cut-off. Lean with the optional EGT: peak then 25 °F lean for economy, 100 °F rich of peak for best power (OM p. 20). Don't lean above 75 % power.",
-      ["engine", "fuel"],
+      "mixture-hexagon-knob",
+      [
+        "Mixture (hexagon knob)",
+        -0.05,
+        "#C8313B",
+        () => sim().s.eng.mix,
+        "Hexagon-shaped push-pull control between throttle and propeller (OM p. 2). Full forward = rich; full out = idle cut-off. Lean with the optional EGT: peak then 25 °F lean for economy, 100 °F rich of peak for best power (OM p. 20). Don't lean above 75 % power.",
+        ["engine", "fuel"],
+      ] as [string, number, string, () => number, string, SysId[]],
     ],
     [
-      "Propeller control",
-      0.0,
-      "#2D63B8",
-      () => sim().s.eng.prop,
-      "Push-pull control operating the governor: sets and holds engine RPM by adjusting blade angle (OM p. 2). Exercise at 1,800–2,000 RPM, 100 RPM drop (OM p. 18).",
-      ["engine", "propeller"],
+      "propeller-control",
+      [
+        "Propeller control",
+        0.0,
+        "#2D63B8",
+        () => sim().s.eng.prop,
+        "Push-pull control operating the governor: sets and holds engine RPM by adjusting blade angle (OM p. 2). Exercise at 1,800–2,000 RPM, 100 RPM drop (OM p. 18).",
+        ["engine", "propeller"],
+      ] as [string, number, string, () => number, string, SysId[]],
     ],
     [
-      "Carburetor heat",
-      0.06,
-      "#1B1F23",
-      () => sim().s.eng.carbHeat,
-      "Pull for full heat when power is reduced for descent or landing (OM p. 22). Unfiltered air — avoid on the ground except to test (Ranger 2-4).",
-      ["engine"],
+      "carburetor-heat",
+      [
+        "Carburetor heat",
+        0.06,
+        "#1B1F23",
+        () => sim().s.eng.carbHeat,
+        "Pull for full heat when power is reduced for descent or landing (OM p. 22). Unfiltered air — avoid on the ground except to test (Ranger 2-4).",
+        ["engine"],
+      ] as [string, number, string, () => number, string, SysId[]],
     ],
-  ] as [string, number, string, () => number, string, SysId[]][]
-).forEach(([name, z, color, val, note, sys]) => {
+  ] as const
+).forEach(([instance3, [name, z, color, val, note, sys]]) => {
   part(() => cyl(0.013, 0.03, "x", 14), sys, {
+    id: "parts.engine.part.025",
+    instance: [instance3],
+
     pos: [Q.x, Q.y, z],
     color,
     anim: knobAnim(Q.x, val),
@@ -313,12 +362,16 @@ const Q = { x: PANEL_X - 0.02, y: -0.17 };
     pinIn: sys,
   });
   part(() => cyl(0.004, 0.08, "x", 6), sys, {
+    id: "parts.engine.part.026",
+    instance: [instance3],
+
     pos: [Q.x + 0.04, Q.y, z],
     color: "#9AA3AA",
     anim: knobAnim(Q.x + 0.04, val),
   });
 });
 part(() => box(0.03, 0.03, 0.03), ["engine", "electrical"], {
+  id: "parts.engine.magneto-starter-switch.027",
   pos: [PANEL_X - 0.03, -0.1, -0.5],
   color: "#A8B0B6",
   anim: (m) => {
