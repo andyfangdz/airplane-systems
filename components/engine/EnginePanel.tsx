@@ -1,5 +1,6 @@
 "use client";
 /** The engine page's side panel: start-from scenarios, controls, environment, failures, cylinders, and the documents. */
+import { remainingOilQt } from "@/engines/model/oil";
 import type { ReactNode } from "react";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import { governedRpm, prime, type MagSwitch } from "@/engines/model/engine";
@@ -611,7 +612,7 @@ function OilLost({ sim }: { sim: EngineSim }) {
   const s = useLiveSnapshot(sim.s, 250);
   const qt = sim.useUi((x) => x.env.oilQt);
   const lost = s.oilLossQt ?? 0,
-    left = qt - lost;
+    left = remainingOilQt(qt, lost);
   return (
     <Readouts
       items={[

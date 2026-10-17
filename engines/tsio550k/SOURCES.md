@@ -311,3 +311,5 @@ own algorithm (POH 7-36), and the POH cruise table is the target within a few pe
 - The propeller-flange station and the rocker-cover width on M-18 Figures 5-33 and 5-34.
 - The M-18 page for the spring-open wastegate. The open-spring fail-safe rests on a Teledyne Continental
   overhaul-manual excerpt for the TSIO-520 series and is consistent with POH 3-27 and 3-28.
+
+The stopped compressors’ own forward restriction is not modelled.

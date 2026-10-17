@@ -5,6 +5,7 @@ import { TSIO550K as K } from "@/engines/tsio550k/spec";
 import { noFailures, step } from "@/engines/model/engine";
 import { scenarioById } from "@/engines/model/scenarios";
 import { inductionCal } from "@/engines/model/induction";
+import { atmosphere, ramPressure } from "@/engines/model/atmosphere";
 import * as turbo from "@/engines/model/turbo";
 
 afterEach(() => vi.restoreAllMocks());
@@ -38,7 +39,16 @@ test.each([
   const working = K.turbo!.count - Number(left) - Number(right);
   const calls = drop.mock.calls.filter((c) => c[0] === K.turbo);
   if (working === 0) {
-    expect(calls).toHaveLength(0);
+    expect(calls.length).toBeGreaterThan(0);
+    const flows = power.mock.calls.filter((c) => c[0] === K.turbo).map((c) => c[2]);
+    calls.forEach((call, i) => {
+      expect(call[1]).toBe(flows[i]);
+      expect(call[2]).toBe(ref.mRef);
+    });
+    for (let i = 0; i < 800; i++) step(K, x.s, x.c, x.env, f, 0.05);
+    const air = atmosphere(x.env.altFt, x.env.isaDevC);
+    const source = ramPressure(air.p, air.t, x.env.tasKt, K.induction?.ramEta ?? 0.7);
+    expect(x.s.deckInHg).toBeLessThan(source);
     expect(Number.isFinite(x.s.compressorOutC)).toBe(true);
     expect(x.s.turboRpm).toEqual([0, 0]);
     return;

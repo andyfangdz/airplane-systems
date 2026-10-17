@@ -860,3 +860,32 @@ describe("text in the shared engine components", () => {
     expect(text.replace(/\bfour[- ]strokes?\b/gi, "")).not.toMatch(/\b(four|six|eight)\b/i);
   });
 });
+
+it("the oil control refills the sump after a leak (POH 4-8)", () => {
+  const sim = fresh(K);
+  sim.useUi.getState().setEnv({ oilQt: 8 });
+  const x = scenarioById(K, "cruise")!.run(K);
+  replaceState(sim, x.s);
+  sim.useUi.getState().setControls(x.c);
+  sim.useUi.getState().setFailures({ oilLeak: true });
+  const { container } = render(
+    <>
+      <EnginePanel sim={sim} />
+      <Flags sim={sim} />
+    </>,
+  );
+  live(sim, (s) => {
+    s.oilLossQt = 3;
+  });
+  expect(reading("Oil lost overboard")).toContain("5.0 qt left");
+  fireEvent.change(container.querySelector("#oil")!, { target: { value: "2" } });
+  expect(reading("Oil lost overboard")).toContain("2.0 qt left");
+  expect(container.textContent).not.toMatch(/-1(?:\.0)? qt/);
+  fireEvent.change(container.querySelector("#oil")!, { target: { value: "8" } });
+  expect(reading("Oil lost overboard")).toContain("8.0 qt left");
+  live(sim, () => {
+    for (let i = 0; i < 120; i++) sim.advance(1 / 120);
+  });
+  expect(sim.s.oilLossQt).toBeGreaterThan(0);
+  expect(sim.s.oilLossQt).toBeLessThan(1);
+});

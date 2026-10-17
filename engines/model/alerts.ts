@@ -8,6 +8,7 @@
  * spec's other limits (minimum manifold pressure at altitude, the TIT transient, turbine speed, takeoff oil
  * temperature, leaning, oil quantity, cranking) add study flags of their own, without one.
  */
+import { remainingOilQt } from "./oil";
 import type { Band, EngineSpec, Marking } from "../types";
 import type { Controls, EngineState, Environment, Failures } from "./engine";
 import { titContinuousMaxF, turbineRpmLimit } from "./turbo";
@@ -317,7 +318,7 @@ function markingFlags(
     const at = leanGaugeAbove(s.map, lean.value) ? `at ${s.map.toFixed(1)}` : `above ${lean.value}`;
     add("caut", `Leaned ${at} in.Hg: cruise leaning only at ${lean.value} in.Hg or less`, lean.src);
   }
-  const qt = env.oilQt - (s.oilLossQt ?? 0);
+  const qt = remainingOilQt(env.oilQt, s.oilLossQt);
   if (qt < L.oilMinQt.value)
     add("caut", `Oil quantity ${Number(qt.toFixed(1))} qt: below the ${L.oilMinQt.value} qt minimum`, L.oilMinQt.src);
   return out;

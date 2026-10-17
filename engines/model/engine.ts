@@ -8,6 +8,7 @@
  * chart scaled by what each cylinder actually burns (performance.ts, mixture.ts), shaft speed from engine, starter
  * and propeller torque (propeller.ts), then exhaust, head and oil temperatures and oil pressure.
  */
+import { remainingOilQt } from "./oil";
 import type { EngineSpec, Side, TurboSpec } from "../types";
 import { leanGaugeAbove, leanOverNext } from "./alerts";
 import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
@@ -216,6 +217,8 @@ export interface EngineState {
   reliefOpen?: boolean;
   /** Automatic alternate-air door open. Neutral: false. */
   altAirOpen?: boolean;
+  /** Previous turbo step's deck leakage and relief flow, kg/s; absent in older checkpoints means 0. */
+  deckLossKgS?: number;
   /** Oil lost to leaks this run, qt. Neutral: 0. */
   oilLossQt?: number;
   /** HIGH BOOST actually running (after the lockout). Neutral: false. */
@@ -478,7 +481,12 @@ function substep(
     // against its magnets, and the engine then draws unfiltered, warmer air from inside the cowl (turbo.ts). A clean
     // filter is no restriction.
     const box = f.filter
-      ? filterOutletInHg((intake.filterBlockedArea ?? 0.12) * ind.cdAFull, ram, air.t + 273.15, (s.air * LB_KG) / 3600)
+      ? filterOutletInHg(
+          (intake.filterBlockedArea ?? 0.12) * ind.cdAFull,
+          ram,
+          air.t + 273.15,
+          (s.air * LB_KG) / 3600 + (s.deckLossKgS ?? 0),
+        )
       : ram;
     const door = altAirDoorNext(spec, !!s.altAirOpen, ((air.p - box) * INHG_PA) / INH2O_PA);
     s.altAirOpen = door;
@@ -747,7 +755,7 @@ function substep(
   let oilP = s.rpm > 0 ? cal.oilPressPerRpm * Math.pow(s.rpm / 1000, 0.7) * Math.sqrt(visc) : 0;
   if (oilP > cal.oilRelief) oilP = cal.oilRelief + (oilP - cal.oilRelief) * 0.12;
   const [bare, covered] = spec.oil.pickupQt ?? [1.5, 3];
-  const sump = clamp((env.oilQt - (s.oilLossQt ?? 0) - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
+  const sump = clamp((remainingOilQt(env.oilQt, s.oilLossQt) - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
   oilP *= sump < 1 ? sump * (0.85 + 0.15 * Math.sin(s.t * 7)) : 1;
   // the turbochargers' supply from the oil cooler is a branch in parallel with the engine's passages: it takes
   // `turbo.oil.bleedPsi` at rated rpm, in proportion to the pump's flow (AMM 79-00 PDF 2764)
@@ -812,6 +820,9 @@ function turboStep(
     (f.inductionLeak ? turbo.leaks.inductionArea : 0) +
     (f.intercoolerLeak ?? [false, false]).filter(Boolean).length * turbo.leaks.intercoolerArea;
   const mL = deckLeak > 0 ? orificeFlow(deckLeak, s.deckInHg! * INHG_PA, s.matC! + 273.15, air.p * INHG_PA) : 0;
+  // Both vented flows must enter through the filter on the next induction step. Keep the neutral field absent
+  // for existing no-failure setups and default old checkpoints to zero at the reader.
+  if (mL + mR > 0 || s.deckLossKgS !== undefined) s.deckLossKgS = mL + mR;
   // a failed turbocharger's stopped compressor is an open path from the deck back through its intercooler to its air
   // box (the two paths join only at the throttle body, AMM 71-60 PDF 2542): the working compressor passes that
   // recirculating air as well (POH 3-28 cause 4: "a sudden loss of manifold pressure")
@@ -835,7 +846,9 @@ function turboStep(
   // deadCompressorArea includes the return path's stopped compressor, intercooler and duct losses (AMM 71-60).
   // Rated flow is shared by all paths; only the working paths carry the forward flow after a failure.
   const drop =
-    working > 0 ? intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef * (working / turbo.count), rho2, ref.rhoRef) : 0;
+    working > 0
+      ? intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef * (working / turbo.count), rho2, ref.rhoRef)
+      : intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef, rho2, ref.rhoRef);
   const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
   const prNow = Math.max(1, (deck + drop) / source);
   const t2 = compressorOut(turbo, t1, prNow);
