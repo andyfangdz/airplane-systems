@@ -763,6 +763,51 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
     });
   });
 
+  test("the intercooler outlet transitions and aft hoods face outward, whichever way they run", () => {
+    // their materials draw front faces only: each triangle, wound as drawn, and its vertex normals must point away from
+    // the cone's axis (its cross-sections are square to x, so the axis point is at the triangle's own station)
+    G.intercoolers.forEach((g, i) => {
+      const ic = T.intercoolers[i],
+        c = ic.core;
+      const zm = (c.zOut + c.zIn) / 2,
+        ym = (c.y0 + c.y1) / 2;
+      const cones = [
+        {
+          name: "outlet transition",
+          geo: g.front,
+          p0: new THREE.Vector3(c.x1, ym, zm),
+          p1: new THREE.Vector3(...ic.neck),
+        },
+        {
+          name: "aft hood",
+          geo: g.hood,
+          p0: new THREE.Vector3(c.x0, ym, zm),
+          p1: new THREE.Vector3(ic.aftPort.x0, ic.aftPort.y, ic.aftPort.z),
+        },
+      ];
+      for (const { name, geo, p0, p1 } of cones) {
+        const pos = geo.getAttribute("position"),
+          nrm = geo.getAttribute("normal"),
+          idx = geo.index!;
+        const v = [0, 1, 2].map(() => new THREE.Vector3());
+        const out = (p: THREE.Vector3) => p.clone().sub(p0.clone().lerp(p1, (p.x - p0.x) / (p1.x - p0.x)));
+        let inward = 0,
+          inwardNormals = 0;
+        for (let k = 0; k < idx.count; k += 3) {
+          v.forEach((x, j) => x.fromBufferAttribute(pos, idx.getX(k + j)));
+          const face = new THREE.Triangle(...(v as [THREE.Vector3, THREE.Vector3, THREE.Vector3]));
+          if (face.getArea() < 1e-12) continue;
+          const centre = face.getMidpoint(new THREE.Vector3());
+          if (face.getNormal(new THREE.Vector3()).dot(out(centre)) <= 0) inward++;
+          for (let j = 0; j < 3; j++)
+            if (new THREE.Vector3().fromBufferAttribute(nrm, idx.getX(k + j)).dot(out(v[j])) <= 0) inwardNormals++;
+        }
+        expect(inward, `${ic.side} ${name}: triangles wound inward`).toBe(0);
+        expect(inwardNormals, `${ic.side} ${name}: normals pointing inward`).toBe(0);
+      }
+    });
+  });
+
   test("the intercoolers are solid with X-ray off; in X-ray less see-through than the turbo housings, still under the pointer", async () => {
     const sim = simFor(S, "tsio550k-intercooler-opacity");
     const { scene, frame, unmount } = await mountScene(h(Turbo, { sim, d, mats: makeMats() }));

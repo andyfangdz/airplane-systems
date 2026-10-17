@@ -199,6 +199,16 @@ function frustum(p0: V3, r0: number, p1: V3, r1: number, segs = 20) {
       p0[2] + (p1[2] - p0[2]) * t + pos.getZ(i),
     );
   }
+  // the cylinder's x goes to y and its axis to p1 - p0: a mirror image when that axis runs forward (+x), which turns its
+  // triangles inside out, so they are rewound to face outward again
+  if (p1[0] > p0[0]) {
+    const idx = g.index!;
+    for (let i = 0; i < idx.count; i += 3) {
+      const b = idx.getX(i + 1);
+      idx.setX(i + 1, idx.getX(i + 2));
+      idx.setX(i + 2, b);
+    }
+  }
   g.computeVertexNormals();
   return g;
 }
