@@ -3,10 +3,11 @@
  * mixture, let the temperatures settle. Used by the page's "Start from" buttons and by the tests.
  */
 import type { EngineSpec } from "../types";
-import { atmosphere, INHG_PA, RHO0 } from "./atmosphere";
+import { atmosphere, INHG_PA } from "./atmosphere";
 import { type Controls, type EngineState, type Environment, type Failures, step } from "./engine";
-import { IDLE_SPRING_LBH } from "./fuel";
-import { AFR_STOICH } from "./mixture";
+import { mixtureForFlow } from "./fuel";
+import { inductionCal } from "./induction";
+import { turboMetering } from "./turbo";
 
 export interface Hold {
   /** Throttle holds this manifold pressure (inHg) or this rpm. */
@@ -16,7 +17,7 @@ export interface Hold {
   lambda?: number;
 }
 
-/** Mixture position that gives a mean λ at the current air flow (inverts the servo's metering). */
+/** Mixture position that gives a mean λ at the current air flow (inverts the spec's fuel metering, fuel.ts). */
 export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, lambda: number, current = 1) {
   // a carburetor's mixture valve scales main and idle flow alike: step the position by the λ error
   if (spec.fuelSystem.kind === "carburetor") {
@@ -25,10 +26,14 @@ export function mixtureFor(spec: EngineSpec, s: EngineState, env: Environment, l
   }
   const air = atmosphere(env.altFt, env.isaDevC);
   const rho = (s.inletInHg * INHG_PA) / (287.05 * (s.inletC + 273.15));
-  const far = 1 / (AFR_STOICH * spec.calibration.lambdaFullRich);
-  const want = s.air / (AFR_STOICH * lambda);
-  const perUnit = s.air * far * Math.sqrt(RHO0 / Math.max(rho || air.rho, 0.2)) + IDLE_SPRING_LBH;
-  return Math.max(0.03, Math.min(1, want / perUnit));
+  // a turbocharged -K meters on throttle angle and deck pressure, not the air it takes (turbo.ts): ask for the λ that,
+  // at the metered air and deck scale, gives this λ at the actual air. The angle's stand-in is the MAP without an
+  // intake leak, as the running engine reads it (engine.ts `meterMapInHg`).
+  if (spec.turbo && s.air > 0) {
+    const m = turboMetering(spec, inductionCal(spec).ve, s.rpm, s.meterMapInHg ?? s.map, s.deckInHg!);
+    return mixtureForFlow(spec, m.airLbH, (lambda * m.airLbH * m.scale) / s.air, rho || air.rho, m.scheduleLbH);
+  }
+  return mixtureForFlow(spec, s.air, lambda, rho || air.rho);
 }
 
 /** Run for `seconds` (real time for the shaft, `thermal`× for temperatures), steering the throttle and mixture. */

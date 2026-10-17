@@ -111,17 +111,19 @@ holding 2,500.
 
 ## Where the documents disagree
 
-| #   | What                                      | Used                                                                                                                                                                                                                                                                 | Not used                                                                                                                                                  |
-| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | Magneto-to-plug wiring                    | POH 7-37: the right magneto fires the lower right and upper left plugs                                                                                                                                                                                               | AMM 74-00 PDF 2604 and M-18 Figure 2-19 p. 2-20: the reverse                                                                                              |
-| C2  | Installed full-throttle manifold pressure | POH 4-14, 4-17: 36.0 in.Hg (36.0–37.0 with cold oil)                                                                                                                                                                                                                 | M-18 Table 2-2: rated at 37.5 (Figure 2-37 reaches 315 hp at 36.5)                                                                                        |
-| C3  | Overboost valve setting                   | POH 7-39: "at overly high manifold pressures" (no number). The model's deck setting is a fit at about 38.5 in.Hg, lifting at a manifold pressure of about 37.5–38 (inside the MAN PRESSURE warning band), never in normal operation, the cold-oil 37.0 case included | AMM 81-20 PDF 2812: "at 35 inHg", below the normal 36.0. AMM 81-20's 35 inHg is not used                                                                  |
-| C4  | Magneto drop differential                 | POH 4-15: 75 rpm                                                                                                                                                                                                                                                     | M-18 7-3.3 p. 7-8: 50 rpm                                                                                                                                 |
-| C5  | Minimum oil temperature for takeoff       | POH 2-6: 75 °F                                                                                                                                                                                                                                                       | M-18 Table 2-3: 100 °F (POH 4-14 still says warm-up is reached "in most cases" at 100 °F)                                                                 |
-| C6  | Oil-pressure gauge scale                  | POH 2-9: 0–100 psi                                                                                                                                                                                                                                                   | POH 7-36: 0–90 psi                                                                                                                                        |
-| C7  | Induction air at rated power              | not a target                                                                                                                                                                                                                                                         | M-18 Table 2-6: 41.5 lb/min. With the AMM fuel flow and the displacement it would need a volumetric efficiency of about 1.2; the starting fit is near 0.9 |
-| C8  | Idle                                      | POH 4-15: 600–750 rpm, with AMM 73-20 PDF 2589's 700 ± 25 as the fit point                                                                                                                                                                                           | M-18 Table 2-2: minimum 600                                                                                                                               |
-| C9  | Full-power fuel flow                      | AMM Figure 73-20-2 PDF 2592 band                                                                                                                                                                                                                                     | M-18 Figure 2-36 Rich / Lean Full Rich at 315 bhp: 220 / 210 lb/h, including return flow (Table 2-4)                                                      |
+| #   | What                                      | Used                                                                                                                                                                                                                                                                 | Not used                                                                                                                                                   |
+| --- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | Magneto-to-plug wiring                    | POH 7-37: the right magneto fires the lower right and upper left plugs                                                                                                                                                                                               | AMM 74-00 PDF 2604 and M-18 Figure 2-19 p. 2-20: the reverse                                                                                               |
+| C2  | Installed full-throttle manifold pressure | POH 4-14, 4-17: 36.0 in.Hg (36.0–37.0 with cold oil)                                                                                                                                                                                                                 | M-18 Table 2-2: rated at 37.5 (Figure 2-37 reaches 315 hp at 36.5)                                                                                         |
+| C3  | Overboost valve setting                   | POH 7-39: "at overly high manifold pressures" (no number). The model's deck setting is a fit at about 39.5 in.Hg, lifting at a manifold pressure of about 38.5–39 (inside the MAN PRESSURE warning band), never in normal operation, the cold-oil 37.0 case included | AMM 81-20 PDF 2812: "at 35 inHg", below the normal 36.0. AMM 81-20's 35 inHg is not used                                                                   |
+| C4  | Magneto drop differential                 | POH 4-15: 75 rpm                                                                                                                                                                                                                                                     | M-18 7-3.3 p. 7-8: 50 rpm                                                                                                                                  |
+| C5  | Minimum oil temperature for takeoff       | POH 2-6: 75 °F                                                                                                                                                                                                                                                       | M-18 Table 2-3: 100 °F (POH 4-14 still says warm-up is reached "in most cases" at 100 °F)                                                                  |
+| C6  | Oil-pressure gauge scale                  | POH 2-9: 0–100 psi                                                                                                                                                                                                                                                   | POH 7-36: 0–90 psi                                                                                                                                         |
+| C7  | Induction air at rated power              | not a target                                                                                                                                                                                                                                                         | M-18 Table 2-6: 41.5 lb/min. With the AMM fuel flow and the displacement it would need a volumetric efficiency of about 1.2; the model's is a fit of 0.863 |
+| C8  | Idle                                      | POH 4-15: 600–750 rpm, with AMM 73-20 PDF 2589's 700 ± 25 as the fit point                                                                                                                                                                                           | M-18 Table 2-2: minimum 600                                                                                                                                |
+| C9  | Full-power fuel flow                      | AMM Figure 73-20-2 PDF 2592 band                                                                                                                                                                                                                                     | M-18 Figure 2-36 Rich / Lean Full Rich at 315 bhp: 220 / 210 lb/h, including return flow (Table 2-4)                                                       |
+| C10 | 85 % cruise at 30.5 in.Hg                 | POH 5-32 to 5-34: 85 % (267.75 bhp) at 18.3 GPH and 30.5 in.Hg or less, flown at the table's fuel flow wherever λ lands (near peak), ± 4 %                                                                                                                           | M-18 Table 2-2: maximum recommended cruise 262 bhp at 30.5 in.Hg; Figure 2-37: 265.7 bhp best power there. Lean of peak at 30.5 cannot exceed either       |
+| C11 | Power against charge temperature          | POH 4-22, 5-32 to 5-34: lean of peak the power follows the fuel flow at every altitude. The running engine's chart power scales with the intercooled charge's density (`performance.chargeRefC`)                                                                     | M-18 Table 2-2 note 1 and 2-3.3.5: MAP and the 1 %/6 °F compressor-inlet law alone set the power (kept for the chart function `chartHp`)                   |
 
 Also not used: M-18's figures for operation on ASTM D7592 (UL94) fuel (Table 2-1 K 420 °F CHT, Table 2-2 K 232 bhp at
 27 in.Hg, Table 2-6 manifold temperature 130 / 115 °F); the model assumes 100 or 100LL. The POH 2-9 rpm red line
@@ -131,42 +133,141 @@ Also not used: M-18's figures for operation on ASTM D7592 (UL94) fuel (Table 2-1
 ## Not published: chosen to fit
 
 Everything in `calibration` and every constant of the turbocharger, wastegate, controller, intercooler and relief
-valve; the induction constants; valve timing and rod length; the propeller's pitch range and inertia (kept above M-18
-Table 2-7's minimum); the starter torque; the oil pickup; the nozzle curve; the start-cranking speed. Each is a
-starting value, to be fitted when the model runs this engine so that it reproduces the documented points above. In
-particular:
+valve; the induction constants; valve timing and rod length; the propeller's pitch range, power-coefficient scale and
+inertia (kept above M-18 Table 2-7's minimum); the starter torque; the oil pickup; the nozzle curve; the start-cranking
+speed. Each is fitted on the running engine so that it reproduces the documented points above, and
+`tests/tsio550k-engine.test.ts` holds those points. In particular:
 
-- **Full-rich schedule** (`fuelSystem.fullRichLambda`): first cut λ(x) = 0.58 · x · F(1) / F(x), F the Figure 2-36
-  mid-band, air fraction taken as bhp / 315: ≈ 0.775 at 55 % flat to about 85 %, falling to 0.58 at rated air (the AMM
-  full-power band). It does not richen with altitude below the critical altitude, as the POH's constant climb fuel flow
-  shows.
-- **Turbocharger** (`turbo`): a quasi-steady power balance. Starting values are sized at the 18,000 ft critical
-  altitude (pressure ratio ≈ 2.45, gate closed, ≈ 0.25 kg/s of air): efficiencies 0.7, turbine nozzle 1.6 × 10⁻³ m² per
-  side, spool lag 1.5 s, shaft speed 105,000 rpm at that pressure ratio (illustrative; it keeps normal operation under
-  Figure 2-41's limit).
-- **Wastegate controller**: a differential ("sloped") controller with no absolute reference, as the documents describe
-  it. Full-throttle manifold pressure is to hold 36.0 in.Hg up to the critical altitude through the controller's slope
-  (the POH's 36.0 and M-18's 18,000 ft). Cold oil raises manifold pressure through the higher oil pressure on the
-  wastegate actuator (the POH's 36.0–37.0).
+- **Fuel metering of the turbocharged engine**: on rpm, throttle angle and deck (compressor-discharge) pressure, not on
+  the charge's density (POH 7-38 "in proportion to engine RPM, mixture setting, and throttle angle"; M-18 2-1). The
+  pressure ratio across the throttle stands in for its angle: the metering is set for the air a standard-day
+  sea-level engine takes at the MAP the throttle would give from the rated deck, and scaled by the deck pressure. Full
+  throttle therefore meters the rated mixture at every altitude, and above the critical altitude fuel flow follows the
+  deck (engines/model/turbo.ts `turboMetering`). The full-rich schedule reads that throttle-angle stand-in at rated
+  rpm, and the flow then scales with the engine's own rpm: a change of rpm moves the flow in proportion, not along the
+  schedule. Read at the actual rpm, the schedule's steep end near rated air (fuel about a⁵·⁹ between air fractions
+  0.946 and 1.0) leaned the engine as rpm dipped, and the fixed governor limit-cycled: 2,362–2,666 rpm lean of peak at
+  10,000 ft, 2,121–2,973 rpm leaned past peak at full power. A schedule reshaped inside Figure 2-36's band does not
+  remove it. At 2,500 rpm the two readings are the same.
+- **Full-rich schedule** (`fuelSystem.fullRichLambda`): λ 0.80 / 0.78 / 0.768 / 0.76 at air fractions 0.64 / 0.74 /
+  0.855 / 0.946, putting sea-level full rich at 173, 205, 236 and 262 bhp inside Figure 2-36's full-rich band; 0.582
+  at rated (printed 0.58), the margin that keeps every cylinder burning at sea-level static full power (mean λ at least
+  0.55), 36.9 GPH at full power. It does not richen with altitude below the critical altitude, as the POH's constant
+  climb fuel flow shows.
+- **Turbocharger** (`turbo`): a quasi-steady power balance: efficiencies 0.75, turbine nozzle 0.65 × 10⁻³ m² per side,
+  spool lag 1.5 s, shaft speed 105,000 rpm at pressure ratio 2.45 (illustrative; it keeps normal operation under Figure
+  2-41's limit). With a constant compressor efficiency the gate-closed balance has no stable point between idling and
+  running away, so no fit gives a critical altitude; the compressor's efficiency therefore falls toward the map's edge
+  (`compressorEta`, a fraction of `etaCompressor`: 1.0 to pressure ratio 2.0, 0.85 at 2.3, 0.62 at 2.6, 0.52 at 3.2,
+  0.1 at 5.0). It holds 36.0 in.Hg to about 21,000 ft (M-18 Table 2-2's critical altitude is 18,000 ft) and gives 30.9
+  in.Hg at 25,000 ft. The turbines are sized for a reserve, the gate about half open at sea-level full power: the POH
+  holds 36.0 in.Hg "for all takeoffs" (4-14) and prints full-throttle takeoffs to 50 °C at 10,000 ft (5-20/5-21) and
+  positive full-throttle climb rates at 40–50 °C to 20,000 ft (5-26/5-27). At ISA +30 °C the model holds 35.9–36.0
+  in.Hg for a takeoff at sea level, 5,000 and 10,000 ft (77 KIAS, oil warmed as for taxi) and 35.86 in.Hg in the 120
+  KIAS climb at 18,000 ft. A static run at ISA +30 °C long enough to take the oil above 240 °F thins the actuator's oil
+  and the gate cannot shut (the POH 4-14 "prolonged ground engine operation" case, not a target). None of it is map
+  data.
+- **Wastegate controller**: modelled as the documents describe it, a differential ("sloped") controller with no
+  absolute reference. The set point falls as deck pressure rises (slope −0.3), so at full throttle the deck settles
+  near 36.5 in.Hg (MAP 36.0) wherever the gate has to be; with an actuator band of 14–30 psi and a gain of 2.8 per
+  in.Hg, warm oil keeps MAP within 36.0 ± 0.2 (36.05 at 150 °F, 35.95 at 180 °F at sea-level full power) and 100 °F
+  oil raises it to 36.09, inside the POH's 36.0–37.0. The wide band and a gate area scaled to the turbines (1.5 ×
+  10⁻³ m²) keep the regulating gate from hunting at full throttle: a narrower band made MAP swing 0.1–0.3 in.Hg in the
+  climb once the gate had a reserve to regulate with. At part throttle the proportional controller still hunts a few
+  tenths of an in.Hg (0.3–0.8 at 10,000–25,000 ft and 30.5 in.Hg, a 2–6 s cycle): a gain low enough to stop it lets
+  warm oil move MAP by more than 0.2 in.Hg. Readings at part throttle are therefore window means, as a pilot reads a
+  gauge. A misadjusted controller (`controller.misadjustInHg` 0.35 in.Hg, multiplied about threefold at full throttle)
+  holds sea-level full power at about 37.0 in.Hg with warm oil, relief valve shut (POH 3-29, 3A-9 "maintenance
+  adjustment").
 - **Spring-open wastegate**: with no oil pressure the wastegate's spring holds it open (engine stopped, or oil lost to
   the actuator), so the engine reverts to roughly normally aspirated manifold pressure (POH 3-27, 3-28).
-- **Relief valve** (`turbo.overboost`): see C3.
-- **TIT** (`calibration.titOffsetF`, `titCrossover`, `titTauS`): the mean EGT of the cylinders feeding each
-  turbocharger, with a mixing fraction through the crossover and an offset, placed so that the POH's target fuel flow
-  sits 50–75 °F lean of peak TIT (POH 4-22).
-- **Volumetric efficiency** (`calibration.ve`): ≈ 0.92 at 2,500 rpm (no chart to derive it from), to be fitted with the
-  full-rich schedule to the AMM full-power fuel flow.
-- **Alternate air** (`induction`): 12 °C warmer than outside air (3–5 % power at 1 % per 6 °F); a partial filter
-  blockage that opens the door at full power and lets it close at cruise power (POH 3A-11).
-- **Propeller**: fine stop 15°, below the ≈ 16° static full-power blade angle at 2,500 rpm with the model's power
-  coefficient, so the governor can hold 2,500 at a static run-up; coarse 45°; inertia 3.8 kg·m² (engine and propeller).
-- **Nozzle curve**: a square-root law through 14.5 psid (M-18 Table 2-4's 14.2–14.8) at 229.2 lb/h (the AMM band's
-  38.2 GPH at 6.0 lb/gal). Not Continental data.
+- **Relief valve** (`turbo.overboost`): see C3. Crack 39.5 in.Hg of deck, area 4 × 10⁻³ m²: a seized-closed gate surges
+  with MAP between about 38.0 and 39.1 in.Hg, the valve open about half the time at sea level and about three quarters
+  on an ISA −30 °C day leaned to λ ≈ 0.8. Reducing power to 30.5 in.Hg lowers the relief duty and may not end the
+  surge, as POH 3-30 allows ("If noticeable surging is present: Land as soon as practicable"); at 24 in.Hg the valve
+  reseats (fit).
+- **Leaning above 30.5 in.Hg** (`calibration.leanGainMax`, an optional field): outside the POH's envelope (4-22): the
+  chart there is full rich, and the model's power when leaned there is not meaningful, so no target reads it. The
+  full-rich basis there is taken at the actual λ, which on a hot day is very rich (0.46–0.50), and leaning from it
+  would gain about 30 % over full rich: at 25,000 ft ISA +30 °C that read about 400 hp and drove the propeller past its
+  coarse stop to 2,780 rpm. `leanGainMax` caps a cylinder's work leaned there at 1.16 × its full-rich work, phased in
+  with the full-rich basis between 29.5 and 31.5 in.Hg. That is just above a standard day's own gain (1 / 0.867, full
+  rich at rated), so a standard day is untouched; leaned at full throttle on an ISA +30 °C day the propeller stays
+  under the 2,550 rpm red line (about 2,530 at 25,000 ft, 2,515 at 18,000 ft) and MAP holds near 34.9 in.Hg at 25,000
+  ft. Tested: the red line and that the engine keeps running, not the power.
+- **TIT** (`calibration.titGain`, `titCrossover`, `titTauS`): the mean EGT of the cylinders feeding each turbocharger,
+  a fifth of the other bank's mixed in through the crossover, its rise above outside air × 1.135 (`titGain`, an
+  optional field; `titOffsetF` 0): about 200 °F over the bank mean near peak, so leaned toward peak at sea-level full
+  throttle the TIT warning is reachable (POH 3-30, 4-14: about 1,780 °F) while 85 % at 10,000 ft stays under 1750 °F
+  (about 1,715) and a stopped engine reads outside air (an additive offset would show a cold engine 200 °F warm). The
+  75 % target fuel flow at 10,000 ft sits 50–75 °F lean of peak TIT (POH 4-22).
+- **Volumetric efficiency** (`calibration.ve`): 0.863, flat (no chart to derive it from), fitted to the AMM full-power
+  fuel flow (36.9 GPH at 35.8 in.Hg, inside the AMM band). Figure 2-36's 236 bhp best-power and peak-EGT flows then
+  read 107.9 and 96.9 lb/h against 103 ± 8 and 89 ± 8: the AMM figure governs this loose Continental target, so the
+  test's upper tolerances are the measured flows.
+- **Calibration targets read with a stated interpretation**:
+  - Climb fuel flow, 18,000–20,000 ft: the POH table prints fuel to 0.1 gal and time to 0.1 min, so (11.3 − 10.1) gal
+    in (18.9 − 16.8) min spans 1.1/2.2 … 1.3/2.0 × 60 = 30.0–39.0 GPH; the test uses that band. 20,000–25,000 ft (3.8
+    gal in 6.8 min, 32.2–34.9 at the same resolution) and sea level to 17,000 ft (36.08) keep ±1.5 GPH.
+  - Exhaust back pressure, 2.5 in.Hg maximum (M-18 Table 2-1): read at the turbine discharge (tailpipe), the "exhaust
+    exit" of Table 2-2 note 1. The turbine inlet runs about 35 in.Hg at rated, and far more above the critical
+    altitude, as any turbine must.
+  - Induction manifold temperature, 130 °F maximum at rated takeoff (M-18 Table 2-6): printed "ASTM D7592 only"; used
+    as the bound for every fuel. The model reads 76 °F.
+  - Full-power nozzle pressure: the nozzle curve is anchored at the model's settled full-power flow, 37.23 GPH, not the
+    AMM band's mid 38.2 GPH: the POH climb fuel flow (36.08 GPH) caps the full-power flow below the mid, and at the
+    mid's anchor full power read 13.8 psid, under M-18 Table 2-4's 14.2–14.8.
+  - Alternate-air power loss: measured from a settled 75 % point (best power, the lever trimmed between looks,
+    readings averaged).
+  - 75 % at 25,000 ft (POH 5-34, 16.4 GPH): the POH's table flows are lean-of-peak settings (5-32), but at 30.4 in.Hg
+    the model's 25,000 ft charge is 37.6 °C against 13.3 °C at 10,000 ft and the engine takes 1,489 lb/h of air
+    against 1,627, so 16.4 GPH burns at λ 1.01, about 1 °F from peak EGT (10,000 ft: λ 1.10, 43 °F lean of peak). No
+    mixture holds 16.4 ± 0.1 GPH there and sits clearly lean of peak, and leaning above 30.5 in.Hg is not approved, so
+    that cell reads at about peak. Its power, 77 % against 75 ± 4 %, is inside the cruise target.
+- **Alternate air** (`induction`): 23 °C warmer than outside air; with the door open at 10,000 ft and 75 % it costs 3.4
+  % with MAP 0.27 in.Hg higher (POH 3A-11: 3–5 %). The intercoolers take most of the warmer air's heat out before the
+  charge whose density sets the power (C11). The "filter blocked" failure is a partial obstruction (0.85 of the
+  throttle body's area) that opens the door at full power and lets it close at cruise power (POH 3A-11).
+- **Propeller**: power coefficient × 2.0 (`cpScale`, three blades), so the governor holds 2,500 rpm in the 120 KIAS
+  climb to 25,000 ft and at full throttle at POH 5-34's 220 KTAS there (ISA); the unscaled coefficient ran out of pitch
+  above about 8,000 ft. Fine stop 5°, below the ≈ 7° static full-power blade angle, so the governor holds 2,500 at a
+  static run-up; coarse 50°, above the ≈ 47° the 220 KTAS point needs; inertia 3.8 kg·m² (engine and propeller).
+- **HIGH BOOST/PRIME**: below 500 rpm the pump primes about 30 lb/h (5 GPH) at full rich, so the POH 4-12 note's 2 s
+  prime leaves about 8 g in the ports (engine.ts `HIGH_BOOST_PRIME_LBH`).
+- **Nozzle curve**: a square-root law through 14.5 psid (M-18 Table 2-4's 14.2–14.8) at 223.4 lb/h (37.23 GPH at 6.0
+  lb/gal, inside the AMM band); full power settles at 36.9 GPH and 14.3 psid. Not Continental data.
 - **Starter**: 300 N·m at the crankshaft, falling to nothing at 380 rpm, for the POH 4-12 start (running within 10 s).
 - **Oil**: pump pressure 24 psi at 1,000 rpm and 180 °F before the relief valve, relief 60 psi; the pickup uncovers
-  between 3.5 and 2.5 qt, inside the 3.0–3.5 qt left of 8 at the usable 4.5–5.0 (M-18 Table 2-3).
+  between 3.5 and 2.5 qt, inside the 3.0–3.5 qt left of 8 at the usable 4.5–5.0 (M-18 Table 2-3). `oilRise` 170 °F at
+  rated power: 180 °F or more in the 120 KIAS climb at 15,000 ft, 180 ± 15 in cruise. The oil cooler keeps 55 kt of
+  slipstream (`oilSlipKt`, an optional field) while the cylinders get 15 kt (`slipKt`): the cooler's ram and the
+  warm-up oil the wastegate actuator runs on stay as fitted.
+- **Cruise lean of peak** (`calibration.lambdaTarget` 1.12, `peakEgtPower` 0.955, `performance.chargeRefC` 24.1 °C):
+  the target fuel flow is λ 1.12 at the air the engine takes (POH 4-22). Power at peak EGT is 0.955 of best power, so
+  lean of peak the engine makes 13.3–14.9 hp/GPH, every white standard-day cell of POH 5-32 to 5-34 within 3.4 % (85 %
+  at 30.5 in.Hg lands near peak, C10; so does 75 % at 25,000 ft, see the interpretations). The chart's power scales
+  with the intercooled charge's density against 24.1 °C, the model's own manifold-air temperature at the rated
+  sea-level point (so that point is unchanged), in place of the 1 %/6 °F compressor-inlet law (C11; at a fixed
+  pressure ratio both cost about 9 % at ISA +30 °C). Read off MAP alone, the 7–32 °C spread of cruise charge
+  temperatures between 10,000 and 25,000 ft put the cells 9 % low to 8 % high.
+- **Cylinder heads** (`calibration.chtRise` 420, `slipKt` 15): the 120 KIAS climb under 262 °F at 5,000 ft, 85 % at
+  10,000 ft 384 °F on a standard day and 442 °F at ISA +30 °C (the POH's gray cell), a static full-power run past 460
+  °F. Lean of peak the model's head heat falls about twice as fast as POH 4-22's 0.5 GPH ≈ 15 °F (about 30 °F at λ
+  1.1, 22 °F just lean of peak); the test reads it at the hottest cruise, 85 % at 18,000 ft, where the POH's rule is
+  used.
+- **Rich misfire edge** (`calibration.richMisfireLambda` 0.45, an optional field, absent 0.55; mixture.ts
+  `stability`): not a published value. The model's λ runs about a quarter richer than the engine's (VE 0.863 against
+  the air M-18 Table 2-6 prints, C7), so its full rich at rated (λ 0.55) and on an ISA +30 °C day (about 0.46–0.50)
+  sits where the textbook 0.55 edge would misfire, cooling the exhaust 250–400 °F and starving the turbines. With the
+  edge at 0.45 a hot day's full rich burns, full throttle at 18.3 GPH at 25,000 ft ISA +30 °C reaches about 34.9 in.Hg
+  (POH 5-34: the turbochargers can supply the gray cell above 30.5 in.Hg) and leaning at full throttle on a hot day
+  stays running. The compressor edge was refitted with it (the critical altitude would otherwise rise to 22,000 ft).
+- **Idle** (`calibration.idleArea` 0.013): 720 rpm at idle with the mixture as leaned for taxi (AMM 73-20 PDF 2589
+  (ab) 700 ± 25), 700 at full rich; leaning at idle raises it about 20 rpm (AMM PDF 2591 sets 25–50: not reached).
+- **Not read yet**: the turbo-system failure constants (`turbo.leaks`, `turbo.oil.leakQtPerMin`) keep their starting
+  values until the model runs those failures.
 
-`calibration.lambdaFullRich` (0.58) is the rated end of the full-rich schedule, recorded for reference.
+`calibration.lambdaFullRich` (0.58) records the rated end of the full-rich schedule; this engine does not read it.
 
 Per-cylinder differences (`fuelTrim`, `coolingTrim`) are illustrative. None of the fitted values is Continental or
 Cirrus data and none should be quoted as such. Percent power is brake horsepower ÷ 315; the airplane's display uses its

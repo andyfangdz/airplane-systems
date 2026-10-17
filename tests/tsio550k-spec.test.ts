@@ -1,7 +1,7 @@
 /**
  * The TSIO-550-K spec against the pages it cites: POH 13772-007, AMM 13773-002 Rev 7 and Continental M-18
- * (engines/tsio550k/SOURCES.md). Data only: the model does not run this engine yet, so these check the numbers, their
- * agreement with each other, and how the shared helpers read Continental's charts.
+ * (engines/tsio550k/SOURCES.md): the numbers, their agreement with each other, and how the shared helpers read
+ * Continental's charts. The running engine is checked in tsio550k-engine.test.ts.
  */
 import { describe, expect, test } from "vitest";
 import { TSIO550K } from "@/engines/tsio550k/spec";
@@ -194,11 +194,13 @@ describe("chart data as printed (M-18 Figures 2-36, 2-37)", () => {
       expect(interp(f.richFullRich, hp)).toBe(lbh);
   });
 
-  test("chartFuelFlow refuses the Fig 2-36 chart until the model reads it", () => {
-    for (const mixture of ["bestPower", "bestEconomy"] as const)
-      expect(() => chartFuelFlow(S, 2500, 236, mixture)).toThrow(
-        "tsio550k: the model does not read a continental fuel-flow chart yet",
-      );
+  test("chartFuelFlow reads Fig 2-36 Best Power and Best Economy by brake hp, the same at every rpm", () => {
+    expect(chartFuelFlow(S, 2500, 236, "bestPower")).toBe(103);
+    expect(chartFuelFlow(S, 2300, 236, "bestPower")).toBe(103);
+    expect(chartFuelFlow(S, 2500, 205, "bestEconomy")).toBe(79);
+    // between drawn points it is the straight line through them; beyond 262 bhp it continues the last segment
+    expect(chartFuelFlow(S, 2500, 240, "bestPower")).toBeCloseTo(103 + (4 / 14) * 5, 9);
+    expect(chartFuelFlow(S, 2500, 274, "bestPower")).toBeCloseTo(114 + (12 / 12) * 6, 9);
   });
 });
 
@@ -223,15 +225,17 @@ describe("rating and fuel (POH, AMM)", () => {
     expect(fs.highBoost).toEqual({ mapInHg: 24, altFt: 10000, belowRpm: 500 });
     expect(fs.nozzleRatedPsid).toBeGreaterThanOrEqual(14.2);
     expect(fs.nozzleRatedPsid).toBeLessThanOrEqual(14.8);
-    // the fitted nozzle curve passes the AMM band's mid flow (38.2 GPH × 6.0 lb/gal) at the rated nozzle pressure
-    expect(interp(fs.nozzle.points, fs.nozzleRatedPsid)!).toBeCloseTo(38.2 * 6, 0);
+    // the fitted nozzle curve passes the model's full-power flow when it was anchored (37.23 GPH × 6.0 lb/gal, inside
+    // the AMM Figure 73-20-2 band) at the rated nozzle pressure
+    expect(interp(fs.nozzle.points, fs.nozzleRatedPsid)!).toBeCloseTo(37.23 * 6, 0);
     expect(increasing(fs.nozzle.points.map((p) => p[1]))).toBe(true);
-    // full-rich λ: richest at rated air, and the rated end is the one `calibration.lambdaFullRich` records
+    // full-rich λ: richest at rated air, about 0.58 there, which `calibration.lambdaFullRich` records to two places
     const lam = fs.fullRichLambda;
-    expect(lam[lam.length - 1]).toEqual([1, 0.58]);
-    expect(lam[lam.length - 1][1]).toBe(S.calibration.lambdaFullRich);
+    expect(lam[lam.length - 1][0]).toBe(1);
+    expect(lam[lam.length - 1][1]).toBeCloseTo(0.58, 2);
+    expect(lam[lam.length - 1][1]).toBeCloseTo(S.calibration.lambdaFullRich, 2);
     expect(increasing(lam.map((p) => p[0]))).toBe(true);
-    for (const [, l] of lam) expect(l).toBeGreaterThanOrEqual(0.58);
+    for (const [, l] of lam) expect(l).toBeGreaterThanOrEqual(lam[lam.length - 1][1]);
   });
 });
 

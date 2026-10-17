@@ -15,8 +15,9 @@ export function firingAngle(spec: EngineSpec, n: number) {
 }
 
 /**
- * Spark timing, degrees before top centre, for a switch position: at START only the retard-breaker magneto fires, at
- * its start retard (after top centre, so negative here); otherwise the normal advance.
+ * Spark timing, degrees before top centre, for a switch position: at START the start magnetos (engine.ts
+ * `startFiringMags`: the retard-breaker magneto, or both with impulse couplings) fire at the start retard, after top
+ * centre so negative here (0 for the TSIO-550-K's impulse couplings, AMM 74-00 PDF 2604); otherwise the normal advance.
  */
 export const sparkBTC = (spec: EngineSpec, mags: string) =>
   mags === "START" ? -spec.ignition.startRetardATC : spec.ignition.advanceBTC;

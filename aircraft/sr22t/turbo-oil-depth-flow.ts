@@ -96,15 +96,9 @@ for (const side of [-1, 1]) {
     },
   );
 }
-// Supply to the wastegate actuator, actuator → controller, controller → crankcase: the connectivity of the three
-// drawn oil lines (parts/engine-air.ts), with a schematic offset where they meet the MCU.
-// Approximate lift of the flow's upper return waypoints over the MCU top. The physical hose stays fixed;
-// AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742 gives connectivity, not the schematic bend clearance.
-const gateOilRun = GATE_OIL_RUN().map(([x, y, z]): Vec3 => {
-  const lift = Math.max(0, Math.min(1, (y + 0.03) / 0.04, (-z - 0.29) / 0.03)); // approximate
-  return [x, y + (x < 2.686 && y < 0.035 ? 0.0098 * lift : 0), z]; // approximate
-});
-flow("gateOil", gateOilRun, ["engine"], {
+// Supply to the wastegate actuator, actuator → controller, controller → crankcase: along the three drawn oil lines
+// (parts/engine-air.ts; AMM 13773-002 Rev 7 Fig 78-10-3 PDF p. 2742 gives the connectivity).
+flow("gateOil", GATE_OIL_RUN(), ["engine"], {
   ...OIL,
   r: 0.0045, // inside the Ø12-mm hoses; approximate
   tension: 0,

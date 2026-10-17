@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { mergeGeos } from "@/lib/geometry";
 import type { Vec3 } from "@/lib/math";
 import { firingPhase, magAnim, plugAnim } from "@/lib/anims";
-import { box, cyl, loft, tubeGeo } from "../geometry";
+import { box, cyl, FW, loft, tubeGeo } from "../geometry";
 import { HEAT_X, TAILPIPE as TAILPIPE_RUN, TAILPIPE_RADIUS, EXHAUST_RADIUS, TURBINE_INLET } from "../exhaust-layout";
 import {
   AIR_BOX,
@@ -508,12 +508,16 @@ for (const side of [-1, 1]) {
     groups: ["oil"],
   });
 }
-// Upper firewall, AMM 13773-002 Rev 7 Fig 71-00-2 sheet 3 item 30 (PDF 2489). Undimensioned: approximate. Seated
-// on the firewall just right of the centreline, inboard of the A/C belt and clutch pulley, which hang in the firewall
-// bay at their AMM station (AMM Fig 21-50-1 sheet 2 PDF p. 520), and below the magneto P-leads and
-// the cowl. Box 0.055 × 0.06 × 0.09 m, approximate.
-export const GATE_CONTROLLER: Vec3 = [2.6405, 0.11, 0.06];
-export const GATE_CONTROLLER_SIZE: Vec3 = [0.055, 0.06, 0.09];
+// Upper firewall at the left rear, outboard of the oil cooler: AMM 13773-002 Rev 7 Fig 71-00-2 sheet 3 item 30 (PDF
+// p. 2489; AMM 81-20 PDF p. 2812 "located on the upper firewall"; Continental M-18 12-4.2 p. 12-10: "aircraft
+// mounted"). Undimensioned: the figure reads roughly 14–18 in left of the crankshaft centre line and 3–6 in above it,
+// approximate. Fitted between the Master Control Unit (inboard, electrical.ts), the upper-left engine mount firewall
+// attach fitting (below, engine-sensors.ts) and the cowl: 5.7 in up and 17.3 in left, 9.4 mm clear of the MCU and
+// 7.3 mm of the attach fitting, seated 3 mm off the firewall. Box 0.055 × 0.06 × 0.06 m, approximate: no source
+// dimensions it, and a 0.09-m-wide box fits nowhere on the upper left firewall clear of the attach fitting, the MCU and
+// the cowl.
+export const GATE_CONTROLLER: Vec3 = [FW + 0.0305, CRANK_Y + 5.7 * IN, -17.3 * IN];
+export const GATE_CONTROLLER_SIZE: Vec3 = [0.055, 0.06, 0.06];
 /** Overboost valve body centre: bolted to the forward face of the LH duct 7 at its seat (AMM Fig 71-60-2 sheet 2
  * items 17/20), axis fore-and-aft, its aft face seated 6 mm into the duct wall; body Ø0.05 × 0.05 m, approximate. */
 const OVERBOOST_LEN = 0.05;
@@ -545,7 +549,7 @@ part(() => box(...GATE_CONTROLLER_SIZE), ["engine"], {
   color: "#B7A16D",
   name: "Wastegate controller",
   pin: true,
-  note: "Upper firewall: diaphragm senses upper-deck vs manifold pressure across the throttle and meters wastegate oil return (POH 7-39; AMM 81-20 PDF p. 2812, Fig 78-10-3 PDF p. 2742; Fig 71-00-2 sheet 3 item 30 PDF p. 2489). Shape and position approximate; undimensioned upper-firewall placement seated below the cowl.",
+  note: "Upper firewall at the left rear, outboard of the oil cooler: diaphragm senses upper-deck vs manifold pressure across the throttle and meters wastegate oil return (POH 7-39; AMM 81-20 PDF p. 2812, Fig 78-10-3 PDF p. 2742; Fig 71-00-2 sheet 3 item 30 PDF p. 2489). Shape and position approximate: the figure is undimensioned; seated on the firewall outboard of the Master Control Unit and below the cowl.",
   groups: ["induction", "exhaust"],
 });
 part(() => cyl(0.025, OVERBOOST_LEN, "x"), ["engine"], {

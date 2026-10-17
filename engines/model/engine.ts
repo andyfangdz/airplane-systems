@@ -8,15 +8,49 @@
  * chart scaled by what each cylinder actually burns (performance.ts, mixture.ts), shaft speed from engine, starter
  * and propeller torque (propeller.ts), then exhaust, head and oil temperatures and oil pressure.
  */
-import type { EngineSpec, Side } from "../types";
-import { atmosphere, cToF, HP_W, INHG_PA, KT_MS, LB_KG, RHO0, ramPressure } from "./atmosphere";
+import type { EngineSpec, Side, TurboSpec } from "../types";
+import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
 import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
-import { distribution, nozzleFlow, nozzlePressure, servoFuelFlow } from "./fuel";
+import {
+  continentalBoostPsi,
+  continentalNozzleCapacity,
+  continentalNozzlePsid,
+  continentalPumpPsi,
+  continentalSystem,
+  distribution,
+  fullRichLambdaAt,
+  meteredFuelFlow,
+  nozzleFlow,
+  nozzlePressure,
+} from "./fuel";
 import { inductionCal, series, solveManifold, throttleArea } from "./induction";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
-import { chartFuelFlow, frictionHp, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
+import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
 import { governor, inducedVelocity, propTorque } from "./propeller";
+import {
+  actuatorPressure,
+  altAirDoorNext,
+  bearingHeatW,
+  compressorOut,
+  controllerBleed,
+  equilibriumPR,
+  filterOutletInHg,
+  gateTarget,
+  INH2O_PA,
+  intercool,
+  intercoolerDrop,
+  reliefFlow,
+  reliefOpenNext,
+  titContinuousMaxF,
+  titOverNext,
+  titTargets,
+  turbineInletPressure,
+  turbinePowerW,
+  turbineRpm,
+  turboMetering,
+  turboRef,
+} from "./turbo";
 
 export type MagSwitch = "OFF" | "R" | "L" | "BOTH" | "START";
 
@@ -68,7 +102,7 @@ export interface Failures {
   /** Leak in an intake pipe (a split hose, a loose clamp), by cylinder index, 0 … 1: unmetered air into that cylinder. */
   intakeLeak: number[];
   // Turbo-system failures: present (false or null) only for a spec with `turbo` (see noFailures).
-  /** Wastegate seized open or closed (null: free). */
+  /** Wastegate seized open or closed (null: free): it stays put whatever the actuator, its oil or the spring do. */
   wastegateSeized?: "open" | "closed" | null;
   /** Wastegate actuator oil supply lost (the spring opens the gate). */
   wastegateOil?: boolean;
@@ -181,6 +215,9 @@ export interface EngineState {
   oilLossQt?: number;
   /** HIGH BOOST actually running (after the lockout). Neutral: false. */
   highBoostOn?: boolean;
+  /** The manifold pressure a turbocharged spec's metering reads as its throttle-angle stand-in (turbo.ts
+   * `turboMetering`): the MAP without an intake leak. Set by `step` for a turbocharged spec only; absent, `map`. */
+  meterMapInHg?: number;
 }
 
 export const defaultControls = (): Controls => ({
@@ -293,8 +330,13 @@ export function prime(spec: EngineSpec, s: EngineState, strokes = 1) {
 }
 
 const ratedAirCache = new WeakMap<EngineSpec, number>();
-/** Air flow (lb/h) at rated power, best-power mixture, from the fuel the manual gives for it. */
+/**
+ * Air flow (lb/h) at rated power, best-power mixture, from the fuel the manual gives for it. The carburetor and the
+ * servo injector meter against this; a Continental system meters against `fuel.ts`'s `ratedAirLbH` instead.
+ */
 export function ratedAirLbH(spec: EngineSpec) {
+  if (spec.fuelSystem.kind === "continental")
+    throw new Error(`${spec.id}: a Continental fuel system meters against fuel.ts's ratedAirLbH; call that one`);
   let v = ratedAirCache.get(spec);
   if (v === undefined) {
     v =
@@ -307,20 +349,51 @@ export function ratedAirLbH(spec: EngineSpec) {
 /** Oil viscosity relative to 180 °F (Andrade fit to a multigrade aviation oil: ~120 cSt at 40 °C, ~18 at 100 °C). */
 export const viscosity = (oilF: number) => Math.exp(3691 * (1 / ((oilF - 32) / 1.8 + 273.15) - 1 / 355.37));
 
-/** Governor set speed for a propeller-control position. */
+/**
+ * Governor set speed for a propeller-control position. A governor with no pilot control (`propeller.control:
+ * "fixed"`: SR22T POH 7-32, AMM 61-20 "factory-set to 2500 RPM") holds rated rpm whatever the control says.
+ */
 export const governedRpm = (spec: EngineSpec, prop: number) =>
-  spec.propeller.governorMinRpm + Math.max(0, Math.min(1, prop)) * (spec.rating.rpm - spec.propeller.governorMinRpm);
+  spec.propeller.control === "fixed"
+    ? spec.rating.rpm
+    : spec.propeller.governorMinRpm +
+      Math.max(0, Math.min(1, prop)) * (spec.rating.rpm - spec.propeller.governorMinRpm);
+
+/**
+ * Whether the HIGH BOOST/PRIME lockout lets the fuel pump run in high-speed mode (SR22T POH 7-41): manifold pressure
+ * equal to or greater than `highBoost.mapInHg` and pressure altitude equal to or greater than `altFt`, or engine speed
+ * below `belowRpm`. (Figure 7-8's note prints "greater than"; the 7-41 text, which says "equal to or greater than", is
+ * used.) Otherwise the relay limits the pump to BOOST. False for a fuel system without HIGH BOOST.
+ */
+export function highBoostEnabled(spec: EngineSpec, s: EngineState, env: Environment) {
+  const hb = spec.fuelSystem.kind === "continental" ? spec.fuelSystem.highBoost : undefined;
+  if (!hb) return false;
+  return (s.map >= hb.mapInHg && env.altFt >= hb.altFt) || s.rpm < hb.belowRpm;
+}
+
+/**
+ * Fuel HIGH BOOST/PRIME pushes through the metering to the nozzles below `highBoost.belowRpm`, lb/h at full rich. Not
+ * published: about 5 GPH, so the POH 4-12 note's 2 s prime leaves about 8 g in the six ports.
+ */
+const HIGH_BOOST_PRIME_LBH = 30;
+
+/**
+ * The magnetos a switch position connects, before failures and crank speed. At START with `ignition.startMags:
+ * "retard"` (the default) only the retard magneto fires: the plain one is grounded during the start cycle (IOM System
+ * Description p. 2). With `"both"` START "activates both magnetos" (SR22T POH 7-37), each held to top centre by its
+ * impulse coupling (AMM 74-00 PDF 2604).
+ */
+export function startFiringMags(spec: EngineSpec, mags: MagSwitch): Side[] {
+  if (mags === "BOTH") return ["L", "R"];
+  if (mags === "START") return spec.ignition.startMags === "both" ? ["L", "R"] : [spec.ignition.retardMag];
+  return mags === "OFF" ? [] : [mags];
+}
 
 /** Which plugs fire in each cylinder for a switch position and magneto failures. */
 export function sparks(spec: EngineSpec, mags: MagSwitch, f: Failures, rpm: number) {
   const ign = spec.ignition;
-  const on = (m: Side) =>
-    rpm >= ign.minStartRpm * 0.6 &&
-    !(m === "L" ? f.magL : f.magR) &&
-    (mags === "BOTH" ||
-      mags === m ||
-      // the plain magneto is grounded during the start cycle (IOM System Description p. 2)
-      (mags === "START" && m === ign.retardMag));
+  const live = startFiringMags(spec, mags);
+  const on = (m: Side) => rpm >= ign.minStartRpm * 0.6 && !(m === "L" ? f.magL : f.magR) && live.includes(m);
   return spec.geometry.cylinders.map((c, i) => {
     const top = ign.topPlugMag[c.n],
       bottom: Side = top === "L" ? "R" : "L";
@@ -361,6 +434,8 @@ function substep(
 ) {
   const dtT = dt * thermal;
   const cal = spec.calibration;
+  // the rich misfire edge, where the spec sets one (mixture.ts; absent: 0.55)
+  const rich = cal.richMisfireLambda;
   const ind = inductionCal(spec);
   const air = atmosphere(env.altFt, env.isaDevC);
   const nCyl = spec.geometry.cylinders.length;
@@ -383,6 +458,19 @@ function substep(
     // ice narrows the bore at the butterfly; heated air bypasses the filter
     const open = throttleArea(c.throttle, cal.idleArea) * (1 - 0.92 * s.ice);
     cdA = ind.cdAFull * (f.filter ? series(open, 0.12 + 0.88 * heat) : open);
+  } else if (intake?.altAir === "automatic") {
+    // an automatic door (POH 7-37; AMM 71-60 PDF 2542) has no pilot control, so the switch is ignored. An obstructed
+    // filter upstream of the compressors leaves the air boxes below the cowl's pressure; that suction opens the door
+    // against its magnets, and the engine then draws unfiltered, warmer air from inside the cowl (turbo.ts). A clean
+    // filter is no restriction.
+    const box = f.filter
+      ? filterOutletInHg((intake.filterBlockedArea ?? 0.12) * ind.cdAFull, ram, air.t + 273.15, (s.air * LB_KG) / 3600)
+      : ram;
+    const door = altAirDoorNext(spec, !!s.altAirOpen, ((air.p - box) * INHG_PA) / INH2O_PA);
+    s.altAirOpen = door;
+    source = door ? air.p : box;
+    inletC = air.t + (door ? (intake.altAirDeltaC ?? 15) : 0);
+    cdA = ind.cdAFull * throttleArea(c.throttle, cal.idleArea);
   } else {
     source = c.altAir ? air.p : ram;
     inletC = air.t + (c.altAir ? (intake?.altAirDeltaC ?? 15) : 0); // alternate air is warmer (assumed +15 °C)
@@ -394,8 +482,14 @@ function substep(
   // the wide-open area)
   const leaks = f.intakeLeak.map((l) => ind.cdAFull * 0.03 * clamp(l, 0, 1));
   const leakArea = leaks.reduce((a, x) => a + x, 0);
-  const exhaust = air.p * 1.02;
-  const { map, air: airKgS } = solveManifold(spec, ind, cdA + leakArea, source, inletC, s.rpm, exhaust);
+  // a turbocharged engine's throttle is fed from the upper deck at the intercooled temperature, and its exhaust
+  // leaves against the turbine-inlet pressure (turbo.ts); otherwise outside air, and the exhaust exit pressure
+  let deck = source,
+    deckC = inletC,
+    exhaust: number;
+  if (spec.turbo) ({ deck, deckC, exhaust } = turboStep(spec, spec.turbo, s, f, air, source, inletC, ind.ve, dt));
+  else exhaust = air.p * 1.02;
+  const { map, air: airKgS } = solveManifold(spec, ind, cdA + leakArea, deck, deckC, s.rpm, exhaust);
   s.map = map;
   s.inletInHg = source;
   s.inletC = inletC;
@@ -410,6 +504,11 @@ function substep(
   let dist: { share: number[]; areaMean: number };
   let metered: number;
   let squirt = 0;
+  // the air the metering sees and the factor on its flow: the -K meters on rpm, throttle angle and deck pressure, not
+  // the charge's density (turbo.ts), and the cylinders then burn the air they actually take
+  let meterLbH = meteredAir,
+    meterScale = 1,
+    scheduleLbH = meteredAir;
   if (carb) {
     // engine-driven or boost pump to the carburetor inlet; the float valve keeps the bowl full while there is pressure
     const desired = carb.inletPsi.desired;
@@ -441,28 +540,71 @@ function substep(
     // melt water going through the engine makes it run rough for a while
     s.melt = approach(s.melt, s.rpm > 100 ? clamp(((before - s.ice) / Math.max(dt, 1e-6)) * 25, 0, 1) : 0, dt, 2);
   } else {
-    // boost pump or engine-driven pump to the servo, metered against air flow, split by nozzle area
-    const supply = Math.max(c.boost ? 1 : 0, enginePump);
+    // boost pump or engine-driven pump to the metering (servo or Continental, fuel.ts), metered against air flow,
+    // split by nozzle area
+    const continental = continentalSystem(spec);
+    // HIGH BOOST/PRIME runs the pump too; past the lockout it runs as BOOST (POH 7-41). Only the Continental system
+    // has the mode: elsewhere `highBoost` alone does nothing.
+    const highBoost = !!c.highBoost && highBoostEnabled(spec, s, env);
+    s.highBoostOn = highBoost;
+    const boost = c.boost || (!!c.highBoost && !!continental);
+    const supply = Math.max(boost ? 1 : 0, enginePump);
     const servo = spec.fuelSystem.kind === "injected" ? spec.fuelSystem : undefined;
-    s.fuelPsi = Math.max(
-      c.boost ? (servo?.boostPsi ?? 26) : 0,
-      enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28),
-    );
+    s.fuelPsi = continental
+      ? Math.max(boost ? continentalBoostPsi(spec) : 0, enginePump * continentalPumpPsi(spec, s.rpm))
+      : Math.max(boost ? (servo?.boostPsi ?? 26) : 0, enginePump * clamp(s.rpm / 900, 0, 1) * (servo?.pumpPsi ?? 28));
+    // below the lockout's rpm HIGH BOOST primes: fuel through the mixture valve to the nozzles and into the ports
+    const valve = c.mixture > 0.02 ? Math.min(1, c.mixture) : 0;
+    const prime = continental && highBoost && s.rpm < continental.highBoost.belowRpm ? HIGH_BOOST_PRIME_LBH * valve : 0;
     dist = distribution(spec, f.nozzle);
+    // the -K meters on throttle angle (turbo.ts), which an intake leak does not move: the leak is downstream of the
+    // throttle and unmetered, so the schedule reads the MAP the throttle alone would give
+    if (spec.turbo)
+      s.meterMapInHg = leakArea > 0 ? solveManifold(spec, ind, cdA, deck, deckC, s.rpm, exhaust).map : map;
+    const tm = spec.turbo ? turboMetering(spec, ind.ve, s.rpm, s.meterMapInHg!, deck) : undefined;
+    meterLbH = tm?.airLbH ?? meteredAir;
+    meterScale = tm?.scale ?? 1;
+    scheduleLbH = tm?.scheduleLbH ?? meterLbH;
     // the nozzles can pass no more than the pump pressure pushes through their open area: with every nozzle blocked,
-    // nothing flows however much the servo meters
+    // nothing flows however much the metering asks for
     metered = Math.min(
-      servoFuelFlow(spec, meteredAir, c.mixture, inletRho, supply),
-      nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
+      meteredFuelFlow(spec, meterLbH, c.mixture, inletRho, supply, scheduleLbH) * meterScale + prime,
+      continental
+        ? continentalNozzleCapacity(spec, s.fuelPsi, dist.areaMean)
+        : nozzleFlow(spec, s.fuelPsi) * dist.areaMean,
     );
     s.fuel = metered;
-    s.nozzlePsi = metered > 0.5 ? Math.min(nozzlePressure(spec, metered, dist.areaMean), s.fuelPsi) : 0;
+    // a Continental nozzle pressure is a differential to the upper deck (M-18 Table 2-4 note 4)
+    const nozzleP = continental ? continentalNozzlePsid : nozzlePressure;
+    s.nozzlePsi = metered > 0.5 ? Math.min(nozzleP(spec, metered, dist.areaMean), s.fuelPsi) : 0;
   }
 
   // ---- each cylinder: port fuel film, mixture, spark, work
   const plugs = sparks(spec, c.mags, f, s.rpm);
   const tau = 0.08 + 250 / Math.max(s.rpm, 20); // film evaporation time, s: slow when cranking
-  const bp = grossIndicatedHp(spec, s.rpm, map, env.altFt, inletC, exhaust, ind.ve);
+  // full rich, the cylinders burn at the schedule's λ scaled by the air they take over the air metered for
+  const lfr = fullRichLambdaAt(spec, scheduleLbH);
+  const lambdaFR = lfr !== undefined && airLbH > 0 && meterLbH > 0 ? (lfr * airLbH) / (meterLbH * meterScale) : lfr;
+  // leaning above the chart's full-rich manifold pressures: the work a cylinder gains over full rich is capped at
+  // `leanGainMax`, phased in with the full-rich basis (performance.ts fullRichWeight); absent, no cap. On a hot day the
+  // full-rich basis is a very rich λ, and leaning from it would otherwise gain far more than a standard day's
+  const frWeight = fullRichWeight(spec, map);
+  const leanCap =
+    cal.leanGainMax !== undefined && lambdaFR !== undefined && frWeight > 0
+      ? cal.leanGainMax * mixturePower(lambdaFR, cal.lambdaBestPower, cal.peakEgtPower, rich)
+      : undefined;
+  // a turbocharged engine's chart power follows its intercooled charge's density (performance.ts, chargeRefC)
+  const bp = grossIndicatedHp(
+    spec,
+    s.rpm,
+    map,
+    env.altFt,
+    inletC,
+    exhaust,
+    ind.ve,
+    lambdaFR,
+    spec.turbo ? deckC : undefined,
+  );
   const ratedGross = ratedGrossHp(spec);
   let work = 0;
   let worst = 0;
@@ -476,14 +618,15 @@ function substep(
     const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
     cy.lambda = cy.fuel > 1e-4 ? airCyl / (cy.fuel * AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
-    let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower) : 0;
+    let w = cy.plugs ? mixturePower(cy.lambda, cal.lambdaBestPower, cal.peakEgtPower, rich) : 0;
+    if (leanCap !== undefined && w > leanCap) w -= frWeight * (w - leanCap);
     if (cy.plugs === 1) w *= cal.singlePlug;
     if (c.mags === "START") w *= 0.85; // retarded spark wastes work
     cy.work = w;
     cy.hp = (bp / nCyl) * w;
     work += w;
     // roughness: a dead or misfiring cylinder, or one plug (slower, less even burn)
-    const stab = cy.plugs ? stability(cy.lambda) : 0;
+    const stab = cy.plugs ? stability(cy.lambda, rich) : 0;
     worst = Math.max(worst, 1 - stab, cy.plugs === 1 ? 0.15 : 0);
   });
   const mean = work / nCyl;
@@ -529,9 +672,13 @@ function substep(
   s.pct = (s.hp / rated.hp) * 100;
 
   // ---- cooling air over the cylinders: airspeed plus propeller slipstream (actuator disk, ∝ P^⅓)
-  const slipKt = (cal.slipKt ?? 55) * Math.cbrt(Math.max(s.hp, 0) / rated.hp);
-  const coolKt = Math.sqrt(env.tasKt ** 2 + slipKt ** 2);
-  const cooling = Math.max(0.15, Math.pow(((air.rho / RHO0) * coolKt) / 100, 0.4));
+  const coolingFor = (slipRated: number) => {
+    const slip = slipRated * Math.cbrt(Math.max(s.hp, 0) / rated.hp);
+    return Math.max(0.15, Math.pow(((air.rho / RHO0) * Math.sqrt(env.tasKt ** 2 + slip ** 2)) / 100, 0.4));
+  };
+  const cooling = coolingFor(cal.slipKt ?? 55);
+  // the oil cooler's own share of the slipstream, where the spec gives one (absent: the cylinders')
+  const oilCooling = cal.oilSlipKt === undefined ? cooling : coolingFor(cal.oilSlipKt);
   const oatF = cToF(air.t);
 
   // ---- exhaust gas and cylinder head temperatures
@@ -540,25 +687,41 @@ function substep(
     const firing = cy.work > 0.02;
     let egt = oatF;
     if (firing) {
-      egt = cal.egtBase + cal.egtGain * Math.sqrt(Math.max(load, 0)) + egtOffset(cy.lambda);
+      egt = cal.egtBase + cal.egtGain * Math.sqrt(Math.max(load, 0)) + egtOffset(cy.lambda, rich);
       if (cy.plugs === 1) egt += 60; // one flame front: later, hotter exhaust
       if (c.mags === "START") egt += 80;
     } else if (s.rpm > 50) egt = Math.max(oatF, (cy.cht + oatF) / 2);
     cy.egt = approach(cy.egt, egt, dt, firing ? 3 : 12 / thermal);
-    const heat = firing ? cal.chtRise * Math.pow(Math.max(load, 0), 0.6) * headHeat(cy.lambda, cal.lambdaBestPower) : 0;
+    const heat = firing
+      ? cal.chtRise * Math.pow(Math.max(load, 0), 0.6) * headHeat(cy.lambda, cal.lambdaBestPower, rich)
+      : 0;
     const chtTarget = oatF + heat / (cooling * cal.coolingTrim[i]);
     // the time constant follows the cooling: more air, faster approach
     cy.cht = approach(cy.cht, chtTarget, dtT, cal.chtTau / (cooling * cal.coolingTrim[i]));
   });
 
+  // ---- turbine-inlet temperature each side's probe reads (POH 7-35; turbo.ts), and the time above its continuous limit
+  if (spec.turbo) {
+    const target = titTargets(
+      spec,
+      s.cyl.map((cy) => cy.egt),
+      oatF,
+    );
+    const tau = cal.titTauS ?? 5;
+    s.tit = [approach(s.tit![0], target[0], dt, tau), approach(s.tit![1], target[1], dt, tau)];
+    const limit = titContinuousMaxF(spec);
+    s.titOverS = limit === undefined ? 0 : titOverNext(s.titOverS!, s.tit, limit, dt);
+  }
+
   // ---- oil: friction and piston-cooling heat in; thermostatic cooler and crankcase out
   const valve = clamp((s.oilT - (spec.oil.thermostatF - 25)) / 25, 0.15, 1);
   s.coolerValve = valve;
-  const heatIn = oilHeatHp(fric, gross) * HP_W; // W
+  // W; a turbocharged engine's oil also carries the turbochargers' bearing heat (AMM 79-00 PDF 2764)
+  const heatIn = oilHeatHp(fric, gross) * HP_W + (spec.turbo ? bearingHeatW(spec.turbo, s.turboRpm!) : 0);
   const uaRef = (ratedOilHeat(spec) * HP_W) / cal.oilRise; // W/°F, at rated power and reference cooling air
-  const ua = uaRef * Math.max(cooling * (0.25 + 0.75 * valve), 0.05);
+  const ua = uaRef * Math.max(oilCooling * (0.25 + 0.75 * valve), 0.05);
   s.oilT = approach(s.oilT, oatF + heatIn / ua, dtT, (cal.oilTau * uaRef) / ua);
-  s.coolerBtu = s.rpm > 0 ? uaRef * cooling * 0.75 * valve * Math.max(s.oilT - oatF, 0) * 0.056869 : 0;
+  s.coolerBtu = s.rpm > 0 ? uaRef * oilCooling * 0.75 * valve * Math.max(s.oilT - oatF, 0) * 0.056869 : 0;
 
   // ---- oil pressure: positive-displacement pump, resistance ∝ viscosity, relief valve
   let oilP = s.rpm > 0 ? cal.oilPressPerRpm * Math.pow(s.rpm / 1000, 0.7) * Math.sqrt(visc) : 0;
@@ -566,7 +729,73 @@ function substep(
   const [bare, covered] = spec.oil.pickupQt ?? [1.5, 3];
   const sump = clamp((env.oilQt - bare) / (covered - bare), 0, 1); // the pickup uncovers below ~3 qt
   oilP *= sump < 1 ? sump * (0.85 + 0.15 * Math.sin(s.t * 7)) : 1;
+  // the turbochargers' supply from the oil cooler is a branch in parallel with the engine's passages: it takes
+  // `turbo.oil.bleedPsi` at rated rpm, in proportion to the pump's flow (AMM 79-00 PDF 2764)
+  if (spec.turbo) oilP = Math.max(0, oilP - spec.turbo.oil.bleedPsi * clamp(s.rpm / rated.rpm, 0, 1));
   s.oilP = approach(s.oilP, oilP, dt, 0.4);
+}
+
+/**
+ * One substep of the turbocharger (turbo.ts), from the previous substep's air, fuel, manifold pressure, exhaust
+ * temperatures and oil pressure: the controller sets the bleed and the wastegate follows its actuator; the exhaust
+ * sets the turbine-inlet pressure and the turbines' power; the deck pressure lags toward the ratio that power holds;
+ * the intercoolers cool the compressed charge. Returns the throttle's source pressure and temperature and the exhaust
+ * pressure, and writes the turbo members of the state.
+ */
+function turboStep(
+  spec: EngineSpec,
+  turbo: TurboSpec,
+  s: EngineState,
+  f: Failures,
+  air: Air,
+  source: number,
+  inletC: number,
+  ve: (rpm: number) => number,
+  dt: number,
+) {
+  const t1 = inletC + 273.15;
+  // the turbines discharge through the tailpipes against the exit pressure a normally aspirated exhaust sees
+  const pTail = air.p * 1.02;
+  const bleed = controllerBleed(turbo, s.deckInHg!, s.map, !!f.controllerMisadjust);
+  // the actuator takes engine oil through its inlet restriction (POH 3-27/3-28 cause 3: none with its oil lost)
+  const pAct = actuatorPressure(f.wastegateOil ? 0 : s.oilP, bleed, turbo.controller.ratio);
+  // a seized wastegate stays where it stuck, whatever the actuator, its oil or the spring do
+  const seized = f.wastegateSeized;
+  const gate =
+    seized === "closed"
+      ? 0
+      : seized === "open"
+        ? 1
+        : approach(s.gate!, gateTarget(turbo, pAct, s.rpm), dt, turbo.wastegate.tauS);
+  // the relief valve on the deck (LH intercooler outlet, AMM 71-60 PDF 2542) vents deck air into the cowl: the
+  // compressors then pass that air as well as the engine's, so the same turbine power holds a lower pressure ratio
+  const relief = reliefOpenNext(turbo, !!s.reliefOpen, s.deckInHg!);
+  const mR = relief ? reliefFlow(turbo, s.deckInHg!, s.matC! + 273.15, air.p) : 0;
+  s.reliefOpen = relief;
+  const mA = (s.air * LB_KG) / 3600,
+    mE = ((s.air + s.fuel) * LB_KG) / 3600;
+  // the gas the turbines expand: the cylinders' mean exhaust gas temperature (the probes' `tit` reading, with its
+  // offset and lag, is display and limits only, so fitting it does not move the turbocharger's calibration)
+  const titK = fToK(s.cyl.reduce((a, cy) => a + cy.egt, 0) / s.cyl.length);
+  const pTI = turbineInletPressure(turbo, mE, titK, pTail, gate);
+  const pr = equilibriumPR(turbo, turbinePowerW(turbo, mE, titK, pTI, pTail, gate), mA + mR, t1);
+  const ref = turboRef(spec, ve);
+  const rho2 = (s.deckInHg! * INHG_PA) / (R_AIR * (s.compressorOutC! + 273.15));
+  const drop = intercoolerDrop(turbo, mA + mR, ref.mRef, rho2, ref.rhoRef);
+  const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
+  const prNow = Math.max(1, (deck + drop) / source);
+  const t2 = compressorOut(turbo, t1, prNow);
+  const mat = intercool(turbo, t2, air.t + 273.15);
+  const n = turbineRpm(turbo, prNow);
+  s.deckInHg = deck;
+  s.gate = gate;
+  s.bleed = bleed;
+  s.pActPsi = pAct;
+  s.turboRpm = [n, n];
+  s.compressorOutC = t2 - 273.15;
+  s.matC = mat - 273.15;
+  s.turbineInletInHg = pTI;
+  return { deck, deckC: mat - 273.15, exhaust: pTI };
 }
 
 /** Propeller governor (oil-driven, needs oil pressure to go coarse). */
@@ -585,7 +814,9 @@ export function ratedGrossHp(spec: EngineSpec) {
   if (v === undefined) {
     const r = spec.rating.rpm;
     const ind = inductionCal(spec);
-    const map = seaLevelLines(spec).find((l) => l.rpm === r)!.ftMap;
+    // the installed full-throttle MAP where the spec gives one (a turbocharged engine), else the chart's at sea level;
+    // best-power basis (no full-rich divisor), so full rich at rated reads a load of about 1
+    const map = spec.rating.map ?? seaLevelLines(spec).find((l) => l.rpm === r)!.ftMap;
     v = grossIndicatedHp(spec, r, map, 0, 15, 29.92126 * 1.02, ind.ve);
     ratedCache.set(spec, v);
   }
