@@ -221,6 +221,7 @@ describe("panel parts and the pages that stay as they were", () => {
     const { container } = render(<EnginePanel sim={sim} />);
     const labels = [...container.querySelectorAll(".eng-parts label")].map((l) => l.textContent);
     expect(labels).toContain("Turbochargers, wastegate, controller and intercoolers");
+    expect(labels).toContain("Exhaust, crossover and tailpipes");
     fireEvent.click(container.querySelector("#part-turbo")!);
     expect(sim.useUi.getState().view.hidden).toEqual(["turbo"]);
   });

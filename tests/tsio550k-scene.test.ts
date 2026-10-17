@@ -15,7 +15,7 @@ import { noFailures } from "@/engines/model/engine";
 import { ACCESSORY_FACE_IN } from "@/engines/tsio550k/layout-turbo";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
-import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
+import { caseGeometry, Crankcase, Lubrication } from "@/components/engine/scene/Case";
 import {
   crankLayout,
   D2R,
@@ -35,10 +35,14 @@ import {
   oilPump,
   rod,
   throwRotation,
+  toWorld,
+  tube,
   valveLayout,
+  VT,
   XRAY_MATS,
 } from "@/components/engine/scene/kit";
 import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
+import { Exhaust, exhaustRuns, runCurve } from "@/components/engine/scene/Exhaust";
 import { layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { Group, PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
@@ -613,7 +617,7 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
     for (const k of XRAY_MATS) mats[k].opacity = k === "barrel" || k === "head" ? 0.28 : 0.16;
     const p = { sim, d, mats };
     const parts: FC<typeof p>[] = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase];
-    parts.push(Lubrication, Ignition, FuelSystem, Induction, Turbo, Drives);
+    parts.push(Lubrication, Ignition, FuelSystem, Induction, Turbo, Exhaust, Drives);
     return mountScene(
       h(
         "group",
@@ -624,7 +628,7 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
     );
   }
 
-  test("shows on the canister from the side, top, rear and below; the magnetos hide it from the default and iso views", async () => {
+  test("shows on the canister from the side, top and rear; the magnetos hide it from the default and iso views, the exhaust crossover from below", async () => {
     const { scene, unmount } = await model();
     const [, at, opts] = L.labels(d, S).find(([t]) => t === "Oil filter")!;
     expect(opts).toEqual({ occlude: true });
@@ -655,7 +659,7 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
         return [c, !hits.length || eye.distanceTo(anchor) < hits[0].distance];
       }),
     );
-    expect(shown).toMatchObject({ default: false, iso: false, side: true, top: true, rear: true, below: true });
+    expect(shown).toMatchObject({ default: false, iso: false, side: true, top: true, rear: true, below: false });
     await unmount();
   });
 });
@@ -1215,6 +1219,240 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
   });
 });
 
+/**
+ * The engine's solid parts as drawn, in place, for the clearance tests below: the cylinders (each part tagged with its
+ * cylinder), the crankcase, sump and accessory housing, the engine mount fittings, the starter, the magnetos and
+ * harness, the oil filter, the fuel manifold valve, and the turbo group's fixed parts (its turning wheels sit inside
+ * their housings). Each is a world-space geometry the caller disposes.
+ */
+function sceneSolids() {
+  const out: { name: string; cyl?: number; turbo?: string; g: THREE.BufferGeometry }[] = [];
+  const cg = cylinderGeometry(d, L);
+  for (const c of S.geometry.cylinders) {
+    const m = new THREE.Matrix4().compose(
+      new THREE.Vector3(c.x, 0, 0),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, c.side === "L" ? Math.PI : 0, 0)),
+      new THREE.Vector3(1, 1, 1),
+    );
+    for (const k of ["barrel", "flange", "head", "rockerBox", "cover", "intakePort", "exhaustPort"] as const)
+      out.push({ name: `Cylinder ${c.n} ${k}`, cyl: c.n, g: cg[k].clone().applyMatrix4(m) });
+  }
+  Object.values(cg).forEach((g) => g.dispose());
+  const kg = caseGeometry(d, L);
+  for (const k of ["right", "left", "acc", "sump"] as const) out.push({ name: `case ${k}`, g: kg[k].clone() });
+  out.push(
+    { name: "Engine mount bosses", g: kg.mounts.clone() },
+    { name: "Engine mount brackets", g: kg.brackets!.clone() },
+  );
+  Object.values(kg).forEach((g) => g?.dispose());
+  const st = driveLayout(S, d, L).starter;
+  const sg = drivesGeometry(S, d, L).starter;
+  if (st.kind !== "rear-adapter" || sg.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+  const atStarter = new THREE.Matrix4().makeTranslation(...st.at);
+  out.push(
+    { name: "Starter", g: sg.motor.clone().applyMatrix4(atStarter) },
+    { name: "Starter solenoid", g: sg.solenoid.clone().applyMatrix4(atStarter) },
+    { name: "Starter adapter", g: sg.adapter.clone() },
+  );
+  Object.values(sg).forEach((g) => g instanceof THREE.BufferGeometry && g.dispose());
+  // the magnetos on their poses, the drive housing behind them and the harness (Systems.tsx ignitionGeometry)
+  const ig = ignitionGeometry(S, d, L);
+  for (const m of ["L", "R"] as const) {
+    const at = new THREE.Matrix4().makeTranslation(0, ...(magnetoPose(S, d, m, L).centre.slice(1) as [number, number]));
+    for (const k of ["body", "flange", "cap"] as const)
+      out.push({ name: `${m} magneto ${k}`, g: ig[k].clone().applyMatrix4(at) });
+  }
+  out.push({ name: "Magneto drive housing", g: ig.cover!.clone() }, { name: "Ignition harness", g: ig.leads.clone() });
+  Object.values(ig).forEach((g) => g?.dispose());
+  // the oil filter canister (kit.ts oilFilterPose) and the fuel manifold valve on top (Systems.tsx InjectedFuel)
+  const F = oilFilterPose(d, L);
+  out.push({ name: "Oil filter", g: new THREE.CylinderGeometry(F.r, F.r, F.len, 24).translate(...F.centre) });
+  const xs = S.geometry.cylinders.map((c) => c.x);
+  out.push({
+    name: "Fuel manifold",
+    g: new THREE.CylinderGeometry(0.022, 0.022, 0.03, 20).translate(
+      (Math.max(...xs) + Math.min(...xs)) / 2,
+      d.caseTop + 0.035,
+      0,
+    ),
+  });
+  const G = turboGeometry(L.turbo!);
+  const walk = (v: unknown, path: string) => {
+    if (v instanceof THREE.BufferGeometry) out.push({ name: `turbo ${path}`, turbo: path, g: v });
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, path ? `${path}.${k}` : k);
+  };
+  // the parts drawn in their own frames (wheels, shafts, the gate plate and rod, the poppet) stay out
+  const moving = /(Wheel|shaft$|\.plate$|\.rod$|poppet)$/;
+  walk(G, "");
+  return out.filter((o) => {
+    if (o.turbo && moving.test(o.turbo)) {
+      o.g.dispose();
+      return false;
+    }
+    return true;
+  });
+}
+
+/** A run of tube, trimmed by `from`/`to` metres at its ends (where it is joined to another part on purpose). */
+function trimmed(curve: THREE.Curve<THREE.Vector3>, from: number, to: number) {
+  const len = curve.getLength();
+  const n = Math.max(8, Math.ceil((len - from - to) / 0.005));
+  return new THREE.CatmullRomCurve3(
+    Array.from({ length: n + 1 }, (_, i) => curve.getPointAt(Math.min(1, (from + ((len - from - to) * i) / n) / len))),
+  );
+}
+
+describe("TSIO-550-K exhaust (M-18 Fig 12-22; POH 7-38)", () => {
+  const E = L.exhaust!;
+  const T = L.turbo!;
+  const runs = exhaustRuns(S, d, L);
+  const run = (name: string) => runs.find((r) => r.name === name)!;
+  const curveDist = (p: V3, r: { points: V3[] }) => {
+    const pts = new THREE.CatmullRomCurve3(r.points.map((q) => new THREE.Vector3(...q))).getPoints(400);
+    return Math.min(...pts.map((q) => q.distanceTo(new THREE.Vector3(...p))));
+  };
+  const same = (a: V3, b: V3) => a.forEach((v, i) => expect(v, `[${i}]`).toBeCloseTo(b[i], 9));
+
+  test("six exhaust runs, each bank to its own turbine inlet; the LH tailpipe carries the wastegate (POH 7-38; M-18 Fig 12-22)", () => {
+    const hp = headPoints(d, L);
+    const risers = runs.filter((r) => r.name.startsWith("Exhaust riser"));
+    expect(risers).toHaveLength(6);
+    for (const c of S.geometry.cylinders) {
+      const r = run(`Exhaust riser, cylinder ${c.n}`);
+      // from the bottom of the cylinder's exhaust outlet, its foot on the port flange (Cylinders.tsx: 0.07 m along the
+      // cylinder, 0.05 m across), down to its own bank's collector
+      const port = toWorld(c, hp.exhaustPort);
+      const [fx, fy, fz] = r.points[0];
+      expect(Math.abs(fx - port[0]) + E.r.riser).toBeLessThanOrEqual(0.035);
+      expect(Math.abs(fz - port[2]) + E.r.riser).toBeLessThanOrEqual(0.025);
+      expect(Math.abs(fy - port[1]) / IN).toBeLessThan(0.2);
+      for (let i = 1; i < r.points.length; i++) expect(r.points[i][1]).toBeLessThanOrEqual(r.points[i - 1][1]);
+      const bank = run(`${c.side === "L" ? "LH" : "RH"} exhaust collector`);
+      expect(curveDist(r.points[r.points.length - 1], bank) / IN).toBeLessThan(0.1);
+      const other = run(`${c.side === "L" ? "RH" : "LH"} exhaust collector`);
+      expect(curveDist(r.points[r.points.length - 1], other) / IN).toBeGreaterThan(10);
+    }
+    // each collector ends on its own turbine inlet flange (layout-turbo.ts, the contract)
+    same(run("LH exhaust collector").points.at(-1)!, T.sides[0].turbineInlet);
+    same(run("RH exhaust collector").points.at(-1)!, T.sides[1].turbineInlet);
+    // the wastegate: fed from the left bank and, through the crossover, the right; it empties into the LH tailpipe
+    const toGate = run("Wastegate transition");
+    same(toGate.points.at(-1)!, T.wastegate.flanges.top);
+    expect(curveDist(toGate.points[0], run("LH exhaust collector")) / IN).toBeLessThan(E.r.pipe / IN);
+    const cross = run("Exhaust crossover");
+    expect(curveDist(cross.points[0], run("RH exhaust collector")) / IN).toBeLessThan(E.r.pipe / IN);
+    expect(curveDist(cross.points.at(-1)!, toGate) / IN).toBeLessThan(E.r.pipe / IN);
+    // a joint by design: the crossover leaves the RH collector where cylinder 1's riser drops into it, a three-pipe
+    // junction (M-18 Figure 12-22)
+    const r1 = run("Exhaust riser, cylinder 1").points.at(-1)!;
+    expect(Math.hypot(...cross.points[0].map((v, i) => v - r1[i])) / IN).toBeLessThan((E.r.pipe + E.r.riser) / IN);
+    const drop = run("Wastegate outlet");
+    same(drop.points[0], T.wastegate.flanges.bottom);
+    expect(curveDist(drop.points.at(-1)!, run("LH tailpipe")) / IN).toBeLessThan(E.r.tail / IN);
+    expect(curveDist(drop.points.at(-1)!, run("RH tailpipe")) / IN).toBeGreaterThan(20);
+    // the tailpipes leave the turbines' discharge collars
+    for (const [k, t] of T.sides.entries()) same(run(`${k ? "RH" : "LH"} tailpipe`).points[0], [t.outlet.x, t.y, t.z]);
+  });
+
+  test("tailpipes end where M-18 Figs 5-33 and 5-35 draw them", () => {
+    for (const [k, t] of T.sides.entries()) {
+      const g = tube(run(`${k ? "RH" : "LH"} tailpipe`).points, E.r.tail, 64, 14);
+      const b = box3(g);
+      g.dispose();
+      // 17.42 in aft of the accessory face; 11.89 in (LH) and 11.95 in (RH) below the shafts (rear view)
+      const below = k ? 11.95 : 11.89;
+      expect(station(b.min.x)).toBeGreaterThanOrEqual(-17.42);
+      expect(station(b.min.x)).toBeLessThan(-17.42 + 0.5);
+      expect(b.min.y / IN).toBeGreaterThanOrEqual(t.y / IN - below);
+      expect(b.min.y / IN).toBeLessThan(t.y / IN - below + 0.5);
+      // in the turbine's vertical plane (rear view: the tailpipes drop straight down)
+      const end = run(`${k ? "RH" : "LH"} tailpipe`).points.at(-1)!;
+      expect(Math.abs(end[2] - t.z) / IN).toBeLessThanOrEqual(0.3);
+    }
+  });
+
+  test("the exhaust clears the cylinders, valve train, case, mount fittings, starter and turbo group by 0.25 in, away from its own joints", async () => {
+    const solids = sceneSolids();
+    // the pushrods, their shroud tubes and seals as mounted (Valvetrain.tsx); each pushrod both seated and at full lift
+    const { scene, unmount } = await mountScene(h(ValveTrain, { sim: simFor(S), d, mats: makeMats() }));
+    for (const { mesh, name } of namedMeshes(scene).filter((p) =>
+      /^(Pushrod|Pushrod shroud tube|Shroud tube seal)$/.test(p.name),
+    ))
+      if (name !== "Pushrod") solids.push({ name, g: worldGeometry(mesh) });
+      else
+        for (const lift of [0, VT.maxLift]) {
+          mesh.parent!.position.z = VT.baseR + VT.tappetLen + lift;
+          mesh.updateWorldMatrix(true, false);
+          solids.push({ name, g: worldGeometry(mesh) });
+        }
+    await unmount();
+    expect(solids.filter((o) => o.name === "Pushrod")).toHaveLength(4 * S.geometry.cylinders.length);
+    // the inside test needs one closed solid, or (the mount bosses) disjoint ones; merged and open-ended parts are
+    // measured surface to surface, which a run crossing them can't escape
+    const closed = /^(case |Engine mount bosses$|Starter$|Starter solenoid$|Pushrod shroud tube$)/;
+    const obs = solids.map((o) => ({ ...o, ob: obstacle(o.name, o.g, closed.test(o.name)) }));
+    const MARGIN = 0.25 * IN;
+    const short: string[] = [];
+    for (const r of runs) {
+      const riser = r.name.match(/cylinder (\d)/);
+      // joined on purpose: a riser to its own cylinder's port flange, and the rocker box the port sits in (Cylinders.tsx
+      // draws the port inside it); each run's end on the flange it bolts to (trimmed off); the wastegate outlet to the
+      // wastegate body
+      const from = /collector|tailpipe|outlet/.test(r.name) ? r.r + 0.6 * IN : 0;
+      const to = /collector|Wastegate transition/.test(r.name) ? r.r + 0.6 * IN : 0;
+      const against = obs
+        .filter((o) => !(riser && o.cyl === Number(riser[1]) && / (rockerBox|exhaustPort)$/.test(o.name)))
+        .filter((o) => !(r.name === "Wastegate outlet" && o.turbo?.startsWith("wastegate.body")))
+        // the TIT probe stands in its turbine's inlet transition (M-18 Fig 5-33)
+        .filter(
+          (o) =>
+            !(
+              r.name === `${o.turbo?.startsWith("sides.0") ? "LH" : "RH"} exhaust collector` &&
+              /tit$/.test(o.turbo ?? "")
+            ),
+        )
+        .map((o) => o.ob);
+      const w = sampledClearance(trimmed(runCurve(r), from, to), r.r, against, 0.005);
+      if (w.gap < MARGIN)
+        short.push(`${r.name} → ${w.name}: ${(w.gap / IN).toFixed(2)} in at s ${station(w.at.x).toFixed(1)}`);
+    }
+    solids.forEach((o) => o.g.dispose());
+    expect(short).toEqual([]);
+  });
+});
+
+describe("TSIO-550-K exhaust group", () => {
+  // the panel's part groups unmount what they hide (parts.tsx Group): every exhaust part goes with its group
+  test("hiding the exhaust group removes every one of its parts", async () => {
+    const meshes = (o: THREE.Object3D) => {
+      let n = 0;
+      o.traverse((x) => {
+        if (x instanceof THREE.Mesh) n++;
+      });
+      return n;
+    };
+    const cases = [["exhaust", Exhaust, exhaustRuns(S, d, L).length + 1]] as const;
+    for (const [id, part, drawn] of cases) {
+      const sim = simFor(S, `tsio550k-hide-${id}`);
+      const el = h(Group, {
+        sim,
+        id,
+        children: h(part as FC<{ sim: typeof sim; d: typeof d; mats: ReturnType<typeof makeMats> }>, {
+          sim,
+          d,
+          mats: makeMats(),
+        }),
+      });
+      const { scene, render, unmount } = await mountScene(el);
+      expect(meshes(scene), id).toBe(drawn);
+      sim.useUi.setState((u) => ({ view: { ...u.view, hidden: [id] } }));
+      await render(el);
+      expect(meshes(scene), id).toBe(0);
+      await unmount();
+    }
+  });
+});
+
 /** The scene's meshes with the names the pointer shows for them. */
 function namedMeshes(scene: THREE.Object3D) {
   const out: { name: string; mesh: THREE.Mesh }[] = [];
@@ -1280,7 +1518,7 @@ describe("TSIO-550-K engine mount fittings (AMM 71-20: six)", () => {
     const sim = simFor(S, "tsio550k-mount-clearance");
     const p = { sim, d, mats: makeMats() };
     const all = [Crankshaft, RodsAndPistons, Camshaft, ValveTrain, Cylinders, Crankcase, Lubrication];
-    const more = [Ignition, FuelSystem, Induction, Turbo, Drives, Propeller];
+    const more = [Ignition, FuelSystem, Induction, Turbo, Exhaust, Drives, Propeller];
     const { scene, unmount } = await mountScene(
       h(PartNotesProvider, { value: S.parts }, ...[...all, ...more].map((C) => h(C, p))),
     );

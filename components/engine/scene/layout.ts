@@ -7,6 +7,7 @@
  */
 import { TSIO550K_LAYOUT } from "@/engines/tsio550k/layout";
 import type { EngineSpec } from "@/engines/types";
+import type { ExhaustLayout } from "./Exhaust";
 import type { Dims } from "./kit";
 import type { TurboLayout } from "./Turbo";
 
@@ -177,6 +178,8 @@ export interface EngineLayout {
   notes: Partial<Record<NoteKey, string>>;
   /** Turbochargers, wastegate and intercoolers (scene/Turbo.tsx, an engine with a turbo layout only). */
   turbo?: TurboLayout;
+  /** Risers, collectors, crossover, wastegate transition and tailpipes (scene/Exhaust.tsx, a turbo layout only). */
+  exhaust?: ExhaustLayout;
 }
 
 /** The IO-390 scene's constants: today's drawing, unchanged. */

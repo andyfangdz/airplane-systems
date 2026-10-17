@@ -23,7 +23,7 @@ export const GROUPS = [
   { id: "drives", name: "Starter, alternator and governor" },
 ] as const;
 
-/** A turbocharged engine's groups: the turbochargers with their controls, after the induction. */
+/** A turbocharged engine's groups: exhaust apart from induction, and the turbochargers with their controls. */
 const TURBO_GROUPS = [
   { id: "case", name: "Crankcase, sump and accessory housing" },
   { id: "cylinders", name: "Cylinders: barrels, heads, rocker covers" },
@@ -31,7 +31,8 @@ const TURBO_GROUPS = [
   { id: "rotating", name: "Crankshaft, rods and pistons" },
   { id: "ignition", name: "Magnetos, harness and spark plugs" },
   { id: "fuel", name: "Fuel injection" },
-  { id: "induction", name: "Induction and exhaust" },
+  { id: "induction", name: "Induction: air boxes, intercooler ducts, throttle and intake" },
+  { id: "exhaust", name: "Exhaust, crossover and tailpipes" },
   { id: "turbo", name: "Turbochargers, wastegate, controller and intercoolers" },
   { id: "oil", name: "Lubrication" },
   { id: "drives", name: "Starter, alternators and governor" },
@@ -39,7 +40,7 @@ const TURBO_GROUPS = [
 
 export type GroupId = (typeof GROUPS)[number]["id"] | (typeof TURBO_GROUPS)[number]["id"];
 
-/** The part groups an engine's panel lists: the turbo group only for a layout with a turbo block. */
+/** The part groups an engine's panel lists: the turbo and exhaust groups only for a layout with a turbo block. */
 export const groupsFor = (spec: EngineSpec, L = layoutFor(spec)): readonly { id: GroupId; name: string }[] =>
   L.turbo ? TURBO_GROUPS : GROUPS;
 

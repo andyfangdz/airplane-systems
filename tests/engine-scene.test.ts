@@ -284,11 +284,11 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     expect(checked).toBe(meshes.filter((m) => m.kind !== "belt").length);
   });
 
-  test("the turbo part group appears only for a layout with a turbo block", () => {
+  test("the turbo and exhaust part groups appear only for a layout with a turbo block", () => {
     const ids = (L2 = L) => groupsFor(S, L2).map((g) => g.id);
     expect(ids().includes("turbo")).toBe(!!L.turbo);
     expect(ids({ ...L, turbo: undefined })).toEqual(GROUPS.map((g) => g.id));
-    expect(ids({ ...L, turbo: TSIO550K_TURBO })).toEqual(expect.arrayContaining(["turbo"]));
+    expect(ids({ ...L, turbo: TSIO550K_TURBO })).toEqual(expect.arrayContaining(["turbo", "exhaust"]));
   });
 
   test("no two crankshaft cheeks overlap", () => {

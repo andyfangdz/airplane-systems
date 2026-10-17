@@ -9,9 +9,87 @@
  * are drawing choices no document gives. Shapes are schematic.
  */
 import type { EngineLayout, V3 } from "@/components/engine/scene/layout";
-import { TSIO550K_TURBO } from "./layout-turbo";
+import { ACCESSORY_FACE_IN, TSIO550K_TURBO } from "./layout-turbo";
 
 const IN = 0.0254;
+/** Inches (s forward of the accessory face, y up, z right) to scene metres, as layout-turbo.ts gives its stations. */
+const at = (s: number, y: number, z: number): V3 => [(ACCESSORY_FACE_IN + s) * IN, y * IN, z * IN];
+const [TL, TR] = TSIO550K_TURBO.sides;
+const WG = TSIO550K_TURBO.wastegate;
+
+/**
+ * The exhaust (M-18 Figure 12-22 p. 12-35 [332], legend): elbow risers, tee assemblies and risers from the cylinders to
+ * each bank's turbo transition and its turbine inlet; the crossover assembly from the right bank to the transition
+ * that feeds the wastegate; the wastegate on the left tailpipe; V-band clamps at the turbine outlets. The runs end on
+ * the turbo layout's flanges (layout-turbo.ts, the contract); their routes are approximate (no figure dimensions them).
+ */
+const EXHAUST = {
+  // Drawn sizes (no figure gives them): risers Ø1.3 in, the largest that leaves the port flange and passes the exhaust
+  // pushrod beside it with 0.25 in to spare; collectors and transitions Ø2.0 in, larger than the risers they gather;
+  // tailpipes Ø3.0 in, inside the turbines' Ø3.3 in discharge collars (layout-turbo.ts, scaled from Figure 5-33)
+  r: { riser: 0.65 * IN, pipe: 1.0 * IN, tail: 1.5 * IN },
+  // each riser's foot set 0.43 in along its port flange, away from the exhaust pushrod, and 0.79 in away by the time it
+  // passes the pushrod's height (Cylinders.tsx draws the port 0.51 in from the pushrod; approximate)
+  riser: { foot: -0.011, clear: -0.02 },
+  banks: [
+    {
+      // the collectors run 7.6 in below the crankshaft centreline, under the rocker boxes (approximate)
+      side: "L",
+      y: -7.6 * IN,
+      z: -13.6 * IN,
+      toTurbine: [at(6.4, -8.2, -13.2), at(5.0, -9.2, -12.94), TL.turbineInlet],
+    },
+    { side: "R", y: -7.6 * IN, z: 13.6 * IN, toTurbine: [at(4.6, -9.0, 13.45), TR.turbineInlet] },
+  ],
+  // from the LH collector aft to the wastegate's top flange, over the LH turbine's TIT probe (approximate)
+  toWastegate: [
+    at(6.8, -8.1, -13.25),
+    at(5.3, -7.5, -13.0),
+    at(2.5, -8.0, -12.94),
+    at(-1.6, -8.4, -12.94),
+    at(-2.6, -8.9, -12.94),
+    WG.flanges.top,
+  ],
+  // aft of the crankcase from the RH collector across to the wastegate transition (approximate): under the sump it
+  // would meet the sump and the RH turbocharger's oil supply hose
+  crossover: [
+    at(4.3, -8.4, 13.5),
+    at(1.0, -9.6, 10.5),
+    at(-1.4, -9.8, 5.0),
+    at(-1.6, -9.8, -5.0),
+    at(-1.6, -9.0, -10.5),
+    at(-1.6, -8.5, -12.6),
+  ],
+  // from the wastegate's bottom flange into the LH tailpipe (POH 7-38; AMM 81-20: connected to the LH tailpipe)
+  wastegateDrop: [WG.flanges.bottom, at(-2.6, -15.2, -12.94), at(-2.6, -17.3, -12.94)],
+  // From each turbine's discharge collar aft and down to the end M-18 Figures 5-33 and 5-35 draw: 17.42 in (5-33) and
+  // 17.35 in (5-35) aft of the accessory face, 11.89 in (LH) and 11.95 in (RH) below the turbine shafts (rear view),
+  // in the turbines' vertical planes. The 45° and 37° 54′ marks printed by the tailpipes there don't match a straight
+  // pipe to that end (≈ 28° below the horizontal); the dimensioned end governs, and the drawn bend is approximate.
+  tailpipes: [
+    [[TL.outlet.x, TL.y, TL.z], at(1.2, -15.7, -12.94), at(-16.7, -25.2, -12.94)],
+    [[TR.outlet.x, TR.y, TR.z], at(1.2, -15.7, 13.45), at(-16.7, -25.25, 13.45)],
+  ],
+  notes: {
+    riser:
+      "Exhaust riser from the cylinder's downdraft exhaust outlet at the bottom of the head (M-18 2-1) to its bank's collector (M-18 Figure 12-22: elbow risers, tee assemblies, risers). A sensor in it measures the cylinder's exhaust gas temperature (POH 7-35; M-18 Figure 5-33, EGT holes); it glows with that temperature.",
+    collector:
+      "This bank's tee assemblies and turbo transition: the exhaust from its three cylinders goes to this side's turbine inlet (POH 7-38; M-18 Figure 12-22). Tinted with the bank's mean exhaust gas temperature.",
+    crossover:
+      "Crossover assembly from the right bank's transition to the transition feeding the wastegate (M-18 Figure 12-22). In the airplane a heat exchanger surrounds the crossover tube to heat cabin air (POH 7-64); it is not drawn.",
+    toWastegate:
+      "Transition from the left bank to the wastegate (M-18 Figure 12-22). Exhaust the wastegate lets past bypasses the turbines (POH 7-38).",
+    wastegateDrop: "The wastegate's outlet into the left tailpipe (POH 7-38; AMM 81-20).",
+    tailpipe:
+      "Tailpipe: the exhaust leaves the turbine's discharge port overboard through the lower cowling (POH 7-38). Ends where M-18 Figures 5-33 and 5-35 draw it; tinted with this side's turbine inlet temperature.",
+    clamp: "V-band clamp joining the tailpipe to the turbine's discharge (M-18 Figure 12-22).",
+  },
+  labels: [
+    ["LH tailpipe", at(-14.0, -25.0, -15.5)],
+    ["RH tailpipe", at(-14.0, -25.0, 16.0)],
+    ["Exhaust crossover", at(-1.6, -12.0, 0)],
+  ],
+} satisfies EngineLayout["exhaust"];
 
 export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   stationsIn: {
@@ -171,10 +249,12 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     ["ALT 2", [d.flangeX - 0.02, -0.01, -0.3]],
     ["Governor", [d.front, -0.22, -0.12]],
   ],
-  // FIT, checked by shot: the IO-390 view drawn 1.25 times as far (the -K is ≈ 1.2 times longer and wider; the extra
-  // height is turbochargers and tailpipes, which this layout does not draw yet).
-  camera: { position: [1.4375, 0.775, 1.6875], target: [0, -0.05, 0], maxDistance: 6 },
+  // FIT, checked by shot: the target dropped towards the middle of the drawn height (the tailpipes reach 26.7 in below
+  // the crankshaft centreline) and the view drawn ≈ 1.3 times as far as before the turbochargers and exhaust were
+  // drawn, so every label stays in the canvas.
+  camera: { position: [1.85, 0.75, 2.2], target: [0, -0.2, 0], maxDistance: 6 },
   turbo: TSIO550K_TURBO,
+  exhaust: EXHAUST,
   notes: {
     crankshaft:
       "Six rod journals and five main journals (M-18 2-2.2.1, Figure 2-6); the crankshaft gear at the rear drives the camshaft, the idler and the fuel pump.",
