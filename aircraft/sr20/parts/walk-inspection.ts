@@ -23,6 +23,8 @@ for (const side of [1, -1]) {
       ),
     ["airframe"],
     {
+      id: "parts.walk-inspection.wing-tip.001",
+      instance: [side],
       name: "Wing tip",
       note: "Composite removable wing tip engages mounting clips and is secured by screws; disconnect its light harness and ground straps for removal (AMM 12137-002 Rev A1 57-20 pp. 1–4, Fig 57-20-1). This narrow preflight overlay follows the model's rounded tip skin; its inboard boundary and slight skin offset are approximate display choices.",
       fairing: true,
@@ -40,6 +42,8 @@ for (const side of [1, -1]) {
       ),
     ["airframe"],
     {
+      id: "parts.walk-inspection.wing-leading-edge.002",
+      instance: [side],
       name: "Wing leading edge",
       note: "Inspect the composite leading edge and stall-strip attachment/condition (POH 11934-005 4-7, 4-9; AMM 12137-002 Rev A1 57-20 p. 1). This narrow preflight overlay follows the leading 3.5% of the model's wing chord; its width and slight skin offset are display choices, not aircraft dimensions.",
       fairing: true,
@@ -53,6 +57,8 @@ for (const side of [1, -1]) {
     return toVec3(p);
   });
   part(() => tubeGeo(strip, 0.009), ["airframe"], {
+    id: "parts.walk-inspection.stall-strips.003",
+    instance: [side],
     name: "Stall strips",
     note: "Stall strips on the inboard leading edge of the wing cuffs on both wings promote a more gradual stall and prolong aileron effectivity (AMM 12137-002 Rev A1 57-20 p. 1). The SR20 manual does not dimension their station, length or section: this short round depiction is schematic, not the SR22T outboard/porous-strip installation. Missing strips render the airplane unairworthy; removal/installation requires Cirrus disposition (57-20 p. 5). Inspect condition on preflight (POH 11934-005 4-7, 4-9).",
     color: "#454A4F",
@@ -94,6 +100,8 @@ for (const side of [1, -1]) {
       ),
     ["airframe"],
     {
+      id: "parts.walk-inspection.wing-fuselage-fairing.004",
+      instance: [side],
       name: "Wing/fuselage fairing",
       note: "Check the wing/fuselage fairing (POH 11934-005 4-6). The model blends this junction into its wing and fuselage skins; this narrow highlight follows their visible upper-surface intersection. Its 0.18 m width and 2 mm skin offset are approximate display choices, not a separate fairing or measured attachment hardware.",
       fairing: true,
@@ -116,6 +124,8 @@ for (const side of [1, -1]) {
     },
     ["airframe"],
     {
+      id: "parts.walk-inspection.cowling-inspection-region.005",
+      instance: [side],
       name: "Cowling inspection region",
       note: "Cowling attachments must be secure (POH 11934-005 4-7, 4-8). This highlight follows only the model's cowling ahead of its firewall, on the inspected side, retaining the open inlet apertures. The shell blends into the fuselage; highlight boundaries and the 0.6% skin offset are approximate display choices, not separate fasteners or surveyed cowl geometry.",
       fairing: true,

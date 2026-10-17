@@ -13,9 +13,8 @@ import { Controls, Flaps, Gear } from "./panels/flight";
 import { Airframe, Cabin, Overview } from "./panels/general";
 import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { CAT } from "./parts";
-import { useC182 } from "./store";
+import { c182Runtime, useC182 } from "./store";
 import { C182T_META } from "./meta";
-import { simTick } from "./tick";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window (with the KAP 140 PITCH TRIM): shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
@@ -59,7 +58,7 @@ export const C182T: AircraftDef = {
     avionics: Avionics,
     autopilot: Autopilot,
   },
-  tick: simTick,
+  advance: c182Runtime.advance,
   Alerts,
   labels: { cat: CAT, inside: inFus },
   walk: WALK.walk,

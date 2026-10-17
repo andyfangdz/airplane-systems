@@ -10,22 +10,26 @@ export const GMA_Z = -0.066,
 export const DEFROST_X = PANEL_X + 0.14,
   RB_NOZZLE = { y: 0.22, z: 0.42 };
 part(() => sectionSlab(PANEL_X, -0.26, 0.2, 0.96, 0.04, PANEL_X), ["avionics", "autopilot", "cabin"], {
+  id: "parts.cabin.instrument-panel.001",
   color: "#2B3238",
   name: "Instrument panel",
   note: "G1000 panel: PFD left, GMA 1347 centre, MFD right, breakers far right; standby instruments in the raised centre row (SMM Fig. 2-1). All panel items are at arm 1.78 m (AFM 6.5).",
 });
 part(() => sectionSlab(PANEL_X + 0.09, 0.2, 0.26, 0.95, 0.14, PANEL_X + 0.16), ["cabin", "lighting"], {
+  id: "parts.cabin.glareshield.002",
   color: "#2B3238",
   name: "Glareshield",
   note: "Projects over the panel; the electroluminescent flood-light panel is mounted under it.",
 });
 part(() => box(0.38, 0.14, 0.12), ["cabin", "environment", "gear"], {
+  id: "parts.cabin.small-centre-console.003",
   pos: [fs(1.86), -0.38, 0],
   color: "#39424A",
   name: "Small centre console",
   note: "Under the panel: CABIN HEAT lever (left), DEFROST/FLOOR lever (centre) and PARKING BRAKE lever (AFM 7-13, 7-18; SMM Fig. 2-1).",
 });
 part(() => box(0.7, 0.16, 0.14), ["cabin"], {
+  id: "parts.cabin.large-centre-console.004",
   pos: [fs(2.25), -0.42, 0],
   color: "#39424A",
   name: "Large centre console",
@@ -33,13 +37,15 @@ part(() => box(0.7, 0.16, 0.14), ["cabin"], {
 });
 (
   [
-    [fs(2.3), -0.26, "Pilot seat", 0.34],
-    [fs(2.3), 0.26, "Front passenger seat", 0.34],
-    [fs(3.25), -0.26, "Rear seat (L)", 0.36],
-    [fs(3.25), 0.26, "Rear seat (R)", 0.36],
-  ] as [number, number, string, number][]
-).forEach(([x, z, name, w], i) => {
+    ["member-1", [fs(2.3), -0.26, "Pilot seat", 0.34] as [number, number, string, number]],
+    ["member-2", [fs(2.3), 0.26, "Front passenger seat", 0.34] as [number, number, string, number]],
+    ["member-3", [fs(3.25), -0.26, "Rear seat (L)", 0.36] as [number, number, string, number]],
+    ["member-4", [fs(3.25), 0.26, "Rear seat (R)", 0.36] as [number, number, string, number]],
+  ] as const
+).forEach(([instance1, [x, z, name, w]], i) => {
   part(() => box(0.46, 0.08, w), ["cabin"], {
+    id: "parts.cabin.part.005",
+    instance: [instance1],
     pos: [x, -0.47, z],
     color: "#6B5A48",
     name,
@@ -50,6 +56,8 @@ part(() => box(0.7, 0.16, 0.14), ["cabin"], {
     pin: i === 0 || i === 2,
   });
   part(() => box(0.08, 0.6, w * 0.8), ["cabin"], {
+    id: "parts.cabin.part.006",
+    instance: [instance1],
     pos: [x - 0.26, -0.17, z],
     rot: [0, 0, 0.18],
     color: "#6B5A48",
@@ -61,6 +69,7 @@ part(() => box(0.7, 0.16, 0.14), ["cabin"], {
   });
 });
 part(() => box(0.5, 0.05, 0.74), ["cabin"], {
+  id: "parts.cabin.baggage-compartment.007",
   pos: [fs(3.75), -0.46, 0],
   color: "#4A4F55",
   name: "Baggage compartment",
@@ -68,6 +77,7 @@ part(() => box(0.5, 0.05, 0.74), ["cabin"], {
   pin: true,
 });
 part(() => cyl(0.09, 0.55, "x", 16), ["cabin"], {
+  id: "parts.cabin.baggage-tube.008",
   pos: [fs(4.35), -0.38, 0],
   color: "#4A4F55",
   name: "Baggage tube",
@@ -75,6 +85,7 @@ part(() => cyl(0.09, 0.55, "x", 16), ["cabin"], {
   pin: true,
 });
 part(() => box(0.14, 0.06, 0.06), ["cabin"], {
+  id: "parts.cabin.fire-extinguisher.009",
   pos: [fs(2.79), -0.52, 0],
   color: "#D32640",
   name: "Fire extinguisher",
@@ -82,6 +93,7 @@ part(() => box(0.14, 0.06, 0.06), ["cabin"], {
   pin: true,
 });
 part(() => box(0.32, 0.03, 0.06), ["cabin"], {
+  id: "parts.cabin.emergency-axe.010",
   pos: [fs(2.3), -0.55, -0.29],
   color: "#C84A2A",
   name: "Emergency axe",
@@ -89,6 +101,7 @@ part(() => box(0.32, 0.03, 0.06), ["cabin"], {
   pin: true,
 });
 part(() => box(0.16, 0.1, 0.1), ["cabin", "avionics"], {
+  id: "parts.cabin.elt.011",
   pos: [fs(4.4), -0.27, 0.22],
   color: "#EB7A12",
   name: "ELT",
@@ -96,6 +109,7 @@ part(() => box(0.16, 0.1, 0.1), ["cabin", "avionics"], {
   pin: true,
 });
 part(() => box(0.012, 0.03, 0.03), ["cabin", "environment"], {
+  id: "parts.cabin.co-detector-alert-light.012",
   pos: [PANEL_X - 0.028, 0.12, 0.4],
   color: "#C83A3A",
   name: "CO detector alert light",
@@ -112,6 +126,8 @@ part(() => box(0.012, 0.03, 0.03), ["cabin", "environment"], {
     },
     ["controls"],
     {
+      id: "parts.cabin.control-stick.013",
+      instance: [side],
       parent: "stick:" + side,
       chan: ["elevator", "aileron"],
       color: "#30363B",
@@ -128,6 +144,8 @@ part(() => box(0.012, 0.03, 0.03), ["cabin", "environment"], {
     },
     ["controls", "autopilot"],
     {
+      id: "parts.cabin.part.014",
+      instance: [side],
       parent: "stick:" + side,
       chan: ["elevator", "aileron"],
       color: "#1B1F23",
@@ -140,6 +158,8 @@ part(() => box(0.012, 0.03, 0.03), ["cabin", "environment"], {
     },
   );
   part(() => box(0.015, ARMS.a, 0.015), ["controls"], {
+    id: "parts.cabin.part.015",
+    instance: [side],
     parent: "stick:" + side,
     chan: ["aileron"],
     pos: [0, -ARMS.a / 2, 0],
@@ -147,6 +167,7 @@ part(() => box(0.012, 0.03, 0.03), ["cabin", "environment"], {
   });
 });
 part(() => cyl(0.014, STICK.z * 2, "z"), ["controls"], {
+  id: "parts.cabin.stick-torque-tube.016",
   parent: "rig:ett",
   chan: ["elevator"],
   color: "#8C959C",
@@ -155,6 +176,7 @@ part(() => cyl(0.014, STICK.z * 2, "z"), ["controls"], {
   pin: true,
 });
 part(() => box(0.015, ARMS.e, 0.015), ["controls"], {
+  id: "parts.cabin.part.017",
   parent: "rig:ett",
   chan: ["elevator"],
   pos: [0, -ARMS.e / 2, 0],

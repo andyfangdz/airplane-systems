@@ -5,6 +5,7 @@ import { FW, PANEL_X } from "../geometry";
 export const CONTROL_ROUTES = [
   addControlCable(
     CAT,
+    "aircraft.m20c.parts.control-routing.throttle-cable",
     "Throttle control cable",
     [
       [PANEL_X + 0.06, -0.17, -0.1],
@@ -18,6 +19,7 @@ export const CONTROL_ROUTES = [
   ),
   addControlCable(
     CAT,
+    "aircraft.m20c.parts.control-routing.mixture-cable",
     "Mixture control cable",
     [
       [PANEL_X + 0.06, -0.17, -0.05],

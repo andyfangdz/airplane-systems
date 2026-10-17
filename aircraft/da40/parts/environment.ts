@@ -5,6 +5,7 @@ import { DEFROST_X, RB_NOZZLE } from "./cabin";
 
 /* ---------- environment: heating & ventilation ---------- */
 part(() => box(0.03, 0.08, 0.02), ["environment"], {
+  id: "parts.environment.cabin-heat-lever.001",
   pos: [fs(1.87), -0.31, -0.035],
   color: "#E0522B",
   anim: (m) => {
@@ -15,6 +16,7 @@ part(() => box(0.03, 0.08, 0.02), ["environment"], {
   pin: true,
 });
 part(() => box(0.03, 0.08, 0.02), ["environment"], {
+  id: "parts.environment.defrost-floor-lever.002",
   pos: [fs(1.87), -0.31, 0.0],
   color: "#149C94",
   anim: (m) => {
@@ -26,6 +28,7 @@ part(() => box(0.03, 0.08, 0.02), ["environment"], {
 });
 // on the engine side of the firewall (its overboard outlet is in the cowling); must match HV in flows.ts
 part(() => box(0.08, 0.1, 0.12), ["environment"], {
+  id: "parts.environment.heat-valve.003",
   pos: [FW + 0.045, -0.4, 0.12],
   color: "#E0522B",
   name: "Heat valve",
@@ -33,6 +36,7 @@ part(() => box(0.08, 0.1, 0.12), ["environment"], {
   pin: true,
 });
 part(() => box(0.08, 0.1, 0.18), ["environment"], {
+  id: "parts.environment.floor-defrost-distributor-valve.004",
   pos: [FW - 0.14, -0.42, 0.0],
   color: "#149C94",
   name: "Floor / defrost distributor valve",
@@ -41,6 +45,7 @@ part(() => box(0.08, 0.1, 0.18), ["environment"], {
 });
 // on top of the glareshield (y 0.20–0.26) along its forward edge, where the canopy starts
 part(() => box(0.04, 0.012, 0.44), ["environment"], {
+  id: "parts.environment.defrost-outlet.005",
   pos: [DEFROST_X, 0.267, 0],
   color: "#149C94",
   name: "Defrost outlet",
@@ -48,6 +53,8 @@ part(() => box(0.04, 0.012, 0.44), ["environment"], {
 });
 [1, -1].forEach((s) =>
   part(() => sph(0.03), ["environment"], {
+    instance: [s],
+    id: "parts.environment.panel-air-nozzle.006",
     pos: [PANEL_X - 0.02, -0.03, s * 0.485],
     color: "#149C94",
     name: "Panel air nozzle",
@@ -58,6 +65,8 @@ part(() => box(0.04, 0.012, 0.44), ["environment"], {
 );
 [1, -1].forEach((s) =>
   part(() => sph(0.025), ["environment"], {
+    instance: [s],
+    id: "parts.environment.roll-bar-air-nozzle.007",
     pos: [ROLLBAR_X, RB_NOZZLE.y, s * RB_NOZZLE.z],
     color: "#149C94",
     name: "Roll-bar air nozzle",
@@ -66,6 +75,7 @@ part(() => box(0.04, 0.012, 0.44), ["environment"], {
   }),
 );
 part(() => box(0.22, 0.012, 0.08), ["environment"], {
+  id: "parts.environment.fresh-air-inlet-naca.008",
   pos: [fs(2.25), wingP(-0.85, 0.08, -1).y - 0.005, -0.85],
   color: "#149C94",
   name: "Fresh-air inlet (NACA)",
@@ -74,6 +84,7 @@ part(() => box(0.22, 0.012, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.05, 0.12, 0.03), ["environment", "cabin"], {
+  id: "parts.environment.canopy-emergency-window.009",
   parent: "canopy",
   pos: relTo(onSkin(fs(2.35), 0.18, -1, 1.03), CANOPY_HINGE),
   color: "#149C94",
@@ -88,6 +99,7 @@ part(() => box(0.05, 0.12, 0.03), ["environment", "cabin"], {
 
 /* ---------- canopy / door hardware ---------- */
 part(() => box(0.04, 0.03, 0.12), ["cabin"], {
+  id: "parts.environment.canopy-handle-left.010",
   parent: "canopy",
   pos: relTo(onSkin(fs(2.5), -0.03, -1, 1.02), CANOPY_HINGE),
   color: "#30363B",
@@ -107,11 +119,13 @@ part(
     ),
   ["cabin"],
   {
+    id: "parts.environment.rear-door-gas-strut.011",
     name: "Rear door gas strut",
     note: "Gas-pressure damper that holds the rear door open; hold the door in strong wind (AFM 7-18).",
   },
 );
 part(() => box(0.04, 0.03, 0.05), ["cabin"], {
+  id: "parts.environment.rear-door-safety-lever.012",
   parent: "door",
   pos: relTo(onSkin(fs(3.55), 0.0, -1, 0.9), DOOR_HINGE),
   color: "#C83A3A",

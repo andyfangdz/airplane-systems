@@ -19,7 +19,7 @@
  * - environment.ts: heat and vent junction box, scoops, outlets, controls
  * - cabin.ts: panel, glareshield, compass, seats, baggage, doors, storm window, control wheels, trim wheel, jack screw
  * - controls.ts: bellcranks, horns, rudder lever; flap pump, control, cylinder and torque tube
- * Part ids come from a global counter and the first part of each name gets the label pin, so keep the import order,
+ * Part ids are explicit authored tokens. The first pinned part of each name gets its label, so keep the import order,
  * and let a section import anchors only from sections above it (importing a later one would register it first).
  */
 export { CAT, surfacePivot } from "./catalogue";

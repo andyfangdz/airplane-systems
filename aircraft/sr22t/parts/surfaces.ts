@@ -30,7 +30,7 @@ import {
   wingP,
   wingSec,
 } from "../geometry";
-import { FLAP_HINGE_Z } from "../rig";
+import { FLAP_HINGES } from "../rig";
 import { part, sided, surface, onSurf } from "./catalogue";
 
 /*
@@ -165,6 +165,8 @@ surface(
   // Retainer at the tip trailing edge, wick projecting aft (AMM Fig 23-60-1 Detail A, PDF p. 679).
   const tip = wingP(s * 5.84, 1, 0);
   part(() => cyl(0.004, 0.13, "x", 6), ["controls"], {
+    instance: [s],
+    id: "parts.surfaces.static-wick-wing-tip.001",
     pos: toVec3(tip.add(V(-0.13 / 2, 0, s * 0.01))),
     color: "#2A2F33",
     name: "Static wick (wing tip)",
@@ -173,6 +175,8 @@ surface(
     pin: s > 0,
   });
   part(() => cyl(0.004, 0.13, "x", 6), ["controls"], {
+    instance: [s],
+    id: "parts.surfaces.static-wick-aileron.002",
     pos: toVec3(wingP(s * 5.3, 1.0, 0).add(V(-0.05, 0, 0))),
     color: "#2A2F33",
     name: "Static wick (aileron)",
@@ -181,6 +185,8 @@ surface(
     pin: s > 0,
   });
   onSurf("elev" + side, V(sLE(1.85) - sC(1.85) - 0.05, SY, s * 1.85), () => cyl(0.004, 0.12, "x", 6), {
+    instance: [s],
+    id: "parts.surfaces.static-wick.003",
     color: "#2A2F33",
     name: "Static wick",
     ext: true,
@@ -188,13 +194,15 @@ surface(
   // horn balance weight per AMM 55-20 and Fig 55-20-2 Detail A (the POH is silent on it);
   // inboard on the rounded tip cap (HZ to z 1.90), where the cut-back leading edge still clears the box
   onSurf("elev" + side, V(sLE(1.87) - 0.25 * sC(1.87), SY, s * 1.87), () => box(0.05, 0.03, 0.06), {
+    instance: [s],
+    id: "parts.surfaces.elevator-horn-balance-weight.004",
     color: "#6E7A84",
     name: "Elevator horn balance + weight",
     pin: s > 0,
     note: "Lead balance weight fastened to the inboard and outboard horn ribs at BL 72 (AMM 55-20, Fig 55-20-2 Detail A).",
   });
   // flap hinges, the flap's own hinge arms and the hinge fairings (see the flap hinge geometry above)
-  FLAP_HINGE_Z.forEach((z, i) => {
+  FLAP_HINGES.forEach(({ key, z }, i) => {
     const h = flapHingeAt(s * z),
       c = wC(z),
       rel = (v: THREE.Vector3) => v.clone().sub(h),
@@ -211,6 +219,8 @@ surface(
         ),
       ["flaps"],
       {
+        id: "parts.surfaces.flap-hinge-bracket.005",
+        instance: [key, s],
         pos: toVec3(h),
         color: "#C9D0D5",
         name: "Flap hinge bracket",
@@ -231,6 +241,8 @@ surface(
         ),
       ["flaps"],
       {
+        id: "parts.surfaces.flap-hinge-fairing.006",
+        instance: [key, s],
         pos: toVec3(h),
         color: "#E4E8EB",
         name: "Flap hinge fairing",
@@ -244,6 +256,8 @@ surface(
       h,
       () => sweepGeo([V(0, 0, 0), rel(up(FLAP_NOSE + 0.03))], (t) => [0.005, 0.006 * roundEnds(t, 0.1, 0)], [0, 0, 1]),
       {
+        id: "parts.surfaces.flap-hinge-arm.007",
+        instance: [key, s],
         sys: ["flaps"],
         color: "#B7C0C7",
         name: "Flap hinge arm",
@@ -254,11 +268,13 @@ surface(
   });
   (
     [
-      [3.95, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
-      [4.85, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
-    ] as [number, string, string, SysId[]][]
-  ).forEach(([z, name, note, sys]) =>
+      ["inboard", 3.95, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
+      ["outboard", 4.85, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
+    ] as [string, number, string, string, SysId[]][]
+  ).forEach(([key, z, name, note, sys]) =>
     part(() => box(0.34, 0.05, 0.025), sys, {
+      id: "parts.surfaces.part.008",
+      instance: [key, s],
       pos: toVec3(wingP(s * z, 0.74, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name,
@@ -271,6 +287,7 @@ surface(
   );
 });
 onSurf("ailR", wingP(4.3, 0.99, 0).add(V(-0.03, 0, 0)), () => box(0.07, 0.004, 0.12), {
+  id: "parts.surfaces.aileron-trim-tab-ground-adjustable.009",
   color: "#8C99A3",
   name: "Aileron trim tab (ground-adjustable)",
   note: "Right aileron only: small adjustments in neutral trim. Factory set; does not normally need adjustment (POH 7-9).",
@@ -278,6 +295,7 @@ onSurf("ailR", wingP(4.3, 0.99, 0).add(V(-0.03, 0, 0)), () => box(0.07, 0.004, 0
   pin: true,
 });
 onSurf("elevR", V(sLE(0.5) - sC(0.5) - 0.03, SY, 0.5), () => box(0.07, 0.004, 0.14), {
+  id: "parts.surfaces.elevator-trim-tab-ground-adjustable.010",
   color: "#8C99A3",
   name: "Elevator trim tab (ground-adjustable)",
   note: "Small adjustments in neutral trim. Factory set; does not normally need adjustment (POH 7-6).",
@@ -285,6 +303,7 @@ onSurf("elevR", V(sLE(0.5) - sC(0.5) - 0.03, SY, 0.5), () => box(0.07, 0.004, 0.
   pin: true,
 });
 onSurf("rudder", V(fLE(0.35) - fC(0.35) - 0.03, 0.35, 0), () => box(0.07, 0.14, 0.004), {
+  id: "parts.surfaces.rudder-trim-tab-ground-adjustable.011",
   color: "#8C99A3",
   name: "Rudder trim tab (ground-adjustable)",
   note: "Small adjustments in neutral trim. Factory set; does not normally need adjustment (POH 7-11).",
@@ -292,12 +311,14 @@ onSurf("rudder", V(fLE(0.35) - fC(0.35) - 0.03, 0.35, 0), () => box(0.07, 0.14, 
   pin: true,
 });
 onSurf("rudder", V(fLE(1.3) - fC(1.3) - 0.05, 1.3, 0), () => cyl(0.004, 0.12, "x", 6), {
+  id: "parts.surfaces.static-wick.012",
   color: "#2A2F33",
   name: "Static wick",
   ext: true,
 });
 // horn balance weight per AMM Fig 55-40-1 Detail B (the POH is silent on it)
 onSurf("rudder", V(fLE(1.46) - 0.3 * fC(1.46), 1.46, 0), () => box(0.06, 0.04, 0.03), {
+  id: "parts.surfaces.rudder-horn-balance-weight.013",
   color: "#6E7A84",
   name: "Rudder horn balance + weight",
   note: "Lead-washer mass balance in the rudder horn cap, ahead of the hinge line (AMM 55-40, Fig 55-40-1 Detail B).",

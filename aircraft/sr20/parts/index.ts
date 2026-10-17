@@ -21,8 +21,8 @@
  * - lights.ts — interior and exterior lights
  * - controls.ts — flight-control mechanisms (POH Figures 7-1, 7-2, 7-3)
  *
- * The sections are imported below in registration order. Part ids come from a running counter and the first part with a
- * given name gets the label pin, so keep this order, and never import a section from one that comes before it here.
+ * The sections are imported below in registration order. Part ids are explicit authored tokens; the first pinned part with a
+ * given name gets the label pin, so preserve this label order, and never import a section from one that comes before it here.
  * Shared constants go in catalogue.ts.
  */
 export { CAT, STALL_Z, chanOfKey, surfacePivot } from "./catalogue";

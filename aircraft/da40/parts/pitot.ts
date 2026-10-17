@@ -36,6 +36,7 @@ part(
   },
   ["pitot"],
   {
+    id: "parts.pitot.pitot-static-mast-heated.001",
     anim: (m) => {
       const { s, E } = sim();
       const hot = s.pitot.heat && E.pitotPwr && !s.pitot.heaterFail;
@@ -60,6 +61,7 @@ part(
   },
   ["pitot"],
   {
+    id: "parts.pitot.pitot-opening.002",
     pos: [MAST_TIP.x + 0.0005, MAST_TIP.y, PITOT_Z],
     color: "#0B1014",
     name: "Pitot opening",
@@ -69,12 +71,14 @@ part(
 );
 (
   [
-    [0.5, -1],
-    [1, 0],
+    ["member-1", [0.5, -1]],
+    ["member-2", [1, 0]],
   ] as const
-).forEach(([xc, up], i) => {
+).forEach(([instance1, [xc, up]], i) => {
   const m = mastAt(1);
   part(() => sph(0.0045), ["pitot"], {
+    id: "parts.pitot.static-orifice.003",
+    instance: [instance1],
     pos: [m.le - xc * m.c + (up ? 0 : -0.002), m.y + (up < 0 ? -0.001 : 0.02), PITOT_Z],
     color: "#0B1014",
     name: "Static orifice",
@@ -86,12 +90,14 @@ part(
   });
 });
 part(() => box(0.05, 0.03, 0.04), ["pitot"], {
+  id: "parts.pitot.pitot-static-filters.004",
   pos: [fs(2.3), -0.5, -0.5],
   color: "#3A9448",
   name: "Pitot-static filters",
   note: "Filters against dirt and condensation, reachable from the left wing root (AFM 7-54).",
 });
 part(() => box(0.05, 0.05, 0.04), ["pitot"], {
+  id: "parts.pitot.alternate-static-valve.005",
   pos: [fs(1.86), -0.3, -0.42],
   color: "#3A9448",
   anim: (m) => {
@@ -110,6 +116,7 @@ part(
   },
   ["pitot"],
   {
+    id: "parts.pitot.stall-warning-orifice-red-ring.006",
     pos: toVec3(wingP(STALL_Z, 0, 0).add(V(0.004, 0, 0))),
     color: "#E0263B",
     name: "Stall-warning orifice (red ring)",
@@ -119,6 +126,7 @@ part(
   },
 );
 part(() => sph(0.035), ["pitot"], {
+  id: "parts.pitot.low-pressure-peak.007",
   pos: toVec3(wingP(STALL_Z, 0.2, 1)),
   color: "#E0263B",
   anim: (m) => {
@@ -143,11 +151,13 @@ export const STALL_HOSE: Vec3[] = [
   [PANEL_X + 0.05, -0.12, -0.42],
 ];
 part(() => tubeGeo(STALL_HOSE, 0.006), ["pitot"], {
+  id: "parts.pitot.stall-warning-hose.008",
   color: "#3A9448",
   name: "Stall-warning hose",
   note: "Runs from the orifice to the horn in the instrument panel (routing assumed).",
 });
 part(() => cyl(0.025, 0.03, "x", 16), ["pitot"], {
+  id: "parts.pitot.stall-warning-horn.009",
   pos: [PANEL_X + 0.03, -0.12, -0.42],
   color: "#3A9448",
   anim: glow("#2A6A34", "#FF4A4A", () => hornLevel(sim().s) > 0, ["pitot"]),
@@ -156,6 +166,7 @@ part(() => cyl(0.025, 0.03, "x", 16), ["pitot"], {
   pin: true,
 });
 part(() => box(0.04, 0.03, 0.03), ["pitot", "avionics"], {
+  id: "parts.pitot.pitot-static-lines-to-gdc-74a.010",
   pos: [PANEL_X + 0.12, 0.02, 0.06],
   color: "#3A9448",
   name: "Pitot / static lines to GDC 74A",

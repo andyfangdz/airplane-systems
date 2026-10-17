@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { gzipSync } from "node:zlib";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { Catalogue, specGeo } from "@/lib/catalogue";
 import { encodeMeshes } from "@/lib/mesh/encode";
@@ -51,8 +52,16 @@ describe("prebuilt geometry fidelity", () => {
   it("primes all optional parts without running their factories and rejects partial catalogues atomically", async () => {
     const cat = new Catalogue("test");
     const factory = vi.fn(() => new THREE.BoxGeometry());
-    const part = cat.part(factory, ["engine"], { name: "Optional part", fitted: () => false });
-    cat.part(factory, ["controls"], { name: "Moving cable", dynamicGeo: true });
+    const part = cat.part(factory, ["engine"], {
+      id: "tests.prebuilt-geometry.test.optional-part.001",
+      name: "Optional part",
+      fitted: () => false,
+    });
+    cat.part(factory, ["controls"], {
+      id: "tests.prebuilt-geometry.test.moving-cable.002",
+      name: "Moving cable",
+      dynamicGeo: true,
+    });
     const entries = geometryEntries(cat);
     expect(entries).toHaveLength(1);
     const decoded = await decodeMeshes(
@@ -77,10 +86,14 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("terminates a failed or silent asset worker and resolves to procedural fallback", async () => {
+it("terminates a failed or silent asset worker and reports failure when main-thread download also fails", async () => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.useFakeTimers();
   const terminate = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(null, { status: 503 })),
+  );
   let reply: ((event: { data: unknown }) => void) | null = null;
   vi.stubGlobal(
     "Worker",
@@ -99,4 +112,30 @@ it("terminates a failed or silent asset worker and resolves to procedural fallba
   await vi.advanceTimersByTimeAsync(15_000);
   expect(await silent).toBeNull();
   expect(terminate).toHaveBeenCalledTimes(2);
+});
+
+it("decodes the original asset on the main thread after asynchronous worker refusal", async () => {
+  const source = new THREE.BoxGeometry(1, 2, 3);
+  const packed = gzipSync(await encodeMeshes("test", [{ key: "box", geometry: source }]));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(new Uint8Array(packed))),
+  );
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  const terminate = vi.fn();
+  vi.stubGlobal(
+    "Worker",
+    class {
+      onerror?: (event: { message: string }) => void;
+      terminate = terminate;
+      postMessage() {
+        queueMicrotask(() => this.onerror?.({ message: "Worker blocked by policy" }));
+      }
+    },
+  );
+  const meshes = await loadGeometry("/geometry/test.bin.gz", "test");
+  expect(meshes).toHaveLength(1);
+  expect(meshes![0].key).toBe("box");
+  expect(bytes(rebuildMesh(meshes![0]).attributes.position.array)).toEqual(bytes(source.attributes.position.array));
+  expect(terminate).toHaveBeenCalledOnce();
 });

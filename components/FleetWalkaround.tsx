@@ -11,14 +11,7 @@ import * as THREE from "three";
 import { useStore } from "zustand";
 import { Pin } from "./scene/Part";
 import { WalkSceneContent } from "@/components/ui/WalkSceneContent";
-import {
-  fleetStationStart,
-  fleetStepSide,
-  fleetTally,
-  fleetWalkClock,
-  WALK_MAP_MARK_R,
-  type FleetWalkStep,
-} from "@/lib/fleet-walk";
+import { fleetStationStart, fleetTally, fleetWalkClock, WALK_MAP_MARK_R, type FleetWalkStep } from "@/lib/fleet-walk";
 import type { FleetWalkController, FleetWalkPhase } from "@/lib/fleet-walk-store";
 import { SPOT_COLOR } from "@/lib/spot";
 import { revealStage, useView } from "@/lib/view";
@@ -63,7 +56,13 @@ function useStepScene<S>(
 ) {
   const previousStation = useRef<number | null>(null);
   useEffect(() => {
-    const { flyTo } = useView.getState();
+    const { flyTo, session: owner, walking } = useView.getState();
+    const session = controller.session();
+    if (!walking || !session.prior || (owner && owner.aircraft !== controller.logic.data.id)) return;
+    const isCurrent = () => {
+      const view = useView.getState();
+      return view.session === owner && view.walking && controller.session().steps === session.steps;
+    };
     if (!step) {
       // intro and resume: the first station's view; finished: the whole airplane
       useView.setState({ spot: null, sys: "overview" });
@@ -75,7 +74,7 @@ function useStepScene<S>(
     }
     useView.setState({
       sys: step.item.system ?? "overview",
-      spot: { names: controller.logic.stepParts(step).shown, side: fleetStepSide(step) },
+      spot: controller.logic.stepSpot(step),
       focus: null,
     });
     if (previousStation.current === step.station.n) {
@@ -85,7 +84,9 @@ function useStepScene<S>(
     // a new station: walk to it first, then look at the item
     previousStation.current = step.station.n;
     flyTo(step.station.cam.p, step.station.cam.t);
-    const timer = setTimeout(() => controller.frame(step), STATION_SETTLE_MS);
+    const timer = setTimeout(() => {
+      if (isCurrent()) controller.frame(step);
+    }, STATION_SETTLE_MS);
     return () => {
       clearTimeout(timer);
       controller.cancelFrame();

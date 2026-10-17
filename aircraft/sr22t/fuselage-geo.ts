@@ -1,9 +1,8 @@
 /** The SR22T fuselage skin built in a Web Worker (fuselage.worker.ts), so the main thread stays free while it is built. */
 import * as THREE from "three";
 import { create } from "zustand";
-import { factoryOf, primeGeo, specGeo } from "@/lib/catalogue";
+import { primeGeo, specGeo } from "@/lib/catalogue";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
-import { fuselageGeo } from "./geometry";
 import { CAT } from "./parts";
 
 /** Longest wait for the worker before building on the main thread, ms (a phone builds the fuselage in a few seconds). */
@@ -29,6 +28,11 @@ export function fuselageInWorker(): Promise<THREE.BufferGeometry | null> {
       if (g) primeGeo(HULL, g);
       useFuselage.setState({ settled: true });
       return g;
+    })
+    .catch((error) => {
+      pending = null;
+      useFuselage.setState({ settled: true });
+      throw error;
     }));
 }
 
@@ -99,7 +103,7 @@ function rebuild(data: object): THREE.BufferGeometry {
 }
 
 /** Is `spec` the fuselage skin shell (its geometry is what the worker builds)? */
-export const isFuselage = (spec: { geo: () => THREE.BufferGeometry }) => factoryOf(spec) === fuselageGeo;
+export const isFuselage = (spec: { geo: () => THREE.BufferGeometry }) => spec === HULL;
 
 /** The fuselage skin shell. */
-const HULL = CAT.shells.find(isFuselage)!;
+const HULL = CAT.byId("parts.airframe.fuselage.001")!;

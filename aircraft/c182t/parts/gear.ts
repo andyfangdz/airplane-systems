@@ -13,6 +13,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
   const top = P3(64.8, s * 17.5, 23.6),
     axle = P3(MG.fs, s * (MG.bl - 4.4), MG.h + 1.4);
   part(() => taperTubeGeo(top, axle, 1.2 * IN, 0.85 * IN), ["gear", "airframe"], {
+    instance: [s],
+    id: "parts.gear.main-gear-leg-spring-steel.001",
     color: "#AEB6BC",
     name: "Main gear leg (spring steel)",
     note: "Tubular spring-steel main landing gear strut, attached by a bulkhead and forgings at the base of the rear door posts (FS 65.30) (POH 7-5, 7-21). Its step bracket has the jack pad (POH 8-10).",
@@ -22,6 +24,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
   {
     const sb = V(...top).lerp(V(...axle), 0.34);
     part(() => box(0.1, 0.012, 0.09), ["gear", "cabin"], {
+      instance: [s],
+      id: "parts.gear.main-gear-step-bracket.002",
       pos: [sb.x - 0.05, sb.y + 0.01, sb.z],
       color: "#5C666E",
       name: "Main gear step bracket",
@@ -31,6 +35,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     });
   }
   part(() => tireGeo(8.75 * IN, 6 * IN), ["gear"], {
+    instance: [s],
+    id: "parts.gear.main-wheel-and-tire.003",
     pos: P3(MG.fs, s * MG.bl, MG.h),
     color: "#2A2F33",
     name: "Main wheel and tire",
@@ -39,11 +45,15 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     pin: s > 0,
   });
   part(() => cyl(4.05 * IN, 4.7 * IN, "z", 32), ["gear"], {
+    instance: [s],
+    id: "parts.gear.part.004",
     pos: P3(MG.fs, s * MG.bl, MG.h),
     color: "#D6DADD",
     ext: true,
   });
   part(() => cyl(1.35 * IN, 4.9 * IN, "z", 24), ["gear"], {
+    instance: [s],
+    id: "parts.gear.part.005",
     pos: P3(MG.fs, s * MG.bl, MG.h),
     color: "#7C858B",
     ext: true,
@@ -52,6 +62,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     () => wheelFairingGeo({ len: 38, height: 20, width: 11, axle: 0.42, lift: 0.6, cut: 3.2 - MG.h, tail: 1.1 }),
     ["gear"],
     {
+      instance: [s],
+      id: "parts.gear.wheel-fairing.006",
       pos: P3(MG.fs, s * (MG.bl - 0.8), MG.h),
       color: "#EEF1F3",
       anim: fairingAnim,
@@ -63,6 +75,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     },
   );
   part(() => cyl(4.4 * IN, 0.25 * IN, "z", 24), ["gear"], {
+    instance: [s],
+    id: "parts.gear.brake-disc.007",
     pos: P3(MG.fs, s * (MG.bl - 3.8), MG.h),
     color: "#9AA3AA",
     anim: brakeAnim(braking(s > 0 ? "R" : "L")),
@@ -72,6 +86,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
     pin: s > 0,
   });
   part(() => box(0.08, 0.06, 0.04), ["gear"], {
+    instance: [s],
+    id: "parts.gear.brake-caliper.008",
     pos: P3(MG.fs - 2.5, s * (MG.bl - 4.8), MG.h + 3),
     color: "#C8313B",
     name: "Brake caliper",
@@ -94,6 +110,8 @@ export const MG = { fs: 58.9, bl: 54, h: 8.7 };
       ),
     ["gear"],
     {
+      instance: [s],
+      id: "parts.gear.brake-line.009",
       name: "Brake line",
       ext: true,
       note: "From the master cylinder on each of the pilot's pedals, down the gear leg to the wheel cylinder (POH 7-46).",
@@ -111,6 +129,7 @@ export const NOSE_CASTER: Vec3 = [0, 0, 0];
 /** Axle in the strut frame (on the strut line). */
 const NA: Vec3 = [0, -Math.hypot(AXLE[0] - NOSE[0], AXLE[1] - NOSE[1]), 0];
 part(() => cyl(0.036, 0.22), ["gear"], {
+  id: "parts.gear.nose-gear-shock-strut-air-oil.010",
   parent: "noseGear",
   pos: [0, -0.07, 0],
   color: "#AEB6BC",
@@ -132,6 +151,8 @@ part(() => cyl(0.036, 0.22), ["gear"], {
       ),
     ["gear"],
     {
+      instance: [s],
+      id: "parts.gear.nose-gear-fork-side.011",
       parent: "caster",
       color: "#C9D0D5",
       ext: true,
@@ -141,6 +162,7 @@ part(() => cyl(0.036, 0.22), ["gear"], {
   ),
 );
 part(() => box(0.035, 0.03, 0.17), ["gear"], {
+  id: "parts.gear.nose-gear-fork-crown.012",
   parent: "caster",
   pos: [0, NA[1] + 0.215, 0],
   color: "#C9D0D5",
@@ -160,6 +182,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-gear-fork-and-torque-link.013",
     parent: "caster",
     color: "#C9D0D5",
     name: "Nose gear fork and torque link",
@@ -169,6 +192,7 @@ part(
   },
 );
 part(() => tireGeo(7.1 * IN, 5 * IN), ["gear"], {
+  id: "parts.gear.nose-wheel-and-tire.014",
   parent: "caster",
   pos: NA,
   color: "#2A2F33",
@@ -178,12 +202,14 @@ part(() => tireGeo(7.1 * IN, 5 * IN), ["gear"], {
   pin: true,
 });
 part(() => cyl(3.3 * IN, 3.9 * IN, "z", 32), ["gear"], {
+  id: "parts.gear.part.015",
   parent: "caster",
   pos: NA,
   color: "#D6DADD",
   ext: true,
 });
 part(() => cyl(1.1 * IN, 4.1 * IN, "z", 24), ["gear"], {
+  id: "parts.gear.part.016",
   parent: "caster",
   pos: NA,
   color: "#7C858B",
@@ -193,6 +219,7 @@ part(
   () => wheelFairingGeo({ len: 32, height: 16, width: 8.5, axle: 0.42, lift: 0.6, cut: -4.6, tail: 1.1 }),
   ["gear"],
   {
+    id: "parts.gear.nose-wheel-fairing.017",
     parent: "caster",
     pos: [NA[0], NA[1], 0],
     rot: [0, 0, -NOSE_RAKE],
@@ -205,6 +232,7 @@ part(
   },
 );
 part(() => box(0.06, 0.03, 0.16), ["gear", "controls"], {
+  id: "parts.gear.steering-arm.018",
   parent: "caster",
   pos: [0.0, -0.02, 0],
   color: "#7C57CF",
@@ -214,6 +242,7 @@ part(() => box(0.06, 0.03, 0.16), ["gear", "controls"], {
   pin: true,
 });
 part(() => box(0.06, 0.03, 0.1), ["gear"], {
+  id: "parts.gear.parking-brake-handle.019",
   pos: P3(18.6, -13.5, 40.4),
   color: "#C8313B",
   name: "Parking brake handle",
@@ -221,6 +250,7 @@ part(() => box(0.06, 0.03, 0.1), ["gear"], {
   pin: true,
 });
 part(() => box(0.5, 0.04, 0.04), ["gear", "cabin"], {
+  id: "parts.gear.tow-bar-stowed.020",
   pos: P3(108, 11.5, 36),
   color: "#8C959C",
   name: "Tow bar (stowed)",

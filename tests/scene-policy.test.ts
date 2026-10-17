@@ -76,12 +76,24 @@ describe("catalogue label indexes", () => {
   const geo = () => new THREE.BoxGeometry();
   it("includes registrations after a view has already populated its indexes", () => {
     const cat = new Catalogue("test");
-    const first = cat.part(geo, ["controls"], { name: "First", pin: true, parent: "group" });
+    const first = cat.part(geo, ["controls"], {
+      instance: ["group"],
+      id: "tests.scene-policy.test.first.001",
+      name: "First",
+      pin: true,
+      parent: "group",
+    });
     expect(cat.pinned("controls")).toEqual([first]);
     expect(cat.isPinned(first, "controls")).toBe(true);
     expect(cat.partsFor("group")).toEqual([first]);
-    const next = cat.part(geo, ["controls"], { name: "Next", pin: true, parent: "group" });
-    cat.part(geo, ["controls"], { name: "First", pin: true });
+    const next = cat.part(geo, ["controls"], {
+      instance: ["group"],
+      id: "tests.scene-policy.test.next.002",
+      name: "Next",
+      pin: true,
+      parent: "group",
+    });
+    cat.part(geo, ["controls"], { id: "tests.scene-policy.test.first.003", name: "First", pin: true });
     expect(cat.pinned("controls")).toEqual([first, next]);
     expect(cat.isPinned(next, "controls")).toBe(true);
     expect(cat.partsFor("group")).toEqual([first, next]);
@@ -89,8 +101,12 @@ describe("catalogue label indexes", () => {
 
   it("switches between desktop and phone label policies without changing system", () => {
     const cat = new Catalogue("test", { quiet: { controls: ["Quiet"] }, narrow: { controls: ["Quiet"] } });
-    const desktop = cat.part(geo, ["controls"], { name: "Desktop", pin: true });
-    const quiet = cat.part(geo, ["controls"], { name: "Quiet", pin: true });
+    const desktop = cat.part(geo, ["controls"], {
+      id: "tests.scene-policy.test.desktop.004",
+      name: "Desktop",
+      pin: true,
+    });
+    const quiet = cat.part(geo, ["controls"], { id: "tests.scene-policy.test.quiet.005", name: "Quiet", pin: true });
     expect(cat.isPinned(desktop, "controls", false)).toBe(true);
     expect(cat.isPinned(quiet, "controls", false)).toBe(false);
     expect(cat.isPinned(desktop, "controls", true)).toBe(false);

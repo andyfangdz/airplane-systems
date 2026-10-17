@@ -8,15 +8,15 @@ import { sysOf, useAircraft } from "@/lib/fleet";
 import type { AircraftDef } from "@/aircraft/types";
 import { outlineMat, shellUniforms } from "@/lib/materials";
 import { V, clamp, ease } from "@/lib/math";
-import { view } from "@/lib/registry";
+import { registerSceneCamera, view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
 import { nextFrame, setBuild, useBuild } from "@/lib/build";
-import { advanceSimulation } from "@/lib/simulationClock";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { airplaneBounds, CAMERA_FOV, cameraFitDistance as fitDist, viewPresetCamera } from "@/lib/camera";
-import { useView, type CamRequest } from "@/lib/view";
+import { useAircraftHover, useView, type AircraftSessionOwner, type CamRequest } from "@/lib/view";
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
+import { PartAnimationScope } from "./PartAnimations";
 
 /**
  * Camera views are framed for the desktop viewport (about 0.9 wide per unit height). On narrower or portrait
@@ -37,7 +37,7 @@ function clearDamping(controls: OrbitControlsImpl) {
  * Saved restores wait for the stage measurement. While an airplane is building, an overview preset waits for the
  * complete model bounds; a real user camera move meanwhile drops it, while a tap leaves it pending.
  */
-function CameraRig() {
+function CameraRig({ owner }: { owner: AircraftSessionOwner }) {
   const cam = useView((x) => x.cam);
   const building = useBuild((b) => b.stage !== "ready");
   // An overview preset waits for complete bounds; a user drag consumes the held request.
@@ -90,7 +90,7 @@ function CameraRig() {
 
   // Apply requests before OrbitControls updates, so their own motion cannot count as a drag.
   const applyRequest = () => {
-    if (useView.getState().cam !== cam) return;
+    if (useView.getState().session !== owner || useView.getState().cam !== cam) return;
     const prev = applied.current;
     applied.current = cam && controls ? prev : null;
     if (!cam || !controls || previousFit.current !== fit) return;
@@ -177,9 +177,8 @@ function CameraRig() {
   useFrame(applyRequest, -2);
 
   useEffect(() => {
-    view.camera = camera;
-    view.target = controls?.target ?? null;
-  }, [camera, controls]);
+    if (owner) return registerSceneCamera(owner, camera, controls?.target ?? null);
+  }, [owner, camera, controls]);
 
   useEffect(() => {
     if (!controls) return;
@@ -189,6 +188,7 @@ function CameraRig() {
       press.current = { p: camera.position.clone(), t: controls.target.clone() };
     };
     const change = () => {
+      if (useView.getState().session !== owner) return;
       const was = press.current ?? (held.current || presetSize.current ? pose.current : null);
       if (!was) return;
       if (camera.position.distanceToSquared(was.p) < MOVED && controls.target.distanceToSquared(was.t) < MOVED) return;
@@ -205,9 +205,10 @@ function CameraRig() {
       controls.removeEventListener("start", start);
       controls.removeEventListener("change", change);
     };
-  }, [controls, camera]);
+  }, [controls, camera, owner]);
 
   useFrame(() => {
+    if (useView.getState().session !== owner) return;
     const f = flight.current;
     if (!f || !controls) return;
     const u = clamp((performance.now() - f.t0) / 1000, 0, 1),
@@ -217,11 +218,6 @@ function CameraRig() {
     pose.current = { p: camera.position.clone(), t: controls.target.clone() };
     if (u >= 1) flight.current = null;
   });
-  return null;
-}
-
-function SimClock({ tick }: { tick: (dt: number) => void }) {
-  useFrame((_, dt) => advanceSimulation(dt, tick));
   return null;
 }
 
@@ -240,7 +236,7 @@ function MaterialSync() {
 
 /* ---------- hover (and tap): prefer a real part over the ghost shell in front of it ---------- */
 function usePicker() {
-  const setHover = useView((x) => x.setHover);
+  const setHover = useAircraftHover((x) => x.setHover);
   return (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     if (e.buttons) {
@@ -268,38 +264,65 @@ function usePicker() {
  * whose model group has content (the model may mount a frame or more after the scene, e.g. after starting its shader
  * compile).
  */
-function BuildMarks({ modelRef }: { modelRef: React.RefObject<THREE.Group | null> }) {
+function BuildMarks({
+  modelRef,
+  owner,
+}: {
+  modelRef: React.RefObject<THREE.Group | null>;
+  owner: AircraftSessionOwner;
+}) {
   // in the commit, so no frame can come between it and the mount
-  useLayoutEffect(() => setBuild("airframe"), []);
+  useLayoutEffect(() => {
+    if (useView.getState().session === owner) setBuild("airframe");
+  }, [owner]);
   useFrame(() => {
-    if (useBuild.getState().stage !== "ready" && modelRef.current?.children.length) setBuild("ready");
+    if (
+      useView.getState().session === owner &&
+      useBuild.getState().stage !== "ready" &&
+      modelRef.current?.children.length
+    )
+      setBuild("ready");
   });
   return null;
 }
 
 /** One airplane: the root group (rotation pivot) around the picking group with the model inside. */
-function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefObject<THREE.GridHelper | null> }) {
+function AircraftScene({
+  def,
+  gridRef,
+  owner,
+}: {
+  def: AircraftDef;
+  gridRef: React.RefObject<THREE.GridHelper | null>;
+  owner: AircraftSessionOwner;
+}) {
   const rootRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group>(null);
   const onMove = usePicker();
-  const setHover = useView((x) => x.setHover);
+  const setHover = useAircraftHover((x) => x.setHover);
   const { Model, Overlay } = def;
   // A one-shot model can block in render while it builds geometry. Commit the loader and give the browser a paint
   // before mounting it. Switching airplanes is a route change that unmounts the scene, cancelling an obsolete deferred mount.
   const [mountModel, setMountModel] = useState(!!def.progressive);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   useEffect(() => {
     if (def.progressive) return;
     let current = true;
-    void nextFrame().then(async () => {
-      if (!current) return;
-      if (def.labels) await prepareGeometry(def.labels.cat);
-      if (current) setMountModel(true);
-    });
+    void nextFrame()
+      .then(async () => {
+        if (!current) return;
+        if (def.labels) await prepareGeometry(def.labels.cat);
+        if (current) setMountModel(true);
+      })
+      .catch((error: unknown) => {
+        if (current) setLoadError(error instanceof Error ? error : new Error(String(error)));
+      });
     return () => {
       current = false;
     };
   }, [def]);
   const pins = useMemo(() => (def.labels ? pinPolicy(def.labels.cat, def.labels.inside) : {}), [def]);
+  if (loadError) throw loadError;
   return (
     <>
       <group ref={rootRef} position={[def.pivotX, 0, 0]}>
@@ -317,17 +340,21 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
           }}
           onPointerOut={() => setHover(null)}
         >
-          {mountModel && <Model />}
+          {mountModel && (
+            <PartAnimationScope owner={owner}>
+              <Model />
+            </PartAnimationScope>
+          )}
         </group>
       </group>
       {mountModel && Overlay && <Overlay rootRef={rootRef} modelRef={modelRef} gridRef={gridRef} />}
-      {!def.progressive && <BuildMarks modelRef={modelRef} />}
+      {!def.progressive && <BuildMarks modelRef={modelRef} owner={owner} />}
       <PinDeclutter {...pins} />
     </>
   );
 }
 
-export default function Scene() {
+export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
   const def = useAircraft();
   const theme = useView((x) => x.theme);
   const spin = useView((x) => x.spin);
@@ -350,7 +377,7 @@ export default function Scene() {
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
       }}
-      onPointerMissed={() => useView.getState().setHover(null)}
+      onPointerMissed={() => useAircraftHover.getState().setHover(null)}
       aria-label={`3D model of the ${def.name} and its systems`}
     >
       <color attach="background" args={[pal.scene]} />
@@ -370,7 +397,7 @@ export default function Scene() {
         }}
       />
       <MaterialSync />
-      <AircraftScene def={def} gridRef={gridRef} />
+      <AircraftScene def={def} gridRef={gridRef} owner={owner} />
       <OrbitControls
         makeDefault
         enableDamping
@@ -381,8 +408,7 @@ export default function Scene() {
         autoRotateSpeed={0.6}
         target={startTarget}
       />
-      <CameraRig />
-      <SimClock tick={def.tick} />
+      <CameraRig owner={owner} />
     </Canvas>
   );
 }

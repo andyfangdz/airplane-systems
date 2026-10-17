@@ -5,6 +5,7 @@
  * read by the scene in `useFrame` and by panels through `useLiveSnapshot`.
  */
 import { create } from "zustand";
+import { createSimulationClock } from "@/lib/simulationClock";
 import {
   codeLight,
   dipFor,
@@ -129,7 +130,7 @@ export const syncError = (u: Pick<Ui, "mesh" | "clock">) => ((((u.clock - u.mesh
 /** Slow motion draws the crank at most this fast, rpm. */
 const SLOW_RPM = 12;
 
-export function advance(d: number) {
+export function stepBench(d: number) {
   const u = useUi.getState(),
     view = useSfView.getState();
   if (view.paused) return;
@@ -173,5 +174,11 @@ export function advance(d: number) {
 
 export const startRpm = START_RPM;
 
+/** This retained accessory session owns its integration remainder across route mounts. */
+export const benchClock = createSimulationClock(stepBench);
+export const advance = (elapsed: number) => {
+  if (!useSfView.getState().paused) benchClock.advance(elapsed);
+};
+
 /** Run the bench on animation frames while the page is mounted. */
-export const useBenchLoop = () => useSimLoop(advance, 0.25);
+export const useBenchLoop = () => useSimLoop(advance);

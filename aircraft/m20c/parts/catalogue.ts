@@ -83,7 +83,7 @@ export function onSurf(
   key: string,
   world: THREE.Vector3,
   geo: () => THREE.BufferGeometry,
-  o: Omit<PartSpec, "id" | "geo" | "sys"> & { sys?: SysId[] },
+  o: Omit<PartSpec, "geo" | "sys"> & { sys?: SysId[]; instance?: string | number },
   tail = false,
 ) {
   const pv = surfacePivot(key),

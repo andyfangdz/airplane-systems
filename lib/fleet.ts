@@ -10,7 +10,7 @@ import type { AircraftDef, AircraftMeta } from "@/aircraft/types";
 import type { CameraPreset } from "./camera";
 import type { Vec3 } from "./math";
 import type { AircraftId, SysDef, SysId } from "./systems";
-import { useView } from "./view";
+import { useAircraftHover, useView } from "./view";
 
 /** The airplanes this page has shown (on an airplane route, the route's own; in tests, the whole fleet), by id. */
 const DEFS = new Map<AircraftId, AircraftDef>();
@@ -58,8 +58,12 @@ export const showInUrl = (ac: AircraftId, sys: SysId) => {
 export function selectSys(id: SysId, fly = true) {
   const v = useView.getState(),
     def = aircraft(v.ac);
+  if (!hasSys(def, id)) return;
+  // A rail choice ends the temporary study mode, but keeps the aircraft's mounted session and simulation.
+  def.walk?.close();
   def.onSelect?.(id);
-  useView.setState({ sys: id, focus: null });
+  useView.setState({ selectedSys: id, sys: id, focus: null });
+  useAircraftHover.getState().setHover(null);
   if (fly) {
     const [p, t] = sysOf(def, id).cam;
     v.flyTo(p, t);
@@ -75,10 +79,14 @@ export function selectSys(id: SysId, fly = true) {
 export function selectAircraft(id: AircraftId, sys?: SysId) {
   const v = useView.getState(),
     def = aircraft(id);
-  if (v.ac !== id) DEFS.get(v.ac)?.onSelect?.("overview");
+  if (v.ac !== id) {
+    DEFS.get(v.ac)?.walk?.close();
+    DEFS.get(v.ac)?.onSelect?.("overview");
+  }
   const to = sys && hasSys(def, sys) ? sys : "overview";
   def.onSelect?.(to);
-  useView.setState({ ac: id, sys: to, focus: null, ctrlFocus: "all", hover: null });
+  useView.setState({ ac: id, selectedSys: to, sys: to, focus: null, ctrlFocus: "all" });
+  useAircraftHover.getState().setHover(null);
   const [p, t] = sysOf(def, to).cam;
   v.flyTo(p, t);
   remember("fleetAc", id);

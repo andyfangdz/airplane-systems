@@ -55,24 +55,31 @@ for (const side of [1, -1]) {
   const upper = mainStrutPath(side)[0],
     lower = mainStrutPath(side)[1];
   part(() => gearLegGeo(mainStrutPath(side), 0.2, 0.05), ["gear"], {
+    id: "parts.gear.main-gear-strut.001",
+    instance: [side],
     color: "#B5A990",
     name: "Main gear strut",
     pin: side > 0,
     ext: true,
     note: "Fiberglass spring strut, clamped by upper and lower attach fittings and two lateral aluminum ribs between WS 27 and WS 37 (AMM 32-10 p. 1, Fig 32-10-2). The wing spar and shear web carry the attachment loads (POH 7-25). Shape approximate.",
   });
-  for (const [name, pos] of [
-    ["Main gear upper attach fitting", upper],
-    ["Main gear lower attach fitting", lower],
+  for (const [fitting, name, pos] of [
+    ["upper", "Main gear upper attach fitting", upper],
+    ["lower", "Main gear lower attach fitting", lower],
   ] as const)
     part(() => box(0.22, 0.06, 0.055), ["gear"], {
+      id: "parts.gear.part.002",
+      instance: [side, fitting],
       pos,
       color: STEEL,
       name,
       ext: name === "Main gear lower attach fitting",
       note: "Attach fitting clamps the composite strut to lateral ribs and wing structure. The lower fitting bolts through the lower wing skin at WS 37 and its exposed clamp grips the strut (AMM 32-10 p. 1, Fig 32-10-2). Dimensions approximate.",
     });
-  for (const chord of [0.4, 0.5])
+  for (const [rib, chord] of [
+    ["forward", 0.4],
+    ["aft", 0.5],
+  ] as const)
     part(
       () => {
         const rings = [27, 32, 37].map((ws) =>
@@ -96,6 +103,8 @@ for (const side of [1, -1]) {
       },
       ["gear"],
       {
+        id: "parts.gear.gear-lateral-rib.003",
+        instance: [side, rib],
         color: STEEL,
         name: "Gear lateral rib",
         plate: true,
@@ -103,6 +112,8 @@ for (const side of [1, -1]) {
       },
     );
   part(() => gearLegGeo(mainStrutPath(side).slice(1, 3), 0.24, 0.07), ["gear"], {
+    id: "parts.gear.main-strut-fairing.004",
+    instance: [side],
     color: "#F3F5F6",
     name: "Main strut fairing",
     fairing: true,
@@ -110,6 +121,8 @@ for (const side of [1, -1]) {
     note: "Removable upper fairing surrounds the composite spring and brake line; lower wheel fairing encloses the wheel (AMM 32-10 pp. 3–4, Fig 32-10-1). Geometry approximate.",
   });
   part(() => cyl((15 * 0.0254) / 2, 6 * 0.0254, "z", 32), ["gear"], {
+    id: "parts.gear.main-wheel.005",
+    instance: [side],
     pos: [MG.x, MG.y, side * MG.z],
     color: "#2A2F33",
     name: "Main wheel",
@@ -117,6 +130,8 @@ for (const side of [1, -1]) {
     note: "15 × 6.00 × 6 tubeless tire (POH 7-25); two wheel halves, sealed bearings and bearing retainers (AMM 32-41 Fig 32-41-1).",
   });
   part(() => cyl((6 * 0.0254) / 2, 0.158, "z", 24), ["gear"], {
+    id: "parts.gear.main-wheel-hub.006",
+    instance: [side],
     pos: [MG.x, MG.y, side * MG.z],
     color: STEEL,
     name: "Main wheel hub",
@@ -124,6 +139,8 @@ for (const side of [1, -1]) {
     note: "Wheel halves and sealed bearings rotate on the axle (AMM 32-41 Fig 32-41-1); hub diameter follows the six-inch wheel size, other dimensions illustrative.",
   });
   part(() => cyl(0.025, 0.29, "z"), ["gear"], {
+    id: "parts.gear.main-wheel-axle.007",
+    instance: [side],
     pos: [MG.x, MG.y, side * (MG.z - 0.05)],
     color: STEEL,
     name: "Main wheel axle",
@@ -131,18 +148,24 @@ for (const side of [1, -1]) {
     note: "Axle attaches to the composite strut. A castellated nut and cotter pin retain the wheel (AMM 32-41 Fig 32-41-1).",
   });
   part(() => cyl(0.027, 0.012, "z", 6), ["gear"], {
+    id: "parts.gear.main-axle-nut.008",
+    instance: [side],
     pos: [MG.x, MG.y, side * (MG.z + 0.085)],
     color: STEEL,
     name: "Main axle nut",
     ext: true,
   });
   part(() => cyl(0.002, 0.065, "y", 6), ["gear"], {
+    id: "parts.gear.main-axle-cotter-pin.009",
+    instance: [side],
     pos: [MG.x, MG.y, side * (MG.z + 0.085)],
     color: "#C4C9CE",
     name: "Main axle cotter pin",
     ext: true,
   });
   part(() => pantGeo(0.92, 0.21), ["gear"], {
+    id: "parts.gear.wheel-pant.010",
+    instance: [side],
     pos: [MG.x, -1.17, side * MG.z],
     scale: [1, 1, 0.75],
     fairing: true,
@@ -152,6 +175,8 @@ for (const side of [1, -1]) {
     note: "Removable wheel fairing; access door allows tire inflation without fairing removal (POH 7-25; AMM 32-10 Fig 32-10-1). Size approximate.",
   });
   part(() => box(0.055, 0.065, 0.006), ["gear"], {
+    id: "parts.gear.wheel-pant-access-door.011",
+    instance: [side],
     pos: [MG.x - 0.06, MG.y + 0.02, side * (MG.z - 0.157)],
     color: "#D6DEE3",
     name: "Wheel pant access door",
@@ -160,6 +185,8 @@ for (const side of [1, -1]) {
   });
   const discZ = side * (MG.z - 0.095);
   part(() => cyl(0.12, 0.016, "z", 32), ["gear"], {
+    id: "parts.gear.brake-disc.012",
+    instance: [side],
     pos: [MG.x, MG.y, discZ],
     color: "#A6ADB2",
     name: "Brake disc",
@@ -167,6 +194,8 @@ for (const side of [1, -1]) {
     note: "Single disc per main wheel. Brake pads grip its two faces (POH 7-25; AMM 32-42 Fig 32-42-1). Dimensions approximate.",
   });
   part(() => box(0.09, 0.09, 0.09), ["gear"], {
+    id: "parts.gear.brake-caliper.013",
+    instance: [side],
     pos: brakeInlet(side),
     color: STEEL,
     name: "Brake caliper",
@@ -177,6 +206,8 @@ for (const side of [1, -1]) {
   });
   for (const face of [-1, 1])
     part(() => box(0.074, 0.062, 0.006), ["gear"], {
+      id: "parts.gear.brake-pad.014",
+      instance: [face, side],
       pos: [MG.x - 0.087, MG.y - 0.02, discZ + face * 0.012],
       color: "#5D5048",
       name: "Brake pad",
@@ -184,6 +215,8 @@ for (const side of [1, -1]) {
       note: "Friction lining at each disc face (AMM 32-42 Fig 32-42-1).",
     });
   part(() => box(0.09, 0.085, 0.008), ["gear"], {
+    id: "parts.gear.brake-back-plate.015",
+    instance: [side],
     pos: [MG.x - 0.09, MG.y - 0.02, discZ + side * 0.024],
     color: STEEL,
     name: "Brake back plate",
@@ -191,6 +224,8 @@ for (const side of [1, -1]) {
     note: "Back plate reacts pad force at the opposite disc face (AMM 32-42 Fig 32-42-1). Dimensions illustrative.",
   });
   part(() => box(0.045, 0.1, 0.015), ["gear"], {
+    id: "parts.gear.brake-torque-plate.016",
+    instance: [side],
     pos: [MG.x - 0.105, MG.y, brakeInlet(side)[2]],
     color: STEEL,
     name: "Brake torque plate",
@@ -198,6 +233,8 @@ for (const side of [1, -1]) {
     note: "Axle-mounted torque plate supports the brake assembly (AMM 32-42 Fig 32-42-1). Dimensions illustrative.",
   });
   part(() => cyl(0.004, 0.02, "y", 8), ["gear"], {
+    id: "parts.gear.brake-bleed-screw.017",
+    instance: [side],
     pos: [brakeInlet(side)[0], MG.y - 0.075, brakeInlet(side)[2]],
     color: STEEL,
     name: "Brake bleed screw",
@@ -205,6 +242,8 @@ for (const side of [1, -1]) {
     note: "Bleeder fitting permits removal of trapped air; air produces spongy pedals (AMM 32-42 pp. 31–33).",
   });
   part(() => cyl(0.006, 0.018, "x"), ["gear"], {
+    id: "parts.gear.brake-temperature-sensor.018",
+    instance: [side],
     pos: [brakeInlet(side)[0] - 0.052, MG.y - 0.02, brakeInlet(side)[2]],
     color: "#D6A34B",
     name: "Brake temperature sensor",
@@ -212,6 +251,8 @@ for (const side of [1, -1]) {
     note: "Sensor at each brake assembly feeds avionics annunciations; powered through 3 A ENGINE INSTR on Main Bus 2 (AMM 32-42 p. 1). Separate from the irreversible overheat indicator.",
   });
   part(() => box(0.028, 0.008, 0.012), ["gear"], {
+    id: "parts.gear.brake-overheat-indicator.019",
+    instance: [side],
     pos: [brakeInlet(side)[0], MG.y + 0.03, brakeInlet(side)[2]],
     color: "#E7C8A3",
     name: "Brake overheat indicator",
@@ -232,6 +273,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-gear-strut.020",
     parent: "noseGear",
     color: STEEL,
     name: "Nose gear strut",
@@ -246,6 +288,7 @@ export const NOSE_OLEO: [Vec3, Vec3] = [
   [0.082, -0.31, 0],
 ];
 part(() => tubeGeo([NOSE_OLEO[0], [0.061, -0.16, 0]], 0.027, 0), ["gear"], {
+  id: "parts.gear.nose-oleo-cylinder.021",
   parent: "noseGear",
   color: "#65717B",
   name: "Nose oleo cylinder",
@@ -253,6 +296,7 @@ part(() => tubeGeo([NOSE_OLEO[0], [0.061, -0.16, 0]], 0.027, 0), ["gear"], {
   note: "Oleo-pneumatic cylinder contains nitrogen and hydraulic fluid; compression of its piston reacts against the engine mount (AMM 32-20 p. 1, Fig 32-20-2). Position and diameter approximate.",
 });
 part(() => tubeGeo([[0.061, -0.16, 0], NOSE_OLEO[1]], 0.012, 0), ["gear"], {
+  id: "parts.gear.nose-oleo-piston-rod.022",
   parent: "noseGear",
   color: "#CCD3D8",
   name: "Nose oleo piston rod",
@@ -260,6 +304,7 @@ part(() => tubeGeo([[0.061, -0.16, 0], NOSE_OLEO[1]], 0.012, 0), ["gear"], {
   note: "Chromed piston rod connects the oleo to the nose strut. AMM 32-20 pp. 12–14 describes its extension check; the illustrated extension is schematic, not a servicing gauge.",
 });
 part(() => cyl(0.005, 0.018, "x"), ["gear"], {
+  id: "parts.gear.oleo-fill-valve.023",
   parent: "noseGear",
   pos: [0.025, 0.13, 0.025],
   color: STEEL,
@@ -279,6 +324,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-strut-fairing.024",
     parent: "noseGear",
     color: "#F3F5F6",
     name: "Nose strut fairing",
@@ -301,6 +347,8 @@ for (const side of [-1, 1]) {
       ),
     ["gear"],
     {
+      id: "parts.gear.nose-wheel-fork.025",
+      instance: [side],
       parent: "caster",
       color: STEEL,
       name: "Nose wheel fork",
@@ -309,6 +357,8 @@ for (const side of [-1, 1]) {
     },
   );
   part(() => cyl(0.028, 0.008, "z"), ["gear"], {
+    id: "parts.gear.nose-wheel-bearing.026",
+    instance: [side],
     parent: "caster",
     pos: [0.02, 0, side * 0.055],
     color: STEEL,
@@ -318,6 +368,7 @@ for (const side of [-1, 1]) {
   });
 }
 part(() => cyl(0.012, 0.158, "z"), ["gear"], {
+  id: "parts.gear.nose-wheel-axle.027",
   parent: "caster",
   pos: [0.02, 0, 0],
   color: STEEL,
@@ -325,6 +376,7 @@ part(() => cyl(0.012, 0.158, "z"), ["gear"], {
   ext: true,
 });
 part(() => cyl(0.17, 0.11, "z", 32), ["gear"], {
+  id: "parts.gear.nose-wheel.028",
   parent: "caster",
   pos: [0.02, 0, 0],
   color: "#2A2F33",
@@ -333,6 +385,7 @@ part(() => cyl(0.17, 0.11, "z", 32), ["gear"], {
   note: "5.00 × 5 tubeless tire. Free-castering through approximately 170°; differential main-wheel braking steers the airplane (POH 7-25).",
 });
 part(() => cyl((5 * 0.0254) / 2, 0.114, "z", 24), ["gear"], {
+  id: "parts.gear.nose-wheel-hub.029",
   parent: "caster",
   pos: [0.02, 0, 0],
   color: STEEL,
@@ -340,6 +393,7 @@ part(() => cyl((5 * 0.0254) / 2, 0.114, "z", 24), ["gear"], {
   ext: true,
 });
 part(() => cyl(0.022, 0.06, "y"), ["gear"], {
+  id: "parts.gear.caster-spindle.030",
   parent: "caster",
   pos: [0, 0.1, 0],
   color: STEEL,
@@ -347,12 +401,14 @@ part(() => cyl(0.022, 0.06, "y"), ["gear"], {
   ext: true,
   note: "Vertical caster spindle and spindle cup provide the swivel axis (AMM 32-20 Fig 32-20-4). Lower-end position approximate.",
 });
-for (const [name, y, r] of [
-  ["Caster thrust washer", 0.132, 0.027],
-  ["Belleville washer stack", 0.139, 0.029],
-  ["Caster spindle nut", 0.151, 0.021],
+for (const [key, name, y, r] of [
+  ["thrust-washer", "Caster thrust washer", 0.132, 0.027],
+  ["belleville-stack", "Belleville washer stack", 0.139, 0.029],
+  ["spindle-nut", "Caster spindle nut", 0.151, 0.021],
 ] as const)
   part(() => cyl(r, 0.009, "y", name.includes("nut") ? 6 : 24), ["gear"], {
+    id: "parts.gear.part.031",
+    instance: [key],
     parent: "caster",
     pos: [0, y, 0],
     color: STEEL,
@@ -361,6 +417,7 @@ for (const [name, y, r] of [
     note: "Correct thrust-washer orientation and Belleville preload prevent shimmy. AMM 32-20 pp. 19–20 checks 20–25 lb at the axle to swivel the fork; no separate hydraulic shimmy damper is specified. Stack dimensions illustrative.",
   });
 part(() => pantGeo(0.7, 0.18), ["gear"], {
+  id: "parts.gear.nose-wheel-pant.032",
   parent: "caster",
   pos: [0.02, 0.02, 0],
   scale: [1, 1, 0.7],
@@ -371,6 +428,7 @@ part(() => pantGeo(0.7, 0.18), ["gear"], {
   note: "Removable nose fairing with tire inflation access door (AMM 32-20 Fig 32-20-1).",
 });
 part(() => box(0.055, 0.055, 0.004), ["gear"], {
+  id: "parts.gear.nose-pant-access-door.033",
   parent: "caster",
   pos: [-0.08, 0.025, -0.11],
   color: "#D6DEE3",
@@ -379,6 +437,7 @@ part(() => box(0.055, 0.055, 0.004), ["gear"], {
 });
 
 part(() => cyl(0.031, 0.085, "y", 24), ["gear"], {
+  id: "parts.gear.brake-fluid-reservoir.034",
   pos: BRAKE_RESERVOIR,
   color: "#D5A879",
   name: "Brake fluid reservoir",
@@ -386,17 +445,20 @@ part(() => cyl(0.031, 0.085, "y", 24), ["gear"], {
   note: "One common reservoir supplies the four master cylinders. Mounted on the upper RH firewall / right battery-support frame (AMM 32-42 p. 1, Fig 32-42-4; POH 8-13). MIL-PRF-87257 fluid. Placement approximate.",
 });
 part(() => cyl(0.028, 0.01, "y", 24), ["gear"], {
+  id: "parts.gear.brake-reservoir-cap.035",
   pos: [BRAKE_RESERVOIR[0], BRAKE_RESERVOIR[1] + 0.048, BRAKE_RESERVOIR[2]],
   color: STEEL,
   name: "Brake reservoir cap",
 });
 part(() => box(0.07, 0.025, 0.07), ["gear"], {
+  id: "parts.gear.brake-reservoir-bracket.036",
   pos: [BRAKE_RESERVOIR[0], BRAKE_RESERVOIR[1] - 0.056, BRAKE_RESERVOIR[2]],
   color: STEEL,
   name: "Brake reservoir bracket",
   note: "Bracket attached to RH battery support (AMM Fig 32-42-4).",
 });
 part(() => box(0.065, 0.075, 0.085), ["gear"], {
+  id: "parts.gear.parking-brake-valve.037",
   pos: PARK_VALVE,
   color: FLUID,
   name: "Parking brake valve",
@@ -404,6 +466,7 @@ part(() => box(0.065, 0.075, 0.085), ["gear"], {
   note: "Mounted beside the firewall on LH outboard console rib (AMM 32-42 p. 1). Pushed-in handle mechanically holds both valve poppets open; pulling the handle traps applied wheel-brake pressure (POH 7-26). Forward circuit is LH and aft circuit RH (AMM 32-42 p. 24).",
 });
 part(() => box(0.04, 0.025, 0.07), ["gear"], {
+  id: "parts.gear.park-brake-handle.038",
   pos: PARK_HANDLE,
   name: "PARK BRAKE handle",
   pin: true,
@@ -421,12 +484,14 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.parking-brake-control-cable.039",
     color: "#7D858D",
     name: "Parking brake control cable",
     note: "Mechanical handle cable drives the valve actuation arm (AMM 32-42 pp. 24–26, Fig 32-42-4). Routing approximate.",
   },
 );
 part(() => box(0.04, 0.01, 0.013), ["gear"], {
+  id: "parts.gear.parking-valve-actuation-arm.040",
   pos: [PARK_VALVE[0] + 0.04, PARK_VALVE[1], PARK_VALVE[2]],
   color: STEEL,
   name: "Parking valve actuation arm",
@@ -436,15 +501,23 @@ part(() => box(0.04, 0.01, 0.013), ["gear"], {
   note: "Control cable pulls the valve arm; a nearby position switch sends its state to the GEA 71 (AMM 32-42 p. 1). Animation schematic.",
 });
 part(() => box(0.012, 0.012, 0.016), ["gear"], {
+  id: "parts.gear.parking-brake-position-sensor.041",
   pos: [PARK_VALVE[0] + 0.04, PARK_VALVE[1] + 0.02, PARK_VALVE[2]],
   color: "#D7A04D",
   name: "Parking brake position sensor",
   note: "Valve-arm position sensor → GEA 71 → PARK BRAKE CAS caution (AMM 32-42 p. 1; POH Section 3A).",
 });
-for (const z of PEDALS) {
+for (const [pedal, z] of [
+  ["pilot-left", PEDALS[0]],
+  ["pilot-right", PEDALS[1]],
+  ["copilot-left", PEDALS[2]],
+  ["copilot-right", PEDALS[3]],
+] as const) {
   const side = toeSide(z),
     parent = side < 0 ? "rig:pedL" : "rig:pedR";
   part(() => box(0.04, 0.18, 0.09), ["gear", "controls"], {
+    id: "parts.gear.rudder-pedal-toe-brake.042",
+    instance: [pedal],
     chan: ["rudder"],
     parent,
     pos: [2.42, -0.52, z],
@@ -453,6 +526,8 @@ for (const z of PEDALS) {
     note: "Top half applies this side’s wheel brake independently; corresponding pilot and copilot pedals operate the same wheel (POH 7-25). Rudder pedal movement drives the primary cable linkage (POH Fig 7-3).",
   });
   part(() => cyl(0.016, 0.1, "y"), ["gear"], {
+    id: "parts.gear.brake-master-cylinder.043",
+    instance: [pedal],
     pos: masterCylinder(z),
     color: STEEL,
     name: "Brake master cylinder",
@@ -460,6 +535,8 @@ for (const z of PEDALS) {
     note: "One master cylinder per pedal. Body pinned to floorboard; piston-rod clevis connects to upper pedal (AMM 32-42 p. 23). Upper port is inlet, lower port outlet. Four masters share one reservoir but left/right braking circuits remain independent.",
   });
   part(() => cyl(0.006, 0.045, "y"), ["gear"], {
+    id: "parts.gear.master-cylinder-piston-rod.044",
+    instance: [pedal],
     parent,
     pos: [2.49, -0.488, z],
     color: "#CDD4DB",

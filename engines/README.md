@@ -65,3 +65,27 @@ works" text.
 - The zustand hook on `EngineSim` is `useUi`. Don't name a hook property plain `use`: React Compiler treats
   `x.use(...)` as React's conditional `use()` and memoizes around it, which breaks the hook order.
 - Temperatures can run faster than real time (`thermal`); the shaft, governor and fuel always run at real time.
+
+## Runtime ownership and composition
+
+`createEngineSimulation(spec)` in `components/engine/store.ts` creates an independent engine session. It owns the
+mutable engine state, controls, failures, animation angle and a fixed 120 Hz clock. `simFor(spec, key)` retains those
+sessions for routes; it is a cache, not the physics API. `advance(elapsed)` consumes elapsed time on the owned clock,
+with at most half a second of catch-up per frame. Pausing preserves the remainder. `checkpoint()` / `restore()` and
+`fork()` copy at explicit boundaries; `serialize()` / `restoreSerialized()` also preserve infinite mixture ratios.
+`dispose()` cancels this session's scenario job, removes its cache entry and clears its step listeners. Disposed
+sessions reject further simulation work.
+
+Scenario worker replies belong to a request and its session. Starting or canceling one engine's setup leaves other
+sessions alone; worker failure falls back for every pending owner. Transport errors also clear the loading state.
+
+Accessories compose at `subscribeSteps(listener)`: the carburetor pump and primer run after each engine step using
+that step's exact duration, and unmounting unregisters the listener. The governor and SureFly bench own separate
+120 Hz clocks. Route frame loops drive these clocks independently of canvas rendering. Low-level model functions
+remain directly step-able for source-based tests.
+
+Mixture units are explicit: the Cessna illustrative curves use fuel equivalence ratio **φ** (rich above 1), while the
+detailed engine kernel uses excess-air ratio **λ** (lean above 1). `model/mixture-units.ts` defines the reciprocal
+conversion and the mass-flow boundary. These unit conversions do not change either model's source calibration.
+The fleet keeps its installed-aircraft teaching models; sharing a clock or an engine type does not make distinct
+installation, governor and failure assumptions interchangeable.

@@ -7,6 +7,8 @@ import { dimSolidMat, mats } from "@/lib/materials";
 import { SPOT_COLOR } from "@/lib/spot";
 import type { PartSpec } from "@/lib/catalogue";
 import type { ReactElement } from "react";
+import { animatePart } from "@/lib/anims";
+import type { PartAppearance } from "@/lib/scene/part-animations";
 const frame = vi.hoisted(() => ({ callbacks: [] as ((s: unknown) => void)[] }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -14,6 +16,10 @@ vi.mock("react", async (original) => ({
   useEffect: () => {},
 }));
 vi.mock("@react-three/fiber", () => ({ useFrame: (cb: (s: unknown) => void) => frame.callbacks.push(cb) }));
+vi.mock("@/components/scene/PartAnimations", () => ({
+  usePartAnimation: (ref: { current: THREE.Mesh }, spec: PartSpec, appearance: PartAppearance) =>
+    frame.callbacks.push(() => animatePart(ref.current, 0, spec, appearance)),
+}));
 vi.mock("@/lib/materials", async (original) => ({
   ...(await original<typeof import("@/lib/materials")>()),
   skinMat: () => new THREE.MeshStandardMaterial({ map: new THREE.Texture(), side: THREE.DoubleSide }),

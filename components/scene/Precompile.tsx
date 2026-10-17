@@ -3,6 +3,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import * as THREE from "three";
 import { dotTex, finishMat, ghostMat, mats, outlineMat, plateMat, seeMat, shellMat, solidMat } from "@/lib/materials";
+import { flowParticleMaterial } from "@/lib/scene/flow-resources";
 
 const GREY = "#808080";
 
@@ -14,6 +15,9 @@ const GREY = "#808080";
 function variants(extra: THREE.Material[]): THREE.Object3D[] {
   const plane = new THREE.PlaneGeometry(0.01, 0.01),
     line = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0.01, 0, 0)]);
+  const flowPoints = line.clone();
+  flowPoints.setAttribute("color", new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1], 3));
+  flowPoints.setAttribute("particleSize", new THREE.Float32BufferAttribute([0.08, 0.08], 1));
   const meshes = [
     ...Object.values(mats(GREY)),
     plateMat.on,
@@ -45,6 +49,7 @@ function variants(extra: THREE.Material[]): THREE.Object3D[] {
       line,
       new THREE.PointsMaterial({ map: dotTex(), transparent: true, depthWrite: false, sizeAttenuation: true }),
     ),
+    new THREE.Points(flowPoints, flowParticleMaterial(dotTex())),
     new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: dotTex(),

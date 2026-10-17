@@ -1,4 +1,4 @@
-/** Production mesh download/decode and procedural fallback, including animation-owned geometry. */
+/** Production mesh download/decode and lazy authoring recovery, including animation-owned geometry. */
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { test, errors as playwrightErrors } from "@playwright/test";
@@ -9,6 +9,10 @@ for (const id of ids) {
     for (const mode of id === "sr22t" ? ["prebuilt", "delayed", "fallback"] : ["prebuilt", "fallback"]) {
       const fallback = mode === "fallback";
       const context = await browser.newContext({ viewport: { width: 640, height: 480 }, reducedMotion: "reduce" });
+      const recoveryRequests = [];
+      context.on("request", (request) => {
+        if (/\/geometry\/recovery-[a-f0-9]+\.js(?:\?|$)/.test(request.url())) recoveryRequests.push(request.url());
+      });
       await context.route("**/_vercel/**", (r) => r.fulfill({ status: 204, body: "" }));
       // Worker requests must be intercepted at context scope, not page scope.
       if (fallback) await context.route("**/geometry/*.bin.gz", (r) => r.fulfill({ status: 503, body: "unavailable" }));
@@ -101,6 +105,7 @@ for (const id of ids) {
         `${id}: workers released`,
       );
       if (fallback) {
+        assert.ok(recoveryRequests.length > 0, `${id}: failed asset loads the separate authoring worker`);
         assert.equal(result.baked, 0, `${id}: source fallback`);
         assert.ok(
           warnings.some((m) => m.includes("Prebuilt geometry unavailable")),
@@ -108,6 +113,7 @@ for (const id of ids) {
         );
         assert.deepEqual(result.names, downloadedNames, `${id}: fallback keeps the same equipment`);
       } else {
+        assert.deepEqual(recoveryRequests, [], `${id}: normal load does not request authoring code`);
         assert.ok(result.baked > 200, `${id}: production asset must actually be used`);
         assert.ok(
           result.workers.some((w) => w.meshes > 200),

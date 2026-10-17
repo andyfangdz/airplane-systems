@@ -80,12 +80,15 @@ beforeEach(async () => {
     },
   );
   built = pg.worker.fuselageInWorker(); // the airplane's prepare, at boot
+  pg.useView.setState({ ac: "sr22t" });
+  pg.frame.open();
   flights = [];
   pg.useView.subscribe((s, was) => {
     if (s.cam && s.cam !== was.cam) flights.push({ p: s.cam.p, t: s.cam.t });
   });
 }, 60_000);
 afterEach(async () => {
+  pg.frame.close();
   answer();
   await built;
   vi.unstubAllGlobals();

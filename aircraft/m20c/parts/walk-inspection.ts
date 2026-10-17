@@ -8,9 +8,9 @@ const only = (name: string, side: number) => (mesh: { visible: boolean }) => {
   mesh.visible = !!spot?.names.includes(name) && (!spot.side || spot.side === side);
 };
 for (const side of [-1, 1]) {
-  for (const [name, spans, start, end] of [
-    ["Wing tip", [5.12, 5.18, 5.24, 5.3, 5.33], 0, 1],
-    ["Wing leading edge", [0.62, 1, 1.6, 2.3, 3, 3.7, 4.4, 5.05], 0, 0.035],
+  for (const [instance1, [name, spans, start, end]] of [
+    ["wing-tip", ["Wing tip", [5.12, 5.18, 5.24, 5.3, 5.33], 0, 1]],
+    ["wing-leading-edge", ["Wing leading edge", [0.62, 1, 1.6, 2.3, 3, 3.7, 4.4, 5.05], 0, 0.035]],
   ] as const)
     part(
       () =>
@@ -22,6 +22,8 @@ for (const side of [-1, 1]) {
         ),
       ["airframe"],
       {
+        id: "parts.walk-inspection.part.001",
+        instance: [instance1, side],
         name,
         ext: true,
         fairing: true,
@@ -41,6 +43,8 @@ for (const side of [-1, 1]) {
       ),
     ["airframe", "engine"],
     {
+      id: "parts.walk-inspection.cowling-inspection-region.002",
+      instance: [side],
       name: "Cowling inspection region",
       ext: true,
       fairing: true,

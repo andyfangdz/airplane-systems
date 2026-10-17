@@ -36,6 +36,7 @@ export const ECS_PANEL: Vec3 = [2.27, 0.052, 0.228];
 export const ECS_CONTROLLER: Vec3 = [2.42, 0.24, 0.228];
 
 part(() => box(0.1, 0.03, 0.02), ["environment"], {
+  id: "parts.environment.naca-fresh-air-inlet.001",
   pos: FRESH_INLET,
   name: "NACA fresh-air inlet",
   ext: true,
@@ -43,6 +44,7 @@ part(() => box(0.1, 0.03, 0.02), ["environment"], {
   note: "Lower RH cowl NACA inlet supplies unheated ventilation air to the fresh-air valve and mixing chamber (POH 11934-005 7-62, 7-65; AMM 12137-002 21-00 p. 1). The heater supply is shown separately from the upper RH cowl inlet, following the SR20 AMM. Geometry approximate.",
 });
 part(() => box(0.08, 0.12, 0.14), ["environment"], {
+  id: "parts.environment.mixing-chamber.002",
   pos: MIX,
   name: "Mixing chamber",
   fairing: true,
@@ -50,6 +52,7 @@ part(() => box(0.08, 0.12, 0.14), ["environment"], {
   note: "Lower RH forward side of the firewall: hot-air and fresh-air inlet valves blend the two supplies; a separate firewall flapper controls admission into the cabin air coupler (POH 7-65–67; AMM 21-20 p. 1, 21-40 Fig 21-40-1, 21-60 Fig 21-60-1 sheet 2). Its translucent housing reveals the valves. Size and offsets approximate.",
 });
 part(() => cyl(0.019, 0.004, "x"), ["environment"], {
+  id: "parts.environment.hot-air-valve.003",
   pos: HOT_VALVE,
   color: "#C96B40",
   name: "Hot-air valve",
@@ -58,6 +61,7 @@ part(() => cyl(0.019, 0.004, "x"), ["environment"], {
   note: "Forward firewall inlet valve: admits exhaust-heat-exchanger air into the mixing chamber as temperature increases; A/C closes the hot-air supply. Rejected hot air discharges into the engine compartment and leaves with engine cooling airflow (POH 7-65, 7-67). Valve motion is schematic; opening is an illustrative blend fraction.",
 });
 part(() => cyl(0.019, 0.004, "x"), ["environment"], {
+  id: "parts.environment.fresh-air-valve.004",
   pos: FRESH_VALVE,
   color: "#65AFCD",
   name: "Fresh-air valve",
@@ -66,6 +70,7 @@ part(() => cyl(0.019, 0.004, "x"), ["environment"], {
   note: "Forward firewall inlet valve: admits NACA ventilation air; temperature selection opens/closes the hot and cold valves together. POH 7-67 describes fresh-air closure in recirculation. AMM 21-60 p. 8 instead checks fresh inlet open with the firewall flapper closed during recirculation; this study animation follows the POH operational description, rather than that detailed rigging arrangement. Rejected air leaves in the engine cooling flow (POH 7-65).",
 });
 part(() => cyl(0.033, 0.004, "x"), ["environment"], {
+  id: "parts.environment.firewall-airflow-flapper.005",
   pos: AIRFLOW_VALVE,
   color: "#9CA9AF",
   name: "Firewall airflow flapper",
@@ -74,6 +79,7 @@ part(() => cyl(0.033, 0.004, "x"), ["environment"], {
   note: "Separate flapper in the mixing chamber admits air through the firewall. OFF closes it; the first detent past OFF opens it fully; selecting fan 1, 2 or 3 changes fan speed without appreciable further flapper motion (POH 7-66; AMM 21-60 p. 6). Recirculation routing is simplified to the POH description; AMM p. 8 describes a closed flapper in recirculation. Dimensions and travel approximate.",
 });
 part(() => cyl(0.035, 0.045, "x"), ["environment"], {
+  id: "parts.environment.cabin-air-coupler.006",
   pos: CABIN_AIR_COUPLER,
   name: "Cabin air coupler",
   fairing: true,
@@ -81,6 +87,7 @@ part(() => cyl(0.035, 0.045, "x"), ["environment"], {
   note: "Aft side of the firewall, receiving the mixing chamber supply; coupler duct leads to the vent assembly or optional evaporator (AMM 21-40 pp. 5–7, Fig 21-40-1; 21-60 Fig 21-60-1 sheet 2). Mounted opposite the mixing chamber. Size approximate.",
 });
 part(() => box(0.04, 0.035, 0.04), ["environment"], {
+  id: "parts.environment.cabin-air-coupler-actuator.007",
   pos: [CABIN_AIR_COUPLER[0], CABIN_AIR_COUPLER[1] + 0.05, CABIN_AIR_COUPLER[2]],
   color: "#E0B040",
   name: "Cabin air coupler actuator",
@@ -88,6 +95,7 @@ part(() => box(0.04, 0.035, 0.04), ["environment"], {
   note: "Electrical actuator on the cabin air coupler, with its lever and linkage sleeve passing through the firewall to the mixing-chamber lever (AMM 21-60 pp. 5, 8–10 and Fig 21-60-1 sheet 2). Distinct from the dual actuator on the distribution manifold. Geometry and location approximate.",
 });
 part(() => box(0.08, 0.12, 0.28), ["environment"], {
+  id: "parts.environment.distribution-manifold.008",
   pos: MANIFOLD,
   name: "Distribution manifold",
   fairing: true,
@@ -95,6 +103,7 @@ part(() => box(0.08, 0.12, 0.28), ["environment"], {
   note: "Center aft side of the firewall. Panel/display/armrest ducts are fed directly; floor and windshield outlets have butterfly valves actuated by the dual actuator (POH 7-65–67; AMM 21-20 p. 1, 21-60 Fig 21-60-1 sheet 2). OFF closes cabin airflow; 0 is ram air; 1–3 are blower speeds. The blower is a separate assembly under the RH seat. Size and manifold height approximate.",
 });
 part(() => cyl(0.024, 0.004, "y"), ["environment"], {
+  id: "parts.environment.floor-butterfly-valve.009",
   pos: FLOOR_BUTTERFLY,
   color: "#C0A858",
   name: "Floor butterfly valve",
@@ -103,6 +112,7 @@ part(() => cyl(0.024, 0.004, "y"), ["environment"], {
   note: "Distribution-manifold floor branch opens for Panel-Foot and Panel-Foot-Windshield, closes for Panel and Windshield (POH 7-66–67; AMM 21-60 pp. 1–2). Plate travel and exact outlet position approximate.",
 });
 part(() => cyl(0.024, 0.004, "y"), ["environment"], {
+  id: "parts.environment.defrost-butterfly-valve.010",
   pos: DEFROST_BUTTERFLY,
   color: "#C0A858",
   name: "Defrost butterfly valve",
@@ -111,6 +121,7 @@ part(() => cyl(0.024, 0.004, "y"), ["environment"], {
   note: "Distribution-manifold windshield branch opens for Panel-Foot-Windshield and Windshield; closes for Panel and Panel-Foot (POH 7-66–67). Geometry approximate.",
 });
 part(() => box(0.035, 0.04, 0.06), ["environment"], {
+  id: "parts.environment.manifold-dual-actuator.011",
   pos: [2.46, -0.1, 0.1],
   color: "#E0B040",
   name: "Manifold dual actuator",
@@ -118,6 +129,7 @@ part(() => box(0.035, 0.04, 0.06), ["environment"], {
   note: "Dual electrical actuator on standoffs at the distribution manifold, operating the floor and defrost butterflies (AMM 21-60 pp. 5–6 and Fig 21-60-1 sheet 2 item 7). Powered selections are represented directly; geometry approximate.",
 });
 part(() => mergeGeos([cyl(0.04, 0.05, "z"), box(0.085, 0.07, 0.065).translate(0, -0.03, 0)]), ["environment"], {
+  id: "parts.environment.blower-fan-assembly.012",
   pos: BLOWER,
   color: "#7B949D",
   name: "Blower fan assembly",
@@ -125,6 +137,7 @@ part(() => mergeGeos([cyl(0.04, 0.05, "z"), box(0.085, 0.07, 0.065).translate(0,
   note: "Optional three-speed blower; with A/C the motor and wheel bolt to the evaporator under the RH crew seat (POH 7-62, 7-65; AMM 21-50 pp. 9–10 and Fig 21-50-1 sheet 6 items 28–29). 0 is ram air without fan; 1, 2, 3 select low, medium, high. 15 A CABIN FAN breaker on A/C BUS 2. Size approximate; represented together with optional A/C in this study configuration.",
 });
 part(() => box(0.02, 0.075, 0.052), ["environment"], {
+  id: "parts.environment.environmental-control-panel.013",
   pos: ECS_PANEL,
   color: "#20262B",
   name: "Environmental control panel",
@@ -132,6 +145,7 @@ part(() => box(0.02, 0.075, 0.052), ["environment"], {
   note: "Lower RH instrument panel: OFF–0–1–2–3 airflow selector, vent buttons, temperature selector and optional A/C/recirculation buttons (POH 7-66–68, Fig 7-15; AMM 21-60 pp. 1–2, Fig 21-60-1 sheet 1). 2 A CABIN AIR CONTROL breaker on MAIN BUS 1 (POH 7-62). Dimensions approximate.",
 });
 part(() => box(0.08, 0.04, 0.12), ["environment"], {
+  id: "parts.environment.ecs-controller.014",
   pos: ECS_CONTROLLER,
   color: "#E0B040",
   name: "ECS controller",
@@ -147,6 +161,8 @@ export const PAX_FLOOR_VENT = (s: number): Vec3 => [0.48, -0.43, s * 0.517];
 export const DEFROST_VENT: Vec3 = [2.32, 0.352, 0];
 for (const s of [-1, 1]) {
   part(() => box(0.2, 0.48, 0.015), ["environment", "cabin"], {
+    instance: [s],
+    id: "parts.environment.rear-cabin-vent-trim.015",
     pos: [0.48, -0.2, s * 0.535],
     color: "#C9C2B6",
     fairing: true,
@@ -154,24 +170,29 @@ for (const s of [-1, 1]) {
     pin: s < 0,
     note: "Rear cabin sidewall trim supports the passenger chest-height air vent and low foot-warmer outlet, with their separate ducts behind it (POH 7-65; AMM 21-20 Fig 21-20-1). Partial trim section only; shape and vent station approximate.",
   });
-  for (const [name, at, note] of [
+  for (const [key, name, at, note] of [
     [
+      "display",
       "Panel eyeball outlet",
       CREW_DISPLAY_VENT(s),
       "Outboard instrument panel, near each display; direct crew-display duct from the manifold",
     ],
     [
+      "bolster",
       "Bolster eyeball outlet",
       CREW_PANEL_VENT(s),
       "Inboard LH/RH bolster panels; direct crew-panel duct from the manifold",
     ],
     [
+      "armrest",
       "Armrest eyeball outlet",
       PAX_PANEL_VENT(s),
       "Chest high in the LH/RH rear cabin wall trim; direct passenger-panel duct",
     ],
-  ] as [string, Vec3, string][])
+  ] as [string, string, Vec3, string][])
     part(() => sph(0.017), ["environment"], {
+      id: "parts.environment.part.016",
+      instance: [s, key],
       pos: at,
       color: "#9AA3AA",
       name,
@@ -179,6 +200,8 @@ for (const s of [-1, 1]) {
       note: `${note}. Occupant rotates the nozzle from off to maximum; these branches have no manifold butterfly (POH 7-65–66; AMM 21-20 p. 1). Eleven outlets total in this G6 arrangement. Dimensions approximate.`,
     });
   part(() => cyl(0.024, 0.012, "y"), ["environment"], {
+    instance: [s],
+    id: "parts.environment.kick-plate-floor-outlet.017",
     pos: CREW_FLOOR_VENT(s),
     color: "#9AA3AA",
     name: "Kick-plate floor outlet",
@@ -186,6 +209,8 @@ for (const s of [-1, 1]) {
     note: "Adjustable crew floor air vent on the underside of each kick plate, fed through the floor butterfly and its crew-floor duct (POH 7-65–66; AMM 21-40 p. 1). Position and size approximate.",
   });
   part(() => cyl(0.02, 0.025, "y"), ["environment"], {
+    instance: [s],
+    id: "parts.environment.foot-warmer-diffuser.018",
     pos: PAX_FLOOR_VENT(s),
     color: "#9AA3AA",
     name: "Foot-warmer diffuser",
@@ -194,6 +219,7 @@ for (const s of [-1, 1]) {
   });
 }
 part(() => mergeGeos([box(0.03, 0.008, 0.52), box(0.03, 0.03, 0.1).translate(0, -0.015, 0)]), ["environment"], {
+  id: "parts.environment.windshield-diffuser.019",
   pos: DEFROST_VENT,
   color: "#9AA3AA",
   name: "Windshield diffuser",

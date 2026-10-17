@@ -6,6 +6,7 @@ import { part, ELT_BULKHEAD_PASS, ELT_PASS_RADIUS } from "./catalogue";
 
 /* ---------- structure ---------- */
 part(() => planeRing(FW), ["airframe"], {
+  id: "parts.structure.firewall-fs-100.001",
   plate: true,
   pin: true,
   name: "Firewall — FS 100",
@@ -24,6 +25,7 @@ part(
   },
   ["airframe", "cabin"],
   {
+    id: "parts.structure.aft-bulkhead-fs-222.002",
     plate: true,
     pin: true,
     name: "Aft bulkhead — FS 222",
@@ -41,13 +43,22 @@ part(
   },
   ["airframe"],
   {
+    id: "parts.structure.main-spar.003",
     name: "Main spar",
     note: "Laminated carbon/epoxy C-section, continuous tip to tip. Passes under the front seats.",
     pin: true,
   },
 );
-[0.75, 2.2].forEach((x) =>
+(
+  [
+    ["member-01", 0.75],
+    ["member-02", 2.2],
+  ] as const
+).forEach(([member1, x]) =>
   part(() => tubeGeo(fRing(x, 0.93, 30, -0.25, Math.PI + 0.25, false), 0.025), ["airframe"], {
+    id: "parts.structure.composite-roll-cage.004",
+    instance: [member1],
+
     name: "Composite roll cage",
     note: "Built into the fuselage to protect occupants in a rollover.",
     pin: x === 0.75,
@@ -55,13 +66,15 @@ part(
 );
 (
   [
-    [1.38, -0.62, 0.4],
-    [1.38, -0.62, -0.4],
-    [0.26, -0.4, 0.49],
-    [0.26, -0.4, -0.49],
-  ] as Vec3[]
-).forEach((p, i) =>
+    ["member-01", [1.38, -0.62, 0.4]],
+    ["member-02", [1.38, -0.62, -0.4]],
+    ["member-03", [0.26, -0.4, 0.49]],
+    ["member-04", [0.26, -0.4, -0.49]],
+  ] as [string, Vec3][]
+).forEach(([member2, p], i) =>
   part(() => sph(0.05), ["airframe"], {
+    id: "parts.structure.wing-attach-point.005",
+    instance: [member2],
     pos: p,
     color: "#E0522B",
     name: "Wing attach point",

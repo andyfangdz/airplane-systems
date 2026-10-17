@@ -1,11 +1,15 @@
 /** Reversible study sessions: engine safety, cumulative switch history and independent saved progress. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Mesh, PerspectiveCamera, Vector3 } from "three";
 import type { StoreApi, UseBoundStore } from "zustand";
 import "@/aircraft";
 import type { FleetWalkController } from "@/lib/fleet-walk-store";
-import { restoreFleetWalkLive } from "@/lib/fleet-walk-store";
+import { assignLive } from "@/lib/simulation";
 import type { SimStore } from "@/lib/simStore";
-import { useView } from "@/lib/view";
+import { flashFocus, useAircraftHover, useView } from "@/lib/view";
+import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
+import { aircraft, selectAircraft, selectSys } from "@/lib/fleet";
+import { partObjects, registerPart, registerSceneCamera, view as scene } from "@/lib/registry";
 import { walkController as c172 } from "@/aircraft/c172s/walk-store";
 import { walkController as c182 } from "@/aircraft/c182t/walk-store";
 import { walkController as da40 } from "@/aircraft/da40/walk-store";
@@ -14,13 +18,16 @@ import { initialSim as s172, live as l172, solve as solve172 } from "@/aircraft/
 import { initialSim as s182, live as l182, solve as solve182 } from "@/aircraft/c182t/model";
 import { initialSim as sDiamond, live as lDiamond, solve as solveDiamond } from "@/aircraft/da40/model";
 import { initialSim as sMooney, live as lMooney, solve as solveMooney } from "@/aircraft/m20c/model";
-import { useC172 } from "@/aircraft/c172s/store";
+import { c172Runtime, useC172 } from "@/aircraft/c172s/store";
 import { useC182 } from "@/aircraft/c182t/store";
 import { useDA40 } from "@/aircraft/da40/store";
 import { useM20C } from "@/aircraft/m20c/store";
 
 const controllers = [c172, c182, da40, mooney];
+let routeSession: AircraftSession | null = null;
 beforeEach(() => {
+  routeSession?.dispose();
+  routeSession = null;
   controllers.forEach((c) => c.close());
   const data = new Map<string, string>();
   vi.stubGlobal("localStorage", {
@@ -30,11 +37,12 @@ beforeEach(() => {
   });
   useView.setState({
     ac: "sr20",
+    session: null,
+    selectedSys: "overview",
     sys: "overview",
     walking: false,
     cam: null,
     focus: null,
-    hover: null,
     spot: null,
     xray: true,
     labels: true,
@@ -43,8 +51,178 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  routeSession?.dispose();
+  routeSession = null;
   controllers.forEach((c) => c.close());
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+function openRoute(id: "c172s" | "c182t", sys: "fuel" | "engine" = "fuel") {
+  routeSession = mountAircraftSession(aircraft(id));
+  selectAircraft(id, sys);
+  return routeSession;
+}
+
+function browserLocation(pathname: string) {
+  const location = { pathname, search: "" };
+  vi.stubGlobal("location", location);
+  vi.stubGlobal("history", {
+    state: { route: "retained" },
+    replaceState: (_state: unknown, _unused: string, path: string) => {
+      location.pathname = path.split("?")[0];
+    },
+  });
+  return location;
+}
+
+describe("mounted aircraft session ownership", () => {
+  it("runs walk steps on a fork while the original runtime and its clock remain untouched", () => {
+    browserLocation("/c172s/fuel");
+    const route = openRoute("c172s");
+    const original = c172Runtime.current();
+    const checkpoint = original.checkpoint();
+    const nested = original.live.fs;
+    c172.open();
+    c172.begin();
+    c172.goStep(6);
+    const child = c172Runtime.current();
+    expect(c172Runtime.current()).not.toBe(original);
+    expect(c172Runtime.current().live.fs).not.toBe(nested);
+    route.advance(0.5);
+    expect(original.checkpoint()).toEqual(checkpoint);
+    c172.close();
+    expect(child.disposed).toBe(true);
+    expect(c172Runtime.current()).toBe(original);
+    expect(c172Runtime.current().live.fs).toBe(nested);
+    expect(original.checkpoint()).toEqual(checkpoint);
+    route.dispose();
+    route.advance(0.5); // an already queued RAF from the disposed route cannot step the retained runtime
+    expect(original.checkpoint()).toEqual(checkpoint);
+  });
+  it("cancels a departed session's locate flash before another scene acquires focus", () => {
+    vi.useFakeTimers();
+    const route = openRoute("c172s");
+    flashFocus("Fuel cap");
+    vi.advanceTimersByTime(1000);
+    route.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+    openRoute("c182t");
+    useView.setState({ focus: "Fuel cap" });
+    vi.advanceTimersByTime(2600);
+    expect(useView.getState().focus).toBe("Fuel cap");
+    flashFocus("Fuel tank");
+    vi.advanceTimersByTime(2600);
+    expect(useView.getState().focus).toBeNull();
+  });
+  it("ignores a delayed study frame after the walk closes or another aircraft mounts", () => {
+    const route = openRoute("c172s");
+    c172.open();
+    c172.begin();
+    const step = c172.store.getState().steps[0];
+    c172.close();
+    const restored = useView.getState().cam;
+    c172.frame(step);
+    expect(useView.getState().cam).toBe(restored);
+    route.dispose();
+    openRoute("c182t");
+    const replacement = useView.getState().cam;
+    c172.frame(step);
+    expect(useView.getState().cam).toBe(replacement);
+  });
+  it("pointer movement does not publish scene policy updates", () => {
+    const sceneChanged = vi.fn();
+    const unsubscribe = useView.subscribe(sceneChanged);
+    useAircraftHover.getState().setHover({ name: "Fuel cap", note: "", color: "#000", x: 10, y: 20 });
+    useAircraftHover.getState().setHover({ name: "Fuel cap", note: "", color: "#000", x: 11, y: 20 });
+    unsubscribe();
+    expect(sceneChanged).not.toHaveBeenCalled();
+    useAircraftHover.getState().setHover(null);
+  });
+  it.each(["/engines/o360", "/components/carburetor"])(
+    "leaving for %s checkpoints and releases the walk; returning offers a timed resume",
+    (destination) => {
+      const location = browserLocation("/c172s/fuel");
+      const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+      const route = openRoute("c172s");
+      const original = useC172.getState();
+      c172.open();
+      c172.begin();
+      c172.goStep(4);
+      clock.mockReturnValue(5000);
+      location.pathname = destination;
+      route.dispose();
+      expect(useView.getState()).toMatchObject({ session: null, walking: false });
+      expect(c172.session().prior).toBeNull();
+      expect(c172.store.getState().since).toBeNull();
+      expect(c172.logic.loadProgress()?.ms).toBe(4000);
+      expect(useC172.getState().s).toBe(original.s);
+      expect(useC172.getState().E).toBe(original.E);
+      expect(location.pathname).toBe(destination);
+
+      clock.mockReturnValue(105000);
+      openRoute("c172s");
+      c172.boot("");
+      expect(c172.store.getState()).toMatchObject({ phase: "resume", since: null });
+      c172.resume();
+      expect(c172.elapsed(c172.store.getState())).toBe(4000);
+      clock.mockRestore();
+    },
+  );
+
+  it("keeps walk highlighting out of navigation and exits study for a system choice in the same session", () => {
+    const location = browserLocation("/c172s/fuel");
+    const route = openRoute("c172s");
+    c172.open();
+    c172.begin();
+    useView.setState({ sys: "controls" }); // the walk's current scene filter
+    expect(useView.getState().selectedSys).toBe("fuel");
+    expect(location.pathname).toBe("/c172s/fuel");
+    selectSys("electrical");
+    expect(useView.getState()).toMatchObject({
+      session: route.owner,
+      walking: false,
+      selectedSys: "electrical",
+      sys: "electrical",
+    });
+    expect(location.pathname).toBe("/c172s/electrical");
+    expect(c172.session().prior).toBeNull();
+  });
+
+  it("ignores a prior aircraft's camera and stale scene cleanup when the new route boots a walk", () => {
+    browserLocation("/c172s/fuel");
+    const first = openRoute("c172s");
+    const oldCamera = new PerspectiveCamera(38, 1, 0.05, 400);
+    oldCamera.position.set(37, 18, 21);
+    const removeOldCamera = registerSceneCamera(first.owner, oldCamera, new Vector3(5, 4, 3));
+    const oldPart = new Mesh();
+    const removeOldPart = registerPart("Session test part", oldPart, true, first.owner);
+    const second = openRoute("c182t");
+    expect(scene.camera).toBeNull();
+    expect(partObjects.has("Session test part")).toBe(false);
+    const requested = useView.getState().cam;
+    c182.open();
+    c182.close();
+    expect(useView.getState().cam).toBe(requested);
+
+    const newCamera = new PerspectiveCamera(38, 1, 0.05, 400);
+    const removeNewCamera = registerSceneCamera(second.owner, newCamera, new Vector3());
+    const newPart = new Mesh();
+    const removeNewPart = registerPart("Session test part", newPart, true, second.owner);
+    registerSceneCamera(first.owner, oldCamera, new Vector3()); // a stale effect cannot register
+    registerPart("Session test part", oldPart, true, first.owner);
+    removeOldCamera();
+    removeOldPart();
+    first.dispose(); // delayed route cleanup must not close the newly mounted aircraft
+    expect(useView.getState().session).toBe(second.owner);
+    expect(scene.camera).toBe(newCamera);
+    expect(partObjects.get("Session test part")).toBe(newPart);
+    removeNewCamera();
+    removeNewPart();
+    expect(scene.camera).toBeNull();
+    expect(partObjects.has("Session test part")).toBe(false);
+  });
 });
 function sessions<
   S extends { eng: { running: boolean }; fuel: { qL: number; qR: number } },
@@ -63,7 +241,7 @@ function sessions<
     beforeEach(() => {
       const s = structuredClone(initial);
       sim.setState({ s, E: solve(s) });
-      restoreFleetWalkLive(live, liveInitial);
+      assignLive(live, structuredClone(liveInitial));
       useView.setState({ ac: id });
     });
     it("restores exact model/solution references, nested live identities, values and view", () => {

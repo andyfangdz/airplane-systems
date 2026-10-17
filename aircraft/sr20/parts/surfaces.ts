@@ -111,6 +111,8 @@ const wickNote =
 [1, -1].forEach((s) => {
   const side = s > 0 ? "R" : "L";
   onSurf("ail" + side, wingP(s * 4.85, 1.0, 0).add(V(-0.05, 0, 0)), () => cyl(0.004, 0.13, "x", 6), {
+    instance: [s],
+    id: "parts.surfaces.static-wick.001",
     color: "#2A2F33",
     name: "Static wick",
     note: wickNote,
@@ -118,6 +120,8 @@ const wickNote =
     pin: s > 0,
   });
   onSurf("elev" + side, V(sLE(1.85) - sC(1.85) - 0.05, SY, s * 1.85), () => cyl(0.004, 0.12, "x", 6), {
+    instance: [s],
+    id: "parts.surfaces.static-wick.002",
     color: "#2A2F33",
     name: "Static wick",
     note: wickNote,
@@ -125,6 +129,8 @@ const wickNote =
   });
   // Small schematic mass at the full-chord horn root, inside its thin rounded skin.
   onSurf("elev" + side, V(sLE(1.855) - 0.25 * sC(1.855), SY, s * 1.855), () => box(0.03, 0.012, 0.024), {
+    instance: [s],
+    id: "parts.surfaces.elevator-horn-balance-weight.003",
     color: "#6E7A84",
     name: "Elevator horn balance + weight",
     pin: s > 0,
@@ -133,18 +139,21 @@ const wickNote =
   (
     [
       [
+        "flap-inner",
         1.0,
         "Flap hinge bracket + control arm",
         "Flap hinge bracket. The inboard bracket carries the control arm driven by the flap torque tube. Rub strips on the flap top leading edge protect the cove. (Costanzo deck)",
         ["flaps"],
       ],
-      [2.3, "Flap hinge bracket", "One of three hinges per flap.", ["flaps"]],
-      [3.55, "Flap hinge bracket", "One of three hinges per flap.", ["flaps"]],
-      [3.95, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
-      [4.85, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
-    ] as [number, string, string, SysId[]][]
-  ).forEach(([z, name, note, sys], i) =>
+      ["flap-middle", 2.3, "Flap hinge bracket", "One of three hinges per flap.", ["flaps"]],
+      ["flap-outer", 3.55, "Flap hinge bracket", "One of three hinges per flap.", ["flaps"]],
+      ["aileron-inner", 3.95, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
+      ["aileron-outer", 4.85, "Aileron hinge fairing", "One of two hinges per aileron.", ["controls"]],
+    ] as [string, number, string, string, SysId[]][]
+  ).forEach(([key, z, name, note, sys], i) =>
     part(() => (i < 3 ? box(0.14, 0.04, 0.025) : hingeFairingGeo(0.22, 0.045, 0.045)), sys, {
+      id: "parts.surfaces.part.004",
+      instance: [key, s],
       pos: toVec3(wingP(s * z, 0.74, -1).add(V(-0.02, -0.02, 0))),
       color: "#C9D0D5",
       name,
@@ -156,6 +165,7 @@ const wickNote =
   );
 });
 onSurf("ailR", wingP(4.3, 0.99, 0).add(V(-0.03, 0, 0)), () => box(0.07, 0.004, 0.12), {
+  id: "parts.surfaces.aileron-trim-tab-ground-adjustable.005",
   color: "#8C99A3",
   name: "Aileron trim tab (ground-adjustable)",
   note: "Right aileron only. Factory-set; bent on the ground to trim out a wing-heavy tendency.",
@@ -163,6 +173,7 @@ onSurf("ailR", wingP(4.3, 0.99, 0).add(V(-0.03, 0, 0)), () => box(0.07, 0.004, 0
   pin: true,
 });
 onSurf("elevR", V(sLE(0.5) - sC(0.5) - 0.03, SY, 0.5), () => box(0.07, 0.004, 0.14), {
+  id: "parts.surfaces.elevator-trim-tab-ground-adjustable.006",
   color: "#8C99A3",
   name: "Elevator trim tab (ground-adjustable)",
   note: "Factory-set tab for small neutral-trim corrections. (Costanzo deck)",
@@ -174,6 +185,7 @@ onSurf(
   V(fLE(finHeight(0.35)) - fC(finHeight(0.35)) - 0.03, finHeight(0.35), 0),
   () => box(0.07, 0.14, 0.004),
   {
+    id: "parts.surfaces.rudder-trim-tab-ground-adjustable.007",
     color: "#8C99A3",
     name: "Rudder trim tab (ground-adjustable)",
     note: "Factory-set; the only yaw trim besides the pedal spring cartridge.",
@@ -185,12 +197,7 @@ onSurf(
   "rudder",
   V(fLE(finHeight(1.3)) - fC(finHeight(1.3)) - 0.05, finHeight(1.3), 0),
   () => cyl(0.004, 0.12, "x", 6),
-  {
-    color: "#2A2F33",
-    name: "Static wick",
-    note: wickNote,
-    ext: true,
-  },
+  { id: "parts.surfaces.static-wick.008", color: "#2A2F33", name: "Static wick", note: wickNote, ext: true },
 );
 // The horn narrows sharply toward the rounded tip; fit the internal mass at its root.
 onSurf(
@@ -198,6 +205,7 @@ onSurf(
   V(fLE(finHeight(1.43)) - 0.32 * fC(finHeight(1.43)), finHeight(1.43), 0),
   () => box(0.03, 0.022, 0.012),
   {
+    id: "parts.surfaces.rudder-horn-balance-weight.009",
     color: "#6E7A84",
     name: "Rudder horn balance + weight",
     note: "Top of the rudder extends forward of the hinge with a balance weight — reduces pedal force and flutter risk. (Costanzo deck)",

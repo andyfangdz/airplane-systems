@@ -25,7 +25,13 @@ export const WHEEL = {
   rollMax: 70 * D2R,
 };
 /** Rudder pedals (pilot's pair; the co-pilot's are removable). */
-export const PEDALS = { x: 1.78, y: -0.46, z: [-0.42, -0.2, 0.2, 0.42], travel: 0.06 };
+export const PEDAL_STATIONS = [
+  { id: "pilot-left", z: -0.42 },
+  { id: "pilot-right", z: -0.2 },
+  { id: "copilot-left", z: 0.2 },
+  { id: "copilot-right", z: 0.42 },
+] as const;
+export const PEDALS = { x: 1.78, y: -0.46, z: PEDAL_STATIONS.map(({ z }) => z), travel: 0.06 };
 
 /* ---------- elevator chain ---------- */
 /** Torque tube under the panel joining both wheel shafts; its lever drives the push-pull tube aft. */

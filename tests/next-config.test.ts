@@ -4,6 +4,23 @@ import { getRewrittenUrl, unstable_getResponseFromNextConfig } from "next/experi
 import nextConfig from "../next.config";
 import { VIEW_PATHS } from "@/aircraft/metas";
 
+const artifacts = vi.hoisted(
+  () =>
+    new Map([
+      ["public/geometry/runtime.json", "{}"],
+      ["public/geometry/manifest.json", "{}"],
+      [".geometry-runtime/inputs.json", "{}"],
+    ]),
+);
+vi.mock("node:fs", async (original) => {
+  const fs = await original<typeof import("node:fs")>();
+  return {
+    ...fs,
+    existsSync: (path: string) => artifacts.has(path) || fs.existsSync(path),
+    readFileSync: (path: string, ...args: unknown[]) => artifacts.get(path) ?? fs.readFileSync(path, ...(args as [])),
+  };
+});
+
 // Next.js phase configuration and route testing: https://nextjs.org/docs/app/api-reference/config/next-config-js
 // On Next.js upgrades, verify this documented experimental testing API remains compatible with the pinned version.
 afterEach(() => {
@@ -38,4 +55,14 @@ it("keeps development a server even when STATIC_EXPORT=1", () => {
   vi.stubEnv("STATIC_EXPORT", "1");
   const config = nextConfig(PHASE_DEVELOPMENT_SERVER);
   expect(config.output).toBeUndefined();
+});
+
+it("rejects a changed compiler input even when that helper is absent from the emitted runtime graph", () => {
+  artifacts.set(".geometry-runtime/inputs.json", JSON.stringify({ "lib/geometry.ts": "stale-digest" }));
+  try {
+    expect(() => nextConfig(PHASE_PRODUCTION_BUILD)).toThrow("Compiled aircraft input changed: lib/geometry.ts");
+    expect(() => nextConfig(PHASE_DEVELOPMENT_SERVER)).not.toThrow();
+  } finally {
+    artifacts.set(".geometry-runtime/inputs.json", "{}");
+  }
 });

@@ -4,7 +4,7 @@
  * the same engine); each frame advances it and then reads the carburetor's side of it into `live` (the scene reads it
  * in `useFrame`, the panel through `useLiveSnapshot`). View toggles are a small zustand store (`createViewStore`).
  */
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { O360 } from "@/engines/o360/spec";
 import {
   PRIMER_IDLE,
@@ -16,8 +16,8 @@ import {
   type Primer,
   type Pump,
 } from "@/engines/components/carburetor/carburetor";
-import { createViewStore, useSimLoop } from "../sim";
-import { advance, ENGINE_MAX_DT, simFor, startScenario, type EngineSim } from "../store";
+import { createViewStore } from "../sim";
+import { simFor, startScenario, useEngineLoop, type EngineSim } from "../store";
 
 export type CarbLive = CarbReading &
   Pump & {
@@ -65,13 +65,12 @@ function read(sim: EngineSim, pump: Pump) {
   });
 }
 
-/** One frame of the page: the engine, then the accelerating pump and the primer, then the carburetor's readings. */
-function carbTick(sim: EngineSim) {
+/** Compose accessories on the engine clock: engine, pump and primer, then readings, every fixed step. */
+function carbStep(sim: EngineSim) {
   const carb = sim.spec.fuelSystem.kind === "carburetor" ? sim.spec.fuelSystem : null;
   let pump: Pump = { plunger: sim.useUi.getState().controls.throttle, squirt: 0 },
     resets = sim.resets;
   return (dt: number) => {
-    advance(sim, dt);
     // a scenario replaced the engine: strokes asked for before don't carry over to it
     if (sim.resets !== resets) {
       resets = sim.resets;
@@ -93,7 +92,9 @@ export function useCarbLoop(sim: EngineSim) {
   useEffect(() => {
     const ui = sim.useUi.getState();
     if (sim.s.rpm === 0 && !ui.view.scenario && !ui.view.loading) startScenario(sim, "cruise75");
+    const step = carbStep(sim);
+    step(0);
+    return sim.subscribeSteps(step);
   }, [sim]);
-  const tick = useMemo(() => carbTick(sim), [sim]);
-  useSimLoop(tick, ENGINE_MAX_DT);
+  useEngineLoop(sim);
 }

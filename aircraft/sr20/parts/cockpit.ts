@@ -13,14 +13,16 @@ import { part } from "./catalogue";
 export const CONSOLE_LEVERS: Vec3 = [1.68, -0.32, 0];
 const state = () => useSR20.getState();
 part(() => mergeGeos([box(0.05, 0.05, 0.07), cyl(0.024, 0.06, "z").translate(-0.03, -0.005, 0)]), ["cabin"], {
+  id: "parts.cockpit.magnetic-compass.001",
   pos: [1.69, topY(1.69) - 0.1, 0],
   color: "#20262B",
   name: "Magnetic compass",
   pin: true,
   note: "Internally lighted, liquid-filled magnetic compass with correction card on the headliner immediately above the windshield, if installed (POH 7-22; Fig 7-4 item 2). Fitted compass shown for the pre-2650 study configuration; check serial-specific equipment. Dimensions approximate.",
 });
-for (const [offset, name, color, value, note] of [
+for (const [key, offset, name, color, value, note] of [
   [
+    "power",
     -0.035,
     "Power lever",
     "#20262B",
@@ -28,17 +30,20 @@ for (const [offset, name, color, value, note] of [
     "MAX-POWER-IDLE lever is mechanically cable-linked to the fuel-servo throttle and propeller governor. Commands 2500 RPM from idle through cruise and 2700 RPM at full power",
   ],
   [
+    "mixture",
     0.04,
     "Mixture lever",
     "#C8313B",
     () => state().s.eng.mix,
     "RICH-MIXTURE-CUTOFF lever is mechanically cable-linked to the fuel servo's sliding mixture valve; full aft shuts off fuel and the flow divider closes",
   ],
-] as [number, string, string, () => number, string][])
+] as [string, number, string, string, () => number, string][])
   part(
     () => mergeGeos([box(0.012, 0.13, 0.012).translate(0, 0.125, 0), box(0.035, 0.03, 0.045).translate(0, 0.2, 0)]),
     ["engine", "cabin"],
     {
+      id: "parts.cockpit.part.002",
+      instance: [key],
       pos: [CONSOLE_LEVERS[0], CONSOLE_LEVERS[1], offset],
       color,
       name,
@@ -51,6 +56,7 @@ for (const [offset, name, color, value, note] of [
     },
   );
 part(() => cyl(0.024, 0.012, "z", 24), ["engine", "cabin"], {
+  id: "parts.cockpit.friction-control-wheel.003",
   pos: [1.68, -0.29, 0.136],
   color: "#4A535B",
   name: "Friction control wheel",
@@ -59,6 +65,7 @@ part(() => cyl(0.024, 0.012, "z", 24), ["engine", "cabin"], {
   note: "FRICTION wheel on the right side of the console sets control-lever resistance to rotation for feel and setting stability (POH 7-34, Fig 7-7). Size and station approximate.",
 });
 part(() => box(0.004, 0.082, 0.1), ["flaps", "cabin"], {
+  id: "parts.cockpit.flap-switch-panel.004",
   pos: STACK.at(0.08, 0.006, 0.04),
   rot: STACK.rot,
   color: "#20262B",
@@ -74,6 +81,8 @@ for (const [cmd, offset, color, label] of [
   [100, -0.024, "#F2C230", "100%"],
 ] as const)
   part(() => cyl(0.0045, 0.006, "x", 12), ["flaps"], {
+    id: "parts.cockpit.flap-position-light.005",
+    instance: [cmd],
     pos: STACK.at(0.08 + offset, 0.012, 0.083),
     rot: STACK.rot,
     color,
@@ -90,6 +99,7 @@ for (const [cmd, offset, color, label] of [
     note: `${label} light (${cmd === 0 ? "green" : "yellow"}), illuminates at the selected flap position (POH 7-23). Shares 10 A FLAPS/NON ESS BUS with selector and actuator. Position tolerance used in this study animation is illustrative.`,
   });
 part(() => cyl(0.011, 0.01, "x", 20), ["electrical", "cabin"], {
+  id: "parts.cockpit.12-v-convenience-outlet.006",
   pos: [1.564, -0.24, 0],
   color: "#15181B",
   name: "12 V convenience outlet",
@@ -97,12 +107,14 @@ part(() => cyl(0.011, 0.01, "x", 20), ["electrical", "cabin"], {
   pinIn: ["cabin"],
   note: "Pre-2901 G6 center-console cigarette-lighter receptacle, maximum draw 3.5 A; 5 A 12V & USB POWER breaker on MAIN BUS 3 (POH 7-95). Size and armrest face station approximate.",
 });
-for (const [x, y, name] of [
-  [1.564, -0.24, "USB charging port (front)"],
-  [1.176, -0.31, "USB charging port (rear)"],
+for (const [key, x, y, name] of [
+  ["front", 1.564, -0.24, "USB charging port (front)"],
+  ["rear", 1.176, -0.31, "USB charging port (rear)"],
 ] as const)
   for (const side of [-1, 1])
     part(() => box(0.008, 0.008, 0.014), ["electrical", "cabin"], {
+      id: "parts.cockpit.part.007",
+      instance: [key, side],
       pos: [x, y, side * (x > 1.5 ? 0.028 : 0.11)],
       color: "#15181B",
       name,
@@ -111,6 +123,7 @@ for (const [x, y, name] of [
       note: "One of four dedicated charging-only USB ports, two forward and two aft on the center console. No data/audio access. The 2220/2339–2900 configuration uses 15 W ports and the 5 A 12V & USB POWER breaker on MAIN BUS 3 (POH 7-96 Revision A1). Device draw must follow each port label. Shape and location approximate.",
     });
 part(() => cyl(0.004, 0.008, "x", 12), ["cabin"], {
+  id: "parts.cockpit.audio-input-jack.008",
   pos: [1.564, -0.24, 0.046],
   color: "#15181B",
   name: "AUDIO INPUT jack",
@@ -119,17 +132,21 @@ part(() => cyl(0.004, 0.008, "x", 12), ["cabin"], {
 });
 for (const side of [-1, 1])
   part(() => mergeGeos([cyl(0.0045, 0.008, "x", 12), cyl(0.004, 0.008, "x", 12).translate(0, -0.014, 0)]), ["cabin"], {
+    id: "parts.cockpit.rear-passenger-headset-jacks.009",
+    instance: [side],
     pos: [1.176, -0.35, side * 0.11],
     color: "#15181B",
     name: "Rear passenger headset jacks",
     pin: side < 0,
     note: "Rear audio jacks on the aft console, if equipped. Rear occupants use intercom and selected entertainment/audio, without COM transmit (POH 7-90; Fig 7-4 item 12). Jack spacing and station approximate.",
   });
-for (const [name, x] of [
-  ["HOBBS hour meter", 1.48],
-  ["FLIGHT hour meter", 1.4],
+for (const [key, name, x] of [
+  ["hobbs", "HOBBS hour meter", 1.48],
+  ["flight", "FLIGHT hour meter", 1.4],
 ] as const)
   part(() => box(0.045, 0.01, 0.05), ["cabin", "electrical"], {
+    id: "parts.cockpit.part.010",
+    instance: [key],
     pos: [x, -0.218, 0],
     color: "#20262B",
     name,
@@ -142,6 +159,7 @@ for (const [name, x] of [
       ". Inside the center armrest storage compartment; 5 A FUEL QTY breaker on MAIN BUS 1 (POH 7-95). Size and layout schematic.",
   });
 part(() => mergeGeos([cyl(0.006, 0.15, "x", 12), cyl(0.014, 0.06, "z", 16).translate(0.075, 0, 0)]), ["cabin"], {
+  id: "parts.cockpit.emergency-egress-hammer.011",
   pos: [1.44, -0.23, 0.047],
   color: "#89949C",
   name: "Emergency egress hammer",
@@ -162,6 +180,8 @@ for (const side of [-1, 1])
       ),
     ["cabin"],
     {
+      id: "parts.cockpit.front-lap-restraint.012",
+      instance: [side],
       color: "#454A4D",
       name: "Front lap restraint",
       pin: side < 0,

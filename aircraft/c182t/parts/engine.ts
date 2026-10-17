@@ -30,6 +30,8 @@ const bladeGeo = () => {
 };
 for (let i = 0; i < 3; i++)
   part(bladeGeo, ["propeller", "engine"], {
+    id: "parts.engine.propeller-blade.001",
+    instance: [i],
     parent: "blade:" + i,
     color: "#2E3439",
     name: "Propeller blade",
@@ -38,6 +40,7 @@ for (let i = 0; i < 3; i++)
     pin: i === 0,
   });
 part(() => cyl(0.075, 0.13, "x"), ["propeller"], {
+  id: "parts.engine.propeller-hub-oil-filled.002",
   pos: P3(-45.5, 0, 50.375),
   color: "#8C959C",
   name: "Propeller hub (oil filled)",
@@ -48,6 +51,7 @@ part(() => cyl(0.075, 0.13, "x"), ["propeller"], {
 
 /* ---------- engine: Lycoming IO-540-AB1A5, 230 BHP @ 2,400 RPM (POH 1-5) ---------- */
 part(() => box(0.86, 0.3, 0.44), ["engine"], {
+  id: "parts.engine.lycoming-io-540-ab1a5.003",
   pos: P3(-23.6, 0, 48.6),
   color: "#7E8890",
   name: "Lycoming IO-540-AB1A5",
@@ -56,6 +60,7 @@ part(() => box(0.86, 0.3, 0.44), ["engine"], {
   pin: true,
 });
 part(() => box(0.46, 0.12, 0.36), ["engine"], {
+  id: "parts.engine.oil-sump.004",
   pos: P3(-24, 0, 40.25),
   color: "#B85A2A",
   name: "Oil sump",
@@ -86,6 +91,8 @@ export const INTAKES: Vec3[][] = CYLS.map((c) => [
 CYLS.forEach((c, i) => {
   const base = P3(c.fs, c.s * 12, 50);
   part(() => cyl(0.058, 0.2, "z", 18), ["engine"], {
+    id: "parts.engine.part.005",
+    instance: [c.n],
     pos: base,
     color: "#7C858C",
     name: "Cylinder " + c.n,
@@ -97,11 +104,15 @@ CYLS.forEach((c, i) => {
   });
   for (let k = -2; k <= 2; k++)
     part(() => cyl(0.072, 0.008, "z", 18), ["engine"], {
+      id: "parts.engine.part.006",
+      instance: [k, c.n],
       pos: [base[0], base[1], base[2] + c.s * k * 0.03],
       color: "#8C959C",
       fairing: true,
     });
   part(() => box(0.14, 0.15, 0.07), ["engine"], {
+    id: "parts.engine.part.007",
+    instance: [c.n],
     pos: [base[0], base[1] + 0.01, base[2] + c.s * 0.075],
     color: "#6A737A",
     name: "Cylinder head " + c.n,
@@ -120,6 +131,8 @@ CYLS.forEach((c, i) => {
     // POH 7-35 (KAP 140 edition, image-verified): right magneto fires lower right + upper left; left magneto lower left + upper right
     const mag = c.s > 0 === (pos === "L") ? "R" : "L";
     part(() => cyl(0.013, 0.05, "y", 10), ["engine"], {
+      id: "parts.engine.part.008",
+      instance: [pos, c.n],
       pos: [base[0] - 0.03, base[1] + dy, base[2] + c.s * 0.075],
       color: "#DADFE2",
       anim: plugAnim(fires(mag), sparkPhase(`${c.n}${pos}`)),
@@ -128,6 +141,8 @@ CYLS.forEach((c, i) => {
     });
   });
   part(() => box(0.03, 0.03, 0.03), ["engine", "fuel"], {
+    id: "parts.engine.fuel-injector-nozzle.009",
+    instance: [c.n],
     pos: NOZZLES[i],
     color: "#C9B98F",
     name: "Fuel injector nozzle",
@@ -135,6 +150,7 @@ CYLS.forEach((c, i) => {
   });
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
+  id: "parts.engine.left-magneto.010",
   pos: P3(-4.5, -5.5, 55),
   color: "#3E4A52",
   anim: magAnim(fires("L")),
@@ -143,6 +159,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.12, "x"), ["engine"], {
+  id: "parts.engine.right-magneto.011",
   pos: P3(-4.5, 5.5, 55),
   color: "#3E4A52",
   anim: magAnim(fires("R")),
@@ -151,6 +168,7 @@ part(() => cyl(0.045, 0.12, "x"), ["engine"], {
   pin: true,
 });
 part(() => box(0.12, 0.1, 0.11), ["engine", "electrical"], {
+  id: "parts.engine.starter.012",
   pos: P3(-39, -11, 42.5),
   color: "#4B5860",
   name: "Starter",
@@ -158,6 +176,7 @@ part(() => box(0.12, 0.1, 0.11), ["engine", "electrical"], {
   pin: true,
 });
 part(() => cyl(0.04, 0.1, "x"), ["engine"], {
+  id: "parts.engine.oil-filter-full-flow.013",
   pos: P3(-4.5, 0, 47.5),
   color: "#1F3A5A",
   name: "Oil filter (full flow)",
@@ -165,12 +184,14 @@ part(() => cyl(0.04, 0.1, "x"), ["engine"], {
   pin: true,
 });
 part(() => box(0.06, 0.12, 0.16), ["engine"], {
+  id: "parts.engine.oil-cooler.014",
   pos: P3(-11.4, -12.6, 54.9),
   color: "#9A6A48",
   name: "Oil cooler",
   note: "Thermostatically controlled remote cooler, arm −11.4 (POH 7-34, 6-25). In extreme cold the oil congeals in it — preheat (POH 4-49). Dimensions, lateral position and height are approximate; the core is outside the crankcase and inside the cowl.",
 });
 part(() => cyl(0.012, 0.18, "y"), ["engine"], {
+  id: "parts.engine.oil-dipstick-filler.015",
   pos: P3(-14, -9, 57),
   color: "#E0B040",
   name: "Oil dipstick / filler",
@@ -179,6 +200,7 @@ part(() => cyl(0.012, 0.18, "y"), ["engine"], {
 });
 // on the outside of the crankcase box (BL ±8.66, top WL 54.5): sensors at their equipment-list arms; side and height are not in the POH
 part(() => box(0.03, 0.03, 0.03), ["engine"], {
+  id: "parts.engine.oil-pressure-transducer.016",
   pos: P3(-12.9, 9.31, 45),
   color: "#3A9448",
   name: "Oil pressure transducer",
@@ -186,12 +208,14 @@ part(() => box(0.03, 0.03, 0.03), ["engine"], {
   pin: true,
 });
 part(() => box(0.025, 0.025, 0.025), ["engine"], {
+  id: "parts.engine.low-oil-pressure-switch.017",
   pos: P3(-10.9, 9.21, 45),
   color: "#E0263B",
   name: "Low oil pressure switch",
   note: "Independent of the transducer: OIL PRESSURE (red, continuous tone) at 0–20 PSI — shown before start (POH 7-31, 4-7). The Hobbs runs above 20 PSI (POH 7-12). The POH doesn't locate the switch: shown beside the transducer (approximate).",
 });
 part(() => box(0.06, 0.05, 0.06), ["engine"], {
+  id: "parts.engine.tach-sensor.018",
   pos: P3(-8, 0, 55.55),
   color: "#4B5860",
   name: "Tach sensor",
@@ -199,6 +223,7 @@ part(() => box(0.06, 0.05, 0.06), ["engine"], {
   pin: true,
 });
 part(() => box(0.04, 0.04, 0.03), ["engine"], {
+  id: "parts.engine.manifold-pressure-transducer.019",
   pos: P3(-1.2, 7, 58),
   color: "#3A9448",
   name: "Manifold pressure transducer",
@@ -213,6 +238,7 @@ part(
   },
   ["engine"],
   {
+    id: "parts.engine.induction-air-intake.020",
     color: "#1E2A33",
     name: "Induction air intake",
     note: "Ram air through an intake on the lower front of the cowling, covered by the air filter (POH 7-35).",
@@ -221,6 +247,7 @@ part(
   },
 );
 part(() => box(0.08, 0.1, 0.2), ["engine"], {
+  id: "parts.engine.induction-air-filter.021",
   pos: P3(-35.2, 0, 39),
   color: "#C9B98F",
   name: "Induction air filter",
@@ -229,6 +256,7 @@ part(() => box(0.08, 0.1, 0.2), ["engine"], {
 });
 // the air box lies between the filter and the servo, under the oil sump (bottom h 37.9): the door hangs below the sump
 part(() => box(0.1, 0.07, 0.03), ["engine"], {
+  id: "parts.engine.alternate-air-door.022",
   pos: P3(-29, -5, 33),
   color: "#E0B040",
   anim: altDoorAnim(X(-29)),
@@ -237,14 +265,18 @@ part(() => box(0.1, 0.07, 0.03), ["engine"], {
   pin: true,
 });
 part(() => cyl(0.05, 0.12, "x"), ["engine", "fuel"], {
+  id: "parts.engine.fuel-air-control-unit-servo.023",
   pos: P3(-22, 0, 35),
   color: "#7E8A93",
   name: "Fuel/air control unit (servo)",
   note: "Under the engine: meters fuel in proportion to induction air flow; throttle and mixture act here. An orificed fitting in its top feeds the fuel return line (POH 7-35, 7-40, 7-43).",
   pin: true,
 });
-INTAKES.forEach((points) =>
+INTAKES.forEach((points, cylinder) =>
   part(() => tubeGeo(points, 0.015), ["engine"], {
+    id: "parts.engine.intake-manifold-tube.024",
+    instance: [CYLS[cylinder].n],
+
     color: "#8A969E",
     name: "Intake manifold tube",
     note: "From the fuel/air control unit to each cylinder's intake port (POH 7-35). Routing and port positions are approximate.",
@@ -253,12 +285,16 @@ INTAKES.forEach((points) =>
 // exhaust and cabin heat (POH 7-36)
 [1, -1].forEach((s) => {
   part(() => cyl(0.055, 0.32, "x"), ["engine", "environment"], {
+    instance: [s],
+    id: "parts.engine.muffler.025",
     pos: P3(-24.2, s * 9.5, 33.5),
     color: "#8A5A3C",
     name: "Muffler",
     note: "Each cylinder's riser feeds a collector on its side below the engine, then a muffler; both go overboard through a single tailpipe. LEFT and RIGHT exhaust systems, arm −24.2 (POH 7-36, 6-25). Merge point not in the POH.",
   });
   part(() => cyl(0.072, 0.22, "x"), ["environment", "engine"], {
+    instance: [s],
+    id: "parts.engine.muffler-heater-shroud.026",
     pos: P3(-24.2, s * 9.5, 33.5),
     color: "#E0522B",
     fairing: true,
@@ -277,6 +313,9 @@ COWL_INLETS.c182t.slice(0, 2).forEach((inlet) => {
     },
     ["engine", "airframe"],
     {
+      id: "parts.engine.cooling-air-inlet.027",
+      instance: [inlet.id],
+
       color: "#1E2A33",
       ext: true,
       pin: s > 0,
@@ -289,10 +328,17 @@ COWL_INLETS.c182t.slice(0, 2).forEach((inlet) => {
       return cowlOpeningGeo(FUSE.frontX, y, z, width, height, exponent);
     },
     ["engine", "airframe"],
-    { color: "#0B1014", ext: true },
+    {
+      id: "parts.engine.part.028",
+      instance: [inlet.id],
+
+      color: "#0B1014",
+      ext: true,
+    },
   );
 });
 part(() => box(0.36, 0.02, 0.56), ["engine"], {
+  id: "parts.engine.cylinder-baffles.029",
   pos: P3(-26, 0, 56.5),
   color: "#B8BEC4",
   name: "Cylinder baffles",
@@ -309,6 +355,8 @@ export const COWL_FLAP = { fs: -9.5, h: 24.2, bl: 8, len: 7.5 * IN, base: 0.2, o
     },
     ["engine"],
     {
+      instance: [s],
+      id: "parts.engine.cowl-flap.030",
       parent: "cowlFlap:" + (s > 0 ? "R" : "L"),
       color: "#D6DCE0",
       ext: true,
@@ -322,6 +370,8 @@ export const COWL_FLAP = { fs: -9.5, h: 24.2, bl: 8, len: 7.5 * IN, base: 0.2, o
 [1, -1].forEach((s) =>
   [1, -1].forEach((u) =>
     part(() => tubeGeo([P3(-0.5, s * 14, 48 + u * 10), P3(-10, s * 9, 47 + u * 4.5)], 0.009), ["engine", "airframe"], {
+      id: "parts.engine.engine-mount.031",
+      instance: [s, u],
       color: "#5C6E7E",
       name: "Engine mount",
       note: "Welded tube mount bolted to the firewall at the four engine mount stringers (POH 7-5).",
@@ -332,6 +382,7 @@ export const COWL_FLAP = { fs: -9.5, h: 24.2, bl: 8, len: 7.5 * IN, base: 0.2, o
 // engine controls on the lower centre panel, left to right: throttle, propeller, mixture (Fig 7-2 items 31, 24, 23; GFC 7-29)
 export const KNOB = { fs: 18.2, h: 43.2 };
 part(() => cyl(0.016, 0.03, "x"), ["engine"], {
+  id: "parts.engine.throttle-with-friction-lock.032",
   pos: P3(KNOB.fs, -1.8, KNOB.h),
   color: "#1A1F23",
   anim: pushPull(X(KNOB.fs), () => S().eng.throttle),
@@ -347,6 +398,7 @@ part(
   },
   ["engine", "propeller"],
   {
+    id: "parts.engine.propeller-control-blue.033",
     pos: P3(KNOB.fs, 2.0, KNOB.h),
     color: "#2F64C8",
     anim: pushPull(X(KNOB.fs), () => S().eng.prop),
@@ -356,6 +408,7 @@ part(
   },
 );
 part(() => cyl(0.016, 0.03, "x"), ["engine"], {
+  id: "parts.engine.mixture-red-vernier.034",
   pos: P3(KNOB.fs, 5.8, KNOB.h),
   color: "#C8313B",
   anim: pushPull(X(KNOB.fs), () => S().eng.mix),
@@ -363,8 +416,13 @@ part(() => cyl(0.016, 0.03, "x"), ["engine"], {
   note: "Red knob with raised points and a lock button: in = RICH, out = IDLE CUTOFF; rotate for fine adjustment (POH 7-28). Use FULL RICH above 80% power (POH 4-37).",
   pin: true,
 });
-part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], { pos: P3(18.0, -19.4, 50.4), color: "#3E4A52" });
+part(() => cyl(0.016, 0.01, "x"), ["engine", "electrical"], {
+  id: "parts.engine.part.035",
+  pos: P3(18.0, -19.4, 50.4),
+  color: "#3E4A52",
+});
 part(() => box(0.012, 0.032, 0.009), ["engine", "electrical"], {
+  id: "parts.engine.magnetos-switch.036",
   pos: P3(18.3, -19.4, 50.4),
   color: "#C9D0D5",
   anim: (m) => {

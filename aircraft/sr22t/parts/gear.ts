@@ -301,7 +301,7 @@ function hydraulicPart(
   pts: Vec3[],
   radius: number,
   tension: number,
-  opts: Parameters<typeof part>[2],
+  opts: Omit<Parameters<typeof part>[2], "id" | "instance">,
   side?: "L" | "R",
   held = false,
 ) {
@@ -317,6 +317,8 @@ function hydraulicPart(
   const line = { from, to, pts, name: opts?.name ?? "Brake line", side, held };
   BRAKE_LINES.push(line);
   part(() => tubeGeo(line.pts, radius, tension), ["gear"], {
+    id: "gear.brake-line",
+    instance: [from, to],
     ...opts,
     anim: side
       ? pressureAnim(() => {
@@ -390,13 +392,22 @@ const caliperGeo = (s: number) => {
     box(0.05, 0.08, 0.004).translate(0.015, 0.02, s * 0.054),
   ]);
 };
-[1, -1].forEach((s) => {
+(
+  [
+    ["member-01", 1],
+    ["member-02", -1],
+  ] as const
+).forEach(([member1, s]) => {
   part(() => tubeGeo(mainStrutPath(s), 0.04), ["gear"], {
+    instance: [s, member1],
+    id: "parts.gear.main-gear-strut.002",
     name: "Main gear strut",
     note: "Fiberglass composite leaf spring provides main-gear shock absorption; attaches between WS 27 and WS 37, between spar and shear web (POH 13772-007 7-25; AMM 13773-002 Rev 7 32-00, PDF 1390; 32-10 p. 1, PDF 1392, Fig 32-10-2, PDF 1403). Inner end at WS 27.5 / 45% chord, 0.06 m above lower skin, passes through the WS 37 lower fitting; Lower end meets the axle at wheel-center height, 5 mm outboard of the axle’s inboard end (approximately 0.15 m inboard of wheel center) (AMM Fig 32-10-1, PDF 1397); placement and cross-section approximate.",
     ext: true,
   });
   part(() => new THREE.TorusGeometry(0.13335, 0.05715, 16, 32).scale(1, 1, 4 / 3), ["gear"], {
+    instance: [s, member1],
+    id: "parts.gear.main-wheel.003",
     pos: [MG.x, MG.y, s * MG.z],
     color: "#2A2F33",
     name: "Main wheel",
@@ -404,6 +415,8 @@ const caliperGeo = (s: number) => {
     ext: true,
   });
   part(() => mainPantGeo(s), ["gear"], {
+    instance: [s, member1],
+    id: "parts.gear.wheel-pant.004",
     pos: [MAIN_PANT.center[0], MAIN_PANT.center[1], s * MAIN_PANT.center[2]],
     fairing: true,
     name: "Wheel pant",
@@ -411,6 +424,8 @@ const caliperGeo = (s: number) => {
     ext: true,
   });
   part(brakeDiscGeo, ["gear"], {
+    instance: [s, member1],
+    id: "parts.gear.brake-disc.005",
     pos: [MG.x, MG.y, discZ(s)],
     color: "#9AA3AA",
     ext: true,
@@ -469,6 +484,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-gear-strut.006",
     parent: "noseGear",
     name: "Nose gear strut",
     note: "Tubular steel leg attached to the steel engine mount; separate oleo reacts against the mount (POH 13772-007 7-25; AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408, Fig 32-20-2, PDF 1416). Outline approximate.",
@@ -476,6 +492,7 @@ part(
   },
 );
 part(() => new THREE.TorusGeometry(0.11675, 0.05325, 16, 32).scale(1, 1, 0.11 / 0.1065), ["gear"], {
+  id: "parts.gear.nose-wheel.007",
   parent: "caster",
   pos: NOSE_WHEEL,
   color: "#2A2F33",
@@ -484,6 +501,7 @@ part(() => new THREE.TorusGeometry(0.11675, 0.05325, 16, 32).scale(1, 1, 0.11 / 
   ext: true,
 });
 part(() => pantGeo(0.7, 0.17), ["gear"], {
+  id: "parts.gear.nose-wheel-pant.008",
   parent: "caster",
   pos: [0.02, 0.02, 0],
   scale: [1, 1, 0.7],
@@ -493,14 +511,24 @@ part(() => pantGeo(0.7, 0.17), ["gear"], {
   ext: true,
 });
 part(() => box(0.04, 0.025, 0.07), ["gear"], {
+  id: "parts.gear.park-brake-handle.009",
   pos: PARK_HANDLE,
   name: "PARK BRAKE handle",
   note: "Right side kick plate by the pilot's right knee. Set toe brakes, then pull aft; pushed in, valve poppets are held open. Never set in flight (POH 13772-007 7-26). AMM 13773-002 Rev 7 32-42, PDF 1450 says LH kick plate; POH governs. Handle shape and placement approximate.",
   pin: true,
 });
-[-0.36, -0.14, 0.14, 0.36].forEach((z) => {
+(
+  [
+    ["member-01", -0.36],
+    ["member-02", -0.14],
+    ["member-03", 0.14],
+    ["member-04", 0.36],
+  ] as const
+).forEach(([member2, z]) => {
   const parent = z < 0 ? "rig:pedL" : "rig:pedR";
   part(() => box(0.04, 0.18, 0.09), ["gear", "controls"], {
+    id: "parts.gear.rudder-pedal-toe-brake.010",
+    instance: [parent, member2],
     chan: ["rudder"],
     parent,
     pos: [2.42, -0.52, z],
@@ -509,6 +537,8 @@ part(() => box(0.04, 0.025, 0.07), ["gear"], {
     note: "Top half is the toe brake. Either pilot's left or right toe brake applies that side's brake. Pushing a pedal forward pulls its rudder cable (POH Fig. 7-3).",
   });
   part(() => cyl(0.018, 0.1), ["gear"], {
+    id: "parts.gear.brake-master-cylinder.011",
+    instance: [parent, member2],
     parent,
     pos: [2.51, -0.58, z],
     color: "#8C959C",
@@ -522,10 +552,17 @@ part(() => box(0.04, 0.025, 0.07), ["gear"], {
 const mainRef = "AMM 13773-002 Rev 7 32-10 p. 1, PDF 1392; Fig 32-10-2, PDF 1403";
 const wheelRef = "AMM 13773-002 Rev 7 32-41 p. 1, PDF 1442; Fig 32-41-1, PDF 1446";
 const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416";
-[1, -1].forEach((s) => {
+(
+  [
+    ["member-01", 1],
+    ["member-02", -1],
+  ] as const
+).forEach(([member3, s]) => {
   const upper = V(...mainStrutPath(s)[0]);
   const lower = wingP(s * 37 * 0.0254, 0.45, -1);
   part(() => box(0.2, 0.055, 0.09), ["gear"], {
+    instance: [s, member3],
+    id: "parts.gear.main-gear-upper-attach-fitting.012",
     pos: upper.toArray() as Vec3,
     color: "#546F85",
     name: "Main gear upper attach fitting",
@@ -558,6 +595,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
       ),
     ["gear"],
     {
+      instance: [s, member3],
+      id: "parts.gear.main-gear-lower-attach-fitting.013",
       // Seated on the inner face of the lower skin, where a flat box centred on the skin crossing hung half
       // its depth below the wing. Its bottom follows the local lower skin with the lateral ribs' 1 mm inset, so it still
       // clamps the crossing; the 0.20 m chord, 0.09 m span and 45 mm depth are the retained illustrative sizes
@@ -571,7 +610,12 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
         ").",
     },
   );
-  [0.38, 0.52].forEach((chord) => {
+  (
+    [
+      ["member-01", 0.38],
+      ["member-02", 0.52],
+    ] as const
+  ).forEach(([member4, chord]) => {
     const a = wingP(s * 27 * 0.0254, chord, 0),
       b = wingP(s * 37 * 0.0254, chord, 0);
     const center = a.clone().add(b).multiplyScalar(0.5);
@@ -596,6 +640,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
       s,
     );
     part(() => loft(rings), ["gear"], {
+      id: "parts.gear.gear-lateral-rib.014",
+      instance: [s, member3, member4],
       pos: center.toArray() as Vec3,
       color: "#AAB4BD",
       name: "Gear lateral rib",
@@ -617,6 +663,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
     },
     ["gear"],
     {
+      instance: [s, member3],
+      id: "parts.gear.main-strut-fairing.015",
       name: "Main strut fairing",
       fairing: true,
       ext: true,
@@ -624,6 +672,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
     },
   );
   part(() => cyl(0.0762, 0.115, "z", 32), ["gear"], {
+    instance: [s, member3],
+    id: "parts.gear.main-wheel-hub.016",
     pos: [MG.x, MG.y, s * MG.z],
     color: "#BCC5CD",
     name: "Main wheel hub",
@@ -631,14 +681,23 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
     note: "Aluminum wheel with a nominal 6 in rim; width and shape approximate (POH 13772-007 7-25; " + wheelRef + ").",
   });
   part(() => cyl(0.023, MAIN_AXLE.length, "z"), ["gear"], {
+    instance: [s, member3],
+    id: "parts.gear.main-wheel-axle.017",
     pos: [MG.x, MG.y, s * (MG.z - MAIN_AXLE.offset)],
     color: "#8C959C",
     name: "Main wheel axle",
     ext: true,
     note: "Axle fitted to the lower strut; dimensions approximate (" + mainRef + ").",
   });
-  [-1, 1].forEach((side) =>
+  (
+    [
+      ["member-01", -1],
+      ["member-02", 1],
+    ] as const
+  ).forEach(([member5, side]) =>
     part(() => cyl(0.033, 0.012, "z"), ["gear"], {
+      id: "parts.gear.main-wheel-sealed-bearing.018",
+      instance: [side, s, member3, member5],
       pos: [MG.x, MG.y, s * MG.z + side * 0.051],
       color: "#67727D",
       name: "Main wheel sealed bearing",
@@ -647,6 +706,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
     }),
   );
   part(() => cyl(0.027, 0.025, "z", 6), ["gear"], {
+    instance: [s, member3],
+    id: "parts.gear.main-axle-nut.019",
     pos: [MG.x, MG.y, s * (MG.z + 0.075)],
     color: "#BCC5CD",
     name: "Main axle nut",
@@ -664,6 +725,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
       ),
     ["gear"],
     {
+      instance: [s, member3],
+      id: "parts.gear.main-axle-cotter-pin.020",
       name: "Main axle cotter pin",
       color: "#BCC5CD",
       ext: true,
@@ -674,6 +737,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
     },
   );
   part(() => cyl(0.006, 0.025, "z"), ["gear"], {
+    instance: [s, member3],
+    id: "parts.gear.main-tire-valve-stem.021",
     pos: [MG.x + 0.05, MG.y + 0.027, s * (MG.z + 0.065)],
     color: "#343C44",
     name: "Main tire valve stem",
@@ -695,6 +760,8 @@ const noseRef = "AMM 13773-002 Rev 7 32-20 p. 1, PDF 1408; Fig 32-20-2, PDF 1416
       ),
     ["gear"],
     {
+      instance: [s, member3],
+      id: "parts.gear.wheel-pant-access-door.022",
       name: "Wheel pant access door",
       color: "#65717D",
       ext: true,
@@ -714,6 +781,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-oleo-cylinder.023",
     parent: "noseGear",
     name: "Nose oleo cylinder",
     color: "#7F8B96",
@@ -732,6 +800,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-oleo-piston-rod.024",
     parent: "noseGear",
     name: "Nose oleo piston rod",
     color: "#CDD6DE",
@@ -751,6 +820,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-strut-fairing.025",
     parent: "noseGear",
     name: "Nose strut fairing",
     fairing: true,
@@ -758,8 +828,15 @@ part(
     note: "Leg cover; outline approximate (AMM 13773-002 Rev 7 Fig 32-20-1 item 1, PDF 1413).",
   },
 );
-[-1, 1].forEach((s) => {
+(
+  [
+    ["member-01", -1],
+    ["member-02", 1],
+  ] as const
+).forEach(([member6, s]) => {
   part(() => noseForkGeo(s), ["gear"], {
+    instance: [s, member6],
+    id: "parts.gear.nose-wheel-fork.026",
     parent: "caster",
     name: "Nose wheel fork",
     color: "#9DA9B3",
@@ -767,6 +844,8 @@ part(
     note: "Fork arms hold an independent wheel axle; shape approximate (AMM 13773-002 Rev 7 Fig 32-20-4, PDF 1429; Fig 32-41-2, PDF 1449).",
   });
   part(() => cyl(0.028, 0.012, "z"), ["gear"], {
+    instance: [s, member6],
+    id: "parts.gear.nose-wheel-sealed-bearing.027",
     parent: "caster",
     pos: [0.02, 0, s * 0.041],
     name: "Nose wheel sealed bearing",
@@ -775,6 +854,8 @@ part(
     note: "One of two sealed bearings; dimensions approximate (AMM 13773-002 Rev 7 32-41, PDF 1442).",
   });
   part(() => cyl(0.034, 0.005, "z"), ["gear"], {
+    instance: [s, member6],
+    id: "parts.gear.nose-wheel-bearing-seal.028",
     parent: "caster",
     pos: [0.02, 0, s * 0.05],
     name: "Nose wheel bearing seal",
@@ -784,6 +865,7 @@ part(
   });
 });
 part(() => cyl(0.0635, 0.095, "z", 32), ["gear"], {
+  id: "parts.gear.nose-wheel-hub.029",
   parent: "caster",
   pos: NOSE_WHEEL,
   name: "Nose wheel hub",
@@ -792,6 +874,7 @@ part(() => cyl(0.0635, 0.095, "z", 32), ["gear"], {
   note: "Aluminum wheel, nominal 5 in rim; width and shape approximate (POH 13772-007 7-25; AMM 13773-002 Rev 7 32-41, PDF 1442; Fig 32-41-2, PDF 1449).",
 });
 part(() => cyl(0.02, 2 * (NOSE_PIN[2] + 0.003), "z"), ["gear"], {
+  id: "parts.gear.nose-wheel-axle.030",
   parent: "caster",
   pos: NOSE_WHEEL,
   name: "Nose wheel axle",
@@ -800,6 +883,7 @@ part(() => cyl(0.02, 2 * (NOSE_PIN[2] + 0.003), "z"), ["gear"], {
   note: "Independent axle through the fork, extended through the nut and cotter pin; length derived from pin center plus its 3 mm radius, dimensions approximate (AMM 13773-002 Rev 7 Fig 32-41-2 item 7, PDF 1449).",
 });
 part(() => cyl(NOSE_NUT_RADIUS, NOSE_NUT_THICKNESS, "z", 6), ["gear"], {
+  id: "parts.gear.nose-axle-nut.031",
   parent: "caster",
   pos: NOSE_NUT,
   name: "Nose axle nut",
@@ -818,6 +902,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-axle-cotter-pin.032",
     parent: "caster",
     name: "Nose axle cotter pin",
     color: "#BCC5CD",
@@ -826,6 +911,7 @@ part(
   },
 );
 part(() => cyl(0.005, 0.02, "z"), ["gear"], {
+  id: "parts.gear.nose-tire-valve-stem.033",
   parent: "caster",
   pos: [NOSE_WHEEL[0] + 0.041, NOSE_WHEEL[1] + 0.023, NOSE_WHEEL[2] - 0.053],
   name: "Nose tire valve stem",
@@ -848,6 +934,7 @@ part(
     ),
   ["gear"],
   {
+    id: "parts.gear.nose-pant-access-door.034",
     parent: "caster",
     name: "Nose pant access door",
     color: "#65717D",
@@ -859,9 +946,16 @@ part(
 /* ---------- brake detail: append new hardware after existing registrations ---------- */
 const brakeRef = "AMM 13773-002 Rev 7 Fig 32-42-1, PDF 1462";
 const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 1476";
-[1, -1].forEach((s) => {
+(
+  [
+    ["member-01", 1],
+    ["member-02", -1],
+  ] as const
+).forEach(([member7, s]) => {
   const caliper = brakeCaliper(s);
   part(() => caliperGeo(s), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-caliper.035",
     pos: caliper,
     ext: true,
     pin: true,
@@ -874,14 +968,23 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
       "). Open housing with two bores exposes the pistons; bridge passes aft of the disc OD, with pads between cylinder and back plate (items 5, 8, 10, 12). Dimensions/placement approximate; glow is a model cue for applied pressure, not temperature.",
   });
   part(() => box(0.02, 0.08, 0.008), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-torque-plate.036",
     pos: [MG.x - 0.14, MG.y, discZ(s) - s * 0.055],
     ext: true,
     color: "#67727D",
     name: "Brake torque plate",
     note: "Fixed support for the caliper anchor bolts; approximate shape (" + brakeRef + ").",
   });
-  [-1, 1].forEach((face) => {
+  (
+    [
+      ["member-01", -1],
+      ["member-02", 1],
+    ] as const
+  ).forEach(([member8, face]) => {
     part(() => box(0.02, 0.066, 0.004), ["gear"], {
+      id: "parts.gear.brake-pad.037",
+      instance: [face, s, member7, member8],
       pos: [MG.x - 0.105, MG.y, discZ(s) + face * 0.01],
       color: "#343C44",
       ext: true,
@@ -892,6 +995,8 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
         ").",
     });
     part(() => cyl(0.012, 0.039, "z"), ["gear"], {
+      id: "parts.gear.brake-caliper-piston.038",
+      instance: [face, s, member7, member8],
       pos: [MG.x - 0.105, MG.y + face * 0.018, discZ(s) - s * 0.0315],
       ext: true,
       color: "#BCC5CD",
@@ -900,12 +1005,16 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
     });
   });
   part(() => cyl(0.009, 0.02, "y"), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-temperature-sensor.039",
     pos: [MG.x - 0.105, MG.y + 0.05, discZ(s) - s * 0.04],
     ext: true,
     name: "Brake temperature sensor",
     note: "Sensor on each brake assembly feeds avionics caution/warning (POH 13772-007 7-25). Caution 270–293 °F, warning above 293 °F (AMM 13773-002 Rev 7 32-42, PDF 1450; Fig 32-42-2, PDF 1465). ENGINE INSTR: AMM says Main Bus 2; POH 7-78 says ESS BUS 2, which governs. Shape and placement approximate; brake temperature is not simulated.",
   });
   part(() => box(0.006, 0.012, 0.003), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-temperature-indicator.040",
     pos: [MG.x - 0.085, MG.y, discZ(s) - s * 0.0525],
     color: "#FFFFFF",
     ext: true,
@@ -913,6 +1022,8 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
     note: "Physical indicator on each caliper piston housing turns black above 450 °F (AMM 32-42, PDF 1461; AMM 13773-002 Rev 7). This threshold is separate from CAS caution/warning. Drawn white by default; the AMM describes a red indicator activating at 450 °F. Temperature is not simulated. Shape approximate.",
   });
   part(() => box(0.035, 0.035, 0.06), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-tee-fitting.041",
     pos: brakeTee(s),
     color: "#BCC5CD",
     name: "Brake tee fitting",
@@ -922,6 +1033,8 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
       ", item 8).",
   });
   part(() => box(0.024, 0.022, 0.02), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-elbow-fitting.042",
     pos: masterPort(s),
     color: "#BCC5CD",
     name: "Brake elbow fitting",
@@ -931,6 +1044,8 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
       ", item 1).",
   });
   part(() => cyl(0.007, 0.016, "x", 6), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-union-fitting.043",
     pos: brakeUnion(s),
     ext: true,
     color: "#BCC5CD",
@@ -941,6 +1056,8 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
       ", item 2; AMM Fig 32-42-3, PDF 1469).",
   });
   part(() => cyl(0.017, 0.04, "z", 6), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-bulkhead-fitting.044",
     pos: brakeBulkhead(s),
     color: "#BCC5CD",
     name: "Brake bulkhead fitting",
@@ -950,6 +1067,8 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
       ", items 6–7).",
   });
   part(() => cyl(0.005, 0.006, "x", 6), ["gear"], {
+    instance: [s, member7],
+    id: "parts.gear.brake-caliper-fitting.045",
     pos: brakeInlet(s),
     name: "Brake caliper fitting",
     ext: true,
@@ -970,16 +1089,19 @@ const cabinBrakeRef = "AMM 13773-002 Rev 7 32-42, PDF 1450, Fig 32-42-4, PDF 147
   );
 });
 part(() => cyl(0.005, 0.008, "y", 6), ["gear"], {
+  id: "parts.gear.brake-reservoir-feed-union.046",
   pos: BRAKE_FITTINGS.reservoirUnion,
   name: "Brake reservoir feed union",
   note: "Union at reservoir-feed junction; illustrative shape/placement (AMM 13773-002 Rev 7 Fig 32-42-4 item 2, PDF 1476).",
 });
 part(() => new THREE.TorusGeometry(0.028, 0.002, 8, 20).rotateX(Math.PI / 2), ["gear"], {
+  id: "parts.gear.brake-reservoir-clamp.047",
   pos: BRAKE_RESERVOIR,
   name: "Brake reservoir clamp",
   note: "Reservoir clamped on battery bracket; approximate clamp (AMM 13773-002 Rev 7 Fig 32-42-4 item 14, PDF 1476).",
 });
 part(() => cyl(0.025, 0.06), ["gear"], {
+  id: "parts.gear.brake-fluid-reservoir.048",
   pos: BRAKE_RESERVOIR,
   pin: true,
   name: "Brake fluid reservoir",
@@ -1002,6 +1124,7 @@ part(
     ]),
   ["gear"],
   {
+    id: "parts.gear.parking-brake-valve.049",
     pos: PARK_VALVE,
     pin: true,
     name: "Parking brake valve",
@@ -1013,6 +1136,7 @@ part(
   },
 );
 part(() => box(0.009, 0.02, 0.01).translate(0, -0.01, 0), ["gear"], {
+  id: "parts.gear.parking-brake-actuation-arm.050",
   pos: PARK_ARM,
   rot: [parkArmAngle(0), 0, 0],
   name: "Parking brake actuation arm",
@@ -1022,16 +1146,19 @@ part(() => box(0.009, 0.02, 0.01).translate(0, -0.01, 0), ["gear"], {
   note: "Cable-operated arm on the forward, firewall-facing valve face (AMM 13773-002 Rev 7 32-42 p. 22, PDF 1471; Fig 32-42-4, PDF 1479). Upper-end pivot and inset clevis attachment; dimensions, 60 degree OFF inclination and additional 30 degree rotation illustrative.",
 });
 part(() => tubeGeo(PARK_CABLE, 0.003, 0), ["gear"], {
+  id: "parts.gear.parking-brake-control-cable.051",
   name: "Parking brake control cable",
   note: "Fixed sheath across firewall and over outboard console rib; POH right kick plate governs AMM LH wording. Radius and route approximate (POH 13772-007 7-26; AMM 13773-002 Rev 7 32-42 PDF 1474–1475, Fig 32-42-4 PDF 1479).",
 });
 part(() => tubeGeo(parkWire(0), 0.001, 0), ["gear"], {
+  id: "parts.gear.parking-brake-cable-core.052",
   name: "Parking brake cable core",
   dynamicGeo: true,
   anim: parkTubeAnim(parkWire, 0.001),
   note: "Exposed moving wire from fixed sheath through stop to free-end clevis; upstream end slides inside sheath. Core travel derived from arm arc; radius and placement illustrative (AMM 13773-002 Rev 7 PDF 1475; Fig 32-42-4 sheet 4 items 17, 23–25, PDF 1479).",
 });
 part(() => new THREE.TorusGeometry(0.006, 0.0015, 8, 16).rotateX(Math.PI / 2), ["gear"], {
+  id: "parts.gear.parking-brake-cable-stop.053",
   pos: PARK_STOP,
   name: "Parking brake cable stop",
   anim: (m) => {
@@ -1040,6 +1167,7 @@ part(() => new THREE.TorusGeometry(0.006, 0.0015, 8, 16).rotateX(Math.PI / 2), [
   note: "OFF: 1.8 inch (4.6 cm) exposed cable from sheath to stop (AMM 13773-002 Rev 7 PDF 1475; Fig 32-42-4 PDF 1479). Shape approximate.",
 });
 part(() => cyl(0.004, 0.015, "x"), ["gear"], {
+  id: "parts.gear.parking-brake-clevis-pin.054",
   pos: PARK_CLEVIS,
   anim: (m) => {
     m.position.set(...parkClevis(useSR22T.getState().s.gear.park ? 1 : 0));
@@ -1049,20 +1177,27 @@ part(() => cyl(0.004, 0.015, "x"), ["gear"], {
 });
 // One-and-a-half turns; 5 mm centreline radius minus 1 mm wire radius contacts the 4 mm pin.
 part(() => tubeGeo(parkWrap(0), 0.001, 0), ["gear"], {
+  id: "parts.gear.parking-brake-clevis-cable-wrap.055",
   name: "Parking brake clevis cable wrap",
   dynamicGeo: true,
   anim: parkTubeAnim(parkWrap, 0.001),
   note: "Cable wraps 1–2 turns around free-end clevis; 1.5 turns shown. Wire and pin radii illustrative, wrap contacts pin (AMM 13773-002 Rev 7 32-42 PDF 1475; Fig 32-42-4 sheets 4/5 item 17, PDF 1479/1480).",
 });
 part(() => box(0.09, 0.004, 0.054), ["gear"], {
+  id: "parts.gear.parking-brake-valve-bracket.056",
   pos: PARK_BRACKET,
   name: "Parking brake valve bracket",
   note: "Bracket on LH outboard console rib by firewall; shape approximate (AMM 13773-002 Rev 7 Fig 32-42-4 item 19, PDF 1479).",
 });
-for (const side of ["L", "R"] as const) {
+for (const [member9, side] of [
+  ["member-01", "L"],
+  ["member-02", "R"],
+] as const) {
   const port = side === "L" ? PARK_VALVE_PORT.lhLine : PARK_VALVE_PORT.rhLine;
   const y = PARK_VALVE[1] - 0.015;
   part(() => cyl(0.007, 0.006, "y"), ["gear"], {
+    id: "parts.gear.parking-brake-poppet.057",
+    instance: [side, member9],
     pos: [port[0], y, port[2]],
     name: "Parking brake poppet",
     anim: (m) => {
@@ -1084,18 +1219,23 @@ for (const side of ["L", "R"] as const) {
       ),
     ["gear"],
     {
+      id: "parts.gear.parking-brake-poppet-seat.058",
+      instance: [side, member9],
       pos: [port[0], y - 0.006, port[2]],
       name: "Parking brake poppet seat",
       note: "Illustrative seat: poppet rests on its top face when PARK is pulled and lifts with handle IN; internal geometry unsourced (POH 13772-007 7-26 mechanism).",
     },
   );
   part(() => cyl(0.009, 0.01, "y", 6), ["gear"], {
+    id: "parts.gear.brake-valve-line-port.059",
+    instance: [side, member9],
     pos: port,
     name: "Brake valve line port",
     note: `${side === "L" ? "LH forward" : "RH aft"} gear-side inlet (AMM wording, opposite pressure flow), shape/spacing approximate (AMM 13773-002 Rev 7 PDF 1472; Fig 32-42-4 PDF 1479).`,
   });
 }
 part(() => box(0.028, 0.016, 0.025), ["gear"], {
+  id: "parts.gear.parking-brake-position-sensor.060",
   pos: [PARK_BRACKET[0] + 0.0305, PARK_BRACKET[1] + 0.002 + 0.008, PARK_ARM[2]],
   name: "Parking brake position sensor",
   note:
@@ -1122,6 +1262,7 @@ hydraulicPart([SUPPLY_FW, [FW - 0.02, -0.37, 0.46], [2.47, -0.37, 0.46], SUPPLY_
   note: "Cabin-side continuation of the single reservoir feed, from the firewall bulkhead fitting to the cylinder supply junction. Radius 0.004 m and waypoints approximate (POH 13772-007 7-25; AMM 13773-002 Rev 7 Fig 32-42-4 items 6/7/9, PDF1476).",
 });
 part(() => cyl(0.008, 0.012, "x", 6), ["gear"], {
+  id: "parts.gear.brake-supply-firewall-fitting.061",
   pos: SUPPLY_FW,
   name: "Brake supply firewall fitting",
   note:
@@ -1130,6 +1271,7 @@ part(() => cyl(0.008, 0.012, "x", 6), ["gear"], {
     ", items 6–7).",
 });
 part(() => box(0.036, 0.016, 0.02), ["gear"], {
+  id: "parts.gear.brake-supply-branch-fitting.062",
   pos: SUPPLY_SPLIT,
   name: "Brake supply branch fitting",
   note:

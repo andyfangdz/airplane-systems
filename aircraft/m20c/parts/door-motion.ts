@@ -15,6 +15,7 @@ const seat = (x: number, y: number) => {
   return p.toArray() as [number, number, number];
 };
 CAT.part(() => tubeGeo([seat(1.1, -0.12), seat(0.98, -0.17), seat(0.88, -0.12)], 0.008, 0.3), ["cabin"], {
+  id: "parts.door-motion.cabin-door-pull-strap.001",
   name: "Cabin door pull strap",
   parent: "door:cabin",
   color: "#574A3D",
@@ -37,6 +38,8 @@ for (const door of DOORS) {
       ),
     ["cabin"],
     {
+      id: "parts.door-motion.part.002",
+      instance: [door.key],
       name: `${door.name} hinge pin`,
       color: "#A8B0B6",
       ext: true,
@@ -47,6 +50,9 @@ for (const door of DOORS) {
 for (const sign of [-1, 1]) {
   const pos = seat(-0.06 + sign * 0.11, -0.11);
   CAT.part(() => cyl(0.006, 0.04, "x", 12), ["cabin"], {
+    id: "parts.door-motion.baggage-door-locking-pin.003",
+    instance: [sign],
+
     name: "Baggage door locking pin",
     parent: "door:baggage",
     pos,
@@ -59,6 +65,7 @@ for (const sign of [-1, 1]) {
   });
 }
 CAT.part(() => box(0.035, 0.03, 0.018), ["cabin"], {
+  id: "parts.door-motion.cabin-door-latch.004",
   name: "Cabin door latch",
   parent: "door:cabin",
   pos: seat(0.76, -0.07),

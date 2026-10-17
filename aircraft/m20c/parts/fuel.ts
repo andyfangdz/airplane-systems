@@ -12,6 +12,8 @@ import { EQUIPMENT } from "../placement";
 [1, -1].forEach((s) => {
   const nm = s > 0 ? "Right" : "Left";
   part(() => cyl(0.04, 0.012), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.part.001",
     pos: P(wingP(s * 1.6, 0.22, 1).add(V(0, 0.005, 0))),
     color: "#2F7FE6",
     name: nm + " fuel filler cap",
@@ -20,6 +22,8 @@ import { EQUIPMENT } from "../placement";
     pin: s > 0,
   });
   part(() => sph(0.02), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.part.002",
     pos: P(wingP(s * 0.85, 0.3, -1)),
     color: "#0B3A80",
     name: nm + " tank sump drain",
@@ -28,6 +32,8 @@ import { EQUIPMENT } from "../placement";
     pin: s > 0,
   });
   part(() => box(0.04, 0.03, 0.08), ["fuel", "electrical"], {
+    instance: [s],
+    id: "parts.fuel.part.003",
     pos: P(wingP(s * 1.3, 0.2, 0)),
     color: "#2F7FE6",
     name: nm + " fuel quantity sender",
@@ -35,6 +41,8 @@ import { EQUIPMENT } from "../placement";
     pin: s > 0,
   });
   part(() => cyl(0.007, 0.05), ["fuel"], {
+    instance: [s],
+    id: "parts.fuel.tank-overflow-vent.004",
     pos: P(wingP(s * 2.4, 0.3, -1).add(V(0, -0.02, 0))),
     color: "#2F7FE6",
     name: "Tank overflow vent",
@@ -45,12 +53,14 @@ import { EQUIPMENT } from "../placement";
 });
 export const SEL: Vec3 = [1.35, -0.63, -0.3];
 part(() => cyl(0.045, 0.02, "y"), ["fuel"], {
+  id: "parts.fuel.fuel-selector-valve.005",
   pos: SEL,
   name: "Fuel selector valve",
   note: "Two-way positive-setting selector on the floor ahead of the pilot's seat: LEFT, RIGHT or OFF — no BOTH (OM p. 3). Its sump drain is worked by the pull ring beside the handle (drain each tank before the first flight).",
   pin: true,
 });
 part(() => box(0.08, 0.012, 0.016), ["fuel"], {
+  id: "parts.fuel.part.006",
   pos: [SEL[0], SEL[1] + 0.016, SEL[2]],
   color: "#F2F5F7",
   anim: (m) => {
@@ -66,6 +76,7 @@ part(
   },
   ["fuel"],
   {
+    id: "parts.fuel.selector-sump-drain-ring.007",
     pos: [SEL[0] + 0.07, SEL[1] + 0.01, SEL[2]],
     color: "#9AA3AA",
     name: "Selector sump drain ring",
@@ -74,6 +85,7 @@ part(
   },
 );
 part(() => box(0.08, 0.07, 0.07), ["fuel", "electrical"], {
+  id: "parts.fuel.electric-boost-pump.008",
   pos: EQUIPMENT.boost,
   color: "#2F7FE6",
   anim: glow("#245C9E", "#7FB8FF", () => sim().E.fuelPump, ["fuel", "electrical"]),
@@ -82,6 +94,7 @@ part(() => box(0.08, 0.07, 0.07), ["fuel", "electrical"], {
   pin: true,
 });
 part(() => box(0.02, 0.045, 0.018), ["fuel", "electrical"], {
+  id: "parts.fuel.fuel-pump-switch-breaker.009",
   pos: [PANEL_X - 0.03, -0.22, -0.56],
   color: "#3F4B54",
   anim: (m) => {

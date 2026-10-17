@@ -39,6 +39,7 @@ shell(
   "Fuselage",
   "GFRP semi-monocoque moulded shell with GFRP/CFRP main bulkheads (AFM 7-3). The cabin pod tapers into a slim tail boom; the whole airplane is painted white to keep the composite structure cool (AFM 8-9).",
   true,
+  "parts.airframe.fuselage.001",
 );
 shell(
   () => {
@@ -54,6 +55,8 @@ shell(
   },
   "Spinner",
   "Polished spinner over the MT propeller hub (XLS package).",
+  false,
+  "parts.airframe.spinner.002",
 ).finish = "polished";
 const wingSt = [WR, 0.58, 0.8, WJ, FLAP.z0, 1.8, 2.6, 3.4, FLAP.z1, AIL.z0, 4.6, 5.2, AIL.z1];
 const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
@@ -68,6 +71,9 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
       ),
     s > 0 ? "Right wing" : "Left wing",
     "Front and rear spar with separate top and bottom shells — a fail-safe GFRP/CFRP sandwich structure. An aluminium fuel tank sits in each wing (AFM 7-3). Bolts to the stub wing at the root rib; removable for road transport (AFM 8-8).",
+    false,
+    "parts.airframe.shell.003",
+    [s],
   );
   shell(
     () =>
@@ -79,11 +85,16 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
       ),
     "Wing tip",
     "Raked, upturned wing tip carrying the Whelen position/strobe unit.",
+    false,
+    "parts.airframe.wing-tip.004",
+    [s],
   );
-  [
-    [WR, 0.58, 0.8, WJ, FLAP.z0],
-    [FLAP.z1, AIL.z0],
-  ].forEach((st) =>
+  (
+    [
+      ["member-1", [WR, 0.58, 0.8, WJ, FLAP.z0]],
+      ["member-2", [FLAP.z1, AIL.z0]],
+    ] as const
+  ).forEach(([instance1, st]) =>
     shell(
       () =>
         loft(
@@ -94,6 +105,9 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
         ),
       "Wing trailing edge",
       "",
+      false,
+      "parts.airframe.wing-trailing-edge.005",
+      [s, instance1],
     ),
   );
   shell(
@@ -109,6 +123,9 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
       ),
     "Horizontal stabilizer",
     "GFRP twin-spar T-tail stabilizer with an un-sandwiched skin; incidence about −3° (AFM 1-6, 7-3). Removable for transport.",
+    false,
+    "parts.airframe.horizontal-stabilizer.006",
+    [s],
   );
 });
 shell(
@@ -116,6 +133,7 @@ shell(
   "Vertical stabilizer",
   "GFRP twin-spar fin carrying the T-tail. The levelling wedge (600:31) sits on the tail boom just ahead of it (AFM 6-3).",
   paintTail,
+  "parts.airframe.vertical-stabilizer.007",
 );
 
 /* ---------- moving shells: front canopy and rear passenger door ---------- */

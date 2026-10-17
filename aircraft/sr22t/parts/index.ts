@@ -34,8 +34,8 @@
  * - electrical-harness.ts — electrical harness and circuit protection
  * - cowl-fasteners.ts — the ring of front cowl fasteners behind the spinner (illustrative), last so earlier part ids hold
  *
- * The sections are imported below in registration order. Part ids come from a running counter and the first part with a
- * given name gets the label pin, so keep this order, and never import a section from one that comes before it here.
+ * The sections are imported below in registration order. Part ids are explicit authored tokens; the first pinned part with a
+ * given name gets the label pin, so preserve this label order, and never import a section from one that comes before it here.
  * Sections may import anchors only from earlier sections; outside consumers use ./parts.
  * Shared constants go in catalogue.ts.
  */

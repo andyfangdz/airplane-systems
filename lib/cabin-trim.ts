@@ -53,6 +53,7 @@ export function registerCabinTrim(
   };
   if (options.floor !== undefined)
     cat.part(() => cabinFloor(fuse, options.aft, options.front, options.floor!), ["cabin", "airframe"], {
+      id: "lib.cabin-trim.cabin-floor-covering.001",
       ...common,
       name: "Cabin floor covering",
       color: "#514F4B",
@@ -106,7 +107,11 @@ export function registerCabinTrim(
       return g;
     },
     ["cabin", "airframe"],
-    { ...common, name: "Door jamb trim" },
+    {
+      id: "lib.cabin-trim.door-jamb-trim.002",
+      ...common,
+      name: "Door jamb trim",
+    },
   );
   for (const side of [-1, 1]) {
     const holes = [...options.doors.filter((d) => !d.parent), ...(options.windows ?? [])]
@@ -141,7 +146,12 @@ export function registerCabinTrim(
         return merged;
       },
       ["cabin", "airframe"],
-      { ...common, name: "Fixed cabin lining" },
+      {
+        id: "lib.cabin-trim.fixed-cabin-lining.003",
+        instance: [side],
+        ...common,
+        name: "Fixed cabin lining",
+      },
     );
   }
 }

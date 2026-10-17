@@ -1,3 +1,4 @@
+// Frozen row keys identify authored members; preserve these tokens when inserting, moving or reshaping a row.
 /** C172S catalogue: structure (firewall, baggage walls, spars, struts, door posts, tiedowns, steps) and the cockpit panel, pedestal and seats. */
 import * as THREE from "three";
 import { V } from "@/lib/math";
@@ -20,18 +21,21 @@ import { P3, PV, part } from "./catalogue";
 
 /* ---------- structure ---------- */
 part(() => planeRing(X(0)), ["airframe", "engine"], {
+  id: "parts.structure.firewall-fs-0-datum.001",
   plate: true,
   pin: true,
   name: "Firewall — FS 0 (datum)",
   note: "Reference datum: lower portion of the front face of the firewall (POH 2-9). Battery, J-box and external-power receptacle are on its left forward side.",
 });
 part(() => planeRing(X(108), 0.97), ["airframe", "cabin"], {
+  id: "parts.structure.aft-baggage-wall-fs-108.002",
   plate: true,
   pin: true,
   name: "Aft baggage wall — FS 108",
   note: "End of baggage area A (FS 82–108, 120 lb). Area B runs to FS 142 (50 lb); A + B 120 lb maximum (POH 2-8, 6-13).",
 });
 part(() => planeRing(X(142), 0.97), ["airframe", "cabin"], {
+  id: "parts.structure.aft-baggage-wall-fs-142.003",
   plate: true,
   name: "Aft baggage wall — FS 142",
   note: "End of baggage area B. ELT and the remote avionics sit aft of the cabin partition.",
@@ -41,13 +45,14 @@ const FSPAR = 0.25,
 (
   [
     [
+      "row-001",
       FSPAR,
       "Front carry-through spar",
       "The wings attach to front and rear carry-through spars across the cabin top (POH 7-5).",
     ],
-    [RSPAR, "Rear carry-through spar", "Rear carry-through spar at the rear door posts (POH 7-5)."],
-  ] as [number, string, string][]
-).forEach(([c, name, note]) =>
+    ["row-002", RSPAR, "Rear carry-through spar", "Rear carry-through spar at the rear door posts (POH 7-5)."],
+  ] as [string, number, string, string][]
+).forEach(([rowKey1, c, name, note]) =>
   part(
     () =>
       tubeGeo(
@@ -55,7 +60,7 @@ const FSPAR = 0.25,
         0.03,
       ),
     ["airframe"],
-    { color: "#3D5A73", name, note, pin: true },
+    { instance: [rowKey1], id: "parts.structure.part.004", color: "#3D5A73", name, note, pin: true },
   ),
 );
 [1, -1].forEach((s) => {
@@ -67,6 +72,8 @@ const FSPAR = 0.25,
       ),
     ["airframe"],
     {
+      instance: [s],
+      id: "parts.structure.wing-front-spar.005",
       color: "#3D5A73",
       name: "Wing front spar",
       note: "Full-span front spar with the wing-to-fuselage and wing-to-strut attach fittings (POH 7-5).",
@@ -81,6 +88,8 @@ const FSPAR = 0.25,
       ),
     ["airframe"],
     {
+      instance: [s],
+      id: "parts.structure.wing-rear-spar-partial-span.006",
       color: "#3D5A73",
       name: "Wing rear spar (partial span)",
       note: "The aft spars are partial-span spars with wing-to-fuselage fittings (POH 7-5).",
@@ -91,14 +100,23 @@ const FSPAR = 0.25,
   const lo = PV(onSkin(X(30), Y(29.5), s, 1.0)),
     hi = PV(wingP(s * Z(99), FSPAR, -1).add(V(0, -0.02, 0)));
   part(() => strutGeo(lo, hi, 0.15, 0.04), ["airframe"], {
+    instance: [s],
+    id: "parts.structure.wing-strut.007",
     color: "#E9EDF0",
     name: "Wing strut",
     note: "One streamlined lift strut per side from the fitting at the base of the forward door post to the front spar (POH 7-5). Use the struts as push points when moving the airplane by hand (POH 7-22).",
     ext: true,
     pin: s > 0,
   });
-  [lo, hi].forEach((p, i) =>
+  (
+    [
+      ["row-001", lo],
+      ["row-002", hi],
+    ] as const
+  ).forEach(([rowKey2, p], i) =>
     part(() => sph(0.03), ["airframe"], {
+      id: "parts.structure.part.008",
+      instance: [s, rowKey2],
       pos: p,
       color: "#E0522B",
       name: i ? "Strut-to-wing fitting" : "Strut-to-fuselage fitting",
@@ -112,6 +130,8 @@ const FSPAR = 0.25,
     () => tubeGeo([PV(onSkin(X(30.8), Y(30), s, 0.955)), PV(onSkin(X(31.6), Y(76), s, 0.955))], 0.012),
     ["airframe", "cabin"],
     {
+      instance: [s],
+      id: "parts.structure.forward-door-post.009",
       color: "#5C6E7E",
       name: "Forward door post",
       note: "Strut attach fitting at its base; aileron cables and fuel lines run inside it.",
@@ -120,15 +140,25 @@ const FSPAR = 0.25,
   part(
     () => tubeGeo([PV(onSkin(X(65.3), Y(30), s, 0.955)), PV(onSkin(X(65.3), Y(76.5), s, 0.955))], 0.012),
     ["airframe", "cabin"],
-    { color: "#5C6E7E", name: "Rear door post", note: "Main gear bulkhead and forgings at its base (POH 7-5)." },
+    {
+      instance: [s],
+      id: "parts.structure.rear-door-post.010",
+      color: "#5C6E7E",
+      name: "Rear door post",
+      note: "Main gear bulkhead and forgings at its base (POH 7-5).",
+    },
   );
   part(() => box(0.1, 0.05, 0.16), ["airframe", "gear"], {
+    instance: [s],
+    id: "parts.structure.main-gear-bulkhead-forging.011",
     pos: P3(61, s * 13, 28),
     color: "#E0522B",
     name: "Main gear bulkhead / forging",
     note: "Takes the spring-steel main gear leg at the base of the rear door post (POH 7-5).",
   });
   part(() => new THREE.TorusGeometry(0.02, 0.006, 6, 12), ["airframe"], {
+    instance: [s],
+    id: "parts.structure.wing-tiedown-ring.012",
     pos: PV(wingP(s * Z(99), FSPAR + 0.08, -1).add(V(0, -0.03, 0))),
     color: "#8C959C",
     name: "Wing tiedown ring",
@@ -137,6 +167,7 @@ const FSPAR = 0.25,
   });
 });
 part(() => new THREE.TorusGeometry(0.02, 0.006, 6, 12), ["airframe"], {
+  id: "parts.structure.tail-tiedown-ring.013",
   pos: P3(250, 0, 42.9),
   color: "#8C959C",
   name: "Tail tiedown ring",
@@ -144,8 +175,15 @@ part(() => new THREE.TorusGeometry(0.02, 0.006, 6, 12), ["airframe"], {
   ext: true,
   pin: true,
 });
-[108, 142].forEach((fs, i) =>
+(
+  [
+    ["row-001", 108],
+    ["row-002", 142],
+  ] as const
+).forEach(([rowKey3, fs], i) =>
   part(() => cyl(0.012, 0.01, "z"), ["airframe"], {
+    id: "parts.structure.leveling-screws.014",
+    instance: [rowKey3],
     pos: PV(onSkin(X(fs), Y(52), -1, 1.01)),
     color: "#E0B040",
     name: "Leveling screws",
@@ -155,6 +193,7 @@ part(() => new THREE.TorusGeometry(0.02, 0.006, 6, 12), ["airframe"], {
   }),
 );
 part(rearRoofGeo, ["airframe", "cabin"], {
+  id: "parts.structure.rear-window.015",
   color: "#26323C",
   fairing: true,
   name: "Rear window",
@@ -164,6 +203,8 @@ part(rearRoofGeo, ["airframe", "cabin"], {
 [1, -1].forEach((s) => {
   // refueling steps and assist handles on the forward fuselage sides, arm 16.3 (POH 6-22 equipment list 53-01-S, walkaround 4-6 NOTE)
   part(() => box(0.1, 0.012, 0.05), ["airframe", "fuel"], {
+    instance: [s],
+    id: "parts.structure.refueling-step.016",
     pos: PV(onSkin(X(16.3), Y(40), s, 1.0).add(V(0, 0, s * 0.02))),
     color: "#5C666E",
     name: "Refueling step",
@@ -184,6 +225,8 @@ part(rearRoofGeo, ["airframe", "cabin"], {
       ),
     ["airframe", "fuel"],
     {
+      instance: [s],
+      id: "parts.structure.assist-handle.017",
       color: "#8C959C",
       name: "Assist handle",
       note: "Handle above the refueling step, arm 16.3 (POH 6-22).",
@@ -193,6 +236,7 @@ part(rearRoofGeo, ["airframe", "cabin"], {
   );
 });
 part(() => box(0.06, 0.04, 0.005), ["airframe", "cabin"], {
+  id: "parts.structure.identification-plate.018",
   pos: PV(onSkin(X(200), Y(52), -1, 1.01)),
   color: "#B8A46A",
   name: "Identification plate",
@@ -202,16 +246,19 @@ part(() => box(0.06, 0.04, 0.005), ["airframe", "cabin"], {
 
 /* ---------- cockpit: panel, pedestal, seats ---------- */
 part(() => sectionSlab(X(16.8), Y(44.5), Y(67.2), 0.97, 0.035, X(16.8)), ["avionics", "cabin"], {
+  id: "parts.structure.instrument-panel.019",
   color: "#2B3238",
   name: "Instrument panel",
   note: "Figure 7-2 Sheet 1 (serials 172S10656 thru 172S12700): PFD, audio panel, MFD; standby airspeed, attitude and altimeter below; switch and breaker panels lower left.",
 });
 part(() => sectionSlab(X(16.5), Y(66.2), Y(67.6), 0.97, 0.06, X(15.3)), ["cabin"], {
+  id: "parts.structure.glareshield.020",
   color: "#20262B",
   name: "Glareshield",
   note: "Placard above the PFD: MANEUVERING SPEED: 105 KIAS (POH 2-26).",
 });
 part(() => box(0.26, 0.5, 0.2), ["cabin", "fuel"], {
+  id: "parts.structure.center-pedestal.021",
   pos: P3(20.5, 0, 35.5),
   color: "#39424A",
   fairing: true,
@@ -221,23 +268,41 @@ part(() => box(0.26, 0.5, 0.2), ["cabin", "fuel"], {
 (
   [
     [
+      "row-001",
       42,
       -10,
       "Pilot seat",
       "Vertically adjusting crew seat: fore/aft handle under the center of the frame, height crank under the right corner, seat-back angle button (POH 7-24).",
     ],
-    [42, 10, "Front passenger seat", "Same as the pilot seat. Average occupant CG FS 37 (range 34–46) (POH 6-10)."],
     [
+      "row-002",
+      42,
+      10,
+      "Front passenger seat",
+      "Same as the pilot seat. Average occupant CG FS 37 (range 34–46) (POH 6-10).",
+    ],
+    [
+      "row-003",
       79.5,
       0,
       "Rear bench seat",
       "Fixed one-piece bottom, three-position reclining back; rear passengers FS 73 (POH 7-24, 6-13).",
     ],
-  ] as [number, number, string, string][]
-).forEach(([fs, bl, name, note], i) => {
+  ] as [string, number, number, string, string][]
+).forEach(([rowKey4, fs, bl, name, note], i) => {
   const w = i === 2 ? 0.82 : 0.4;
-  part(() => box(0.48, 0.1, w), ["cabin"], { pos: P3(fs, bl, 33), color: "#6B5A48", name, note, pin: true });
+  part(() => box(0.48, 0.1, w), ["cabin"], {
+    id: "parts.structure.part.022",
+    instance: [rowKey4],
+    pos: P3(fs, bl, 33),
+    color: "#6B5A48",
+    name,
+    note,
+    pin: true,
+  });
   part(() => box(0.09, 0.62, w * 0.92), ["cabin"], {
+    id: "parts.structure.part.023",
+    instance: [rowKey4],
     pos: P3(fs + 10.5, bl, 45.5),
     rot: [0, 0, 0.18],
     color: "#6B5A48",

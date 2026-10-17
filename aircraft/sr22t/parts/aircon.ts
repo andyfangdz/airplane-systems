@@ -156,6 +156,7 @@ const acRunning = () => {
 };
 
 part(compressorAssemblyGeo, ["environment", "engine"], {
+  id: "parts.aircon.a-c-compressor.001",
   pos: AC.compressor,
   color: "#7E8A93",
   anim: glowAnim("#7E8A93", acRunning, ["environment", "engine"], "#6EC9E6"),
@@ -165,12 +166,14 @@ part(compressorAssemblyGeo, ["environment", "engine"], {
   groups: [],
 });
 part(() => box(0.2, 0.07, 0.2), ["environment"], {
+  id: "parts.aircon.a-c-evaporator.002",
   pos: AC.evaporator,
   color: "#6EC9E6",
   name: "A/C evaporator",
   note: "Under the front passenger seat (POH 7-64); the AMM says the RH crew seat, with the blower motor assembly bolted to it (AMM 21-50 PDF pp. 496, 504; Fig 21-50-1 sheet 3 items 22, 30, 31, PDF p. 521). With the A/C selected all cabin air passes through it (POH 7-64, 7-65). Condensate drains overboard through the belly (POH 7-65).",
 });
 part(() => box(0.03, 0.04, 0.04), ["environment"], {
+  id: "parts.aircon.expansion-valve.003",
   pos: AC.expansion,
   color: "#C9A227",
   name: "Expansion valve",
@@ -179,6 +182,7 @@ part(() => box(0.03, 0.04, 0.04), ["environment"], {
 });
 // on top of the evaporator cover; opens in recirculation (maximum A/C) mode
 part(() => box(0.12, 0.006, 0.08), ["environment"], {
+  id: "parts.aircon.recirculation-check-valve.004",
   pos: AC.recircValve,
   color: "#4E9DB5",
   // follows the selection the panel last powered, like the fresh-air valve it pairs with (POH 7-61, 7-65)
@@ -191,12 +195,14 @@ part(() => box(0.12, 0.006, 0.08), ["environment"], {
   pin: true,
 });
 part(() => box(0.22, 0.06, 0.24), ["environment"], {
+  id: "parts.aircon.a-c-condenser.005",
   pos: AC.condenser,
   color: "#6EC9E6",
   name: "A/C condenser",
   note: "Under the baggage compartment floor, with its integral blower fan and receiver-drier (AMM 21-50); the POH lists a condenser assembly without a location (POH 7-61). Size and position approximate.",
 });
 part(() => cyl(0.025, 0.08, "y"), ["environment"], {
+  id: "parts.aircon.receiver-drier.006",
   pos: AC.receiver,
   color: "#4E9DB5",
   name: "Receiver-drier",
@@ -204,6 +210,7 @@ part(() => cyl(0.025, 0.08, "y"), ["environment"], {
   pin: true,
 });
 part(() => cyl(0.045, 0.06, "x"), ["environment"], {
+  id: "parts.aircon.condenser-blower.007",
   pos: AC.blower,
   color: "#5A6A74",
   // AMM 21-50 General p. 1 (PDF p. 496) gives the feed, not blower run logic.

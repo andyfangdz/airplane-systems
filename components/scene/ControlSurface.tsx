@@ -45,7 +45,7 @@ export function ControlSurface({
   const xray = useView((x) => x.xray);
   const theme = useView((x) => x.theme);
   const cf = useView((x) => x.ctrlFocus);
-  const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo) + spec.pivot[2]));
+  const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo) + spec.pivot[2], `surface:${spec.key}`));
   const spotOn = useView((x) => !!x.spot);
   const chanDim = sys === "controls" && cf !== "all" && !spec.chan?.includes(cf);
   // a walk-around spot dims every surface it doesn't name, the shown system's included

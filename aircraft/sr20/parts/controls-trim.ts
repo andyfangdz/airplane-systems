@@ -55,6 +55,7 @@ export function pitchTrimEnd(p: RigPose): Vec3 {
   return [ELEV_HORN.c[0] - Math.sin(p.elevAng) * 0.075, ELEV_HORN.c[1] - Math.cos(p.elevAng) * 0.075, -0.05];
 }
 part(() => cyl(0.02, 0.07, "z"), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-motor.001",
   chan: ["elevator"],
   pos: PITCH_TRIM_MOTOR,
   color: MOTOR,
@@ -63,6 +64,7 @@ part(() => cyl(0.02, 0.07, "z"), ["controls"], {
   note: "Electric motor bolted to FS 306 bulkhead, behind RE1 access panel (AMM 27-30 pp. 18–20, Fig 27-30-6; 6-00 access panel figure). Moves the spring cartridge’s neutral position; 2 A PITCH TRIM on ESS BUS 2 (POH 7-6–7). Position approximate.",
 });
 part(() => box(0.006, 0.095, 0.08), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-motor-bracket.002",
   chan: ["elevator"],
   pos: [PITCH_TRIM_MOTOR[0] + 0.025, PITCH_TRIM_MOTOR[1], PITCH_TRIM_MOTOR[2]],
   color: STEEL,
@@ -73,6 +75,7 @@ part(
   () => tubeGeo([PITCH_TRIM_MOTOR, [PITCH_TRIM_MOTOR[0], PITCH_TRIM_MOTOR[1], -0.05], PITCH_TRIM_ARM], 0.005, 0),
   ["controls"],
   {
+    id: "parts.controls-trim.pitch-trim-actuation-arm.003",
     chan: ["elevator"],
     color: STEEL,
     name: "Pitch trim actuation arm",
@@ -80,6 +83,7 @@ part(
   },
 );
 part(() => tubeGeo([PITCH_TRIM_ARM, pitchTrimEnd(neutral())], 0.012, 0), ["controls"], {
+  id: "parts.controls-trim.pitch-trim-cartridge.004",
   chan: ["elevator"],
   color: CART,
   name: "Pitch trim cartridge",
@@ -92,11 +96,14 @@ part(() => tubeGeo([PITCH_TRIM_ARM, pitchTrimEnd(neutral())], 0.012, 0), ["contr
   ),
   note: "Captured compression spring between trim-motor actuation arm and aft elevator bellcrank (AMM 27-30 pp. 1, 15–20). Centres either elevator deflection and damps gusts; normal control force overrides its bias (POH 7-6, 7-11). Direct surface connection provides secondary pitch control after a primary-system failure that does not jam the elevator (POH 7-7).",
 });
-for (const [label, y] of [
-  ["Upper", 0.015],
-  ["Lower", -0.06],
+for (const [key, label, y] of [
+  ["upper", "Upper", 0.015],
+  ["lower", "Lower", -0.06],
 ] as const)
   part(() => box(0.017, 0.014, 0.015), ["controls"], {
+    id: "parts.controls-trim.pitch-trim-limit-switch.005",
+    instance: key,
+
     chan: ["elevator"],
     pos: [PITCH_TRIM_MOTOR[0] - 0.008, y, -0.046],
     color: "#D6A04A",
@@ -112,6 +119,7 @@ export function rollTrimEnd(p: RigPose): Vec3 {
   return [leftWing[0] + 0.025 * Math.sin(a), leftWing[1] - 0.035, leftWing[2] + 0.025 * Math.cos(a)];
 }
 part(() => tubeGeo([ROLL_TRIM_ARM, rollTrimEnd(neutral())], 0.012, 0), ["controls"], {
+  id: "parts.controls-trim.roll-trim-cartridge.006",
   chan: ["aileron"],
   color: CART,
   name: "Roll trim cartridge",
@@ -125,6 +133,7 @@ part(() => tubeGeo([ROLL_TRIM_ARM, rollTrimEnd(neutral())], 0.012, 0), ["control
   note: "Captured compression spring bolts to LH aileron actuation pulley and motor offset arm (POH 7-9; AMM 27-10 pp. 31–36, Fig 27-10-7). Electric motor shifts its centring bias; right aileron tab is a separate ground adjustment. Illustrated length and endpoints approximate.",
 });
 part(() => cyl(0.017, 0.09, "z"), ["controls"], {
+  id: "parts.controls-trim.roll-trim-motor.007",
   chan: ["aileron"],
   pos: ROLL_TRIM_MOTOR,
   color: MOTOR,
@@ -133,13 +142,20 @@ part(() => cyl(0.017, 0.09, "z"), ["controls"], {
   note: "Motor bolted to wing spar beside LH actuation pulley, accessed through LW11 (AMM 27-10 pp. 34–36). 2 A ROLL TRIM on ESS BUS 2 (POH 7-9).",
 });
 part(() => tubeGeo([ROLL_TRIM_MOTOR, ROLL_TRIM_ARM], 0.005, 0), ["controls"], {
+  id: "parts.controls-trim.roll-trim-motor-offset-arm.008",
   chan: ["aileron"],
   color: STEEL,
   name: "Roll trim motor offset arm",
   note: "Offset arm links motor shaft and compression cartridge (AMM Fig 27-10-7).",
 });
-for (const z of [ROLL_TRIM_MOTOR[2] - 0.03, ROLL_TRIM_MOTOR[2] + 0.03])
+for (const [key, z] of [
+  ["left", ROLL_TRIM_MOTOR[2] - 0.03],
+  ["right", ROLL_TRIM_MOTOR[2] + 0.03],
+] as const)
   part(() => box(0.013, 0.013, 0.015), ["controls"], {
+    id: "parts.controls-trim.roll-trim-limit-switch.009",
+    instance: key,
+
     chan: ["aileron"],
     pos: [ROLL_TRIM_MOTOR[0] + 0.025, ROLL_TRIM_MOTOR[1], z],
     color: "#D6A04A",
@@ -158,6 +174,7 @@ part(
     ),
   ["controls"],
   {
+    id: "parts.controls-trim.yaw-trim-spring-cartridge.010",
     chan: ["rudder"],
     color: CART,
     name: "Yaw trim spring cartridge",
@@ -181,6 +198,8 @@ for (const [side, z] of [
       ),
     ["controls"],
     {
+      id: "parts.controls-trim.rudder-centering-spring.011",
+      instance: [side],
       chan: ["rudder"],
       color: STEEL,
       name: "Rudder centering spring",
@@ -190,8 +209,14 @@ for (const [side, z] of [
       },
     },
   );
-for (const z of [-0.05, 0.05])
+for (const [key, z] of [
+  ["left", -0.05],
+  ["right", 0.05],
+] as const)
   part(() => box(0.03, 0.025, 0.03), ["controls"], {
+    id: "parts.controls-trim.roll-trim-relay.012",
+    instance: key,
+
     chan: ["aileron"],
     pos: [0.52, -0.63, z],
     color: "#3C4A57",
@@ -200,6 +225,8 @@ for (const z of [-0.05, 0.05])
   });
 for (const y of YOKES) {
   part(() => box(0.003, 0.006, 0.018), ["controls"], {
+    id: "parts.controls-trim.pitch-neutral-trim-reference-mark.013",
+    instance: [y.side],
     parent: "yoke:" + y.side,
     chan: ["elevator"],
     pos: [0.045, 0.025, 0],
@@ -208,6 +235,8 @@ for (const y of YOKES) {
     note: "Takeoff trim: yoke-tube reference mark aligns with fixed instrument-panel bolster tab (POH 7-7). Mark placement schematic.",
   });
   part(() => box(0.025, 0.006, 0.012), ["controls"], {
+    id: "parts.controls-trim.pitch-neutral-trim-bolster-tab.014",
+    instance: [y.side],
     chan: ["elevator"],
     pos: [2.24, -0.035, y.z],
     color: "#F2F4F5",
@@ -291,6 +320,8 @@ for (const axis of ["pitch", "roll"] as const) {
     chan = axis === "pitch" ? "elevator" : "aileron",
     name = axis === "pitch" ? "Pitch" : "Roll";
   part(() => box(0.065, 0.07, 0.07), ["controls"], {
+    id: "parts.controls-trim.part.015",
+    instance: [axis],
     chan: [chan],
     pos: [s.c[0], s.c[1], s.c[2] + 0.065],
     color: MOTOR,
@@ -299,6 +330,8 @@ for (const axis of ["pitch", "roll"] as const) {
     note: `GSA 81 electromechanical ${axis} actuator with motor control/monitor boards and engagement solenoid. ${axis === "pitch" ? "Below baggage floor at CF5" : "Below passenger seat at CF4C"}; 5 A AP SERVOS, Main Bus 1 (AMM 22-10 pp. 3–4). No autopilot steering is simulated here; manual cable travel animates the mechanical drive. Location approximate.`,
   });
   part(() => box(0.007, 0.08, 0.08), ["controls"], {
+    id: "parts.controls-trim.servo-mounting-bracket.016",
+    instance: [axis],
     chan: [chan],
     pos: [s.c[0] + 0.04, s.c[1], s.c[2] + 0.05],
     color: STEEL,
@@ -306,6 +339,8 @@ for (const axis of ["pitch", "roll"] as const) {
     note: `GSM 86 mount and bracket transmit servo torque to the ${axis} bridle (AMM Fig 22-10-${axis === "pitch" ? 4 : 5}). Position approximate.`,
   });
   part(() => cyl(CAPSTAN_RADIUS, 0.026, "z", 32), ["controls"], {
+    id: "parts.controls-trim.part.017",
+    instance: [axis],
     chan: [chan],
     pos: s.c,
     color: CART,
@@ -316,6 +351,8 @@ for (const axis of ["pitch", "roll"] as const) {
     note: "GSM 86 capstan and slip clutch transfer servo torque to the primary cable through a bridle; pilot force can override slip-clutch torque (AMM 22-10 pp. 3–4). Drum diameter and motion approximate.",
   });
   part(() => cyl(0.008, 0.015, "z"), ["controls"], {
+    id: "parts.controls-trim.servo-slip-clutch.018",
+    instance: [axis],
     chan: [chan],
     pos: s.c,
     color: "#D6A04A",
@@ -323,6 +360,8 @@ for (const axis of ["pitch", "roll"] as const) {
     note: "Slip-clutch cartridge allows capstan rotation independently of servo actuator under sufficient pilot force (AMM 22-10 pp. 3–4, Figs 22-10-4/5).",
   });
   part(() => new THREE.TorusGeometry(0.028, 0.002, 8, 32), ["controls"], {
+    id: "parts.controls-trim.capstan-cable-guard-ring.019",
+    instance: [axis],
     chan: [chan],
     pos: [s.c[0], s.c[1], s.c[2] - 0.016],
     color: STEEL,
@@ -330,6 +369,8 @@ for (const axis of ["pitch", "roll"] as const) {
     note: "Cable guards and stiffener ring prevent bridle fouling at the GSM 86 capstan (AMM Figs 22-10-4/5).",
   });
   part(() => tubeGeo(servoWrap(axis), 0.0015, 0), ["controls"], {
+    id: "parts.controls-trim.servo-capstan-bridle-wrap.020",
+    instance: [axis],
     chan: [chan],
     pos: s.c,
     color: "#DDD3B6",
@@ -340,6 +381,8 @@ for (const axis of ["pitch", "roll"] as const) {
     note: `Approximately ${s.turns} bridle wraps at centre travel; stop-ball at ${axis === "pitch" ? 9 : 6} o’clock (AMM 22-10 p. ${axis === "pitch" ? 21 : 26}). Pitch reassembly separately describes approximately 480° per cable end; illustrated groove/exit geometry is approximate.`,
   });
   part(() => new THREE.SphereGeometry(0.003, 12, 8), ["controls"], {
+    id: "parts.controls-trim.servo-bridle-stop-ball.021",
+    instance: [axis],
     chan: [chan],
     pos: [s.c[0] + (axis === "pitch" ? CAPSTAN_RADIUS : 0), s.c[1] + (axis === "roll" ? -CAPSTAN_RADIUS : 0), s.c[2]],
     color: "#D6A04A",
@@ -352,6 +395,8 @@ for (const axis of ["pitch", "roll"] as const) {
   });
   for (const end of [0, 1]) {
     part(() => tubeGeo(grooveTransition(axis, end), 0.0015, 0), ["controls"], {
+      id: "parts.controls-trim.capstan-groove-exit-transition.022",
+      instance: [end, axis],
       chan: [chan],
       color: "#DDD3B6",
       name: "Capstan groove exit transition",
@@ -364,6 +409,8 @@ for (const axis of ["pitch", "roll"] as const) {
       note: "Illustrative transition connects moving groove end to fixed tangential bridle exit; capstan groove pitch and exit position undimensioned (AMM Figs 22-10-4/5).",
     });
     part(() => tubeGeo(bridleRun(axis, end), 0.002, 0), ["controls"], {
+      id: "parts.controls-trim.part.023",
+      instance: [end, axis],
       chan: [chan],
       color: "#D8DDE1",
       name: `${name} servo bridle cable`,
@@ -377,6 +424,8 @@ for (const axis of ["pitch", "roll"] as const) {
       note: `Bridle clamp connects to ${s.keys[end]} primary cable. ${axis === "pitch" ? "Long and short ends join the outboard/inboard elevator strands" : "Ends join the left and right aileron runs"} (AMM 22-10 pp. ${axis === "pitch" ? 21 : 26}). Routing, pulley transitions and cable travel illustrative.`,
     });
     part(() => box(0.026, 0.01, 0.012), ["controls"], {
+      id: "parts.controls-trim.servo-bridle-cable-clamp.024",
+      instance: [end, axis],
       chan: [chan],
       pos: bridleClamp(axis, end),
       color: "#C9B98F",
@@ -389,6 +438,7 @@ for (const axis of ["pitch", "roll"] as const) {
   }
 }
 part(() => box(0.065, 0.026, 0.05), ["controls"], {
+  id: "parts.controls-trim.gta-82-pitch-trim-adapter.025",
   chan: ["elevator"],
   pos: [0.65, -0.585, 0.33],
   color: MOTOR,
@@ -428,6 +478,7 @@ export function flapMechanism(angle: number) {
   return { coupler, bodyEnd, pushrods };
 }
 part(() => cyl(0.017, 1.8, "z"), ["flaps"], {
+  id: "parts.controls-trim.flap-torque-tube.026",
   pos: [FT.x, FT.y, 0],
   color: STEEL,
   name: "Flap torque tube",
@@ -435,6 +486,7 @@ part(() => cyl(0.017, 1.8, "z"), ["flaps"], {
   note: "Torque-tube interconnect mechanically couples left and right flaps. Its coupler is driven by a single linear actuator (POH 7-22; AMM 27-50 p. 1, Fig 27-50-2).",
 });
 part(() => tubeGeo([FLAP_ACTUATOR_BASE, flapMechanism(0).bodyEnd], 0.023, 0), ["flaps"], {
+  id: "parts.controls-trim.flap-actuator.027",
   color: MOTOR,
   name: "Flap actuator",
   pin: true,
@@ -447,6 +499,7 @@ part(() => tubeGeo([FLAP_ACTUATOR_BASE, flapMechanism(0).bodyEnd], 0.023, 0), ["
   note: "Motorized linear actuator under baggage floor (AMM 27-50 p. 1). Load-limiting clutch protects against deployment under excessive airload; it does not replace VFE limits. 10 A FLAPS on NON ESS BUS (POH 7-23). Location/movement approximate; clutch slip is not simulated.",
 });
 part(() => tubeGeo([flapMechanism(0).bodyEnd, flapMechanism(0).coupler], 0.009, 0), ["flaps"], {
+  id: "parts.controls-trim.flap-actuator-shaft-rod-end.028",
   color: STEEL,
   name: "Flap actuator shaft / rod end",
   dynamicGeo: true,
@@ -458,6 +511,7 @@ part(() => tubeGeo([flapMechanism(0).bodyEnd, flapMechanism(0).coupler], 0.009, 
   note: "Threaded rod end connects actuator shaft to torque-tube coupler (AMM 27-50 pp. 2–4, Fig 27-50-2). Geometry follows both pins through travel; stroke illustrative.",
 });
 part(() => tubeGeo([[FT.x, FT.y, 0], flapMechanism(0).coupler], 0.012, 0), ["flaps"], {
+  id: "parts.controls-trim.flap-torque-tube-coupler.029",
   color: CART,
   name: "Flap torque tube coupler",
   dynamicGeo: true,
@@ -470,6 +524,9 @@ part(() => tubeGeo([[FT.x, FT.y, 0], flapMechanism(0).coupler], 0.012, 0), ["fla
 });
 for (const pos of [0, 50, 100])
   part(() => box(0.014, 0.014, 0.018), ["flaps"], {
+    id: "parts.controls-trim.flap-proximity-sensor.030",
+    instance: pos,
+
     pos: [FT.x + 0.17 + pos * 0.0008, FT.y + 0.1, 0.024],
     color: "#D6A04A",
     name: "Flap proximity sensor",
@@ -477,6 +534,8 @@ for (const pos of [0, 50, 100])
   });
 for (const end of [0, 1]) {
   part(() => tubeGeo(flapMechanism(0).pushrods[end], 0.009, 0), ["flaps"], {
+    id: "parts.controls-trim.flap-push-pull-rod.031",
+    instance: [end],
     color: STEEL,
     name: "Flap push-pull rod",
     // Exposed drive at the flap cove follows the surface below the wing when deployed.
@@ -494,6 +553,8 @@ for (const end of [0, 1]) {
     pivot = surfacePivot(key),
     p = wingP(side * 1.08, 0.79, 0).add(new THREE.Vector3(0, -0.0175, 0));
   part(() => box(0.02, 0.035, 0.02), ["flaps"], {
+    id: "parts.controls-trim.flap-inboard-drive-arm.032",
+    instance: [end],
     parent: "surf:" + key,
     pos: [p.x - pivot[0], p.y - pivot[1], p.z - pivot[2]],
     color: CART,
@@ -502,8 +563,14 @@ for (const end of [0, 1]) {
     note: "Inboard arm moves with its flap and receives torque-tube pushrod input (AMM Fig 27-50-2).",
   });
 }
-for (const z of [-0.035, 0.035])
+for (const [key, z] of [
+  ["left", -0.035],
+  ["right", 0.035],
+] as const)
   part(() => box(0.03, 0.025, 0.03), ["flaps"], {
+    id: "parts.controls-trim.flap-relay.033",
+    instance: key,
+
     pos: [FT.x + 0.2, FT.y - 0.07, z],
     color: "#3C4A57",
     name: "Flap relay",
