@@ -93,21 +93,26 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   );
 }
 
+/** The layout's labels left showing: a label tied to a part group hides while that group is hidden. */
+export const shownLabels = <T extends [string, unknown, { group?: string }?]>(items: T[], hidden: readonly string[]) =>
+  items.filter(([, , o]) => !(o?.group && hidden.includes(o.group)));
+
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
   const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
   const exhaustHidden = sim.useUi((x) => x.view.hidden.includes("exhaust"));
+  const hidden = sim.useUi((x) => x.view.hidden);
   const gl = useThree((s) => s.gl),
     scene = useThree((s) => s.scene);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
-  const items: [string, [number, number, number], { occlude: true }?][] = [
+  const items: [string, [number, number, number], { occlude?: true; group?: string }?][] = [
     ...sim.spec.geometry.cylinders.map((c): [string, [number, number, number]] => [
       `Cyl ${c.n}`,
       [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
     ]),
-    ...layoutFor(sim.spec).labels(d, sim.spec),
+    ...shownLabels(layoutFor(sim.spec).labels(d, sim.spec), hidden),
     // the turbo group's labels go with its parts
     ...((!turboHidden && layoutFor(sim.spec).turbo?.labels) || []),
     ...((!exhaustHidden && layoutFor(sim.spec).exhaust?.labels) || []),

@@ -47,16 +47,22 @@ import { layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { Group, PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
 import {
+  altAirDoorAngle,
   clutchGrip,
+  continentalFuelGeometry,
   Drives,
   drivesGeometry,
   FuelSystem,
   Ignition,
   ignitionGeometry,
   Induction,
+  inductionGeometry,
+  mixtureArmAngle,
   Propeller,
+  runnerPoints,
   starterAdapter,
 } from "@/components/engine/scene/Systems";
+import { shownLabels } from "@/components/engine/EngineScene";
 import {
   actuatorTravel,
   chargeAirColor,
@@ -1421,9 +1427,234 @@ describe("TSIO-550-K exhaust (M-18 Fig 12-22; POH 7-38)", () => {
   });
 });
 
-describe("TSIO-550-K exhaust group", () => {
-  // the panel's part groups unmount what they hide (parts.tsx Group): every exhaust part goes with its group
-  test("hiding the exhaust group removes every one of its parts", async () => {
+describe("TSIO-550-K induction and fuel injection (POH 7-37, 7-38; M-18 2-1)", () => {
+  const I = L.induction!;
+  const F = L.fuel!;
+  const T = L.turbo!;
+
+  test("intake runners reach the tops of the heads; exhaust leaves the bottoms (M-18 2-1)", () => {
+    const hp = headPoints(d, L);
+    for (const c of S.geometry.cylinders) {
+      const pts = runnerPoints(c, d, L, I);
+      const port = toWorld(c, hp.intakePort);
+      const end = pts.at(-1)!;
+      // onto the intake inlet cast in the top of the head, coming down to it from the manifold above
+      expect(port[1]).toBeGreaterThan(0);
+      expect(Math.hypot(end[0] - port[0], end[2] - port[2]) / IN).toBeLessThan(0.1);
+      expect(end[1]).toBeGreaterThan(port[1]);
+      expect((end[1] - port[1]) / IN).toBeLessThan(0.5);
+      expect(pts[pts.length - 2][1]).toBeGreaterThan(end[1]);
+      // from the induction manifold on top
+      expect(Math.abs(pts[0][1] - I.plenum.y) / IN).toBeLessThan(0.1);
+      expect(Math.abs(pts[0][2])).toBeLessThan(I.plenum.r);
+      // and the exhaust riser from the same cylinder starts under the head
+      const riser = exhaustRuns(S, d, L).find((r) => r.name === `Exhaust riser, cylinder ${c.n}`)!;
+      expect(riser.points[0][1]).toBeLessThan(0);
+      expect(toWorld(c, hp.exhaustPort)[1]).toBeLessThan(0);
+    }
+  });
+
+  test("the induction path: air boxes on the compressors, ducts to the intercoolers, on to the Y and the throttle (POH 7-37)", () => {
+    const same = (a: V3, b: V3, tolIn = 1e-6) =>
+      expect(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / IN).toBeLessThan(tolIn);
+    for (const [k, t] of T.sides.entries()) {
+      same(I.compressorDucts[k][0], t.compressorOutlet);
+      // up into the intercooler's inlet stub from below
+      const ic = T.intercoolers[k];
+      same(I.compressorDucts[k].at(-1)!, ic.inlet, 0.75);
+      expect(I.compressorDucts[k].at(-1)![1]).toBeLessThan(ic.inlet[1]);
+      same(I.outletDucts[k][0], ic.outlet);
+      // to the Y's ends
+      const e = I.outletDucts[k].at(-1)!;
+      expect(Math.abs(e[0] - I.y.at[0]) / IN).toBeLessThan(0.1);
+      expect(Math.abs(Math.abs(e[2]) - I.y.halfZ) / IN).toBeLessThan(0.2);
+      expect(Math.sign(e[2])).toBe(t.side === "L" ? -1 : 1);
+      // alternate air tube from the assembly to this side's air box
+      const a = I.altTubes[k].at(-1)!;
+      expect(a[0]).toBeGreaterThan(t.x.inletFace);
+      expect(a[0]).toBeLessThan(t.x.inletFace + I.airBox.len);
+      expect(Math.abs(a[2] - t.z)).toBeLessThan(I.airBox.halfZ);
+    }
+    // the throttle body behind the Y, the manifold on behind it; the deck fitting ahead of the plate, the MAP port on
+    // the manifold near the throttle (M-18 2-1)
+    expect(I.throttle.x1).toBeLessThanOrEqual(I.y.at[0] - I.y.r + 1e-9);
+    expect(I.deck[0]).toBeGreaterThan(I.throttle.plateX);
+    expect(I.map[0]).toBeLessThan(I.throttle.x0);
+    expect(I.throttle.x0 - I.map[0]).toBeLessThan(2 * IN);
+    // both pressure lines reach the wastegate controller's bulkhead fittings (M-18 Figure 12-7)
+    expect(I.deckLine.at(-1)).toEqual(T.controller.deckPort);
+    expect(I.mapLine.at(-1)).toEqual(T.controller.mapPort);
+    // the alternate air assembly at the lower front (POH 7-37)
+    expect(I.altAir.at[1]).toBeLessThan(d.sumpBottom);
+    expect(station(I.altAir.at[0])).toBeGreaterThan(16.25);
+  });
+
+  test("alternate-air door open iff altAirOpen (POH 7-37)", async () => {
+    expect(altAirDoorAngle(false)).toBe(0);
+    expect(altAirDoorAngle(true)).toBeGreaterThan(0);
+    const sim = simFor(S, "tsio550k-altair");
+    const { scene, frame, unmount } = await mountScene(h(Induction, { sim, d, mats: makeMats() }));
+    // the door is the one mesh hung from a hinge group at the assembly's mouth
+    const g = inductionGeometry(S, d, L);
+    const hinge = g.altDoorHinge;
+    Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
+    let door: THREE.Object3D | undefined;
+    scene.traverse((o) => {
+      if (o.position.distanceTo(new THREE.Vector3(...hinge)) < 1e-9 && o.children.length) door = o;
+    });
+    sim.s.altAirOpen = false;
+    frame();
+    expect(door!.rotation.z).toBeCloseTo(0, 12);
+    sim.s.altAirOpen = true;
+    frame();
+    expect(Math.abs(door!.rotation.z)).toBeCloseTo(altAirDoorAngle(true), 9);
+    sim.s.altAirOpen = false;
+    frame();
+    expect(door!.rotation.z).toBeCloseTo(0, 12);
+    await unmount();
+  });
+
+  test("the fuel pump on the crankshaft axis at the rear; its lines run to the metering valve and on to the manifold valve (POH 7-38; M-18 2-2.2)", () => {
+    // M-18 2-2.2: coupled directly to the crankshaft gear, so on its axis, aft of the accessory face, mounted on the
+    // accessory case as drawn there (the magneto drive housing's aft face)
+    const cover = ignitionGeometry(S, d, L).cover!;
+    expect(F.pump.x0).toBeCloseTo(box3(cover).min.x, 4);
+    cover.dispose();
+    expect(F.pump.x1).toBeLessThan(d.accRear);
+    const g = continentalFuelGeometry(S, d, L);
+    const pb = box3(g.pump);
+    expect(Math.abs((pb.max.y + pb.min.y) / 2)).toBeLessThan(1e-6);
+    expect(Math.abs((pb.max.z + pb.min.z) / 2)).toBeLessThan(1e-6);
+    Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
+    const dist = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / IN;
+    // from the pump, to the metering assembly on the throttle body, then to the manifold valve's top
+    expect(Math.hypot(F.pumpLine[0][1], F.pumpLine[0][2])).toBeLessThan(F.pump.r + 0.005);
+    expect(F.pumpLine[0][0]).toBeLessThan(F.pump.x0);
+    expect(F.pumpLine[0][0]).toBeGreaterThan(F.pump.x1);
+    const [mx, my, mz] = F.metering.at;
+    const near = (p: V3, slack: number) =>
+      p.every((v, i) => Math.abs(v - F.metering.at[i]) <= F.metering.half[i] + slack);
+    expect(near(F.pumpLine.at(-1)!, 0.005)).toBe(true);
+    expect(near(F.meteringLine[0], 0.005)).toBe(true);
+    const xs = S.geometry.cylinders.map((c) => c.x);
+    expect(dist(F.meteringLine.at(-1)!, [(Math.max(...xs) + Math.min(...xs)) / 2, d.caseTop + 0.05, 0])).toBeLessThan(
+      0.1,
+    );
+    // the metering assembly sits on the throttle body
+    expect(mx).toBeGreaterThan(I.throttle.x0);
+    expect(mx).toBeLessThan(I.throttle.x1);
+    expect(Math.abs(my - I.y.at[1])).toBeLessThan(I.throttle.r);
+    expect(Math.abs(mz) - F.metering.half[2]).toBeCloseTo(I.throttle.r, 3);
+  });
+
+  test("the fuel pump, throttle body and alternate air door labels sit on their parts", () => {
+    const at = Object.fromEntries(L.labels(d, S));
+    const dist = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / IN;
+    expect(dist(at["Fuel pump"], [F.pump.x1, 0, 0])).toBeLessThan(1.5);
+    expect(dist(at["Throttle body"], [I.throttle.plateX, I.y.at[1], 0])).toBeLessThan(3);
+    const g = inductionGeometry(S, d, L);
+    expect(dist(at["Alternate air door"], g.altDoorHinge)).toBeLessThan(3);
+    Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
+  });
+
+  test("the fuel pump, throttle body and alternate air door labels hide with their groups", () => {
+    const shown = (hidden: string[]) => shownLabels(L.labels(d, S), hidden).map(([t]) => t);
+    const mine = ["Fuel pump", "Throttle body", "Alternate air door"];
+    expect(shown([])).toEqual(expect.arrayContaining(mine));
+    for (const [group, gone] of [
+      ["fuel", ["Fuel pump"]],
+      ["induction", ["Throttle body", "Alternate air door"]],
+    ] as const) {
+      const left = shown([group]);
+      for (const t of mine) expect(left.includes(t), `${t} with ${group} hidden`).toBe(!gone.includes(t as never));
+      // the other labels stay
+      expect(left).toHaveLength(shown([]).length - gone.length);
+    }
+  });
+
+  test("mixture lever: idle cut-off at 0, full rich at 90 degrees (M-18 Fig 5-35 detail A)", () => {
+    expect(mixtureArmAngle(0)).toBe(0);
+    expect(mixtureArmAngle(1)).toBeCloseTo(Math.PI / 2, 12);
+    const a = [0, 0.25, 0.5, 0.75, 1].map(mixtureArmAngle);
+    for (let i = 1; i < a.length; i++) expect(a[i]).toBeGreaterThan(a[i - 1]);
+    expect(mixtureArmAngle(-0.2)).toBe(0);
+    expect(mixtureArmAngle(1.4)).toBe(mixtureArmAngle(1));
+  });
+
+  test("the induction and fuel parts clear the engine, its mount fittings, the exhaust and the turbo group by 0.25 in, away from their joints", () => {
+    const MARGIN = 0.25 * IN;
+    const solids = sceneSolids();
+    const runs = exhaustRuns(S, d, L);
+    const exhaust = runs.map((r) => ({ name: r.name, g: tube(r.points, r.r, 64, 12) }));
+    const all = [...solids, ...exhaust];
+    const closed = /^(case |Engine mount bosses$|Starter$|Starter solenoid$|Oil filter$|Fuel manifold$)/;
+    const obs = all.map((o) => ({ ...o, ob: obstacle(o.name, o.g, closed.test(o.name)) }));
+    const pick = (skip: (name: string, turbo?: string) => boolean) =>
+      obs.filter((o) => !skip(o.name, "turbo" in o ? o.turbo : undefined)).map((o) => o.ob);
+    const short: string[] = [];
+    const check = (
+      name: string,
+      pts: V3[],
+      r: number,
+      from: number,
+      to: number,
+      skip = (_n: string, _t?: string) => false,
+    ) => {
+      const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
+      const w = sampledClearance(trimmed(curve, from, to), r, pick(skip), 0.005);
+      if (w.gap < MARGIN)
+        short.push(`${name} → ${w.name}: ${(w.gap / IN).toFixed(2)} in at s ${station(w.at.x).toFixed(1)}`);
+    };
+    const end = (r: number) => r + 0.6 * IN;
+    I.compressorDucts.forEach((pts, k) =>
+      check(`compressor duct ${k}`, pts, I.r.duct, end(I.r.duct), end(I.r.duct) + 0.2 * IN),
+    );
+    I.outletDucts.forEach((pts, k) => check(`outlet duct ${k}`, pts, I.r.duct, end(I.r.duct), 0));
+    I.altTubes.forEach((pts, k) => check(`alternate air tube ${k}`, pts, I.r.altTube, 0, 0));
+    for (const c of S.geometry.cylinders)
+      check(
+        `intake pipe ${c.n}`,
+        runnerPoints(c, d, L, I),
+        I.r.runner,
+        0,
+        end(I.r.runner),
+        (n) => n === `Cylinder ${c.n} intakePort`,
+      );
+    check("deck line", I.deckLine, 0.003, 0, 1.0 * IN);
+    check("MAP line", I.mapLine, 0.003, 0, 1.0 * IN);
+    check("pump line", F.pumpLine, 0.0032, 0, 0);
+    check("metering line", F.meteringLine, 0.0032, 0, 0.6 * IN, (n) => n === "Fuel manifold");
+    check("vapor return", F.vaporReturn, 0.0032, 0, 0);
+    // the solid parts, surface to surface (an air box butts on its compressor inlet; the pump on the accessory face)
+    const ig = inductionGeometry(S, d, L);
+    const fg = continentalFuelGeometry(S, d, L);
+    const parts: [string, THREE.BufferGeometry, RegExp?][] = [
+      ["air boxes", ig.airBoxes, /inletStub|compressor$/],
+      ["air filters", ig.filters],
+      ["alternate air assembly", ig.altAir],
+      ["Y junction", ig.y],
+      ["throttle body", ig.throttleBody],
+      ["induction manifold", ig.plenum],
+      ["fuel pump", fg.pump, /^(case acc|Magneto drive housing)$/],
+      ["metering assembly", fg.metering],
+    ];
+    const hit = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 },
+      hit2 = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+    for (const [name, g, joint] of parts)
+      for (const o of obs) {
+        if (joint?.test("turbo" in o && o.turbo ? o.turbo : o.name)) continue;
+        const r = o.ob.bvh.closestPointToGeometry(g, new THREE.Matrix4(), hit, hit2, 0, MARGIN);
+        if (r && r.distance < MARGIN) short.push(`${name} → ${o.name}: ${(r.distance / IN).toFixed(2)} in`);
+      }
+    [...Object.values(ig), ...Object.values(fg)].forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
+    all.forEach((o) => o.g.dispose());
+    expect(short).toEqual([]);
+  });
+});
+
+describe("TSIO-550-K exhaust, induction and fuel groups", () => {
+  // the panel's part groups unmount what they hide (parts.tsx Group): every part goes with its group
+  test("hiding the exhaust, induction or fuel group removes every one of their parts", async () => {
     const meshes = (o: THREE.Object3D) => {
       let n = 0;
       o.traverse((x) => {
@@ -1431,7 +1662,11 @@ describe("TSIO-550-K exhaust group", () => {
       });
       return n;
     };
-    const cases = [["exhaust", Exhaust, exhaustRuns(S, d, L).length + 1]] as const;
+    const cases = [
+      ["exhaust", Exhaust, exhaustRuns(S, d, L).length + 1],
+      ["induction", Induction, 15],
+      ["fuel", FuelSystem, 8],
+    ] as const;
     for (const [id, part, drawn] of cases) {
       const sim = simFor(S, `tsio550k-hide-${id}`);
       const el = h(Group, {

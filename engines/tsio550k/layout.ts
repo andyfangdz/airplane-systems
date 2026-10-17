@@ -14,8 +14,168 @@ import { ACCESSORY_FACE_IN, TSIO550K_TURBO } from "./layout-turbo";
 const IN = 0.0254;
 /** Inches (s forward of the accessory face, y up, z right) to scene metres, as layout-turbo.ts gives its stations. */
 const at = (s: number, y: number, z: number): V3 => [(ACCESSORY_FACE_IN + s) * IN, y * IN, z * IN];
+const sx = (s: number) => (ACCESSORY_FACE_IN + s) * IN;
 const [TL, TR] = TSIO550K_TURBO.sides;
 const WG = TSIO550K_TURBO.wastegate;
+const [ICL, ICR] = TSIO550K_TURBO.intercoolers;
+const CTRL = TSIO550K_TURBO.controller;
+/** An intercooler's charge-air inlet stub, at its lower end (the compressor duct comes up into it). */
+const icInlet = (ic: typeof ICL): V3 => [ic.inlet[0], ic.inlet[1] - 0.015, ic.inlet[2]];
+
+/**
+ * The downdraft induction (POH 7-37 [261]; AMM 71-60 PDF 2542): air boxes with filters on the compressor inlets, the
+ * alternate air assembly at the lower front with a tube to each air box, the compressor discharge ducts up to the
+ * intercoolers, the outlet ducts forward to the Y junction, the engine-mounted throttle body (M-18 2-1), the intake
+ * manifold along the top and an intake pipe down to each head. The runs start and end on the turbo layout's anchors;
+ * no figure dimensions them, so every route and size here is approximate, drawn to clear the parts around them.
+ */
+const INDUCTION = {
+  airBox: { len: 4.5 * IN, halfY: 2.2 * IN, halfZ: 2.3 * IN },
+  altAir: { at: at(20.8, -14.6, 0), len: 2.5 * IN, r: 1.2 * IN },
+  altTubes: [
+    [at(19.6, -14.6, -1.0), at(17.6, -14.7, -6.0), at(15.0, -14.8, -10.7)],
+    [at(19.6, -14.6, 1.0), at(17.6, -14.7, 6.0), at(15.0, -14.8, 11.2)],
+  ],
+  // up outboard of the rocker covers into each intercooler's inlet from below (AMM Figure 71-60-2, via the turbo
+  // layout's inlet anchor)
+  compressorDucts: [
+    [
+      TL.compressorOutlet,
+      at(9.6, -11.0, -15.6),
+      at(9.0, -8.5, -18.8),
+      at(6.0, -2.0, -18.9),
+      at(2.6, 2.4, -18.7),
+      icInlet(ICL),
+    ],
+    [
+      TR.compressorOutlet,
+      at(9.6, -11.0, 16.0),
+      at(9.0, -8.5, 18.8),
+      at(6.0, -2.0, 18.9),
+      at(2.6, 2.4, 18.6),
+      icInlet(ICR),
+    ],
+  ],
+  // forward outboard of the front cylinders' intake pipes and the No. 6 top plug's lead, then in over the crankcase nose
+  // to the Y
+  outletDucts: [
+    [
+      ICL.outlet,
+      at(20.5, 5.6, -16.1),
+      at(25.6, 5.9, -16.0),
+      at(28.4, 6.4, -13.0),
+      at(28.9, 7.2, -5.0),
+      at(28.9, 7.45, -1.3),
+    ],
+    [
+      ICR.outlet,
+      at(20.5, 5.6, 16.1),
+      at(25.6, 5.9, 16.0),
+      at(28.4, 6.4, 13.0),
+      at(28.9, 7.2, 5.0),
+      at(28.9, 7.45, 1.3),
+    ],
+  ],
+  r: { duct: 1.0 * IN, altTube: 0.75 * IN, runner: 0.6 * IN },
+  y: { at: at(28.9, 7.45, 0), halfZ: 1.4 * IN, r: 1.0 * IN },
+  throttle: { x0: sx(26.5), x1: sx(27.9), r: 1.0 * IN, plateX: sx(27.2) },
+  // over the fuel manifold valve (its top 6.30 in above the crankshaft centreline) and forward of the magnetos' caps
+  plenum: { x0: sx(6.0), y: 7.45 * IN, r: 0.85 * IN },
+  runnerVia: [
+    { y: 7.45 * IN, z: 0.6 * IN },
+    { y: 7.2 * IN, z: 5.0 * IN },
+    { y: 6.3 * IN, z: 11.0 * IN },
+    { y: 5.6 * IN, z: 13.4 * IN },
+  ],
+  deck: at(27.6, 8.6, 0),
+  map: at(25.7, 8.4, 0),
+  // aft along the top centre, between the magnetos' top leads, then over the LH magneto to the controller's bulkhead
+  // fittings
+  deckLine: [
+    at(27.6, 8.75, 0),
+    at(26.6, 9.9, -0.9),
+    at(6.0, 9.9, -0.9),
+    at(2.0, 9.8, -4.0),
+    at(-1.0, 9.0, -11.0),
+    at(-3.2, 7.4, -13.0),
+    CTRL.deckPort,
+  ],
+  mapLine: [
+    at(25.7, 8.55, 0),
+    at(25.0, 10.5, -0.3),
+    at(6.5, 10.5, -0.3),
+    at(2.5, 10.3, -5.0),
+    at(-1.0, 9.4, -12.6),
+    at(-3.2, 7.4, -15.0),
+    CTRL.mapPort,
+  ],
+  notes: {
+    airBox:
+      "Air box on the compressor inlet: air from the NACA duct in the lower cowl passes its filter on the way to the turbocharger (POH 7-37). The duct is part of the cowl and not drawn; the box's size is drawn.",
+    filter:
+      "Induction air filter in the air box (POH 7-37). If it blocks, the engine's suction opens the alternate air door.",
+    altAir: "Alternate air assembly at the lower front of the engine, connected to the LH and RH air boxes (POH 7-37).",
+    altDoor:
+      "Alternate air door: magnetic force holds it closed; if the induction is blocked, the engine's suction opens it and unfiltered air from inside the cowl comes in (POH 7-37). It opens with the model's door.",
+    altTube: "Tube from the alternate air assembly to an air box (POH 7-37).",
+    compressorDuct:
+      "Compressor discharge duct: the compressed, heated air goes to this side's intercooler (POH 7-37). Route drawn.",
+    outletDuct:
+      "Intercooler outlet duct: the cooled air joins the other side's at the Y junction (POH 7-37). The overboost valve is on the LH one (AMM 71-60). Route drawn.",
+    y: "Y junction of the intake tubes: the air from both intercoolers joins here and goes on through the throttle body (POH 7-37).",
+    throttleBody:
+      "Engine-mounted throttle body (M-18 2-1); the fuel metering valve is on it (POH 7-38). Manifold pressure is set by its throttle plate (M-18 2-1).",
+    throttlePlate:
+      "Throttle plate: the power lever's cable opens this butterfly towards MAX (POH 7-32). Its angle follows the power lever.",
+    deck: "Upper-deck pressure fitting, ahead of the throttle plate: its line goes to the wastegate controller (POH 7-39; M-18 Figure 12-7).",
+    map: "Manifold pressure port, 0.125-27 NPTF, on the induction manifold near the throttle (M-18 2-1, Figure 5-34).",
+    deckLine: "Upper-deck pressure line to the wastegate controller's bulkhead fitting (M-18 Figure 12-7).",
+    mapLine: "Manifold pressure line to the wastegate controller's bulkhead fitting (M-18 Figure 12-7).",
+    plenum:
+      "Intake manifold: divides the air from the throttle body among the intake pipes (POH 7-37); downdraft balanced-port induction (M-18 2-1).",
+    runner: "Intake pipes down to the intake inlets cast in the top of each cylinder head (POH 7-37; M-18 2-1).",
+  },
+} satisfies EngineLayout["induction"];
+
+/**
+ * Continental continuous-flow injection (POH 7-38 [262]; M-18 2-1, 2-2.2, Figure 12-14 p. 12-23 [320], Figure 5-35
+ * p. 5-55 [150]): the engine-driven pump with its mixture valve, the throttle and metering assembly, the manifold valve
+ * (drawn by the shared scene) and the six air-bled nozzles. Sizes and routes are approximate.
+ */
+const FUEL = {
+  // M-18 2-2.2: "The fuel pump coupling connects directly to the crankshaft gear": on the crankshaft's axis, aft of the
+  // accessory case (the magneto drive housing's aft face, 0.945 in aft of the accessory face, as the scene draws it); its
+  // radius is drawn small enough to clear the starter adapter beside it
+  pump: { x0: sx(-0.945), x1: sx(-3.6), r: 0.85 * IN },
+  armLen: 1.4 * IN,
+  // on the right side of the throttle body
+  metering: { at: at(27.2, 7.45, 1.45), half: [0.6 * IN, 0.7 * IN, 0.45 * IN] as V3 },
+  // up behind the magneto drive housing, forward outboard of it and the right magneto, along the top of the right
+  // crankcase half under the intake pipes
+  pumpLine: [
+    at(-2.0, 0.7, 0.45),
+    at(-1.9, 2.6, 3.4),
+    at(-1.4, 4.9, 5.8),
+    at(-0.4, 4.9, 5.8),
+    at(1.5, 4.9, 5.8),
+    at(24.0, 4.9, 5.8),
+    at(26.1, 6.4, 3.0),
+    at(26.9, 7.0, 1.9),
+  ],
+  meteringLine: [at(27.1, 6.85, 1.45), at(24.5, 6.3, 1.8), at(15.2, 6.2, 1.5), at(14.1, 6.3, 0.5), at(13.97, 6.28, 0)],
+  vaporReturn: [at(-2.6, 0.75, 0), at(-2.6, 1.5, 0), at(-4.0, 1.8, 0)],
+  notes: {
+    pump: "Engine-driven fuel pump at the rear, its coupling connected directly to the crankshaft gear (M-18 2-2.2; Figure 12-14 items 2, 3). The mixture control valve is integral to it (POH 7-38). Size drawn.",
+    mixtureArm:
+      "Mixture control lever on the pump: idle cut-off to full rich over 90° (M-18 Figure 5-35 detail A). It follows the mixture control.",
+    metering:
+      "Throttle and metering assembly: the fuel metering valve on the throttle body meters fuel with the throttle angle (POH 7-38; M-18 Figure 12-14 item 8).",
+    pumpLine: "From the pump's mixture valve to the fuel metering valve (POH 7-38).",
+    meteringLine: "From the metering valve to the fuel manifold valve (POH 7-38). The lines glow with fuel flow.",
+    vaporReturn: "Fuel vapor return to the tank, from the pump (M-18 Figure 5-35 detail A).",
+    sleeve: "Air reference sleeve on each air-bled injector nozzle (M-18 2-1, 12-5.3).",
+  },
+} satisfies EngineLayout["fuel"];
 
 /**
  * The exhaust (M-18 Figure 12-22 p. 12-35 [332], legend): elbow risers, tee assemblies and risers from the cylinders to
@@ -248,6 +408,10 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     ["ALT 1", [d.accRear + 27.3 * IN, 0.1, 0.26]],
     ["ALT 2", [d.flangeX - 0.02, -0.01, -0.3]],
     ["Governor", [d.front, -0.22, -0.12]],
+    // these hide with their part groups, as the turbo and exhaust labels do
+    ["Fuel pump", at(-3.9, -1.3, -0.3), { group: "fuel" }],
+    ["Throttle body", at(27.2, 9.4, 2.2), { group: "induction" }],
+    ["Alternate air door", at(21.6, -15.9, 0), { group: "induction" }],
   ],
   // FIT, checked by shot: the target dropped towards the middle of the drawn height (the tailpipes reach 26.7 in below
   // the crankshaft centreline) and the view drawn ≈ 1.3 times as far as before the turbochargers and exhaust were
@@ -255,6 +419,8 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   camera: { position: [1.85, 0.75, 2.2], target: [0, -0.2, 0], maxDistance: 6 },
   turbo: TSIO550K_TURBO,
   exhaust: EXHAUST,
+  induction: INDUCTION,
+  fuel: FUEL,
   notes: {
     crankshaft:
       "Six rod journals and five main journals (M-18 2-2.2.1, Figure 2-6); the crankshaft gear at the rear drives the camshaft, the idler and the fuel pump.",
@@ -313,7 +479,8 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
       "The top of the accessory case behind the magnetos' mounting pads: each magneto's drive coupling goes aft into it (AMM Fig 74-20-1 detail A). Its shape is schematic.",
     harness:
       "Shielded leads: the right magneto fires the lower right and upper left plugs, the left magneto the lower left and upper right (POH 7-37).",
-    fuelManifold: "Fuel manifold valve: divides the metered fuel among the six nozzle lines (POH 7-38).",
+    fuelManifold:
+      "Fuel manifold valve: divides the metered fuel among the six nozzle lines (POH 7-38). The pump is drawn at the rear of the engine and the metering valve on the throttle body.",
     fuelLines: "Manifold valve to the six nozzles (POH 7-38). They glow with fuel flow.",
     starter:
       "24 V starter on a right-angle adapter at the rear (AMM 80-10); worm drive, 48 starter turns per crankshaft turn (M-18 Table 2-9). Engaged while the switch is held at START.",

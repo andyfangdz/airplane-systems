@@ -268,13 +268,103 @@ const PUMP: V3 = [0, -0.06, -0.09]; // x from the accessory housing
 
 /** Fuel metering, by the spec's `fuelSystem.kind`: the float carburetor, or injection. */
 export function FuelSystem(p: { sim: EngineSim; d: Dims; mats: Mats }) {
-  return p.sim.spec.fuelSystem.kind === "carburetor" ? <CarburetorSystem {...p} /> : <InjectedFuel {...p} />;
+  if (p.sim.spec.fuelSystem.kind === "carburetor") return <CarburetorSystem {...p} />;
+  return (
+    <>
+      <InjectedFuel {...p} />
+      {layoutFor(p.sim.spec).fuel && <ContinentalFuel {...p} />}
+    </>
+  );
+}
+
+/**
+ * Continental continuous-flow injection's parts outside the manifold valve and the nozzle lines: the engine-driven pump
+ * on the crankshaft's axis at the rear with its mixture lever, the throttle and metering assembly on the throttle body,
+ * the lines between them and on to the manifold valve, the vapour return, and the nozzles' air reference sleeves.
+ */
+export interface ContinentalFuelLayout {
+  /** Pump body on the crankshaft axis: its forward and aft stations, radius. */
+  pump: { x0: number; x1: number; r: number };
+  /** Mixture lever on the pump's aft face: its length (m). */
+  armLen: number;
+  /** Throttle and metering assembly: centre and half sizes. */
+  metering: { at: V3; half: V3 };
+  /** Pump to metering assembly, metering assembly to the manifold valve, and the vapour return stub. */
+  pumpLine: V3[];
+  meteringLine: V3[];
+  vaporReturn: V3[];
+  notes: Record<"pump" | "mixtureArm" | "metering" | "pumpLine" | "meteringLine" | "vaporReturn" | "sleeve", string>;
+}
+
+/**
+ * Mixture lever angle (rad) on the pump: 0 at idle cut-off to 90° at full rich (M-18 Figure 5-35 detail A); clamped to
+ * the lever's travel.
+ */
+export const mixtureArmAngle = (mixture: number) => Math.min(1, Math.max(0, mixture)) * 90 * D2R;
+
+/** The Continental fuel parts' geometries in engine coordinates (pure: tests measure them). */
+export function continentalFuelGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const F = L.fuel!;
+  const hp = headPoints(d, L);
+  const [mx, my, mz] = F.metering.at;
+  const [hx, hy, hz] = F.metering.half;
+  return {
+    pump: merge([
+      rod(F.pump.r, F.pump.x0 - F.pump.x1, 24).translate((F.pump.x0 + F.pump.x1) / 2, 0, 0),
+      // its mounting flange on the accessory case
+      rod(F.pump.r + 0.0025, 0.006, 24).translate(F.pump.x0 - 0.003, 0, 0),
+    ]),
+    // the lever in its pivot's frame on the pump's aft face, along +y at cut-off
+    arm: new THREE.BoxGeometry(0.006, F.armLen, 0.008).translate(0, F.armLen / 2, 0),
+    armAt: [F.pump.x1 - 0.004, 0, 0] as V3,
+    metering: slab(mx - hx, mx + hx, my - hy, my + hy, mz - hz, mz + hz, 0.006),
+    lines: merge([tube(F.pumpLine, 0.0032, 96, 8), tube(F.meteringLine, 0.0032, 64, 8)]),
+    vapor: tube(F.vaporReturn, 0.0032, 24, 8),
+    // a sleeve round each nozzle, its air reference from the upper deck (M-18 12-5.3)
+    sleeves: merge(
+      spec.geometry.cylinders.map((c) => {
+        const p = toWorld(c, [hp.nozzle[0], hp.nozzle[1] + 0.016, hp.nozzle[2]]);
+        return new THREE.CylinderGeometry(0.0105, 0.0105, 0.006, 14).translate(...p);
+      }),
+    ),
+  };
+}
+
+function ContinentalFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const spec = sim.spec;
+  const L = layoutFor(spec);
+  const F = L.fuel!;
+  const geo = useMemo(() => continentalFuelGeometry(spec, d, L), [spec, d, L]);
+  useEffect(() => () => Object.values(geo).forEach((g) => g instanceof THREE.BufferGeometry && g.dispose()), [geo]);
+  const arm = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const ui = sim.useUi.getState();
+    if (arm.current) arm.current.rotation.x = mixtureArmAngle(ui.controls.mixture);
+  });
+  const n = F.notes;
+  return (
+    <>
+      <P name="Engine-driven fuel pump" note={n.pump} geometry={geo.pump} material={mats.fuelBody} />
+      <group ref={arm} position={geo.armAt}>
+        <P name="Mixture control lever" note={n.mixtureArm} geometry={geo.arm} material={mats.darkSteel} />
+      </group>
+      <P name="Throttle and metering assembly" note={n.metering} geometry={geo.metering} material={mats.fuelBody} />
+      <P
+        name="Fuel pump and metering lines"
+        note={`${n.pumpLine} ${n.meteringLine}`}
+        geometry={geo.lines}
+        material={mats.fuel}
+      />
+      <P name="Fuel vapor return" note={n.vaporReturn} geometry={geo.vapor} material={mats.fuel} />
+      <P name="Nozzle air reference sleeves" note={n.sleeve} geometry={geo.sleeves} material={mats.steel} />
+    </>
+  );
 }
 
 /**
  * Fuel injection. A servo injector draws the pump on the accessory housing, the injector and throttle body under the
  * sump, and the lines up to the manifold; every injected engine draws the manifold on top and a line to each nozzle
- * (a Continental engine's pump and metering parts are not drawn here).
+ * (a Continental engine's pump and metering parts are drawn by ContinentalFuel, for a layout with a fuel block).
  */
 function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
@@ -526,11 +616,187 @@ function CarburetorSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
 }
 
 /**
- * Induction and exhaust under the engine. A layout with its intake ports on top draws its own induction and exhaust
- * (none in the shared scene).
+ * Induction and exhaust under the engine; or, for a layout with its intake ports on top, the downdraft induction its
+ * layout's `induction` block lays out (the exhaust is then its own group, scene/Exhaust.tsx).
  */
 export function Induction(p: { sim: EngineSim; d: Dims; mats: Mats }) {
-  return layoutFor(p.sim.spec).ports.intake === "top" ? null : <UnderInduction {...p} />;
+  const L = layoutFor(p.sim.spec);
+  if (L.ports.intake !== "top") return <UnderInduction {...p} />;
+  return L.induction ? <TopInduction {...p} /> : null;
+}
+
+/** Downdraft induction: from the air boxes through the turbochargers and intercoolers to the runners on the heads. */
+export interface TopInductionLayout {
+  /** Air box with its filter on each compressor inlet: its length forward of the inlet face and half its height, width. */
+  airBox: { len: number; halfY: number; halfZ: number };
+  /** Alternate air assembly: an inlet tube across the front (its axis fore and aft), the door at its forward mouth. */
+  altAir: { at: V3; len: number; r: number };
+  /** Tubes from the alternate air assembly to each air box. Left, then right. */
+  altTubes: [V3[], V3[]];
+  /** Ducts from each compressor outlet up to its intercooler's inlet. Left, then right. */
+  compressorDucts: [V3[], V3[]];
+  /** Ducts from each intercooler outlet to the Y junction. Left, then right. */
+  outletDucts: [V3[], V3[]];
+  /** Duct and runner radii. */
+  r: { duct: number; altTube: number; runner: number };
+  /** Y junction: a cross tube centred here, across the engine. */
+  y: { at: V3; halfZ: number; r: number };
+  /** Throttle body behind the Y (its aft and forward ends along x, on the Y's axis) and the butterfly's station. */
+  throttle: { x0: number; x1: number; r: number; plateX: number };
+  /** Induction manifold (plenum) along the top centre: aft end to the throttle body, axis height, radius. */
+  plenum: { x0: number; y: number; r: number };
+  /** Each runner's waypoints between the plenum and its intake port: heights and side offsets (|z|), plenum first. */
+  runnerVia: { y: number; z: number }[];
+  /** Upper-deck pressure fitting on the throttle body inlet, MAP port on the manifold, and their lines aft to the
+   * wastegate controller's bulkhead fittings. */
+  deck: V3;
+  map: V3;
+  deckLine: V3[];
+  mapLine: V3[];
+  notes: Record<
+    | "airBox"
+    | "filter"
+    | "altAir"
+    | "altDoor"
+    | "altTube"
+    | "compressorDuct"
+    | "outletDuct"
+    | "y"
+    | "throttleBody"
+    | "throttlePlate"
+    | "deck"
+    | "map"
+    | "deckLine"
+    | "mapLine"
+    | "plenum"
+    | "runner",
+    string
+  >;
+}
+
+/** Alternate air door angle (rad) for the model's `altAirOpen`: shut, or swung in by suction (illustrative, 70°). */
+export const altAirDoorAngle = (open: boolean) => (open ? 70 * D2R : 0);
+
+/** One cylinder's runner: from the plenum out along the layout's waypoints and down onto its intake port. */
+export function runnerPoints(c: CylinderDef, d: Dims, L: EngineLayout, I: TopInductionLayout): V3[] {
+  const p = toWorld(c, headPoints(d, L).intakePort);
+  const k = bank(c);
+  return [...I.runnerVia.map((v): V3 => [p[0], v.y, k * v.z]), [p[0], p[1] + 0.03, p[2]], [p[0], p[1] + 0.008, p[2]]];
+}
+
+/** The downdraft induction's geometries in engine coordinates (pure: tests measure them). */
+export function inductionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+  const I = L.induction!;
+  const T = L.turbo!;
+  const xrod = (r: number, x0: number, x1: number, y: number, z: number, segs = 24) =>
+    rod(r, Math.abs(x1 - x0), segs).translate((x0 + x1) / 2, y, z);
+  const boxes = T.sides.map((t) => {
+    const x0 = t.x.inletFace + 0.004,
+      x1 = x0 + I.airBox.len;
+    return {
+      box: slab(
+        x0,
+        x1 - 0.008,
+        t.y - I.airBox.halfY,
+        t.y + I.airBox.halfY,
+        t.z - I.airBox.halfZ,
+        t.z + I.airBox.halfZ,
+        0.01,
+      ),
+      // the filter element across the box's forward face, where the cowl's inlet air arrives
+      filter: slab(
+        x1 - 0.008,
+        x1,
+        t.y - I.airBox.halfY + 0.006,
+        t.y + I.airBox.halfY - 0.006,
+        t.z - I.airBox.halfZ + 0.006,
+        t.z + I.airBox.halfZ - 0.006,
+        0.004,
+      ),
+    };
+  });
+  const A = I.altAir;
+  const [ax, ay, az] = A.at;
+  const yA = I.y;
+  const th = I.throttle;
+  return {
+    airBoxes: merge(boxes.map((b) => b.box)),
+    filters: merge(boxes.map((b) => b.filter)),
+    altAir: new THREE.CylinderGeometry(A.r, A.r, A.len, 24, 1, true)
+      .rotateZ(Math.PI / 2)
+      .translate(ax - A.len / 2, ay, az),
+    // the door across the mouth, drawn in its hinge's frame (the hinge along its top edge)
+    altDoor: rod(A.r * 0.95, 0.003, 24).translate(0, -A.r * 0.95, 0),
+    altDoorHinge: [ax + 0.002, ay + A.r * 0.95, az] as V3,
+    altTubes: merge(I.altTubes.map((pts) => tube(pts, I.r.altTube, 32, 10))),
+    compressorDucts: merge(I.compressorDucts.map((pts) => tube(pts, I.r.duct, 48, 12))),
+    outletDucts: merge(I.outletDucts.map((pts) => tube(pts, I.r.duct, 48, 12))),
+    y: zrod(yA.r, -yA.halfZ, yA.halfZ, 24).translate(yA.at[0], yA.at[1], yA.at[2]),
+    throttleBody: merge([
+      xrod(th.r, th.x0, th.x1, yA.at[1], yA.at[2]),
+      xrod(th.r + 0.004, th.x1 - 0.006, th.x1, yA.at[1], yA.at[2]),
+    ]),
+    throttlePlate: rod(th.r * 0.92, 0.003, 24),
+    throttlePlateAt: [th.plateX, yA.at[1], yA.at[2]] as V3,
+    plenum: xrod(I.plenum.r, I.plenum.x0, th.x0, I.plenum.y, 0),
+    runners: merge(spec.geometry.cylinders.map((c) => tube(runnerPoints(c, d, L, I), I.r.runner, 40, 12))),
+    fittings: merge(
+      [I.deck, I.map].map(([x, y, z]) => new THREE.CylinderGeometry(0.005, 0.006, 0.014, 10).translate(x, y, z)),
+    ),
+    deckLine: tube(I.deckLine, 0.003, 96, 8),
+    mapLine: tube(I.mapLine, 0.003, 96, 8),
+  };
+}
+
+function TopInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const spec = sim.spec;
+  const L = layoutFor(spec);
+  const I = L.induction!;
+  const geo = useMemo(() => inductionGeometry(spec, d, L), [spec, d, L]);
+  useEffect(() => () => Object.values(geo).forEach((g) => g instanceof THREE.BufferGeometry && g.dispose()), [geo]);
+  const plate = useRef<THREE.Group>(null),
+    door = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const ui = sim.useUi.getState();
+    // the butterfly turns from nearly closed at idle to wide open
+    if (plate.current) plate.current.rotation.z = (8 + 77 * ui.controls.throttle) * D2R;
+    // suction swings the door in (aft) about its top hinge
+    if (door.current) door.current.rotation.z = -altAirDoorAngle(!!sim.s.altAirOpen);
+  });
+  const n = I.notes;
+  return (
+    <>
+      <P name="Air box" note={n.airBox} geometry={geo.airBoxes} material={mats.intake} />
+      <P name="Induction air filter" note={n.filter} geometry={geo.filters} material={mats.filter} />
+      <P name="Alternate air assembly" note={n.altAir} geometry={geo.altAir} material={mats.intake} />
+      <group ref={door} position={geo.altDoorHinge}>
+        <P name="Alternate air door" note={n.altDoor} geometry={geo.altDoor} material={mats.darkSteel} />
+      </group>
+      <P name="Alternate air tube" note={n.altTube} geometry={geo.altTubes} material={mats.intake} />
+      <P
+        name="Compressor discharge duct"
+        note={n.compressorDuct}
+        geometry={geo.compressorDucts}
+        material={mats.intake}
+      />
+      <P name="Intercooler outlet duct" note={n.outletDuct} geometry={geo.outletDucts} material={mats.intake} />
+      <P name="Y junction" note={n.y} geometry={geo.y} material={mats.intake} />
+      <P name="Throttle body" note={n.throttleBody} geometry={geo.throttleBody} material={mats.fuelBody} />
+      <group ref={plate} position={geo.throttlePlateAt}>
+        <P name="Throttle valve" note={n.throttlePlate} geometry={geo.throttlePlate} material={mats.steel} />
+      </group>
+      <P name="Induction manifold" note={n.plenum} geometry={geo.plenum} material={mats.intake} />
+      <P name="Intake pipes" note={n.runner} geometry={geo.runners} material={mats.intake} />
+      <P
+        name="Deck pressure and MAP fittings"
+        note={`${n.deck} ${n.map}`}
+        geometry={geo.fittings}
+        material={mats.steel}
+      />
+      <P name="Deck pressure line" note={n.deckLine} geometry={geo.deckLine} material={mats.darkSteel} />
+      <P name="Manifold pressure line" note={n.mapLine} geometry={geo.mapLine} material={mats.darkSteel} />
+    </>
+  );
 }
 
 /** Tuned induction: a plenum under the sump from the throttle body, a runner up to each intake port; down exhaust. */
