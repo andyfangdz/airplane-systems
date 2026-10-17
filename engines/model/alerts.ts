@@ -2,7 +2,7 @@
  * Operating limits the engine is past or near, from the spec's `limits` (IOM Table A-2 and the operating procedures).
  * These are limit flags for study, not an airplane's CAS: an installation's own annunciations come from its POH.
  */
-import type { EngineSpec } from "../types";
+import type { Band, EngineSpec, Marking } from "../types";
 import type { EngineState, Environment } from "./engine";
 import { f0 } from "@/lib/format";
 
@@ -74,4 +74,21 @@ export function limitFlags(spec: EngineSpec, s: EngineState, env: Environment): 
       spec.refs.carbHeat ?? spec.doc,
     );
   return out;
+}
+
+const SEVERITY = { green: 0, yellow: 1, red: 2 } as const;
+
+/**
+ * The band of a marking a value falls in, as the monitor colours the gauge: a band holds `from < v ≤ to`; the band
+ * starting at the scale's bottom also holds its `from`, and a red band reaching the scale's top is open-ended (the POH
+ * prints it "> x"). Where bands touch or overlap the more severe one wins. Undefined in no band.
+ */
+export function markingBand(m: Marking, v: number): Band | undefined {
+  let pick: Band | undefined;
+  for (const b of m.bands) {
+    const above = v > b.from || (b.from === m.scale[0] && v >= b.from);
+    const below = v <= b.to || (b.color === "red" && b.to >= m.scale[1]);
+    if (above && below && (!pick || SEVERITY[b.color] > SEVERITY[pick.color])) pick = b;
+  }
+  return pick;
 }

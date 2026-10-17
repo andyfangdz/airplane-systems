@@ -3,6 +3,7 @@
  * its gears mesh at the spec's drive ratios, and the parts fit the published envelope. Each engine's layout
  * (scene/layout.ts) places them; the IO-390's defaults are the constants the scene was first drawn with.
  */
+import { createElement as h } from "react";
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
@@ -21,13 +22,17 @@ import {
   dims,
   drawnSparks,
   driveLayout,
+  makeMats,
   GEAR_TEETH,
   gearSpins,
   headPoints,
   IN,
+  labelOccluder,
   lobeAngle,
   magDrive,
+  magnetoPose,
   oilFiller,
+  oilFilterPose,
   oilPump,
   peakCrank,
   STARTER_TEETH,
@@ -37,6 +42,9 @@ import {
 } from "@/components/engine/scene/kit";
 import { IO390_DEFAULTS, layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { crankGeometry } from "@/components/engine/scene/Rotating";
+import { Propeller } from "@/components/engine/scene/Systems";
+import { simFor } from "@/components/engine/store";
+import { mountScene } from "./engine-mount";
 
 const ENGINES: [string, EngineSpec][] = [
   ["IO-390", IO390],
@@ -128,10 +136,12 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     // magneto gears on the camshaft gear, or on the idler the crankshaft gear drives
     const m = magDrive(S, d, L);
     if (m.idler) {
+      // the idler's front gear on the crankshaft gear, its rear gear (the same gear, or one on its shaft) on the magnetos'
       expect(m.idler.y).toBeCloseTo(d.crankGearR + m.idler.r, 6);
-      expect(Math.hypot(m.y - m.idler.y, m.z)).toBeCloseTo(m.idler.r + m.r, 6);
-      expect(GEAR_TEETH.crank / m.teeth).toBeCloseTo(acc.magnetoRatio, 6);
-      expect(m.r / d.crankGearR).toBeCloseTo(m.teeth / GEAR_TEETH.crank, 6);
+      expect(m.idler.r / d.crankGearR).toBeCloseTo(m.idler.teeth / GEAR_TEETH.crank, 6);
+      expect(Math.hypot(m.y - m.idler.y, m.z)).toBeCloseTo(m.idler.rearR + m.r, 6);
+      expect(m.r / m.idler.rearR).toBeCloseTo(m.teeth / m.idler.rearTeeth, 6);
+      expect((GEAR_TEETH.crank / m.idler.teeth) * (m.idler.rearTeeth / m.teeth)).toBeCloseTo(acc.magnetoRatio, 6);
     } else {
       expect(Math.hypot(m.y - d.camY, m.z)).toBeCloseTo(d.camGearR + m.r, 6);
       expect((0.5 * GEAR_TEETH.cam) / m.teeth).toBeCloseTo(acc.magnetoRatio, 6);
@@ -207,7 +217,8 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
         case "crank–idler":
           return [crank(d.crankGearR), { c: at(0, mag.idler!.y), axis: X, r: mag.idler!.r }];
         case "idler–magneto":
-          return [{ c: at(mag.x, mag.idler!.y), axis: X, r: mag.idler!.r }, magnetoRim];
+          // the idler's rear gear: the same gear as its front one, or (magnetos on their own axes) a second gear on its shaft
+          return [{ c: at(mag.idler!.rearX, mag.idler!.y), axis: X, r: mag.idler!.rearR }, magnetoRim];
         case "cam–magneto":
           return [cam(d.camGearR), magnetoRim];
         case "crank–oilPumpDrive":
@@ -356,10 +367,17 @@ describe("IO-390 scene layout defaults", () => {
     ]);
     expect(cl.bearings).toHaveLength(3);
     expect(IO390_DEFAULTS.camera).toEqual({ position: [1.15, 0.62, 1.35], target: [0, -0.02, 0], maxDistance: 6 });
-    // the oil filler tube and cap on the right, where the scene drew them
+    // magnetos aft of the accessory housing on the camshaft gear, filter on its rear, filler on the right, the
+    // propeller on the flange
+    expect(IO390_DEFAULTS.magnetos).toEqual({ mount: "aft", r: 0.04, len: 0.1, z: 0.1, y: null });
+    const mag = magnetoPose(IO390, d, "R");
+    expect(mag.capEnd[0]).toBeLessThan(mag.driveEnd[0]);
+    expect(oilFilterPose(d)).toEqual({ centre: [d.accRear - 0.05, 0.015, 0], axis: [1, 0, 0], r: 0.045, len: 0.1 });
     expect(IO390_DEFAULTS.oilFiller).toEqual({ side: "R" });
     expect(oilFiller(d).cap).toEqual([d.caseRear - 0.025, 0.209, 0.16]);
-    // the label pins EngineScene placed before the layouts
+    expect(IO390_DEFAULTS.propSpacer).toBe(0);
+    expect(driveLayout(IO390, d).alternators.map((a) => a.transverse)).toEqual([null]);
+    // the label pins EngineScene placed before the layouts, none hidden by the parts in front of them
     expect(IO390_DEFAULTS.labels(d, IO390)).toEqual([
       ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
       ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
@@ -404,5 +422,99 @@ describe("the drawn sparks", () => {
           const drawn = drawnSparks(S, mags, f, rpm).map(([a, b]) => +a + +b);
           expect(drawn, `${mags} L${+magL} R${+magR} plug${+plug} ${rpm} rpm`).toEqual(sparks(S, mags, f, rpm));
         }
+  });
+});
+
+describe("label occlusion (kit.ts labelOccluder)", () => {
+  // an eye in front of a label anchor at the origin, and a 0.1 m box half-way between them
+  const eye = new THREE.Vector3(1, 0, 0),
+    anchor = new THREE.Vector3(0, 0, 0);
+  const box = (material: THREE.Material = new THREE.MeshBasicMaterial()) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), material);
+    m.position.set(0.5, 0, 0);
+    return m;
+  };
+  /** Whether the label shows: drei's test, a ray from the camera through the anchor that hits nothing before it. */
+  function shows(root: THREE.Object3D, own = "Oil filter") {
+    root.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster(eye, anchor.clone().sub(eye).normalize());
+    const hits = ray.intersectObjects([labelOccluder(root, own).current], true);
+    return !hits.length || hits[0].distance > eye.distanceTo(anchor);
+  }
+
+  test("a solid part between the camera and the label hides it", () => {
+    const root = new THREE.Group();
+    root.add(box());
+    expect(shows(root)).toBe(false);
+  });
+
+  test("nothing under a hidden group hides it, though the meshes themselves are visible", () => {
+    const root = new THREE.Group(),
+      hidden = new THREE.Group();
+    const inner = new THREE.Group();
+    inner.add(box());
+    hidden.add(inner);
+    root.add(hidden);
+    expect(shows(root)).toBe(false);
+    hidden.visible = false;
+    expect(inner.visible && inner.children[0].visible).toBe(true);
+    expect(shows(root)).toBe(true);
+  });
+
+  test("the part the label names never hides it, nor anything inside its group", () => {
+    const root = new THREE.Group(),
+      own = new THREE.Group();
+    own.name = "Oil filter";
+    own.add(box());
+    root.add(own);
+    expect(shows(root)).toBe(true);
+    expect(shows(root, "Magnetos")).toBe(false);
+  });
+
+  test("a part X-ray has made see-through lets the label show, unless it keeps catching the pointer", () => {
+    const clear = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.16 });
+    const root = new THREE.Group();
+    root.add(box(clear));
+    expect(shows(root)).toBe(true);
+    clear.userData.hoverWhenClear = true;
+    expect(shows(root)).toBe(false);
+    clear.userData.hoverWhenClear = false;
+    clear.opacity = 1;
+    expect(shows(root)).toBe(false);
+  });
+});
+
+describe("the propeller switch", () => {
+  test.each([
+    ["IO-390", IO390],
+    ["O-360", O360],
+    ["TSIO-550-K", TSIO550K],
+  ] as const)("on the %s hides the propeller and keeps it mounted, as main draws it", async (name, S) => {
+    const sim = simFor(S, `propeller-switch-${S.id}`);
+    const el = h(Propeller, { sim, d: dims(S), mats: makeMats() });
+    const { scene, frame, render, unmount } = await mountScene(el);
+    const blades = () => {
+      const meshes: THREE.Mesh[] = [];
+      scene.traverse((o) => o instanceof THREE.Mesh && meshes.push(o));
+      return meshes;
+    };
+    const count = blades().length;
+    expect(count, name).toBeGreaterThan(0);
+    const visible = () => {
+      let v = true;
+      blades()[0].traverseAncestors((o) => {
+        if (o !== scene && !o.visible) v = false;
+      });
+      return v;
+    };
+    expect(visible()).toBe(true);
+    const view = sim.useUi.getState().view;
+    sim.useUi.setState({ view: { ...view, prop: false } });
+    await render(el);
+    frame();
+    expect(blades()).toHaveLength(count);
+    expect(visible()).toBe(false);
+    sim.useUi.setState({ view });
+    await unmount();
   });
 });

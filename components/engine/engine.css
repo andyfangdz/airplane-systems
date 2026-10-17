@@ -174,6 +174,25 @@
 .mon-key i.cht {
   background: #6be675;
 }
+/* a turbocharged engine: a TIT bar per turbocharger after the cylinders, and six cells in the small row */
+.mon-cyl.mon-tit {
+  grid-template-columns: 11px;
+}
+.mon-cyl .bar.tit {
+  /* the cylinder bar less one digit row (10 px × 1.1 line) and its 2 px gap: the digits sit above it, and the bar's
+     foot stays level with the cylinders' */
+  height: 57px;
+}
+.mon-cyl .tit > div,
+.mon-key i.tit {
+  background: #4fc8d6;
+}
+.mon-cyl .tit > div.bad {
+  background: var(--warn);
+}
+.eng-mon.turbo .mon-small {
+  grid-template-columns: repeat(6, auto auto);
+}
 .eng-flags {
   pointer-events: auto;
   list-style: none;
@@ -348,6 +367,21 @@
   }
   .mon-cyl .bar {
     height: 50px;
+  }
+  .mon-cyl .bar.tit {
+    height: 37px;
+  }
+  /* eight bar columns do not fit beside the big numbers on a phone: stack the three blocks */
+  .eng-mon.turbo {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "big" "bars" "small";
+  }
+  .eng-mon.turbo .mon-big {
+    grid-template-columns: repeat(2, auto auto auto);
+    justify-content: start;
+  }
+  .eng-mon.turbo .mon-small {
+    grid-template-columns: repeat(3, auto auto);
   }
 }
 

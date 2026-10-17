@@ -14,6 +14,7 @@
     "test:changed": "vitest run --changed origin/main --passWithNoTests",
     "test:ui:m20c": "playwright test scripts/test-m20c-ui.mjs",
     "test:ui:fleet": "playwright test scripts/test-fleet-ui.mjs",
+    "test:ui:engine": "playwright test scripts/test-engine-ui.mjs",
     "test:ui:load": "playwright test scripts/test-load-ui.mjs",
     "test:ui:walkaround": "playwright test scripts/test-walkaround-ui.mjs",
     "test:ui:sr20": "playwright test scripts/test-sr20-walkaround-ui.mjs",

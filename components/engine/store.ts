@@ -6,6 +6,7 @@
  */
 import { useCallback } from "react";
 import { decodeCheckpoint, encodeCheckpoint } from "@/lib/checkpoint";
+import { assignLive } from "@/lib/simulation";
 import { create } from "zustand";
 import type { EngineSpec } from "@/engines/types";
 import {
@@ -19,7 +20,7 @@ import {
   type Environment,
   type Failures,
 } from "@/engines/model/engine";
-import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
+import { scenarioById, type Setup } from "@/engines/model/scenarios";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { useSimLoop } from "./sim";
 import { createSimulationClock, type SimulationClockCheckpoint } from "@/lib/simulationClock";
@@ -199,7 +200,7 @@ export function createEngineSimulation(spec: EngineSpec): EngineSim {
       const next = structuredClone(checkpoint);
       clock.restore(next.clock);
       cancelScenario(sim);
-      Object.assign(sim.s, next.s);
+      assignLive(sim.s, next.s);
       Object.assign(sim.anim, next.anim);
       sim.useUi.setState(next.ui);
       sim.resets++;
@@ -242,7 +243,7 @@ export function cancelScenario(sim: EngineSim) {
 export function replaceState(sim: EngineSim, next: EngineState) {
   if (sim.disposed) throw new Error("Engine simulation is disposed");
   sim.clock.reset();
-  Object.assign(sim.s, structuredClone(next));
+  assignLive(sim.s, structuredClone(next));
   sim.resets++;
   refreshLiveSnapshot(sim.s);
 }
@@ -287,7 +288,7 @@ function scenarioWorker() {
  */
 export function startScenario(sim: EngineSim, id: string) {
   if (sim.disposed) throw new Error("Engine simulation is disposed");
-  const sc = SCENARIOS.find((x) => x.id === id);
+  const sc = scenarioById(sim.spec, id);
   if (!sc) throw new Error(`Unknown engine scenario ${id}`);
   if (sim.scenarioRequest.id !== null) pending.delete(sim.scenarioRequest.id);
   const failures = sim.useUi.getState().failures;

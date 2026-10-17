@@ -48,7 +48,8 @@ describe("O-360-A specifications (OM pp. 1-1–1-3, 2-1)", () => {
   });
 
   test("the registry lists the O-360 after the IO-390", () => {
-    expect(ENGINES.map((x) => x.id)).toEqual(["io390", "o360"]);
+    // later engines append (the TSIO-550-K), so only the first two are checked
+    expect(ENGINES.map((x) => x.id).slice(0, 2)).toEqual(["io390", "o360"]);
   });
 });
 

@@ -88,7 +88,10 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.deepEqual(await engines.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
     "/engines/io390",
     "/engines/o360",
+    "/engines/tsio550k",
   ]);
+  // name and sub "<model> · <rated hp>": Continental TSIO-550-K, 315 bhp (POH 1-7, 2-6)
+  assert.match(await engines.last().innerText(), /^TSIO-550-K\s+Continental TSIO-550-K · 315 hp\s*$/);
   const components = dialog.getByRole("group", { name: "Components" }).getByRole("link");
   assert.deepEqual(await components.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
     "/components/carburetor",
@@ -104,8 +107,9 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
+  // six airplanes, three engines and four components: about 681 px tall where it fits, scrolling where it does not
   assert.ok(
-    box.width <= 352 && box.height <= 640,
+    box.width <= 352 && box.height <= 700,
     "The entire fleet, the engines and the components fit in a compact dropdown",
   );
   assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), "No horizontal scrolling");
@@ -122,7 +126,9 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     await components.last().evaluate((el) => el === document.activeElement),
     "The engines and then the components follow the airplanes",
   );
-  for (let i = 0; i < (await components.count()) + 2; i++) await page.keyboard.press("ArrowUp");
+  for (let i = 0; i < (await components.count()); i++) await page.keyboard.press("ArrowUp");
+  assert.ok(await engines.last().evaluate((el) => el === document.activeElement), "The components follow the engines");
+  for (let i = 0; i < (await engines.count()); i++) await page.keyboard.press("ArrowUp");
   assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));
   for (let i = 0; i < (await engines.count()) + (await components.count()) + 1; i++)
     await page.keyboard.press("ArrowDown");
@@ -227,6 +233,16 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await engineTrigger.waitFor();
   await activate(engineTrigger);
   assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /IO-390/);
+  await activate(dialog.getByRole("group", { name: "Engines" }).getByRole("link", { name: /TSIO-550-K/ }));
+  await page.waitForURL("**/engines/tsio550k");
+  const turboTrigger = page.getByRole("button", { name: /^Switch Airplanes, current engine TSIO-550-K/ });
+  await turboTrigger.waitFor();
+  // two title sources on an engine page (metadata, and EngineApp's own): read the elements, not document.title
+  const titles = await page.locator("title").evaluateAll((all) => all.map((t) => t.textContent));
+  assert.ok(titles.includes("TSIO-550-K engine · Airplane Systems"), `${titles}`);
+  assert.equal(await page.locator(".eng-brand p").innerText(), "Continental TSIO-550-K · 315 hp");
+  await activate(turboTrigger);
+  assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /TSIO-550-K/);
   await activate(dialog.getByRole("group", { name: "Airplanes" }).getByRole("link", { name: /C172S Skyhawk/ }));
   await page.waitForURL(/\/c172s/);
   await page.waitForFunction(() => document.querySelector(".fleet-current-name")?.textContent === "C172S Skyhawk");

@@ -15,8 +15,10 @@ import {
   defaultControls,
   defaultEnvironment,
   governedRpm,
+  cylinderWork,
   highBoostEnabled,
   initialState,
+  leanCapAt,
   noFailures,
   ratedAirLbH as servoRatedAirLbH,
   sparks,
@@ -1800,6 +1802,40 @@ describe("TR-3 and leaning at full throttle on a hot day (SR22T POH 5-34)", () =
       expect(Math.max(...seen.map((p) => p.mixture)), `${altFt} ft mixture`).toBeLessThan(1);
     }
   }, 180_000);
+});
+
+describe('the leaning cap above 30.5 in.Hg (calibration.leanGainMax; SOURCES.md, "Leaning above 30.5 in.Hg")', () => {
+  const mp = (l: number) =>
+    mixturePower(l, K.calibration.lambdaBestPower, K.calibration.peakEgtPower, K.calibration.richMisfireLambda);
+
+  test("is 1.16 × the full-rich work, in full from 31.5 in.Hg, half at 30.5 and none at 29.5; the IO-390 has none", () => {
+    expect(leanCapAt(K, 0.5, 36)).toEqual({ work: 1.16 * mp(0.5), weight: 1 });
+    expect(leanCapAt(K, 0.5, 30.5)?.weight).toBeCloseTo(0.5, 9);
+    expect(leanCapAt(K, 0.5, 29.5)).toBeUndefined();
+    expect(leanCapAt(K, undefined, 36)).toBeUndefined();
+    expect(leanCapAt(IO390, 0.5, 36)).toBeUndefined();
+  });
+
+  test("a cylinder's work is mixturePower below the cap, and above it loses the cap's weight of the excess", () => {
+    expect(cylinderWork(K, 1.1)).toBe(mp(1.1));
+    const cap = { work: 0.9, weight: 0.5 };
+    expect(cylinderWork(K, 0.5, cap)).toBe(mp(0.5)); // below the cap
+    expect(mp(0.9)).toBeGreaterThan(0.9);
+    expect(cylinderWork(K, 0.9, cap)).toBeCloseTo(0.9 + 0.5 * (mp(0.9) - 0.9), 12);
+    expect(cylinderWork(K, 0.9, { work: 0.9, weight: 1 })).toBeCloseTo(0.9, 12);
+  });
+
+  test("the engine's step records the cap the cylinders' work followed: full rich at takeoff power the work stays under it", () => {
+    const x = warmStart(K);
+    Object.assign(x.c, { throttle: 1, mixture: 1, boost: true });
+    settle(K, x.s, x.c, x.env, noFailures(K), 20, {}, 5);
+    const cap = x.s.leanCap!;
+    expect(cap.weight).toBe(1);
+    for (const c of x.s.cyl) {
+      expect(c.work).toBe(cylinderWork(K, c.lambda, cap));
+      expect(c.work).toBeLessThan(cap.work);
+    }
+  });
 });
 
 describe("TIT, CHT and oil temperatures (SR22T POH 2-9, 3-30, 4-14, 4-19, 4-22, 7-36)", () => {

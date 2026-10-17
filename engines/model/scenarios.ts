@@ -2,7 +2,11 @@
  * Ready-made starting points for the engine page ("Start from"): each one runs the model the way a pilot would get
  * there (start per the IOM, warm up, set power) and returns the settled state with the controls and environment that
  * hold it. The temperatures are run faster than real time (`settle`'s `thermal`) so they reach their steady values.
+ *
+ * The TSIO-550-K has its own list, following the Cirrus SR22T POH (engines/tsio550k/scenarios.ts); the general setups
+ * it replaces are `only` for the other engines.
  */
+import { forTsio550k, TSIO550K_SCENARIOS } from "../tsio550k/scenarios";
 import type { EngineSpec } from "../types";
 import {
   defaultControls,
@@ -38,12 +42,19 @@ export interface Scenario {
 /** The scenarios an engine offers, and a scenario's label for it. */
 export const scenariosFor = (spec: EngineSpec) => SCENARIOS.filter((sc) => !sc.only || sc.only(spec));
 export const labelOf = (sc: Scenario, spec: EngineSpec) => (typeof sc.label === "string" ? sc.label : sc.label(spec));
+/** One of the engine's scenarios by id: ids repeat across engines (the -K has its own `idle`, `runup`, …). */
+export const scenarioById = (spec: EngineSpec, id: string) => scenariosFor(spec).find((x) => x.id === id);
 
 const carbureted = (spec: EngineSpec) => spec.fuelSystem.kind === "carburetor";
+/** The general setups, for every engine without its own list. */
+const general = (spec: EngineSpec) => !forTsio550k(spec);
 
 /** Propeller-control position that sets the governor to `rpm`. */
 export const propFor = (spec: EngineSpec, rpm: number) =>
-  (rpm - spec.propeller.governorMinRpm) / (governedRpm(spec, 1) - spec.propeller.governorMinRpm);
+  // a governor with no pilot control (the -K) has one setting: full range would be 0/0
+  spec.propeller.control === "fixed"
+    ? 1
+    : (rpm - spec.propeller.governorMinRpm) / (governedRpm(spec, 1) - spec.propeller.governorMinRpm);
 
 /**
  * Start per the manual, then warm up at 1,000 rpm. Injected: throttle cracked, boost pump on, mixture rich, starter.
@@ -98,6 +109,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "cold",
     label: "Cold and stopped",
+    only: general,
     note: (spec) =>
       carbureted(spec)
         ? `Soaked to a standard day at sea level, everything off. Boost pump on, mixture rich, throttle a quarter open, prime one to three strokes, then start (${spec.refs.start}).`
@@ -110,6 +122,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "idle",
     label: "Warm idle",
+    only: general,
     note: (spec) => {
       const L = spec.limits.idleRpm;
       return L.assumed
@@ -126,6 +139,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "runup",
     label: "Magneto check",
+    only: general,
     note: (spec) => {
       const L = spec.limits;
       return `Warm, at ${f0(magRpm(spec))} rpm with the propeller full increase. Switch to L or R and watch the drop: at most ${L.magDropMax.value} rpm, within ${L.magDiffMax.value} rpm of each other (${spec.refs.magCheck}).`;
@@ -139,6 +153,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "takeoff",
     label: "Takeoff",
+    only: general,
     note: (spec) =>
       `Full throttle, full rich, propeller full increase${carbureted(spec) ? ", carburetor heat off" : ""}, sea level, 70 kt.`,
     run: (spec, f = noFailures(spec)) => {
@@ -151,6 +166,7 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "climb",
     label: "Full-power climb",
+    only: general,
     note: (spec) => `Full throttle, full rich, ${f0(spec.rating.rpm)} rpm at 100 kt, temperatures settled at 3,000 ft.`,
     run: (spec, f = noFailures(spec)) => {
       const x = warmStart(spec, { tasKt: 100, altFt: 3000 }, f);
@@ -162,12 +178,14 @@ export const SCENARIOS: Scenario[] = [
   {
     id: "cruise75",
     label: (spec) => `Performance cruise, ${spec.rating.cruise[0].pct} %`,
+    only: general,
     note: (spec) => cruiseNote(spec, 0, 4000),
     run: (spec, f = noFailures(spec)) => cruise(spec, 0, 4000, 140, f),
   },
   {
     id: "economy65",
     label: (spec) => `Economy cruise, ${spec.rating.cruise[1].pct} %`,
+    only: general,
     note: (spec) => cruiseNote(spec, 1, 6000),
     run: (spec, f = noFailures(spec)) => cruise(spec, 1, 6000, 135, f),
   },
@@ -186,6 +204,7 @@ export const SCENARIOS: Scenario[] = [
       return x;
     },
   },
+  ...TSIO550K_SCENARIOS,
 ];
 
 /** Magneto check speed: the middle of the manual's range. */
