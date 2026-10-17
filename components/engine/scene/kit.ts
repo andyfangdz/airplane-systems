@@ -9,6 +9,7 @@
  */
 import * as THREE from "three";
 import { firingAngle, sideAngle } from "@/engines/model/cycle";
+import type { Failures, MagSwitch } from "@/engines/model/engine";
 import type { CylinderDef, EngineSpec, Side } from "@/engines/types";
 import { IO390_DEFAULTS, layoutFor, type EngineLayout, type ValveDef } from "./layout";
 
@@ -359,6 +360,23 @@ export const lobeAngle = (spec: EngineSpec, c: CylinderDef, intake: boolean) =>
  */
 export const magsAtStart = (spec: EngineSpec): Side[] =>
   spec.ignition.startMags === "both" ? ["L", "R"] : [spec.ignition.retardMag];
+
+/**
+ * Which plugs flash in each cylinder, [top, bottom], for a switch position and the failures: the model's `sparks` rule
+ * (a magneto fires from 60 % of the minimum starting speed unless it or the plug has failed), with the magnetos START
+ * fires taken from `magsAtStart`, so the gate and each plug's magneto come from one set.
+ */
+export function drawnSparks(spec: EngineSpec, mags: MagSwitch, f: Failures, rpm: number): [boolean, boolean][] {
+  const ign = spec.ignition;
+  const live: Side[] =
+    mags === "BOTH" ? ["L", "R"] : mags === "START" ? magsAtStart(spec) : mags === "OFF" ? [] : [mags];
+  const on = (m: Side) => rpm >= ign.minStartRpm * 0.6 && !(m === "L" ? f.magL : f.magR) && live.includes(m);
+  return spec.geometry.cylinders.map((c, i) => {
+    const top = ign.topPlugMag[c.n],
+      bottom: Side = top === "L" ? "R" : "L";
+    return [on(top) && !f.plugs[i][0], on(bottom) && !f.plugs[i][1]];
+  });
+}
 
 /** Starter ring gear and pinion teeth: not published, chosen so their ratio is the IO-390's starter drive ratio (16.556:1). */
 export const STARTER_TEETH = { ring: 149, pinion: 9 };

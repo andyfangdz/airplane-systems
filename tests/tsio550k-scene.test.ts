@@ -9,14 +9,15 @@ import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 import { presetCamera, type CameraPreset } from "@/lib/camera";
 import { mod, sideAngle } from "@/engines/model/cycle";
+import { noFailures } from "@/engines/model/engine";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
 import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
-import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
 import {
   crankLayout,
   D2R,
   dims,
+  drawnSparks,
   driveLayout,
   GEAR_TEETH,
   gearSpins,
@@ -33,6 +34,7 @@ import {
   valveLayout,
   XRAY_MATS,
 } from "@/components/engine/scene/kit";
+import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
 import { layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
@@ -199,6 +201,133 @@ describe("TSIO-550-K 3D model", () => {
   });
 });
 
+describe("TSIO-550-K starting sparks (POH 7-37: START energizes both magnetos)", () => {
+  test("with the right magneto failed, START still fires every left-fired plug", () => {
+    const f = { ...noFailures(S), magR: true };
+    drawnSparks(S, "START", f, 200).forEach(([top, bottom], i) => {
+      const left = S.ignition.topPlugMag[S.geometry.cylinders[i].n] === "L";
+      expect([top, bottom], `cylinder ${S.geometry.cylinders[i].n}`).toEqual([left, !left]);
+    });
+  });
+
+  test("the scene flashes the left-fired plugs at START with the right magneto failed", async () => {
+    const sim = simFor(S, "tsio550k-start-sparks");
+    sim.useUi.setState((u) => ({
+      controls: { ...u.controls, mags: "START" },
+      failures: { ...u.failures, magR: true },
+    }));
+    sim.s.rpm = 200;
+    const { scene, frame, unmount } = await mountScene(h(Cylinders, { sim, d, mats: makeMats() }));
+    // each spark beside its plug: the plug's hover name says which cylinder and which plug
+    const sparksAt: { name: string; mat: THREE.Material }[] = [];
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || (o.material as THREE.MeshBasicMaterial).color?.getHex() !== 0x9fd8ff) return;
+      const plug = o.parent!.children[0].children[0] as THREE.Object3D & {
+        __r3f?: { handlers: Record<string, (e: unknown) => void> };
+      };
+      useHover.setState({ hover: null });
+      plug.__r3f!.handlers.onPointerOver({
+        object: plug,
+        stopPropagation() {},
+        nativeEvent: { clientX: 0, clientY: 0 },
+      });
+      sparksAt.push({ name: useHover.getState().hover!.name, mat: o.material as THREE.Material });
+    });
+    useHover.setState({ hover: null });
+    expect(sparksAt).toHaveLength(12);
+    const lit = new Set<string>();
+    // turn the drawn crankshaft through two revolutions, as the flash follows each cylinder's spark
+    for (let crank = 0; crank < 720; crank += 2) {
+      sim.anim.crank = crank;
+      frame();
+      for (const s of sparksAt) if (s.mat.opacity > 0) lit.add(s.name);
+    }
+    const leftFired = S.geometry.cylinders.map((c) =>
+      S.ignition.topPlugMag[c.n] === "L" ? `Spark plug, cylinder ${c.n} top` : `Spark plug, cylinder ${c.n} bottom`,
+    );
+    expect([...lit].sort()).toEqual(leftFired.sort());
+    await unmount();
+  });
+});
+
+describe("TSIO-550-K ALT 1 on its transverse pad (AMM Fig 24-30-3)", () => {
+  const a = driveLayout(S, d, L).alternators.find((x) => x.def.name === "ALT 1")!;
+
+  test("the shaft runs across the engine on the right, its pad and end faces where M-18 Figures 5-34 and 5-35 put them", () => {
+    const t = a.transverse!;
+    expect(t.axis[1]).toBeCloseTo(0, 9);
+    expect(t.axis[2]).toBeCloseTo(1, 9);
+    expect(station(t.padAt[0])).toBeCloseTo(27.3, 6);
+    expect(t.padAt[2] / IN).toBeCloseTo(6.7, 6);
+    expect(t.endAt[2] / IN).toBeCloseTo(9.45, 6);
+    // turned by a bevel pinion on the crankshaft's drive gear, at the gear-driven alternator's 3:1 (M-18 Table 2-9)
+    expect(gearSpins(S, d, L).meshes).toContainEqual({ a: "crank", b: "ALT 1", kind: "bevel" });
+    expect(a.gear!.driveTeeth / a.gear!.drivenTeeth).toBe(3);
+  });
+
+  test("as drawn, the housing stands outboard of the crankcase on its pad, its axis across the engine", async () => {
+    const sim = simFor(S, "tsio550k-alt1");
+    const { scene, unmount } = await mountScene(h(Drives, { sim, d, mats: makeMats() }));
+    const box = (name: string) => {
+      const b = new THREE.Box3();
+      scene.traverse((o) => {
+        const over = (o as { __r3f?: { handlers: Record<string, (e: unknown) => void> } }).__r3f?.handlers
+          .onPointerOver;
+        if (!(o instanceof THREE.Mesh) || !over) return;
+        useHover.setState({ hover: null });
+        over({ object: o, stopPropagation() {}, nativeEvent: { clientX: 0, clientY: 0 } });
+        if (useHover.getState().hover?.name === name) b.expandByObject(o);
+      });
+      useHover.setState({ hover: null });
+      return b;
+    };
+    const body = box("ALT 1"),
+      pad = box("ALT 1 drive pad");
+    // the housing from the pad face out to the end face: clear of the crankcase half-width, longest across the engine
+    expect(body.min.z).toBeGreaterThan(d.caseHalf);
+    expect(body.min.z / IN).toBeCloseTo(6.7, 2);
+    expect(body.max.z / IN).toBeGreaterThan(9.45);
+    const size = body.getSize(new THREE.Vector3());
+    expect(size.x).toBeCloseTo(2 * a.transverse!.r, 3);
+    expect(size.y).toBeGreaterThanOrEqual(2 * a.transverse!.r - 1e-3);
+    expect(body.getCenter(new THREE.Vector3()).x).toBeCloseTo(a.x, 3);
+    // the pad bridges the case side to the housing
+    expect(pad.min.z).toBeCloseTo(d.caseHalf, 3);
+    expect(pad.max.z / IN).toBeCloseTo(6.7, 2);
+    await unmount();
+  });
+});
+
+describe("TSIO-550-K oil filler and dipstick", () => {
+  test("at the left rear, where POH 7-37 and its hover note put it, behind the crankcase", () => {
+    expect(L.oilFiller).toEqual({ side: "L" });
+    expect(L.notes.dipTube).toMatch(/left rear/);
+    const { cap, tube } = oilFiller(d, L);
+    expect(cap[2]).toBeLessThan(0);
+    expect(cap[0]).toBeLessThan(d.caseRear);
+    for (const p of tube) expect(p[2]).toBeLessThan(0);
+  });
+
+  test("as drawn, the tube and its cap stand on the left", async () => {
+    const sim = simFor(S, "tsio550k-filler");
+    const { scene, unmount } = await mountScene(h(Lubrication, { sim, d, mats: makeMats() }));
+    const found: string[] = [];
+    scene.traverse((o) => {
+      const over = (o as { __r3f?: { handlers: Record<string, (e: unknown) => void> } }).__r3f?.handlers.onPointerOver;
+      if (!(o instanceof THREE.Mesh) || !over) return;
+      useHover.setState({ hover: null });
+      over({ object: o, stopPropagation() {}, nativeEvent: { clientX: 0, clientY: 0 } });
+      const name = useHover.getState().hover?.name ?? "";
+      if (name !== "Oil level gage tube" && name !== "Oil filler cap and dipstick") return;
+      found.push(name);
+      expect(new THREE.Box3().setFromObject(o).max.z, name).toBeLessThan(0);
+    });
+    useHover.setState({ hover: null });
+    expect(found.sort()).toEqual(["Oil filler cap and dipstick", "Oil level gage tube"]);
+    await unmount();
+  });
+});
+
 describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", () => {
   /** Inches forward of the accessory face, above the crankshaft axis and right of the centreline, in scene metres. */
   const at = (s: number, y: number, z: number): V3 => [d.accRear + s * IN, y * IN, z * IN];
@@ -221,21 +350,6 @@ describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", (
     }
     // the accessory housing stops under them
     expect(d.accTop).toBeLessThanOrEqual(magnetoPose(S, d, "R", L).centre[1] - 0.05 + 1e-9);
-  });
-
-  test("ALT 1 across the engine on the right crankcase-nose pad, terminal end outboard (AMM Fig 24-30-3)", () => {
-    const a = driveLayout(S, d, L).alternators.find((x) => x.def.name === "ALT 1")!;
-    const t = a.transverse!;
-    expect(t).not.toBeNull();
-    near(t.axis, [0, 0, 1]);
-    // scaled from M-18 Figures 5-35 and 5-34 view D-D: station 27.3 in, pad 6.7 in and end 9.45 in from the centreline
-    expect(station(t.padAt[0])).toBeCloseTo(27.3, 6);
-    near(t.padAt, at(27.3, 0, 6.7));
-    near(t.endAt, at(27.3, 0, 9.45));
-    expect(t.r).toBeCloseTo((5.75 / 2) * IN, 6);
-    // turned by a bevel pinion on the crankshaft's drive gear, at the gear-driven alternator's 3:1 (M-18 Table 2-9)
-    expect(gearSpins(S, d, L).meshes).toContainEqual({ a: "crank", b: "ALT 1", kind: "bevel" });
-    expect(a.gear!.driveTeeth / a.gear!.drivenTeeth).toBe(3);
   });
 
   test("ALT 2 below and outboard of the crankshaft on the left, its pulley forward (AMM Fig 24-30-4)", () => {
@@ -280,13 +394,6 @@ describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", (
     expect(f.len).toBeCloseTo((2.42 + 2.1) * IN, 6);
     // top 2.42 in above the crankshaft (M-18 Fig 5-33, dimensioned)
     expect((f.centre[1] + f.len / 2) / IN).toBeCloseTo(2.42, 6);
-  });
-
-  test("oil filler and dipstick at the left rear (POH 7-37)", () => {
-    const { cap, tube } = oilFiller(d, L);
-    expect(cap[2]).toBeLessThan(0);
-    expect(cap[0]).toBeLessThan(d.caseRear);
-    for (const p of tube) expect(p[2]).toBeLessThan(0);
   });
 
   test("the starter motor starts at its right-angle adapter (AMM Fig 71-00-2 sheet 3, Fig 80-10-1)", () => {

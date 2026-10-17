@@ -896,8 +896,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       ) : null}
       {D.alternators.map((a, k) => {
         const g = geo.alternators[k];
-        const t = a.transverse;
-        if (t)
+        if (a.transverse)
           // turned about the crankshaft so its +z runs out along the shaft; the pinion's frame turns +x onto it
           return (
             <group key={a.def.name} position={[a.x, 0, 0]} rotation={[a.def.angleDeg * D2R - Math.PI / 2, 0, 0]}>

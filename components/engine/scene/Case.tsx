@@ -215,7 +215,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       ),
       ...oilLines,
     };
-  }, [d, PUMP, L]);
+  }, [d, L, PUMP]);
   const oilMat = useMemo(() => {
     const m = mats.oil.clone();
     m.transparent = true;
