@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useAircraft, useAircraftDef } from "@/lib/fleet";
+import { useEffect } from "react";
+import { useAircraft } from "@/lib/fleet";
 import { skipBuild, useBuild, type BuildStage } from "@/lib/build";
+import { LoadFailed } from "./LoadFailed";
 
 const TEXT: Record<Exclude<BuildStage, "ready">, string> = {
   code: "Loading",
@@ -17,15 +18,12 @@ let completedOnce = false;
  * Loading overlay over the 3D view, from the first paint (it is in the static HTML) until the scene is complete: the
  * airplane's name, a spinner and the build stage; while systems are added part by part (the camera already responds) it
  * shrinks to a bar with the part count and an Add all button (the rest at once, no build-in glow). It carries `data-building`
- * while shown.
+ * while shown. If the page's code fails to download it says so and offers Retry (`LoadFailed`).
  */
 export function Loader() {
   const def = useAircraft(),
-    progressive = !!useAircraftDef()?.progressive;
+    progressive = !!def.progressive;
   const { stage, done, total } = useBuild();
-  // every view is served the same static HTML: name the airplane only once mounted (as App does for the tab title)
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (stage === "ready") completedOnce = true;
   }, [stage]);
@@ -41,10 +39,11 @@ export function Loader() {
       <div className="loader-card">
         <span className="spinner" aria-hidden="true" />
         <span className="loader-text">
-          {mounted && <b>{def.name} </b>}
+          <b>{def.name} </b>
           {TEXT[stage]}
           {bar ? ` ${done} / ${total}` : "…"}
         </span>
+        {!bar && <LoadFailed name={def.name} />}
         {bar && <progress max={total} value={done} />}
         {bar && (
           <button

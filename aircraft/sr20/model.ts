@@ -137,8 +137,9 @@ export interface Elec extends Record<BusId, number> {
  * Diode-ORed distribution buses in the MCU; CB-panel buses hang off them. Pulled breakers
  * remove individual loads. Battery endurance uses the Costanzo training deck's rule of thumb:
  * ALT 1 fail → BAT 1 carries MDB 1 ~30 min; dual ALT fail → BAT 1 ~15 min, then BAT 2 ~45 min.
+ * Nothing here latches, so the previous solution (`prev`, as every airplane's solver takes it) is not used.
  */
-export function solve(s: Sim): Elec {
+export function solve(s: Sim, _prev?: Elec): Elec {
   const e = s.elec,
     run = s.eng.running,
     t = e.tBat;

@@ -180,6 +180,8 @@ export const live = {
   /** Oil lost (0..1) with the oil-leak failure; trim wheel rate (for the Bowden-cable particles). */
   oilLoss: 0,
   trimRate: 0,
+  /** `afcs.trim` on the previous frame, for `trimRate`. */
+  trimPrev: CRUISE_TRIM,
   /** Fuel gauge pointers (long-range tanks: full reads 24, holds 16 while the ungauged 3 gal is used). */
   gaugeL: 21,
   gaugeR: 20,

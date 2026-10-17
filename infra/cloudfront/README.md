@@ -42,11 +42,13 @@ The resource definitions live in `../aws/site.json`. No custom domain is configu
 - Origin 404 uses `/404.html`, retains status 404, error TTL 10 seconds. Never map errors to a 200 root page.
   Source: [custom error responses](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/GeneratingCustomErrorResponses.html).
 - Default behavior only: viewer-request Function, runtime cloudfront-js-2.0, source `view-rewrite.js`.
-  Recognized airplane with zero or one system segment redirects a trailing slash with 308, preserving queries;
-  without a trailing slash it rewrites to `/index.html`. Any single system name, including `bogus`, is accepted,
-  as the development rewrite in `next.config.ts` does. Root, unknown aircraft, assets and deeper paths
-  pass through. Root is served by DefaultRootObject. Tests use `lib/viewPaths.ts` and compare the copied
-  airplane list against `AIRCRAFT_IDS` in `lib/systems.ts`. Sources:
+  Each airplane is its own route, exported as `<id>.html` and `<id>/<system>.html`. A recognized airplane with zero
+  or one system segment redirects a trailing slash with 308, preserving queries; without a trailing slash it
+  rewrites to that file (`/c172s/electrical` to `/c172s/electrical.html`). An unknown system (`/sr22t/bogus`) has no
+  file, so the origin answers 404, as the Next server does. A segment with a dot (the routes' own `.txt` payloads,
+  fetched on client navigations), root, unknown aircraft, assets and deeper paths pass through. Root is served by
+  DefaultRootObject. Tests use `VIEW_PATHS` from `aircraft/metas.ts` and compare the copied airplane list against
+  `AIRCRAFT_IDS` in `lib/systems.ts`. Sources:
   [Functions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-functions.html),
   [event/query format](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/functions-event-structure.html).
 
@@ -64,4 +66,5 @@ Live verification should include `/sr22t/?a=x%26y%0D%0A` and assert the Location
 
 Offline tests require exact equality between the template FunctionCode and this source, including whitespace;
 format the source first, copy it to FunctionCode, then format the JSON. Missing source must fail.
-Route, 404, cache and HTTPS checks against a live site are `npm run smoke -- <site-url>`.
+Route, 404, cache and HTTPS checks against a live site are `npm run smoke -- <site-url>`. Before a deploy, CI serves the export through this Function locally
+(`scripts/serve-export.mjs`) and switches airplanes in a browser (`scripts/test-static-export-ui.mjs`).

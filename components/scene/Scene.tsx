@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { sysOf, useAircraft, useAircraftDef } from "@/lib/fleet";
+import { sysOf, useAircraft } from "@/lib/fleet";
 import type { AircraftDef } from "@/aircraft/types";
 import { outlineMat, shellUniforms } from "@/lib/materials";
 import { V, clamp, ease } from "@/lib/math";
@@ -143,22 +143,22 @@ function CameraRig() {
     clearDamping(controls);
     camera.position.copy(p0);
     controls.target.copy(t0);
-    const model = scene.getObjectByName("aircraft-model");
+    // only the overview fits the model's bounds; a system's preset needs no model (it may still be building)
+    const overview = useView.getState().sys === "overview",
+      model = overview ? scene.getObjectByName("aircraft-model") : undefined;
     const fitted =
-      cam.preset && model && camera instanceof THREE.PerspectiveCamera
+      cam.preset && (model || !overview) && camera instanceof THREE.PerspectiveCamera
         ? viewPresetCamera(
             cam.preset,
             cam.p,
             cam.t,
-            useView.getState().sys === "overview" ? airplaneBounds(model) : null,
+            model ? airplaneBounds(model) : null,
             camera.fov,
             size.width / size.height,
           )
         : null;
     presetSize.current =
-      fitted && cam.preset && useView.getState().sys === "overview"
-        ? { request: cam, width: size.width, height: size.height }
-        : null;
+      fitted && cam.preset && overview ? { request: cam, width: size.width, height: size.height } : null;
     const [p, t] = fitted ?? [cam.p, cam.t];
     const tt = V(...t),
       tp = V(...p)
@@ -285,7 +285,7 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
   const setHover = useView((x) => x.setHover);
   const { Model, Overlay } = def;
   // A one-shot model can block in render while it builds geometry. Commit the loader and give the browser a paint
-  // before mounting it. AircraftScene is keyed by id, so an obsolete deferred mount is cancelled on a switch.
+  // before mounting it. Switching airplanes is a route change that unmounts the scene, cancelling an obsolete deferred mount.
   const [mountModel, setMountModel] = useState(!!def.progressive);
   useEffect(() => {
     if (def.progressive) return;
@@ -328,9 +328,7 @@ function AircraftScene({ def, gridRef }: { def: AircraftDef; gridRef: React.RefO
 }
 
 export default function Scene() {
-  // the canvas, lights and camera come up with the airplane's meta; its grid, model and clock once its code has loaded
-  const def = useAircraft(),
-    code = useAircraftDef();
+  const def = useAircraft();
   const theme = useView((x) => x.theme);
   const spin = useView((x) => x.spin);
   const pal = palette(theme);
@@ -360,21 +358,19 @@ export default function Scene() {
       <hemisphereLight args={["#ffffff", "#445566", 0.85 * Math.PI]} />
       <directionalLight position={[6, 10, 5]} intensity={0.9 * Math.PI} />
       <directionalLight position={[-6, 3, -6]} intensity={0.35 * Math.PI} />
-      {code && (
-        <gridHelper
-          ref={gridRef}
-          args={[40, 40, "#ffffff", "#ffffff"]}
-          position-y={code.groundY}
-          onUpdate={(g) => {
-            const m = g.material as THREE.LineBasicMaterial;
-            m.transparent = true;
-            m.opacity = 0.5;
-            m.color.set(pal.grid);
-          }}
-        />
-      )}
+      <gridHelper
+        ref={gridRef}
+        args={[40, 40, "#ffffff", "#ffffff"]}
+        position-y={def.groundY}
+        onUpdate={(g) => {
+          const m = g.material as THREE.LineBasicMaterial;
+          m.transparent = true;
+          m.opacity = 0.5;
+          m.color.set(pal.grid);
+        }}
+      />
       <MaterialSync />
-      {code && <AircraftScene key={code.id} def={code} gridRef={gridRef} />}
+      <AircraftScene def={def} gridRef={gridRef} />
       <OrbitControls
         makeDefault
         enableDamping
@@ -386,7 +382,7 @@ export default function Scene() {
         target={startTarget}
       />
       <CameraRig />
-      {code && <SimClock tick={code.tick} />}
+      <SimClock tick={def.tick} />
     </Canvas>
   );
 }

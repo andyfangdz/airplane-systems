@@ -6,10 +6,10 @@ import { FUSE, FW, WTIP, wC, wLE, wingP } from "@/aircraft/sr20/geometry";
 import { CROUCH_Y } from "@/aircraft/sr20/walkaround";
 import { COWL_INLETS } from "@/aircraft/cowl-inlets";
 import { initialSim as sr20Initial, solve as sr20Solve } from "@/aircraft/sr20/model";
-import * as sr20Walk from "@/aircraft/sr20/walk";
+import { walk as sr20Walk } from "@/aircraft/sr20/walk";
 import { CAT as sr22tCat } from "@/aircraft/sr22t/parts";
 import { initialSim as sr22tInitial, solve as sr22tSolve } from "@/aircraft/sr22t/model";
-import * as sr22tWalk from "@/aircraft/sr22t/walk";
+import { walk as sr22tWalk } from "@/aircraft/sr22t/walk";
 import { specGeo } from "@/lib/catalogue";
 import { partCentre, spotsAt, spotsPart } from "@/lib/spot";
 import { useView } from "@/lib/view";
@@ -23,7 +23,7 @@ beforeAll(() => {
 }, 120_000);
 
 it.each(["2a", "2f", "4c"])("SR20 %s keeps the closed-door hardware inspection marker and camera target", (id) => {
-  const step = sr20Walk.walkSteps().find((s) => s.item.id === id)!;
+  const step = sr20Walk.steps.find((s) => s.item.id === id)!;
   const centres = sr20Walk.stepParts(step).shown.flatMap((name) => sr20Walk.nameCentres(name, sr20Walk.stepSide(step)));
   expect(centres.length).toBeGreaterThan(0);
   const marker = sr20Walk.stepCentroid(step);
@@ -33,7 +33,7 @@ it.each(["2a", "2f", "4c"])("SR20 %s keeps the closed-door hardware inspection m
 });
 
 it("the left-fuselage transponder check highlights and frames the unique right-offset belly antenna", () => {
-  const step = sr20Walk.walkSteps().find((step) => step.item.id === "2c")!;
+  const step = sr20Walk.steps.find((step) => step.item.id === "2c")!;
   const antenna = sr20Cat.parts.find((part) => part.name === "Transponder antenna")!;
   const centre = partCentre(antenna, specGeo(antenna));
   expect(step.station.side).toBe("L");
@@ -46,8 +46,8 @@ it("the left-fuselage transponder check highlights and frames the unique right-o
   expect(new Vector3(...pose.t).distanceTo(centre)).toBeLessThan(1e-9);
   expect(pose.p[1]).toBe(CROUCH_Y);
   // Ordinary paired checks still inherit their station's side.
-  expect(sr20Walk.stepSide(sr20Walk.walkSteps().find((step) => step.item.id === "2g")!)).toBe(-1);
-  expect(sr20Walk.stepSide(sr20Walk.walkSteps().find((step) => step.item.id === "4a")!)).toBe(1);
+  expect(sr20Walk.stepSide(sr20Walk.steps.find((step) => step.item.id === "2g")!)).toBe(-1);
+  expect(sr20Walk.stepSide(sr20Walk.steps.find((step) => step.item.id === "4a")!)).toBe(1);
 });
 
 describe("pitot heat probe verification points to the tube while retaining the cockpit switch", () => {
@@ -58,7 +58,7 @@ describe("pitot heat probe verification points to the tube while retaining the c
       onId: "1p",
       offId: "1q",
       read: () => {
-        const step = sr20Walk.walkSteps().find((s) => s.item.id === "1p")!;
+        const step = sr20Walk.steps.find((s) => s.item.id === "1p")!;
         return {
           marker: sr20Walk.stepCentroid(step)!,
           pose: sr20Walk.stepPose(step),
@@ -97,35 +97,35 @@ describe("pitot heat probe verification points to the tube while retaining the c
     it(`${name}: probe verification turns heat on and the following switch check turns it off`, () => {
       // Each aircraft has its own POH item ids and state shape.
       if (name === "SR20") {
-        const steps = sr20Walk.walkSteps();
+        const steps = sr20Walk.steps;
         const on = sr20Walk.simAt(
           sr20Initial,
-          steps,
           steps.findIndex((s) => s.item.id === onId),
+          steps,
         );
         expect(on.pitot.heat).toBe(true);
         expect(sr20Solve(on).pitotPwr).toBe(true);
         expect(
           sr20Walk.simAt(
             sr20Initial,
-            steps,
             steps.findIndex((s) => s.item.id === offId),
+            steps,
           ).pitot.heat,
         ).toBe(false);
       } else {
         const steps = sr22tWalk.walkSteps(sr22tInitial);
         const on = sr22tWalk.simAt(
           sr22tInitial,
-          steps,
           steps.findIndex((s) => s.item.id === onId),
+          steps,
         );
         expect(on.pitot.heat).toBe(true);
         expect(sr22tSolve(on).pitotPwr).toBe(true);
         expect(
           sr22tWalk.simAt(
             sr22tInitial,
-            steps,
             steps.findIndex((s) => s.item.id === offId),
+            steps,
           ).pitot.heat,
         ).toBe(false);
       }
@@ -155,7 +155,7 @@ describe("SR20 tip and leading-edge inspection regions", () => {
     { side: -1 as const, tipId: "12d", edgeId: "11g", wingName: "Left wing" },
   ]) {
     it(`${tipId}: marks the rounded tip skin and highlights only the tip cap`, () => {
-      const step = sr20Walk.walkSteps().find((s) => s.item.id === tipId)!;
+      const step = sr20Walk.steps.find((s) => s.item.id === tipId)!;
       const marker = sr20Walk.stepCentroid(step)!;
       expect(Math.sign(marker.z)).toBe(side);
       expect(Math.abs(marker.z)).toBeGreaterThan(WTIP - 0.05);
@@ -176,7 +176,7 @@ describe("SR20 tip and leading-edge inspection regions", () => {
     });
 
     it(`${edgeId}: highlights the narrow leading edge and inboard strips, leaving the full wing dim`, () => {
-      const step = sr20Walk.walkSteps().find((s) => s.item.id === edgeId)!;
+      const step = sr20Walk.steps.find((s) => s.item.id === edgeId)!;
       const spot = { names: sr20Walk.stepParts(step).shown, side };
       expect(spotsAt(spot, wingName, side * 3)).toBe(false);
       const strips = sr20Walk.nameCentres("Stall strips", side);
@@ -266,7 +266,7 @@ describe("SR20 blended fairing and cowl inspections use only their surface regio
     ["10b", -1, "Cowling inspection region"],
   ] as const) {
     it(`${id}: targets the actual ${side < 0 ? "left" : "right"} skin and leaves the whole wing/fuselage dim`, () => {
-      const step = sr20Walk.walkSteps().find((s) => s.item.id === id)!;
+      const step = sr20Walk.steps.find((s) => s.item.id === id)!;
       const marker = sr20Walk.stepCentroid(step)!;
       const spot = { names: sr20Walk.stepParts(step).shown, side };
       expect(spot.names).toEqual([region]);

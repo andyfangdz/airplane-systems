@@ -1,7 +1,8 @@
 /**
- * The walk-around's framing retry once the page's worker has built the fuselage skin (aircraft/sr22t/walk-frame.ts): only
- * an item whose framing waited for it is framed again, once, and only if the camera hasn't moved since. 2a steps back
- * from the airplane (it needs the clearance outline, so it waits); 9g+ is seen from its own eye (it never waits).
+ * The walk-around's framing retry once the page's worker has built the fuselage skin (the walk controller's `frame`,
+ * lib/fleet-walk-store.ts, with the SR22T's hull wait from aircraft/sr22t/walk.ts): only an item whose framing waited for
+ * it is framed again, once, and only if the camera hasn't moved since. 2a steps back from the airplane (it needs the
+ * clearance outline, so it waits); 9g+ is seen from its own eye (it never waits).
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BufferGeometry } from "three";
@@ -10,7 +11,7 @@ import type { BufferGeometry } from "three";
 async function page() {
   vi.resetModules();
   const [frame, walk, parts, geometry, worker, walkaround, registry, view] = await Promise.all([
-    import("@/aircraft/sr22t/walk-frame"),
+    import("@/aircraft/sr22t/walk-store"),
     import("@/aircraft/sr22t/walk"),
     import("@/aircraft/sr22t/parts"),
     import("@/aircraft/sr22t/geometry"),
@@ -24,8 +25,8 @@ async function page() {
     return { station, item: station.items.find((i) => i.id === id)! };
   };
   return {
-    frame,
-    walk,
+    frame: frame.walkController,
+    walk: walk.walk,
     worker,
     step,
     fuselageGeo: geometry.fuselageGeo,
@@ -101,7 +102,7 @@ async function settle() {
 describe("walk-around framing when the worker's fuselage arrives", () => {
   it("frames an item that waited for the hull once, as it frames with the hull there", async () => {
     const a = pg.step("2a");
-    pg.frame.frameStep(a);
+    pg.frame.frame(a);
     expect(flights).toEqual([a.station.cam]);
     await settle();
     expect(flights).toEqual([a.station.cam, framed2a]);
@@ -110,28 +111,28 @@ describe("walk-around framing when the worker's fuselage arrives", () => {
 
   it("leaves the camera alone on settle for an item that didn't wait", async () => {
     const g = pg.step("9g+");
-    pg.frame.frameStep(g);
+    pg.frame.frame(g);
     expect(flights).toEqual([pg.walk.stepPose(g)]);
     await settle();
     expect(flights).toHaveLength(1);
   });
 
   it("doesn't re-frame once the walk has moved on (another item, the intro screen or the walk-around closed)", async () => {
-    pg.frame.frameStep(pg.step("2a"));
+    pg.frame.frame(pg.step("2a"));
     pg.frame.cancelFrame();
     await settle();
     expect(flights).toHaveLength(1);
   });
 
   it("keeps a camera move the user made while the hull was being built", async () => {
-    pg.frame.frameStep(pg.step("2a"));
+    pg.frame.frame(pg.step("2a"));
     pg.view.moves++; // what the scene's orbit controls record when the user drags, zooms or pinches
     await settle();
     expect(flights).toHaveLength(1);
   });
 
   it("keeps another camera request made meanwhile (tap to locate, a system view)", async () => {
-    pg.frame.frameStep(pg.step("2a"));
+    pg.frame.frame(pg.step("2a"));
     pg.useView.getState().flyTo([1, 2, 3], [0, 0, 0]);
     await settle();
     expect(flights).toEqual([pg.step("2a").station.cam, { p: [1, 2, 3], t: [0, 0, 0] }]);

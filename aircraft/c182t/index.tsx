@@ -1,5 +1,6 @@
 "use client";
 import { AlertWindow } from "@/components/AlertWindow";
+import { fleetWalkUi } from "@/components/FleetWalkaround";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
@@ -15,7 +16,6 @@ import { CAT } from "./parts";
 import { useC182 } from "./store";
 import { C182T_META } from "./meta";
 import { simTick } from "./tick";
-import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window (with the KAP 140 PITCH TRIM): shown only while a display has power (oil pressure and vacuum change every frame, so poll). */
@@ -33,12 +33,14 @@ function Alerts() {
   );
 }
 
+const WALK = fleetWalkUi(walkController);
+
 export const C182T: AircraftDef = {
   ...C182T_META,
   groundY: GROUND_Y,
   pivotX: 0,
   Model,
-  Overlay: WalkMarker,
+  Overlay: WALK.Marker,
   panels: {
     overview: Overview,
     airframe: Airframe,
@@ -60,5 +62,5 @@ export const C182T: AircraftDef = {
   tick: simTick,
   Alerts,
   labels: { cat: CAT, inside: inFus },
-  walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
+  walk: WALK.walk,
 };

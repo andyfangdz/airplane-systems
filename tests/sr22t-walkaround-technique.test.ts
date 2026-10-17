@@ -15,8 +15,14 @@ import "@/aircraft";
 import { FUSE, GROUND_Y, inFus, SPINNER_BASE_X } from "@/aircraft/sr22t/geometry";
 import { initialSim } from "@/aircraft/sr22t/model";
 import { CAT } from "@/aircraft/sr22t/parts";
-import { Item } from "@/aircraft/sr22t/panels/walkaround";
-import {
+import { Item } from "@/components/FleetWalkaround";
+import { walk } from "@/aircraft/sr22t/walk";
+import { walkController } from "@/aircraft/sr22t/walk-store";
+import { isPoh, NOT_MODELLED, TECHNIQUE_BADGE, WALK } from "@/aircraft/sr22t/walkaround";
+import { spotsPart } from "@/lib/spot";
+import { useView } from "@/lib/view";
+import { fleetTally as tally } from "@/lib/fleet-walk";
+const {
   emphasisPoints,
   loadProgress,
   nameCentres,
@@ -25,24 +31,20 @@ import {
   stepParts,
   stepPose,
   stepSide,
-  tally,
   underAirplane,
   walkSteps,
-  type Step,
-} from "@/aircraft/sr22t/walk";
-import {
-  beginWalk,
-  closeWalk,
+} = walk;
+type Step = (typeof walk.steps)[number];
+const {
+  begin: beginWalk,
+  close: closeWalk,
   goStep,
-  markStep,
-  openWalk,
-  resumeWalk,
-  useWalk,
-  walkNow,
-} from "@/aircraft/sr22t/walk-store";
-import { isPoh, NOT_MODELLED, TECHNIQUE_BADGE, WALK } from "@/aircraft/sr22t/walkaround";
-import { spotsPart } from "@/lib/spot";
-import { useView } from "@/lib/view";
+  mark: markStep,
+  open: openWalk,
+  resume: resumeWalk,
+  session: walkNow,
+} = walkController;
+const useWalk = walkController.store;
 
 /** Lettered POH items per station (POH 4-5 – 4-9), unchanged by the technique items. */
 const POH_COUNTS = [26, 8, 6, 3, 4, 3, 7, 4, 9, 7, 7, 4, 4];
@@ -61,7 +63,10 @@ const step = (id: string) => {
   if (!s) throw new Error(`no walk-around item ${id}`);
   return s;
 };
-const card = (s: Step) => renderToStaticMarkup(createElement(Item, { step: s, at: steps.indexOf(s), steps }));
+const card = (s: Step) =>
+  renderToStaticMarkup(
+    createElement(Item<typeof initialSim>, { controller: walkController, step: s, at: steps.indexOf(s), steps }),
+  );
 const FASTENER = "Front cowl fastener";
 
 beforeAll(() => {

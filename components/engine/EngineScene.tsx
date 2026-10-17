@@ -4,8 +4,8 @@
  * pistons, camshaft and valve train, cylinders, ignition, fuel injection or the carburetor, induction and exhaust,
  * lubrication, the drives and the propeller. Every part names itself on hover (in the engine's own words where its
  * spec gives them); each group can be hidden from the panel. Everything moves from the simulation's mutable state in
- * `useFrame`. Published dimensions set the scale; placement follows the IO-390 IOM's figures and the shapes are
- * schematic.
+ * `useFrame`. Published dimensions set the scale; placement, labels and the camera come from the engine's scene layout
+ * (scene/layout.ts), and the shapes are schematic.
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -15,6 +15,7 @@ import type { EngineSim } from "./store";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
+import { layoutFor } from "./scene/layout";
 import { Group, PartNotesProvider } from "./scene/parts";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
@@ -56,7 +57,7 @@ function EngineModel({ sim }: { sim: EngineSim }) {
           <Cylinders {...p} />
         </Group>
         <Group sim={sim} id="case">
-          <Crankcase d={d} mats={mats} />
+          <Crankcase {...p} />
         </Group>
         <Group sim={sim} id="oil">
           <Lubrication {...p} />
@@ -91,17 +92,7 @@ function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       `Cyl ${c.n}`,
       [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
     ]),
-    ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
-    ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
-    ...((sim.spec.fuelSystem.kind === "carburetor"
-      ? [["Carburetor", [d.front + 0.02, d.sumpBottom - 0.13, 0]]]
-      : [
-          ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0]],
-          ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
-        ]) as [string, [number, number, number]][]),
-    ["Starter", [d.flangeX - 0.02, -0.17, -0.22]],
-    ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
-    ["Governor", [d.front + 0.04, 0.16, -0.07]],
+    ...layoutFor(sim.spec).labels(d, sim.spec),
   ];
   if (propOn) items.push(["Propeller", [d.flangeX + 0.1, 0.55, 0]]);
   return (
@@ -116,12 +107,13 @@ function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
 }
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
+  const cam = layoutFor(sim.spec).camera;
   return (
     <ComponentStage
-      camera={{ position: [1.15, 0.62, 1.35], fov: 38, near: 0.02, far: 40 }}
-      target={[0, -0.02, 0]}
+      camera={{ position: cam.position, fov: 38, near: 0.02, far: 40 }}
+      target={cam.target}
       minDistance={0.5}
-      maxDistance={6}
+      maxDistance={cam.maxDistance}
     >
       <EngineModel sim={sim} />
     </ComponentStage>

@@ -14,7 +14,7 @@ export const walkController = createFleetWalkStore({
     restoreFleetWalkLive(live, initial);
     live.rpm = live.ff = live.oilP = live.flapAng = live.prime = live.crankT = live.startTimer = 0;
     live.fs = groundFlight();
-    live.afcs.trim = 0;
+    live.afcs.trim = live.trimPrev = 0;
     live.afcs.powered = false;
   },
   syncLive: (s) => {

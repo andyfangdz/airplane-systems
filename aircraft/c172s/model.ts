@@ -6,6 +6,7 @@
  * Sources: POH/AFM 172SPHBUS-04 (serials 172S10468, 10507, 10640, 10656 and on — N6189Q is 172S10738),
  * Figure 7-7 Sheets 1–3 (electrical), Figure 7-6 (fuel), Section 2 limitations; G1000 CRG 190-00384-13.
  */
+import { lambda, mixPower } from "../cessna/engine";
 import type { CasLevel } from "../types";
 import {
   nav3Init,
@@ -312,14 +313,7 @@ export const ELEC_CFG: Nav3Cfg = { altAmps: 60, mainAh: 8, stbyAh: 2.4, breakers
 /* ---------- engine helpers (pure) ---------- */
 /** Engine RPM for the alternator's low-RPM capacity: the tach value (rounded to 50 RPM by tick.ts), so cranking, idle and a windmilling engine all count. */
 export const rpmEstimate = (s: Sim) => s.eng.rpm;
-/** Relative fuel/air (λ ≈ 1 at peak EGT): full rich gets richer with altitude. */
-export const lambda = (mix: number, alt: number) => mix * 1.22 * (1 + Math.max(0, alt) / 25000);
-/** Power multiplier from mixture: best power ~λ 1.12 (≈ 100 °F rich of peak). */
-export function mixPower(l: number) {
-  if (l < 0.5) return 0;
-  const p09 = 1 - 0.55 * (0.9 - 1.12) ** 2;
-  return l < 0.9 ? p09 * ((l - 0.5) / 0.4) : 1 - 0.55 * (l - 1.12) ** 2;
-}
+export { lambda, mixPower };
 export const densityFactor = (alt: number) => Math.max(0.55, 1 - Math.max(0, alt) / 30000);
 /** Fraction of rated power (180 BHP) the engine makes. */
 export function enginePower(s: Sim, alt: number) {

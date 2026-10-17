@@ -30,7 +30,11 @@ export default defineConfig({
   webServer: process.env.UI_BASE_URL
     ? undefined
     : {
-        command: "npm run start -- --hostname 127.0.0.1 --port 4100",
+        // STATIC_EXPORT=1: the export in out/, served as CloudFront serves it; otherwise the Next server
+        command:
+          process.env.STATIC_EXPORT === "1"
+            ? "node scripts/serve-export.mjs 4100"
+            : "npm run start -- --hostname 127.0.0.1 --port 4100",
         url: baseURL,
         timeout: 120_000,
         reuseExistingServer: false,

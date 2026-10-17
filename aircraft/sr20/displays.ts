@@ -5,23 +5,16 @@
  * The SR20 has no flight model or autopilot sim: attitude follows the yokes and the air data is a fixed cruise picture
  * (124 KIAS, 4,500 ft, heading 360°). Engine and electrical readings come from the sim (`live`, the electrical solution).
  */
-import {
-  drawMFD,
-  drawPFD,
-  type FlightData,
-  type Gauge,
-  type MfdData,
-  type PfdData,
-  type SpeedBands,
-} from "@/lib/avionics/g1000";
+import { type FlightData, type Gauge, type PfdData, type SpeedBands } from "@/lib/avionics/g1000";
+import { f0, f1, gauge, sgn } from "@/lib/avionics/g1000/gauges";
 import { drawMd302 } from "@/lib/avionics/md302";
+import { cruiseFlight, perspectiveScreens, pw } from "../cirrus/displays";
 import { clamp } from "@/lib/math";
-import { casMessages, live, mapInHg, type BusId, type Elec, type Sim } from "./model";
+import { casMessages, live, mapInHg, type Elec, type Sim } from "./model";
 
 export { drawOff } from "@/lib/canvas";
 
 type Ctx = CanvasRenderingContext2D;
-type Band = [number, number, "green" | "yellow" | "red" | "white"];
 
 /**
  * Airspeed tape, POH 2-5 markings: white 62–110, green 71–164, yellow 164–201, red line 201 KIAS. Cyan references:
@@ -45,53 +38,19 @@ const IAS = 124,
   HDG = 360,
   BARO = 29.92;
 
-/** A breaker-fed load has power: its bus is live and its breaker is in. */
-const pw = (s: Sim, E: Elec, bus: BusId, cb: string) => E[bus] > 0 && !s.cb[cb];
-const pad = (n: number) => String(n).padStart(2, "0");
-/** The Perspective+ PFD clock shows UTC (PG Fig 2-1). */
-const clock = () => {
-  const d = new Date();
-  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
-};
 /** Under the CAPS canopy the airspeed shows dashes. */
 const ias = () => (live.capsT >= 0 ? 0 : IAS);
 
-function flight(s: Sim, E: Elec): FlightData {
-  const dash: [string, string] = ["----", "----"];
-  // ADAHRS 1 (ESS BUS 1) or 2 (MAIN BUS 2) feeds attitude, heading and air data; with both lost they show red X's
-  const adahrs = E.ahrs1 || E.ahrs2;
-  const xpdr = pw(s, E, "avx", "XPONDER");
-  return {
-    pitch: s.ctrl.pitch * 10,
-    roll: s.ctrl.roll * 25,
-    slip: 0,
+const flight = (s: Sim, E: Elec): FlightData =>
+  cruiseFlight(s, E, {
     ias: ias(),
     tas: TAS,
-    gs: TAS,
     alt: ALT,
-    vs: 0,
     hdg: HDG,
-    trk: HDG,
     baro: BARO,
-    oat: s.pitot.oat,
-    hdgBug: HDG,
-    crs: HDG,
-    cdi: 0,
-    navSrc: "GPS",
-    selAlt: ALT,
-    pos: [0, 0],
-    xtk: 0,
-    // GIA 1: COM 1 + GPS NAV GIA 1 on ESS BUS 1; GIA 2: COM 2 + GPS NAV GIA 2 on MAIN BUS 2
-    com1: pw(s, E, "ess1", "COM 1") ? undefined : dash,
-    com2: pw(s, E, "main2", "COM 2") ? undefined : dash,
-    nav1: pw(s, E, "ess1", "GPS NAV GIA 1") ? undefined : dash,
-    nav2: pw(s, E, "main2", "GPS NAV GIA 2") ? undefined : dash,
-    xpdr: xpdr ? "1200" : "----",
-    xpdrMode: xpdr ? "ALT" : "FAIL",
-    time: clock(),
-    fail: adahrs ? undefined : { att: true, air: true, hdg: true },
-  };
-}
+    // ADAHRS 1 (ESS BUS 1) or 2 (MAIN BUS 2) feeds attitude, heading and air data; with both lost they show red X's
+    fail: E.ahrs1 || E.ahrs2 ? undefined : { att: true, air: true, hdg: true },
+  });
 
 /**
  * Percent power, estimated from RPM and manifold pressure (illustrative: the model has no power calculation). A straight-line
@@ -113,16 +72,6 @@ const pfdData = (s: Sim, E: Elec): PfdData => ({
   style: "perspective",
 });
 
-const level = (v: number | null, bands: Band[]): Gauge["alert"] => {
-  if (v == null) return null;
-  for (const [a, b, c] of bands)
-    if (v >= a && v <= b) return c === "red" ? "warning" : c === "yellow" ? "caution" : null;
-  return null;
-};
-const f0 = (v: number) => String(Math.round(v)),
-  f1 = (v: number) => v.toFixed(1),
-  sgn = (v: number) => (v > 0 ? "+" : "") + Math.round(v);
-
 /**
  * Engine Strip (PG 190-02183-03 Fig 3-2; markings POH 2-9, 2-10), top to bottom, for what the model has: % Pwr (estimated,
  * see pctPower), RPM and Man "Hg as digital rows, fuel quantity L/R with fuel flow beside it, Batt 1 A and Ess Bus V.
@@ -134,16 +83,6 @@ const f0 = (v: number) => String(Math.round(v)),
 export function eisGauges(s: Sim, E: Elec): Gauge[] {
   const ok = E.eisPwr,
     v = (x: number) => (ok ? x : null);
-  const g = (
-    key: string,
-    label: string,
-    style: Gauge["style"],
-    min: number,
-    max: number,
-    bands: Band[],
-    value: number | null,
-    fmt: (n: number) => string,
-  ): Gauge => ({ key, label, style, min, max, bands, value, fmt, alert: level(value, bands) });
   const rpm = Math.round(live.rpm / 10) * 10;
   // fuel quantity: float sensors on the FUEL QTY breaker (MAIN BUS 1); red 0, yellow 0–10, green 10–28 gal (each tank's
   // pointer takes its band's colour); fuel flow beside it
@@ -162,14 +101,14 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
     ],
     value: fq ? s.fuel.qL : null,
     value2: fq ? s.fuel.qR : null,
-    side: g("ff", "FFlow GPH", "bar", 0, 25, [[0, 21, "green"]], v(ff), f1),
+    side: gauge("ff", "FFlow GPH", "bar", 0, 25, [[0, 21, "green"]], v(ff), f1),
   };
   const pct = pctPower(s, E);
   return [
-    g("pwr", "% Pwr", "dial", 0, 100, [[0, 100, "green"]], pct == null ? null : Math.round(pct), f0),
+    gauge("pwr", "% Pwr", "dial", 0, 100, [[0, 100, "green"]], pct == null ? null : Math.round(pct), f0),
     // RPM warning above 2,730 (POH 2-9 note a; the sim never gets there)
     {
-      ...g(
+      ...gauge(
         "rpm",
         "RPM",
         "text",
@@ -184,9 +123,9 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
       ),
       alert: ok && rpm > 2730 ? "warning" : null,
     },
-    g("map", 'Man "Hg', "text", 10, 35, [[15, 29.5, "green"]], v(mapInHg(s, live.rpm)), f1),
+    gauge("map", 'Man "Hg', "text", 10, 35, [[15, 29.5, "green"]], v(mapInHg(s, live.rpm)), f1),
     fuel,
-    g(
+    gauge(
       "b1",
       "Batt 1 A",
       "text",
@@ -199,7 +138,7 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
       v(E.b1),
       sgn,
     ),
-    g(
+    gauge(
       "ess",
       "Ess Bus V",
       "text",
@@ -216,28 +155,8 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
   ];
 }
 
-const mfdData = (s: Sim, E: Elec, reversion: boolean): MfdData => ({
-  ...pfdData(s, E),
-  eis: eisGauges(s, E),
-  reversion,
-  page: "Map - Navigation Map",
-});
-
-/**
- * Reversionary mode: losing one display puts PFD symbology plus the Engine Strip on the other automatically (POH 7-72), and
- * DISPLAY BACKUP puts both displays in reversionary mode (PG p. 12, Fig 1-6). `E.pfd` is false when the PFD has failed.
- */
-export const pfdReversion = (s: Sim, E: Elec) => E.pfd && (s.avx.backup || !E.mfd);
-export const mfdReversion = (s: Sim, E: Elec) => E.mfd && (s.avx.backup || !E.pfd);
-
-export function drawPfdScreen(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
-  if (pfdReversion(s, E)) drawMFD(ctx, W, H, mfdData(s, E, true));
-  else drawPFD(ctx, W, H, pfdData(s, E));
-}
-
-export function drawMfdScreen(ctx: Ctx, W: number, H: number, s: Sim, E: Elec) {
-  drawMFD(ctx, W, H, mfdData(s, E, mfdReversion(s, E)));
-}
+export { mfdReversion, pfdReversion } from "../cirrus/displays";
+export const { drawPfdScreen, drawMfdScreen } = perspectiveScreens(pfdData, eisGauges);
 
 /**
  * MD302 standby (lib/avionics/md302.ts): attitude follows the yokes, air data is the fixed cruise picture and the BARO box

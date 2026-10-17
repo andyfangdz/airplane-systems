@@ -1,88 +1,39 @@
 "use client";
 /**
- * Airplane and system selection. The fleet itself is registered by aircraft/lazy.ts (the app: each airplane's light
- * meta, and a loader for the rest of it) or aircraft/index.ts (tests and scripts: every full definition), so airplane
- * modules (panels etc.) can import these helpers without importing each other.
+ * Airplane and system selection. Each airplane has its own route (app/(fleet)/<id>/), whose page imports only that
+ * airplane's definition and mounts the shell (components/App.tsx) with it; the shell registers it here and provides it
+ * to its components. Tests and scripts register every full definition by importing aircraft/index.ts. Airplane modules
+ * (panels etc.) import these helpers without importing each other.
  */
-import { create } from "zustand";
+import { createContext, useContext } from "react";
 import type { AircraftDef, AircraftMeta } from "@/aircraft/types";
 import type { CameraPreset } from "./camera";
 import type { Vec3 } from "./math";
 import type { AircraftId, SysDef, SysId } from "./systems";
 import { useView } from "./view";
-import { setBuild } from "./build";
 
-type Loader = () => Promise<AircraftDef>;
-let FLEET: AircraftMeta[] = [];
-let LOADERS: Partial<Record<AircraftId, Loader>> = {};
-/** The airplanes whose code has loaded, by id (components re-render when one arrives). */
-const useLoaded = create<Partial<Record<AircraftId, AircraftDef>>>(() => ({}));
-const pending = new Map<AircraftId, Promise<AircraftDef>>();
-const waiting = new Map<AircraftId, ((def: AircraftDef) => void)[]>();
+/** The airplanes this page has shown (on an airplane route, the route's own; in tests, the whole fleet), by id. */
+const DEFS = new Map<AircraftId, AircraftDef>();
 
-const isDef = (a: AircraftMeta | AircraftDef): a is AircraftDef => "Model" in a;
-
-/**
- * Called once with every airplane, in picker order: aircraft/lazy.ts passes the metas and a loader per airplane;
- * aircraft/index.ts passes the full definitions, which count as loaded. It replaces any fleet registered before.
- */
-export function registerFleet(entries: (AircraftMeta | AircraftDef)[], load: Partial<Record<AircraftId, Loader>> = {}) {
-  FLEET = entries;
-  LOADERS = load;
-  pending.clear();
-  waiting.clear();
-  useLoaded.setState(Object.fromEntries(entries.filter(isDef).map((d) => [d.id, d])), true);
-}
-/** An airplane's meta (always at hand; its code may still be loading). */
-export const aircraft = (id: AircraftId): AircraftMeta => FLEET.find((a) => a.id === id) ?? FLEET[0];
-/** An airplane's full definition, once its code has loaded. */
-export const loaded = (id: AircraftId): AircraftDef | undefined => useLoaded.getState()[id];
-/** The meta of the airplane currently shown. */
-export const useAircraft = () => aircraft(useView((v) => v.ac));
-/** The full definition of the airplane currently shown; undefined while its code loads (the Loader shows meanwhile). */
-export const useAircraftDef = () => {
-  const ac = useView((v) => v.ac);
-  return useLoaded((d) => d[ac]);
-};
-
-/**
- * Load an airplane's code (once; a failed load is tried again on the next call). Before the definition is published (so
- * before anything renders it), its `prepare` runs and then any callbacks queued by `whenLoaded`.
- */
-export function loadAircraft(id: AircraftId): Promise<AircraftDef> {
-  const have = loaded(id);
-  if (have) return Promise.resolve(have);
-  let p = pending.get(id);
-  if (!p) {
-    const load = LOADERS[id];
-    if (!load) return Promise.reject(new Error(`No airplane "${id}" in the fleet`));
-    p = load().then(
-      (def) => {
-        pending.delete(id);
-        def.prepare?.();
-        const fns = waiting.get(id) ?? [];
-        waiting.delete(id);
-        for (const fn of fns) fn(def);
-        useLoaded.setState({ [id]: def });
-        return def;
-      },
-      (e: unknown) => {
-        pending.delete(id);
-        console.error(`Loading the ${id} failed`, e);
-        throw e;
-      },
-    );
-    pending.set(id, p);
-  }
-  return p;
+/** Make airplanes' definitions available to the helpers below (by the id in the view state). */
+export function registerAircraft(...defs: AircraftDef[]) {
+  for (const def of defs) DEFS.set(def.id, def);
 }
 
-/** Run `fn` with the airplane's definition: now if its code has loaded, else (loading it) just before it is published. */
-export function whenLoaded(id: AircraftId, fn: (def: AircraftDef) => void) {
-  const have = loaded(id);
-  if (have) return fn(have);
-  waiting.set(id, [...(waiting.get(id) ?? []), fn]);
-  loadAircraft(id).catch(() => {}); // logged by loadAircraft; a later selection tries again
+/** A registered airplane's full definition. */
+export function aircraft(id: AircraftId): AircraftDef {
+  const def = DEFS.get(id);
+  if (!def) throw new Error(`The ${id} is not registered on this page`);
+  return def;
+}
+
+/** The airplane its route shows, for the shell's components (components/App.tsx provides it). */
+export const AircraftContext = createContext<AircraftDef | null>(null);
+/** The airplane shown, from the route: right from the first render, before the view state has caught up. */
+export function useAircraft(): AircraftDef {
+  const def = useContext(AircraftContext);
+  if (!def) throw new Error("useAircraft() outside an airplane route");
+  return def;
 }
 
 export const sysOf = (def: AircraftMeta, id: SysId): SysDef => def.systems.find((s) => s.id === id) ?? def.systems[0];
@@ -93,10 +44,13 @@ const remember = (k: string, v: string) => {
     localStorage.setItem(k, v);
   } catch {}
 };
-/** Keep the address bar on the view shown (/c172s/electrical), so a reload or a copied link opens it. */
+/**
+ * Keep the address bar on the view shown (/c172s/electrical), so a reload or a copied link opens it. The airplane's
+ * route stays mounted (no navigation); Next's history state is kept so Back and Forward still work.
+ */
 export const showInUrl = (ac: AircraftId, sys: SysId) => {
   try {
-    history.replaceState(null, "", `/${ac}/${sys}${location.search}`);
+    history.replaceState(history.state, "", `/${ac}/${sys}${location.search}`);
   } catch {}
 };
 
@@ -104,7 +58,7 @@ export const showInUrl = (ac: AircraftId, sys: SysId) => {
 export function selectSys(id: SysId, fly = true) {
   const v = useView.getState(),
     def = aircraft(v.ac);
-  loaded(v.ac)?.onSelect?.(id);
+  def.onSelect?.(id);
   useView.setState({ sys: id, focus: null });
   if (fly) {
     const [p, t] = sysOf(def, id).cam;
@@ -115,20 +69,15 @@ export function selectSys(id: SysId, fly = true) {
 }
 
 /**
- * Switch airplane (to its overview, or to `sys` if it has one). Its code loads if it hasn't yet; the shell shows its
- * meta (rail, panel heading, camera) meanwhile and the loader says "Loading".
+ * Put an airplane in the view state, at its overview or at `sys` if it has one: what its route does when it mounts.
+ * (Switching airplanes is a navigation to the other airplane's route: components/Fleet.tsx.)
  */
 export function selectAircraft(id: AircraftId, sys?: SysId) {
   const v = useView.getState(),
-    code = loaded(id);
-  if (v.ac !== id) {
-    loaded(v.ac)?.onSelect?.("overview");
-    setBuild(code ? "airframe" : "code");
-  }
-  if (!code) loadAircraft(id).catch(() => {}); // logged by loadAircraft; selecting it again tries again
-  const def = aircraft(id),
-    to = sys && hasSys(def, sys) ? sys : "overview";
-  code?.onSelect?.(to);
+    def = aircraft(id);
+  if (v.ac !== id) DEFS.get(v.ac)?.onSelect?.("overview");
+  const to = sys && hasSys(def, sys) ? sys : "overview";
+  def.onSelect?.(to);
   useView.setState({ ac: id, sys: to, focus: null, ctrlFocus: "all", hover: null });
   const [p, t] = sysOf(def, to).cam;
   v.flyTo(p, t);
@@ -139,8 +88,9 @@ export function selectAircraft(id: AircraftId, sys?: SysId) {
 
 /** Camera for the toolbar's Reset view. */
 export function resetCam(): [Vec3, Vec3] {
-  const v = useView.getState();
-  return loaded(v.ac)?.resetCam?.() ?? sysOf(aircraft(v.ac), v.sys).cam;
+  const v = useView.getState(),
+    def = aircraft(v.ac);
+  return def.resetCam?.() ?? sysOf(def, v.sys).cam;
 }
 
 /** Apply a URL preset to the same focus used by Reset view. */

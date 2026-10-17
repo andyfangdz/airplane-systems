@@ -1,5 +1,6 @@
 "use client";
 import { AlertWindow } from "@/components/AlertWindow";
+import { fleetWalkUi } from "@/components/FleetWalkaround";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { AircraftDef } from "../types";
 import { GROUND_Y, inFus } from "./geometry";
@@ -16,7 +17,6 @@ import { Engine, Fuel, Propeller } from "./panels/powerplant";
 import { useDA40 } from "./store";
 import { DA40_META } from "./meta";
 import { simTick } from "./tick";
-import { WalkPanel, WalkMarker } from "./walk-panel";
 import { walkController } from "./walk-store";
 
 /** G1000 annunciation window: shown only while a display has power (PFD, or the MFD in reversionary mode). */
@@ -29,12 +29,14 @@ function Alerts() {
   return <AlertWindow title="ANNUNCIATIONS" powered={powered} msgs={powered ? annunciations(s, E, snapshot) : []} />;
 }
 
+const WALK = fleetWalkUi(walkController);
+
 export const DA40: AircraftDef = {
   ...DA40_META,
   groundY: GROUND_Y,
   pivotX: 0.3,
   Model,
-  Overlay: WalkMarker,
+  Overlay: WALK.Marker,
   panels: {
     overview: Overview,
     airframe: Airframe,
@@ -55,5 +57,5 @@ export const DA40: AircraftDef = {
   tick: simTick,
   Alerts,
   labels: { cat: CAT, inside: inFus },
-  walk: { Panel: WalkPanel, open: () => walkController.open(), close: walkController.close, boot: walkController.boot },
+  walk: WALK.walk,
 };

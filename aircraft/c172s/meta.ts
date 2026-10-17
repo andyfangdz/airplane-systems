@@ -1,4 +1,4 @@
-/** The C172S's light definition, loaded with every page (aircraft/lazy.ts); the rest is in index.tsx. */
+/** The C172S's light definition: its route's paths and title (app/(fleet)/), and aircraft/metas.ts. The rest is in index.tsx. */
 import type { AircraftMeta } from "../types";
 import { SYS } from "./systems";
 

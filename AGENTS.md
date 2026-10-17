@@ -42,9 +42,11 @@ Interactive 3D study models of airplane systems (POH/AFM Section 7): Next.js 16,
 - **Accuracy.** Every number and claim in notes and panels comes from the airplane's POH/AFM (or the supplement it
   cites). Never invent or "round off" a value; cite the page where helpful, and say so when sources differ or the model
   is approximate. CAS and annunciation text must match the documents exactly. If you can't source something, ask.
-- **Part order.** Part ids come from a counter, and the first part with a given name carries its label pin, so the order
-  parts register in matters. Each airplane's `parts/index.ts` imports the section files in order; add a part to the
-  section it belongs to, and don't reorder sections or import a later section from an earlier one.
+- **Part order.** A part's id is its name and how many parts or shells of that name registered before it
+  (`sr20/Main wheel-1`), so adding a part changes no other name's ids; the scene-snapshot baseline and prebuilt geometry
+  are keyed by id. The first part with a given name carries its label pin, so the order same-named parts register in
+  still matters. Each airplane's `parts/index.ts` imports the section files in order; add a part to the section it
+  belongs to, and don't reorder sections or import a later section from an earlier one.
 - **State.** View state is in `lib/view.ts`; switches and failures in the airplane's store (`update` recomputes the
   solution `E` with the pure `solve`); per-frame values in its mutable `live` object, never React state.
 - **Shared code first.** Before writing a helper in an airplane folder, look in `lib/` (`anims.ts`, `geometry.ts`,

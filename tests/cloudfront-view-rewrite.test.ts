@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import { AIRCRAFT_IDS } from "@/lib/systems";
-import { VIEW_PATHS } from "@/lib/viewPaths";
+import { VIEW_PATHS } from "@/aircraft/metas";
 import { ENGINE_IDS } from "@/engines";
 import { COMPONENT_IDS } from "@/engines/components";
 
@@ -25,11 +25,11 @@ describe("CloudFront viewer-request view rule", () => {
     expect(runInNewContext(source + "\nAIRCRAFT_IDS;")).toEqual(AIRCRAFT_IDS);
   });
 
-  it.each(paths)("rewrites %s to the exported root with the query untouched", (path) => {
+  it.each(paths)("serves %s from its exported page with the query untouched", (path) => {
     const query = { fiki: { value: "0" } };
     const { request, result } = run(path, query);
     expect(result).toBe(request);
-    expect(result.uri).toBe("/index.html");
+    expect(result.uri).toBe(`${path}.html`);
     expect(result.querystring).toBe(query);
     expect(result.method).toBe("GET");
   });
@@ -50,8 +50,8 @@ describe("CloudFront viewer-request view rule", () => {
     expect(run("/components/io390").result.uri).toBe("/components/io390");
   });
 
-  it("keeps the existing any-single-system-segment behavior", () => {
-    expect(run("/sr22t/bogus").result.uri).toBe("/index.html");
+  it("maps an unknown system to a file the export doesn't have, so the origin answers 404", () => {
+    expect(run("/sr22t/bogus").result.uri).toBe("/sr22t/bogus.html");
   });
 
   it.each(["/sr22t/", "/sr22t/electrical/"])("redirects %s with encoded and repeated queries intact", (uri) => {
@@ -95,6 +95,11 @@ describe("CloudFront viewer-request view rule", () => {
     "/nope/electrical/",
     "/sr22t//",
     "/SR22T/electrical",
+    "/sr22t.html",
+    "/sr22t.txt",
+    "/sr22t/electrical.html",
+    "/sr22t/__next._tree.txt",
+    "/sr22t/electrical/__next._tree.txt",
   ])("passes %s through for DefaultRootObject or origin files/404s", (uri) => {
     const { request, result } = run(uri, { fiki: { value: "0" } });
     expect(result).toBe(request);

@@ -7,7 +7,6 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { create } from "zustand";
 import { autoUpdate, computePosition, flip, offset, shift, type Placement } from "@floating-ui/react";
-import { useAircraftDef } from "@/lib/fleet";
 import { narrowLayout, useView } from "@/lib/view";
 
 const DONE_KEY = "tourDone";
@@ -122,9 +121,8 @@ const M = 12,
   PAD = 6;
 export function Tour() {
   const step = useTour((x) => x.step);
-  const aircraftId = useView((x) => x.ac),
-    // targets such as the alert window appear once the airplane's code has loaded
-    ready = useAircraftDef() !== undefined;
+  // switching airplanes remounts the page under the tour (it lives in the airplanes' layout): find the targets again
+  const aircraftId = useView((x) => x.ac);
   const spot = useRef<HTMLDivElement>(null),
     card = useRef<HTMLDivElement>(null),
     next = useRef<HTMLButtonElement>(null);
@@ -199,7 +197,7 @@ export function Tour() {
       active = false;
       stop();
     };
-  }, [s, aircraftId, ready]);
+  }, [s, aircraftId]);
 
   // phones: the page scrolls, so bring each target into view
   useEffect(() => {
@@ -208,7 +206,7 @@ export function Tour() {
     const tall = el.getBoundingClientRect().height > innerHeight * 0.6;
     const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ block: tall ? "start" : "center", behavior: smooth ? "smooth" : "auto" });
-  }, [s, aircraftId, ready]);
+  }, [s, aircraftId]);
 
   // focus the card's main button; give focus back to where it was when the tour closes
   const open = step !== null;

@@ -8,19 +8,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/aircraft";
 import { initialSim } from "@/aircraft/sr22t/model";
 import { useSR22T } from "@/aircraft/sr22t/store";
-import { saveProgress, walkSteps, type Progress } from "@/aircraft/sr22t/walk";
-import {
-  beginWalk,
-  closeWalk,
-  openWalk,
-  resetWalk,
-  resumeWalk,
-  useWalk,
-  walkFirst,
-  walkNow,
-} from "@/aircraft/sr22t/walk-store";
+import { walk } from "@/aircraft/sr22t/walk";
+import { walkController, walkFirst } from "@/aircraft/sr22t/walk-store";
 import { useView } from "@/lib/view";
 import { patched } from "./helpers";
+import { type FleetWalkProgress as Progress } from "@/lib/fleet-walk";
+const { saveProgress, walkSteps } = walk;
+const {
+  begin: beginWalk,
+  close: closeWalk,
+  open: openWalk,
+  reset: resetWalk,
+  resume: resumeWalk,
+  session: walkNow,
+} = walkController;
+const useWalk = walkController.store;
 
 const INLET = "Stall warning inlet",
   TRANSDUCER = "Stall warning lift transducer";

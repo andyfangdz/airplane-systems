@@ -10,6 +10,7 @@ import { Screens, type ScreenSpec } from "@/components/scene/Screens";
 import { Tanks, type TankSpec } from "@/components/scene/Tanks";
 import { WindowOutlines } from "@/components/scene/WindowOutlines";
 import { D2R, V, lerp, type Vec3 } from "@/lib/math";
+import { surfaceAngles } from "@/lib/surface-angles";
 import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawBreakers, drawGma, drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
@@ -39,25 +40,8 @@ import { useDA40 } from "./store";
 
 const P = ({ parent }: { parent?: string }) => <Parts cat={CAT} parent={parent} />;
 
-/** Control-surface deflections (radians about each hinge axis) from the effective controls and the flap motor. */
-const ang: Record<string, number> = {};
-let angFor: { eff: typeof live.eff | null; flap: number } = { eff: null, flap: NaN };
-function surfaceAngle(key: string) {
-  // recomputed only when the tick has produced new control positions (live.eff is replaced every tick)
-  if (angFor.eff !== live.eff || angFor.flap !== live.flapAng) {
-    const c = live.eff,
-      d = deflections(c.pitch, c.roll, c.yaw),
-      fl = live.flapAng * D2R;
-    ang.flapR = fl;
-    ang.flapL = -fl;
-    ang.ailR = -d.ailR * D2R;
-    ang.ailL = d.ailL * D2R;
-    ang.elev = -d.elev * D2R;
-    ang.rudder = d.rud * D2R;
-    angFor = { eff: live.eff, flap: live.flapAng };
-  }
-  return ang[key] ?? 0;
-}
+/** Control-surface deflections (radians about each hinge axis) from the effective controls (`live.eff`) and the flap motor. */
+const surfaceAngle = surfaceAngles(live, deflections);
 
 function NoseGear() {
   const caster = useRef<THREE.Group>(null!);
