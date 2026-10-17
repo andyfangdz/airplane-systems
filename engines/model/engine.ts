@@ -722,7 +722,7 @@ function substep(
     // (POH 3-28 causes 3, 4); the sump runs down and the pickup then uncovers (below)
     const sources = (f.oilLeak ? 1 : 0) + (f.turboInternal?.filter(Boolean).length ?? 0);
     if (sources && s.oilP > 0.5)
-      s.oilLossQt = Math.min(env.oilQt, s.oilLossQt! + (oilLossQtPerMin(spec.turbo, sources) / 60) * dt);
+      s.oilLossQt = Math.min(env.oilQt, (s.oilLossQt ?? 0) + (oilLossQtPerMin(spec.turbo, sources) / 60) * dt);
   }
 
   // ---- oil: friction and piston-cooling heat in; thermostatic cooler and crankcase out

@@ -8,7 +8,7 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
-import { noFailures, step } from "@/engines/model/engine";
+import { noFailures, step, type Failures } from "@/engines/model/engine";
 import { labelOf, scenarioById, scenariosFor, type Setup } from "@/engines/model/scenarios";
 import { O360 } from "@/engines/o360/spec";
 import { tasFor } from "@/engines/tsio550k/scenarios";
@@ -232,6 +232,52 @@ describe("the TSIO-550-K setups", () => {
       sim.dispose();
     }
   });
+
+  test.each<[string, Partial<Failures>]>([
+    ["oil leak", { oilLeak: true }],
+    ["failed turbocharger", { turboInternal: [true, false] }],
+  ])(
+    "a restored cold checkpoint without oilLossQt still loses oil through a %s (POH 3-28 causes 3, 4)",
+    async (_, failure) => {
+      const { createEngineSimulation } = await import("@/components/engine/store");
+      const sim = createEngineSimulation(K);
+      try {
+        const cold = sim.checkpoint();
+        delete cold.s.oilLossQt;
+        sim.restore(cold);
+        expect(Object.hasOwn(sim.s, "oilLossQt")).toBe(false);
+        const ui = sim.useUi.getState();
+        ui.setEnv({ oilQt: K.limits.oilMinQt.value });
+        ui.setControls({ mixture: 1, throttle: 0.15, boost: true, mags: "START" });
+        const advance = (seconds: number) => {
+          for (let i = 0; i < seconds * 120; i++) sim.advance(1 / 120);
+        };
+        const free = K.accessories.starterFreeRpm ?? 380;
+        for (let t = 0; t < K.limits.starterMaxS!.value && !(sim.s.running && sim.s.rpm > free); t += 0.25)
+          advance(0.25);
+        ui.setControls({ mags: "BOTH", throttle: 0.4 });
+        advance(10);
+        expect(sim.s.running).toBe(true);
+        expect(sim.s.oilP).toBeGreaterThan(0.5);
+        const pressure = sim.s.oilP;
+        ui.setFailures(failure);
+        advance(5);
+        expect(Number.isFinite(sim.s.oilLossQt)).toBe(true);
+        expect(sim.s.oilLossQt).toBeGreaterThan(0);
+        // The panel's OilLost readout subtracts the accumulated loss from the environment's quantity.
+        const oilLeft = () => sim.useUi.getState().env.oilQt - (sim.s.oilLossQt ?? 0);
+        expect(Number.isFinite(oilLeft())).toBe(true);
+        advance(595);
+        expect(Number.isFinite(sim.s.oilLossQt)).toBe(true);
+        expect(Number.isFinite(oilLeft())).toBe(true);
+        expect(oilLeft()).toBeLessThan(K.oil.pickupQt![1]);
+        expect(sim.s.oilP).toBeLessThan(pressure / 2);
+      } finally {
+        sim.dispose();
+      }
+    },
+    60_000,
+  );
 
   test("every TSIO-550-K setup runs to completion with a finite state", () => {
     for (const id of K_IDS) expect(nonFinite(run(id)), id).toEqual([]);
