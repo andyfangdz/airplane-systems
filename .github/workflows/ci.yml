@@ -69,7 +69,7 @@ jobs:
           cache: npm
       - run: npm ci --prefer-offline
       - name: Plan browser shards from discovered tests
-        run: node scripts/ci-browser-shards.mjs --shards 16 --output .ci/browser-shards
+        run: node scripts/ci-browser-shards.mjs --shards 20 --output .ci/browser-shards
       - name: Restore compiled geometry
         uses: actions/cache@v4
         with:
@@ -105,13 +105,13 @@ jobs:
             .ci/browser-shards/
 
   ui:
-    name: ui (${{ matrix.shard }}/16)
+    name: ui (${{ matrix.shard }}/20)
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -47,7 +47,7 @@ screenshots under `test-results/` (`npx playwright show-trace <trace.zip>`). Cam
 
 CI runs the complete check suite and offline deployment tests: four unit-test shards run alongside the other checks,
 and the aggregate `check` job requires all of them to pass. Geometry is compiled once and each site target is built once.
-The static build runs alongside sixteen browser jobs as soon as the server artifact is ready. Geometry and each site's
+The static build runs alongside twenty browser jobs as soon as the server artifact is ready. Geometry and each site's
 build cache persist across runs; the geometry compiler still validates inputs before reusing cached assets.
 Discovered browser cases are assigned by measured duration, including independent loading and camera regressions,
 with one renderer per runner. New `test-*-ui.mjs` files join CI automatically with a conservative duration estimate;

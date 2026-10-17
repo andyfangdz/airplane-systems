@@ -150,7 +150,7 @@ it("round-trips all real discovered cases through Playwright's exact test-list s
     const durations = JSON.parse(
       readFileSync(new URL("../scripts/ci-browser-durations.json", import.meta.url), "utf8"),
     );
-    const plan = planShards(tests, durations.tests, 16);
+    const plan = planShards(tests, durations.tests, 20);
     const assigned = plan.shards.flatMap((shard) => shard.tests);
     expect(assigned.map(testKey).sort()).toEqual(tests.map(testKey).sort());
     const path = join(directory, "all-tests.txt");
