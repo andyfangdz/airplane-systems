@@ -719,11 +719,12 @@ function substep(
     const tau = cal.titTauS ?? 5;
     s.tit = [approach(s.tit![0], target[0], dt, tau), approach(s.tit![1], target[1], dt, tau)];
     const limit = titContinuousMaxF(spec);
+    // Legacy checkpoints retain only aggregate dwell; inherit it once, before advancing either history.
+    const previous = s.titProbeOverS ?? [s.titOverS ?? 0, s.titOverS ?? 0];
     s.titOverS = limit === undefined ? 0 : titOverNext(s.titOverS!, s.tit, limit, dt);
     // Probe failures change the displayed readings, not either turbine's temperature history (POH 3-31).
-    const previous = s.titProbeOverS;
     s.titProbeOverS = [0, 1].map((i) =>
-      limit === undefined ? 0 : titOverNext(previous?.[i] ?? 0, [s.tit![i]], limit, dt),
+      limit === undefined ? 0 : titOverNext(previous[i], [s.tit![i]], limit, dt),
     ) as [number, number];
     // oil lost overboard while the pump pressurises it: an engine oil leak, and each failed turbocharger's bearing
     // (POH 3-28 causes 3, 4); the sump runs down and the pickup then uncovers (below)
