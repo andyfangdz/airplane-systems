@@ -1,10 +1,10 @@
 "use client";
 /** The engine page's side panel: start-from scenarios, controls, environment, failures, cylinders, and the documents. */
-import { remainingOilQt } from "@/engines/model/oil";
 import type { ReactNode } from "react";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import { governedRpm, prime, type MagSwitch } from "@/engines/model/engine";
 import { egtOffset } from "@/engines/model/mixture";
+import { remainingOilQt } from "@/engines/model/oil";
 import { labelOf, scenariosFor } from "@/engines/model/scenarios";
 import {
   BtnRow,

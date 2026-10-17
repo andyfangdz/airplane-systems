@@ -29,7 +29,7 @@ test.each(["induction", "intercooler"])(
   },
 );
 
-test("the next filter balance includes relief and deck leakage, excluding internal recirculation (AMM 71-60)", () => {
+test("the next filter balance includes relief and deck leakage (AMM 71-60)", () => {
   const x = scenarioById(K, "takeoff")!.run(K),
     f = noFailures(K);
   f.filter = true;
