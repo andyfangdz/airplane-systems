@@ -55,7 +55,7 @@ describe("A/C compressor station", () => {
     comp.g.dispose();
   });
 
-  it("the wastegate controller and its lines sit inboard of the belt and clear it, the pulleys and the A/C hoses by 5 mm (Fig 71-00-2 sheet 3 PDF p. 2489)", () => {
+  it("the wastegate controller sits outboard of the belt, and it and its lines clear the belt, the pulleys and the A/C hoses by 5 mm (Fig 71-00-2 sheet 3 PDF p. 2489)", () => {
     const comp = solid(part("A/C compressor"));
     const controller = solid(part("Wastegate controller"));
     // the sensing hoses and the oil hoses at the controller, drawn and as flows
@@ -75,9 +75,9 @@ describe("A/C compressor station", () => {
       }
     expect(hits).toEqual([]);
     expect(verts(controller).filter((v) => !inFus(v))).toEqual([]);
-    // inboard of the belt plane's whole loop, no longer aft of the clutch pulley where the moved unit now hangs
-    const beltInboard = Math.max(...acBeltLoop().map((p) => p[2]));
-    expect(controller.box.min.z).toBeGreaterThan(beltInboard + MARGIN);
+    // at the left rear outboard of the oil cooler (item 30), so outboard of the belt plane's whole loop
+    const beltOutboard = Math.min(...acBeltLoop().map((p) => p[2]));
+    expect(controller.box.max.z).toBeLessThan(beltOutboard - MARGIN);
   }, 120000);
 
   it("the controller and its four drawn hoses clear every solid they do not attach to by 5 mm, the MCU and its fuse included (Fig 78-10-3 PDF p. 2742; Fig 71-00-2 sheet 3 PDF p. 2489)", () => {
@@ -85,7 +85,7 @@ describe("A/C compressor station", () => {
     // each item's own attachments: the firewall the controller is seated on, the controller every hose ends on, and
     // each hose's far-end fitting, the manifold's aft end cap carrying the manifold pressure fitting
     const hosts: Record<string, (s: Shape) => boolean> = {
-      "Wastegate controller": (s) => s.name.startsWith("Firewall"),
+      "Wastegate controller": (s) => s.name === "Firewall — FS 100",
       "Upper-deck pressure line": (s) => s.name === "Upper-deck pressure fitting",
       "Manifold pressure line": (s) => s.box.clone().expandByScalar(0.001).containsPoint(capFitting),
       "Wastegate oil line": (s) => s.name === "Wastegate actuator",
