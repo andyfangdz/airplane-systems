@@ -1,37 +1,42 @@
 "use client";
 /**
- * The crankshaft (main journals, cheeks, crankpins, two dynamic counterweights, crankshaft gear, nose, propeller
- * flange with the starter ring gear and alternator pulley) and, for each cylinder, its connecting rod and piston.
- * IOM Figure 4 shows the crankshaft with journals, counterweights and the crankshaft gear at the rear.
+ * The crankshaft (main journals, cheeks, one crankpin per cylinder, the counterweights the layout hangs on the cheeks,
+ * crankshaft gear, nose, propeller flange with the starter ring gear and alternator drives the layout has) and, for each
+ * cylinder, its connecting rod and piston.
  */
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { rodEnds } from "@/engines/model/cycle";
-import type { CylinderDef } from "@/engines/types";
+import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
-import { D2R, gear, GEAR_TEETH, merge, rod, STARTER_TEETH, zrod, type Dims, type Mats } from "./kit";
+import {
+  CHEEK_T,
+  crankLayout,
+  D2R,
+  driveLayout,
+  gear,
+  GEAR_TEETH,
+  merge,
+  rod,
+  STARTER_TEETH,
+  throwRotation,
+  zrod,
+  type Dims,
+  type Mats,
+} from "./kit";
+import { layoutFor } from "./layout";
 import { P } from "./parts";
 
-/** Half the width of one crank throw along the shaft (cheeks and crankpin), m. */
-export const THROW_HALF = 0.032;
-
-function crankGeometry(sim: EngineSim, d: Dims) {
-  const xs = sim.spec.geometry.cylinders.map((c) => c.x);
-  // main journals only between the throws: at a throw the rod passes the axis between the cheeks
-  const throwsAt = [...xs].sort((a, b) => b - a);
-  const edges = [d.front + 0.02, ...throwsAt.flatMap((x) => [x + THROW_HALF, x - THROW_HALF]), d.caseRear - 0.005];
-  const journals: THREE.BufferGeometry[] = [],
-    bearings: THREE.BufferGeometry[] = [];
-  for (let i = 0; i < edges.length; i += 2) {
-    const len = edges[i] - edges[i + 1];
-    if (len <= 0.002) continue;
-    const mid = (edges[i] + edges[i + 1]) / 2;
-    journals.push(rod(0.028, len, 20).translate(mid, 0, 0));
-    if (len > 0.02) bearings.push(rod(0.0305, Math.min(len - 0.006, 0.03), 20).translate(mid, 0, 0));
-  }
+/** The crankshaft's geometries, in the crankshaft's frame (axis along x; a throw's parts before its turn). */
+export function crankGeometry(spec: EngineSpec, d: Dims) {
+  const L = layoutFor(spec);
+  const cl = crankLayout(spec, d, L);
+  const drives = driveLayout(spec, d, L);
+  const journals = cl.journals.map((j) => rod(0.028, j.len, 20).translate(j.x, 0, 0));
+  const bearings = cl.bearings.map((b) => rod(0.0305, b.len, 20).translate(b.x, 0, 0));
   const nose = rod(0.034, d.flangeX - d.front, 20).translate((d.flangeX + d.front) / 2, 0, 0);
-  const cheek = new THREE.BoxGeometry(0.014, 0.062, d.r + 0.062).translate(0, 0, d.r / 2);
+  const cheek = new THREE.BoxGeometry(CHEEK_T, 0.062, d.r + 0.062).translate(0, 0, d.r / 2);
   const pin = rod(0.026, 0.05, 18);
   // a counterweight hangs opposite its crankpin: a half disc on the cheek
   const cw = new THREE.Shape();
@@ -49,15 +54,27 @@ function crankGeometry(sim: EngineSim, d: Dims) {
       return rod(0.007, 0.03, 10).translate(d.flangeX + 0.015, 0.068 * Math.cos(a), 0.068 * Math.sin(a));
     }),
   ]);
-  const ring = merge([
-    gear(d.ringR, STARTER_TEETH.ring, 0.012, d.ringR - 0.02).translate(d.flangeX - 0.03, 0, 0),
-    rod(d.ringR - 0.018, 0.006, 48).translate(d.flangeX - 0.03, 0, 0),
-  ]);
-  const pulley = merge([
-    rod(d.pulleyR, 0.004, 48).translate(d.flangeX - 0.046, 0, 0),
-    rod(d.pulleyR - 0.008, 0.016, 48).translate(d.flangeX - 0.055, 0, 0),
-    rod(d.pulleyR, 0.004, 48).translate(d.flangeX - 0.064, 0, 0),
-  ]);
+  // starter ring gear behind the flange (a front starter)
+  const ring =
+    L.starter === "front-ring"
+      ? merge([
+          gear(d.ringR, STARTER_TEETH.ring, 0.012, d.ringR - 0.02).translate(d.flangeX - 0.03, 0, 0),
+          rod(d.ringR - 0.018, 0.006, 48).translate(d.flangeX - 0.03, 0, 0),
+        ])
+      : null;
+  // belt alternator pulley; drive gear for a gear-driven alternator
+  const belt = drives.alternators.find((a) => !a.gear);
+  const pulley = belt
+    ? merge([
+        rod(d.pulleyR, 0.004, 48).translate(belt.x + 0.009, 0, 0),
+        rod(d.pulleyR - 0.008, 0.016, 48).translate(belt.x, 0, 0),
+        rod(d.pulleyR, 0.004, 48).translate(belt.x - 0.009, 0, 0),
+      ])
+    : null;
+  const geared = drives.alternators.find((a) => a.gear);
+  const altGear = geared?.gear
+    ? gear(geared.gear.driveR, geared.gear.driveTeeth, 0.012, 0.03).translate(geared.gear.driveX, 0, 0)
+    : null;
   return {
     journals: merge(journals),
     bearings: merge(bearings),
@@ -69,32 +86,45 @@ function crankGeometry(sim: EngineSim, d: Dims) {
     flange,
     ring,
     pulley,
+    altGear,
   };
 }
 
 export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
-  const geo = useMemo(() => crankGeometry(sim, d), [sim, d]);
-  useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
+  const L = layoutFor(sim.spec);
+  const geo = useMemo(() => crankGeometry(sim.spec, d), [sim, d]);
+  useEffect(
+    () => () =>
+      Object.values(geo).forEach((g) => {
+        if (g) g.dispose();
+      }),
+    [geo],
+  );
   const crank = useRef<THREE.Group>(null);
   useFrame(() => {
     if (crank.current) crank.current.rotation.x = (sim.anim.crank % 360) * D2R;
   });
   const cyls = sim.spec.geometry.cylinders;
-  // counterweights on the cheeks either side of the centre main journal
-  const sorted = [...cyls].sort((a, b) => b.x - a.x);
-  const cwAt = (c: CylinderDef) => (c === sorted[1] ? -0.025 : c === sorted[2] ? 0.025 : null);
+  const cl = useMemo(() => crankLayout(sim.spec, d, L), [sim, d, L]);
+  const cwAt = (n: number) => cl.counterweights.filter((w) => w.c.n === n).map((w) => w.at);
   return (
     <>
       <P
         name="Main bearings"
-        note="Pairs of precision-type inserts installed in the crankcase at each journal (IOM p. 2)."
+        note={
+          L.notes.mainBearings ??
+          "Pairs of precision-type inserts installed in the crankcase at each journal (IOM p. 2)."
+        }
         geometry={geo.bearings}
         material={mats.bearing}
       />
       <group ref={crank}>
         <P
           name="Crankshaft"
-          note="Forged crankshaft: main journals, cheeks and four crankpins, one per cylinder (IOM Figure 4)."
+          note={
+            L.notes.crankshaft ??
+            "Forged crankshaft: main journals, cheeks and four crankpins, one per cylinder (IOM Figure 4)."
+          }
           geometry={geo.journals}
           material={mats.steel}
         />
@@ -112,47 +142,62 @@ export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
         />
         <P
           name="Propeller flange"
-          note="Bolts the propeller to the crankshaft; oil for the controllable-pitch propeller is supplied through it (IOM p. 2)."
+          note={
+            L.notes.propFlange ??
+            "Bolts the propeller to the crankshaft; oil for the controllable-pitch propeller is supplied through it (IOM p. 2)."
+          }
           geometry={geo.flange}
           material={mats.steel}
         />
-        <P
-          name="Starter ring gear"
-          note="The starter's pinion engages it to crank the engine. Drawn with 149 teeth against a 9-tooth pinion, which gives the 16.556:1 starter drive ratio (IOM Table A-4); the tooth counts themselves are inferred."
-          geometry={geo.ring}
-          material={mats.darkSteel}
-        />
-        <P
-          name="Alternator drive pulley"
-          note="Belt drive to the alternator: 3.2 alternator turns per crankshaft turn (IOM Table A-4)."
-          geometry={geo.pulley}
-          material={mats.darkSteel}
-        />
-        {cyls.map((c) => {
-          const at = cwAt(c);
-          return (
-            <group key={c.n} position={[c.x, 0, 0]} rotation={[(c.pin - 90) * D2R, 0, 0]}>
-              <P name="Crankshaft cheek" geometry={geo.cheek} material={mats.steel} position={[0.025, 0, 0]} />
-              <P name="Crankshaft cheek" geometry={geo.cheek} material={mats.steel} position={[-0.025, 0, 0]} />
-              <P
-                name="Crankpin"
-                note={`Cylinder ${c.n}'s connecting rod runs on this pin.`}
-                geometry={geo.pin}
-                material={mats.steel}
-                position={[0, 0, d.r]}
-              />
-              {at !== null && sim.spec.geometry.pendulumCounterweights && (
+        {geo.ring && (
+          <P
+            name="Starter ring gear"
+            note="The starter's pinion engages it to crank the engine. Drawn with 149 teeth against a 9-tooth pinion, which gives the 16.556:1 starter drive ratio (IOM Table A-4); the tooth counts themselves are inferred."
+            geometry={geo.ring}
+            material={mats.darkSteel}
+          />
+        )}
+        {geo.pulley && (
+          <P
+            name="Alternator drive pulley"
+            note={
+              L.notes.altPulley ??
+              "Belt drive to the alternator: 3.2 alternator turns per crankshaft turn (IOM Table A-4)."
+            }
+            geometry={geo.pulley}
+            material={mats.darkSteel}
+          />
+        )}
+        {geo.altGear && (
+          <P name="Alternator drive gear" note={L.notes.altDriveGear} geometry={geo.altGear} material={mats.gear} />
+        )}
+        {cyls.map((c) => (
+          <group key={c.n} position={[c.x, 0, 0]} rotation={[throwRotation(c), 0, 0]}>
+            <P name="Crankshaft cheek" geometry={geo.cheek} material={mats.steel} position={[cl.cheek, 0, 0]} />
+            <P name="Crankshaft cheek" geometry={geo.cheek} material={mats.steel} position={[-cl.cheek, 0, 0]} />
+            <P
+              name="Crankpin"
+              note={`Cylinder ${c.n}'s connecting rod runs on this pin.`}
+              geometry={geo.pin}
+              material={mats.steel}
+              position={[0, 0, d.r]}
+            />
+            {sim.spec.geometry.pendulumCounterweights &&
+              cwAt(c.n).map((at) => (
                 <P
+                  key={at}
                   name="Dynamic counterweight"
-                  note="Counterweights decrease torsional vibrations as the crankshaft turns the propeller (IOM p. 2, Figure 4)."
+                  note={
+                    L.notes.counterweight ??
+                    "Counterweights decrease torsional vibrations as the crankshaft turns the propeller (IOM p. 2, Figure 4)."
+                  }
                   geometry={geo.counterweight}
                   material={mats.darkSteel}
                   position={[at, 0, 0]}
                 />
-              )}
-            </group>
-          );
-        })}
+              ))}
+          </group>
+        ))}
       </group>
     </>
   );
@@ -179,6 +224,7 @@ function pistonGeometry(d: Dims) {
 
 /** Connecting rods and pistons: each follows its crankpin through `rodEnds`. */
 export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const L = layoutFor(sim.spec);
   const rodGeo = useMemo(() => rodGeometry(d), [d]);
   const pg = useMemo(() => pistonGeometry(d), [d]);
   useEffect(
@@ -226,7 +272,10 @@ export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats
           >
             <P
               name={`Piston, cylinder ${c.n}`}
-              note="Four oil nozzles in the crankcase supply oil to cool the pistons from inside (IOM p. 2)."
+              note={
+                L.notes.pistonOil ??
+                "Four oil nozzles in the crankcase supply oil to cool the pistons from inside (IOM p. 2)."
+              }
               geometry={pg.body}
               material={mats.piston}
             />
