@@ -295,7 +295,8 @@ speed. Each is fitted on the running engine so that it reproduces the documented
   controller's reserve held it within 0.2 in.Hg. A per-compressor flow limit was not used: a failed side at cruise asks
   no more corrected flow of its partner than full power at 25,000 ft asks of each. `leakQtPerMin` 0.5 qt/min for an
   oil leak or a failed turbocharger's bearing: from the POH 4-8 minimum of six quarts, oil pressure falls about 5–7 min
-  after a turbocharger fails, the MAP loss first (POH 3-28 cause 4). `exhaustArea` (8 × 10⁻⁴ m²) is illustrative.
+  after a turbocharger fails, the MAP loss first (POH 3-28 cause 4). The stopped compressors' own forward restriction is not modelled.
+  `exhaustArea` (8 × 10⁻⁴ m²) is illustrative.
 
 `calibration.lambdaFullRich` (0.58) records the rated end of the full-rich schedule; this engine does not read it.
 
@@ -311,5 +312,3 @@ own algorithm (POH 7-36), and the POH cruise table is the target within a few pe
 - The propeller-flange station and the rocker-cover width on M-18 Figures 5-33 and 5-34.
 - The M-18 page for the spring-open wastegate. The open-spring fail-safe rests on a Teledyne Continental
   overhaul-manual excerpt for the TSIO-520 series and is consistent with POH 3-27 and 3-28.
-
-The stopped compressors’ own forward restriction is not modelled.

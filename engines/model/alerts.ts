@@ -8,9 +8,9 @@
  * spec's other limits (minimum manifold pressure at altitude, the TIT transient, turbine speed, takeoff oil
  * temperature, leaning, oil quantity, cranking) add study flags of their own, without one.
  */
-import { remainingOilQt } from "./oil";
 import type { Band, EngineSpec, Marking } from "../types";
 import type { Controls, EngineState, Environment, Failures } from "./engine";
+import { remainingOilQt } from "./oil";
 import { titContinuousMaxF, turbineRpmLimit } from "./turbo";
 import { f0 } from "@/lib/format";
 

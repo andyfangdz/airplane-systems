@@ -4,11 +4,11 @@
  * plane, the sump under them, the accessory housing on the rear; wet sump, oil pump and its drive, suction screen, filter,
  * filler and dipstick, drain plug and the oil lines. Shapes are schematic; each engine's notes cite its documents.
  */
-import { remainingOilQt } from "@/engines/model/oil";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { EngineSim } from "../store";
+import { remainingOilQt } from "@/engines/model/oil";
 import {
   D2R,
   gear,

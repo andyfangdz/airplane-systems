@@ -8,7 +8,6 @@
  * chart scaled by what each cylinder actually burns (performance.ts, mixture.ts), shaft speed from engine, starter
  * and propeller torque (propeller.ts), then exhaust, head and oil temperatures and oil pressure.
  */
-import { remainingOilQt } from "./oil";
 import type { EngineSpec, Side, TurboSpec } from "../types";
 import { leanGaugeAbove, leanOverNext } from "./alerts";
 import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
@@ -29,6 +28,7 @@ import {
 import { inductionCal, orificeFlow, series, solveManifold, throttleArea } from "./induction";
 import { excessAirRatio } from "./mixture-units";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
+import { remainingOilQt } from "./oil";
 import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
 import { governor, inducedVelocity, propTorque } from "./propeller";
 import {
@@ -217,7 +217,7 @@ export interface EngineState {
   reliefOpen?: boolean;
   /** Automatic alternate-air door open. Neutral: false. */
   altAirOpen?: boolean;
-  /** Previous turbo step's deck leakage and relief flow, kg/s; absent in older checkpoints means 0. */
+  /** Previous turbo step's deck leakage and relief flow, kg/s. Neutral: absent (read as 0). */
   deckLossKgS?: number;
   /** Oil lost to leaks this run, qt. Neutral: 0. */
   oilLossQt?: number;

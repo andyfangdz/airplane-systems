@@ -170,8 +170,9 @@ export const TSIO550K_TURBO: TurboLayout = {
     // [43]); the turbocharger oil leaves the bottom of it (POH 7-38), as does the wastegate's separate supply, from the
     // fitting beside it (AMM Fig 79-30-2 sh 3, PDF p. 2787; M-18 12-4.2 "inboard oil cooler fitting"). The cooler's
     // centre is scaled from M-18 Figure 5-33's rear view, 1.8 in above and 9.65 in left of the crankshaft centreline;
-    // its bottom, 5.51 in lower (its drawn height), is 0.96 in below the centreline, 0.41 in aft of the accessory face
-    // (approximate: no view gives the station); the wastegate fitting 0.3 in inboard of it (approximate).
+    // its drawn height is 5.51 in, so its bottom is 2.76 in below its centre, 0.96 in below the crankshaft centreline.
+    // It is 0.41 in aft of the accessory face (approximate: no view gives the station); the wastegate fitting is
+    // 0.3 in inboard of it (approximate).
     coolerOutlet: at(-0.41, -0.96, -9.65),
     coolerInboard: at(-0.41, -0.96, -9.35),
     // M-18 Figure 12-21 p. 12-34 [331]: hose 15 → check valve filter assembly 22 → check valve 17 → tee 16. The check

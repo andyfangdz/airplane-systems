@@ -141,7 +141,7 @@ async function run(base, manifestSha256) {
     );
   for (const asset of new Set(pages.flatMap((page) => assetUrls(page.body ?? "")))) {
     const extension = new URL(asset, rootUrl).pathname.split(".").at(-1);
-    // Match the MIME types assigned by deploy-aws.sh TYPED_ASSETS.
+    // Match the JS, CSS and WOFF2 MIME types in deploy-aws.sh, kept in sync with release-manifest.mjs contentType().
     const contentType = { js: "text/javascript", css: "text/css", woff2: "font/woff2" }[extension];
     await record(
       new URL(asset, rootUrl).href,
