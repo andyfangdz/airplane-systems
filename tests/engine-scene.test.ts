@@ -3,6 +3,7 @@
  * its gears mesh at the spec's drive ratios, and the parts fit the published envelope. Each engine's layout
  * (scene/layout.ts) places them; the IO-390's defaults are the constants the scene was first drawn with.
  */
+import { createElement as h } from "react";
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
@@ -21,6 +22,7 @@ import {
   dims,
   drawnSparks,
   driveLayout,
+  makeMats,
   GEAR_TEETH,
   gearSpins,
   headPoints,
@@ -40,6 +42,9 @@ import {
 } from "@/components/engine/scene/kit";
 import { IO390_DEFAULTS, layoutFor } from "@/components/engine/scene/layout";
 import { crankGeometry } from "@/components/engine/scene/Rotating";
+import { Propeller } from "@/components/engine/scene/Systems";
+import { simFor } from "@/components/engine/store";
+import { mountScene } from "./engine-mount";
 
 const ENGINES: [string, EngineSpec][] = [
   ["IO-390", IO390],
@@ -388,5 +393,40 @@ describe("label occlusion (kit.ts labelOccluder)", () => {
     clear.userData.hoverWhenClear = false;
     clear.opacity = 1;
     expect(shows(root)).toBe(false);
+  });
+});
+
+describe("the propeller switch", () => {
+  test.each([
+    ["IO-390", IO390],
+    ["O-360", O360],
+    ["TSIO-550-K", TSIO550K],
+  ] as const)("on the %s hides the propeller and keeps it mounted, as main draws it", async (name, S) => {
+    const sim = simFor(S, `propeller-switch-${S.id}`);
+    const el = h(Propeller, { sim, d: dims(S), mats: makeMats() });
+    const { scene, frame, render, unmount } = await mountScene(el);
+    const blades = () => {
+      const meshes: THREE.Mesh[] = [];
+      scene.traverse((o) => o instanceof THREE.Mesh && meshes.push(o));
+      return meshes;
+    };
+    const count = blades().length;
+    expect(count, name).toBeGreaterThan(0);
+    const visible = () => {
+      let v = true;
+      blades()[0].traverseAncestors((o) => {
+        if (o !== scene && !o.visible) v = false;
+      });
+      return v;
+    };
+    expect(visible()).toBe(true);
+    const view = sim.useUi.getState().view;
+    sim.useUi.setState({ view: { ...view, prop: false } });
+    await render(el);
+    frame();
+    expect(blades()).toHaveLength(count);
+    expect(visible()).toBe(false);
+    sim.useUi.setState({ view });
+    await unmount();
   });
 });

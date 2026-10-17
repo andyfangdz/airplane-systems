@@ -994,12 +994,11 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   const prop = useRef<THREE.Group>(null),
     disc = useRef<THREE.Mesh>(null);
   const blades = useRef<(THREE.Group | null)[]>([]);
-  // unmounted rather than invisible while switched off, so the blades don't catch the pointer
-  const on = sim.useUi((x) => x.view.prop);
   useFrame(() => {
     const s = sim.s,
       ui = sim.useUi.getState();
     if (!prop.current) return;
+    prop.current.visible = ui.view.prop;
     prop.current.rotation.x = (sim.anim.crank % 360) * D2R;
     const blur = !ui.view.slow && s.rpm > 500;
     blades.current.forEach((b) => {
@@ -1010,7 +1009,6 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
     if (disc.current) disc.current.visible = blur;
   });
   const n = spec.propeller.blades;
-  if (!on) return null;
   return (
     <group ref={prop} position={[d.flangeX + 0.008 + layoutFor(spec).propSpacer, 0, 0]}>
       <P name="Spinner" geometry={geo.spinner} material={mats.spinner} />
