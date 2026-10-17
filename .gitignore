@@ -14,5 +14,6 @@ next-env.d.ts
 .shots/
 public/geometry/
 .geometry-runtime/
+.ci/browser-shards/
 test-results/
 playwright-report/

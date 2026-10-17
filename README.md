@@ -45,13 +45,15 @@ The projects retain the fleet picker's Chromium/WebKit, viewport, theme and touc
 test at a time because software WebGL and camera timing need an uncontended renderer. Failures retain traces and
 screenshots under `test-results/` (`npx playwright show-trace <trace.zip>`). Camera timing suites disable tracing.
 
-CI runs the complete check suite and offline deployment tests, compiles geometry once, and builds the server and static
-site once each. The static build runs alongside six browser jobs as soon as the server artifact is ready. Geometry and
-each site's build cache persist across runs; the geometry compiler still validates inputs before reusing cached assets.
-Discovered browser cases are sharded individually, including independent loading and camera regressions, with one
-renderer per runner. New `test-*-ui.mjs` files join CI automatically; `playwright.config.mjs` selects the suites that also
-run on phones. Deployment promotes the tested static artifact with an independently recorded manifest checksum; it does
-not rebuild application source.
+CI runs the complete check suite and offline deployment tests: four unit-test shards run alongside the other checks,
+and the aggregate `check` job requires all of them to pass. Geometry is compiled once and each site target is built once.
+The static build runs alongside twenty browser jobs as soon as the server artifact is ready. Geometry and each site's
+build cache persist across runs; the geometry compiler still validates inputs before reusing cached assets.
+Discovered browser cases are assigned by measured duration, including independent loading and camera regressions,
+with one renderer per runner. New `test-*-ui.mjs` files join CI automatically with a conservative duration estimate;
+`playwright.config.mjs` selects the suites that also run on phones. Each shard installs only its required browsers and
+reuses cached browser binaries. Deployment promotes the tested static artifact with an independently recorded manifest
+checksum; it does not rebuild application source.
 See [CloudFront deployment](infra/cloudfront/README.md) for `--artifact` and `--manifest-sha256`.
 
 Set `UI_SHOTS=<directory>` for walk-around screenshot output, `DOOR_SHOTS=1` for door screenshots, and

@@ -378,13 +378,7 @@ async function captureScenes(page, base, routes, want) {
   return got.scenes;
 }
 
-async function captureCameras(page, base, want) {
-  const got = { cameras: {} };
-  for (const route of CAMERAS) {
-    await page.goto(base + route);
-    await sceneComplete(page);
-    got.cameras[route] = await settledCamera(page);
-  }
+async function resetCameraAfterDrag(page, base, overview) {
   // Reset view after a drag: back to the overview framing
   await page.goto(base + "/sr22t/overview");
   await sceneComplete(page);
@@ -395,12 +389,24 @@ async function captureCameras(page, base, want) {
   await page.mouse.move(box.x + box.width / 2 + 200, box.y + box.height / 2 + 60, { steps: 8 });
   await page.mouse.up();
   await page.locator(".toolbar").getByRole("button", { name: "Reset view", exact: true }).click();
-  got.cameras["/sr22t/overview Reset view after a drag"] = await settledCamera(page);
-  console.log(`cameras: ${JSON.stringify(got.cameras)}`);
-  assert.ok(
-    !cameraDiff(got.cameras["/sr22t/overview Reset view after a drag"], got.cameras["/sr22t/overview"]),
-    "Reset view restores the overview position and direction",
+  const reset = await settledCamera(page);
+  assert.ok(!cameraDiff(reset, overview), "Reset view restores the overview position and direction");
+  return reset;
+}
+
+async function captureCameras(page, base, want) {
+  const got = { cameras: {} };
+  for (const route of CAMERAS) {
+    await page.goto(base + route);
+    await sceneComplete(page);
+    got.cameras[route] = await settledCamera(page);
+  }
+  got.cameras["/sr22t/overview Reset view after a drag"] = await resetCameraAfterDrag(
+    page,
+    base,
+    got.cameras["/sr22t/overview"],
   );
+  console.log(`cameras: ${JSON.stringify(got.cameras)}`);
   // This invariant replaces a redundant baseline that previously captured an unsettled post-drag direction.
   delete got.cameras["/sr22t/overview Reset view after a drag"];
   if (want)
@@ -498,9 +504,23 @@ if (update) {
     });
   }
 
-  test("exact camera baselines and Reset view after a drag", async ({ browser, baseURL: base }) => {
-    await withObservedPage(browser, (page) => captureCameras(page, base, want));
-  });
+  for (const route of CAMERAS) {
+    test(`exact camera baseline: ${route}${route === "/sr22t/overview" ? " and Reset view after a drag" : ""}`, async ({
+      browser,
+      baseURL: base,
+    }) => {
+      // Keep every reviewed camera covered when routes or baseline entries change.
+      assert.deepEqual(Object.keys(want.cameras).sort(), [...CAMERAS].sort());
+      await withObservedPage(browser, async (page) => {
+        await page.goto(base + route);
+        await sceneComplete(page);
+        const camera = await settledCamera(page);
+        assert.ok(!cameraDiff(camera, want.cameras[route]), `camera for ${route}: ${camera} vs ${want.cameras[route]}`);
+        if (route === "/sr22t/overview") await resetCameraAfterDrag(page, base, camera);
+        console.log(`camera for ${route}: ${JSON.stringify(camera)}`);
+      });
+    });
+  }
 
   // Each comparison keeps the deep link and overview in the same context, as a user navigates between them.
   for (const { route, key, maximum } of [
