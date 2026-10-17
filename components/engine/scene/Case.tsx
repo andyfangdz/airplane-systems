@@ -120,6 +120,9 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   );
 }
 
+/** Oil level drawn in the sump: the quarts put in less what leaks have lost (`EngineState.oilLossQt`), never below 0. */
+export const sumpQuarts = (oilQt: number, oilLossQt = 0) => Math.max(0, oilQt - oilLossQt);
+
 export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
   const PUMP = useMemo(() => oilPump(d, L), [d, L]);
@@ -242,7 +245,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
   const tmp = useMemo(() => new THREE.Color(), []);
   const full = sim.spec.limits.oilSumpQt.value;
   useFrame(() => {
-    const qt = sim.useUi.getState().env.oilQt;
+    const qt = sumpQuarts(sim.useUi.getState().env.oilQt, sim.s.oilLossQt ?? 0);
     if (level.current)
       level.current.scale.y = Math.max(0.001, Math.min(1.25, qt / full) * (d.caseBottom - d.sumpBottom - 0.01));
     tmp.setRGB(0.55 + Math.min(0.35, (sim.s.oilT - 60) / 500), 0.32, 0.17);
