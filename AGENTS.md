@@ -8,7 +8,8 @@ Interactive 3D study models of airplane systems (POH/AFM Section 7): Next.js 16,
 
 - `npm run check`: formatting, generated fleet freshness, typecheck, React Compiler checks, all unit tests, compiled React tests and trusted-preview
   tests. Run it before you call a change done; CI also runs offline `npm run test:deploy`, builds geometry and both site
-  targets, and runs discovered Playwright browser tests in six shards against those artifacts.
+  targets, and runs discovered Playwright browser tests in sixteen duration-balanced shards against those artifacts.
+  CI runs the non-unit checks alongside four unit-test shards; the aggregate `check` job requires every shard to pass.
 - `npm test` (Vitest, `tests/`), `npm run typecheck`, `npm run build`.
 - `npm run test:changed`: local iteration shortcut, selecting test files whose imports reach a file changed since
   `origin/main` (committed or not). Pull requests and pushes to main both run the full check suite in CI.

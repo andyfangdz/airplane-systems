@@ -1,0 +1,507 @@
+{
+  "description": "Maximum observed duration of each passing case in the listed CI runs. Placement hints only; discovery always includes new tests with a 60-second fallback.",
+  "sources": [
+    "https://github.com/andyfangdz/airplane-systems/actions/runs/39055800595",
+    "https://github.com/andyfangdz/airplane-systems/actions/runs/39056677000"
+  ],
+  "tests": [
+    {
+      "project": "desktop",
+      "file": "scripts/test-aircraft-session-ui.mjs",
+      "titlePath": ["an automatically resumed walk restores its own aircraft camera after a different aircraft"],
+      "seconds": 13
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-aircraft-session-ui.mjs",
+      "titlePath": ["walk departure to /components/carburetor restores the aircraft and offers resume on return"],
+      "seconds": 11.7
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-aircraft-session-ui.mjs",
+      "titlePath": ["walk departure to /engines/o360 restores the aircraft and offers resume on return"],
+      "seconds": 22.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["c172s moving door assemblies"],
+      "seconds": 29
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["c182t moving door assemblies"],
+      "seconds": 26.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["da40 moving door assemblies"],
+      "seconds": 17
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["m20c moving door assemblies"],
+      "seconds": 20
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["sr20 moving door assemblies"],
+      "seconds": 30.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-engine-ui.mjs",
+      "titlePath": ["IO-390 engine page, desktop"],
+      "seconds": 9.3
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-engine-ui.mjs",
+      "titlePath": ["IO-390 engine page, phone-dark"],
+      "seconds": 7.2
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-engine-ui.mjs",
+      "titlePath": ["IO-390 engine page, phone"],
+      "seconds": 7.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-engine-ui.mjs",
+      "titlePath": ["TSIO-550-K engine page, desktop"],
+      "seconds": 35.6
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-engine-ui.mjs",
+      "titlePath": ["TSIO-550-K engine page, phone-dark"],
+      "seconds": 25.9
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-engine-ui.mjs",
+      "titlePath": ["TSIO-550-K engine page, phone"],
+      "seconds": 29.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["c172s source-specific study walk"],
+      "seconds": 41.9
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["c182t source-specific study walk"],
+      "seconds": 53.9
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["da40 source-specific study walk"],
+      "seconds": 58.2
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["m20c source-specific study walk"],
+      "seconds": 37
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["c172s prebuilt geometry and fallback"],
+      "seconds": 7.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["c182t prebuilt geometry and fallback"],
+      "seconds": 8.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["da40 prebuilt geometry and fallback"],
+      "seconds": 4.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["m20c prebuilt geometry and fallback"],
+      "seconds": 7.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["sr20 prebuilt geometry and fallback"],
+      "seconds": 7.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["sr22t prebuilt geometry and fallback"],
+      "seconds": 14.3
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-geometry-ui.mjs",
+      "titlePath": ["stalled scene manifest reaches authoring recovery"],
+      "seconds": 19.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-failure-ui.mjs",
+      "titlePath": ["a failed download shows didn't load and Retry, which loads the page again"],
+      "seconds": 5.6
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["a newer system view supersedes locating an unmounted part"],
+      "seconds": 11.9
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["a refused worker produces the same final scene"],
+      "seconds": 16
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["build-in glow follows reduced motion: no-preference"],
+      "seconds": 13.7
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["build-in glow follows reduced motion: reduce"],
+      "seconds": 14.7
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["camera interaction while the hull builds: 2a clamp"],
+      "seconds": 120
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["camera interaction while the hull builds: 2a resize"],
+      "seconds": 54.7
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["camera interaction while the hull builds: 2a tap"],
+      "seconds": 102
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["camera interaction while the hull builds: 2a"],
+      "seconds": 40.3
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["camera interaction while the hull builds: intro"],
+      "seconds": 53.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["deep-linked electrical parts load before the rest of the scene"],
+      "seconds": 40.7
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["deep-linked station1 parts load before the rest of the scene"],
+      "seconds": 66
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["deep-linked station9 parts load before the rest of the scene"],
+      "seconds": 78
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["exact camera baselines and Reset view after a drag"],
+      "seconds": 114
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /c172s"],
+      "seconds": 3.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /c182t"],
+      "seconds": 3.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /da40"],
+      "seconds": 2.9
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /m20c"],
+      "seconds": 3.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /sr20"],
+      "seconds": 3.5
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /sr22t"],
+      "seconds": 47.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["loading and scene fingerprint: /sr22t/electrical"],
+      "seconds": 32.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["one-shot fleet switch paints an opaque loader before mounting the new aircraft"],
+      "seconds": 5.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["station 11 frames the same with an on-time or delayed hull"],
+      "seconds": 84
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["station 2 frames the same with an on-time or delayed hull"],
+      "seconds": 126
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-load-ui.mjs",
+      "titlePath": ["tap to locate waits for an unmounted part"],
+      "seconds": 28.1
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-m20c-ui.mjs",
+      "titlePath": ["M20C gear, flaps and electrical controls"],
+      "seconds": 17.8
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-sr20-walkaround-ui.mjs",
+      "titlePath": ["SR20 study walk"],
+      "seconds": 72
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-static-export-ui.mjs",
+      "titlePath": ["the static site switches between airplanes and back"],
+      "seconds": 5.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-tour-ui.mjs",
+      "titlePath": ["tour follows targets, fits the viewport and remembers completion"],
+      "seconds": 20.3
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["camera restoration", "SR22T camera restore (no-preference)"],
+      "seconds": 27
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["camera restoration", "SR22T camera restore (reduce)"],
+      "seconds": 19.4
+    },
+    {
+      "project": "desktop",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["SR22T walk-around"],
+      "seconds": 55
+    },
+    {
+      "project": "fleet-chromium-1440",
+      "file": "scripts/test-fleet-ui.mjs",
+      "titlePath": ["fleet picker, keyboard, touch and camera preservation"],
+      "seconds": 53.9
+    },
+    {
+      "project": "fleet-chromium-320",
+      "file": "scripts/test-fleet-ui.mjs",
+      "titlePath": ["fleet picker, keyboard, touch and camera preservation"],
+      "seconds": 20.1
+    },
+    {
+      "project": "fleet-chromium-390",
+      "file": "scripts/test-fleet-ui.mjs",
+      "titlePath": ["fleet picker, keyboard, touch and camera preservation"],
+      "seconds": 20.7
+    },
+    {
+      "project": "fleet-chromium-980",
+      "file": "scripts/test-fleet-ui.mjs",
+      "titlePath": ["fleet picker, keyboard, touch and camera preservation"],
+      "seconds": 14.1
+    },
+    {
+      "project": "fleet-webkit-320",
+      "file": "scripts/test-fleet-ui.mjs",
+      "titlePath": ["fleet picker, keyboard, touch and camera preservation"],
+      "seconds": 32.9
+    },
+    {
+      "project": "fleet-webkit-390",
+      "file": "scripts/test-fleet-ui.mjs",
+      "titlePath": ["fleet picker, keyboard, touch and camera preservation"],
+      "seconds": 40.7
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-aircraft-session-ui.mjs",
+      "titlePath": ["an automatically resumed walk restores its own aircraft camera after a different aircraft"],
+      "seconds": 11.4
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-aircraft-session-ui.mjs",
+      "titlePath": ["walk departure to /components/carburetor restores the aircraft and offers resume on return"],
+      "seconds": 10.9
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-aircraft-session-ui.mjs",
+      "titlePath": ["walk departure to /engines/o360 restores the aircraft and offers resume on return"],
+      "seconds": 12.9
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["c172s moving door assemblies"],
+      "seconds": 21.5
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["c182t moving door assemblies"],
+      "seconds": 34.4
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["da40 moving door assemblies"],
+      "seconds": 23.7
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["m20c moving door assemblies"],
+      "seconds": 29.3
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-door-mechanisms-ui.mjs",
+      "titlePath": ["sr20 moving door assemblies"],
+      "seconds": 52.6
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["c172s source-specific study walk"],
+      "seconds": 56.6
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["c182t source-specific study walk"],
+      "seconds": 57.1
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["da40 source-specific study walk"],
+      "seconds": 78
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-fleet-depth-ui.mjs",
+      "titlePath": ["m20c source-specific study walk"],
+      "seconds": 43.1
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-m20c-ui.mjs",
+      "titlePath": ["M20C gear, flaps and electrical controls"],
+      "seconds": 13.6
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-sr20-walkaround-ui.mjs",
+      "titlePath": ["SR20 study walk"],
+      "seconds": 60
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-tour-ui.mjs",
+      "titlePath": ["tour follows targets, fits the viewport and remembers completion"],
+      "seconds": 12.7
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["camera restoration", "SR22T camera restore (no-preference)"],
+      "seconds": 15.3
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["camera restoration", "SR22T camera restore (reduce)"],
+      "seconds": 14.1
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["camera restoration", "SR22T camera restore at orbit limit (no-preference)"],
+      "seconds": 41.5
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["camera restoration", "SR22T camera restore at orbit limit (reduce)"],
+      "seconds": 40.9
+    },
+    {
+      "project": "phone",
+      "file": "scripts/test-walkaround-ui.mjs",
+      "titlePath": ["SR22T walk-around"],
+      "seconds": 16.6
+    }
+  ]
+}

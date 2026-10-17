@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,9 +22,42 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci --prefer-offline
-      - run: npm run check
+      # The same checks as npm run check; unit tests run concurrently in the matrix below.
+      - run: npm run format:check
+      - run: npm run fleet:check
+      - run: npm run typecheck
+      - run: npm run check:compiler
+      - run: npm run test:react
+      - run: npm run test:trusted-preview
       # Offline subprocess fixtures; no credentials or AWS calls reach a real account.
       - run: npm run test:deploy
+
+  unit:
+    name: unit (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci --prefer-offline
+      - run: npm test -- --shard=${{ matrix.shard }}/4
+
+  check:
+    # Preserve one aggregate check that fails if any part of the complete suite fails or is skipped.
+    if: always()
+    needs: [quality, unit]
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "$QUALITY_RESULT" = success && test "$UNIT_RESULT" = success
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          UNIT_RESULT: ${{ needs.unit.result }}
 
   build:
     runs-on: ubuntu-latest
@@ -35,6 +68,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci --prefer-offline
+      - name: Plan browser shards from discovered tests
+        run: node scripts/ci-browser-shards.mjs --shards 16 --output .ci/browser-shards
       - name: Restore compiled geometry
         uses: actions/cache@v4
         with:
@@ -67,15 +102,16 @@ jobs:
             !.next/cache/**
             public/geometry/
             .geometry-runtime/
+            .ci/browser-shards/
 
   ui:
-    name: ui (${{ matrix.shard }}/6)
+    name: ui (${{ matrix.shard }}/16)
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -87,14 +123,24 @@ jobs:
         with:
           name: server-under-test
           path: .
+      - name: Read this shard's browser requirements
+        id: browsers
+        run: node -e 'const fs = require("fs"); const plan = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT, `names=${plan.browsers.join(" ")}\nkey=${plan.browsers.join("-")}\n`)' '.ci/browser-shards/shard-${{ matrix.shard }}.json'
+      - name: Restore browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright/
+          key: ${{ runner.os }}-playwright-v1-${{ hashFiles('package-lock.json') }}-${{ steps.browsers.outputs.key }}
       - name: Install browsers and software WebGL
         run: |
-          npx playwright install --with-deps chromium webkit
+          npx playwright install --with-deps $BROWSERS
           sudo apt-get install -y --no-install-recommends libegl1 libegl-mesa0
           test -f /usr/share/glvnd/egl_vendor.d/50_mesa.json
+        env:
+          BROWSERS: ${{ steps.browsers.outputs.names }}
       # Discovery, rather than a filename allowlist, makes newly added suites part of CI automatically.
       # Each shard still uses one renderer at a time (playwright.config.mjs).
-      - run: npx playwright test --shard=${{ matrix.shard }}/6
+      - run: npx playwright test --test-list '.ci/browser-shards/shard-${{ matrix.shard }}.txt'
         env:
           DOOR_SHOTS: "1"
       - uses: actions/upload-artifact@v4
@@ -142,6 +188,11 @@ jobs:
         with:
           name: static-under-test
           path: out/
+      - name: Restore browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright/
+          key: ${{ runner.os }}-playwright-v1-${{ hashFiles('package-lock.json') }}-chromium
       - name: Install browser and software WebGL
         run: |
           npx playwright install --with-deps chromium
