@@ -38,7 +38,13 @@ readonly HASHED_CACHE="public, max-age=31536000, immutable"
 # Hashed-asset extensions uploaded with an explicit Content-Type, not the CLI's guess: the managed SecurityHeadersPolicy
 # sends X-Content-Type-Options: nosniff, so a mistyped script or stylesheet would not load.
 # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-response-headers-policies.html#managed-response-headers-policies-security
-readonly TYPED_ASSETS=("woff2:font/woff2" "js:text/javascript" "css:text/css")
+# Keep this table in agreement with release-manifest.mjs contentType(); deploy-aws.test.ts checks every entry.
+readonly TYPED_ASSETS=(
+  "woff2:font/woff2" "js:text/javascript" "css:text/css"
+  "html:text/html; charset=utf-8" "json:application/json" "txt:text/plain; charset=utf-8"
+  "svg:image/svg+xml" "png:image/png" "ico:image/x-icon"
+  "webmanifest:application/manifest+json" "glb:model/gltf-binary"
+)
 readonly SHORT_CACHE="public, max-age=60"
 readonly FUNCTION_FILE="infra/cloudfront/view-rewrite.js"
 readonly SMOKE_SCRIPT="scripts/smoke.mjs"
@@ -478,7 +484,7 @@ upload() {
   local typed excludes=()
   for typed in "${TYPED_ASSETS[@]}"; do excludes+=(--exclude "*.${typed%%:*}"); done
   if ! aws s3 sync out/_next/static "$dest/_next/static" --region "$REGION" --no-progress \
-    "${excludes[@]}" --cache-control "$HASHED_CACHE" >&2; then
+    "${excludes[@]}" --content-type application/octet-stream --cache-control "$HASHED_CACHE" >&2; then
     fail 8 "uploading the hashed assets failed; nothing was deleted, fix the cause and rerun"
   fi
   for typed in "${TYPED_ASSETS[@]}"; do
