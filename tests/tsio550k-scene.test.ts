@@ -1175,7 +1175,7 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
       .filter(([, g]) => g < MARGIN)
       .map(([k, g]) => `${k} gap ${(g / IN).toFixed(2)} in ${worst[k] ?? ""}`);
     expect(short).toEqual([]);
-  });
+  }, 30_000); // Mounts the turbo group and measures every one of its meshes against each obstacle.
 
   test("the intercoolers sit clear above the rocker covers", () => {
     const cover = cylinderGeometry(d, L).cover;
