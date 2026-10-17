@@ -397,10 +397,10 @@ export const TSIO550K: EngineSpec = {
     // compressor has no choke line, so it is the area, not a flow limit, that sets how far the boost falls.
     // intercoolerArea per leaking side: larger than the controller's reserve at that cruise point, so MAP falls, less
     // than with a split coupling. deadCompressorArea: the effective stopped-compressor return path, including its
-    // intercooler and duct losses, refitted with the working intercooler passing recirculation; the passage runs
+    // intercooler and duct losses, refitted with recirculation and the working path's rated-flow reference; the passage runs
     // from the deck back to its air box, so the working one cannot hold the cruise deck (POH 3-28 cause 4, "a sudden
     // loss of manifold pressure"). exhaustArea, ahead of the turbines, is illustrative (POH 3-28 cause 2).
-    leaks: { inductionArea: 3e-3, intercoolerArea: 1.4e-3, exhaustArea: 8e-4, deadCompressorArea: 1.418e-3 },
+    leaks: { inductionArea: 3e-3, intercoolerArea: 1.4e-3, exhaustArea: 8e-4, deadCompressorArea: 8.41287e-4 },
     // bearingHeatK: hp per turbocharger at rpmRef (∝ N²); bleedPsi: oil-pressure drop the turbochargers' supply takes
     // at rated rpm. Not published; small against the engine's own oil heat and pressure (AMM 79-00 PDF 2764).
     // leakQtPerMin: the oil an engine oil leak or a failed turbocharger's bearing loses, not published: from the POH

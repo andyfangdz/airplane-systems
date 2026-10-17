@@ -278,15 +278,19 @@ speed. Each is fitted on the running engine so that it reproduces the documented
   one induction duct's section, so a split coupling at 10,000 ft cruise brings MAP to within 1 in.Hg of normally
   aspirated (POH 3-27 cause 1). `intercoolerArea` 1.4 × 10⁻³ m² per leaking side, sized to exceed the controller's
   reserve at the 10,000 ft cruise point: MAP falls about 4 in.Hg, 4.3 in.Hg less than with a split coupling (POH 3-27
-  cause 1). `deadCompressorArea` 1.418 × 10⁻³ m² (an optional `turbo.leaks` member): the two compressor and intercooler
+  cause 1). `deadCompressorArea` 8.41287 × 10⁻⁴ m² (an optional `turbo.leaks` member): the two compressor and intercooler
   paths join only at the throttle body (AMM 71-60 PDF 2542, 81-20 PDF 2812) and no check valve is described, so a
   failed turbocharger's stopped compressor leaves its path open from the deck back to its air box; the working
   compressor and its intercooler pass that recirculating air as well and cannot hold the cruise deck. This is an
   effective return-path area, including the failed side's intercooler and duct losses, rather than a measured aperture;
-  a second return-intercooler pressure drop would count those losses twice. The area was refitted from 2 × 10⁻³ m²
-  after including recirculation in the working intercooler's pressure drop: bisect the area at the same 10,000 ft cruise
-  setup to retain its five-second MAP loss (23.659 in.Hg from the 30.5 in.Hg setup). No other failure constants or test
-  tolerances changed. At the 10,000 ft cruise point MAP
+  a second return-intercooler pressure drop would count those losses twice. Including recirculation in the forward
+  intercooler drop first required a refit from 2 × 10⁻³ to 1.418 × 10⁻³ m². Correcting the reference flow for the
+  surviving path then required 1.418 × 10⁻³ → 8.41287 × 10⁻⁴ m²: the one working intercooler carries the full engine,
+  relief, leak and return flow against one path's rated reference (`mRef / turbo.count`), rather than the total rated
+  flow. Bisect only this effective area over 0–2 × 10⁻³ m² from the same saved 10,000 ft / 30.5 in.Hg cruise setup,
+  fail the left turbocharger and integrate exactly 100 steps of 0.05 s. This retains the prior exact-five-second MAP
+  target, 23.6624272 in.Hg, at 23.6624269 in.Hg; the earlier 23.659 in.Hg fit used 101 steps (5.05 s).
+  No other failure constants or test tolerances changed. At the 10,000 ft cruise point MAP
   falls about 7 in.Hg within 5 s (POH 3-28 cause 4, "a sudden loss of manifold pressure"); without the path the
   controller's reserve held it within 0.2 in.Hg. A per-compressor flow limit was not used: a failed side at cruise asks
   no more corrected flow of its partner than full power at 25,000 ft asks of each. `leakQtPerMin` 0.5 qt/min for an

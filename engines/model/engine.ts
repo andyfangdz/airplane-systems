@@ -833,7 +833,9 @@ function turboStep(
   const rho2 = (s.deckInHg! * INHG_PA) / (R_AIR * (s.compressorOutC! + 273.15));
   // The working compressor's outlet also passes the recirculating flow through its intercooler. The effective
   // deadCompressorArea includes the return path's stopped compressor, intercooler and duct losses (AMM 71-60).
-  const drop = intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef, rho2, ref.rhoRef);
+  // Rated flow is shared by all paths; only the working paths carry the forward flow after a failure.
+  const drop =
+    working > 0 ? intercoolerDrop(turbo, mA + mR + mL + mB, ref.mRef * (working / turbo.count), rho2, ref.rhoRef) : 0;
   const deck = approach(s.deckInHg!, pr * source - drop, dt, turbo.spoolTauS);
   const prNow = Math.max(1, (deck + drop) / source);
   const t2 = compressorOut(turbo, t1, prNow);
