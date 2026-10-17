@@ -1032,7 +1032,7 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
     expect(inch(all.min.y)).toBeGreaterThanOrEqual(-(14.82 + 11.89));
   });
 
-  test("every turbo part, as mounted, clears the magnetos, oil filter and filler, the starter and its worm wheel, the oil suction line, the engine mount fittings, and the cylinder heads and rocker covers by 0.25 in", async () => {
+  test("every turbo part, as mounted, clears the magnetos, oil filter and filler, the starter and its worm wheel, the oil suction line, the engine mount fittings, and the cylinder heads, rocker covers and intake ports by 0.25 in", async () => {
     const MARGIN = 0.25 * IN,
       // how far the starter and cylinder gaps are measured (beyond it a pair is simply clear)
       REACH = 2 * MARGIN;
@@ -1064,7 +1064,8 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
     const fill = new THREE.CatmullRomCurve3(oilFiller(d, L).tube.map((p) => new THREE.Vector3(...p))).getPoints(200);
     const fillSegs = fill.slice(1).map((p, i) => new THREE.Line3(fill[i], p));
     // the starter as drawn (Systems.tsx drivesGeometry): the motor and solenoid on their pose, the adapter housing in
-    // place; the cylinders' heads, rocker boxes and covers (Cylinders.tsx cylinderGeometry) on each cylinder's frame
+    // place; the cylinders' heads, rocker boxes, covers and intake port flanges (Cylinders.tsx cylinderGeometry) on each
+    // cylinder's frame
     const st = driveLayout(S, d, L).starter;
     if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
     const sg = drivesGeometry(S, d, L).starter;
@@ -1085,6 +1086,7 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
           [`Cylinder ${c.n} head`, cg.head.clone().applyMatrix4(m)],
           [`Cylinder ${c.n} rocker box`, cg.rockerBox.clone().applyMatrix4(m)],
           [`Cylinder ${c.n} rocker cover`, cg.cover.clone().applyMatrix4(m)],
+          [`Cylinder ${c.n} intake port`, cg.intakePort.clone().applyMatrix4(m)],
         ] as [string, THREE.BufferGeometry][];
       }),
     ];
@@ -1124,11 +1126,13 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
       return hits.filter((x, i) => i === 0 || x - hits[i - 1] > 1e-7).length % 2 === 1;
     };
     const { scene, unmount } = await mountScene(h(Turbo, { sim: simFor(S), d, mats: makeMats() }));
+    // each turbo part by the name the pointer shows, to say which one is short
+    const partName = new Map(namedMeshes(scene).map(({ mesh, name }) => [mesh as THREE.Object3D, name]));
     const gap: Record<string, number> = { magneto: Infinity, filter: Infinity, filler: Infinity };
     // every starter, mount and cylinder part is checked; one farther than the margin from a turbo part keeps Infinity
     for (const k of mounted) gap[k] = Infinity;
     for (const k of ["Starter", "Starter solenoid", "Starter adapter"]) gap[k] = Infinity;
-    for (const k of ["head", "rocker box", "rocker cover"]) gap[`cylinder ${k}`] = Infinity;
+    for (const k of ["head", "rocker box", "rocker cover", "intake port"]) gap[`cylinder ${k}`] = Infinity;
     const worst: Record<string, string> = {};
     const v = new THREE.Vector3(),
       q = new THREE.Vector3();
@@ -1162,8 +1166,8 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
           gap[key] = g;
           const at = hit2.point;
           worst[key] =
-            `(${ob.name}, nearest at s ${station(at.x).toFixed(2)}, y ${(at.y / IN).toFixed(2)}, ` +
-            `z ${(at.z / IN).toFixed(2)} in)`;
+            `(${partName.get(o) ?? "turbo part"} to ${ob.name}, nearest at s ${station(at.x).toFixed(2)}, ` +
+            `y ${(at.y / IN).toFixed(2)}, z ${(at.z / IN).toFixed(2)} in)`;
         }
       }
       w.dispose();
