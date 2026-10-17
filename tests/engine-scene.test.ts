@@ -35,7 +35,7 @@ import {
   valveLayout,
   VT,
 } from "@/components/engine/scene/kit";
-import { IO390_DEFAULTS, layoutFor } from "@/components/engine/scene/layout";
+import { IO390_DEFAULTS, layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { crankGeometry } from "@/components/engine/scene/Rotating";
 
 const ENGINES: [string, EngineSpec][] = [
@@ -178,10 +178,97 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
       if (m.kind === "gear") expect(Math.sign(spins[m.a]) * Math.sign(spins[m.b]), pair).toBe(-1);
       if (m.kind === "belt") expect(Math.sign(spins[m.a]) * Math.sign(spins[m.b]), pair).toBe(1);
     }
-    // each drive turns at its spec ratio
-    expect(Math.abs(spins.magneto)).toBe(S.accessories.magnetoRatio);
-    expect(Math.abs(spins.governor)).toBe(S.accessories.governorRatio);
-    for (const a of driveLayout(S, d, L).alternators) expect(Math.abs(spins[a.def.name])).toBe(a.ratio);
+    // each drive turns at its spec ratio, in the sense its drawn axis needs: a spur gear against the gear driving it, a
+    // bevel gear with its axis turned across the shaft as that turn gives
+    const D = driveLayout(S, d, L);
+    expect(spins.magneto).toBe(S.accessories.magnetoRatio);
+    expect(spins.governor).toBe((D.governor.bevel ? -1 : 1) * S.accessories.governorRatio);
+    for (const a of D.alternators) expect(spins[a.def.name]).toBe((a.gear && !a.gear.bevel ? -1 : 1) * a.ratio);
+  });
+
+  test("at every meshing pair, gear or bevel, both rims move the same way at the same speed where they meet", () => {
+    const { spins, meshes } = gearSpins(S, d, L);
+    const D = driveLayout(S, d, L),
+      mag = magDrive(S, d, L),
+      pump = oilPump(d, L);
+    const X: V3 = [1, 0, 0];
+    type Rim = { c: V3; axis: V3; r: number };
+    const at = (x: number, y = 0, z = 0): V3 => [x, y, z];
+    const crank = (r: number, x = 0): Rim => ({ c: at(x), axis: X, r });
+    const cam = (r: number, x = 0): Rim => ({ c: at(x, d.camY), axis: X, r });
+    // each pair's two rims as the scene draws them: centre, the axis a positive spin turns about, and radius
+    const rims = (a: string, b: string): [Rim, Rim] | null => {
+      const gv = D.governor;
+      const govAxis = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(...gv.rotation));
+      const magnetoRim: Rim = { c: at(mag.x, mag.y, mag.z), axis: X, r: mag.r };
+      switch (`${a}–${b}`) {
+        case "crank–cam":
+          return [crank(d.crankGearR), cam(d.camGearR)];
+        case "crank–idler":
+          return [crank(d.crankGearR), { c: at(0, mag.idler!.y), axis: X, r: mag.idler!.r }];
+        case "idler–magneto":
+          return [{ c: at(mag.x, mag.idler!.y), axis: X, r: mag.idler!.r }, magnetoRim];
+        case "cam–magneto":
+          return [cam(d.camGearR), magnetoRim];
+        case "crank–oilPumpDrive":
+          return [crank(d.crankGearR), { c: at(0, pump.y), axis: X, r: pump.driveR }];
+        case "oilPump–oilPumpIdler":
+          return [
+            { c: at(0, pump.y), axis: X, r: pump.gearR },
+            { c: at(0, pump.y, 2 * pump.gearR), axis: X, r: pump.gearR },
+          ];
+        case "crank–pinion":
+          if (D.starter.kind !== "front-ring") return null;
+          return [crank(d.ringR), { c: D.starter.at, axis: X, r: D.starter.pinionR }];
+        case "crank–starterShaft":
+          if (D.starter.kind !== "rear-adapter") return null;
+          return [
+            crank(d.crankGearR),
+            { c: at(0, D.starter.shaft.y, D.starter.shaft.z), axis: X, r: D.starter.shaft.r },
+          ];
+        case "cam–governor":
+          return [
+            cam(gv.camGovR, d.front - 0.03),
+            { c: gv.gearAt ?? gv.at, axis: [govAxis.x, govAxis.y, govAxis.z], r: gv.govR },
+          ];
+      }
+      const alt = D.alternators.find((x) => a === "crank" && x.def.name === b);
+      if (!alt?.gear) return null;
+      return [
+        crank(alt.gear.driveR, alt.gear.driveX),
+        { c: alt.at, axis: alt.transverse?.axis ?? X, r: alt.gear.drivenR },
+      ];
+    };
+    const v3 = (p: V3) => new THREE.Vector3(...p);
+    // the rim point facing the other gear, in the plane the gear turns in
+    const rimPoint = (g: Rim, towards: V3) => {
+      const axis = v3(g.axis),
+        to = v3(towards).sub(v3(g.c));
+      return to
+        .sub(axis.multiplyScalar(to.dot(axis)))
+        .setLength(g.r)
+        .add(v3(g.c));
+    };
+    let checked = 0;
+    for (const m of meshes) {
+      if (m.kind === "belt") continue;
+      const pair = `${m.a}–${m.b}`;
+      const g = rims(m.a, m.b);
+      expect(g, `${pair}: rims known`).not.toBeNull();
+      const [ga, gb] = g!;
+      // each gear's rim speed where it meets the other, per radian of the crankshaft
+      const va = v3(ga.axis)
+        .multiplyScalar(spins[m.a])
+        .cross(rimPoint(ga, gb.c).sub(v3(ga.c)));
+      const vb = v3(gb.axis)
+        .multiplyScalar(spins[m.b])
+        .cross(rimPoint(gb, ga.c).sub(v3(gb.c)));
+      expect(va.length(), pair).toBeGreaterThan(0);
+      expect(va.dot(vb) / (va.length() * vb.length()), `${pair}: same direction`).toBeGreaterThan(0.95);
+      expect(vb.length() / va.length(), `${pair}: same speed`).toBeCloseTo(1, 1);
+      checked++;
+    }
+    expect(checked).toBe(meshes.filter((m) => m.kind !== "belt").length);
   });
 
   test("no two crankshaft cheeks overlap", () => {

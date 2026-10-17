@@ -612,7 +612,8 @@ export function gearSpins(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor
     spins.starterShaft = -GEAR_TEETH.crank / D.starter.shaft.teeth;
     meshes.push({ a: "crank", b: "starterShaft", kind: "gear" });
   }
-  spins.governor = acc.governorRatio;
+  // a bevel governor gear stands across the camshaft, its axis turned to −z, so it turns the other way about its own axis
+  spins.governor = D.governor.bevel ? -acc.governorRatio : acc.governorRatio;
   meshes.push({ a: "cam", b: "governor", kind: D.governor.bevel ? "bevel" : "gear" });
   for (const a of D.alternators) {
     // a bevel pinion beside the drive gear's forward face turns about its own axis with the crankshaft (+ outboard)
