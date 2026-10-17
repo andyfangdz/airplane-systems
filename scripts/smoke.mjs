@@ -11,7 +11,6 @@
  * has "skipped": true and status null). Failing checks are also listed on stderr. Exit 0 when every check passes, 1 when
  * any fails, 2 on bad usage. No redirect is followed. Node built-ins only.
  */
-import { pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import { immutable } from "./release-manifest.mjs";
 
@@ -220,4 +219,4 @@ async function main() {
   process.exitCode = summary.ok ? 0 : 1;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (import.meta.main) await main();
