@@ -560,8 +560,10 @@ if (update) {
   // Items 2a and 11a frame the airplane while the fuselage worker is still building, without a main-thread hull build.
   for (const station of [2, 11]) {
     test(`station ${station} frames the same with an on-time or delayed hull`, async ({ browser, baseURL: base }) => {
-      const held = await beginWalk(browser, base, station, true),
-        onTime = await beginWalk(browser, base, station, false);
+      // Render the reference first so cold browser/GL setup stays outside the held-worker timing measurement.
+      // The old combined case had already loaded many scenes before reaching this comparison.
+      const onTime = await beginWalk(browser, base, station, false),
+        held = await beginWalk(browser, base, station, true);
       assert.ok(
         held.longest < 400,
         `?walk=${station}: no main-thread hull build while the worker builds it (longest task ${held.longest} ms)`,
