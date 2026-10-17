@@ -72,20 +72,24 @@ function side(side: "L" | "R", yIn: number, zIn: number, titS: number): TurboSid
 // 10.74 in) agrees within ± 0.5 in. AMM Figure 71-60-2 (PDF 2558, undimensioned) draws the core's end face about half
 // as deep as it is wide, which agrees. The base is drawn at 4.25 in (FIT) instead of 1.9 so the core clears the
 // schematic cylinder heads under it by more than 0.25 in: their fins reach 3.94 in above the crankshaft centreline and
-// 16.31 in out (Cylinders.tsx), past the core's inner edge. The full depth stands on that base, so the top is drawn
-// 2.35 in above the drawing's.
+// 16.31 in out (Cylinders.tsx), past the core's inner edge. The RH base is drawn 0.1 in higher, at 4.35 in (FIT), so
+// its inner edge, 0.08 in farther inboard than the LH's, also clears the No. 1 cylinder's intake port flange
+// (Cylinders.tsx) by more than 0.25 in. The full depth stands on that base, so the top is drawn 2.35 in (LH) and
+// 2.45 in (RH) above the drawing's.
 const IC_AFT = 1.0,
-  IC_BASE = 4.25,
+  IC_BASE = { L: 4.25, R: 4.35 },
   IC_DEPTH = 3.1,
   IC_WIDTH = 6.3;
 // The outlet neck's centre height (approximate: no view gives it): high enough that the Ø2.5 in neck passes over the
-// heads' fins at its station by more than 0.25 in. It stays on the core's end face, which reaches 4.25-7.35 in.
+// heads' fins at its station by more than 0.25 in. It stays on the core's end face, which reaches 4.25-7.35 in (LH)
+// and 4.35-7.45 in (RH).
 const NECK_Y = 5.2;
 function intercooler(side: "L" | "R", lengthIn: number, outerIn: number) {
   const k = side === "L" ? -1 : 1;
   const zOut = k * outerIn,
     zIn = k * (outerIn - IC_WIDTH),
     zMid = k * (outerIn - IC_WIDTH / 2);
+  const base = IC_BASE[side];
   const neckY = NECK_Y;
   return {
     side,
@@ -94,11 +98,11 @@ function intercooler(side: "L" | "R", lengthIn: number, outerIn: number) {
       x1: sx(IC_AFT + lengthIn),
       zOut: zOut * IN,
       zIn: zIn * IN,
-      y0: IC_BASE * IN,
-      y1: (IC_BASE + IC_DEPTH) * IN,
+      y0: base * IN,
+      y1: (base + IC_DEPTH) * IN,
     },
     // approximate: the compressor duct enters the aft end from below (AMM Figure 71-60-2, PDF 2558), 1 in inside it
-    inlet: at(IC_AFT + 1.0, IC_BASE, zMid),
+    inlet: at(IC_AFT + 1.0, base, zMid),
     // scaled, Figure 5-34: the forward neck's face 17.5 in forward of the accessory face, Ø2.5 in, slightly inboard of
     // the core's middle; the outlet spigot runs on 1.0 in (approximate)
     neck: at(17.5, neckY, k * 17.3),
@@ -290,7 +294,7 @@ export const TSIO550K_TURBO: TurboLayout = {
     controllerLines:
       "Deck-pressure line from the throttle body and manifold-pressure line from the induction manifold, through bulkhead fittings to the controller (M-18 Figure 12-7).",
     intercooler:
-      "Intercooler: the compressed air from this side's turbocharger is cooled here on its way to the throttle (POH 7-37). Core 11.54 in (LH) and 12.28 in (RH) long, outer edges 21.23 / 21.15 in from the centreline (M-18 Figure 5-34), about 6.3 in wide and 3.1 in deep (scaled, M-18 Figures 5-33 to 5-35); drawn raised to clear the schematic cylinder heads. Tinted with the manifold air temperature.",
+      "Intercooler: the compressed air from this side's turbocharger is cooled here on its way to the throttle (POH 7-37). Core 11.54 in (LH) and 12.28 in (RH) long, outer edges 21.23 / 21.15 in from the centreline (M-18 Figure 5-34), about 6.3 in wide and 3.1 in deep (scaled, M-18 Figures 5-33 to 5-35); drawn raised to clear the schematic cylinder heads and intake ports. Tinted with the manifold air temperature.",
     intercoolerNeck:
       "Intercooler outlet: the cooled air goes on to the Y junction ahead of the throttle body (POH 7-37).",
     intercoolerHood:
