@@ -85,6 +85,8 @@ export type NoteKey =
   | "drain"
   | "dipTube"
   | "oilSupply"
+  | "oilCooler"
+  | "vernatherm"
   | "magneto"
   | "magCap"
   | "magGear"
@@ -171,6 +173,11 @@ export interface EngineLayout {
    */
   mounts: (d: Dims) => { bosses: V3[]; brackets: [V3, V3][] };
   /**
+   * Engine-mounted oil cooler: its side and the cylinder it sits behind, and (`box`, drawn by Case.tsx Lubrication) its
+   * core's centre and half sizes and its temperature control valve, m.
+   */
+  oilCooler: { side: "L" | "R"; behindCyl: number; src: string; box?: { at: V3; half: V3; control: V3 } } | null;
+  /**
    * Label pins: text and position. `occlude` hides the label while a solid part stands between it and the camera, other
    * than the part it names (the scene group of the label's name; kit.ts labelOccluder); `group` hides it with that part
    * group.
@@ -216,6 +223,7 @@ export const IO390_DEFAULTS: EngineLayout = {
   oilFilter: { mount: "rear" },
   oilFiller: { side: "R" },
   oilPumpDrive: "crank",
+  oilCooler: null,
   // four bosses on the crankcase's rear face
   mounts: (d) => ({
     bosses: [1, -1].flatMap((y) => [1, -1].map((z): V3 => [d.caseRear + 0.012, y * 0.075, z * (d.caseHalf - 0.025)])),

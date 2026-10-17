@@ -120,6 +120,28 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   );
 }
 
+/**
+ * An engine-mounted oil cooler (the layout's `oilCooler` with a `box`): a finned core and, on its lower outboard side,
+ * the temperature control valve (vernatherm). Null when the layout draws none.
+ */
+export function oilCoolerGeometry(L: EngineLayout) {
+  const box = L.oilCooler?.box;
+  if (!box) return null;
+  const [x, y, z] = box.at;
+  const [hx, hy, hz] = box.half;
+  const fins: THREE.BufferGeometry[] = [];
+  for (let i = 1; i < 6; i++) {
+    const fy = y - hy + (2 * hy * i) / 6;
+    fins.push(slab(x - hx - 0.003, x + hx + 0.003, fy - 0.001, fy + 0.001, z - hz + 0.004, z + hz - 0.004, 0.001));
+  }
+  const [cx, cy, cz] = box.control;
+  return {
+    core: merge([slab(x - hx, x + hx, y - hy, y + hy, z - hz, z + hz, 0.008), ...fins]),
+    // along x, standing aft of the core's rear face
+    control: rod(0.014, 0.03, 16).translate(cx, cy, cz),
+  };
+}
+
 export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
   const PUMP = useMemo(() => oilPump(d, L), [d, L]);
@@ -237,6 +259,8 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
     },
     [geo, oilMat],
   );
+  const cooler = useMemo(() => oilCoolerGeometry(L), [L]);
+  useEffect(() => () => Object.values(cooler ?? {}).forEach((g) => g.dispose()), [cooler]);
   const level = useRef<THREE.Mesh>(null);
   const gears = useRef<(THREE.Mesh | null)[]>([]); // drive, pumping gear on its shaft, idler
   const tmp = useMemo(() => new THREE.Color(), []);
@@ -263,6 +287,17 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         position={[0, d.sumpBottom + 0.005, 0]}
         raycast={() => null}
       />
+      {cooler && (
+        <>
+          <P name="Oil cooler" note={L.notes.oilCooler} geometry={cooler.core} material={mats.alt} />
+          <P
+            name="Oil temperature control valve"
+            note={L.notes.vernatherm}
+            geometry={cooler.control}
+            material={mats.steel}
+          />
+        </>
+      )}
       {/* named for its label, which the filter's own parts don't hide (kit.ts labelOccluder) */}
       <group name="Oil filter">
         <P

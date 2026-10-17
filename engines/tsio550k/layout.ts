@@ -369,6 +369,22 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
   oilFiller: { side: "L" },
   // M-18 2-2.2: "The splined end of the oil pump drive gear mates with the internal splines of the camshaft gear".
   oilPumpDrive: "cam",
+  // M-18 2-1 p. 2-1: "mounted on the left crankcase half behind the No. 2 cylinder".
+  oilCooler: {
+    side: "L",
+    behindCyl: 2,
+    src: "M-18 2-1 p. 2-1; POH 7-36",
+    // Centre scaled from M-18 Figure 5-33's rear view, 1.8 in above and 9.65 in left of the crankshaft centreline; the
+    // core drawn 2.36 × 5.51 × 4.72 in (fore and aft, up, across; approximate), on the station of the turbo oil's
+    // `coolerOutlet` at its bottom (layout-turbo.ts). The temperature control valve on its lower outboard side
+    // (illustrative), standing aft of the core. Its inboard face is drawn 0.31 in narrower (FIT), clear of the left
+    // magneto's lower lead, which runs down beside it.
+    box: {
+      at: at(-0.41, -0.96 + 0.07 / IN, -9.65 - 0.155),
+      half: [0.03, 0.07, 0.06 - 0.155 * IN],
+      control: [sx(-0.41) - 0.045, -0.96 * IN + 0.07 - 0.04, -9.65 * IN - 0.05],
+    },
+  },
   // AMM 71-20 General (PDF p. 2522): six mount fittings. M-18 Figure 16-38 (p. 16-41): a forward and an aft engine mount
   // bracket on each side of the crankcase. Inches forward of the accessory mounting face, out from and below the
   // crankshaft centreline:
@@ -409,6 +425,7 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     ["ALT 2", [d.flangeX - 0.02, -0.01, -0.3]],
     ["Governor", [d.front, -0.22, -0.12]],
     // these hide with their part groups, as the turbo and exhaust labels do
+    ["Oil cooler", at(-0.41, 5.3, -10.2), { group: "oil" }],
     ["Fuel pump", at(-3.9, -1.3, -0.3), { group: "fuel" }],
     ["Throttle body", at(27.2, 9.4, 2.2), { group: "induction" }],
     ["Alternate air door", at(21.6, -15.9, 0), { group: "induction" }],
@@ -466,6 +483,10 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     screenPlug: "Plug for removing the suction screen.",
     drain: "Drain plug on the oil sump.",
     dipTube: "Oil filler and dipstick, at the left rear of the engine (POH 7-37).",
+    oilCooler:
+      "Engine-mounted oil cooler on the left crankcase half behind the No. 2 cylinder (M-18 2-1). Ram air through its fins cools the oil (AMM 79-00); the turbocharger and wastegate oil leave from its bottom (POH 7-38).",
+    vernatherm:
+      "Oil temperature control valve (vernatherm): bypasses most of the oil around the cooler while it is cold and closes off the bypass as it warms, holding about 180 °F (AMM 79-00; POH 7-36).",
     oilSupply:
       "From the filter into the crankcase galleries, which feed the rotating parts and the pistons (POH 7-36).",
     magneto:

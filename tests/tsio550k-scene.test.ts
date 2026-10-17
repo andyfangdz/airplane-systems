@@ -15,7 +15,7 @@ import { noFailures } from "@/engines/model/engine";
 import { ACCESSORY_FACE_IN } from "@/engines/tsio550k/layout-turbo";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import { simFor } from "@/components/engine/store";
-import { caseGeometry, Crankcase, Lubrication } from "@/components/engine/scene/Case";
+import { caseGeometry, Crankcase, Lubrication, oilCoolerGeometry } from "@/components/engine/scene/Case";
 import {
   crankLayout,
   D2R,
@@ -43,7 +43,7 @@ import {
 } from "@/components/engine/scene/kit";
 import { cylinderGeometry, Cylinders } from "@/components/engine/scene/Cylinders";
 import { Exhaust, exhaustRuns, runCurve } from "@/components/engine/scene/Exhaust";
-import { layoutFor, type V3 } from "@/components/engine/scene/layout";
+import { IO390_DEFAULTS, layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { Group, PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
 import {
@@ -1228,8 +1228,8 @@ describe("TSIO-550-K turbochargers, wastegate and intercoolers", () => {
 /**
  * The engine's solid parts as drawn, in place, for the clearance tests below: the cylinders (each part tagged with its
  * cylinder), the crankcase, sump and accessory housing, the engine mount fittings, the starter, the magnetos and
- * harness, the oil filter, the fuel manifold valve, and the turbo group's fixed parts (its turning wheels sit inside
- * their housings). Each is a world-space geometry the caller disposes.
+ * harness, the oil filter, the fuel manifold valve, the oil cooler, and the turbo group's fixed parts (its turning wheels
+ * sit inside their housings). Each is a world-space geometry the caller disposes.
  */
 function sceneSolids() {
   const out: { name: string; cyl?: number; turbo?: string; g: THREE.BufferGeometry }[] = [];
@@ -1282,6 +1282,8 @@ function sceneSolids() {
       0,
     ),
   });
+  const oc = oilCoolerGeometry(L)!;
+  out.push({ name: "Oil cooler", g: oc.core }, { name: "Oil temperature control valve", g: oc.control });
   const G = turboGeometry(L.turbo!);
   const walk = (v: unknown, path: string) => {
     if (v instanceof THREE.BufferGeometry) out.push({ name: `turbo ${path}`, turbo: path, g: v });
@@ -1547,9 +1549,14 @@ describe("TSIO-550-K induction and fuel injection (POH 7-37, 7-38; M-18 2-1)", (
     expect(Math.abs(mz) - F.metering.half[2]).toBeCloseTo(I.throttle.r, 3);
   });
 
-  test("the fuel pump, throttle body and alternate air door labels sit on their parts", () => {
+  test("the oil cooler, fuel pump, throttle body and alternate air door labels sit on their parts", () => {
     const at = Object.fromEntries(L.labels(d, S));
     const dist = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) / IN;
+    const box = L.oilCooler!.box!;
+    // over the cooler's top, inside its outline seen from above
+    expect(at["Oil cooler"][1]).toBeGreaterThan(box.at[1] + box.half[1]);
+    expect(Math.abs(at["Oil cooler"][0] - box.at[0])).toBeLessThan(box.half[0]);
+    expect(Math.abs(at["Oil cooler"][2] - box.at[2])).toBeLessThan(box.half[2]);
     expect(dist(at["Fuel pump"], [F.pump.x1, 0, 0])).toBeLessThan(1.5);
     expect(dist(at["Throttle body"], [I.throttle.plateX, I.y.at[1], 0])).toBeLessThan(3);
     const g = inductionGeometry(S, d, L);
@@ -1557,11 +1564,12 @@ describe("TSIO-550-K induction and fuel injection (POH 7-37, 7-38; M-18 2-1)", (
     Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
   });
 
-  test("the fuel pump, throttle body and alternate air door labels hide with their groups", () => {
+  test("the oil cooler, fuel pump, throttle body and alternate air door labels hide with their groups", () => {
     const shown = (hidden: string[]) => shownLabels(L.labels(d, S), hidden).map(([t]) => t);
-    const mine = ["Fuel pump", "Throttle body", "Alternate air door"];
+    const mine = ["Oil cooler", "Fuel pump", "Throttle body", "Alternate air door"];
     expect(shown([])).toEqual(expect.arrayContaining(mine));
     for (const [group, gone] of [
+      ["oil", ["Oil cooler"]],
       ["fuel", ["Fuel pump"]],
       ["induction", ["Throttle body", "Alternate air door"]],
     ] as const) {
@@ -1649,6 +1657,80 @@ describe("TSIO-550-K induction and fuel injection (POH 7-37, 7-38; M-18 2-1)", (
     [...Object.values(ig), ...Object.values(fg)].forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
     all.forEach((o) => o.g.dispose());
     expect(short).toEqual([]);
+  });
+});
+
+describe("TSIO-550-K oil cooler (M-18 2-1; POH 7-36, 7-38)", () => {
+  test("oil cooler on the left case behind No. 2 (M-18 2-1), its centre where M-18 Figure 5-33 draws it", () => {
+    const box = L.oilCooler!.box!;
+    // left, aft of cylinder 2
+    expect(box.at[2]).toBeLessThan(0);
+    expect(L.oilCooler!.side).toBe("L");
+    expect(box.at[0] + box.half[0]).toBeLessThan(cyl(2).x);
+    // Figure 5-33 rear view, scaled: the centre 1.8 in above and 9.65 in left of the crankshaft centreline; the core
+    // 2.36 × 5.51 × 4.72 in, its outboard face where that centre puts it and its inboard face drawn up to 0.35 in
+    // narrower, clear of the left magneto's lower lead
+    const size = [0.06, 0.14, 0.12];
+    expect(Math.abs(box.at[1] / IN - 1.8)).toBeLessThanOrEqual(0.05);
+    for (const i of [0, 1]) expect(2 * box.half[i]).toBeCloseTo(size[i], 9);
+    expect(Math.abs((box.at[2] - box.half[2]) / IN - (-9.65 - size[2] / 2 / IN))).toBeLessThanOrEqual(0.05);
+    expect((size[2] - 2 * box.half[2]) / IN).toBeGreaterThanOrEqual(0);
+    expect((size[2] - 2 * box.half[2]) / IN).toBeLessThanOrEqual(0.35);
+    // its bottom on the turbocharger oil's source (POH 7-38: the bottom of the cooler)
+    const o = L.turbo!.oil;
+    expect(Math.abs(box.at[1] - box.half[1] - o.coolerOutlet[1]) / IN).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(box.at[0] - o.coolerOutlet[0]) / IN).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(o.coolerOutlet[2] - box.at[2])).toBeLessThan(box.half[2]);
+    // the temperature control valve on its lower outboard side, aft of the core
+    expect(box.control[1]).toBeLessThan(box.at[1]);
+    expect(box.control[1]).toBeGreaterThan(box.at[1] - box.half[1]);
+    expect(box.control[2]).toBeLessThan(box.at[2]);
+    expect(box.control[0]).toBeLessThan(box.at[0] - box.half[0]);
+  });
+
+  test("the oil cooler clears the engine, its mount fittings, the exhaust, the induction and the turbo group by 0.25 in, but for its oil fittings", () => {
+    const MARGIN = 0.25 * IN;
+    const solids = sceneSolids();
+    const ig = inductionGeometry(S, d, L);
+    const runs = exhaustRuns(S, d, L);
+    const others = [
+      ...solids.filter((o) => !/^Oil (cooler|temperature)/.test(o.name)),
+      ...Object.entries(ig)
+        .filter(([, g]) => g instanceof THREE.BufferGeometry)
+        .map(([k, g]) => ({ name: `induction ${k}`, g: g as THREE.BufferGeometry })),
+      ...runs.map((r) => ({ name: r.name, g: tube(r.points, r.r, 64, 12) })),
+    ];
+    // the oil leaves through its bottom fittings: the turbo supply and the wastegate supply start there
+    const fittings = /^turbo oil\.(lines\.(supply|toWastegate)|filter)$/;
+    const oc = oilCoolerGeometry(L)!;
+    const hit = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 },
+      hit2 = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+    const short: string[] = [];
+    for (const o of others) {
+      if (fittings.test(o.name)) continue;
+      const bvh = new MeshBVH(o.g);
+      for (const [k, g] of Object.entries(oc)) {
+        const r = bvh.closestPointToGeometry(g, new THREE.Matrix4(), hit, hit2, 0, MARGIN);
+        if (r && r.distance < MARGIN)
+          short.push(
+            `${k} → ${o.name}: ${(r.distance / IN).toFixed(2)} in at s ${station(hit.point.x).toFixed(2)}, ` +
+              `y ${(hit.point.y / IN).toFixed(2)}, z ${(hit.point.z / IN).toFixed(2)}`,
+          );
+      }
+    }
+    Object.values(oc).forEach((g) => g.dispose());
+    solids.forEach((o) => o.g.dispose());
+    others.forEach((o) => o.g.dispose());
+    expect(short).toEqual([]);
+  });
+
+  test("the cooler and its control valve draw in the oil group, and the IO-390 and O-360 draw none", async () => {
+    expect(IO390_DEFAULTS.oilCooler).toBeNull();
+    expect(oilCoolerGeometry(IO390_DEFAULTS)).toBeNull();
+    const { scene, unmount } = await mountScene(h(Lubrication, { sim: simFor(S), d, mats: makeMats() }));
+    const names = namedMeshes(scene).map((m) => m.name);
+    expect(names).toEqual(expect.arrayContaining(["Oil cooler", "Oil temperature control valve"]));
+    await unmount();
   });
 });
 
