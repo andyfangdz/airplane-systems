@@ -6,9 +6,9 @@
  */
 import * as THREE from "three";
 import { specGeo, type Catalogue, type ShellSpec, type PartSpec } from "./catalogue";
-import { CAMERA_FOV, CAMERA_FIT_ASPECT } from "./camera";
+import { CAMERA_FOV, CAMERA_FIT_ASPECT, FRAME_FILL, frameExtent } from "./camera";
 import { toVec3, V, type Vec3 } from "./math";
-import { partCentre, partSide, type Side } from "./spot";
+import { partBox, partCentre, partSide, type Side } from "./spot";
 import type { AircraftId, SysId } from "./systems";
 
 /** Planned item animations (not drawn yet). */
@@ -231,9 +231,20 @@ export const WALK_MAP_MARK_R = 0.75; // approximate: display size of a marker, n
 export const FRAME_DIST: [number, number] = [1.2, 2.4]; // approximate: display framing, not a source value
 /** Step when backing the camera away from the airplane, m. */
 const BACK_STEP_M = 0.05;
+/** Farthest the `fitEveryPart` framing backs the camera away from an item's parts, m, along the ground. */
+const FIT_MAX_M = 12; // approximate: display framing, not a source value; about an airplane's half-span past the station
+/** Radius of an emphasis halo, m: every halo's, or the smallest with `sizedHalos`. */
+export const HALO_R = 0.018; // approximate: display size, not a source value
 
 export function createFleetWalk<S>(options: {
   data: FleetWalkData<S>;
+  /**
+   * Fit every listed part of an item inside the view's border (fittedFramePose) rather than walking to FRAME_DIST from
+   * them; the target still sets only where the camera looks. Off by default.
+   */
+  fitEveryPart?: boolean;
+  /** Size each emphasis halo to enclose its part, one halo per site, rather than HALO_R on every instance. Off by default. */
+  sizedHalos?: boolean;
   cat: Catalogue;
   /** Scene shells outside the fixed catalogue, such as hinged doors and the pivoting tail. */
   extraShells?: ShellSpec[];
@@ -312,11 +323,11 @@ export function createFleetWalk<S>(options: {
       : new THREE.Matrix4();
   }
   /**
-   * Centres of every instance of a part, surface or shell name on `side` (0: all), in airplane coordinates; instances on
-   * moving groups the walk can't place are left out. Empty for names the catalogue doesn't have.
+   * Every instance of a part, surface or shell name on `side` (0: all), in airplane coordinates: its bounding-box centre
+   * and its box; instances on moving groups the walk can't place are left out. Empty for names the catalogue doesn't have.
    */
-  function nameCentres(name: string, side: Side = 0) {
-    const points: THREE.Vector3[] = [];
+  function nameInstances(name: string, side: Side = 0) {
+    const instances: { centre: THREE.Vector3; box: THREE.Box3 }[] = [];
     // approximate: within 5 cm of the centreline counts as both sides, as in lib/spot.ts
     const keep = (z: number) => !side || Math.abs(z) < 0.05 || Math.sign(z) === side;
     for (const part of cat.parts) {
@@ -327,29 +338,39 @@ export function createFleetWalk<S>(options: {
       const centre = partCentre(part, geometry).applyMatrix4(matrix);
       // Use the resolved world centre for arbitrary gear/tail group names too.
       const s = partSide(part, geometry, cat);
-      if (keep(centre.z) && (!side || !s || s === side)) points.push(centre);
+      if (keep(centre.z) && (!side || !s || s === side))
+        instances.push({ centre, box: partBox(part, geometry).applyMatrix4(matrix) });
     }
     for (const shell of shells) {
       if (!matches(name, shell)) continue;
       const geometry = specGeo(shell);
       if (!geometry.boundingBox) geometry.computeBoundingBox();
-      const centre = geometry
-        .boundingBox!.getCenter(V(0, 0, 0))
-        .applyMatrix4(options.shellMatrix?.(name) ?? new THREE.Matrix4());
-      if (keep(centre.z)) points.push(centre);
+      const matrix = options.shellMatrix?.(name) ?? new THREE.Matrix4();
+      const centre = geometry.boundingBox!.getCenter(V(0, 0, 0)).applyMatrix4(matrix);
+      if (keep(centre.z)) instances.push({ centre, box: geometry.boundingBox!.clone().applyMatrix4(matrix) });
     }
     for (const surface of cat.surfaces) {
       if (!matches(name, surface)) continue;
       const geometry = specGeo(surface);
       if (!geometry.boundingBox) geometry.computeBoundingBox();
+      const matrix = options.surfaceMatrix?.(surface.key) ?? new THREE.Matrix4();
       const centre = geometry
         .boundingBox!.getCenter(V(0, 0, 0))
         .add(V(...surface.pivot))
-        .applyMatrix4(options.surfaceMatrix?.(surface.key) ?? new THREE.Matrix4());
-      if (keep(centre.z)) points.push(centre);
+        .applyMatrix4(matrix);
+      if (keep(centre.z))
+        instances.push({
+          centre,
+          box: geometry
+            .boundingBox!.clone()
+            .translate(V(...surface.pivot))
+            .applyMatrix4(matrix),
+        });
     }
-    return points;
+    return instances;
   }
+  /** Centres of every instance of a name on `side` (see nameInstances). */
+  const nameCentres = (name: string, side: Side = 0) => nameInstances(name, side).map((i) => i.centre);
   function stepBounds(step: FleetWalkStep<S>) {
     const names = new Set(stepParts(step).shown),
       side = fleetStepSide(step),
@@ -412,12 +433,27 @@ export function createFleetWalk<S>(options: {
       b = stepCentroid(step);
     return a && b ? [a, b] : null;
   }
-  /** Where to draw the pulsing halos for an item with `emphasis`: every instance of its modelled parts on its side. */
-  function emphasisPoints(step: FleetWalkStep<S>) {
+  /**
+   * The pulsing halos for an item with `emphasis`: one of HALO_R on every instance of its modelled parts on its side; with
+   * `sizedHalos`, one per site (instances sharing a centre share it), big enough to enclose each instance there.
+   */
+  function emphasisHalos(step: FleetWalkStep<S>): { p: THREE.Vector3; r: number }[] {
     if (!step.item.emphasis) return [];
     const side = fleetStepSide(step);
-    return stepParts(step).shown.flatMap((name) => nameCentres(name, side));
+    const instances = stepParts(step).shown.flatMap((name) => nameInstances(name, side));
+    if (!options.sizedHalos) return instances.map(({ centre }) => ({ p: centre, r: HALO_R }));
+    const halos: { p: THREE.Vector3; r: number }[] = [];
+    for (const { centre, box } of instances) {
+      // the box's half-diagonal: a sphere on its centre that encloses it
+      const r = Math.max(HALO_R, box.getSize(V(0, 0, 0)).length() / 2);
+      const site = halos.find((h) => h.p.equals(centre));
+      if (site) site.r = Math.max(site.r, r);
+      else halos.push({ p: centre, r });
+    }
+    return halos;
   }
+  /** Where the halos go (see emphasisHalos). */
+  const emphasisPoints = (step: FleetWalkStep<S>) => emphasisHalos(step).map((h) => h.p);
   let outline: THREE.Box3[] | null = null;
   const clearance = options.clearance ?? 0.25; // approximate: a person's half-width, not a source value
   /** Is `point` over or under the airplane in top view (skin shells and control surfaces, grown by the clearance)? */
@@ -445,19 +481,68 @@ export function createFleetWalk<S>(options: {
       (box) => point.x >= box.min.x && point.x <= box.max.x && point.z >= box.min.z && point.z <= box.max.z,
     );
   }
+  /** Eye height for a step: the station's standing height, or crouched for `crouch` items. */
+  // approximate: eye heights, not aircraft dimensions (the crouched default is 1.1 m above the ground)
+  const eyeY = (step: FleetWalkStep<S>) =>
+    step.item.crouch ? (options.crouchY ?? options.groundY + 1.1) : step.station.cam.p[1];
+  /** Boxes of every instance of a step's listed parts on its side (see nameInstances). */
+  const stepBoxes = (step: FleetWalkStep<S>) =>
+    stepParts(step).shown.flatMap((name) => nameInstances(name, fleetStepSide(step)).map((i) => i.box));
+  /**
+   * Camera for an item with `fitEveryPart`: the eye stays at the station's standing height (crouched for `crouch` items)
+   * and, from FRAME_DIST from the item's parts back towards the station, takes the first spot clear of the airplane from
+   * which every listed part's box is inside the view's border (FRAME_FILL at CAMERA_FIT_ASPECT); failing that the station,
+   * then on past it (never over or under the airplane) up to FIT_MAX_M; and failing all, the nearest clear spot. It looks
+   * at the item's target or centroid. Every item is fitted, so `fitParts` adds nothing; an item with its own `eye` is seen
+   * from there. Items without modelled parts keep the station view. Null while the clearance outline waits for the hull.
+   */
+  function fittedFramePose(step: FleetWalkStep<S>): { p: Vec3; t: Vec3 } | null {
+    const centre = stepCentroid(step),
+      { p } = step.station.cam;
+    if (!centre) return step.station.cam;
+    if (step.item.eye) return { p: step.item.eye, t: toVec3(centre) };
+    const y = eyeY(step);
+    const away = V(p[0] - centre.x, 0, p[2] - centre.z),
+      distance = away.length();
+    away.normalize();
+    const r0 = Math.min(Math.max(distance, FRAME_DIST[0]), FRAME_DIST[1]);
+    if (r0 < distance && !outline && options.hull?.pending()) return null;
+    const boxes = stepBoxes(step),
+      fits = (eye: THREE.Vector3) => frameExtent(eye, centre, boxes, CAMERA_FOV, CAMERA_FIT_ASPECT) <= FRAME_FILL,
+      pose = (eye: THREE.Vector3) => ({ p: toVec3(eye), t: toVec3(centre) }),
+      station = V(p[0], y, p[2]);
+    let near: THREE.Vector3 | null = null;
+    for (let r = r0; r < distance; r += BACK_STEP_M) {
+      const eye = V(centre.x + away.x * r, y, centre.z + away.z * r);
+      if (underAirplane(eye)) continue;
+      if (fits(eye)) return pose(eye);
+      near ??= eye;
+    }
+    if (fits(station)) return pose(station);
+    // on past the station needs the outline too (never on through the airplane to its other side)
+    if (!outline && options.hull?.pending()) return null;
+    for (let r = Math.max(distance, r0) + BACK_STEP_M; r <= FIT_MAX_M; r += BACK_STEP_M) {
+      const eye = V(centre.x + away.x * r, y, centre.z + away.z * r);
+      if (underAirplane(eye)) break;
+      if (fits(eye)) return pose(eye);
+    }
+    return pose(near ?? station);
+  }
   /**
    * Camera for an item: the eye stays at the station's standing height (crouched for `crouch` items) and walks along the
    * ground from the station towards the item's parts, to FRAME_DIST from them but never over or under the airplane, then
    * looks at them; an item with its own `eye` is seen from there, and `fitParts` backs off until the whole assembly fits.
-   * Items without modelled parts keep the station view. Null while the clearance outline waits for the page's hull.
+   * Items without modelled parts keep the station view. Null while the clearance outline waits for the page's hull. With
+   * `fitEveryPart`, fittedFramePose instead.
    */
   function framePose(step: FleetWalkStep<S>): { p: Vec3; t: Vec3 } | null {
+    if (options.fitEveryPart) return fittedFramePose(step);
     const centre = stepCentroid(step),
       { p } = step.station.cam;
     if (!centre) return step.station.cam;
     if (step.item.eye) return { p: step.item.eye, t: toVec3(centre) };
     // Approximate eye heights and display framing, not aircraft dimensions or operational clearances.
-    const y = step.item.crouch ? (options.crouchY ?? options.groundY + 1.1) : p[1];
+    const y = eyeY(step);
     const away = V(p[0] - centre.x, 0, p[2] - centre.z),
       distance = away.length();
     away.normalize();
@@ -548,10 +633,12 @@ export function createFleetWalk<S>(options: {
     stepSpot,
     stepSide: fleetStepSide,
     inCatalogue,
+    nameInstances,
     nameCentres,
     stepCentroid,
     stationCentroid,
     sightLine,
+    emphasisHalos,
     emphasisPoints,
     stepBounds,
     framePose,

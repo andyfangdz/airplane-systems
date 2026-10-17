@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CAMERA_PRESETS, parseCameraPreset, presetCamera, airplaneBounds, viewPresetCamera } from "../lib/camera";
+import {
+  CAMERA_PRESETS,
+  frameExtent,
+  parseCameraPreset,
+  presetCamera,
+  airplaneBounds,
+  viewPresetCamera,
+} from "../lib/camera";
 import { Box3, BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
 
 afterEach(() => vi.restoreAllMocks());
@@ -92,5 +99,35 @@ describe("system preset framing", () => {
     camera.lookAt(new Vector3(...t));
     camera.updateMatrixWorld();
     for (const z of [-6, 6]) expect(Math.abs(new Vector3(3, 0, z).project(camera).x)).toBeLessThanOrEqual(0.800001);
+  });
+});
+
+describe("how far boxes reach across a view", () => {
+  it("gives the largest corner offset as a share of the half-width or half-height, as the projection does", () => {
+    const eye = new Vector3(6, 1.5, 4),
+      target = new Vector3(0.5, -0.4, 1.2),
+      boxes = [
+        new Box3(new Vector3(0, -0.6, 0.4), new Vector3(1.4, 0.1, 2.5)),
+        new Box3().setFromCenterAndSize(target, new Vector3(0.1, 0.1, 0.1)),
+      ];
+    for (const aspect of [820 / 900, 390 / 464]) {
+      const camera = new PerspectiveCamera(38, aspect, 0.05, 400);
+      camera.position.copy(eye);
+      camera.lookAt(target);
+      camera.updateMatrixWorld();
+      let projected = 0;
+      for (const b of boxes)
+        for (const x of [b.min.x, b.max.x])
+          for (const y of [b.min.y, b.max.y])
+            for (const z of [b.min.z, b.max.z]) {
+              const v = new Vector3(x, y, z).project(camera);
+              projected = Math.max(projected, Math.abs(v.x), Math.abs(v.y));
+            }
+      expect(frameExtent(eye, target, boxes, 38, aspect)).toBeCloseTo(projected, 9);
+    }
+  });
+  it("is Infinity when a corner is beside or behind the eye", () => {
+    const box = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
+    expect(frameExtent(new Vector3(0, 0, 0), new Vector3(5, 0, 0), [box], 38, 1)).toBe(Infinity);
   });
 });

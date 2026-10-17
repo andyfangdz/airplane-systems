@@ -668,6 +668,8 @@ export const WALK: FleetWalkStation<Sim>[] = [
         parts: ["Right inboard stall strip", "Right outboard stall strip", "Right porous stall strip"],
         system: "airframe",
         why: "The stall strips shape how the wing stalls; damage changes the stall.",
+        // the strips are small beside the span the view takes in, and sit under the FIKI panels in solid mode
+        emphasis: true,
         ref: "POH 4-7",
       },
       {
@@ -1060,6 +1062,8 @@ export const WALK: FleetWalkStation<Sim>[] = [
         parts: ["Left inboard stall strip", "Left outboard stall strip", "Left porous stall strip"],
         system: "airframe",
         why: "The stall strips shape how the wing stalls; damage changes the stall.",
+        // the strips are small beside the span the view takes in, and sit under the FIKI panels in solid mode
+        emphasis: true,
         ref: "POH 4-9",
       },
     ],

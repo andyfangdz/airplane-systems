@@ -45,6 +45,9 @@ export function groupMatrix(parent: string): THREE.Matrix4 | null {
 
 export const walk = createFleetWalk({
   data: WALK_DATA,
+  // every item's parts in frame, and halos that show round the long stall strips
+  fitEveryPart: true,
+  sizedHalos: true,
   cat: CAT,
   groundY: GROUND_Y,
   crouchY: CROUCH_Y,
