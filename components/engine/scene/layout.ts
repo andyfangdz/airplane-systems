@@ -92,6 +92,8 @@ export type NoteKey =
   | "starter"
   | "starterShaftGear"
   | "starterWorm"
+  | "starterAdapter"
+  | "clutchSpring"
   | "governor"
   | "altDriveGear"
   | "altPulley"

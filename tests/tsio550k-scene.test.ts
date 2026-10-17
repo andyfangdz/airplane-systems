@@ -6,6 +6,7 @@
 // vitest: isolate (mounts the scene with React Three Fiber)
 import { createElement as h, type FC } from "react";
 import * as THREE from "three";
+import { MeshBVH } from "three-mesh-bvh";
 import { describe, expect, test } from "vitest";
 import { presetCamera, type CameraPreset } from "@/lib/camera";
 import { mod, sideAngle } from "@/engines/model/cycle";
@@ -40,6 +41,7 @@ import { layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
 import {
+  clutchGrip,
   Drives,
   drivesGeometry,
   FuelSystem,
@@ -47,6 +49,7 @@ import {
   ignitionGeometry,
   Induction,
   Propeller,
+  starterAdapter,
 } from "@/components/engine/scene/Systems";
 import { Camshaft, ValveTrain } from "@/components/engine/scene/Valvetrain";
 import { mountScene } from "./engine-mount";
@@ -58,6 +61,12 @@ const d = dims(S, L);
 const cyl = (n: number) => S.geometry.cylinders.find((c) => c.n === n)!;
 /** Inches forward of the accessory mounting face. */
 const station = (x: number) => (x - d.accRear) / IN;
+const box3 = (g: THREE.BufferGeometry) => {
+  g.computeBoundingBox();
+  return g.boundingBox!.clone();
+};
+/** A mounted mesh's geometry in world space (the caller disposes it). */
+const worldGeometry = (m: THREE.Mesh) => (m.geometry as THREE.BufferGeometry).clone().applyMatrix4(m.matrixWorld);
 
 describe("TSIO-550-K 3D model", () => {
   test("cylinders at the M-18 Fig 5-34 stations", () => {
@@ -403,6 +412,80 @@ describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", (
     if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
     // the worm is drawn 0.04 m either side of its centre; the motor runs outboard from its end
     expect(st.at[2] - st.worm.at[2]).toBeCloseTo(0.04, 9);
+  });
+
+  test("the starter adapter on the accessory face holds the worm wheel and the worm; the motor bolts to its boss (AMM 80-10; M-18 Figs 16-17, D-3)", () => {
+    const st = driveLayout(S, d, L).starter;
+    if (st.kind !== "rear-adapter") throw new Error("expected the rear starter adapter");
+    const a = starterAdapter(st, d);
+    const g = drivesGeometry(S, d, L).starter;
+    if (g.kind !== "rear-adapter") throw new Error("expected the adapter housing");
+    const b = box3(g.adapter);
+    // mounted on the accessory face, reaching aft to its cover
+    expect(b.max.x).toBeCloseTo(d.accRear, 6);
+    expect(b.min.x).toBeCloseTo(Math.min(a.coverX, a.bossX - a.bossR), 6);
+    // around the starter shaft and the worm wheel, whose rim it clears
+    expect(a.y).toBeCloseTo(st.shaft.y, 9);
+    expect(a.z).toBeCloseTo(st.shaft.z, 9);
+    expect(st.wheel.x).toBeGreaterThan(a.coverX);
+    expect(st.wheel.x).toBeLessThan(d.accRear);
+    expect(a.caseR).toBeGreaterThan(st.wheel.r);
+    // the worm's boss runs out to the motor's mounting face
+    expect(a.bossY).toBeCloseTo(st.worm.at[1], 9);
+    expect(a.bossZ0).toBeLessThan(st.worm.at[2] - 0.04);
+    expect(a.bossZ1).toBeCloseTo(st.at[2], 9);
+    Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
+  });
+
+  test("the oil pump stays inside the accessory housing, clear of the starter adapter on its rear face; the adapter houses the clutch spring", async () => {
+    const g = drivesGeometry(S, d, L).starter;
+    if (g.kind !== "rear-adapter") throw new Error("expected the adapter housing");
+    const adapter = new MeshBVH(g.adapter);
+    const { scene, unmount } = await mountScene(
+      h(
+        "group",
+        null,
+        h(Lubrication, { sim: simFor(S), d, mats: makeMats() }),
+        h(Drives, { sim: simFor(S), d, mats: makeMats() }),
+      ),
+    );
+    const parts = namedMeshes(scene);
+    const pump = parts.filter((p) => p.name === "Oil pump" || p.name === "Oil pump gears");
+    expect(pump).toHaveLength(3);
+    const hit = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+    const hit2 = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+    for (const { mesh, name } of pump) {
+      const w = worldGeometry(mesh);
+      // forward of the accessory face (the pump body and its gears sit in the housing; the adapter bolts on behind)
+      expect(box3(w).min.x, name).toBeGreaterThan(d.accRear);
+      // and clear of the adapter by the housing's rear wall, ≥ 0.05 in as drawn
+      const r = adapter.closestPointToGeometry(w, new THREE.Matrix4(), hit, hit2, 0, 0.25 * IN);
+      expect(r?.distance ?? Infinity, name).toBeGreaterThanOrEqual(0.05 * IN);
+      w.dispose();
+    }
+    // a joint by design: the clutch spring rides on the worm wheel's hub inside the adapter (M-18 Figure 16-17 item 17)
+    const spring = parts.find((p) => p.name === "Starter clutch spring")!;
+    const sw = worldGeometry(spring.mesh);
+    expect(box3(g.adapter).containsBox(box3(sw))).toBe(true);
+    sw.dispose();
+    await unmount();
+    Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
+  });
+
+  test("the clutch spring grips while the starter is engaged and lets go after (M-18 2-2.6, Fig 16-17)", async () => {
+    expect(clutchGrip(true)).toBeGreaterThan(0);
+    expect(clutchGrip(false)).toBe(0);
+    const sim = simFor(S, "tsio550k-clutch");
+    const { scene, frame, unmount } = await mountScene(h(Drives, { sim, d, mats: makeMats() }));
+    const spring = namedMeshes(scene).find((p) => p.name === "Starter clutch spring")!.mesh
+      .material as THREE.MeshStandardMaterial;
+    sim.s.starterEngaged = true;
+    frame();
+    expect(spring.emissiveIntensity).toBeGreaterThan(0);
+    sim.s.starterEngaged = false;
+    frame();
+    expect(spring.emissiveIntensity).toBe(0);
+    await unmount();
   });
 
   test("labels sit on their parts", () => {

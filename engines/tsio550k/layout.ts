@@ -237,6 +237,10 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
       "24 V starter on a right-angle adapter at the rear (AMM 80-10); worm drive, 48 starter turns per crankshaft turn (M-18 Table 2-9). Engaged while the switch is held at START.",
     starterShaftGear:
       "Starter shaft gear: drives the crankshaft gear when the adapter's spring clutch grips its drum (M-18 2-2.2).",
+    starterAdapter:
+      "Right-angle starter drive adapter on the rear of the engine (AMM 80-10): the worm and worm wheel run inside it, and the scavenge pump bolts to its cover (M-18 16-4, Figure 16-17). Its shape is drawn.",
+    clutchSpring:
+      "Clutch spring: while the starter motor is energized it grips the starter shaft gear, so the worm wheel turns the crankshaft gear; when the starter is released its grip is relieved and the shaft gear runs free (M-18 2-2.6, Figure 16-17). Glows while it grips.",
     starterWorm:
       "Worm and worm wheel in the starter adapter; the spring clutch lets go once the engine runs (M-18 2-2.2). Drawn with one worm start and 48 wheel teeth.",
     governor:

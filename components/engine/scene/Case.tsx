@@ -198,8 +198,8 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       ]),
       pumpGear: gear(PUMP.gearR, 10, 0.012, 0.004),
       pumpBody: slab(
-        PUMP.x1 - 0.01,
-        PUMP.x1 + 0.01,
+        PUMP.x1 - PUMP.body[0],
+        PUMP.x1 + PUMP.body[1],
         PUMP.y - 0.026,
         PUMP.y + 0.026,
         -0.024,

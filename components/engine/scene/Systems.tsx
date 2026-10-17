@@ -12,6 +12,7 @@ import type { CylinderDef, EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
 import {
   bank,
+  coil,
   D2R,
   driveLayout,
   gearSpins,
@@ -673,6 +674,45 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
 const PINION_TRAVEL = 0.022,
   PINION_MESH = 0.012;
 
+type RearStarter = Extract<ReturnType<typeof driveLayout>["starter"], { kind: "rear-adapter" }>;
+
+/**
+ * The right-angle starter adapter's housing (AMM 80-10; M-18 Figure 16-17 item 1), in engine coordinates: a mounting
+ * flange on the accessory face, the wheel case around the starter shaft back to the cover the scavenge pump bolts to,
+ * and the boss around the worm out to the motor's face. Its shape follows M-18 Figures D-3 and D-18; the sizes are
+ * drawn (FIT): the case 0.28 in outside the worm wheel, the cover 2.30 in aft of the accessory face.
+ */
+export function starterAdapter(st: RearStarter, d: Dims) {
+  return {
+    /** Starter shaft axis (y, z): the wheel case's and the cover's axis. */
+    y: st.shaft.y,
+    z: st.shaft.z,
+    flangeR: 1.9 * IN,
+    flangeX: d.accRear - 0.25 * IN,
+    caseR: 1.85 * IN,
+    /** The cover's aft face. */
+    coverX: d.accRear - 2.3 * IN,
+    /** Worm boss: its axis height and station, radius, and inboard end (just past the worm's bearing). */
+    bossY: st.worm.at[1],
+    bossX: st.wheel.x,
+    bossR: 0.75 * IN,
+    bossZ0: st.worm.at[2] - 0.046,
+    /** The motor's mounting face, where the boss ends. */
+    bossZ1: st.at[2],
+    faceX: d.accRear,
+  };
+}
+
+const starterAdapterGeometry = (a: ReturnType<typeof starterAdapter>) =>
+  merge([
+    rod(a.flangeR, a.faceX - a.flangeX, 32).translate((a.faceX + a.flangeX) / 2, a.y, a.z),
+    rod(a.caseR, a.faceX - a.coverX, 32).translate((a.faceX + a.coverX) / 2, a.y, a.z),
+    zrod(a.bossR, a.bossZ0, a.bossZ1, 20).translate(a.bossX, a.bossY, 0),
+  ]);
+
+/** The clutch spring's tint while it grips the starter shaft gear (engaged) and when it lets go: illustrative. */
+export const clutchGrip = (engaged: boolean) => (engaged ? 0.9 : 0);
+
 /** The drives' geometries, each in its part's own frame (`driveLayout` places them). */
 export function drivesGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
   const D = driveLayout(spec, d, L);
@@ -718,6 +758,10 @@ export function drivesGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layo
           wheel: gear(st.wheel.r, st.wheel.teeth, 0.01, 0.008),
           shaftGear: gear(st.shaft.r, st.shaft.teeth, 0.012, 0.008),
           shaft: rod(0.008, st.shaft.x - st.wheel.x, 10).translate((st.shaft.x + st.wheel.x) / 2, 0, 0),
+          // the clutch spring on the worm wheel's hub, forward of the wheel (M-18 Figure 16-17 item 17), in the
+          // shaft's frame
+          clutch: coil(0.014, 0.0016, st.wheel.x + 0.006, st.wheel.x + 0.03, 7).rotateY(Math.PI / 2),
+          adapter: starterAdapterGeometry(starterAdapter(st, d)),
         };
   const alternators = D.alternators.map((a) => {
     // the default is short enough to stay forward of the IO-390's cylinder 1 intake pipe
@@ -803,6 +847,14 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     },
     [geo],
   );
+  // the clutch spring glows while it grips (its own material, so the tint stays on it)
+  const clutchMat = useMemo(() => {
+    const m = mats.spring.clone();
+    m.emissive.set("#ffb347");
+    m.emissiveIntensity = 0;
+    return m;
+  }, [mats]);
+  useEffect(() => () => clutchMat.dispose(), [clutchMat]);
   const pinion = useRef<THREE.Group>(null),
     worm = useRef<THREE.Mesh>(null),
     wheel = useRef<THREE.Mesh>(null),
@@ -824,6 +876,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     // the starter is engaged
     const shaftA = ((crank * (spins.starterShaft ?? 0)) % 360) * D2R;
     if (shaftGear.current) shaftGear.current.rotation.x = shaftA;
+    clutchMat.emissiveIntensity = clutchGrip(sim.s.starterEngaged);
     if (sim.s.starterEngaged) {
       if (wheel.current) wheel.current.rotation.x = shaftA;
       if (worm.current) worm.current.rotation.z = ((crank * acc.starterRatio) % 360) * D2R;
@@ -865,6 +918,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
             <P name="Starter" note={L.notes.starter} geometry={sg.motor} material={mats.black} />
             <P name="Starter solenoid" geometry={sg.solenoid} material={mats.black} />
           </group>
+          <P name="Starter adapter" note={L.notes.starterAdapter} geometry={sg.adapter} material={mats.acc} />
           <P
             name="Starter worm"
             note={L.notes.starterWorm}
@@ -883,6 +937,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
               meshRef={wheel}
             />
             <P name="Starter shaft" geometry={sg.shaft} material={mats.steel} />
+            <P name="Starter clutch spring" note={L.notes.clutchSpring} geometry={sg.clutch} material={clutchMat} />
             <P
               name="Starter shaft gear"
               note={L.notes.starterShaftGear}
