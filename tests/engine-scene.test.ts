@@ -325,6 +325,35 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
         expect(p.z).toBeCloseTo(want.z, 9);
       }
   });
+
+  test("with the propeller switched off, nothing of it catches the pointer", async () => {
+    const sim = simFor(S),
+      ui = sim.useUi;
+    const view = ui.getState().view;
+    const el = h(Propeller, { sim, d, mats: makeMats() });
+    const { hoverTargets, render, unmount } = await mountScene(el);
+    // the pointer from in front of the engine, aimed at the top blade halfway out (the crankshaft at 0°)
+    const ray = new THREE.Raycaster(
+      new THREE.Vector3(5, (S.propeller.diameterIn * IN) / 4, 0),
+      new THREE.Vector3(-1, 0, 0),
+    );
+    const behind = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.1, 0.1));
+    behind.position.set(-1, (S.propeller.diameterIn * IN) / 4, 0);
+    behind.updateMatrixWorld();
+    const hits = () => hoverTargets().flatMap((o) => ray.intersectObject(o, true));
+    try {
+      expect(hits().length).toBeGreaterThan(0);
+      ui.setState({ view: { ...view, prop: false } });
+      await render(el);
+      expect(hits()).toEqual([]);
+      expect(ray.intersectObjects([...hoverTargets(), behind], true).map((hit) => hit.object)).toContain(behind);
+    } finally {
+      behind.geometry.dispose();
+      (behind.material as THREE.Material).dispose();
+      ui.setState({ view });
+      await unmount();
+    }
+  });
 });
 
 describe("IO-390 scene layout defaults", () => {
