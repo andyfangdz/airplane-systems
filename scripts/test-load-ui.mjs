@@ -347,19 +347,26 @@ const CAMERAS = [
   "/sr22t/electrical?cam=side",
 ];
 
-test("loading, scene fingerprints and exact camera behavior", async ({ browser, baseURL: base }) => {
-  test.setTimeout(20 * 60_000);
+/** Every independently shardable case owns its browser context and error collection. */
+async function withObservedPage(browser, run) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   await context.addInitScript(hookThree);
-  // analytics has no bearing on the scene and need not contact a deployment
   await context.route("**/_vercel/**", (route) => route.abort());
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  const got = { scenes: {}, cameras: {} };
-  const want = update ? null : JSON.parse(readFileSync(BASELINE, "utf8"));
+  try {
+    const result = await run(page);
+    assert.deepEqual(errors, [], "No application runtime errors");
+    return result;
+  } finally {
+    await context.close();
+  }
+}
 
-  for (const route of ROUTES) {
+async function captureScenes(page, base, routes, want) {
+  const got = { scenes: {} };
+  for (const route of routes) {
     await page.goto(base + route);
     await sceneComplete(page);
     if (!update) await loaderThenScene(page, route);
@@ -368,6 +375,11 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
     console.log(`${route}: ${JSON.stringify({ objects, animated, multiset })}`);
     if (want) assert.deepEqual(sceneDiff(got.scenes[route], want.scenes[route]), [], `final scene of ${route}`);
   }
+  return got.scenes;
+}
+
+async function captureCameras(page, base, want) {
+  const got = { cameras: {} };
   for (const route of CAMERAS) {
     await page.goto(base + route);
     await sceneComplete(page);
@@ -394,149 +406,164 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
   if (want)
     for (const [k, v] of Object.entries(want.cameras))
       assert.ok(!cameraDiff(got.cameras[k], v), `camera for ${k}: ${got.cameras[k]} vs ${v}`);
+  return got.cameras;
+}
 
-  if (!update) {
-    // the deep-linked system's parts, and the walk-around station's, are added first; the overview adds them later
-    const firstDone = async (route, key) => {
-      await page.goto(base + route);
-      await sceneComplete(page);
-      const h = await page.evaluate(() => window.__marks.parts);
-      const final = h.at(-1);
-      const done = h.find((x) => x[key] === final[key]);
-      return done.total / final.total;
-    };
-    const el = await firstDone("/sr22t/electrical", "electrical"),
-      elOverview = await firstDone("/sr22t/overview", "electrical");
-    assert.ok(
-      el < 0.6 && el < elOverview,
-      `electrical parts first on /sr22t/electrical: ${el} of the parts (overview ${elOverview})`,
+// Hold worker answers without constructing the hull on the main thread.
+function holdWorker() {
+  const W = window.Worker;
+  const held = [];
+  window.__holdWorker = true;
+  window.__releaseWorker = () => {
+    window.__holdWorker = false;
+    held.splice(0).forEach((deliver) => deliver());
+  };
+  window.Worker = class extends W {
+    set onmessage(f) {
+      super.onmessage = (e) => (window.__holdWorker ? held.push(() => f(e)) : f(e));
+    }
+    get onmessage() {
+      return super.onmessage;
+    }
+  };
+  window.__longTasks = [];
+  new PerformanceObserver((l) =>
+    window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration])),
+  ).observe({
+    type: "longtask",
+    buffered: true,
+  });
+}
+
+async function beginWalk(browser, base, station, hold) {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+  await ctx.addInitScript(hookThree);
+  await ctx.route("**/_vercel/**", (route) => route.abort());
+  if (hold) await ctx.addInitScript(holdWorker);
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(base + `/sr22t?walk=${station}`);
+  if (!hold) await sceneComplete(p);
+  const begin = p.getByRole("button", { name: `Begin at station ${station}`, exact: true });
+  await begin.waitFor();
+  // from just before Begin: the framing runs while Begin is handled
+  const t0 = await p.evaluate(() => performance.now());
+  await begin.click();
+  const first = `${station}a`;
+  await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
+  let longest = null;
+  if (hold) {
+    // the card works meanwhile: forward a step and back
+    await p.getByRole("button", { name: "Next item" }).click();
+    await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent !== id, first);
+    await p.getByRole("button", { name: "Previous item" }).click();
+    await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
+    await p.waitForTimeout(1500);
+    assert.ok(await p.locator("[data-building]").count(), `?walk=${station}: still building while the worker is held`);
+    longest = await p.evaluate(
+      (t) => Math.max(0, ...window.__longTasks.filter(([s]) => s >= t).map(([, d]) => d)),
+      t0 - 50,
     );
-    const walk = await firstDone("/sr22t?walk=9", "station9"),
-      walkOverview = await firstDone("/sr22t/overview", "station9");
-    assert.ok(
-      walk < 0.25 && walk < walkOverview,
-      `station 9's parts first on ?walk=9: ${walk} (overview ${walkOverview})`,
-    );
-    // station 1 with FIKI fitted: its items' configured parts, the lift transducer included
-    const walk1 = await firstDone("/sr22t?walk=1", "station1"),
-      walk1Overview = await firstDone("/sr22t/overview", "station1");
-    assert.ok(
-      walk1 < 0.25 && walk1 < walk1Overview,
-      `station 1's configured parts first on ?walk=1: ${walk1} (overview ${walk1Overview})`,
-    );
-    console.log(
-      `Build order: electrical done at ${el.toFixed(2)} (overview ${elOverview.toFixed(2)}), station 9 at ${walk.toFixed(2)} (overview ${walkOverview.toFixed(2)}), station 1 at ${walk1.toFixed(2)} (overview ${walk1Overview.toFixed(2)})`,
-    );
+    await p.evaluate(() => window.__releaseWorker());
+  }
+  await sceneComplete(p);
+  // a new station: the camera goes to the station, then to the item after the panel's 1.1 s settle (STATION_SETTLE_MS)
+  await p.waitForTimeout(1600);
+  const camera = await settledCamera(p);
+  assert.deepEqual(errs, [], "No application runtime errors");
+  await ctx.close();
+  return { camera, longest };
+}
+
+const want = update ? null : JSON.parse(readFileSync(BASELINE, "utf8"));
+
+if (update) {
+  // Baseline generation stays in one case: one writer captures every route and camera before publishing the file.
+  test("update loading, scene fingerprints and exact camera baseline", async ({ browser, baseURL: base }) => {
+    test.setTimeout(20 * 60_000);
+    const got = await withObservedPage(browser, async (page) => ({
+      scenes: await captureScenes(page, base, ROUTES, null),
+      cameras: await captureCameras(page, base, null),
+    }));
+    // Numbers to 1e-9, well inside every tolerance.
+    const round = (_k, v) => (typeof v === "number" ? Math.round(v * 1e9) / 1e9 : v);
+    writeFileSync(BASELINE, JSON.stringify(got, round, 2) + "\n");
+    console.log(`baseline written: ${BASELINE}`);
+  });
+} else {
+  for (const route of ROUTES) {
+    test(`loading and scene fingerprint: ${route}`, async ({ browser, baseURL: base }) => {
+      await withObservedPage(browser, (page) => captureScenes(page, base, [route], want));
+    });
   }
 
-  assert.deepEqual(errors, [], "No application runtime errors");
-  await context.close();
+  test("exact camera baselines and Reset view after a drag", async ({ browser, baseURL: base }) => {
+    await withObservedPage(browser, (page) => captureCameras(page, base, want));
+  });
 
-  if (!update) {
-    // "tap to locate" on a part not mounted yet: the camera goes to it once it mounts
-    {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-      await ctx.addInitScript(hookThree);
-      await ctx.route("**/_vercel/**", (route) => route.abort());
-      await ctx.addInitScript(() => (window.__buildHold = ["Oxygen bottle — 77 cu ft"]));
-      const p = await ctx.newPage();
-      await p.goto(base + "/sr22t/oxygen");
-      await p.waitForSelector(".loader-bar");
-      await p.locator(".parts button", { hasText: "Oxygen bottle — 77 cu ft" }).click();
-      await p.evaluate(() => delete window.__buildHold);
-      await sceneComplete(p);
-      await settledCamera(p);
-      const d = await p.evaluate(() => {
-        let part;
-        window.__three.scenes
-          .find((s) => s.children.length)
-          .traverse((o) => {
-            if (o.isMesh && o.userData.pick?.name === "Oxygen bottle — 77 cu ft") part ??= o;
-          });
-        const g = part.geometry;
-        g.computeBoundingSphere();
-        return part.localToWorld(g.boundingSphere.center.clone()).distanceTo(window.__three.camera.position);
-      });
-      assert.ok(Math.abs(d - 2.6) < 0.01, `located the late part: camera ${d} m from it (2.6 m expected)`);
-      console.log(`Tap to locate a part before it mounts: the camera flies to it once it does (${d.toFixed(3)} m)`);
-      await ctx.close();
-    }
-
-    // the walk-around begun while the fuselage worker is still building (its answer held back): the item is framed without
-    // building the hull on the main thread (no long task), the card works, and once the worker answers the camera settles
-    // where it does when the hull was there from the start. Items 2a and 11a step back from the airplane (its outline).
-    const holdWorker = () => {
-      const W = window.Worker;
-      const held = [];
-      window.__holdWorker = true;
-      window.__releaseWorker = () => {
-        window.__holdWorker = false;
-        held.splice(0).forEach((deliver) => deliver());
-      };
-      window.Worker = class extends W {
-        set onmessage(f) {
-          super.onmessage = (e) => (window.__holdWorker ? held.push(() => f(e)) : f(e));
-        }
-        get onmessage() {
-          return super.onmessage;
-        }
-      };
-      window.__longTasks = [];
-      new PerformanceObserver((l) =>
-        window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration])),
-      ).observe({
-        type: "longtask",
-        buffered: true,
-      });
-    };
-    const beginWalk = async (station, hold) => {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-      await ctx.addInitScript(hookThree);
-      await ctx.route("**/_vercel/**", (route) => route.abort());
-      if (hold) await ctx.addInitScript(holdWorker);
-      const p = await ctx.newPage();
-      const errs = [];
-      p.on("pageerror", (e) => errs.push(e.message));
-      await p.goto(base + `/sr22t?walk=${station}`);
-      if (!hold) await sceneComplete(p);
-      const begin = p.getByRole("button", { name: `Begin at station ${station}`, exact: true });
-      await begin.waitFor();
-      // from just before Begin: the framing runs while Begin is handled
-      const t0 = await p.evaluate(() => performance.now());
-      await begin.click();
-      const first = `${station}a`;
-      await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
-      let longest = null;
-      if (hold) {
-        // the card works meanwhile: forward a step and back
-        await p.getByRole("button", { name: "Next item" }).click();
-        await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent !== id, first);
-        await p.getByRole("button", { name: "Previous item" }).click();
-        await p.waitForFunction((id) => document.querySelector(".walk-id")?.textContent === id, first);
-        await p.waitForTimeout(1500);
+  // Each comparison keeps the deep link and overview in the same context, as a user navigates between them.
+  for (const { route, key, maximum } of [
+    { route: "/sr22t/electrical", key: "electrical", maximum: 0.6 },
+    { route: "/sr22t?walk=9", key: "station9", maximum: 0.25 },
+    { route: "/sr22t?walk=1", key: "station1", maximum: 0.25 },
+  ]) {
+    test(`deep-linked ${key} parts load before the rest of the scene`, async ({ browser, baseURL: base }) => {
+      await withObservedPage(browser, async (page) => {
+        const firstDone = async (route) => {
+          await page.goto(base + route);
+          await sceneComplete(page);
+          const h = await page.evaluate(() => window.__marks.parts);
+          const final = h.at(-1);
+          const done = h.find((x) => x[key] === final[key]);
+          return done.total / final.total;
+        };
+        const linked = await firstDone(route);
+        const overview = await firstDone("/sr22t/overview");
         assert.ok(
-          await p.locator("[data-building]").count(),
-          `?walk=${station}: still building while the worker is held`,
+          linked < maximum && linked < overview,
+          `${key} parts first on ${route}: ${linked} of the parts (overview ${overview})`,
         );
-        longest = await p.evaluate(
-          (t) => Math.max(0, ...window.__longTasks.filter(([s]) => s >= t).map(([, d]) => d)),
-          t0 - 50,
-        );
-        await p.evaluate(() => window.__releaseWorker());
-      }
-      await sceneComplete(p);
-      // a new station: the camera goes to the station, then to the item after the panel's 1.1 s settle (STATION_SETTLE_MS)
-      await p.waitForTimeout(1600);
-      const camera = await settledCamera(p);
-      assert.deepEqual(errs, [], "No application runtime errors");
-      await ctx.close();
-      return { camera, longest };
-    };
-    const framed = {};
-    for (const station of [2, 11]) {
-      const held = await beginWalk(station, true),
-        onTime = await beginWalk(station, false);
-      framed[station] = onTime.camera;
+        console.log(`Build order: ${key} done at ${linked.toFixed(2)} (overview ${overview.toFixed(2)})`);
+      });
+    });
+  }
+
+  test("tap to locate waits for an unmounted part", async ({ browser, baseURL: base }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    await ctx.addInitScript(hookThree);
+    await ctx.route("**/_vercel/**", (route) => route.abort());
+    await ctx.addInitScript(() => (window.__buildHold = ["Oxygen bottle — 77 cu ft"]));
+    const p = await ctx.newPage();
+    await p.goto(base + "/sr22t/oxygen");
+    await p.waitForSelector(".loader-bar");
+    await p.locator(".parts button", { hasText: "Oxygen bottle — 77 cu ft" }).click();
+    await p.evaluate(() => delete window.__buildHold);
+    await sceneComplete(p);
+    await settledCamera(p);
+    const d = await p.evaluate(() => {
+      let part;
+      window.__three.scenes
+        .find((s) => s.children.length)
+        .traverse((o) => {
+          if (o.isMesh && o.userData.pick?.name === "Oxygen bottle — 77 cu ft") part ??= o;
+        });
+      const g = part.geometry;
+      g.computeBoundingSphere();
+      return part.localToWorld(g.boundingSphere.center.clone()).distanceTo(window.__three.camera.position);
+    });
+    assert.ok(Math.abs(d - 2.6) < 0.01, `located the late part: camera ${d} m from it (2.6 m expected)`);
+    console.log(`Tap to locate a part before it mounts: the camera flies to it once it does (${d.toFixed(3)} m)`);
+    await ctx.close();
+  });
+
+  // Items 2a and 11a frame the airplane while the fuselage worker is still building, without a main-thread hull build.
+  for (const station of [2, 11]) {
+    test(`station ${station} frames the same with an on-time or delayed hull`, async ({ browser, baseURL: base }) => {
+      // Render the reference first so cold browser/GL setup stays outside the held-worker timing measurement.
+      // The old combined case had already loaded many scenes before reaching this comparison.
+      const onTime = await beginWalk(browser, base, station, false),
+        held = await beginWalk(browser, base, station, true);
       assert.ok(
         held.longest < 400,
         `?walk=${station}: no main-thread hull build while the worker builds it (longest task ${held.longest} ms)`,
@@ -549,13 +576,14 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
       console.log(
         `?walk=${station} begun while the worker builds the hull: longest task ${Math.round(held.longest)} ms, camera ${held.camera}`,
       );
-    }
+    });
+  }
 
-    // a camera move the user makes while the worker still builds the fuselage is kept when it answers: on the intro screen,
-    // and on an item (2a) shown from its station while it waited for the hull, also when the viewport is resized during
-    // the press. A tap there moves nothing, so 2a is still framed when the worker answers (and a tap on a part still
-    // shows its note); nor does a taller viewport during a tap that stops a flight in from the zoom limit
-    for (const where of ["intro", "2a", "2a resize", "2a tap", "2a clamp"]) {
+  // Each gesture owns its reference camera; it never depends on another test running first or on the same shard.
+  for (const where of ["intro", "2a", "2a resize", "2a tap", "2a clamp"]) {
+    test(`camera interaction while the hull builds: ${where}`, async ({ browser, baseURL: base }) => {
+      const framed =
+        where === "2a tap" || where === "2a clamp" ? (await beginWalk(browser, base, 2, false)).camera : null;
       const tap = where === "2a tap",
         resize = where === "2a resize",
         clamp = where === "2a clamp";
@@ -640,15 +668,11 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
       if (clamp)
         assert.deepEqual(
           after,
-          framed[2],
+          framed,
           `${where}: 2a framed as when the hull was there from the start, after a tap and a resize at the zoom limit`,
         );
       else if (tap) {
-        assert.deepEqual(
-          after,
-          framed[2],
-          `${where}: 2a framed as when the hull was there from the start, after a tap`,
-        );
+        assert.deepEqual(after, framed, `${where}: 2a framed as when the hull was there from the start, after a tap`);
         // and a tap on a part (the small one nearest mid-canvas, so its middle is on it) still shows its note
         const [x, y] = await p.evaluate(() => {
           const cam = window.__three.camera;
@@ -682,54 +706,53 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
             : `?walk=2 ${where}: a camera drag during the build${resize ? " (resized mid-press)" : ""} is kept when the worker's hull arrives`,
       );
       await ctx.close();
-    }
+    });
+  }
 
-    // A newer system request supersedes a locate request for a part still being built.
-    {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-      await ctx.addInitScript(hookThree);
-      await ctx.route("**/_vercel/**", (route) => route.abort());
-      await ctx.addInitScript(() => (window.__buildHold = ["Oxygen bottle — 77 cu ft"]));
-      const p = await ctx.newPage();
-      await p.goto(base + "/sr22t/oxygen");
-      await p.waitForSelector(".loader-bar");
-      await p.locator(".parts button", { hasText: "Oxygen bottle — 77 cu ft" }).click();
-      await p.locator(".syslist button").filter({ hasText: "Electrical" }).click();
-      const before = await settledCamera(p);
-      await p.evaluate(() => delete window.__buildHold);
-      await sceneComplete(p);
-      assert.ok(!cameraDiff(await settledCamera(p), before), "late part cannot override a newer system view");
-      console.log("Late locate cancelled: electrical camera remains after the oxygen bottle mounts");
-      await ctx.close();
-    }
+  test("a newer system view supersedes locating an unmounted part", async ({ browser, baseURL: base }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    await ctx.addInitScript(hookThree);
+    await ctx.route("**/_vercel/**", (route) => route.abort());
+    await ctx.addInitScript(() => (window.__buildHold = ["Oxygen bottle — 77 cu ft"]));
+    const p = await ctx.newPage();
+    await p.goto(base + "/sr22t/oxygen");
+    await p.waitForSelector(".loader-bar");
+    await p.locator(".parts button", { hasText: "Oxygen bottle — 77 cu ft" }).click();
+    await p.locator(".syslist button").filter({ hasText: "Electrical" }).click();
+    const before = await settledCamera(p);
+    await p.evaluate(() => delete window.__buildHold);
+    await sceneComplete(p);
+    assert.ok(!cameraDiff(await settledCamera(p), before), "late part cannot override a newer system view");
+    console.log("Late locate cancelled: electrical camera remains after the oxygen bottle mounts");
+    await ctx.close();
+  });
 
-    // a browser that refuses to create the fuselage worker: the page builds the fuselage itself and completes the same scene
-    {
-      const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
-      await ctx.addInitScript(hookThree);
-      await ctx.route("**/_vercel/**", (route) => route.abort());
-      await ctx.addInitScript(() => {
-        window.Worker = class {
-          constructor() {
-            throw new DOMException("Worker construction denied", "SecurityError");
-          }
-        };
-      });
-      const p = await ctx.newPage();
-      const errs = [];
-      p.on("pageerror", (e) => errs.push(e.message));
-      await p.goto(base + "/sr22t/overview");
-      await sceneComplete(p);
-      await loaderThenScene(p, "/sr22t/overview, worker refused");
-      const fp = await fingerprint(p);
-      assert.deepEqual(errs, [], "no page errors with the worker refused");
-      assert.deepEqual(sceneDiff(fp, want.scenes["/sr22t"]), [], "the same final scene without the worker");
-      console.log(`Worker refused: the scene completes on the main thread, identical (${fp.multiset})`);
-      await ctx.close();
-    }
+  test("a refused worker produces the same final scene", async ({ browser, baseURL: base }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
+    await ctx.addInitScript(hookThree);
+    await ctx.route("**/_vercel/**", (route) => route.abort());
+    await ctx.addInitScript(() => {
+      window.Worker = class {
+        constructor() {
+          throw new DOMException("Worker construction denied", "SecurityError");
+        }
+      };
+    });
+    const p = await ctx.newPage();
+    const errs = [];
+    p.on("pageerror", (e) => errs.push(e.message));
+    await p.goto(base + "/sr22t/overview");
+    await sceneComplete(p);
+    await loaderThenScene(p, "/sr22t/overview, worker refused");
+    const fp = await fingerprint(p);
+    assert.deepEqual(errs, [], "no page errors with the worker refused");
+    assert.deepEqual(sceneDiff(fp, want.scenes["/sr22t"]), [], "the same final scene without the worker");
+    console.log(`Worker refused: the scene completes on the main thread, identical (${fp.multiset})`);
+    await ctx.close();
+  });
 
-    // the build-in glow: shown with motion, never with prefers-reduced-motion
-    for (const reducedMotion of ["no-preference", "reduce"]) {
+  for (const reducedMotion of ["no-preference", "reduce"]) {
+    test(`build-in glow follows reduced motion: ${reducedMotion}`, async ({ browser, baseURL: base }) => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion });
       await ctx.addInitScript(hookThree);
       await ctx.route("**/_vercel/**", (route) => route.abort());
@@ -745,18 +768,9 @@ test("loading, scene fingerprints and exact camera behavior", async ({ browser, 
       else assert.ok(during > steady, `build-in glow with motion: ${during} vs ${steady} after`);
       console.log(`${reducedMotion}: most parts glowing while building ${during}, after ${steady}`);
       await ctx.close();
-    }
+    });
   }
-
-  if (update) {
-    // numbers to 1e-9, well inside every tolerance
-    const round = (_k, v) => (typeof v === "number" ? Math.round(v * 1e9) / 1e9 : v);
-    writeFileSync(BASELINE, JSON.stringify(got, round, 2) + "\n");
-    console.log(`baseline written: ${BASELINE}`);
-  } else {
-    console.log("Final scenes and camera framing match the reviewed baseline");
-  }
-});
+}
 
 /** A throttled client navigation still paints loading feedback before the destination model mounts. */
 test("one-shot fleet switch paints an opaque loader before mounting the new aircraft", async ({

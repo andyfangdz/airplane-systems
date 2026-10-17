@@ -21,43 +21,52 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline
       - run: npm run check
       # Offline subprocess fixtures; no credentials or AWS calls reach a real account.
       - run: npm run test:deploy
 
   build:
     runs-on: ubuntu-latest
-    outputs:
-      manifest-sha256: ${{ steps.seal.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline
+      - name: Restore compiled geometry
+        uses: actions/cache@v4
+        with:
+          path: |
+            public/geometry/
+            .geometry-runtime/
+          # Keep fallback reuse within the same compiler, shared helpers and local vendor implementation.
+          # The compiler's per-aircraft digests validate aircraft changes after restore.
+          key: ${{ runner.os }}-geometry-v1-${{ hashFiles('.node-version', 'package.json', 'package-lock.json', 'tsconfig.json', 'scripts/build-geometry.mjs', 'scripts/geometry/**', 'lib/**', 'authoring/**', 'vendor/**', 'aircraft/fleet.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-geometry-v1-${{ hashFiles('.node-version', 'package.json', 'package-lock.json', 'tsconfig.json', 'scripts/build-geometry.mjs', 'scripts/geometry/**', 'lib/**', 'authoring/**', 'vendor/**', 'aircraft/fleet.json') }}-
+      - name: Restore server build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache/
+          key: ${{ runner.os }}-next-server-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-server-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-
       # The compiler runs once. Both hosts and every browser shard consume these exact assets.
+      # Always validate restored inputs and regenerate changed aircraft before building either target.
       - run: npm run geometry:build
       - run: npm run build:site
       - uses: actions/upload-artifact@v4
         with:
           name: server-under-test
           include-hidden-files: true
+          # Mixing server and static Next caches can crash Turbopack's file tracing.
           path: |
             .next/
-            !.next/cache/
+            !.next/cache/**
             public/geometry/
             .geometry-runtime/
-      - run: STATIC_EXPORT=1 npm run build:site
-      - id: seal
-        run: |
-          node scripts/release-manifest.mjs seal out > "$RUNNER_TEMP/release-seal.json"
-          node -e 'const fs = require("fs"); const seal = JSON.parse(fs.readFileSync(process.argv[1])); fs.appendFileSync(process.env.GITHUB_OUTPUT, `sha256=${seal.sha256}\n`)' "$RUNNER_TEMP/release-seal.json"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: static-under-test
-          path: out/
 
   ui:
     name: ui (${{ matrix.shard }}/6)
@@ -73,7 +82,7 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline
       - uses: actions/download-artifact@v4
         with:
           name: server-under-test
@@ -100,6 +109,8 @@ jobs:
   static:
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      manifest-sha256: ${{ steps.seal.outputs.sha256 }}
     env:
       STATIC_EXPORT: "1"
     steps:
@@ -108,12 +119,29 @@ jobs:
         with:
           node-version-file: .node-version
           cache: npm
-      - run: npm ci
+      - run: npm ci --prefer-offline
+      # Reuse the exact geometry from the server build while browser shards start independently.
       - uses: actions/download-artifact@v4
         with:
+          name: server-under-test
+          path: .
+      - name: Restore static build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache/
+          key: ${{ runner.os }}-next-static-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-static-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-
+      - run: npm run build:site
+      - id: seal
+        run: |
+          node scripts/release-manifest.mjs seal out > "$RUNNER_TEMP/release-seal.json"
+          node -e 'const fs = require("fs"); const seal = JSON.parse(fs.readFileSync(process.argv[1])); fs.appendFileSync(process.env.GITHUB_OUTPUT, `sha256=${seal.sha256}\n`)' "$RUNNER_TEMP/release-seal.json"
+      - run: node scripts/release-manifest.mjs verify out '${{ steps.seal.outputs.sha256 }}'
+      - uses: actions/upload-artifact@v4
+        with:
           name: static-under-test
-          path: out
-      - run: node scripts/release-manifest.mjs verify out '${{ needs.build.outputs.manifest-sha256 }}'
+          path: out/
       - name: Install browser and software WebGL
         run: |
           npx playwright install --with-deps chromium
@@ -139,7 +167,7 @@ jobs:
         with:
           name: static-under-test
           path: out
-      - run: node scripts/release-manifest.mjs verify out '${{ needs.build.outputs.manifest-sha256 }}' '${{ github.sha }}'
+      - run: node scripts/release-manifest.mjs verify out '${{ needs.static.outputs.manifest-sha256 }}' '${{ github.sha }}'
       - uses: actions/upload-artifact@v4
         with:
           name: release-${{ github.sha }}
@@ -148,4 +176,4 @@ jobs:
       - name: Record the independently supplied promotion checksum
         run: |
           echo 'Release commit: `${{ github.sha }}`' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Manifest SHA256: `${{ needs.build.outputs.manifest-sha256 }}`' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Manifest SHA256: `${{ needs.static.outputs.manifest-sha256 }}`' >> "$GITHUB_STEP_SUMMARY"
