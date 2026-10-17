@@ -7,6 +7,7 @@
  */
 import { egtOffset } from "@/engines/model/mixture";
 import { limitFlags, markingBand } from "@/engines/model/alerts";
+import { titFromPeak } from "@/engines/model/tit";
 import { meanLambda } from "@/engines/model/trim";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
 import type { EngineSpec, Marking } from "@/engines/types";
@@ -33,32 +34,6 @@ export function bandTone(spec: EngineSpec, gauge: Marking["gauge"], v: number): 
   return b ? TONES[SEVERITY[b.color]] : "";
 }
 
-/**
- * °F below peak TIT for the cylinders' mixtures, and on which side of the peak they are. TIT is the turbochargers'
- * mixed exhaust (the bank-mean EGT with crossover, engines/model/turbo.ts `titTargets`), so its peak is the peak of the mean EGT as the
- * mixture is swept, every cylinder's λ scaled by one factor. `rich` is the engine's rich misfire edge
- * (`calibration.richMisfireLambda`; absent, the model's default), so the reading follows the engine's own EGT law. Null
- * with no burning cylinder.
- */
-export function titFromPeak(lambdas: number[], rich?: number): { off: number; side: "ROP" | "LOP" | "peak" } | null {
-  const l = lambdas.filter(Number.isFinite);
-  if (!l.length) return null;
-  const mean = (k: number) => l.reduce((a, x) => a + egtOffset(k * x, rich), 0) / l.length;
-  // golden-section search for the leaning factor at the peak (one peak over this range)
-  const g = (Math.sqrt(5) - 1) / 2;
-  let a = 0.5,
-    b = 2;
-  for (let i = 0; i < 60; i++) {
-    const c = b - g * (b - a),
-      d = a + g * (b - a);
-    if (mean(c) > mean(d)) b = d;
-    else a = c;
-  }
-  const k = (a + b) / 2;
-  // leaning further (k > 1) reaches the peak: the mixture is rich of it
-  return { off: mean(k) - mean(1), side: k > 1.01 ? "ROP" : k < 0.99 ? "LOP" : "peak" };
-}
-
 const scaleOf = (spec: EngineSpec, gauge: Marking["gauge"]) => spec.markings?.find((m) => m.gauge === gauge)?.scale;
 const fill = (v: number, [lo, hi]: [number, number]) => `${Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100))}%`;
 const peakText = (off: number, side: string) => (side === "peak" ? "at peak" : `${f0(off)} ${side}`);
@@ -72,8 +47,8 @@ export function Monitor({ sim }: { sim: EngineSim }) {
   const lam = meanLambda(s);
   const peak = Number.isFinite(lam) && s.running ? -egtOffset(lam, rich) : NaN;
   const side = !Number.isFinite(peak) ? "" : lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak";
-  const lambdas = s.cyl.map((c) => c.lambda);
-  const titPeak = turbo && s.running ? titFromPeak(lambdas, rich) : null;
+  // the TIT bars' own path (engines/model/tit.ts): the °F they rise to their peak as the mixture is leaned
+  const titPeak = turbo && s.running ? titFromPeak(spec, s.cyl) : null;
   const egtScale = scaleOf(spec, "egt") ?? [300, Math.max(1700, ...s.cyl.map((c) => c.egt))];
   const chtScale = scaleOf(spec, "cht") ?? [50, 500];
   const titScale = scaleOf(spec, "tit") ?? [1000, 1800];

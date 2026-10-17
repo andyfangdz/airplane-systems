@@ -6,15 +6,17 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshLiveSnapshot } from "@/lib/useLiveSnapshot";
-import { initialState } from "@/engines/model/engine";
+import { initialState, noFailures } from "@/engines/model/engine";
 import { egtOffset } from "@/engines/model/mixture";
-import { labelOf, scenariosFor } from "@/engines/model/scenarios";
+import { labelOf, scenarioById, scenariosFor } from "@/engines/model/scenarios";
+import { titFromPeak } from "@/engines/model/tit";
+import { settle } from "@/engines/model/trim";
 import { IO390 } from "@/engines/io390/spec";
 import { O360 } from "@/engines/o360/spec";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { EngineSpec } from "@/engines/types";
 import { EnginePanel } from "@/components/engine/EnginePanel";
-import { Monitor, bandTone, titFromPeak } from "@/components/engine/Monitor";
+import { Monitor, bandTone } from "@/components/engine/Monitor";
 import { PressureChart, chartCaption, chartInputs } from "@/components/engine/PressureChart";
 import { GROUPS } from "@/components/engine/scene/parts";
 import { replaceState, simFor, type EngineSim } from "@/components/engine/store";
@@ -300,15 +302,29 @@ describe("engine monitor", () => {
     expect(monCell(container, "Deck")?.querySelector("b")?.textContent).toBe("36.4");
   });
 
-  it("puts TIT from peak where EGT from peak is for an even mixture", () => {
+  /** The -K's cylinders burning at the λ given, each at a cruise-like load (30 hp) and 1,400 °F. */
+  const cylsAt = (spec: EngineSpec, lambdas: number[]) =>
+    initialState(spec).cyl.map((c, i) => ({ ...c, lambda: lambdas[i], work: 0.5, hp: 30, egt: 1400 }));
+
+  it("puts TIT from peak on the side of the peak an even mixture is on, and at peak reads none", () => {
     for (const lam of [0.85, 1.0, 1.1]) {
-      const t = titFromPeak(Array(6).fill(lam))!;
-      expect(t.off).toBeCloseTo(-egtOffset(lam), 0);
-      expect(t.side).toBe(lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak");
+      const t = titFromPeak(K, cylsAt(K, Array(6).fill(lam)))!;
+      expect(t.side, `λ ${lam}`).toBe(lam < 0.99 ? "ROP" : lam > 1.01 ? "LOP" : "peak");
+      if (lam === 1.0) expect(t.off).toBeLessThan(1);
+      else expect(t.off, `λ ${lam}`).toBeGreaterThan(20);
     }
-    const spread = titFromPeak([0.95, 1.0, 1.05, 1.1, 1.15, 1.2])!;
+    const spread = titFromPeak(K, cylsAt(K, [0.95, 1.0, 1.05, 1.1, 1.15, 1.2]))!;
     expect(Number.isFinite(spread.off) && spread.off >= 0).toBe(true);
-    expect(titFromPeak([Infinity, Infinity])).toBeNull();
+    expect(titFromPeak(K, cylsAt(K, Array(6).fill(Infinity)))).toBeNull();
+    // no turbocharger, no TIT
+    expect(titFromPeak(IO390, cylsAt(IO390, Array(4).fill(1.1)))).toBeNull();
+  });
+
+  it("finds the TIT peak from a mixture as rich as the -K's misfire edge, beyond twice its λ", () => {
+    const rich = titFromPeak(K, cylsAt(K, Array(6).fill(0.46)))!;
+    expect(rich.side).toBe("ROP");
+    expect(rich.k).toBeGreaterThan(2);
+    expect(Math.abs(0.46 * rich.k - 1)).toBeLessThan(0.03);
   });
 
   /** Every cylinder burning at λ `lam` with the engine running; the panel's "from peak" cells and the monitor's. */
@@ -338,8 +354,10 @@ describe("engine monitor", () => {
     // at λ 0.50 the -K burns every cycle; the 0.55 default would add about 170 °F of misfire cooling it no longer has
     const off = -egtOffset(0.5, rich);
     expect(Math.abs(off + egtOffset(0.5))).toBeGreaterThan(100);
-    const t = titFromPeak(Array(6).fill(0.5), rich)!;
-    expect(t.off).toBeCloseTo(off, 0);
+    // with no load the TIT follows the EGT offset alone, scaled by the probes' gain (turbo.ts titTargets)
+    const cold = initialState(K).cyl.map((c) => ({ ...c, lambda: 0.5, work: 0.5 }));
+    const t = titFromPeak(K, cold)!;
+    expect(t.off).toBeCloseTo(K.calibration.titGain! * off, 0);
     expect(t.side).toBe("ROP");
     const r = fromPeakAt(K, 0.5);
     expect(r.cells).toEqual(Array(6).fill(`${Math.round(off)} R`));
@@ -350,7 +368,6 @@ describe("engine monitor", () => {
   it("keeps the IO-390's from-peak readings on the default rich edge", () => {
     expect(IO390.calibration.richMisfireLambda).toBeUndefined();
     const off = -egtOffset(0.5, 0.55);
-    expect(titFromPeak(Array(4).fill(0.5))!.off).toBeCloseTo(off, 6);
     const r = fromPeakAt(IO390, 0.5);
     expect(r.cells).toEqual(Array(4).fill(`${Math.round(off)} R`));
     expect(r.peak).toBe(`${Math.round(off)} ROP`);
@@ -367,6 +384,48 @@ describe("engine monitor", () => {
     expect(monCell(container, "RPM")?.querySelector("b")?.className).toBe("bad");
     expect(monCell(container, "Power")?.querySelector("b")?.getAttribute("title")).toBeNull();
   });
+});
+
+describe("TIT from peak against the TIT bars (POH 4-22, 7-35)", () => {
+  it("at the 10,000 ft cruise setup the monitor's TIT pk gives the side and the °F the bars rise to their peak when the mixture is swept, within 5 °F", () => {
+    const x = scenarioById(K, "cruise")!.run(K);
+    const f = noFailures(K);
+    settle(K, x.s, x.c, x.env, f, 20);
+    // what the monitor shows for this state
+    const sim = fresh(K);
+    replaceState(sim, structuredClone(x.s));
+    const { container } = render(<Monitor sim={sim} />);
+    const shown = monCell(container, "TIT pk")?.querySelector("b")?.textContent ?? "";
+    // the bars: the mean of the two probes (turbo.ts titTargets), read over 10 s (the controller hunts at part throttle)
+    const bars = () => {
+      let sum = 0;
+      for (let i = 0; i < 40; i++) {
+        settle(K, x.s, x.c, x.env, f, 0.25);
+        sum += (x.s.tit![0] + x.s.tit![1]) / 2;
+      }
+      return sum / 40;
+    };
+    const meanLambda = () => x.s.cyl.reduce((a, c) => a + c.lambda, 0) / x.s.cyl.length;
+    const m0 = x.c.mixture,
+      lambda0 = meanLambda(),
+      tit0 = bars();
+    // sweep the mixture lever from the setting through the peak, settling at each step
+    let peak = { tit: tit0, lambda: lambda0 };
+    for (let r = 0.9; r <= 1.3001; r += 0.01) {
+      x.c.mixture = m0 * r;
+      settle(K, x.s, x.c, x.env, f, 15);
+      const t = bars();
+      if (t > peak.tit) peak = { tit: t, lambda: meanLambda() };
+    }
+    const below = peak.tit - tit0;
+    const side = lambda0 > peak.lambda + 0.01 ? "LOP" : lambda0 < peak.lambda - 0.01 ? "ROP" : "peak";
+    const [deg, word] = shown.split(" ");
+    expect(word, `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ${side}`).toBe(side);
+    expect(
+      Math.abs(Number(deg) - below),
+      `TIT pk "${shown}"; swept: ${below.toFixed(1)} °F ${side}`,
+    ).toBeLessThanOrEqual(5);
+  }, 120_000);
 });
 
 describe("cylinder pressure chart", () => {
