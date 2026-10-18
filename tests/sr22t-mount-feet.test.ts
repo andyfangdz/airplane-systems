@@ -67,3 +67,49 @@ it("the mount frame stays one connected structure from the firewall fittings to 
   expect(reached.size, "every frame node is reachable from the first firewall fitting").toBe(nodes.size);
   for (const anchor of [...MOUNT_ATTACH, ...MOUNT_FEET, NOSE_GEAR]) expect(reached.has(key(anchor))).toBe(true);
 });
+
+// Authored instance tokens are frozen identities (AGENTS.md "Part identity and order"): moving the feet adds members,
+// it renames none. These are the engine mount weldment tokens on main 2083f79f.
+const BASE_WELDMENT_TOKENS = [
+  "left-aft-support-support",
+  "left-foot-rail-aft-mid",
+  "left-foot-rail-mid-forward",
+  "left-lower-aft-aft",
+  "left-lower-aft-firewall",
+  "left-lower-aft-rise",
+  "left-support-forward-foot",
+  "left-support-forward-rail",
+  "left-upper-aft-cross",
+  "left-upper-aft-firewall",
+  "left-upper-aft-foot",
+  "left-upper-aft-outboard",
+  "lower-cross-left-drop",
+  "lower-cross-left-foot",
+  "lower-cross-left-root",
+  "lower-cross-right-foot",
+  "lower-cross-right-rise",
+  "lower-cross-right-root",
+  "nose-support-aft-rise",
+  "nose-support-forward-span",
+  "nose-support-strut",
+  "right-aft-support-support",
+  "right-foot-rail-aft-mid",
+  "right-foot-rail-mid-forward",
+  "right-lower-aft-aft",
+  "right-lower-aft-firewall",
+  "right-lower-aft-rise",
+  "right-support-forward-foot",
+  "right-support-forward-rail",
+  "right-upper-aft-cross",
+  "right-upper-aft-firewall",
+  "right-upper-aft-foot",
+  "right-upper-aft-outboard",
+];
+
+it("every engine mount weldment keeps the instance token it had before the feet moved (AGENTS.md part identity)", () => {
+  const prefix = "sr22t/parts.engine-sensors.engine-mount-weldment.006@";
+  const tokens = CAT.parts
+    .filter((p) => p.id.startsWith(prefix))
+    .map((p) => (JSON.parse(decodeURIComponent(p.id.slice(prefix.length))) as [string, string][])[0][1]);
+  expect(BASE_WELDMENT_TOKENS.filter((token) => !tokens.includes(token))).toEqual([]);
+});

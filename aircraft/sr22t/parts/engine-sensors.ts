@@ -213,15 +213,17 @@ mountPaths.push(
   // Aft lower transverse frame, under the engine and above the lower cowl.
   {
     key: "lower-cross",
+    // The foot-to-lane stubs repeat the upper-aft run's "foot" members and are dropped as duplicates, so the lane-to-cross
+    // members carry the "left-foot" and "right-foot" tokens this run had before the feet moved.
     segments: [
+      "left-stub",
       "left-foot",
-      "left-lane",
       "left-drop",
       "left-root",
       "right-root",
       "right-rise",
-      "right-lane",
       "right-foot",
+      "right-stub",
     ],
     path: [
       MOUNT_FEET[0],
