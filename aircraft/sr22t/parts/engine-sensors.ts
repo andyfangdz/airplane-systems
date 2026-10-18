@@ -10,7 +10,7 @@ import { curveOf, mergeGeos } from "@/lib/geometry";
 import { toVec3 } from "@/lib/math";
 import type { Vec3 } from "@/lib/math";
 import { box, cyl, FW, tubeGeo } from "../geometry";
-import { CRANK_Y, IN } from "../engine-datum";
+import { ACCESSORY_FACE_X, CRANK_Y, IN } from "../engine-datum";
 import { part } from "./catalogue";
 import { CYLS, THROTTLE, CYL_BARREL_END, CYL_HEAD_BOTTOM } from "./engine";
 import { HEADER, INTAKE_MANIFOLD, MIXTURE_ARM } from "./engine-air";
@@ -152,14 +152,30 @@ export const MOUNT_ATTACH: Vec3[] = [-1, 1].flatMap(
       [FW + 0.015, -0.45, s * 0.52],
     ] as Vec3[],
 );
-export const MOUNT_FEET: Vec3[] = [-1, 1].flatMap(
-  (s) =>
-    [
-      [2.79, -0.34, s * 0.22],
-      [3.04, -0.36, s * 0.2],
-      [3.4, -0.34, s * 0.2],
-    ] as Vec3[],
-);
+// The feet sit at the Continental M-18 engine mounts (installation drawing 657645), as inches forward of the accessory
+// mounting face, out from and below the crankshaft centreline. Forward legs, two Ø 0.47 holes each, 3.28 in apart:
+// 20.27 and 16.99 in on the left (Fig 5-33 p. 5-53, 16.30 + 3.97 in), 20.19 and 16.91 in on the right (Fig 5-35
+// p. 5-55, 16.22 + 3.97 in), 7.62 in out and 8.21 in below (Fig 5-34 view D-D p. 5-54). Aft mounts: 7.31 in out and
+// 8.13 in below (Fig 5-33 rear view); the station is the 3.97 in line of Figs 5-33 and 5-35, scaled, approximate
+// (± 0.5 in).
+const mountFoot = (station: number, out: number, below: number, s: number): Vec3 => [
+  ACCESSORY_FACE_X + station * IN,
+  CRANK_Y - below * IN,
+  s * out * IN,
+];
+export const MOUNT_FEET: Vec3[] = [-1, 1].flatMap((s) => [
+  // Aft mount: M-18 Fig 5-33 rear view p. 5-53; station approximate (± 0.5 in).
+  mountFoot(3.97, 7.31, 8.13, s),
+  // Forward leg, rear hole: M-18 Fig 5-33 p. 5-53 (left) and Fig 5-35 p. 5-55 (right); Fig 5-34 view D-D p. 5-54.
+  mountFoot(s < 0 ? 16.99 : 16.91, 7.62, 8.21, s),
+  // Forward leg, front hole: the same figures.
+  mountFoot(s < 0 ? 20.27 : 20.19, 7.62, 8.21, s),
+]);
+/**
+ * Node level with an aft foot and outboard of it, at the lane the frame ran in before the feet moved. Members leave
+ * the foot through it, clear of the fuel drain lines and the oil line that pass the foot (approximate).
+ */
+const footLane = (foot: Vec3): Vec3 => [foot[0], foot[1], Math.sign(foot[2]) * 0.22];
 /** Node on the aft lower cross member where the nose-gear support leaves it. */
 const NOSE_ROOT: Vec3 = [2.77, -0.6, -0.04];
 const mountPaths: { key: string; path: Vec3[]; segments: string[] }[] = [];
@@ -167,9 +183,10 @@ for (let side = 0; side < 2; side++) {
   const [upper, lower] = MOUNT_ATTACH.slice(side * 2, side * 2 + 2);
   const [aft, mid, fwd] = MOUNT_FEET.slice(side * 3, side * 3 + 3);
   const s = side === 0 ? -1 : 1;
-  const support: Vec3 = [3.02, -0.29, aft[2]];
+  const lane = footLane(aft);
+  const support: Vec3 = [3.02, -0.29, lane[2]];
   const outerAft: Vec3 = [2.82, -0.4, s * 0.5];
-  const innerAft: Vec3 = [2.82, -0.4, aft[2]];
+  const innerAft: Vec3 = [2.82, -0.4, lane[2]];
   const lowerForward: Vec3 = [2.86, -0.48, s * 0.5];
   // AMM Fig 71-20-1 (PDF 2527): four firewall attachments, six feet and
   // triangulated side frames. Undimensioned runs pass outboard of the cylinder
@@ -179,31 +196,42 @@ for (let side = 0; side < 2; side++) {
   mountPaths.push(
     {
       key: `${bank}-upper-aft`,
-      path: [upper, [2.64, -0.15, s * 0.54], outerAft, innerAft, aft],
-      segments: ["firewall", "outboard", "cross", "foot"],
+      path: [upper, [2.64, -0.15, s * 0.54], outerAft, innerAft, lane, aft],
+      segments: ["firewall", "outboard", "cross", "lane", "foot"],
     },
-    { key: `${bank}-aft-support`, path: [aft, support], segments: ["support"] },
+    { key: `${bank}-aft-support`, path: [aft, lane, support], segments: ["lane", "support"] },
     {
       key: `${bank}-lower-aft`,
       path: [lower, lowerForward, [2.86, -0.4, s * 0.5], outerAft],
       segments: ["firewall", "rise", "aft"],
     },
-    { key: `${bank}-foot-rail`, path: [aft, mid, fwd], segments: ["aft-mid", "mid-forward"] },
-    { key: `${bank}-support-forward`, path: [support, [3.4, -0.29, s * 0.2], fwd], segments: ["rail", "foot"] },
+    { key: `${bank}-foot-rail`, path: [aft, lane, mid, fwd], segments: ["lane", "aft-mid", "mid-forward"] },
+    { key: `${bank}-support-forward`, path: [support, [fwd[0], -0.29, fwd[2]], fwd], segments: ["rail", "foot"] },
   );
 }
 mountPaths.push(
   // Aft lower transverse frame, under the engine and above the lower cowl.
   {
     key: "lower-cross",
-    segments: ["left-foot", "left-drop", "left-root", "right-root", "right-rise", "right-foot"],
+    segments: [
+      "left-foot",
+      "left-lane",
+      "left-drop",
+      "left-root",
+      "right-root",
+      "right-rise",
+      "right-lane",
+      "right-foot",
+    ],
     path: [
       MOUNT_FEET[0],
+      footLane(MOUNT_FEET[0]),
       [2.76, -0.4, -0.22],
       [2.77, -0.6, -0.22],
       NOSE_ROOT,
       [2.77, -0.6, 0.22],
       [2.76, -0.4, 0.22],
+      footLane(MOUNT_FEET[3]),
       MOUNT_FEET[3],
     ],
   },
@@ -254,7 +282,8 @@ for (const [key, pos] of [
   ["right-mid", MOUNT_FEET[4]],
   ["right-forward", MOUNT_FEET[5]],
 ] as const) {
-  part(() => cyl(0.034, 0.04, "y", 16), ["engine", "gear"], {
+  // Radius approximate: the right aft isolator stays 5 mm clear of the cylinder 1 fuel drain line beside it.
+  part(() => cyl(0.028, 0.04, "y", 16), ["engine", "gear"], {
     id: "parts.engine-sensors.engine-mount-isolator.007",
     instance: [key],
     name: "Engine mount isolator",
@@ -314,7 +343,8 @@ for (const [key, i] of [
   part(
     () =>
       mergeGeos([
-        cyl(0.034, 0.006, "y", 16),
+        // Radius approximate, as the isolator's.
+        cyl(0.028, 0.006, "y", 16),
         box(0.018, 0.006, 0.02).translate(0.014, 0, side * 0.034),
         cyl(0.004, 0.01, "y", 6).translate(0.014, -0.004, side * 0.038),
       ]),

@@ -155,7 +155,11 @@ it("six isolators on a mount bolted to the firewall at four points (POH 7-31; AM
     ]);
     expect(MOUNT_RUNS[side * 5][0]).toEqual(MOUNT_ATTACH[side * 2]);
     expect(MOUNT_RUNS[side * 5 + 2][0]).toEqual(MOUNT_ATTACH[side * 2 + 1]);
-    expect(MOUNT_RUNS[side * 5 + 1]).toEqual([MOUNT_FEET[side * 3], [3.02, -0.29, s * 0.22]]);
+    expect(MOUNT_RUNS[side * 5 + 1]).toEqual([
+      MOUNT_FEET[side * 3],
+      [MOUNT_FEET[side * 3][0], MOUNT_FEET[side * 3][1], s * 0.22],
+      [3.02, -0.29, s * 0.22],
+    ]);
   }
   // Schematic nose-strut support (AMM Fig 71-20-1 PDF 2527; 32-00 PDF 1390):
   // one route off the aft lower cross member, below the unchanged oil sump.
