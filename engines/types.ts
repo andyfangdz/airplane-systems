@@ -84,8 +84,9 @@ export interface TurboSpec {
   /** Spring-open wastegate: actuator oil pressure (psi) where it starts to close and where it is shut; lag; area (m²). */
   wastegate: { pCrackPsi: number; pFullPsi: number; tauS: number; area: number };
   /**
-   * Differential controller: set point Δ = c0 + c1 (deck − deckRef) inHg; bleed b = b0 + kBleed (Δ − set); actuator
-   * pressure = oil pressure / (1 + (b · ratio)²). `misadjustInHg` shifts the set point for that failure.
+   * Differential controller: set point Δ = c0 + c1 (deck − deckRef) inHg; bleed b = b0 + gain (Δ − set);
+   * actuator pressure = oil pressure / (1 + (b · ratio)²). `kBleed` is the default gain and `misadjustInHg`
+   * shifts the set point for that failure.
    */
   controller: {
     c0: number;
@@ -95,6 +96,11 @@ export interface TurboSpec {
     b0: number;
     ratio: number;
     misadjustInHg: number;
+    /**
+     * Proportional-gain falloff as the sloped set point rises above `c0`, representing the controller's metering-port
+     * flow restriction at part throttle. Absent keeps the original constant gain.
+     */
+    gainFalloff?: { startInHg: number; perInHg: number };
   };
   /** Effectiveness, pressure drop at rated flow (inHg), cooling-air temperature rise over outside air (°C). */
   intercooler: { effectiveness: number; dpInHgRated: number; coolRiseC: number };

@@ -154,7 +154,9 @@ export function turbinePowerW(
 export function controllerBleed(turbo: TurboSpec, deckInHg: number, mapInHg: number, misadjust = false) {
   const k = turbo.controller;
   const set = k.c0 + k.c1 * (deckInHg - k.deckRef) + (misadjust ? k.misadjustInHg : 0);
-  return clamp(k.b0 + k.kBleed * (deckInHg - mapInHg - set), 0, 1);
+  const falloff = k.gainFalloff;
+  const gain = falloff ? k.kBleed / (1 + falloff.perInHg * Math.max(0, set - k.c0 - falloff.startInHg)) : k.kBleed;
+  return clamp(k.b0 + gain * (deckInHg - mapInHg - set), 0, 1);
 }
 
 /** Actuator oil pressure (psi): the oil pressure split across the wastegate inlet restriction and the bleed. */

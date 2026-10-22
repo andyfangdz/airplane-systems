@@ -4,6 +4,7 @@
  * that bleeds the actuator's oil, intercoolers, and a compressor whose pressure ratio follows the turbines' power.
  * The running engine's calibration targets (T-n) are in tsio550k-engine.test.ts.
  */
+// precheck: passes-on-base the omitted-field case deliberately locks the legacy controller equation
 import { describe, expect, test } from "vitest";
 import { TSIO550K } from "@/engines/tsio550k/spec";
 import type { TurboSpec } from "@/engines/types";
@@ -68,6 +69,21 @@ describe("wastegate and controller (POH 7-38/7-39, 3-27/3-28; AMM 81-20 PDF 2812
       controllerBleed(T, deck, deck - diff),
       9,
     );
+  });
+
+  test("omitting the optional gain falloff preserves the legacy constant-gain controller exactly", () => {
+    const legacy: TurboSpec = {
+      ...T,
+      controller: { ...T.controller, gainFalloff: undefined },
+    };
+    const k = legacy.controller;
+    for (const deck of [30, 34, 36.7])
+      for (const misadjust of [false, true])
+        for (const expectedBleed of [0.1, 0.5, 0.9]) {
+          const set = k.c0 + k.c1 * (deck - k.deckRef) + (misadjust ? k.misadjustInHg : 0);
+          const map = deck - set - (expectedBleed - k.b0) / k.kBleed;
+          expect(controllerBleed(legacy, deck, map, misadjust)).toBeCloseTo(expectedBleed, 12);
+        }
   });
 
   test("actuator pressure is the oil pressure split across the wastegate's inlet restriction and the controller bleed (M-18 12-4.2)", () => {

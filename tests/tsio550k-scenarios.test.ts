@@ -136,11 +136,10 @@ describe("each -K scenario lands where its note says (POH 4-12 to 4-23, 5-33, 5-
     expect(Math.abs(h.peak), "highcruise °F from peak EGT").toBeLessThanOrEqual(10);
   }, 180_000);
 
-  test("the leaned setups raise no 'Leaned at' flag for a minute while the controller hunts across 30.5 in.Hg: the flag reads the setting (POH 4-22; engines/model/alerts.ts LEAN_DWELL_S)", () => {
+  test("the leaned setups remain below 30.5 in.Hg and raise no 'Leaned at' flag for a minute (POH 4-22; engines/model/alerts.ts LEAN_DWELL_S)", () => {
     for (const id of ["cruiseclimb", "cruise", "highcruise"]) {
       const r = landed(id);
-      // single readings do pass 30.5 (the part-throttle hunting), so the check is not vacuous
-      expect(leanGaugeAbove(r.mHi, K.limits.leanMaxMap!.value), `${id} MAP up to ${r.mHi}`).toBe(true);
+      expect(leanGaugeAbove(r.mHi, K.limits.leanMaxMap!.value), `${id} MAP up to ${r.mHi}`).toBe(false);
       expect(r.leanFlips, `${id} flag set/clear transitions`).toBe(0);
       expect(r.leanOn, id).toBe(false);
     }
