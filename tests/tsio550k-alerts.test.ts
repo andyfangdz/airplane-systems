@@ -203,7 +203,7 @@ describe("TSIO-550-K flags for the POH's other limits", () => {
     expect(lean({ map: 31, leanOver: true }).map((f) => [f.level, f.text])).toEqual([
       ["caut", "Leaned at 31.0 in.Hg: cruise leaning only at 30.5 in.Hg or less"],
     ]);
-    // still latched while the controller's hunting dips the gauge to the limit for a moment
+    // still latched with the gauge back at the limit, the timer counting down: the text names the limit
     expect(lean({ map: 30.54, leanOver: true }).map((f) => f.text)).toEqual([
       "Leaned above 30.5 in.Hg: cruise leaning only at 30.5 in.Hg or less",
     ]);
@@ -217,7 +217,7 @@ describe("TSIO-550-K flags for the POH's other limits", () => {
     expect(LEAN_DWELL_S).toBe(3);
     expect([30.5, 30.54, 30.56, 31].map((m) => leanGaugeAbove(m, 30.5))).toEqual([false, false, true, true]);
     const zero = { s: 0, on: false };
-    // the part-throttle hunting: up to 0.47 s above, then below, over and over, never latches
+    // short excursions: 0.47 s above, then 1 s below, over and over, never latch
     let p = zero;
     for (let i = 0; i < 200; i++) {
       p = leanOverNext(p, true, true, 0.47);

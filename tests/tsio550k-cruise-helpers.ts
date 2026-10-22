@@ -45,7 +45,7 @@ export function cruisePoint(altFt: number, gph: number, tasKt: number, isaDevC =
     } else {
       g = lookAt(x, f, 20, {}, thermal);
       x.c.mixture = clamp((x.c.mixture * lbh) / g.fuel, 0.03, 1);
-      // aimed a tenth under 30.5: the controller hunts a few tenths
+      // aimed a tenth under 30.5, where the part-throttle manifold pressure now settles
       x.c.throttle = clamp(x.c.throttle + (30.4 - g.map) / 40, 0.05, 1);
     }
   }

@@ -187,7 +187,7 @@ describe("the leaning flag in a real violation (POH 4-22; engines/model/alerts.t
   test("leaned at full throttle on an ISA +30 °C day the flag shows within LEAN_DWELL_S of the gauge passing 30.5 and stays", () => {
     const r = push(30, 60);
     expect(r.crossed).toBeLessThan(1);
-    // the dwell, less what the landing's hunting left on the timer (at most 0.47 s), plus one frame
+    // the dwell plus one frame: the cruise setting leaves nothing on the timer
     expect(r.raised - r.crossed).toBeLessThanOrEqual(LEAN_DWELL_S + 1 / 60);
     expect(r.raised - r.crossed).toBeGreaterThan(LEAN_DWELL_S - 0.5);
     expect(r.flips).toBe(1);

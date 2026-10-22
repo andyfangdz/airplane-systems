@@ -227,9 +227,10 @@ speed. Each is fitted on the running engine so that it reproduces the documented
     pressure settings of 30.5 in.Hg or less", a limit on the power setting, not an instantaneous trip. The flag is
     raised once the gauge (0.1 in.Hg) has read above 30.5 for a net 3 s with the mixture off full rich (time at or
     below counts back down) and stays until that net time is back to zero (`LEAN_DWELL_S`, engines/model/alerts.ts).
-    3 s is a choice: the part-throttle controller's hunting puts single readings above 30.5 for at most 0.47 s in the
-    leaned cruise setups, aimed at 30.4 (30.06–30.91 in.Hg at 25,000 ft), so they raise no flag; leaned at full
-    throttle on an ISA +30 °C day the flag is up 3 s after the gauge passes 30.5.
+    3 s is a choice: the flag reads a sustained setting, not a momentary excursion, so a lever moved past 30.5 for a
+    second raises none. The model's part-throttle manifold pressure settles (the controller's `gainFalloff`, above), so
+    the leaned cruise setups, aimed at 30.4, stay below 30.5 and raise no flag; leaned at full throttle on an ISA +30
+    °C day the flag is up 3 s after the gauge passes 30.5.
   - Alternate-air power loss: measured from a settled 75 % point (best power, the lever trimmed between looks,
     readings averaged).
   - 75 % at 25,000 ft (POH 5-34, 16.4 GPH): the POH's table flows are lean-of-peak settings (5-32), but at 30.4 in.Hg

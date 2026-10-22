@@ -58,8 +58,8 @@ const CRUISE_PCT = 75;
 const DESCENT_MAP = 19;
 /** A 0.5 gph reduction in fuel flow lowers CHT about 15 °F; the POH's leaning step when a CHT is above 420 °F (4-22). */
 const LEAN_GPH = 0.5;
-/** "30.5 in.Hg or less" (POH 4-22): the lever aimed this far below, so the mean stays under it. The controller's
- * hunting at part throttle still carries single readings a few tenths above. */
+/** "30.5 in.Hg or less" (POH 4-22): the lever aimed this far below, so the settled manifold pressure stays under it
+ * (the part-throttle controller no longer cycles across the aim). */
 const LEAN_MAP_MARGIN = 0.1;
 
 /** An optional spec field these setups need (the TSIO-550-K spec has them all). */
