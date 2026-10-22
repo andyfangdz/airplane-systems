@@ -684,7 +684,8 @@ describe("TIT from peak against the TIT bars (POH 4-22, 7-35)", () => {
     replaceState(sim, structuredClone(x.s));
     const { container } = render(<Monitor sim={sim} />);
     const shown = monCell(container, "TIT pk")?.querySelector("b")?.textContent ?? "";
-    // the bars: the mean of the two probes (turbo.ts titTargets), read over 10 s (the controller hunts at part throttle)
+    // the bars: the mean of the two probes (turbo.ts titTargets), read as a 10 s mean, though the part-throttle
+    // manifold pressure itself now settles
     const bars = () => {
       let sum = 0;
       for (let i = 0; i < 40; i++) {

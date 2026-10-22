@@ -173,12 +173,15 @@ speed. Each is fitted on the running engine so that it reproduces the documented
   in.Hg, warm oil keeps MAP within 36.0 ± 0.2 (36.05 at 150 °F, 35.95 at 180 °F at sea-level full power) and 100 °F
   oil raises it to 36.09, inside the POH's 36.0–37.0. The wide band and a gate area scaled to the turbines (1.5 ×
   10⁻³ m²) keep the regulating gate from hunting at full throttle: a narrower band made MAP swing 0.1–0.3 in.Hg in the
-  climb once the gate had a reserve to regulate with. At part throttle the proportional controller still hunts a few
-  tenths of an in.Hg (0.3–0.8 at 10,000–25,000 ft and 30.5 in.Hg, a 2–6 s cycle): a gain low enough to stop it lets
-  warm oil move MAP by more than 0.2 in.Hg. Readings at part throttle are therefore window means, as a pilot reads a
-  gauge. A misadjusted controller (`controller.misadjustInHg` 0.35 in.Hg, multiplied about threefold at full throttle)
-  holds sea-level full power at about 37.0 in.Hg with warm oil, relief valve shut (POH 3-29, 3A-9 "maintenance
-  adjustment").
+  climb once the gate had a reserve to regulate with. A fixed controller gain low enough to stop the prior
+  part-throttle cycle (`kBleed` at or below 1.5) let warm oil move MAP by more than 0.2 in.Hg. The optional
+  `gainFalloff` instead represents restriction at the controller's metering port: it leaves the full-throttle gain at
+  2.8 until the sloped set point rises 0.5 in.Hg above `c0`, then divides the gain by 1 + 5.75 per additional in.Hg.
+  Those values are a fit, not published dimensions. With fixed controls near 30.5 in.Hg, 60 s traces at 10,000,
+  18,000 and 25,000 ft settle inside 0.001 in.Hg; without the field they cycle across 0.371, 0.689 and 0.815 in.Hg.
+  The 10,000 ft cruise check, T-42 and its `trimMap` helper consequently read instantaneous MAP again. A misadjusted
+  controller (`controller.misadjustInHg` 0.35 in.Hg, multiplied about threefold at full throttle) holds sea-level full
+  power at about 37.0 in.Hg with warm oil, relief valve shut (POH 3-29, 3A-9 "maintenance adjustment").
 - **Spring-open wastegate**: with no oil pressure the wastegate's spring holds it open (engine stopped, or oil lost to
   the actuator), so the engine reverts to roughly normally aspirated manifold pressure (POH 3-27, 3-28).
 - **Relief valve** (`turbo.overboost`): see C3. Crack 39.5 in.Hg of deck, area 4 × 10⁻³ m²: a seized-closed gate surges
@@ -224,9 +227,10 @@ speed. Each is fitted on the running engine so that it reproduces the documented
     pressure settings of 30.5 in.Hg or less", a limit on the power setting, not an instantaneous trip. The flag is
     raised once the gauge (0.1 in.Hg) has read above 30.5 for a net 3 s with the mixture off full rich (time at or
     below counts back down) and stays until that net time is back to zero (`LEAN_DWELL_S`, engines/model/alerts.ts).
-    3 s is a choice: the part-throttle controller's hunting puts single readings above 30.5 for at most 0.47 s in the
-    leaned cruise setups, aimed at 30.4 (30.06–30.91 in.Hg at 25,000 ft), so they raise no flag; leaned at full
-    throttle on an ISA +30 °C day the flag is up 3 s after the gauge passes 30.5.
+    3 s is a choice: the flag reads a sustained setting, not a momentary excursion, so a lever moved past 30.5 for a
+    second raises none. The model's part-throttle manifold pressure settles (the controller's `gainFalloff`, above), so
+    the leaned cruise setups, aimed at 30.4, stay below 30.5 and raise no flag; leaned at full throttle on an ISA +30
+    °C day the flag is up 3 s after the gauge passes 30.5.
   - Alternate-air power loss: measured from a settled 75 % point (best power, the lever trimmed between looks,
     readings averaged).
   - 75 % at 25,000 ft (POH 5-34, 16.4 GPH): the POH's table flows are lean-of-peak settings (5-32), but at 30.4 in.Hg

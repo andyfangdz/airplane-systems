@@ -377,10 +377,22 @@ export const TSIO550K: EngineSpec = {
     // see turbo.ts. The wide band and an area scaled to the turbines keep the regulating gate from hunting at full
     // throttle.
     wastegate: { pCrackPsi: 14, pFullPsi: 30, tauS: 0.7, area: 1.5e-3 },
+    // gainFalloff: not published; the fitted metering-port flow restriction leaves the 2.8 full-throttle gain intact,
+    // then lowers it once the sloped set point rises more than 0.5 in.Hg above c0. At 30.5 in.Hg cruise this gives an
+    // effective gain near 0.5 and settles MAP inside 0.05 in.Hg from 10,000 to 25,000 ft (SOURCES.md).
     // misadjustInHg: the "controller misadjusted" failure's set-point shift. The sloped controller multiplies it about
     // threefold at full throttle, so 0.35 puts sea-level full power at about 37.0 in.Hg with warm oil (37.3 with 100 °F
     // oil): inside the MAN PRESSURE caution band, relief valve shut, the "maintenance adjustment" case of POH 3-29, 3A-9
-    controller: { c0: 0.45, c1: -0.3, deckRef: 36.5, kBleed: 2.8, b0: 0.34, ratio: 3, misadjustInHg: 0.35 },
+    controller: {
+      c0: 0.45,
+      c1: -0.3,
+      deckRef: 36.5,
+      kBleed: 2.8,
+      b0: 0.34,
+      ratio: 3,
+      misadjustInHg: 0.35,
+      gainFalloff: { startInHg: 0.5, perInHg: 5.75 },
+    },
     // ε at the top of 0.5–0.6 (M-18 Figure 2-39 p. 2-47), cooling air at outside temperature: 76 °F MAT at rated (at
     // most 130 °F, M-18 Table 2-6)
     intercooler: { effectiveness: 0.6, dpInHgRated: 0.3, coolRiseC: 0 },

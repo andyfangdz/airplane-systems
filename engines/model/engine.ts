@@ -762,7 +762,7 @@ function substep(
   if (spec.turbo) oilP = Math.max(0, oilP - spec.turbo.oil.bleedPsi * clamp(s.rpm / rated.rpm, 0, 1));
   s.oilP = approach(s.oilP, oilP, dt, 0.4);
 
-  // ---- the leaning limit's timer, in real time: the flag reads the power setting, not the controller's hunting
+  // ---- the leaning limit's timer, in real time: the flag reads the power setting, not a momentary excursion
   const lean = spec.limits.leanMaxMap;
   if (lean) {
     const next = leanOverNext(

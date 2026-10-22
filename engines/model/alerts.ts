@@ -124,12 +124,12 @@ const RELIEF_REDUCE_TO_INHG = 30.5;
 
 /**
  * The leaning limit (SR22T POH 4-22: "Cruise leaning … is only approved with manifold pressure settings of 30.5 in.Hg
- * or less") is a limit on the power setting, not an instantaneous trip, and the turbocharger controller hunts a few
- * tenths of an inch at part throttle. So the flag reads the setting: the gauge must read above the limit for a net
- * `LEAN_DWELL_S` seconds before it is raised (time spent at or below counts back down), and it stays raised until
- * that net time is back to zero. Interpretation, not a published value: 3 s is over six times the longest single
- * reading above 30.5 the hunting gives in the leaned cruise setups (0.47 s at 25,000 ft), and a pilot holding the lever
- * above the limit sees the flag 3 s after the gauge passes it.
+ * or less") is a limit on the power setting, not an instantaneous trip. So the flag reads a sustained setting, not a
+ * momentary excursion: the gauge must read above the limit for a net `LEAN_DWELL_S` seconds before it is raised (time
+ * spent at or below counts back down), and it stays raised until that net time is back to zero. Interpretation, not a
+ * published value: a pilot holding the lever above the limit sees the flag 3 s after the gauge passes it, and a lever
+ * moved past the limit for a second raises none. The model's part-throttle manifold pressure settles (engines/types.ts
+ * `controller.gainFalloff`), so the leaned cruise setups, aimed a tenth under the limit, stay below it.
  */
 export const LEAN_DWELL_S = 3;
 
@@ -313,7 +313,8 @@ function markingFlags(
     );
   const lean = L.leanMaxMap;
   // leaned off full rich with the gauge above the limit for the dwell (`LEAN_DWELL_S`; the engine keeps the timer);
-  // while the flag holds through the controller's hunting the gauge may dip to the limit for a moment
+  // while the flag holds the gauge may already read at or below the limit, the timer counting back down: the text then
+  // names the limit, not the reading
   if (lean && ctx.controls && ctx.controls.mixture < 0.99 && s.running && s.leanOver) {
     const at = leanGaugeAbove(s.map, lean.value) ? `at ${s.map.toFixed(1)}` : `above ${lean.value}`;
     add("caut", `Leaned ${at} in.Hg: cruise leaning only at ${lean.value} in.Hg or less`, lean.src);
