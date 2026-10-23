@@ -97,9 +97,83 @@ button {
 
 .app {
   display: grid;
-  grid-template-columns: 228px minmax(0, 1fr) 392px;
+  grid-template-columns: var(--rail-width, 228px) minmax(0, 1fr) var(--details-width, 392px);
   height: 100%;
   min-height: 0;
+}
+.app.systems-collapsed {
+  --rail-width: 32px;
+}
+.app.details-collapsed {
+  --details-width: 32px;
+}
+.app > .rail {
+  grid-column: 1;
+  grid-row: 1;
+}
+.app > .stage {
+  grid-column: 2;
+  grid-row: 1;
+}
+.app > .panel {
+  grid-column: 3;
+  grid-row: 1;
+}
+.rail-content {
+  display: contents;
+}
+.rail-content[hidden] {
+  display: none;
+}
+.panel-toggle-anchor {
+  position: sticky;
+  top: 12px;
+  z-index: 1;
+  height: 0;
+  flex: none;
+}
+.panel-toggle {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.panel-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.panel-toggle:hover,
+.panel-toggle:focus-visible {
+  background: var(--panel2);
+  color: var(--accent);
+}
+.systems-collapsed .rail .panel-toggle,
+.details-collapsed .panel .panel-toggle {
+  right: 1px;
+}
+.rail .fleet-trigger-label {
+  padding-right: 24px;
+}
+.panel-inner > .ref {
+  padding-right: 24px;
+}
+.walking .panel .walk-hd {
+  padding-right: 30px;
 }
 /* ---------- rail ---------- */
 .rail {
@@ -1122,7 +1196,7 @@ button.chip:hover {
 
 @media (max-width: 1100px) {
   .app {
-    grid-template-columns: 200px minmax(0, 1fr) 340px;
+    grid-template-columns: var(--rail-width, 200px) minmax(0, 1fr) var(--details-width, 340px);
   }
 }
 @media (max-width: 860px) {
@@ -1185,6 +1259,70 @@ button.chip:hover {
   }
   .panel-inner {
     padding: 18px 16px 40px;
+  }
+  .panel-toggle-anchor {
+    position: relative;
+    top: 0;
+  }
+  .panel-toggle {
+    top: 6px;
+    right: 4px;
+    width: 44px;
+    height: 44px;
+  }
+  .panel-toggle[aria-controls="systems-panel"] svg {
+    transform: rotate(90deg);
+  }
+  .panel-toggle[aria-controls="details-panel"] svg {
+    transform: rotate(-90deg);
+  }
+  .rail .brand {
+    padding-right: 52px;
+  }
+  .panel-inner > .ref {
+    padding-right: 32px;
+  }
+  .walking .panel .walk-hd {
+    padding-right: 36px;
+  }
+  .systems-collapsed .rail {
+    min-height: 45px;
+  }
+  .systems-collapsed .rail .panel-toggle {
+    top: 0;
+    right: 4px;
+  }
+  .app.details-collapsed {
+    height: 100svh;
+    height: 100dvh;
+  }
+  .details-collapsed > .rail,
+  .details-collapsed > .stage-under {
+    flex-shrink: 0;
+  }
+  .details-collapsed > .stage {
+    height: auto;
+    flex: 1 0 340px;
+  }
+  .details-collapsed > .panel {
+    height: 0;
+    min-height: 0;
+    border: 0;
+  }
+  .details-collapsed .panel .panel-toggle {
+    top: -48px;
+    right: 8px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  .details-collapsed .panel .panel-toggle-anchor {
+    z-index: 33; /* above the active preflight scene (32) */
+  }
+  .walking.details-collapsed .stage-foot:has(.walk-scene:not(:empty)) {
+    bottom: 56px; /* leave the reopen tab clear of the check navigation */
+  }
+  .details-collapsed .stage-under:not(:empty) {
+    padding-right: 64px;
   }
   .loader-bar {
     top: 100px; /* the toolbar wraps to two rows */
