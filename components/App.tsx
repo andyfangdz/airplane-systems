@@ -38,7 +38,7 @@ function useShownSys() {
   return route.booted ? sys : route.sys;
 }
 
-function Rail({ collapsed }: { collapsed: boolean }) {
+function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }) {
   const def = useAircraft();
   const sys = useShownSys(),
     theme = useView((x) => x.theme);
@@ -55,34 +55,37 @@ function Rail({ collapsed }: { collapsed: boolean }) {
     else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
   }, [sys, def]);
   return (
-    <nav id="systems-panel" className="rail" aria-label="Systems" hidden={collapsed}>
-      <div className="brand">
-        <Fleet />
-      </div>
-      <ul className="syslist">
-        {def.systems.map((s) => (
-          <li key={s.id}>
-            <button
-              type="button"
-              aria-current={s.id === sys}
-              style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
-              onClick={() => selectSys(s.id)}
-            >
-              <span className="sw" />
-              <span className="nm">{s.name}</span>
-              <span className="pg">{s.pg}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="foot">
-        Drag to orbit · scroll or pinch to zoom · right-drag to pan. Hover a part for its note.
+    <nav className="rail" aria-label="Systems">
+      <PanelToggle side="systems" collapsed={collapsed} toggle={toggle} />
+      <div id="systems-panel" className="rail-content" hidden={collapsed}>
+        <div className="brand">
+          <Fleet />
+        </div>
+        <ul className="syslist">
+          {def.systems.map((s) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                aria-current={s.id === sys}
+                style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
+                onClick={() => selectSys(s.id)}
+              >
+                <span className="sw" />
+                <span className="nm">{s.name}</span>
+                <span className="pg">{s.pg}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="foot">
+          Drag to orbit · scroll or pinch to zoom · right-drag to pan. Hover a part for its note.
+        </div>
       </div>
     </nav>
   );
 }
 
-function Panel({ collapsed }: { collapsed: boolean }) {
+function Panel({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }) {
   const def = useAircraft();
   const sys = useShownSys(),
     theme = useView((x) => x.theme),
@@ -94,25 +97,54 @@ function Panel({ collapsed }: { collapsed: boolean }) {
     if (!walking) revealStage();
   }, [sys, def, walking]);
   const Walk = walking ? def.walk?.Panel : undefined;
-  if (Walk)
-    return (
-      <aside id="details-panel" className="panel" aria-label="System details" hidden={collapsed}>
-        <div className="panel-inner">
-          <Walk />
-        </div>
-      </aside>
-    );
   return (
-    <aside id="details-panel" className="panel" aria-label="System details" hidden={collapsed}>
-      <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
-        <div className="ref">
-          <i />
-          {s.ref ?? `${def.doc} · p. ${s.pg}`}
-        </div>
-        <h2>{s.id === "overview" ? "Airplane & Systems" : s.name}</h2>
-        {Body ? <Body /> : <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
+    <aside className="panel" aria-label="System details">
+      <PanelToggle side="details" collapsed={collapsed} toggle={toggle} />
+      <div id="details-panel" hidden={collapsed}>
+        {Walk ? (
+          <div className="panel-inner">
+            <Walk />
+          </div>
+        ) : (
+          <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
+            <div className="ref">
+              <i />
+              {s.ref ?? `${def.doc} · p. ${s.pg}`}
+            </div>
+            <h2>{s.id === "overview" ? "Airplane & Systems" : s.name}</h2>
+            {Body ? <Body /> : <p className="lead">This system isn&apos;t modelled yet for the {def.name}.</p>}
+          </div>
+        )}
       </div>
     </aside>
+  );
+}
+
+function PanelToggle({
+  side,
+  collapsed,
+  toggle,
+}: {
+  side: "systems" | "details";
+  collapsed: boolean;
+  toggle: () => void;
+}) {
+  const label = `${collapsed ? "Show" : "Hide"} ${side} panel`;
+  return (
+    <div className="panel-toggle-row">
+      <button
+        type="button"
+        className="panel-toggle"
+        aria-controls={`${side}-panel`}
+        aria-expanded={!collapsed}
+        aria-label={label}
+        title={label}
+        onClick={toggle}
+      >
+        <span aria-hidden="true">{(side === "systems") === collapsed ? "›" : "‹"}</span>
+        {!collapsed && <span>Hide {side}</span>}
+      </button>
+    </div>
   );
 }
 
@@ -124,17 +156,7 @@ const SUN = (
 );
 const MOON = <path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z" />;
 
-function Toolbar({
-  systemsCollapsed,
-  detailsCollapsed,
-  toggleSystems,
-  toggleDetails,
-}: {
-  systemsCollapsed: boolean;
-  detailsCollapsed: boolean;
-  toggleSystems: () => void;
-  toggleDetails: () => void;
-}) {
+function Toolbar() {
   const def = useAircraft();
   const xray = useView((x) => x.xray),
     labels = useView((x) => x.labels),
@@ -148,26 +170,6 @@ function Toolbar({
   const walk = def.walk;
   return (
     <div className="toolbar">
-      <button
-        type="button"
-        className="tb"
-        aria-controls="systems-panel"
-        aria-expanded={!systemsCollapsed}
-        title={systemsCollapsed ? "Show systems panel" : "Hide systems panel"}
-        onClick={toggleSystems}
-      >
-        {systemsCollapsed ? "Show systems" : "Hide systems"}
-      </button>
-      <button
-        type="button"
-        className="tb"
-        aria-controls="details-panel"
-        aria-expanded={!detailsCollapsed}
-        title={detailsCollapsed ? "Show details panel" : "Hide details panel"}
-        onClick={toggleDetails}
-      >
-        {detailsCollapsed ? "Show details" : "Hide details"}
-      </button>
       {walk && (
         <button
           className="tb"
@@ -365,17 +367,12 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
         <div
           className={`app${walking ? " walking" : ""}${systemsCollapsed ? " systems-collapsed" : ""}${detailsCollapsed ? " details-collapsed" : ""}`}
         >
-          <Rail collapsed={systemsCollapsed} />
+          <Rail collapsed={systemsCollapsed} toggle={() => setSystemsCollapsed((value) => !value)} />
           <main className="stage">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
             {session ? <Scene owner={session.owner} /> : <div />}
             <Loader />
-            <Toolbar
-              systemsCollapsed={systemsCollapsed}
-              detailsCollapsed={detailsCollapsed}
-              toggleSystems={() => setSystemsCollapsed((value) => !value)}
-              toggleDetails={() => setDetailsCollapsed((value) => !value)}
-            />
+            <Toolbar />
             <div className="stage-foot">
               <Alerts />
               <Hud />
@@ -387,7 +384,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
           <div className="stage-under">
             <Hud />
           </div>
-          <Panel collapsed={detailsCollapsed} />
+          <Panel collapsed={detailsCollapsed} toggle={() => setDetailsCollapsed((value) => !value)} />
         </div>
       </RouteSys>
     </AircraftContext>

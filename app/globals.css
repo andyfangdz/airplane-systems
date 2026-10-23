@@ -102,10 +102,10 @@ button {
   min-height: 0;
 }
 .app.systems-collapsed {
-  --rail-width: 0px;
+  --rail-width: 46px;
 }
 .app.details-collapsed {
-  --details-width: 0px;
+  --details-width: 46px;
 }
 .app > .rail {
   grid-column: 1;
@@ -119,9 +119,39 @@ button {
   grid-column: 3;
   grid-row: 1;
 }
-.rail[hidden],
-.panel[hidden] {
+.rail-content {
+  display: contents;
+}
+.rail-content[hidden] {
   display: none;
+}
+.panel-toggle-row {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: 4px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--rule);
+}
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--panel);
+  font-size: 13px;
+  cursor: pointer;
+}
+.panel-toggle:hover {
+  background: var(--panel2);
 }
 /* ---------- rail ---------- */
 .rail {
