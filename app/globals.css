@@ -97,9 +97,31 @@ button {
 
 .app {
   display: grid;
-  grid-template-columns: 228px minmax(0, 1fr) 392px;
+  grid-template-columns: var(--rail-width, 228px) minmax(0, 1fr) var(--details-width, 392px);
   height: 100%;
   min-height: 0;
+}
+.app.systems-collapsed {
+  --rail-width: 0px;
+}
+.app.details-collapsed {
+  --details-width: 0px;
+}
+.app > .rail {
+  grid-column: 1;
+  grid-row: 1;
+}
+.app > .stage {
+  grid-column: 2;
+  grid-row: 1;
+}
+.app > .panel {
+  grid-column: 3;
+  grid-row: 1;
+}
+.rail[hidden],
+.panel[hidden] {
+  display: none;
 }
 /* ---------- rail ---------- */
 .rail {
@@ -1122,7 +1144,7 @@ button.chip:hover {
 
 @media (max-width: 1100px) {
   .app {
-    grid-template-columns: 200px minmax(0, 1fr) 340px;
+    grid-template-columns: var(--rail-width, 200px) minmax(0, 1fr) var(--details-width, 340px);
   }
 }
 @media (max-width: 860px) {

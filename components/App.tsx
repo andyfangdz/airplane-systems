@@ -38,7 +38,7 @@ function useShownSys() {
   return route.booted ? sys : route.sys;
 }
 
-function Rail() {
+function Rail({ collapsed }: { collapsed: boolean }) {
   const def = useAircraft();
   const sys = useShownSys(),
     theme = useView((x) => x.theme);
@@ -55,7 +55,7 @@ function Rail() {
     else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
   }, [sys, def]);
   return (
-    <nav className="rail" aria-label="Systems">
+    <nav id="systems-panel" className="rail" aria-label="Systems" hidden={collapsed}>
       <div className="brand">
         <Fleet />
       </div>
@@ -82,7 +82,7 @@ function Rail() {
   );
 }
 
-function Panel() {
+function Panel({ collapsed }: { collapsed: boolean }) {
   const def = useAircraft();
   const sys = useShownSys(),
     theme = useView((x) => x.theme),
@@ -96,14 +96,14 @@ function Panel() {
   const Walk = walking ? def.walk?.Panel : undefined;
   if (Walk)
     return (
-      <aside className="panel">
+      <aside id="details-panel" className="panel" aria-label="System details" hidden={collapsed}>
         <div className="panel-inner">
           <Walk />
         </div>
       </aside>
     );
   return (
-    <aside className="panel">
+    <aside id="details-panel" className="panel" aria-label="System details" hidden={collapsed}>
       <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
         <div className="ref">
           <i />
@@ -124,7 +124,17 @@ const SUN = (
 );
 const MOON = <path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z" />;
 
-function Toolbar() {
+function Toolbar({
+  systemsCollapsed,
+  detailsCollapsed,
+  toggleSystems,
+  toggleDetails,
+}: {
+  systemsCollapsed: boolean;
+  detailsCollapsed: boolean;
+  toggleSystems: () => void;
+  toggleDetails: () => void;
+}) {
   const def = useAircraft();
   const xray = useView((x) => x.xray),
     labels = useView((x) => x.labels),
@@ -138,6 +148,26 @@ function Toolbar() {
   const walk = def.walk;
   return (
     <div className="toolbar">
+      <button
+        type="button"
+        className="tb"
+        aria-controls="systems-panel"
+        aria-expanded={!systemsCollapsed}
+        title={systemsCollapsed ? "Show systems panel" : "Hide systems panel"}
+        onClick={toggleSystems}
+      >
+        {systemsCollapsed ? "Show systems" : "Hide systems"}
+      </button>
+      <button
+        type="button"
+        className="tb"
+        aria-controls="details-panel"
+        aria-expanded={!detailsCollapsed}
+        title={detailsCollapsed ? "Show details panel" : "Hide details panel"}
+        onClick={toggleDetails}
+      >
+        {detailsCollapsed ? "Show details" : "Hide details"}
+      </button>
       {walk && (
         <button
           className="tb"
@@ -326,17 +356,26 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
   }, [def, session, sys]);
   useSimulationLoop(session?.advance ?? def.advance, 1, !!session);
   const walking = useView((x) => x.walking);
+  const [systemsCollapsed, setSystemsCollapsed] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const Alerts = def.Alerts;
   return (
     <AircraftContext value={def}>
       <RouteSys value={{ sys: sys ?? "overview", booted: !!session }}>
-        <div className={walking ? "app walking" : "app"}>
-          <Rail />
+        <div
+          className={`app${walking ? " walking" : ""}${systemsCollapsed ? " systems-collapsed" : ""}${detailsCollapsed ? " details-collapsed" : ""}`}
+        >
+          <Rail collapsed={systemsCollapsed} />
           <main className="stage">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
             {session ? <Scene owner={session.owner} /> : <div />}
             <Loader />
-            <Toolbar />
+            <Toolbar
+              systemsCollapsed={systemsCollapsed}
+              detailsCollapsed={detailsCollapsed}
+              toggleSystems={() => setSystemsCollapsed((value) => !value)}
+              toggleDetails={() => setDetailsCollapsed((value) => !value)}
+            />
             <div className="stage-foot">
               <Alerts />
               <Hud />
@@ -348,7 +387,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
           <div className="stage-under">
             <Hud />
           </div>
-          <Panel />
+          <Panel collapsed={detailsCollapsed} />
         </div>
       </RouteSys>
     </AircraftContext>
