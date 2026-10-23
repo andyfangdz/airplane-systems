@@ -102,10 +102,10 @@ button {
   min-height: 0;
 }
 .app.systems-collapsed {
-  --rail-width: 46px;
+  --rail-width: 32px;
 }
 .app.details-collapsed {
-  --details-width: 46px;
+  --details-width: 32px;
 }
 .app > .rail {
   grid-column: 1;
@@ -125,33 +125,55 @@ button {
 .rail-content[hidden] {
   display: none;
 }
-.panel-toggle-row {
+.panel-toggle-anchor {
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 1;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  padding: 4px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--rule);
+  height: 0;
+  flex: none;
 }
 .panel-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 36px;
-  min-height: 36px;
-  padding: 4px 8px;
-  border: 1px solid var(--rule);
-  border-radius: 5px;
+  position: absolute;
+  top: 0;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 0;
+  border-radius: 4px;
   background: var(--panel);
-  font-size: 13px;
+  color: var(--muted);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.panel-toggle:hover {
+.panel-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.panel-toggle:hover,
+.panel-toggle:focus-visible {
   background: var(--panel2);
+  color: var(--accent);
+}
+.systems-collapsed .rail .panel-toggle,
+.details-collapsed .panel .panel-toggle {
+  right: 1px;
+}
+.rail .fleet-trigger-label {
+  padding-right: 24px;
+}
+.panel-inner > .ref {
+  padding-right: 24px;
+}
+.walking .panel .walk-hd {
+  padding-right: 30px;
 }
 /* ---------- rail ---------- */
 .rail {
@@ -1237,6 +1259,38 @@ button.chip:hover {
   }
   .panel-inner {
     padding: 18px 16px 40px;
+  }
+  .panel-toggle-anchor {
+    top: 6px;
+  }
+  .panel-toggle {
+    right: 4px;
+    width: 44px;
+    height: 44px;
+  }
+  .panel-toggle[aria-controls="systems-panel"] svg {
+    transform: rotate(90deg);
+  }
+  .panel-toggle[aria-controls="details-panel"] svg {
+    transform: rotate(-90deg);
+  }
+  .rail .brand {
+    padding-right: 52px;
+  }
+  .panel-inner > .ref {
+    padding-right: 32px;
+  }
+  .walking .panel .walk-hd {
+    padding-right: 36px;
+  }
+  .systems-collapsed .rail,
+  .details-collapsed .panel {
+    min-height: 44px;
+  }
+  .systems-collapsed .rail .panel-toggle,
+  .details-collapsed .panel .panel-toggle {
+    top: -6px;
+    right: 4px;
   }
   .loader-bar {
     top: 100px; /* the toolbar wraps to two rows */

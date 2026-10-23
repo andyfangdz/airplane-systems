@@ -131,7 +131,7 @@ function PanelToggle({
 }) {
   const label = `${collapsed ? "Show" : "Hide"} ${side} panel`;
   return (
-    <div className="panel-toggle-row">
+    <div className="panel-toggle-anchor">
       <button
         type="button"
         className="panel-toggle"
@@ -141,8 +141,9 @@ function PanelToggle({
         title={label}
         onClick={toggle}
       >
-        <span aria-hidden="true">{(side === "systems") === collapsed ? "›" : "‹"}</span>
-        {!collapsed && <span>Hide {side}</span>}
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <polyline points={(side === "systems") === collapsed ? "8 5 13 10 8 15" : "12 5 7 10 12 15"} />
+        </svg>
       </button>
     </div>
   );
