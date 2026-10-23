@@ -44,6 +44,7 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
     theme = useView((x) => x.theme);
   // keep the selected entry visible (the list scrolls: vertically on desktop, a chip strip on phones) without scrolling the page
   useEffect(() => {
+    if (collapsed) return;
     const b = document.querySelector<HTMLElement>('.syslist button[aria-current="true"]'),
       ul = b?.closest("ul");
     if (!b || !ul) return;
@@ -53,7 +54,7 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
     else if (r.right > u.right) ul.scrollLeft += r.right - u.right + 10;
     if (r.top < u.top) ul.scrollTop -= u.top - r.top + 8;
     else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
-  }, [sys, def]);
+  }, [sys, def, collapsed]);
   return (
     <nav className="rail" aria-label="Systems">
       <PanelToggle side="systems" collapsed={collapsed} toggle={toggle} />

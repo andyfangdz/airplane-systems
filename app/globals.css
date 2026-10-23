@@ -1315,6 +1315,12 @@ button.chip:hover {
     border: 1px solid var(--rule);
     border-radius: 6px;
   }
+  .details-collapsed .panel .panel-toggle-anchor {
+    z-index: 33; /* above the active preflight scene (32) */
+  }
+  .walking.details-collapsed .stage-foot:has(.walk-scene:not(:empty)) {
+    bottom: 56px; /* leave the reopen tab clear of the check navigation */
+  }
   .details-collapsed .stage-under:not(:empty) {
     padding-right: 64px;
   }
