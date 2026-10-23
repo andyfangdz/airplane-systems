@@ -1261,9 +1261,11 @@ button.chip:hover {
     padding: 18px 16px 40px;
   }
   .panel-toggle-anchor {
-    top: 6px;
+    position: relative;
+    top: 0;
   }
   .panel-toggle {
+    top: 6px;
     right: 4px;
     width: 44px;
     height: 44px;
@@ -1285,11 +1287,11 @@ button.chip:hover {
   }
   .systems-collapsed .rail,
   .details-collapsed .panel {
-    min-height: 44px;
+    min-height: 45px;
   }
   .systems-collapsed .rail .panel-toggle,
   .details-collapsed .panel .panel-toggle {
-    top: -6px;
+    top: 0;
     right: 4px;
   }
   .loader-bar {
