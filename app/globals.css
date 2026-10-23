@@ -1285,14 +1285,38 @@ button.chip:hover {
   .walking .panel .walk-hd {
     padding-right: 36px;
   }
-  .systems-collapsed .rail,
-  .details-collapsed .panel {
+  .systems-collapsed .rail {
     min-height: 45px;
   }
-  .systems-collapsed .rail .panel-toggle,
-  .details-collapsed .panel .panel-toggle {
+  .systems-collapsed .rail .panel-toggle {
     top: 0;
     right: 4px;
+  }
+  .app.details-collapsed {
+    height: 100svh;
+    height: 100dvh;
+  }
+  .details-collapsed > .rail,
+  .details-collapsed > .stage-under {
+    flex-shrink: 0;
+  }
+  .details-collapsed > .stage {
+    height: auto;
+    flex: 1 0 340px;
+  }
+  .details-collapsed > .panel {
+    height: 0;
+    min-height: 0;
+    border: 0;
+  }
+  .details-collapsed .panel .panel-toggle {
+    top: -48px;
+    right: 8px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  .details-collapsed .stage-under:not(:empty) {
+    padding-right: 64px;
   }
   .loader-bar {
     top: 100px; /* the toolbar wraps to two rows */
