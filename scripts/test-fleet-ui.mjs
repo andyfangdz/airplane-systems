@@ -94,6 +94,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.match(await engines.last().innerText(), /^TSIO-550-K\s+Continental TSIO-550-K · 315 hp\s*$/);
   const components = dialog.getByRole("group", { name: "Components" }).getByRole("link");
   assert.deepEqual(await components.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
+    "/components/piston-cylinder",
     "/components/carburetor",
     "/components/fuel-injector",
     "/components/surefly",
@@ -107,7 +108,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  // six airplanes, three engines and four components: about 681 px tall where it fits, scrolling where it does not
+  // six airplanes, three engines and five components: bounded by the compact picker height, scrolling as needed
   assert.ok(
     box.width <= 352 && box.height <= 700,
     "The entire fleet, the engines and the components fit in a compact dropdown",
@@ -249,11 +250,11 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   // and a component page the same way
   await activate(trigger);
   await activate(components.first());
-  await page.waitForURL("**/components/carburetor");
-  const componentTrigger = page.getByRole("button", { name: /^Switch Airplanes, current component Carburetor/ });
+  await page.waitForURL("**/components/piston-cylinder");
+  const componentTrigger = page.getByRole("button", { name: /^Switch Airplanes, current component Piston cylinder/ });
   await componentTrigger.waitFor();
   await activate(componentTrigger);
-  assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /Carburetor/);
+  assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /Piston cylinder/);
   await page.keyboard.press("Escape");
   assert.deepEqual(errors, []);
   console.log(

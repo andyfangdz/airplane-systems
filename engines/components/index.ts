@@ -18,6 +18,12 @@ export interface ComponentEntry {
 
 export const COMPONENTS = [
   {
+    id: "piston-cylinder",
+    name: "Piston cylinder",
+    sub: "Four-stroke cycle · IO-390 geometry",
+    lead: "Explore a piston, connecting rod, crankshaft and valves through the four-stroke cycle in an animated cutaway.",
+  },
+  {
     id: "carburetor",
     name: "Carburetor",
     sub: "Marvel-Schebler MA-4-5 float carburetor",

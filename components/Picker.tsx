@@ -49,7 +49,7 @@ export function Picker({
           size({
             padding: 12,
             apply: ({ availableHeight, elements }) => {
-              elements.floating.style.maxHeight = `${Math.max(240, availableHeight)}px`;
+              elements.floating.style.maxHeight = `${Math.min(700, Math.max(240, availableHeight))}px`;
             },
           }),
           shift({ padding: 12, crossAxis: true }),

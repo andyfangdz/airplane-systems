@@ -8,6 +8,7 @@ import type { ComponentType } from "react";
 import type { ComponentId } from "@/engines/components";
 
 export const PAGES: Record<ComponentId, ComponentType> = {
+  "piston-cylinder": dynamic(() => import("./piston-cylinder/PistonCylinderApp")),
   carburetor: dynamic(() => import("./carburetor/CarburetorApp")),
   "fuel-injector": dynamic(() => import("./fuel-injector/FuelInjectorApp")),
   surefly: dynamic(() => import("./surefly/App")),
