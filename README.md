@@ -8,7 +8,7 @@ Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zu
 
 ## Getting started
 
-Use Node **22.23.4** (`.node-version`) and npm **10.9.9** (`packageManager` and `engines` in `package.json`).
+Use Node **24.22.1** (`.node-version`) and npm **11.19.1** (`packageManager` and `engines` in `package.json`).
 
 ```bash
 npm ci
