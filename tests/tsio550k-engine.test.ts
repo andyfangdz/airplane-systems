@@ -276,17 +276,14 @@ describe("mixtureFor inverts each fuel system's metering (trim.ts)", () => {
       }
   });
 
-  test("the IO-390 servo inverse is the same arithmetic as before the per-system split (T-37)", () => {
-    const before = (air: number, lambda: number, rho: number) => {
-      const far = 1 / (15 * IO390.calibration.lambdaFullRich);
-      const want = air / (15 * lambda);
-      const perUnit = air * far * Math.sqrt(1.225 / Math.max(rho, 0.2)) + IDLE_SPRING_LBH;
-      return Math.max(0.03, Math.min(1, want / perUnit));
-    };
+  test("the IO-390 servo inverse holds the requested mixture across density and idle-spring take-up", () => {
     for (const lambda of [0.7, 0.85, 1.0, 1.2])
       for (const air of [100, 600, 1200])
-        for (const rho of [1.225, 0.9, 0.1])
-          expect(mixtureForFlow(IO390, air, lambda, rho)).toBe(before(air, lambda, rho));
+        for (const rho of [1.225, 0.9, 0.1]) {
+          const mixture = mixtureForFlow(IO390, air, lambda, rho);
+          if (mixture <= 0.03 || mixture >= 1) continue;
+          expect(air / (15 * meteredFuelFlow(IO390, air, mixture, rho, 1))).toBeCloseTo(lambda, 9);
+        }
   });
 
   test("holding λ on the -K settles at that λ (settle, hold.lambda)", () => {

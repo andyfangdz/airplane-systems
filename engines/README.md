@@ -13,6 +13,7 @@ engines/
     induction.ts  Throttle as a compressible orifice, manifold pressure, volumetric efficiency from the chart
     fuel.ts       Servo and Continental continuous-flow metering, nozzles, per-cylinder distribution (injected engines)
     carburetor.ts Float carburetor: venturi and idle metering, mixture-chamber cooling, carburetor ice
+    accelerator-pump.ts Spring-driven pump discharge and slow-stroke bypass, shared with the carburetor cutaway
     mixture.ts    Power, EGT and head heat against excess-air ratio λ
     propeller.ts  Constant-speed propeller and governor
     turbo.ts      Turbochargers, wastegate and controller, intercoolers, relief valve, TIT, turbo-system failures
@@ -85,8 +86,9 @@ sessions reject further simulation work.
 Scenario worker replies belong to a request and its session. Starting or canceling one engine's setup leaves other
 sessions alone; worker failure falls back for every pending owner. Transport errors also clear the loading state.
 
-Accessories compose at `subscribeSteps(listener)`: the carburetor pump and primer run after each engine step using
-that step's exact duration, and unmounting unregisters the listener. The governor and SureFly bench own separate
+Accessories compose at `subscribeSteps(listener)`: the carburetor primer runs after each engine step using
+that step's exact duration, and unmounting unregisters the listener. The accelerator pump belongs to the engine state,
+so its fuel delivery and cutaway survive checkpoints together. The governor and SureFly bench own separate
 120 Hz clocks. Route frame loops drive these clocks independently of canvas rendering. Low-level model functions
 remain directly step-able for source-based tests.
 
@@ -95,3 +97,6 @@ detailed engine kernel uses excess-air ratio **λ** (lean above 1). `model/mixtu
 conversion and the mass-flow boundary. These unit conversions do not change either model's source calibration.
 The fleet keeps its installed-aircraft teaching models; sharing a clock or an engine type does not make distinct
 installation, governor and failure assumptions interchangeable.
+
+[Fuel metering research and model audit](FUEL-METERING-RESEARCH.md) compares the float carburetor, RSA servo and
+Continental systems, records the source hierarchy and explains the implemented corrections and remaining limits.

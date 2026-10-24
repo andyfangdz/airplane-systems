@@ -491,7 +491,7 @@ function Regulator({ v, mats }: { v: ViewRef; mats: Mats }) {
       </group>
       <P
         name="Constant-head idle spring"
-        note="At low power the venturi's pressure difference is too small to regulate consistently; this spring adds a constant fuel differential so there is enough flow at idle (FAA-H-8083-32B pp. 2-22–2-23)."
+        note="Supplements the diaphragm force near idle. Above idle the retainer and guide take it up, so it contributes no further force (Precision Form 15-812B, printed p. 13). Spring strength and travel here are schematic."
         geometry={geo.spring}
         material={mats.spring}
         meshRef={spring}

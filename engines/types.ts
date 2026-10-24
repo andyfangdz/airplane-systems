@@ -515,7 +515,7 @@ export interface Carburetor {
   bowlLb: number;
   /** Idle circuit flow at full manifold vacuum, lb/h (sets the idle mixture). */
   idleLbH: number;
-  /** Accelerator pump: fuel for one full closed-to-open throttle stroke, lb. */
+  /** Accelerator pump swept fuel per full stroke, lb; slow strokes bypass some or all of it back to the bowl. */
   accelLb: number;
   /** One stroke of the primer, lb of fuel into each cylinder's intake port. */
   primeLb: number;

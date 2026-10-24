@@ -17,12 +17,14 @@ import {
 import { PRESSURE } from "./colors";
 
 const LEAD =
-  "The Precision (Bendix) RSA continuous-flow fuel injection system as fitted to the Lycoming IO-390-C: a servo fuel " +
+  "RSA-type continuous-flow fuel injection on the Lycoming IO-390-C: a servo fuel " +
   "injector that meters fuel against the air flowing through its throttle body, a flow divider that keeps the metered " +
   "fuel under pressure and splits it four ways, and an air-bleed nozzle in each cylinder head. It runs on the IO-390 " +
-  "engine simulation, so the fuel flows and nozzle pressures are the engine's own.";
+  "engine simulation, so the fuel flows and nozzle pressures are the engine's own. The IOM lists AVStar RSA-10AD1/-10AD2; " +
+  "the cutaway explains the RSA operating principle using FAA and Precision training diagrams.";
 
 const pct = (v: number) => `${Math.round(v * 100)} %`;
+const forcePct = (v: number) => `${(100 * v).toFixed(2)} %`;
 const f1 = (v: number) => v.toFixed(1);
 const gph = (lbh: number) => `${(lbh / AVGAS_LB_GAL).toFixed(1)} gph`;
 
@@ -46,9 +48,9 @@ function Injector({ sim }: { sim: EngineSim }) {
       <Readouts
         items={[
           ["Air through throttle body", `${Math.round(v.air)} lb/h`],
-          ["Air metering force", pct(v.airForce)],
-          ["Fuel metering force", pct(v.fuelForce)],
-          ["Idle spring's share", v.fuelForce > 0 ? pct(v.springForce / v.fuelForce) : "–"],
+          ["Air metering force", forcePct(v.airForce)],
+          ["Fuel metering force", forcePct(v.fuelForce)],
+          ["Idle spring force", forcePct(v.springForce)],
           ["Ball valve", v.metered > 0 ? pct(v.ball) : "shut"],
           ["Mixture plate", v.cutoff ? "idle cut-off" : v.mixture > 0.995 ? "full rich" : pct(v.mixture)],
           ["Injector inlet", `${f1(v.inletPsi)} psi`],
@@ -65,9 +67,10 @@ function Injector({ sim }: { sim: EngineSim }) {
       />
       <Small>
         Forces are relative to rated air flow at sea level (100 %); no pressure inside the injector is published. The
-        two balance: the ball valve opens until the fuel metering force matches the air metering force (plus the
-        constant-head idle spring), so fuel follows air. The flow divider is &quot;dividing&quot; while its valve is
-        only partly open, as at idle, and &quot;open&quot; once the flow opens it fully and the nozzles set the split.
+        two balance while supply pressure is sufficient. The idle spring supplements the air force near idle and is
+        taken up above that range (Precision Form 15-812B, p. 13). Fuel force is inferred from delivered flow; limited
+        supply may prevent balance. The flow divider is &quot;dividing&quot; while its valve is only partly open, as at
+        idle, and &quot;open&quot; once the flow opens it fully and the nozzles set the split.
       </Small>
     </>
   );
@@ -279,6 +282,11 @@ function Specs({ sim }: { sim: EngineSim }) {
 function Sources() {
   const items: [string, string, string][] = [
     [
+      "Precision Airmotive Form 15-812B, RSA Fuel Injection System Training Manual",
+      "https://precisionairmotive.com/wp-content/uploads/2019/06/15-812_b.pdf",
+      "Regulator force balance (p. 5), idle spring take-up (p. 13), flow divider (pp. 7–8), nozzle air bleeds (p. 17).",
+    ],
+    [
       "FAA-H-8083-32B, Aviation Maintenance Technician Handbook – Powerplant, Chapter 2",
       "https://www.faa.gov/regulationspolicies/handbooksmanuals/aviation/faa-h-8083-32b-chapter-2-engine-fuel-fuel-metering",
       "Bendix/Precision fuel-injection system: airflow, regulator and metering sections, flow divider, nozzles (pp. 2-21–2-24, Figures 2-30 to 2-38).",
@@ -318,7 +326,7 @@ function Sources() {
 export function InjectorPanel({ sim }: { sim: EngineSim }) {
   return (
     <div className="panel-inner">
-      <div className="ref">Component simulation · Precision RSA on the Lycoming IO-390-C</div>
+      <div className="ref">Component simulation · RSA-type injection on the Lycoming IO-390-C</div>
       <p className="lead">{LEAD}</p>
       <StartFrom sim={sim} />
       <Controls sim={sim} />

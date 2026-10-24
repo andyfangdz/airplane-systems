@@ -9,6 +9,8 @@
  * fixed per-item weights, so moving, swapping or reordering any vertex changes it. As in scene-snapshot.test.ts, the
  * last bit of Math.sin/cos differs between runtimes, so the float sums are compared within TOL rather than hashed;
  * text, counts and hashes must match exactly.
+ * Running materials and governor poses were refreshed for the fuel-metering corrections documented in
+ * engines/FUEL-METERING-RESEARCH.md; cold poses, geometry fingerprints and part identities remain unchanged.
  *
  * Update only for an intended change to these engines' drawing:
  * UPDATE_ENGINE_SCENE_BASELINE=1 npx vitest run tests/engine-scene-identity.test.ts
@@ -192,7 +194,7 @@ afterAll(() => {
 });
 
 describe.each(ENGINES)("the %s scene", (name, spec) => {
-  test("draws every part exactly as before the per-engine layouts", async () => {
+  test("draws every part according to the reviewed scene baseline", async () => {
     const now = await snapshot(spec);
     taken[name] = now;
     if (UPDATE) return;

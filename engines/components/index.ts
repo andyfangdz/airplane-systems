@@ -26,7 +26,7 @@ export const COMPONENTS = [
   {
     id: "fuel-injector",
     name: "Fuel injection",
-    sub: "Precision RSA servo, flow divider, nozzles",
+    sub: "RSA-type servo, flow divider, nozzles",
     lead: "The RSA continuous-flow fuel injection system on the IO-390: servo injector, flow divider and air-bleed nozzles, cut away.",
   },
   {

@@ -4,7 +4,8 @@
  * A servo injector meters fuel against the air flow: its air diaphragm sees impact-minus-venturi pressure (∝ ṁ²/ρ)
  * and its fuel diaphragm the metering-jet drop (∝ ṁf²), so fuel flow tracks air mass flow × √(ρ_ref / ρ): the mixture
  * gets richer as the air thins, which is why it needs leaning in a climb. The mixture valve scales the jet; a
- * constant-head spring gives a small flow with no air flow, enough to prime with the boost pump on.
+ * constant-head spring adds pressure head near idle, enough to prime with the boost pump on. Its contribution
+ * disappears above idle (Precision Form 15-812B, printed p. 13). Pressure heads add before taking the square root.
  * The flow divider then feeds the four nozzles at one pressure, so a partly blocked nozzle starves its own cylinder
  * and raises the common nozzle pressure: a pressure-type gauge then reads high.
  *
@@ -20,8 +21,22 @@ import { LB_KG, RHO0 } from "./atmosphere";
 import { engineAirFlow, inductionCal } from "./induction";
 import { AFR_STOICH } from "./mixture";
 
-/** Flow the constant-head idle spring gives with no air flow, lb/h (illustrative). */
+/** Continental schedule's additive low-flow allowance, lb/h (illustrative; not an RSA spring). */
 export const IDLE_SPRING_LBH = 1.0;
+
+/** RSA spring head expressed as equivalent zero-air full-rich flow, lb/h. Illustrative, not a published setting. */
+export const SERVO_IDLE_HEAD_LBH = 3.5;
+/** Full-rich air-derived fuel flow where the idle spring is fully taken up, lb/h (illustrative). */
+const SERVO_SPRING_RELEASE_LBH = 20;
+
+/** Equivalent squared fuel flows, proportional to the air and supplemental spring forces on the diaphragm.
+ * The spring is progressively taken up as air flow rises (15-812B p. 13); its release curve is schematic. */
+export function servoHead(spec: EngineSpec, airLbH: number, inletRho: number) {
+  const far = 1 / (AFR_STOICH * spec.calibration.lambdaFullRich);
+  const air = Math.max(0, airLbH) * far * Math.sqrt(RHO0 / Math.max(inletRho, 0.2));
+  const spring = SERVO_IDLE_HEAD_LBH ** 2 * Math.max(0, 1 - (air / SERVO_SPRING_RELEASE_LBH) ** 2);
+  return { air: air ** 2, spring };
+}
 
 /** Engine speed of the low unmetered-pressure setting (M-18 Table 2-4 "600 RPM"; AMM 73-20 PDF 2588–2589 (u), (z)). */
 export const PUMP_SET_RPM = 600;
@@ -110,8 +125,8 @@ export function mixtureForFlow(
     const perUnit = airLbH / (AFR_STOICH * fullRichLambdaAt(spec, scheduleLbH)!) + IDLE_SPRING_LBH;
     return Math.max(0.03, Math.min(1, want / perUnit));
   }
-  const far = 1 / (AFR_STOICH * spec.calibration.lambdaFullRich);
-  const perUnit = airLbH * far * Math.sqrt(RHO0 / Math.max(inletRho, 0.2)) + IDLE_SPRING_LBH;
+  const head = servoHead(spec, airLbH, inletRho);
+  const perUnit = Math.sqrt(head.air + head.spring);
   return Math.max(0.03, Math.min(1, want / perUnit));
 }
 
@@ -148,11 +163,9 @@ export function continentalNozzleCapacity(spec: EngineSpec, psi: number, areaMea
 /** Metered fuel flow (lb/h) for an air flow (lb/h), mixture position 0 (idle cut-off) … 1 (full rich). */
 export function servoFuelFlow(spec: EngineSpec, airLbH: number, mixture: number, inletRho: number, supply: number) {
   if (mixture <= 0.02 || supply <= 0) return 0;
-  const far = 1 / (AFR_STOICH * spec.calibration.lambdaFullRich);
   const valve = Math.min(1, mixture);
-  const metered = airLbH * far * valve * Math.sqrt(RHO0 / Math.max(inletRho, 0.2));
-  const spring = IDLE_SPRING_LBH * valve;
-  return (metered + spring) * supply;
+  const head = servoHead(spec, airLbH, inletRho);
+  return Math.sqrt(head.air + head.spring) * valve * supply;
 }
 
 /** Nominal fuel flow (lb/h) at a nozzle pressure (psig), interpolated on the injector chart (none: a carburetor). */
