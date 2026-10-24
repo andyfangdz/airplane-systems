@@ -31,10 +31,34 @@ for (const [name, viewport] of Object.entries({
     await page.getByRole("button", { name: "Labels", exact: true }).click();
     await expect(page.locator(".piston-label")).toHaveCount(0);
     await page.getByRole("button", { name: "Labels", exact: true }).click();
-    await expect(page.locator(".piston-label")).toHaveCount(5);
+    await expect(page.locator(".piston-label")).toHaveCount(8);
+    await expect(page.getByText("Slow-motion teaching cycle", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Both plugs fouled", exact: true }).click();
+    const reading = (label) =>
+      page
+        .locator(".ro")
+        .filter({ has: page.locator("span", { hasText: new RegExp(`^${label}$`) }) })
+        .locator("b");
+    await expect(reading("Top plug")).toHaveText("Fouled");
+    await expect(reading("Bottom plug")).toHaveText("Fouled");
+    await expect(reading("Combustion")).toHaveText("No useful burn");
+    await page.getByRole("button", { name: "Service plugs", exact: true }).click();
+    await expect(reading("Combustion")).toHaveText("Burning");
+    await page.getByRole("button", { name: "Exhaust stuck open", exact: true }).click();
+    await expect(reading("Combustion")).toHaveText("No useful burn");
+    await page.locator("#piston-exhaust-free").click();
+    await expect(reading("Combustion")).toHaveText("Burning");
+    await page.locator("#piston-mixture").fill("0");
+    await expect(reading("Fuel / cylinder")).toHaveText("0.00 gph");
+    await expect(reading("Combustion")).toHaveText("No useful burn");
+    await page.getByRole("button", { name: "Normal operation", exact: true }).click();
+    await pause.click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     mkdirSync(".shots/piston-cylinder", { recursive: true });
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      document.querySelector(".panel")?.scrollTo(0, 0);
+    });
     await page.screenshot({ path: `.shots/piston-cylinder/${name}.png`, fullPage: true });
     expect(errors).toEqual([]);
     await context.close();

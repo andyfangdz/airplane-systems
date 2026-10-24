@@ -3,9 +3,18 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { DoubleSide, type Group, type Mesh, type MeshStandardMaterial } from "three";
-import { bore, cylinderAt, geometry, radius, rodLength, top } from "@/engines/components/piston-cylinder/model";
+import {
+  bore,
+  cylinderAt,
+  benchValves,
+  geometry,
+  radius,
+  rodLength,
+  top,
+  type BenchControls,
+  type CylinderBench,
+} from "@/engines/components/piston-cylinder/model";
 import { ComponentStage } from "../ComponentStage";
-import type { CylinderPlayback } from "./PistonCylinderApp";
 
 const R = bore / 2;
 const crown = 0.022;
@@ -20,31 +29,107 @@ function Label({ at, children }: { at: [number, number, number]; children: React
     </Html>
   );
 }
-function Assembly({ live, labels }: { live: CylinderPlayback; labels: boolean }) {
+function SparkPlug({ live, index }: { live: CylinderBench; index: 0 | 1 }) {
+  const flash = useRef<Mesh>(null);
+  const tip = useRef<Mesh>(null);
+  useFrame(() => {
+    if (flash.current) flash.current.visible = cylinderAt(live.angle).spark && live.sparks[index];
+    if (tip.current)
+      (tip.current.material as MeshStandardMaterial).color.setRGB(
+        0.7 * (1 - live.deposits[index]) + 0.06,
+        0.65 * (1 - live.deposits[index]) + 0.04,
+        0.55 * (1 - live.deposits[index]) + 0.03,
+      );
+  });
+  const side = index === 0 ? -1 : 1;
+  return (
+    <group position={[side * 0.021, head + 0.003, 0.04]} rotation={[0, 0, -side * 0.25]}>
+      <mesh position={[0, 0.028, 0]}>
+        <cylinderGeometry args={[0.005, 0.007, 0.027, 20]} />
+        <meshStandardMaterial color="#ece7db" roughness={0.3} />
+      </mesh>
+      <mesh position={[0, 0.047, 0]}>
+        <cylinderGeometry args={[0.003, 0.003, 0.012, 16]} />
+        <meshStandardMaterial color="#bcaa77" metalness={0.7} roughness={0.25} />
+      </mesh>
+      <mesh position={[0, 0.01, 0]}>
+        <cylinderGeometry args={[0.009, 0.009, 0.009, 6]} />
+        <meshStandardMaterial color="#aab6bf" metalness={0.8} roughness={0.25} />
+      </mesh>
+      {[0, 0.003, 0.006].map((y) => (
+        <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.006, 0.0008, 6, 20]} />
+          <meshStandardMaterial color="#737c83" />
+        </mesh>
+      ))}
+      <mesh ref={tip} position={[0, -0.004, 0]}>
+        <cylinderGeometry args={[0.004, 0.003, 0.008, 16]} />
+        <meshStandardMaterial />
+      </mesh>
+      <mesh position={[0.003, -0.009, 0]}>
+        <boxGeometry args={[0.006, 0.002, 0.002]} />
+        <meshStandardMaterial color="#777c81" />
+      </mesh>
+      <mesh ref={flash} position={[0, -0.008, 0]}>
+        <sphereGeometry args={[0.004, 12, 12]} />
+        <meshBasicMaterial color="#b3eaff" />
+      </mesh>
+    </group>
+  );
+}
+function Flow({ live, controls, side }: { live: CylinderBench; controls: BenchControls; side: -1 | 1 }) {
+  const particles = useRef<Group>(null);
+  useFrame(() => {
+    if (!particles.current) return;
+    const valves = benchValves(live.angle, controls);
+    const phase = cylinderAt(live.angle).stroke;
+    const active =
+      controls.rpm > 0 &&
+      (side < 0 ? phase === "intake" && valves.intake > 0.01 : phase === "exhaust" && valves.exhaust > 0.01);
+    particles.current.visible = active;
+    particles.current.children.forEach((p, i) => {
+      const t = (live.angle / 180 + i / 5) % 1;
+      p.position.x = side < 0 ? -0.14 + t * 0.085 : 0.055 + t * 0.085;
+    });
+  });
+  return (
+    <group ref={particles}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <mesh key={i} position={[0, head + 0.005, -0.018]}>
+          <sphereGeometry args={[0.003, 8, 8]} />
+          <meshBasicMaterial color={side < 0 ? "#81dbff" : "#ffba7d"} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+function Assembly({ live, controls, labels }: { live: CylinderBench; controls: BenchControls; labels: boolean }) {
   const piston = useRef<Group>(null);
   const rod = useRef<Group>(null);
   const crank = useRef<Group>(null);
   const intake = useRef<Group>(null);
   const exhaust = useRef<Group>(null);
   const gas = useRef<Mesh>(null);
-  const spark = useRef<Mesh>(null);
+
   useFrame(() => {
     const x = cylinderAt(live.angle);
+    const valves = benchValves(live.angle, controls);
     if (piston.current) piston.current.position.y = x.pistonY;
     if (rod.current) {
       rod.current.position.set(x.pinX / 2, (x.pinY + x.pistonY) / 2, 0);
       rod.current.rotation.z = x.rodAngle;
     }
     if (crank.current) crank.current.rotation.z = (-x.phase * Math.PI) / 180;
-    if (intake.current) intake.current.position.y = -x.valves.intake * 0.014;
-    if (exhaust.current) exhaust.current.position.y = -x.valves.exhaust * 0.014;
+    if (intake.current) intake.current.position.y = -valves.intake * 0.014;
+    if (exhaust.current) exhaust.current.position.y = -valves.exhaust * 0.014;
     if (gas.current) {
       const height = head - x.pistonY - crown;
       gas.current.position.y = head - height / 2;
       gas.current.scale.y = height;
-      (gas.current.material as MeshStandardMaterial).color.set(COLORS[x.stroke]);
+      const material = gas.current.material as MeshStandardMaterial;
+      material.color.set(x.stroke === "power" && !live.firing ? "#86939c" : COLORS[x.stroke]);
+      material.opacity = x.stroke === "power" ? 0.08 + 0.3 * live.work : 0.2;
     }
-    if (spark.current) spark.current.visible = x.spark;
   });
   return (
     <>
@@ -106,13 +191,34 @@ function Assembly({ live, labels }: { live: CylinderPlayback; labels: boolean })
           </mesh>
         </group>
       ))}
-      <mesh position={[0, head + 0.02, 0.018]}>
-        <cylinderGeometry args={[0.006, 0.006, 0.035, 16]} />
-        <meshStandardMaterial color="#eee7cf" />
+      <SparkPlug live={live} index={0} />
+      <SparkPlug live={live} index={1} />
+      {/* Rear half of the cylinder head, leaving the chamber visible. */}
+      <mesh position={[0, head + 0.008, 0]}>
+        <cylinderGeometry args={[R + 0.012, R + 0.012, 0.016, 48, 1, false, Math.PI / 2, Math.PI]} />
+        <meshStandardMaterial color="#a8b3bc" metalness={0.65} roughness={0.4} side={DoubleSide} />
       </mesh>
-      <mesh ref={spark} position={[0, head - 0.003, 0.018]}>
-        <sphereGeometry args={[0.008, 16, 16]} />
-        <meshBasicMaterial color="#fff19b" />
+      {([-1, 1] as const).map((side) => (
+        <group key={side}>
+          <mesh position={[side * 0.095, head + 0.005, -0.018]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.015, 0.015, 0.09, 24, 1, true]} />
+            <meshStandardMaterial
+              color={side < 0 ? "#417f9b" : "#a67358"}
+              side={DoubleSide}
+              metalness={0.5}
+              roughness={0.5}
+            />
+          </mesh>
+          <Flow live={live} controls={controls} side={side} />
+        </group>
+      ))}
+      <mesh position={[0.12, head + 0.022, -0.018]}>
+        <cylinderGeometry args={[0.003, 0.003, 0.04, 12]} />
+        <meshStandardMaterial color="#e9ad59" />
+      </mesh>
+      <mesh position={[-R - 0.006, head - 0.035, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.004, 0.004, 0.025, 12]} />
+        <meshStandardMaterial color="#6fd4ba" />
       </mesh>
       {labels && (
         <>
@@ -121,16 +227,19 @@ function Assembly({ live, labels }: { live: CylinderPlayback; labels: boolean })
           <Label at={[0.1, top - 0.02, 0]}>Piston & rings</Label>
           <Label at={[-0.09, 0.1, 0]}>Connecting rod</Label>
           <Label at={[0.07, -0.025, 0]}>Crankshaft</Label>
+          <Label at={[-0.12, head - 0.035, 0]}>CHT probe</Label>
+          <Label at={[0.14, head + 0.045, 0]}>EGT probe</Label>
+          <Label at={[0, head + 0.08, 0.04]}>Dual spark plugs</Label>
         </>
       )}
     </>
   );
 }
-export default function PistonCylinderScene(props: { live: CylinderPlayback; labels: boolean }) {
+export default function PistonCylinderScene(props: { live: CylinderBench; controls: BenchControls; labels: boolean }) {
   return (
     <ComponentStage
-      camera={{ position: [0.32, 0.3, 0.65], fov: 38, near: 0.01, far: 10 }}
-      target={[0, 0.13, 0]}
+      camera={{ position: [0.32, 0.34, 0.78], fov: 38, near: 0.01, far: 10 }}
+      target={[0, 0.15, 0]}
       minDistance={0.35}
       maxDistance={1.3}
     >

@@ -1,16 +1,57 @@
 # Piston cylinder
 
-This is a kinematic four-stroke teaching cutaway, using the existing IO-390 specification and shared
-`engines/model/cycle.ts` slider-crank, volume and valve-lift functions.
+An isolated, externally driven cylinder bench. It uses the IO-390 geometry and existing engine mixture and
+thermal relationships. It is not an aircraft performance or maintenance diagnostic model.
 
-- Bore, stroke, compression ratio and 20° BTC ignition timing: Lycoming IO-390-C Series Installation and
-  Operation Manual, January 2017, Table A-1, pp. 51–52; see [IO-390 sources](../../io390/SOURCES.md).
-- Rod length and valve events are the existing model's illustrative assumptions, **not published Lycoming data**.
-  Valve lift is a normalized sin² animation, not a measured cam profile.
-- The upright orientation, cutaway, piston thickness, valve sizes, crank webs, colours and spark duration are
-  illustrative. Colours identify strokes, not measured gas temperature or pressure.
-- Playback speed is a teaching control, not operating engine RPM. No combustion, pressure, load, friction,
-  heat transfer or engine performance is solved. Chamber volume is geometric, including clearance volume.
+## Published information
 
-Phase zero is firing top dead centre: power 0–180°, exhaust 180–360°, intake 360–540°, compression 540–720°.
-Valve events intentionally overlap these nominal stroke boundaries.
+[Lycoming IO-390-C Series Installation and Operation Manual, January 2017](https://www.lycoming.com/sites/default/files/attachments/IOM-IO-390-C%2520Series%2520-%25201-31-17.pdf):
+
+- Two spark plugs per cylinder: System Description p. 2.
+- Bore, stroke, compression ratio and 20° BTC ignition timing: Table A-1, pp. 51–52.
+- 465°F maximum CHT at the thermocouple: Table A-2, p. 53. The EGT meter is a display range, not a published limit.
+- Magneto checks and fouling caution: pp. 37–38. This bench selects plugs directly rather than claiming a particular
+  magneto-to-plug wiring installation.
+- 75% cruise fuel flow (12.8 gph at 2,450 rpm): Table A-1, p. 51, used as a reference for the illustrative fuel schedule.
+
+[FAA-H-8083-32B, Aviation Maintenance Technician Handbook — Powerplant](https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/amt_powerplant_handbook.pdf):
+
+- Carbon fouling and overrich idle mixtures, pp. 4-33–4-34: soot accumulates at low heat/turbulence and can prevent
+  a spark from bridging the gap. This supports the mechanism, not the bench's chosen fouling rates.
+- Figure 3-8, p. 3-5: sticking engine valves are a cause of rough running. The bench's completely stuck-open/closed
+  cases are schematic fault extremes, not the handbook's quantitative model.
+
+See also [IO-390 sources](../../io390/SOURCES.md).
+
+## Shared model and explicit assumptions
+
+- Slider-crank, chamber volume and valve lift use `engines/model/cycle.ts`. Rod length and valve events are existing
+  illustrative assumptions, not published Lycoming data. Valve lift is normalized, not a measured cam profile.
+- `engines/model/mixture.ts` supplies mixture power, combustion stability and EGT/head-heat curves. Their shape is
+  illustrative; the engine specification contains the calibrated best-power anchors.
+- Fuel equivalence ratio φ is a direct fuel/air setting, with λ = 1/φ. Zero shuts off fuel. It is not a calibrated
+  cockpit mixture-lever position. Per-cylinder fuel flow scales the reference cruise flow by charge, shaft rpm
+  and φ; it does not solve the fuel servo or manifold airflow.
+- The engine's `singlePlug`, `egtBase`, `egtGain`, `chtRise` and `chtTau` constants are reused. As in the engine
+  model, one operating plug reduces work and adds a 60°F term to EGT. That term is a model assumption, not a
+  published diagnostic threshold. EGT responds over 3 s when firing / 12 s otherwise; CHT over 150 s.
+- Thermal load scales with charge, relative combustion work and shaft speed / rated rpm.
+  Ambient is fixed at 59°F with fixed cooling. Shaft speed and charge are imposed by the bench, even with failed
+  ignition or valves; there is no propeller/torque equilibrium. Playback speed changes only the animation.
+- Fouling is an accelerated example: at less than 1,200 rpm, φ > 1.35 and CHT < 320°F, deposits increase at
+  `(φ - 1.35) / 18` per second, with the top plug accumulating at 75% of the lower plug's rate. At 80% deposits a
+  plug ceases firing. All these thresholds, rates and asymmetry are illustrative, not service-life predictions.
+  The rich-idle scenario starts with deposits to make progression visible. Leaning stops accumulation but does not
+  remove deposits. Service plugs represents maintenance and clears them explicitly.
+- A valve stuck open is held at 55% normalized lift; stuck closed at zero. Any stuck valve eliminates useful
+  cylinder work in this simplified model (loss of charge/sealing/scavenging). The model does not predict transient
+  trapped-gas temperatures, backfires, valve-to-piston collisions, or mechanical damage.
+- Work and roughness are mean indicators, not a simulation of individual random misfires. A spark may occur
+  without useful combustion (fuel off or valve fault). Temperatures cool rather than snapping to ambient.
+- The geometry is schematic, including relocated dual plugs and probes for visibility, head cutaway, ports,
+  piston thickness, fins, electrodes and colours. Colours identify strokes rather than measured gas temperatures.
+
+Phase zero is firing TDC: power 0–180°, exhaust 180–360°, intake 360–540°, compression 540–720°.
+Initial temperatures (300°F CHT / 1,100°F EGT; rich-idle scenario 230°F / 900°F) are illustrative warm states.
+The route owns a fixed 120 Hz clock. Pausing freezes the whole bench, including temperatures and deposits;
+angle scrubbing does not integrate time. Scenario selection resets controls, deposits, temperatures and clock.

@@ -42,3 +42,38 @@
   background: #172632e6;
   color: #eef5fa;
 }
+.piston-scenarios {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.piston-scenarios [aria-pressed="true"] {
+  outline: 2px solid #699bc3;
+}
+.piston-thermal {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+.piston-thermal label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.piston-thermal meter {
+  flex: 1;
+  height: 15px;
+}
+.piston-panel .piston-hot,
+.piston-hot {
+  color: #dc744a;
+}
+.piston-monitor {
+  gap: 8px 16px;
+}
+@media (max-width: 860px) {
+  .piston-label {
+    font-size: 10px;
+    padding: 3px 4px;
+  }
+}
