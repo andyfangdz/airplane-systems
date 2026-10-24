@@ -51,6 +51,28 @@ for (const [name, viewport] of Object.entries({
     await page.locator("#piston-mixture").fill("0");
     await expect(reading("Fuel / cylinder")).toHaveText("0.00 gph");
     await expect(reading("Combustion")).toHaveText("No useful burn");
+    mkdirSync(".shots/piston-cylinder", { recursive: true });
+    for (const [fault, phase, recovery] of [
+      ["Detonation", "20", "charge"],
+      ["Pre-ignition", "670", "fuel"],
+      ["Intake backfire", "360", "mixture"],
+    ]) {
+      await page.getByRole("button", { name: fault, exact: true }).click();
+      await pause.click();
+      await angle.fill(phase);
+      await expect(reading("Abnormal combustion")).toHaveText(fault);
+      await expect(reading("Cycle event")).toHaveText(fault);
+      await page.locator(".eng-view").screenshot({ path: `.shots/piston-cylinder/${name}-${recovery}.png` });
+      if (recovery === "charge") await page.locator("#piston-load").fill("0.5");
+      if (recovery === "fuel") {
+        await page.locator("#piston-ignition-off").click();
+        await expect(reading("Combustion")).toHaveText("Burning");
+        await expect(reading("Abnormal combustion")).toHaveText(fault);
+        await page.locator("#piston-mixture").fill("0");
+      }
+      if (recovery === "mixture") await page.locator("#piston-mixture").fill("1.1");
+      await expect(reading("Abnormal combustion")).toHaveText("None");
+    }
     await page.getByRole("button", { name: "Normal operation", exact: true }).click();
     await pause.click();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

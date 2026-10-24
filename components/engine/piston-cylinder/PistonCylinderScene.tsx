@@ -2,11 +2,12 @@
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { DoubleSide, type Group, type Mesh, type MeshStandardMaterial } from "three";
+import { DoubleSide, type Group, type Mesh, type MeshStandardMaterial, type MeshBasicMaterial } from "three";
 import {
   bore,
   cylinderAt,
   benchValves,
+  combustionEvent,
   geometry,
   radius,
   rodLength,
@@ -83,13 +84,16 @@ function Flow({ live, controls, side }: { live: CylinderBench; controls: BenchCo
     if (!particles.current) return;
     const valves = benchValves(live.angle, controls);
     const phase = cylinderAt(live.angle).stroke;
+    const backfire = side < 0 && combustionEvent(live, controls) === "backfire";
     const active =
-      controls.rpm > 0 &&
-      (side < 0 ? phase === "intake" && valves.intake > 0.01 : phase === "exhaust" && valves.exhaust > 0.01);
+      backfire ||
+      (controls.rpm > 0 &&
+        (side < 0 ? phase === "intake" && valves.intake > 0.01 : phase === "exhaust" && valves.exhaust > 0.01));
     particles.current.visible = active;
     particles.current.children.forEach((p, i) => {
       const t = (live.angle / 180 + i / 5) % 1;
-      p.position.x = side < 0 ? -0.14 + t * 0.085 : 0.055 + t * 0.085;
+      p.position.x = side < 0 ? (backfire ? -0.055 - t * 0.11 : -0.14 + t * 0.085) : 0.055 + t * 0.085;
+      ((p as Mesh).material as MeshBasicMaterial).color.set(backfire ? "#ff6a22" : side < 0 ? "#81dbff" : "#ffba7d");
     });
   });
   return (
@@ -101,6 +105,46 @@ function Flow({ live, controls, side }: { live: CylinderBench; controls: BenchCo
         </mesh>
       ))}
     </group>
+  );
+}
+function CombustionEffects({ live, controls }: { live: CylinderBench; controls: BenchControls }) {
+  const waves = useRef<Group>(null);
+  const earlyFlame = useRef<Mesh>(null);
+  const hotSpot = useRef<Mesh>(null);
+  const intakeFlame = useRef<Mesh>(null);
+  useFrame(() => {
+    const event = combustionEvent(live, controls);
+    if (waves.current) {
+      waves.current.visible = event === "detonation";
+      waves.current.scale.setScalar(0.75 + 0.25 * Math.sin((live.angle * Math.PI) / 15) ** 2);
+    }
+    if (earlyFlame.current) earlyFlame.current.visible = event === "preignition";
+    if (hotSpot.current) hotSpot.current.visible = live.abnormal === "preignition";
+    if (intakeFlame.current) intakeFlame.current.visible = event === "backfire";
+  });
+  return (
+    <>
+      <group ref={waves} visible={false} position={[0, head - 0.006, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        {[0.014, 0.03, 0.047].map((r) => (
+          <mesh key={r}>
+            <torusGeometry args={[r, 0.002, 8, 40]} />
+            <meshBasicMaterial color="#ff4f20" transparent opacity={0.85} depthWrite={false} />
+          </mesh>
+        ))}
+      </group>
+      <mesh ref={hotSpot} visible={false} position={[-0.04, head - 0.003, 0.025]}>
+        <sphereGeometry args={[0.004, 12, 12]} />
+        <meshBasicMaterial color="#ff3828" />
+      </mesh>
+      <mesh ref={earlyFlame} visible={false} position={[-0.025, head - 0.013, 0.025]} scale={[1.7, 0.6, 1]}>
+        <sphereGeometry args={[0.02, 20, 16]} />
+        <meshBasicMaterial color="#ff5138" transparent opacity={0.65} depthWrite={false} />
+      </mesh>
+      <mesh ref={intakeFlame} visible={false} position={[-0.16, head + 0.005, -0.018]} rotation={[0, 0, Math.PI / 2]}>
+        <coneGeometry args={[0.015, 0.055, 20]} />
+        <meshBasicMaterial color="#ff6726" transparent opacity={0.8} depthWrite={false} />
+      </mesh>
+    </>
   );
 }
 function Assembly({ live, controls, labels }: { live: CylinderBench; controls: BenchControls; labels: boolean }) {
@@ -191,6 +235,7 @@ function Assembly({ live, controls, labels }: { live: CylinderBench; controls: B
           </mesh>
         </group>
       ))}
+      <CombustionEffects live={live} controls={controls} />
       <SparkPlug live={live} index={0} />
       <SparkPlug live={live} index={1} />
       {/* Rear half of the cylinder head, leaving the chamber visible. */}
@@ -228,7 +273,7 @@ function Assembly({ live, controls, labels }: { live: CylinderBench; controls: B
           <Label at={[-0.09, 0.1, 0]}>Connecting rod</Label>
           <Label at={[0.07, -0.025, 0]}>Crankshaft</Label>
           <Label at={[-0.12, head - 0.035, 0]}>CHT probe</Label>
-          <Label at={[0.14, head + 0.045, 0]}>EGT probe</Label>
+          <Label at={[0.18, head + 0.045, 0]}>EGT probe</Label>
           <Label at={[0, head + 0.08, 0.04]}>Dual spark plugs</Label>
         </>
       )}

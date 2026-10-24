@@ -34,7 +34,7 @@ app/engines/[engine]/page.tsx  One static page per engine id
 
 The piston-cylinder cutaway (`/components/piston-cylinder`) follows one IO-390 cylinder through all four strokes.
 It shares the engine's slider-crank and valve-lift functions, with slow playback, pause, angle scrubbing and stroke
-selection, dual spark plugs, CHT/EGT response, mixture and ignition controls, and plug-fouling / stuck-valve scenarios.
+selection, dual spark plugs, CHT/EGT response, mixture and ignition controls, and plug-fouling, stuck-valve, detonation, pre-ignition and intake-backfire scenarios.
 The driven cylinder bench shares the engine mixture and thermal relationships; its sources and illustrative assumptions are in
 `engines/components/piston-cylinder/SOURCES.md`.
 

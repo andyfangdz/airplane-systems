@@ -21,6 +21,10 @@ thermal relationships. It is not an aircraft performance or maintenance diagnost
 - Figure 3-8, p. 3-5: sticking engine valves are a cause of rough running. The bench's completely stuck-open/closed
   cases are schematic fault extremes, not the handbook's quantitative model.
 
+- Detonation, pre-ignition and intake backfiring: pp. 10-29–10-30. Detonation is end-gas autoignition after
+  ignition; pre-ignition comes from a hot spot before the timed spark; a slow-burning lean charge can ignite the
+  intake when its valve opens. The handbook notes that light/medium detonation may have no obvious cockpit symptoms.
+
 See also [IO-390 sources](../../io390/SOURCES.md).
 
 ## Shared model and explicit assumptions
@@ -45,7 +49,7 @@ See also [IO-390 sources](../../io390/SOURCES.md).
   remove deposits. Service plugs represents maintenance and clears them explicitly.
 - A valve stuck open is held at 55% normalized lift; stuck closed at zero. Any stuck valve eliminates useful
   cylinder work in this simplified model (loss of charge/sealing/scavenging). The model does not predict transient
-  trapped-gas temperatures, backfires, valve-to-piston collisions, or mechanical damage.
+  trapped-gas temperatures, valve-fault-induced backfires, valve-to-piston collisions, or mechanical damage.
 - Work and roughness are mean indicators, not a simulation of individual random misfires. A spark may occur
   without useful combustion (fuel off or valve fault). Temperatures cool rather than snapping to ambient.
 - The geometry is schematic, including relocated dual plugs and probes for visibility, head cutaway, ports,
@@ -55,3 +59,25 @@ Phase zero is firing TDC: power 0–180°, exhaust 180–360°, intake 360–540
 Initial temperatures (300°F CHT / 1,100°F EGT; rich-idle scenario 230°F / 900°F) are illustrative warm states.
 The route owns a fixed 120 Hz clock. Pausing freezes the whole bench, including temperatures and deposits;
 angle scrubbing does not integrate time. Scenario selection resets controls, deposits, temperatures and clock.
+
+## Abnormal combustion demonstrations
+
+These are explicitly selected faults, not inferred diagnoses or predictions of onset. Only one combustion fault
+can be selected at a time. Temperatures and work describe a severe illustrative case; no octane, chemistry,
+pressure-wave solver, structural damage or probability of an event is modeled.
+
+- **Detonation:** requires a burnable charge, working ignition and free valves. The selected demonstration becomes
+  active at charge > 75%, CHT > 380°F and 0.8 ≤ φ < 1.3. These gates are illustrative, not operating limits.
+  It reduces relative work by 15%, adds 180°F to the CHT target and uses a 45 s head response. Orange rings appear
+  10–70° after firing TDC, after the timed spark. Reducing charge or enriching suppresses this particular example.
+- **Pre-ignition:** the selected hot spot can ignite a burnable charge with both plugs off or fouled. It reduces
+  work by 35%, adds 360°F to the CHT target and uses an 18 s response. The flame appears at 660–700° (60–20° before
+  firing TDC), before the unchanged 20° BTC spark. The hot-spot source remains selected until cleared explicitly;
+  fuel cut-off or a stopped shaft suppresses combustion. This is not a simulated early spark.
+- **Intake backfire:** demonstrates a slow-burning lean charge, with working spark ignition, free valves and
+  φ < 0.8. It reduces work by 35% and subtracts 100°F from the EGT target to represent intermittent/cool running.
+  Flame and reversed particles appear only at 340–410°, with positive intake lift. Enriching suppresses the example.
+  Exhaust afterfire and backfire from incorrect ignition timing are not modeled.
+- Active abnormal cases have a minimum 45% illustrative roughness indicator. Initial CHT is 430°F for detonation
+  and 420°F for pre-ignition. Animation angles, thresholds, thermal terms and penalties are chosen demonstrations,
+  not manufacturer measurements. Effects use the fixed clock; scrubbing changes only the visible cycle event.

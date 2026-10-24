@@ -8,6 +8,9 @@ import {
   cylinderAt,
   benchValves,
   BENCH_SCENARIOS,
+  COMBUSTION_NAMES,
+  combustionEvent,
+  type CombustionFault,
   type BenchControls,
   type BenchScenario,
   type Ignition,
@@ -39,6 +42,7 @@ export default function PistonCylinderApp() {
   useSimLoop(advance, 0.25, !paused);
   const snapshot = useLiveSnapshot(bench.s, 100);
   const x = cylinderAt(snapshot.angle);
+  const event = combustionEvent(snapshot, controls);
   const valves = benchValves(snapshot.angle, controls);
   const change = (patch: Partial<BenchControls>) => {
     bench.set(patch);
@@ -88,6 +92,7 @@ export default function PistonCylinderApp() {
           <span>
             EGT <b>{snapshot.egt.toFixed(0)}°F</b>
           </span>
+          {snapshot.abnormal !== "none" && <span className="piston-hot">{COMBUSTION_NAMES[snapshot.abnormal]}</span>}
         </div>
       }
       panel={
@@ -144,6 +149,24 @@ export default function PistonCylinderApp() {
             value={controls.ignition}
             onChange={(v) => change({ ignition: v })}
           />
+          <label className="piston-fault-select" htmlFor="piston-combustion">
+            Combustion fault
+            <select
+              id="piston-combustion"
+              value={controls.combustionFault}
+              onChange={(e) => change({ combustionFault: e.target.value as CombustionFault })}
+            >
+              {Object.entries(COMBUSTION_NAMES).map(([value, name]) => (
+                <option key={value} value={value}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p>
+            Scenarios below set representative conditions for each fault. Select None to clear the imposed combustion
+            fault; the cylinder retains its heat as it cools.
+          </p>
           <h3>Cylinder monitor</h3>
           <Readouts
             items={[
@@ -153,6 +176,8 @@ export default function PistonCylinderApp() {
               ["Relative work", `${(snapshot.work * 100).toFixed(0)}%`],
               ["Roughness", `${(snapshot.roughness * 100).toFixed(0)}%`],
               ["Combustion", snapshot.firing ? "Burning" : "No useful burn"],
+              ["Abnormal combustion", COMBUSTION_NAMES[snapshot.abnormal]],
+              ["Cycle event", COMBUSTION_NAMES[event]],
             ]}
           />
           <div className="piston-thermal" aria-label="Cylinder temperatures">
@@ -171,6 +196,11 @@ export default function PistonCylinderApp() {
           <p>
             EGT responds in seconds; CHT retains heat. Absolute temperatures and relative work are model estimates. EGT
             has no limit inferred from this display.
+          </p>
+          <p>
+            Orange rings show detonation after ignition; a red hot-spot flare shows pre-ignition before the spark.
+            Backfire reverses orange flow through the intake. These are imposed demonstrations, not fault detection from
+            CHT/EGT alone.
           </p>
           <h3>Scenarios</h3>
           <div className="piston-scenarios" role="group" aria-label="Cylinder scenarios">
@@ -298,8 +328,8 @@ export default function PistonCylinderApp() {
             Lycoming IO-390-C manual ↗
           </a>
           <p>
-            Fouling mechanism: FAA Powerplant Handbook, pp. 4-33–4-34. Sticking valves: Figure 3-8, p. 3-5. Fault rates
-            and severity here are illustrative.
+            Abnormal combustion: FAA Powerplant Handbook, pp. 10-29–10-30. Fouling: pp. 4-33–4-34. Sticking valves:
+            Figure 3-8, p. 3-5. Fault rates and severity here are illustrative.
           </p>
           <a
             href="https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/amt_powerplant_handbook.pdf"

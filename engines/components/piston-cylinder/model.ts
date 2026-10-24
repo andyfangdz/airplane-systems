@@ -40,6 +40,13 @@ export function advanceAngle(angle: number, dt: number, rpm: number) {
 // It shares mixture/thermal relationships with the engine, not its propeller solver.
 
 export type ValveFault = "free" | "open" | "closed";
+export type CombustionFault = "none" | "detonation" | "preignition" | "backfire";
+export const COMBUSTION_NAMES: Record<CombustionFault, string> = {
+  none: "None",
+  detonation: "Detonation",
+  preignition: "Pre-ignition",
+  backfire: "Intake backfire",
+};
 export type Ignition = "both" | "top" | "bottom" | "off";
 export interface BenchControls {
   rpm: number;
@@ -50,6 +57,7 @@ export interface BenchControls {
   intake: ValveFault;
   exhaust: ValveFault;
   playback: number;
+  combustionFault: CombustionFault;
 }
 export interface CylinderBench {
   angle: number;
@@ -62,6 +70,7 @@ export interface CylinderBench {
   work: number;
   roughness: number;
   firing: boolean;
+  abnormal: CombustionFault;
 }
 export const defaultBenchControls = (): BenchControls => ({
   rpm: 2450,
@@ -71,6 +80,7 @@ export const defaultBenchControls = (): BenchControls => ({
   intake: "free",
   exhaust: "free",
   playback: 10,
+  combustionFault: "none",
 });
 export const initialBench = (): CylinderBench => ({
   angle: 0,
@@ -83,6 +93,7 @@ export const initialBench = (): CylinderBench => ({
   work: 0,
   roughness: 0,
   firing: false,
+  abnormal: "none",
 });
 export function benchValves(angle: number, c: BenchControls) {
   const v = cylinderAt(angle).valves;
@@ -105,9 +116,25 @@ export function updateBench(s: CylinderBench, c: BenchControls) {
   // Closed exhaust models failed scavenging; it is not a prediction of trapped-gas temperature.
   const breathing = c.intake === "free" && c.exhaust === "free";
   const base = mixturePower(lambda, cal.lambdaBestPower, cal.peakEgtPower);
-  s.work = rotating && breathing && plugs > 0 ? base * (plugs === 1 ? cal.singlePlug : 1) : 0;
+  const burnable = rotating && breathing && base > 0.02;
+  // Imposed fault demonstrations; these gates are not certified detonation/flammability limits.
+  s.abnormal = "none";
+  if (burnable && c.combustionFault === "preignition") s.abnormal = "preignition";
+  if (burnable && plugs > 0) {
+    if (c.combustionFault === "detonation" && c.load > 0.75 && s.cht > 380 && c.phi >= 0.8 && c.phi < 1.3)
+      s.abnormal = "detonation";
+    if (c.combustionFault === "backfire" && c.phi < 0.8) s.abnormal = "backfire";
+  }
+  const ignitionAvailable = plugs > 0 || s.abnormal === "preignition";
+  s.work = burnable && ignitionAvailable ? base * (plugs === 1 ? cal.singlePlug : 1) : 0;
+  if (s.abnormal === "detonation") s.work *= 0.85;
+  if (s.abnormal === "preignition" || s.abnormal === "backfire") s.work *= 0.65;
   s.firing = s.work > 0.02;
-  s.roughness = rotating ? clamp01(Math.max(1 - stability(lambda), plugs === 1 ? 0.15 : 0, !s.firing ? 1 : 0)) : 0;
+  s.roughness = rotating
+    ? clamp01(
+        Math.max(1 - stability(lambda), plugs === 1 ? 0.15 : 0, !s.firing ? 1 : 0, s.abnormal !== "none" ? 0.45 : 0),
+      )
+    : 0;
   // Illustrative per-cylinder metering schedule, anchored to the published 75% cruise fuel flow.
   const cruise = IO390.rating.cruise[0];
   s.fuelGph = rotating
@@ -128,14 +155,28 @@ export function stepBench(s: CylinderBench, c: BenchControls, dt: number) {
   const plugs = s.sparks.filter(Boolean).length;
   const ambient = 59;
   const egtTarget = s.firing
-    ? Math.max(ambient, cal.egtBase + cal.egtGain * Math.sqrt(load) + egtOffset(lambda) + (plugs === 1 ? 60 : 0))
+    ? Math.max(
+        ambient,
+        cal.egtBase +
+          cal.egtGain * Math.sqrt(load) +
+          egtOffset(lambda) +
+          (plugs === 1 ? 60 : 0) -
+          (s.abnormal === "backfire" ? 100 : 0),
+      )
     : c.rpm > 0
       ? (s.cht + ambient) / 2
       : ambient;
   const chtTarget =
-    ambient + (s.firing ? cal.chtRise * Math.pow(load, 0.6) * headHeat(lambda, cal.lambdaBestPower) : 0);
+    ambient +
+    (s.firing ? cal.chtRise * Math.pow(load, 0.6) * headHeat(lambda, cal.lambdaBestPower) : 0) +
+    (s.abnormal === "preignition" ? 360 : s.abnormal === "detonation" ? 180 : 0);
   s.egt = approach(s.egt, egtTarget, dt, s.firing ? 3 : 12);
-  s.cht = approach(s.cht, chtTarget, dt, cal.chtTau);
+  s.cht = approach(
+    s.cht,
+    chtTarget,
+    dt,
+    s.abnormal === "preignition" ? 18 : s.abnormal === "detonation" ? 45 : cal.chtTau,
+  );
   // Accelerated demonstration of deposit accumulation, not a service-life prediction.
   // Deposits persist after leaning; only the explicit service/reset action removes them.
   if (c.rpm > 0 && c.rpm < 1200 && c.phi > 1.35 && s.cht < 320) {
@@ -144,7 +185,31 @@ export function stepBench(s: CylinderBench, c: BenchControls, dt: number) {
   }
   updateBench(s, c);
 }
+/** Phase windows only drive the schematic animation; thermal effects use the operating condition. */
+export function combustionEvent(s: CylinderBench, c: BenchControls, angle = s.angle): CombustionFault {
+  const phase = mod(angle, 720);
+  if (s.abnormal === "detonation" && phase >= 10 && phase < 70) return "detonation";
+  if (s.abnormal === "preignition" && phase >= 660 && phase < 700) return "preignition";
+  if (s.abnormal === "backfire" && phase >= 340 && phase < 410 && benchValves(phase, c).intake > 0.001)
+    return "backfire";
+  return "none";
+}
 export const BENCH_SCENARIOS = [
+  {
+    id: "detonation",
+    name: "Detonation",
+    note: "A severe detonation example: the remaining charge autoignites after the spark. Orange rings show pressure disturbances during the power stroke; CHT rises and useful work falls. Reduce charge or enrich to suppress this demonstration. Light detonation may have no obvious cockpit symptoms.",
+  },
+  {
+    id: "preignition",
+    name: "Pre-ignition",
+    note: "An imposed hot spot ignites the charge before the scheduled spark. The red flare appears during compression and CHT rises rapidly. Turning off the plugs does not remove the hot spot; fuel cut-off stops combustion. Clear the combustion fault to remove the source.",
+  },
+  {
+    id: "backfire",
+    name: "Intake backfire",
+    note: "A lean, slow-burning charge ignites the intake as its valve opens. Orange flow travels outward through the intake, not the exhaust. Enrich the mixture to suppress this example. This models intake backfire, not exhaust afterfire.",
+  },
   {
     id: "normal",
     name: "Normal operation",
@@ -199,6 +264,20 @@ export function createCylinderBench() {
       s.deposits = [0.55, 0.72];
       s.cht = 230;
       s.egt = 900;
+    }
+    if (id === "detonation") {
+      Object.assign(c, { combustionFault: "detonation", load: 1, rpm: 2700, phi: 1.05 });
+      s.cht = 430;
+      s.angle = 20;
+    }
+    if (id === "preignition") {
+      Object.assign(c, { combustionFault: "preignition", load: 0.9, rpm: 2700, phi: 1.1 });
+      s.cht = 420;
+      s.angle = 670;
+    }
+    if (id === "backfire") {
+      Object.assign(c, { combustionFault: "backfire", phi: 0.68 });
+      s.angle = 360;
     }
     if (id === "single") s.deposits = [1, 0];
     if (id === "dead") s.deposits = [1, 1];

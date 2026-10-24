@@ -6,6 +6,7 @@ import {
   rodLength,
   createCylinderBench,
   benchValves,
+  combustionEvent,
 } from "@/engines/components/piston-cylinder/model";
 
 describe("IO-390 cylinder geometry — IOM Table A-1, pp. 51–52", () => {
@@ -126,4 +127,64 @@ test("simulation clock makes faults and temperatures independent of render caden
   expect(b.s.deposits).toEqual([0, 0]);
   expect(b.c.intake).toBe("free");
   expect(b.s.seconds).toBe(0);
+});
+
+describe("FAA Powerplant Handbook pp. 10-29–10-30 — distinct abnormal combustion mechanisms", () => {
+  test("detonation follows spark; reducing charge or enriching suppresses the imposed severe case", () => {
+    const b = createCylinderBench();
+    b.scenario("detonation");
+    expect(b.s.abnormal).toBe("detonation");
+    expect(combustionEvent(b.s, b.c, 20)).toBe("detonation");
+    expect(combustionEvent(b.s, b.c, 680)).toBe("none");
+    b.set({ ignition: "off" });
+    expect(b.s.abnormal).toBe("none");
+    b.scenario("detonation");
+    b.set({ load: 0.5 });
+    expect(b.s.abnormal).toBe("none");
+    b.scenario("detonation");
+    b.set({ phi: 1.4 });
+    expect(b.s.abnormal).toBe("none");
+  });
+  test("pre-ignition precedes the spark and persists without plugs while fuel remains", () => {
+    const b = createCylinderBench();
+    b.scenario("preignition");
+    expect(cylinderAt(670).spark).toBe(false);
+    expect(combustionEvent(b.s, b.c, 670)).toBe("preignition");
+    expect(combustionEvent(b.s, b.c, 20)).toBe("none");
+    b.set({ ignition: "off" });
+    expect(b.s.sparks).toEqual([false, false]);
+    expect(b.s.firing).toBe(true);
+    runBench(b, 10);
+    expect(b.s.cht).toBeGreaterThan(465);
+    b.set({ phi: 0 });
+    expect(b.s.abnormal).toBe("none");
+    expect(b.s.firing).toBe(false);
+  });
+  test("lean backfire occurs at the open intake, and enrichment clears it", () => {
+    const b = createCylinderBench();
+    b.scenario("backfire");
+    expect(combustionEvent(b.s, b.c, 360)).toBe("backfire");
+    expect(benchValves(360, b.c).intake).toBeGreaterThan(0);
+    expect(combustionEvent(b.s, b.c, 180)).toBe("none");
+    b.set({ phi: 1.1 });
+    expect(b.s.abnormal).toBe("none");
+    b.scenario("backfire");
+    b.set({ intake: "closed" });
+    expect(combustionEvent(b.s, b.c, 360)).toBe("none");
+  });
+  test("stopping the shaft, cutting fuel or resetting clears all active abnormal combustion", () => {
+    for (const id of ["detonation", "preignition", "backfire"] as const) {
+      const b = createCylinderBench();
+      for (const patch of [{ rpm: 0 }, { phi: 0 }]) {
+        b.scenario(id);
+        b.set(patch);
+        expect(b.s.abnormal).toBe("none");
+        expect(b.s.work).toBe(0);
+      }
+      b.scenario(id);
+      b.scenario("normal");
+      expect(b.c.combustionFault).toBe("none");
+      expect(b.s.abnormal).toBe("none");
+    }
+  });
 });

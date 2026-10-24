@@ -77,3 +77,16 @@
     padding: 3px 4px;
   }
 }
+.piston-fault-select {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.piston-fault-select select {
+  padding: 8px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font: inherit;
+}
