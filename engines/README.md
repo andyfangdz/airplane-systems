@@ -32,6 +32,11 @@ app/engines/[engine]/page.tsx  One static page per engine id
 
 ## Component simulations
 
+The piston-cylinder cutaway (`/components/piston-cylinder`) follows one IO-390 cylinder through all four strokes.
+It shares the engine's slider-crank and valve-lift functions, with slow playback, pause, angle scrubbing and stroke
+selection. It is a kinematic study model; its sources and illustrative assumptions are in
+`engines/components/piston-cylinder/SOURCES.md`.
+
 Single engine accessories on their own, at `/components/<id>`: the registry is `engines/components/index.ts` (picker
 order), each component's model and `SOURCES.md` sit in `engines/components/<id>/`, and its page in
 `components/engine/<id>/`, listed in `components/engine/ComponentPage.tsx`. A page wraps its scene and panel in

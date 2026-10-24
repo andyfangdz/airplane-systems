@@ -1,0 +1,44 @@
+.piston-panel {
+  padding: 16px;
+}
+.piston-panel p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.piston-panel h3 {
+  margin-top: 24px;
+}
+.piston-strokes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 12px 0;
+}
+.piston-strokes button,
+.piston-stroke-title,
+.piston-monitor strong {
+  text-transform: capitalize;
+}
+.piston-strokes [aria-pressed="true"] {
+  outline: 2px solid #699bc3;
+}
+.piston-monitor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+}
+.piston-monitor strong {
+  font-size: 24px;
+}
+.piston-label {
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #172632e6;
+  color: #eef5fa;
+}
