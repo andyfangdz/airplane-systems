@@ -16,8 +16,11 @@ import {
   type Primer,
   type Pump,
 } from "@/engines/components/carburetor/carburetor";
-import { noFailures, step } from "@/engines/model/engine";
+import { defaultControls, defaultEnvironment, initialState, noFailures, step } from "@/engines/model/engine";
 import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
+import { carbFuelFlow } from "@/engines/model/carburetor";
+import { ratedAirLbH } from "@/engines/model/engine";
+import { INHG_PA } from "@/engines/model/atmosphere";
 import { O360 } from "@/engines/o360/spec";
 
 const S = O360;
@@ -65,6 +68,20 @@ describe("main metering and idling systems (FAA-H-8083-32B pp. 2-10–2-12)", ()
     const r = read(x);
     expect(r.main + r.idle).toBe(0);
   });
+
+  test("an intake leak bypasses the carburetor: the displayed circuit split uses only bore air (AMT p. 2-12)", () => {
+    const x = run("idle");
+    const f = noFailures(S);
+    f.intakeLeak[0] = 1;
+    for (let t = 0; t < 8; t += 1 / 120) step(S, x.s, x.c, x.env, f, 1 / 120);
+    const r = read(x);
+    expect(x.s.air).toBeGreaterThan(r.air);
+    expect(r.air).toBe(x.s.meteredAir);
+    const rho = (x.s.inletInHg * INHG_PA) / (287.05 * (x.s.inletC + 273.15));
+    const flow = carbFuelFlow(S, carb, r.air, ratedAirLbH(S), x.c.mixture, rho, x.s.map, x.s.inletInHg, x.s.ice);
+    expect(r.main / r.idle).toBeCloseTo(flow.main / flow.idle, 9);
+    expect(r.main + r.idle).toBeCloseTo(x.s.fuel, 9);
+  });
 });
 
 describe("float chamber (FAA-H-8083-32B p. 2-10)", () => {
@@ -109,13 +126,36 @@ describe("accelerating pump (FAA-H-8083-32B p. 2-13; OI ¶3-3 b)", () => {
     const s = stroke(0, 1, 0);
     expect(s.peak).toBeGreaterThan(0);
     expect(s.plunger).toBeGreaterThan(0.99);
-    // a full stroke delivers the engine model's accelerating charge (all but the spring's last fraction of travel)
+    // Swept volume is an upper bound: some displacement leaks back even during a rapid spring-driven stroke.
     expect(s.fuel).toBeLessThanOrEqual(carb.accelLb);
-    expect(s.fuel).toBeGreaterThan(0.98 * carb.accelLb);
+    expect(s.fuel).toBeGreaterThan(0.5 * carb.accelLb);
   });
 
   test("opening slowly gives a weaker stream than snapping the throttle open", () => {
     expect(stroke(0, 1, 8).peak).toBeLessThan(stroke(0, 1, 0).peak / 3);
+  });
+
+  test("a slow stroke returns fuel to the float chamber and delivers less TOTAL fuel (AMT p. 2-13)", () => {
+    expect(stroke(0, 1, 8).fuel).toBeLessThan(stroke(0, 1, 0).fuel / 5);
+  });
+
+  test("the integrated engine withdraws the animated discharge from the bowl and puts it in the ports", () => {
+    const env = defaultEnvironment(),
+      s = initialState(S, env),
+      f = noFailures(S);
+    const c = { ...defaultControls(), throttle: 1 };
+    const before = s.bowl;
+    let discharged = 0,
+      drained = 0;
+    const dt = 1 / 120;
+    for (let t = 0; t < 3; t += dt) {
+      drained += s.cyl.reduce((sum, cy) => sum + (cy.puddle / 120) * dt, 0);
+      step(S, s, c, env, f, dt);
+      discharged += (s.accelerator!.squirt / 3600) * dt;
+    }
+    expect(discharged).toBeGreaterThan(0);
+    expect(before - s.bowl).toBeCloseTo(discharged, 12);
+    expect(s.cyl.reduce((sum, cy) => sum + cy.puddle, 0) + drained).toBeCloseTo(discharged, 12);
   });
 
   test("closing the throttle lifts the plunger and squirts nothing", () => {

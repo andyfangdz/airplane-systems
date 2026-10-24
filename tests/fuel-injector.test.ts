@@ -6,7 +6,9 @@
 import { describe, expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { noFailures, step, type Failures } from "@/engines/model/engine";
-import { nozzleFlow } from "@/engines/model/fuel";
+import { nozzleFlow, servoFuelFlow, SERVO_IDLE_HEAD_LBH } from "@/engines/model/fuel";
+import { RHO0 } from "@/engines/model/atmosphere";
+import { AFR_STOICH } from "@/engines/model/mixture";
 import { SCENARIOS, type Setup } from "@/engines/model/scenarios";
 import { settle } from "@/engines/model/trim";
 import { curveAt, DIVIDER_FULL_LBH, injectorView, NOZZLE_LIMITS } from "@/engines/components/fuel-injector/model";
@@ -71,7 +73,32 @@ describe("how the RSA system works (FAA-H-8083-32B pp. 2-21–2-24)", () => {
     }
     const idle = viewOf(scenario("idle")),
       climb = viewOf(scenario("climb"));
-    expect(idle.springForce / idle.fuelForce).toBeGreaterThan((climb.springForce / climb.fuelForce) * 20);
+    expect(idle.springForce).toBeGreaterThan(0);
+    expect(climb.springForce).toBe(0);
+  });
+
+  test("the spring adds HEAD near idle and is taken up above idle (Precision 15-812B p. 13)", () => {
+    const air = 60;
+    const airFuel = air / (AFR_STOICH * S.calibration.lambdaFullRich);
+    const flow = servoFuelFlow(S, air, 1, RHO0, 1);
+    expect(flow).toBeGreaterThan(airFuel);
+    // An additive fuel-flow shortcut would exceed even the untaken-up spring head's square-root bound.
+    expect(flow).toBeLessThanOrEqual(Math.hypot(airFuel, SERVO_IDLE_HEAD_LBH));
+    const cruiseAir = 1200;
+    expect(servoFuelFlow(S, cruiseAir, 1, RHO0, 1)).toBeCloseTo(
+      cruiseAir / (AFR_STOICH * S.calibration.lambdaFullRich),
+      9,
+    );
+  });
+
+  test("a supply-limited regulator cannot claim force balance (15-812B p. 5)", () => {
+    const x = scenario("cruise75");
+    const f = noFailures(S);
+    f.nozzle.fill(0.99);
+    step(S, x.s, x.c, x.env, f, 1 / 120);
+    const v = viewOf(x, f);
+    expect(v.metered).toBeGreaterThan(0);
+    expect(v.fuelForce).toBeLessThan(v.airForce + v.springForce);
   });
 
   test("the ball valve, the flow divider and the nozzles open further as the fuel flow rises", () => {

@@ -31,6 +31,30 @@ class HeldWorker {
 
 afterEach(() => vi.unstubAllGlobals());
 
+test("a carburetor pump stroke resumes identically after serialization and stays independent in a fork", async () => {
+  const { createEngineSimulation } = await import("@/components/engine/store");
+  const parent = createEngineSimulation(O360);
+  parent.useUi.getState().setControls({ throttle: 1 });
+  parent.advance(0.1);
+  const child = parent.fork();
+  try {
+    child.restoreSerialized(parent.serialize());
+    expect(child.s.accelerator!.squirt).toBeGreaterThan(0);
+    expect(child.s.accelerator).not.toBe(parent.s.accelerator);
+    parent.advance(0.2);
+    child.advance(0.2);
+    expect(child.checkpoint()).toEqual(parent.checkpoint());
+    const before = parent.checkpoint();
+    child.useUi.getState().setControls({ throttle: 0 });
+    child.advance(0.2);
+    expect(parent.checkpoint()).toEqual(before);
+    expect(child.s.accelerator!.plunger).toBeLessThan(parent.s.accelerator!.plunger);
+  } finally {
+    child.dispose();
+    parent.dispose();
+  }
+});
+
 async function freshSim() {
   vi.resetModules();
   vi.stubGlobal("Worker", HeldWorker);

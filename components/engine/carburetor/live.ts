@@ -9,7 +9,6 @@ import { O360 } from "@/engines/o360/spec";
 import {
   PRIMER_IDLE,
   primerStroke,
-  pumpStep,
   runPrimer,
   readCarb,
   type CarbReading,
@@ -53,8 +52,9 @@ export const primeStroke = () => {
 /** `flow` draws the air and fuel moving through the carburetor. */
 export const useCarbView = createViewStore({ xray: true, labels: true, flow: true });
 
-function read(sim: EngineSim, pump: Pump) {
+function read(sim: EngineSim) {
   const s = sim.s;
+  const pump: Pump = s.accelerator ?? { plunger: s.lastThrottle, squirt: 0 };
   Object.assign(live, readCarb(sim.spec, s, sim.useUi.getState().controls), pump, {
     rpm: s.rpm,
     map: s.map,
@@ -67,20 +67,17 @@ function read(sim: EngineSim, pump: Pump) {
 
 /** Compose accessories on the engine clock: engine, pump and primer, then readings, every fixed step. */
 function carbStep(sim: EngineSim) {
-  const carb = sim.spec.fuelSystem.kind === "carburetor" ? sim.spec.fuelSystem : null;
-  let pump: Pump = { plunger: sim.useUi.getState().controls.throttle, squirt: 0 },
-    resets = sim.resets;
+  let resets = sim.resets;
   return (dt: number) => {
     // a scenario replaced the engine: strokes asked for before don't carry over to it
     if (sim.resets !== resets) {
       resets = sim.resets;
       live.primer = PRIMER_IDLE;
     }
-    if (carb && !sim.useUi.getState().view.paused) {
-      pump = pumpStep(carb, pump, sim.useUi.getState().controls.throttle, dt, sim.s.bowl);
+    if (!sim.useUi.getState().view.paused) {
       live.primer = runPrimer(sim.spec, sim.s, live.primer, dt);
     }
-    read(sim, pump);
+    read(sim);
   };
 }
 

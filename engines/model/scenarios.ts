@@ -72,6 +72,7 @@ export function warmStart(
   const c: Controls = { ...defaultControls(), throttle: carb ? 0.25 : 0.15, mixture: 1, boost: true, mags: "START" };
   if (carb) {
     s.lastThrottle = c.throttle;
+    s.accelerator = { plunger: c.throttle, squirt: 0 };
     prime(spec, s, 2);
   }
   settle(spec, s, c, env, f, 3);

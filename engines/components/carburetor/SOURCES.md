@@ -44,9 +44,21 @@ the engine's numbers.
 
 The engine model's carburetor constants (bowl contents, idle circuit flow, accelerating charge, where the main system
 takes over from the idle jet, heat rise, how fast ice builds and how much it blocks) are in `engines/o360/spec.ts` and
-are model constants, not Marvel-Schebler data. This page adds only display constants: the pump plunger spring's speed,
-the needle's drawn lift and the primer stroke's timing. The primer's fuel per stroke is the engine model's (`primeLb`),
+are model constants, not Marvel-Schebler data. `engines/model/accelerator-pump.ts` now owns the spring-driven pump:
+rapid opening gives a decaying discharge; slow displacement bypasses back to the bowl (AMT p. 2-13; OI ¶3-3).
+The engine withdraws that discharge from the bowl and adds it to the ports; the cutaway reads the same state.
+Its 0.6 s downstroke time constant, 0.15 s return and 0.12 stroke/s bypass capacity are illustrative. `accelLb` is
+swept capacity, not guaranteed delivered fuel. The model does not separately track pump-cylinder fuel inventory.
+This page adds only display constants: the needle's drawn lift and the primer stroke's timing. The primer's fuel per stroke is the engine model's (`primeLb`),
 not published; where its tee, pump, line and nozzle sit is the airframe's, drawn schematically. The 3D shapes, sizes and spacing are schematic, arranged after the OI's exploded views.
 
 The OI lists a power jet and an air metering pin; the documents in hand don't say how they act in this model, so they
 are not drawn or modelled.
+
+The float tab is a continuous bent tongue from the lever hub to the needle's bearing pad. A fixed shaft and bracket
+support the assembly, following OI ¶2-27 x–y. The guided needle's rounded heel stays in contact with the rotating tab;
+its position is derived from that contact instead of an independent valve animation. Tongue dimensions, heel shape
+and lever travel are schematic, not measured MA-4-5 dimensions. This drawing correction does not change fuel metering.
+
+The circuit readout now uses `meteredAir`, excluding downstream intake leaks, just as the kernel does. Previously
+it recomputed the idle/main split using all cylinder air. See [the research and audit](../../FUEL-METERING-RESEARCH.md).

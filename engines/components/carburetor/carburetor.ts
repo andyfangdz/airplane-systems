@@ -12,6 +12,7 @@ import { carbFuelFlow, mainSystem } from "@/engines/model/carburetor";
 import { INHG_PA } from "@/engines/model/atmosphere";
 import { prime, ratedAirLbH, type Controls, type EngineState } from "@/engines/model/engine";
 import type { Carburetor, EngineSpec } from "@/engines/types";
+export { pumpStep, type Pump } from "@/engines/model/accelerator-pump";
 
 const OI = "MA-4-5 Overhaul Instructions";
 const AMT = "FAA-H-8083-32B";
@@ -84,7 +85,7 @@ export function readCarb(spec: EngineSpec, s: EngineState, c: Controls): CarbRea
   const carb = spec.fuelSystem;
   const rated = ratedAirLbH(spec);
   // the model's two circuits for this air; the engine may meter less (an empty bowl), so scale them to what it did
-  const flow = carbFuelFlow(spec, carb, s.air, rated, c.mixture, inletRho(s), s.map, s.inletInHg, s.ice);
+  const flow = carbFuelFlow(spec, carb, s.meteredAir, rated, c.mixture, inletRho(s), s.map, s.inletInHg, s.ice);
   const sum = flow.main + flow.idle;
   const k = sum > 1e-6 ? s.fuel / sum : 0;
   const bowl = Math.min(1, Math.max(0, s.bowl / carb.bowlLb));
@@ -93,11 +94,11 @@ export function readCarb(spec: EngineSpec, s: EngineState, c: Controls): CarbRea
   const refill = inflow ? Math.min((((1 - bowl) * carb.bowlLb) / 0.5) * 3600, needleCapacity(carb, s.fuelPsi)) : 0;
   const open = inflow ? refill / needleCapacity(carb, s.fuelPsi) : 0;
   return {
-    air: s.air,
+    air: s.meteredAir,
     main: flow.main * k,
     idle: flow.idle * k,
-    mainShare: mainSystem(s.air, rated),
-    far: s.air > 1 ? s.fuel / s.air : 0,
+    mainShare: mainSystem(s.meteredAir, rated),
+    far: s.meteredAir > 1 ? s.fuel / s.meteredAir : 0,
     bowl,
     floatDrop: 1 - bowl,
     // the float holds the needle as far off its seat as the inflow needs; a dropped float pulls it fully open
@@ -108,31 +109,6 @@ export function readCarb(spec: EngineSpec, s: EngineState, c: Controls): CarbRea
     heat: Math.max(0, Math.min(1, c.carbHeat)),
     vacuum: s.inletInHg > 0 ? Math.max(0, (s.inletInHg - s.map) / s.inletInHg) : 0,
   };
-}
-
-/** The accelerator pump plunger, linked to the throttle through a spring (drawing and display state). */
-export interface Pump {
-  /** Plunger travel, 0 (up, cylinder full) … 1 (bottomed). */
-  plunger: number;
-  /** Fuel it is discharging, lb/h. */
-  squirt: number;
-}
-
-/**
- * Advance the pump by `dt` seconds. Opening the throttle drives the plunger down through its spring, so the stream
- * dies away as the spring reaches its limit (OI ¶3-3 b); closing it lifts the plunger and refills the cylinder through
- * the inlet check valve. A full stroke discharges the carburetor's `accelLb`, the same fuel the engine model adds at
- * once when the throttle opens; here it is spread over the spring's travel for the drawing. The spring's time constant
- * is a display constant, not published.
- */
-export function pumpStep(carb: Carburetor, p: Pump, throttle: number, dt: number, bowlLb = Infinity): Pump {
-  if (!(dt > 0)) return p;
-  const target = Math.max(0, Math.min(1, throttle));
-  const tau = target > p.plunger ? 0.6 : 0.15;
-  const plunger = p.plunger + (target - p.plunger) * (1 - Math.exp(-dt / tau));
-  const down = Math.max(0, plunger - p.plunger);
-  // the plunger still moves with an empty bowl, but can only push out the fuel there is (as the engine model does)
-  return { plunger, squirt: (Math.min(carb.accelLb * down, Math.max(0, bowlLb)) / dt) * 3600 };
 }
 
 /**

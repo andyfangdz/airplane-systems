@@ -108,6 +108,7 @@ describe("starting, idle and the run-up", () => {
     // float type (OM p. 3-1): mixture full rich, boost pump on, throttle a quarter open, prime, starter
     const c: Controls = { ...defaultControls(), throttle: 0.25, mixture: 1, boost: true, mags: "START" };
     s.lastThrottle = c.throttle;
+    s.accelerator = { plunger: c.throttle, squirt: 0 };
     prime(S, s, strokes);
     let t = 0;
     while (!(s.running && s.rpm > 400) && t < 10) {

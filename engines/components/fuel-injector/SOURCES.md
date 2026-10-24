@@ -38,11 +38,28 @@ The pressure colours follow the handbook's figures.
 fuel flow reading with a plugged nozzle, low take-off flow with a sticky flow divider, poor cut-off, rough idle from
 induction leaks, the 25–50 rpm idle mixture rise at 700 rpm.
 
+## Manufacturer training cross-check
+
+**Precision Airmotive Form 15-812B, RSA Fuel Injection System Training Manual**
+([manufacturer PDF](https://precisionairmotive.com/wp-content/uploads/2019/06/15-812_b.pdf)), printed pp. 5,
+7–8, 13, 17, reviewed October 23, 2026. The scan's PDF page indices differ from its printed pagination.
+The regulator balances diaphragm forces; the idle spring supplements the air force near idle and is taken up above
+that range. The kernel now adds pressure heads before the square root and releases the spring progressively.
+`servoHead` supplies both the kernel and the cutaway. The displayed fuel force is inferred from delivered flow and
+effective mixture area, so insufficient supply no longer falsely reports balance.
+
+The IOM Table A-1 explicitly lists **AVStar** RSA-10AD1/-10AD2. Precision's training diagrams explain the RSA
+principle, not proof of an installed Precision unit or dimensionally accurate AVStar internals. Also, a blocked
+fuel restrictor and a blocked nozzle **air bleed** are different faults (15-812B p. 17); the existing nozzle failure
+control models only the fuel restrictor. See [the research and audit](../../FUEL-METERING-RESEARCH.md).
+
 ## Not published: drawn or chosen
 
 - No pressure inside the injector is published. The panel gives the air and fuel metering forces relative to rated
   air flow at sea level, from the square of the air mass flow over the inlet density (the venturi is an orifice).
-- The constant-head spring's flow is the engine model's illustrative `IDLE_SPRING_LBH`.
+- The spring's equivalent zero-air flow (`SERVO_IDLE_HEAD_LBH`, 3.5 lb/h) and release point (air-derived full-rich
+  fuel flow of 20 lb/h) are illustrative fitting constants, not published spring settings. The supplemental head
+  tapers quadratically to zero; this is a schematic take-up law, not measured spring compression.
 - Valve travels (ball valve, flow divider, mixture plate, idle valve) are drawn, as is the flow above which the flow
   divider is shown fully open (`DIVIDER_FULL_LBH`: the handbook says only "above idle").
 - Shapes, sizes and the flat layout are schematic, after the handbook's cutaway figures, not the unit's drawings.

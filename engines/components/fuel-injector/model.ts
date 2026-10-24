@@ -23,7 +23,7 @@
 import type { Controls, EngineState, Failures } from "@/engines/model/engine";
 import { ratedAirLbH } from "@/engines/model/engine";
 import { RHO0, INHG_PA } from "@/engines/model/atmosphere";
-import { distribution, IDLE_SPRING_LBH, nozzleFlow } from "@/engines/model/fuel";
+import { distribution, nozzleFlow, servoHead } from "@/engines/model/fuel";
 import { AFR_STOICH } from "@/engines/model/mixture";
 import type { EngineSpec } from "@/engines/types";
 
@@ -78,9 +78,9 @@ export const DIVIDER_FULL_LBH = 25;
 export interface InjectorView {
   /** Air metering force (impact minus venturi suction), relative to rated air flow at sea level (1). */
   airForce: number;
-  /** Fuel metering force across the main jet: the air force it balances, plus the constant-head idle spring. */
+  /** Fuel force inferred from delivered flow and mixture area; below the target when supply is limited. */
   fuelForce: number;
-  /** The constant-head idle spring's share of the fuel metering force. */
+  /** Supplemental idle spring force, taken up above the idle range. */
   springForce: number;
   /** Ball valve opening, 0 shut … 1 at rated flow. */
   ball: number;
@@ -118,13 +118,13 @@ export function injectorView(spec: EngineSpec, s: EngineState, c: Controls, f: F
   // the venturi's pressure drop goes as the square of the air flow over the density (Bernoulli)
   const airForce = (s.meteredAir / rated) ** 2 * (RHO0 / Math.max(rho, 0.2));
   const ratedFuel = rated / (AFR_STOICH * spec.calibration.lambdaFullRich);
-  const springForce = s.fuel > 0 ? (IDLE_SPRING_LBH / ratedFuel) ** 2 : 0;
+  const springForce = s.fuel > 0 ? servoHead(spec, s.meteredAir, rho).spring / ratedFuel ** 2 : 0;
   const cutoff = c.mixture <= 0.02;
   const metered = s.fuel;
   const { share } = distribution(spec, f.nozzle);
   return {
     airForce,
-    fuelForce: metered > 0 ? airForce + springForce : 0,
+    fuelForce: metered > 0 && !cutoff ? (metered / (ratedFuel * Math.min(1, c.mixture))) ** 2 : 0,
     springForce,
     ball: clamp01(metered / ratedFuel),
     mixture: clamp01(c.mixture),

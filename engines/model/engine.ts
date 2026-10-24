@@ -13,6 +13,7 @@ import { leanGaugeAbove, leanOverNext } from "./alerts";
 import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
 import { phaseOf } from "./cycle";
 import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
+import { pumpStep, type Pump } from "./accelerator-pump";
 import {
   continentalBoostPsi,
   continentalNozzleCapacity,
@@ -186,12 +187,14 @@ export interface EngineState {
   inletC: number;
   oatC: number;
   /** Carburetor: fuel in the float bowl (lb), mixture-chamber temperature (°C), fraction of the bore iced, and melt
-   * water being ingested (0 … 1); the throttle position last step (the accelerator pump acts on its change). */
+   * water being ingested (0 … 1); the last throttle position for legacy accelerator-pump checkpoints. */
   bowl: number;
   carbC: number;
   ice: number;
   melt: number;
   lastThrottle: number;
+  /** Carburetor accelerator-pump memory and actual discharge; absent on injected engines and older checkpoints. */
+  accelerator?: Pump;
   // Turbocharged engines. initialState sets the neutral value each comment gives; an engine without `turbo` keeps it.
   /** Upper-deck (throttle-inlet) pressure, inHg. Neutral: the inlet pressure. */
   deckInHg?: number;
@@ -320,6 +323,7 @@ export function initialState(spec: EngineSpec, env: Environment = defaultEnviron
     ice: 0,
     melt: 0,
     lastThrottle: 0,
+    ...(spec.fuelSystem.kind === "carburetor" && { accelerator: { plunger: 0, squirt: 0 } }),
     deckInHg: air.p,
     gate: 1,
     bleed: 0,
@@ -537,11 +541,11 @@ function substep(
     s.fuelPsi = Math.max(c.boost ? desired : 0, enginePump * clamp(s.rpm / 900, 0, 1) * desired);
     const refill = s.fuelPsi > 0.3 ? Math.min((carb.bowlLb - s.bowl) / 0.5, 0.05 * Math.sqrt(s.fuelPsi / desired)) : 0;
     const flow = carbFuelFlow(spec, carb, meteredAir, ratedAirLbH(spec), c.mixture, inletRho, map, source, s.ice);
-    // the accelerator pump squirts as the throttle opens (also how the M20C primes, pumping the throttle)
-    const opened = Math.max(0, c.throttle - s.lastThrottle);
-    s.lastThrottle = c.throttle;
     const inBowl = Math.max(0, s.bowl + refill * dt);
-    squirt = Math.min(carb.accelLb * opened, inBowl);
+    // One pump state drives both the delivered fuel and the cutaway. Slow strokes bypass fuel back to the bowl.
+    s.accelerator = pumpStep(carb, s.accelerator ?? { plunger: s.lastThrottle, squirt: 0 }, c.throttle, dt, inBowl);
+    s.lastThrottle = c.throttle;
+    squirt = (s.accelerator.squirt / 3600) * dt;
     metered = Math.min(flow.main + flow.idle, ((inBowl - squirt) / dt) * 3600);
     s.bowl = Math.max(0, inBowl - squirt - (metered / 3600) * dt);
     s.fuel = metered;
