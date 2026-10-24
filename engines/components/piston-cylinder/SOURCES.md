@@ -53,7 +53,9 @@ See also [IO-390 sources](../../io390/SOURCES.md).
 - Work and roughness are mean indicators, not a simulation of individual random misfires. A spark may occur
   without useful combustion (fuel off or valve fault). Temperatures cool rather than snapping to ambient.
 - The geometry is schematic, including relocated dual plugs and probes for visibility, head cutaway, ports,
-  piston thickness, fins, electrodes and colours. Colours identify strokes rather than measured gas temperatures.
+  piston thickness, fins, electrodes and colours. The crankshaft front web and main journal are cut away to
+  expose the connecting-rod bearing on the offset crankpin; journal, web, bearing dimensions and visible clearances
+  are illustrative, not manufacturing dimensions. Colours identify strokes rather than measured gas temperatures.
 
 Phase zero is firing TDC: power 0–180°, exhaust 180–360°, intake 360–540°, compression 540–720°.
 Initial temperatures (300°F CHT / 1,100°F EGT; rich-idle scenario 230°F / 900°F) are illustrative warm states.

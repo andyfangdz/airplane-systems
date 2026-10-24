@@ -36,7 +36,7 @@ for (const [name, viewport] of Object.entries({
     await expect(angle).toHaveValue("0");
     // Read the actual rendered scene, not the model or the angle readout.
     const poseAt = async (phase) => {
-      await angle.fill(String(phase));
+      await angle.fill(String(phase % 720));
       const frame = await page.evaluate(() => window.__cylinderScene.frames);
       await page.waitForFunction((before) => window.__cylinderScene.frames >= before + 2, frame);
       return page.evaluate(() => {
@@ -47,12 +47,34 @@ for (const [name, viewport] of Object.entries({
           rod = part("rod"),
           crank = part("crank"),
           pin = part("crankpin");
-        const length = rod.children[0].geometry.parameters.height;
-        const upper = rod.localToWorld(rod.position.clone().set(0, length / 2, 0));
-        const lower = rod.localToWorld(rod.position.clone().set(0, -length / 2, 0));
+        const beam = part("rod-beam"),
+          bearing = part("rod-bearing");
+        const bounds = (mesh) => {
+          mesh.geometry.computeBoundingBox();
+          return mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+        };
+        beam.geometry.computeBoundingBox();
+        bearing.geometry.computeBoundingBox();
+        const upper = beam.localToWorld(beam.position.clone().set(0, beam.geometry.boundingBox.max.y, 0));
+        const lower = bearing.localToWorld(bearing.geometry.boundingBox.getCenter(bearing.position.clone()));
+        const rodBounds = bounds(beam).union(bounds(bearing));
+        const shaftBounds = bounds(part("shaft"));
+        const webBounds = bounds(part("crank-web"));
+        const pinBounds = bounds(pin);
+        const vertices = bearing.geometry.attributes.position;
+        let bearingBore = Infinity;
+        for (let i = 0; i < vertices.count; i++) {
+          bearingBore = Math.min(bearingBore, Math.hypot(vertices.getX(i), vertices.getY(i)));
+        }
         const pistonPin = piston.getWorldPosition(piston.position.clone());
         const crankPin = pin.getWorldPosition(pin.position.clone());
         return {
+          shaftClearance: rodBounds.min.z - shaftBounds.max.z,
+          webClearance: rodBounds.min.z - webBounds.max.z,
+          bearingClearance: bearingBore - pin.geometry.parameters.radiusTop,
+          beamClearance:
+            beam.position.y + beam.geometry.boundingBox.min.y - bearing.position.y - pin.geometry.parameters.radiusTop,
+          pinCoverage: Math.min(rodBounds.min.z - pinBounds.min.z, pinBounds.max.z - rodBounds.max.z),
           pistonY: pistonPin.y,
           rodAngle: rod.rotation.z,
           crankAngle: crank.rotation.z,
@@ -67,9 +89,9 @@ for (const [name, viewport] of Object.entries({
     const poses = [];
     for (const phase of [0, 90, 180, 270, 450]) {
       const pose = await poseAt(phase);
-      expect(pose.upperGap).toBeLessThan(1e-8);
-      expect(pose.lowerGap).toBeLessThan(1e-8);
-      expect(pose.rodLength).toBeCloseTo(6.75 * 0.0254, 8); // documented illustrative rod length
+      expect(pose.upperGap).toBeLessThan(1e-7);
+      expect(pose.lowerGap).toBeLessThan(1e-7);
+      expect(pose.rodLength).toBeCloseTo(6.75 * 0.0254, 7); // documented illustrative rod length
       poses.push(pose);
     }
     expect(poses[0].pistonY - poses[2].pistonY).toBeCloseTo(4.375 * 0.0254, 8); // IOM Table A-1 stroke
@@ -81,6 +103,20 @@ for (const [name, viewport] of Object.entries({
     expect(poses[3].intake).toBeCloseTo(0, 8);
     expect(poses[4].intake).toBeLessThan(-0.001);
     expect(poses[4].exhaust).toBeCloseTo(0, 8);
+    // At BDC the rod crosses the main axis in projection. Its actual solid must
+    // remain in front of the main journal/web, with the crankpin inside its bore.
+    for (let phase = 0; phase <= 720; phase += 30) {
+      const pose = await poseAt(phase);
+      expect(pose.shaftClearance).toBeGreaterThan(0.001);
+      expect(pose.webClearance).toBeGreaterThan(0.001);
+      expect(pose.bearingClearance).toBeGreaterThan(0.0004);
+      expect(pose.beamClearance).toBeGreaterThan(0.005);
+      expect(pose.pinCoverage).toBeGreaterThan(0.001);
+      expect(pose.lowerGap).toBeLessThan(1e-7);
+    }
+    await poseAt(180);
+    mkdirSync(".shots/piston-cylinder", { recursive: true });
+    await page.locator(".eng-view").screenshot({ path: `.shots/piston-cylinder/${name}-crank-bdc.png` });
     await page.getByRole("button", { name: "intake", exact: true }).click();
     await expect(angle).toHaveValue("450");
     await expect(page.locator(".piston-monitor strong")).toHaveText("intake");

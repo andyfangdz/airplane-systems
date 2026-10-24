@@ -2,7 +2,15 @@
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { DoubleSide, type Group, type Mesh, type MeshStandardMaterial, type MeshBasicMaterial } from "three";
+import {
+  DoubleSide,
+  Path,
+  Shape,
+  type Group,
+  type Mesh,
+  type MeshStandardMaterial,
+  type MeshBasicMaterial,
+} from "three";
 import {
   bore,
   cylinderAt,
@@ -148,6 +156,15 @@ function CombustionEffects({ live, controls }: { live: CylinderBench; controls: 
   );
 }
 function Assembly({ live, controls, labels }: { live: CylinderBench; controls: BenchControls; labels: boolean }) {
+  // Schematic bearing dimensions; the opening receives the offset crankpin.
+  const bigEnd = useMemo(() => {
+    const outline = new Shape();
+    outline.absarc(0, 0, 0.019, 0, Math.PI * 2, false);
+    const bore = new Path();
+    bore.absarc(0, 0, 0.0105, 0, Math.PI * 2, true);
+    outline.holes.push(bore);
+    return outline;
+  }, []);
   const piston = useRef<Group>(null);
   const rod = useRef<Group>(null);
   const crank = useRef<Group>(null);
@@ -206,13 +223,19 @@ function Assembly({ live, controls, labels }: { live: CylinderBench; controls: B
         ))}
       </group>
       <group name="cylinder-rod" ref={rod}>
-        <mesh>
-          <boxGeometry args={[0.013, rodLength, 0.015]} />
+        <mesh name="cylinder-rod-beam" position={[0, 0.008, 0]}>
+          <boxGeometry args={[0.013, rodLength - 0.016, 0.015]} />
+          <meshStandardMaterial color="#c8b28c" metalness={0.7} roughness={0.35} />
+        </mesh>
+        <mesh name="cylinder-rod-bearing" position={[0, -rodLength / 2, -0.0075]}>
+          <extrudeGeometry args={[bigEnd, { depth: 0.015, bevelEnabled: false, curveSegments: 32 }]} />
           <meshStandardMaterial color="#c8b28c" metalness={0.7} roughness={0.35} />
         </mesh>
       </group>
       <group name="cylinder-crank" ref={crank}>
-        <mesh position={[0, radius / 2, -0.018]}>
+        {/* The front web/journal are cut away to expose the rod bearing. The main
+            journal ends at the rear web, leaving the rod's swept plane clear. */}
+        <mesh name="cylinder-crank-web" position={[0, radius / 2, -0.018]}>
           <boxGeometry args={[0.027, radius + 0.025, 0.018]} />
           <meshStandardMaterial color="#718b9e" metalness={0.7} roughness={0.3} />
         </mesh>
@@ -220,10 +243,10 @@ function Assembly({ live, controls, labels }: { live: CylinderBench; controls: B
           <mesh
             name={y === 0 ? "cylinder-shaft" : "cylinder-crankpin"}
             key={y}
-            position={[0, y, 0]}
+            position={[0, y, y === 0 ? -0.047 : 0]}
             rotation={[Math.PI / 2, 0, 0]}
           >
-            <cylinderGeometry args={[0.014, 0.014, 0.05, 32]} />
+            <cylinderGeometry args={y === 0 ? [0.014, 0.014, 0.04, 32] : [0.01, 0.01, 0.05, 32]} />
             <meshStandardMaterial color="#8da7bb" metalness={0.7} roughness={0.25} />
           </mesh>
         ))}
