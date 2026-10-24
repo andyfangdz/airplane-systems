@@ -43,14 +43,17 @@ const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8" 
 async function sourceToolchain(repository) {
   const nodeVersion = (await readFile(join(repository, ".node-version"), "utf8")).trim();
   const pkg = JSON.parse(await readFile(join(repository, "package.json"), "utf8"));
+  const npmVersion = /^npm@(\d+\.\d+\.\d+)$/.exec(pkg.packageManager ?? "")?.[1];
+  // Exact build pins are separate from the supported majors advertised to managed hosts.
+  const matchesEngine = (engine, version) => engine === version || engine === `${version.split(".")[0]}.x`;
   if (
     !/^\d+\.\d+\.\d+$/.test(nodeVersion) ||
-    pkg.engines?.node !== nodeVersion ||
-    !/^\d+\.\d+\.\d+$/.test(pkg.engines?.npm ?? "") ||
-    pkg.packageManager !== `npm@${pkg.engines.npm}`
+    !npmVersion ||
+    !matchesEngine(pkg.engines?.node, nodeVersion) ||
+    !matchesEngine(pkg.engines?.npm, npmVersion)
   )
-    throw new Error("Source must pin matching exact Node and npm versions");
-  return { nodeVersion: `v${nodeVersion}`, npmVersion: pkg.engines.npm };
+    throw new Error("Source must pin exact Node and npm versions compatible with engines");
+  return { nodeVersion: `v${nodeVersion}`, npmVersion };
 }
 
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);

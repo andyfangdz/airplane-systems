@@ -8,7 +8,9 @@ Built with **Next.js 16 (App Router)**, **React Three Fiber**, **drei** and **zu
 
 ## Getting started
 
-Use Node **22.23.4** (`.node-version`) and npm **10.9.9** (`packageManager` and `engines` in `package.json`).
+Use Node **24.22.1** (`.node-version`) and npm **11.19.1** (`packageManager` in `package.json`) for reproducible
+development, CI, and release builds. The `engines` fields declare compatibility with Node **24.x** and npm **11.x**;
+Vercel manages the Node patch version within that major. Static release sealing still requires the exact pinned versions.
 
 ```bash
 npm ci

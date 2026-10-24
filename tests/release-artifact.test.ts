@@ -20,7 +20,10 @@ beforeEach(async () => {
   await writeFile(join(root, ".node-version"), process.version.slice(1) + "\n");
   await writeFile(
     join(root, "package.json"),
-    JSON.stringify({ engines: { node: process.version.slice(1), npm }, packageManager: `npm@${npm}` }),
+    JSON.stringify({
+      engines: { node: `${process.versions.node.split(".")[0]}.x`, npm: `${npm.split(".")[0]}.x` },
+      packageManager: `npm@${npm}`,
+    }),
   );
   const git = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "pipe" });
   git("init", "-q");
@@ -129,6 +132,28 @@ it("enforces the selected source's exact build toolchain", async () => {
     JSON.stringify({ engines: { node: "0.0.0", npm }, packageManager: `npm@${npm}` }),
   );
   await expect(seal(out, root)).rejects.toThrow("Build toolchain must match source pins");
+});
+
+it("enforces the exact npm pin even when engines allow its major", async () => {
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  const [major, minor, patch] = npm.split(".");
+  pkg.packageManager = `npm@${major}.${minor}.${Number(patch) + 1}`;
+  await writeFile(join(root, "package.json"), JSON.stringify(pkg));
+  await expect(seal(out, root)).rejects.toThrow("Build toolchain must match source pins");
+});
+
+it.each(["node", "npm"])("rejects an incompatible %s engine declaration", async (engine) => {
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  pkg.engines[engine] = "0.x";
+  await writeFile(join(root, "package.json"), JSON.stringify(pkg));
+  await expect(seal(out, root)).rejects.toThrow("compatible with engines");
+});
+
+it.each(["npm@11.x", "npm@latest", "pnpm@11.19.1", ""])("rejects a non-exact npm pin %j", async (packageManager) => {
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  pkg.packageManager = packageManager;
+  await writeFile(join(root, "package.json"), JSON.stringify(pkg));
+  await expect(seal(out, root)).rejects.toThrow("Source must pin exact Node and npm versions");
 });
 
 it("rejects geometry filenames that disagree with their bytes or CloudFront routing", async () => {
