@@ -18,6 +18,10 @@ import { carbSim, live, useCarbView } from "./live";
 
 const D2R = Math.PI / 180;
 const OI = "MA-4-5 OI";
+// Schematic contact geometry, not MA-4-5 manufacturing dimensions.
+const FLOAT_TAB_TOP = -0.013;
+const NEEDLE_HEEL_RADIUS = 0.0018;
+const NEEDLE_HEEL_Y = -0.019 + NEEDLE_HEEL_RADIUS;
 
 /** Layout, metres: the bore is vertical along y at x = z = 0, the float chamber on +x. Schematic. */
 const L = {
@@ -444,7 +448,11 @@ function ThrottleAndIdle({ mats }: { mats: Mats }) {
 }
 
 /** The float chamber: fuel, the float and lever, the float valve and seat, the fuel inlet and strainer, the vent. */
-function FloatChamber({ mats }: { mats: Mats }) {
+export function FloatChamber({
+  mats,
+}: {
+  mats: Pick<Mats, "fuel" | "float" | "steel" | "brass" | "passage" | "darkSteel">;
+}) {
   const fuel = useRef<THREE.Mesh>(null);
   const float = useRef<THREE.Group>(null);
   const needle = useRef<THREE.Group>(null);
@@ -467,13 +475,37 @@ function FloatChamber({ mats }: { mats: Mats }) {
       );
     return {
       fuel: box(bowl.x0 - 0.004, bowl.x1 - 0.004, 0, 1, -bowl.z + 0.004, bowl.z - 0.004),
-      float: merge([pontoon(0.02), pontoon(-0.02), arm(0.02), arm(-0.02), zrod(0.0016, -0.022, 0.022, 10)]),
-      tab: box(needleX - pivot.x - 0.004, needleX - pivot.x + 0.004, -0.015, -0.013, -0.004, 0.004),
-      needle: merge([
-        ycyl(0.0016, -0.019, -0.006, 0, 0, 10),
-        new THREE.ConeGeometry(0.0016, 0.004, 10).translate(0, -0.004, 0),
+      float: merge([pontoon(0.02), pontoon(-0.02), arm(0.02), arm(-0.02), zrod(0.0022, -0.022, 0.022, 12)]),
+      // A bent tongue grows from the lever hub, down to the bearing pad beneath the needle. The pad is long
+      // enough for the contact to slide as the lever rotates; it is not a detached plate floating below the shaft.
+      tab: merge([
+        box(-0.001, 0.003, -0.0015, 0.0015, -0.004, 0.004),
+        box(0.001, 0.003, FLOAT_TAB_TOP - 0.002, 0.0015, -0.004, 0.004),
+        box(0.001, 0.028, FLOAT_TAB_TOP - 0.002, FLOAT_TAB_TOP, -0.004, 0.004),
       ]),
-      seat: ycyl(0.0035, -0.005, L.bodyTop + 0.004, needleX, 0),
+      shaft: zrod(0.0016, -0.028, 0.028, 12).translate(pivot.x, pivot.y, 0),
+      bracket: merge([
+        box(pivot.x - 0.004, pivot.x + 0.004, -0.001, 0.001, -0.028, 0.028),
+        ...[-1, 1].map((side) =>
+          box(pivot.x - 0.004, pivot.x + 0.004, pivot.y - 0.004, 0, side * 0.024 - 0.002, side * 0.024 + 0.002),
+        ),
+      ]),
+      needle: merge([
+        ycyl(0.0016, NEEDLE_HEEL_Y, -0.006, 0, 0, 12),
+        new THREE.ConeGeometry(0.0016, 0.004, 10).translate(0, -0.004, 0),
+        new THREE.SphereGeometry(NEEDLE_HEEL_RADIUS, 20, 16).translate(0, NEEDLE_HEEL_Y, 0),
+      ]),
+      // A hollow guide keeps the needle captured even at full float drop; the tapered neck meets its cone closed.
+      seat: lathe([
+        [0.0035, -0.019],
+        [0.0035, L.bodyTop + 0.004],
+        [0.002, L.bodyTop + 0.004],
+        [0.002, -0.004],
+        [0.0008, -0.006],
+        [0.002, -0.009],
+        [0.002, -0.019],
+        [0.0035, -0.019],
+      ]).translate(needleX, 0, 0),
       inlet: merge([
         tube(
           [
@@ -507,8 +539,14 @@ function FloatChamber({ mats }: { mats: Mats }) {
     // the float rides the fuel; the drawing's float pivots so its pontoons follow the level
     const drop = Math.atan2(L.level - top, 0.042);
     if (float.current) float.current.rotation.z = -drop;
-    // the needle rests on the float's tab: off its seat by as much as the inflow needs (lift exaggerated)
-    if (needle.current) needle.current.position.y = -0.002 - live.needle * 0.004;
+    // The guided needle stays vertical; its rounded heel bears on the rotating tab. Solve that contact plane
+    // at the needle's fixed x, including the heel radius, rather than animating the two parts independently.
+    if (needle.current)
+      needle.current.position.y =
+        L.pivot.y -
+        (L.needleX - L.pivot.x) * Math.tan(drop) +
+        (FLOAT_TAB_TOP + NEEDLE_HEEL_RADIUS) / Math.cos(drop) -
+        NEEDLE_HEEL_Y;
   });
   return (
     <>
@@ -520,8 +558,25 @@ function FloatChamber({ mats }: { mats: Mats }) {
           geometry={g.float}
           material={mats.float}
         />
-        <P name="Float lever tab" note="Bears on the float valve." geometry={g.tab} material={mats.float} />
+        <P
+          name="Float lever tab"
+          note="A tongue joined to the float lever, bearing on the float valve. It rises with the floats to seat the needle. Shape and travel are schematic."
+          geometry={g.tab}
+          material={mats.float}
+        />
       </group>
+      <P
+        name="Float shaft"
+        note={`The float and lever assembly pivots on this shaft in the float bracket (${OI} ¶2-27 y).`}
+        geometry={g.shaft}
+        material={mats.steel}
+      />
+      <P
+        name="Float bracket"
+        note={`Fastened to the throttle body and supporting the float shaft (${OI} ¶2-27 x–y). Drawn schematically.`}
+        geometry={g.bracket}
+        material={mats.darkSteel}
+      />
       <group ref={needle} position={[L.needleX, -0.002, 0]}>
         <P
           name="Float valve"

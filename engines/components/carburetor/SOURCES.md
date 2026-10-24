@@ -55,5 +55,10 @@ not published; where its tee, pump, line and nozzle sit is the airframe's, drawn
 The OI lists a power jet and an air metering pin; the documents in hand don't say how they act in this model, so they
 are not drawn or modelled.
 
+The float tab is a continuous bent tongue from the lever hub to the needle's bearing pad. A fixed shaft and bracket
+support the assembly, following OI ¶2-27 x–y. The guided needle's rounded heel stays in contact with the rotating tab;
+its position is derived from that contact instead of an independent valve animation. Tongue dimensions, heel shape
+and lever travel are schematic, not measured MA-4-5 dimensions. This drawing correction does not change fuel metering.
+
 The circuit readout now uses `meteredAir`, excluding downstream intake leaks, just as the kernel does. Previously
 it recomputed the idle/main split using all cylinder air. See [the research and audit](../../FUEL-METERING-RESEARCH.md).
