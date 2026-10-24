@@ -7,6 +7,20 @@ for (const [name, viewport] of Object.entries({
 })) {
   test(`piston cylinder controls and cutaway, ${name}`, async ({ browser, baseURL }) => {
     const context = await browser.newContext({ viewport });
+    await context.addInitScript(() => {
+      window.__cylinderScene = { scene: null, frames: 0 };
+      const devtools = new EventTarget();
+      devtools.addEventListener("observe", ({ detail: renderer }) => {
+        if (!renderer?.isWebGLRenderer) return;
+        const render = renderer.render.bind(renderer);
+        renderer.render = (scene, camera) => {
+          window.__cylinderScene.scene = scene;
+          window.__cylinderScene.frames++;
+          return render(scene, camera);
+        };
+      });
+      window.__THREE_DEVTOOLS__ = devtools;
+    });
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -20,6 +34,53 @@ for (const [name, viewport] of Object.entries({
     await expect(pause).toHaveAttribute("aria-pressed", "true");
     await page.waitForTimeout(250);
     await expect(angle).toHaveValue("0");
+    // Read the actual rendered scene, not the model or the angle readout.
+    const poseAt = async (phase) => {
+      await angle.fill(String(phase));
+      const frame = await page.evaluate(() => window.__cylinderScene.frames);
+      await page.waitForFunction((before) => window.__cylinderScene.frames >= before + 2, frame);
+      return page.evaluate(() => {
+        const scene = window.__cylinderScene.scene;
+        scene.updateMatrixWorld(true);
+        const part = (name) => scene.getObjectByName(`cylinder-${name}`);
+        const piston = part("piston"),
+          rod = part("rod"),
+          crank = part("crank"),
+          pin = part("crankpin");
+        const length = rod.children[0].geometry.parameters.height;
+        const upper = rod.localToWorld(rod.position.clone().set(0, length / 2, 0));
+        const lower = rod.localToWorld(rod.position.clone().set(0, -length / 2, 0));
+        const pistonPin = piston.getWorldPosition(piston.position.clone());
+        const crankPin = pin.getWorldPosition(pin.position.clone());
+        return {
+          pistonY: pistonPin.y,
+          rodAngle: rod.rotation.z,
+          crankAngle: crank.rotation.z,
+          upperGap: upper.distanceTo(pistonPin),
+          lowerGap: lower.distanceTo(crankPin),
+          rodLength: upper.distanceTo(lower),
+          intake: part("intake").position.y,
+          exhaust: part("exhaust").position.y,
+        };
+      });
+    };
+    const poses = [];
+    for (const phase of [0, 90, 180, 270, 450]) {
+      const pose = await poseAt(phase);
+      expect(pose.upperGap).toBeLessThan(1e-8);
+      expect(pose.lowerGap).toBeLessThan(1e-8);
+      expect(pose.rodLength).toBeCloseTo(6.75 * 0.0254, 8); // documented illustrative rod length
+      poses.push(pose);
+    }
+    expect(poses[0].pistonY - poses[2].pistonY).toBeCloseTo(4.375 * 0.0254, 8); // IOM Table A-1 stroke
+    expect(poses[1].pistonY).toBeLessThan(poses[0].pistonY);
+    expect(poses[1].rodAngle).toBeGreaterThan(0.1);
+    expect(poses[3].rodAngle).toBeLessThan(-0.1);
+    expect(poses[1].crankAngle).toBeCloseTo(-Math.PI / 2, 8);
+    expect(poses[3].exhaust).toBeLessThan(-0.001);
+    expect(poses[3].intake).toBeCloseTo(0, 8);
+    expect(poses[4].intake).toBeLessThan(-0.001);
+    expect(poses[4].exhaust).toBeCloseTo(0, 8);
     await page.getByRole("button", { name: "intake", exact: true }).click();
     await expect(angle).toHaveValue("450");
     await expect(page.locator(".piston-monitor strong")).toHaveText("intake");

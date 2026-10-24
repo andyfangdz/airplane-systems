@@ -193,7 +193,7 @@ function Assembly({ live, controls, labels }: { live: CylinderBench; controls: B
         <cylinderGeometry args={[R * 0.95, R * 0.95, 1, 40]} />
         <meshStandardMaterial transparent opacity={0.2} depthWrite={false} />
       </mesh>
-      <group ref={piston} position={[0, top, 0]}>
+      <group name="cylinder-piston" ref={piston} position={[0, top, 0]}>
         <mesh>
           <cylinderGeometry args={[R * 0.97, R * 0.97, crown * 2, 48]} />
           <meshStandardMaterial color="#d4dce0" metalness={0.7} roughness={0.28} />
@@ -205,26 +205,35 @@ function Assembly({ live, controls, labels }: { live: CylinderBench; controls: B
           </mesh>
         ))}
       </group>
-      <group ref={rod}>
+      <group name="cylinder-rod" ref={rod}>
         <mesh>
           <boxGeometry args={[0.013, rodLength, 0.015]} />
           <meshStandardMaterial color="#c8b28c" metalness={0.7} roughness={0.35} />
         </mesh>
       </group>
-      <group ref={crank}>
+      <group name="cylinder-crank" ref={crank}>
         <mesh position={[0, radius / 2, -0.018]}>
           <boxGeometry args={[0.027, radius + 0.025, 0.018]} />
           <meshStandardMaterial color="#718b9e" metalness={0.7} roughness={0.3} />
         </mesh>
         {[0, radius].map((y) => (
-          <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh
+            name={y === 0 ? "cylinder-shaft" : "cylinder-crankpin"}
+            key={y}
+            position={[0, y, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
             <cylinderGeometry args={[0.014, 0.014, 0.05, 32]} />
             <meshStandardMaterial color="#8da7bb" metalness={0.7} roughness={0.25} />
           </mesh>
         ))}
       </group>
       {([-1, 1] as const).map((side) => (
-        <group key={side} ref={side === -1 ? intake : exhaust}>
+        <group
+          name={side === -1 ? "cylinder-intake" : "cylinder-exhaust"}
+          key={side}
+          ref={side === -1 ? intake : exhaust}
+        >
           <mesh position={[side * R * 0.48, head + 0.022, 0]}>
             <cylinderGeometry args={[0.004, 0.004, 0.048, 16]} />
             <meshStandardMaterial color="#b8c5ce" metalness={0.7} roughness={0.3} />
