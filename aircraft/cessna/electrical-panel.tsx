@@ -5,7 +5,7 @@
  * `panels.tsx`: the airplane passes its state, solution and update callbacks, and keeps its own lead text, notes and POH
  * page citations, which differ between the two POHs.
  */
-import { BtnRow, Check, Readouts, Rocker, Seg, Slider } from "@/components/ui/controls";
+import { BtnRow, Check, Readouts, Rocker, ScenarioButton, Seg, Slider } from "@/components/ui/controls";
 import { FEEDER, nav3Init, stbyAhOf, type Nav3Cfg, type Nav3Elec, type Nav3Solution } from "./electrical";
 
 type UpdE = (fn: (d: Nav3Elec) => void) => void;
@@ -96,6 +96,9 @@ export function Nav3BatteryReadouts({ e, E, cfg }: { e: Nav3Elec; E: Nav3Solutio
  * airplane on the ramp), the battery clock and both batteries' charge. `run` gets the engine running the airplane's way;
  * `onScenario` clears the airplane's per-frame timers.
  */
+/** The electrical scenario the overview's "try it" loads. */
+export const ALT_FAILURE = "Alternator failure";
+
 export function Nav3Scenarios<S extends { elec: Nav3Elec; warp: number }>({
   s,
   up,
@@ -112,10 +115,8 @@ export function Nav3Scenarios<S extends { elec: Nav3Elec; warp: number }>({
   const e = s.elec;
   const upE = (fn: (d: Nav3Elec) => void) => up((d) => fn(d.elec));
   const scen = (label: string, fn: (d: S) => void, pre?: () => void) => (
-    <button
+    <ScenarioButton
       key={label}
-      type="button"
-      className="btn"
       onClick={() => {
         pre?.();
         onScenario();
@@ -126,7 +127,7 @@ export function Nav3Scenarios<S extends { elec: Nav3Elec; warp: number }>({
       }}
     >
       {label}
-    </button>
+    </ScenarioButton>
   );
   return (
     <>
@@ -190,7 +191,7 @@ export function Nav3Scenarios<S extends { elec: Nav3Elec; warp: number }>({
           {scen("Normal", (d) => {
             run(d);
           })}
-          {scen("Alternator failure", (d) => {
+          {scen(ALT_FAILURE, (d) => {
             run(d);
             d.elec.fail.alt = true;
           })}

@@ -1,32 +1,125 @@
 "use client";
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type { Catalogue } from "@/lib/catalogue";
 import type { SysId } from "@/lib/systems";
+import { create } from "zustand";
+import { selectSys } from "@/lib/fleet";
 import { focusPart } from "@/lib/registry";
 
-/** Run scenario actions only from an event, keeping their imperative simulation writes outside render. */
+/**
+ * The scenario the page last loaded, shown pressed on its button until the user changes something in the panel (a
+ * button, switch, slider or box there that is not a scenario, a part locator or a disclosure), and a scenario another
+ * system's panel asked for (TryLink), which its button loads when it mounts. Both cleared when the page goes
+ * (useScenarioMarks).
+ */
+const useScenarioMark = create<{ mark: string | null; request: string | null }>(() => ({ mark: null, request: null }));
+
+/** Panel controls that change nothing in the simulation: locating a part, opening text, the walk-around's own steps. */
+const NOT_A_CHANGE = "[data-scenario], .parts, .lead-more, [aria-expanded], a, .walk";
+
+/** Events that can change the simulation: a HoldButton pressed from the keyboard sends no click, only its keydown. */
+const CHANGE_EVENTS = ["click", "keydown", "input", "change"];
+
+function clearOnChange(e: Event) {
+  const t = e.target;
+  if (!(t instanceof Element) || !t.closest(".panel") || t.closest(NOT_A_CHANGE)) return;
+  if ((e.type === "click" || e.type === "keydown") && !t.closest("button")) return;
+  if (e instanceof KeyboardEvent && e.key !== " " && e.key !== "Enter") return;
+  if (useScenarioMark.getState().mark !== null) useScenarioMark.setState({ mark: null });
+}
+
+/** A page's scenario mark: kept while the user only reads, cleared by a change in the panel and when the page goes. */
+export function useScenarioMarks() {
+  useEffect(() => {
+    // capture, so a control that stops its event's propagation still counts
+    for (const type of CHANGE_EVENTS) document.addEventListener(type, clearOnChange, true);
+    return () => {
+      for (const type of CHANGE_EVENTS) document.removeEventListener(type, clearOnChange, true);
+      useScenarioMark.setState({ mark: null, request: null });
+    };
+  }, []);
+}
+
+/**
+ * Loads a scenario. Its actions run only from an event, keeping their imperative simulation writes outside render.
+ * The button shows pressed while its scenario is the one loaded (`mark`, by default its text, names it on the page).
+ */
 export function ScenarioButton({
   children,
+  mark,
   before,
   onClick,
   after,
 }: {
   children: ReactNode;
+  mark?: string;
   before?: () => void;
   onClick: () => void;
   after?: () => void;
 }) {
+  const key = mark ?? (typeof children === "string" ? children : undefined);
+  const pressed = useScenarioMark((x) => key !== undefined && x.mark === key),
+    requested = useScenarioMark((x) => key !== undefined && x.request === key);
+  const run = () => {
+    before?.();
+    onClick();
+    after?.();
+    if (key !== undefined) useScenarioMark.setState({ mark: key });
+  };
+  const runRequested = useEffectEvent(run);
+  useEffect(() => {
+    if (!requested) return;
+    useScenarioMark.setState({ request: null });
+    runRequested();
+  }, [requested]);
   return (
     <button
       type="button"
       className="btn"
-      onClick={() => {
-        before?.();
-        onClick();
-        after?.();
-      }}
+      data-scenario=""
+      aria-pressed={key === undefined ? undefined : pressed}
+      onClick={run}
     >
       {children}
+    </button>
+  );
+}
+
+/**
+ * A card under an overview's introduction that does its example: it opens `sys` and loads the scenario whose
+ * ScenarioButton there is marked `mark`.
+ */
+export function TryLink({
+  sys,
+  mark,
+  title,
+  children,
+}: {
+  sys: SysId;
+  mark: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className="try-link"
+      onClick={() => {
+        useScenarioMark.setState({ request: mark });
+        selectSys(sys);
+      }}
+    >
+      <b>{title}</b>
+      <span>{children}</span>
     </button>
   );
 }
@@ -144,6 +237,23 @@ export function Rocker({ label, on, onToggle }: { label: string; on: boolean; on
 }
 
 export type Reading = string | [string, "" | "bad" | "warnc"];
+/**
+ * A number in a reading, with its sign and a trailing % or °: "27.8", "−1.5", "1,800", "92%", "100 %", "12:30". Not a
+ * digit inside a name ("N6189Q") or one that numbers a capitalised name ("ESS 2", "ALT 1", "MAIN BUS 3").
+ */
+const NUMBER = /((?<![\w.])(?<!\b[A-Z]{2,} )[+\-−]?\d(?:[\d,.:]*\d)?(?:\s?%|°)?)/;
+/** A reading's numbers set in the mono face (tabular, so they don't jitter as they change); its words in the body face. */
+function readingRuns(t: string) {
+  return t.split(NUMBER).map((run, i) =>
+    i % 2 ? (
+      <span key={i} className="n">
+        {run}
+      </span>
+    ) : (
+      run
+    ),
+  );
+}
 export function Readouts({ items }: { items: [string, Reading][] }) {
   return (
     <div className="readouts">
@@ -152,7 +262,7 @@ export function Readouts({ items }: { items: [string, Reading][] }) {
         return (
           <div className="ro" key={l}>
             <span>{l}</span>
-            <b className={c}>{t}</b>
+            <b className={c}>{readingRuns(t)}</b>
           </div>
         );
       })}
@@ -190,21 +300,39 @@ export const H3 = ({ children }: { children: ReactNode }) => <h3>{children}</h3>
 export const Ctl = ({ children }: { children: ReactNode }) => <div className="ctl">{children}</div>;
 export const BtnRow = ({ children }: { children: ReactNode }) => <div className="btnrow">{children}</div>;
 
-/** "Tap to locate": follows the catalogue's visible parts, flies to a part and highlights it briefly. */
+/**
+ * "Tap to locate": follows the catalogue's visible parts, flies to a part and highlights it briefly. On phones the list
+ * starts folded behind a count, so the controls under it aren't a long scroll away (the toggle is hidden on desktop).
+ */
 export function PartsList({ cat, sys }: { cat: Catalogue; sys: SysId }) {
   const visible = useSyncExternalStore(cat.subscribeVisibility, cat.visibleSnapshot, cat.visibleSnapshot);
   const parts = cat.pinned(sys, visible);
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  if (parts.length === 0) return null;
+  const count = `${parts.length} ${parts.length === 1 ? "part" : "parts"}`;
   return (
-    <ul className="parts">
-      {parts.map((p) => (
-        <li key={p.id}>
-          <button type="button" onClick={() => focusPart(p.name!)}>
-            <b>{p.name}</b>
-            <span>{p.note}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
+    <>
+      <button
+        type="button"
+        className="parts-toggle"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(!open)}
+      >
+        {open ? `Hide the ${count}` : `Show the ${count}`}
+      </button>
+      <ul id={id} className="parts" data-folded={open ? undefined : ""}>
+        {parts.map((p) => (
+          <li key={p.id}>
+            <button type="button" onClick={() => focusPart(p.name!)}>
+              <b>{p.name}</b>
+              <span>{p.note}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

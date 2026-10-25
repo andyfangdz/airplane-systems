@@ -4,7 +4,7 @@
  * readouts, and a circuit-breaker bus card. Stateless: the airplane passes its sim state, electrical solution and update
  * callback, and its own numbers (how many decimals its volts show, its battery-time slider's label).
  */
-import { BtnRow, Check, Readouts, Rocker, Slider } from "@/components/ui/controls";
+import { BtnRow, Check, Readouts, Rocker, ScenarioButton, Slider } from "@/components/ui/controls";
 
 /** The bolster switches, their failures and the time on batteries. */
 interface CirrusElecState {
@@ -88,6 +88,9 @@ export function BusCard({
   );
 }
 
+/** The electrical scenario the overview's "try it" loads. */
+export const ALT1_FAILS = "ALT 1 fails";
+
 /** Engine running in flight: key BOTH, mixture out of cutoff, a tank with fuel, breakers in. */
 const fly = <S extends PowerSim>(d: S, fuelAvail: (d: S) => boolean) => {
   d.cb = {};
@@ -129,10 +132,8 @@ export function PowerControls<S extends PowerSim>({
 }) {
   const e = s.elec;
   const scen = (label: string, fn: (d: S) => void) => (
-    <button
+    <ScenarioButton
       key={label}
-      type="button"
-      className="btn"
       onClick={() =>
         up((d) => {
           resetElec(d);
@@ -141,7 +142,7 @@ export function PowerControls<S extends PowerSim>({
       }
     >
       {label}
-    </button>
+    </ScenarioButton>
   );
   const amp = (a: number) => (a > 0 ? "+" : "") + a;
   return (
@@ -238,7 +239,7 @@ export function PowerControls<S extends PowerSim>({
           {scen("Normal cruise", (d) => {
             fly(d, fuelAvail);
           })}
-          {scen("ALT 1 fails", (d) => {
+          {scen(ALT1_FAILS, (d) => {
             fly(d, fuelAvail);
             d.elec.fail.alt1 = true;
           })}

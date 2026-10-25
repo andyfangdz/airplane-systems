@@ -108,8 +108,8 @@ export const SYS: SysDef[] = [
     name: "Lighting",
     pg: "2-16",
     cam: [
-      [-6.0, 5.4, 9.0],
-      [0.0, -0.3, 0.8],
+      [-7.9, 6.83, 11.15],
+      [-0.4, -0.3, 0.9],
     ],
     blurb: "Nav, beacon, landing, spot lights",
   },

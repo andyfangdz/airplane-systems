@@ -3,11 +3,25 @@ import { DepthDetail } from "./depth";
 import { selectSys } from "@/lib/fleet";
 import { sysColor } from "@/lib/systems";
 import { useView } from "@/lib/view";
-import { BtnRow, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Slider, Small } from "@/components/ui/controls";
+import {
+  BtnRow,
+  Ctl,
+  Facts,
+  H3,
+  Notes,
+  PartsList,
+  Readouts,
+  Rocker,
+  ScenarioButton,
+  Slider,
+  Small,
+  TryLink,
+} from "@/components/ui/controls";
 import { extLit } from "../model";
 import { CAT } from "../parts";
 import { scenarioCruise, scenarioRamp, useM20C } from "../store";
 import { SYS } from "../systems";
+import { ALT_FAILS } from "./electrical";
 
 export function Overview() {
   const theme = useView((x) => x.theme);
@@ -23,6 +37,9 @@ export function Overview() {
         linked: pull the throttle with the gear up and the horn sounds; let the vacuum drop and the gyros, the PC and
         the red lights respond.
       </p>
+      <TryLink sys="electrical" mark={ALT_FAILS} title="Try it: fail the alternator">
+        Opens Electrical with the engine running and the alternator failed, so the battery carries the loads.
+      </TryLink>
       <Small>
         <b>About the year.</b> The FAA registry lists N6947N as a 1968 M20C, serial 680194 (airworthiness date 25
         September 1968). That fits the photos — one-piece windshield, no dorsal fin — and the name: Mooney sold the 1967
@@ -34,19 +51,15 @@ export function Overview() {
       <H3>Start from</H3>
       <Ctl>
         <BtnRow>
-          <button type="button" className="btn" onClick={scenarioCruise}>
-            Cruise · 5,500 ft
-          </button>
-          <button
-            type="button"
-            className="btn"
+          <ScenarioButton onClick={scenarioCruise}>Cruise · 5,500 ft</ScenarioButton>
+          <ScenarioButton
             onClick={() => {
               scenarioRamp();
               selectSys("engine");
             }}
           >
             Cold &amp; dark on the ramp → start
-          </button>
+          </ScenarioButton>
         </BtnRow>
         <Readouts
           items={[
@@ -74,19 +87,22 @@ export function Overview() {
           ["Speeds (mph)", "VNE 189 · VNO 150 · VA 132 · VLO/VLE 120 · VFE 125 · stall 67 / 57"],
         ]}
       />
-      <H3>Systems</H3>
-      <div className="overview-grid">
-        {SYS.slice(1).map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
-            onClick={() => selectSys(s.id)}
-          >
-            <b>{s.name}</b>
-            <span>{s.blurb}</span>
-          </button>
-        ))}
+      {/* phones: the rail is a strip of chips, so the systems are listed here too, with their blurbs */}
+      <div className="overview-systems">
+        <H3>Systems</H3>
+        <div className="overview-grid">
+          {SYS.slice(1).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
+              onClick={() => selectSys(s.id)}
+            >
+              <b>{s.name}</b>
+              <span>{s.blurb}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <p className="disc">
         Unofficial study aid. Primary systems sources are the actual 1968 Ranger Owner's Manual POH 1187,

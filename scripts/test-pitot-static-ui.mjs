@@ -90,6 +90,8 @@ for (const [name, viewport] of Object.entries({
     await page.getByRole("button", { name: "Static leak test", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Static system leak test" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Seal and time 1 minute" })).toBeDisabled();
+    // the readouts are sampled, so they can show the last flight for a moment: wait for the ramp before the climb
+    await expect.poll(() => value(1)).toBeLessThan(100);
     await expect.poll(() => value(1), { timeout: 20_000 }).toBeGreaterThan(200);
     expect(await value(0)).toBe(0);
     // through a taped port the test set gets to its altitude and the instruments don't: sealed, there is no result

@@ -9,7 +9,9 @@ import { ENGINES, engineById } from "@/engines";
 import { COMPONENTS } from "@/engines/components";
 import { Picker } from "../Picker";
 import { airplaneLinks, componentEntries, engineEntries, engineSub } from "../pickerEntries";
-import { ThemeButton, useTheme, ViewToggles } from "./chrome";
+import { ThemeButton } from "../ui/chrome";
+import { useScenarioMarks } from "../ui/controls";
+import { StageResetButton, useTheme, ViewToggles } from "./chrome";
 import { simFor, useEngineLoop, type EngineSim } from "./store";
 import { EnginePanel } from "./EnginePanel";
 import { Monitor, Flags } from "./Monitor";
@@ -30,8 +32,10 @@ function Toolbar({ sim }: { sim: EngineSim }) {
     setView = sim.useUi((x) => x.setView);
   return (
     <div className="toolbar">
-      <ViewToggles items={TOGGLES} view={view} set={setView} />
-      <ThemeButton />
+      <div className="tb-group" role="group" aria-label="View">
+        <ViewToggles items={TOGGLES} view={view} set={setView} />
+      </div>
+      <StageResetButton />
     </div>
   );
 }
@@ -41,6 +45,7 @@ export default function EngineApp({ id }: { id: string }) {
   const sim = simFor(spec);
   useEngineLoop(sim);
   useTheme();
+  useScenarioMarks();
   return (
     <div className="eng-app">
       <title>{`${spec.name} engine · Airplane Systems`}</title>
@@ -54,6 +59,7 @@ export default function EngineApp({ id }: { id: string }) {
             { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
           ]}
         />
+        <ThemeButton />
       </div>
       <main className="stage eng-stage">
         <div className="eng-view">

@@ -488,7 +488,7 @@ describe("A/C colour and condenser blower follow their powered running states (P
       const after = show(pulled);
       expect(after.colour.equals(before.colour)).toBe(true);
       expect(after.lit).toBe(before.lit);
-      const readout = (html: string) => html.match(/Hot-air valve<\/span><b[^>]*>([^<]+)<\/b>/)?.[1];
+      const readout = (html: string) => readoutText(html, "Hot-air valve");
       expect(readout(beforeHtml)).toBe(ac ? "Closed" : "80%");
       expect(readout(renderToStaticMarkup(createElement(Environment)))).toBe(readout(beforeHtml));
       pulled.cb["CABIN AIR CONTROL"] = false;
@@ -509,6 +509,10 @@ it("condenser blower note cites the confirmed operator fallback when AMM 21-50 i
   expect(note).not.toContain("pending operator review");
 });
 
+/** A readout's value in static markup: its text, with the spans that set its numbers in the mono face removed. */
+const readoutText = (html: string, name: string) =>
+  html.match(new RegExp(name + "</span><b[^>]*>(.*?)</b>"))?.[1].replace(/<[^>]+>/g, "");
+
 it("OFF readouts follow inlet valves and close only airflow (POH 7-62–7-66; AMM 21-60; 7waz N1)", () => {
   const saved = useSR22T.getState();
   const actual = useSR22T;
@@ -524,7 +528,7 @@ it("OFF readouts follow inlet valves and close only airflow (POH 7-62–7-66; AM
       s.env = { ...s.env, fan: -1, ac: false, recirc: false, temp };
       useSR22T.setState({ s, E: solve(s) });
       const html = renderToStaticMarkup(createElement(Environment));
-      const row = (name: string) => html.match(new RegExp(name + "</span><b[^>]*>([^<]+)</b>"))?.[1];
+      const row = (name: string) => readoutText(html, name);
       expect(row("Airflow valve")).toBe("Closed");
       expect(row("Hot-air valve")).toBe(temp === 0 ? "Closed" : Math.round(temp * 100) + "%");
       expect(row("Fresh-air valve")).toBe(temp === 1 ? "Closed" : Math.round((1 - temp) * 100) + "%");

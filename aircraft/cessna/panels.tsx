@@ -305,65 +305,74 @@ export function BreakerBoard({
   up: Upd;
   extra?: Partial<Record<Nav3Bus, ReactNode>>;
 }) {
+  // a rating no POH gives is shown with a "?"; the legend says where each such rating came from
+  const unsourced = [...new Set(breakers.flatMap((b) => (b.unverified && b.src ? [b.src] : [])))];
   return (
-    <div className="buses n3-buses">
-      {buses.map(([id, name, src]) => {
-        const v = E.v[id],
-          lit = v > 0;
-        return (
-          <div key={id} className={"bus" + (lit ? " on" : "")}>
-            <div className="top">
-              <span className="lamp" />
-              <span className="nm">{name}</span>
-              <span className="v">{lit ? v.toFixed(1) + " V" : "0 V"}</span>
+    <>
+      <div className="buses n3-buses">
+        {buses.map(([id, name, src]) => {
+          const v = E.v[id],
+            lit = v > 0;
+          return (
+            <div key={id} className={"bus" + (lit ? " on" : "")}>
+              <div className="top">
+                <span className="lamp" />
+                <span className="nm">{name}</span>
+                <span className="v">{lit ? v.toFixed(1) + " V" : "0 V"}</span>
+              </div>
+              <div className="src">
+                {src}
+                {PULLABLE[id] ? " · pullable" : " · non-pullable"}
+              </div>
+              <div className="loads">
+                {breakers
+                  .filter((b) => b.bus === id)
+                  .map((b) => {
+                    const k = cbKey(b),
+                      outNow = !!cb[k],
+                      pull = PULLABLE[id];
+                    const cls =
+                      "chip" + (outNow ? (pull ? " pulled" : " tripped") : "") + (!pull && !outNow ? " fixed" : "");
+                    const title = `${b.label}${b.amps ? ` — ${b.amps} A${b.unverified ? " (unverified)" : ""}` : ""}: ${b.feeds}${b.src ? ` (rating ${b.src})` : " (rating not given in the POH)"}`;
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        className={cls}
+                        aria-pressed={outNow}
+                        title={title}
+                        disabled={!pull && !outNow}
+                        onClick={() =>
+                          up((d) => {
+                            if (d.cb[k]) delete d.cb[k];
+                            else if (pull) d.cb[k] = true;
+                          })
+                        }
+                      >
+                        {b.label}
+                        {b.amps ? (
+                          <i>
+                            {" "}
+                            {b.amps}
+                            {b.unverified ? "?" : ""}
+                          </i>
+                        ) : null}
+                        {E.amps[k] > 0.05 ? <i> · {E.amps[k].toFixed(1)}A</i> : null}
+                      </button>
+                    );
+                  })}
+              </div>
+              {extra?.[id]}
             </div>
-            <div className="src">
-              {src}
-              {PULLABLE[id] ? " · pullable" : " · non-pullable"}
-            </div>
-            <div className="loads">
-              {breakers
-                .filter((b) => b.bus === id)
-                .map((b) => {
-                  const k = cbKey(b),
-                    outNow = !!cb[k],
-                    pull = PULLABLE[id];
-                  const cls =
-                    "chip" + (outNow ? (pull ? " pulled" : " tripped") : "") + (!pull && !outNow ? " fixed" : "");
-                  const title = `${b.label}${b.amps ? ` — ${b.amps} A${b.unverified ? " (unverified)" : ""}` : ""}: ${b.feeds}${b.src ? ` (rating ${b.src})` : " (rating not given in the POH)"}`;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      className={cls}
-                      aria-pressed={outNow}
-                      title={title}
-                      disabled={!pull && !outNow}
-                      onClick={() =>
-                        up((d) => {
-                          if (d.cb[k]) delete d.cb[k];
-                          else if (pull) d.cb[k] = true;
-                        })
-                      }
-                    >
-                      {b.label}
-                      {b.amps ? (
-                        <i>
-                          {" "}
-                          {b.amps}
-                          {b.unverified ? "?" : ""}
-                        </i>
-                      ) : null}
-                      {E.amps[k] > 0.05 ? <i> · {E.amps[k].toFixed(1)}A</i> : null}
-                    </button>
-                  );
-                })}
-            </div>
-            {extra?.[id]}
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+      {unsourced.map((src) => (
+        <p key={src} className="small cb-legend">
+          Ratings marked <span className="cb-key">?</span> were {src}.
+        </p>
+      ))}
+    </>
   );
 }
 

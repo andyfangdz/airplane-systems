@@ -269,9 +269,7 @@ button {
 .fleet-group {
   padding: 4px 10px 2px;
   color: var(--muted);
-  font: 600 11px/1.2 var(--f-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 600 12px/1.2 var(--f-body);
 }
 .fleet-option {
   display: flex;
@@ -307,14 +305,6 @@ button {
   margin-right: auto;
   font-size: 15px;
   font-weight: 600;
-}
-.fleet-walk {
-  padding: 1px 5px;
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
 }
 .fleet-check {
   width: 14px;
@@ -390,10 +380,33 @@ button {
   color: var(--muted);
 }
 .rail .foot {
-  padding: 12px 18px;
+  padding: 12px 18px 10px;
   border-top: 1px solid var(--rule);
   font-size: 12px;
   color: var(--muted);
+}
+/* the page's settings (theme, welcome tour) under the hint; stacked at the foot of the collapsed rail */
+.rail-settings {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding: 0 18px 14px;
+}
+@media (min-width: 861px) {
+  .systems-collapsed .rail-settings {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 10px;
+  }
+  .systems-collapsed .rail-settings .tb {
+    justify-content: center;
+    width: 26px;
+    min-width: 0;
+    padding: 4px 0;
+  }
+  .systems-collapsed .rail-settings .tb-word {
+    display: none;
+  }
 }
 
 /* ---------- viewport ---------- */
@@ -551,11 +564,14 @@ button {
   top: 12px;
   right: 12px;
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 .tb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--panel);
   border: 1px solid var(--rule);
   border-radius: 5px;
@@ -563,26 +579,68 @@ button {
   font-size: 13px;
   cursor: pointer;
 }
+.tb:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--rule));
+}
+.tb:disabled {
+  color: var(--muted);
+  cursor: default;
+}
 .tb[aria-pressed="true"] {
   border-color: var(--accent);
   color: var(--accent);
 }
-.tb-theme {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+/* the view's toggles, joined into one control; a pressed toggle is tinted with the accent */
+.tb-group {
+  display: flex;
+}
+.tb-group > .tb {
+  border-radius: 0;
+  margin-left: -1px;
+}
+.tb-group > .tb:first-child {
+  border-radius: 5px 0 0 5px;
+  margin-left: 0;
+}
+.tb-group > .tb:last-child {
+  border-radius: 0 5px 5px 0;
+}
+.tb-group > .tb:hover,
+.tb-group > .tb[aria-pressed="true"] {
+  position: relative; /* its whole border shows over the neighbours' */
+}
+.tb-group > .tb[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+/* a mode the page switches into (the preflight walk-around): outlined in the accent, filled while on */
+.tb-mode {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.tb-mode[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 .tb-help {
+  justify-content: center;
   min-width: 28px;
   font-weight: 600;
+}
+.tb .ico {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .tb-theme .ico {
   width: 12px;
   height: 12px;
-  fill: none;
-  stroke: currentColor;
   stroke-width: 1.6;
-  stroke-linecap: round;
 }
 /* foot of the viewport: alert window left, airplane HUD (SR20 CAPS timeline) right; wraps when the view is narrow, stacked on phones */
 .stage-foot {
@@ -613,15 +671,20 @@ button {
   color: #dde5ea;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
+/* a long title with the count (or NO DISPLAY PWR) wraps the count to its own line, right-aligned, inside the window */
 .cas .hd {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 10px;
+  column-gap: 10px;
   white-space: nowrap;
   font-size: 11px;
   color: #8b9aa6;
   letter-spacing: 0.08em;
   margin-bottom: 4px;
+}
+.cas .hd > :last-child {
+  margin-left: auto;
 }
 .cas ul {
   list-style: none;
@@ -741,13 +804,13 @@ button {
   -webkit-user-select: text;
   user-select: text;
 }
+/* the app's own headings in sentence case: capitals are kept for the airplane's words (titles, placards, switch positions) */
 .panel h3 {
   font-family: var(--f-disp);
   font-weight: 600;
-  font-size: 15px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
   margin: 22px 0 8px;
   padding-bottom: 5px;
   border-bottom: 1px solid var(--rule);
@@ -833,9 +896,10 @@ dl.facts dd {
 .seg button:last-child {
   border-right: 0;
 }
+/* --c and --on-c are set together (lib/systems.ts sysVars); without them, the accent and its text colour */
 .seg button[aria-pressed="true"] {
   background: var(--c, var(--accent));
-  color: #fff;
+  color: var(--on-c, var(--on-accent));
 }
 input[type="range"] {
   width: 100%;
@@ -919,7 +983,14 @@ input[type="range"] {
 .btn.primary {
   background: var(--c, var(--accent));
   border-color: transparent;
-  color: #fff;
+  color: var(--on-c, var(--on-accent));
+}
+/* pressed: the scenario last loaded (ScenarioButton) until a control in the panel changes, or a selected option (a
+   primary button that is on keeps its solid fill and the text colour paired with it) */
+.btn:not(.primary)[aria-pressed="true"] {
+  border-color: var(--c, var(--accent));
+  background: color-mix(in srgb, var(--c, var(--accent)) 16%, var(--panel));
+  box-shadow: inset 0 0 0 1px var(--c, var(--accent));
 }
 /* the cells' outlines draw the 1px dividers, so a short last row ends in blank space rather than a grey block */
 .readouts {
@@ -936,12 +1007,16 @@ input[type="range"] {
   outline: 1px solid var(--rule);
   padding: 7px 9px;
 }
-.ro span {
+.ro > span {
   display: block;
   font-size: 12px;
   color: var(--muted);
 }
 .ro b {
+  font-weight: 600;
+  font-size: 16px;
+}
+.ro b .n {
   font-family: var(--f-mono);
   font-weight: 500;
   font-size: 17px;
@@ -1036,6 +1111,10 @@ button.chip:hover {
   opacity: 1;
   border-color: var(--warn);
 }
+/* phones only: the tap-to-locate list starts folded behind its count */
+.parts-toggle {
+  display: none;
+}
 .parts {
   list-style: none;
   padding: 0;
@@ -1092,6 +1171,37 @@ button.chip:hover {
 }
 .small {
   font-size: 12.5px;
+  color: var(--muted);
+}
+/* the overview's systems, with their blurbs: only where the rail isn't a full list (phones: a strip of chips; collapsed) */
+.overview-systems {
+  display: none;
+}
+.systems-collapsed .overview-systems {
+  display: block;
+}
+/* the overview's example, as a button that does it (TryLink) */
+.try-link {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel2);
+  cursor: pointer;
+}
+.try-link:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel2));
+}
+.try-link b {
+  color: var(--accent);
+  font-size: 15px;
+}
+.try-link span {
+  font-size: 13px;
   color: var(--muted);
 }
 .overview-grid {
@@ -1275,8 +1385,62 @@ button.chip:hover {
   .syslist .pg {
     display: none;
   }
+  .rail {
+    position: relative;
+  }
   .rail .foot {
     display: none;
+  }
+  .overview-systems {
+    display: block;
+  }
+  .parts-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    margin: 0 0 6px;
+    padding: 6px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel2);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .parts-toggle::after {
+    content: "";
+    margin-left: auto;
+    width: 7px;
+    height: 7px;
+    border: solid var(--muted);
+    border-width: 0 1.5px 1.5px 0;
+    transform: translateY(-2px) rotate(45deg);
+  }
+  .parts-toggle[aria-expanded="true"]::after {
+    transform: translateY(2px) rotate(-135deg);
+  }
+  .parts[data-folded] {
+    display: none;
+  }
+  /* theme and tour beside the panel toggle, in the top corner */
+  .rail-settings {
+    position: absolute;
+    top: 8px;
+    right: 52px;
+    z-index: 1;
+    gap: 4px;
+    padding: 0;
+  }
+  .systems-collapsed .rail-settings {
+    top: 2px;
+  }
+  .rail-settings .tb {
+    justify-content: center;
+    min-width: 40px;
+    padding: 4px 8px;
   }
   .stage {
     height: 58vh;
@@ -1307,10 +1471,17 @@ button.chip:hover {
   .toolbar > :first-child {
     margin-left: auto; /* right-aligned while the row fits */
   }
-  .tb {
+  .tb,
+  .tb-group {
     flex: none;
+  }
+  .tb {
     min-height: 40px;
     padding: 4px 10px;
+  }
+  /* buttons that carry an icon drop their word (their label still names them) */
+  .tb-word {
+    display: none;
   }
   .panel {
     border-left: 0;
@@ -1337,7 +1508,7 @@ button.chip:hover {
     transform: rotate(-90deg);
   }
   .rail .brand {
-    padding-right: 52px;
+    padding-right: 140px; /* clear of the theme, tour and panel buttons */
   }
   .panel-inner > .ref {
     padding-right: 32px;
@@ -1381,8 +1552,8 @@ button.chip:hover {
   .walking.details-collapsed .stage-foot:has(.walk-scene:not(:empty)) {
     bottom: 56px; /* leave the reopen tab clear of the check navigation */
   }
-  .details-collapsed .stage-under:not(:empty) {
-    padding-right: 64px;
+  .app.details-collapsed .stage-under > * {
+    padding-right: 64px; /* clear of the panel's reopen tab */
   }
   .loader-bar {
     top: 62px; /* under the toolbar's touch-sized row */
@@ -1390,14 +1561,6 @@ button.chip:hover {
   .stage-foot {
     flex-direction: column-reverse;
     align-items: flex-start;
-    gap: 8px;
-  }
-  .cas {
-    width: 200px;
-    font-size: 11px;
-  }
-  .cas .hd {
-    letter-spacing: 0.02em;
     gap: 8px;
   }
   .caps-hud {
@@ -1411,7 +1574,38 @@ button.chip:hover {
     display: block;
     background: var(--panel);
     border-top: 1px solid var(--rule);
-    padding: 10px 16px;
+  }
+  .stage-under > * + * {
+    border-top: 1px solid var(--rule);
+  }
+  /* the alert window as a card across the foot of the view: its caption, then the messages, wrapping */
+  .stage-under .cas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    width: auto;
+    margin: 8px;
+    box-shadow: none;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .app.details-collapsed .stage-under > .cas {
+    padding-right: 10px;
+    margin-right: 64px; /* clear of the panel's reopen tab */
+  }
+  .stage-under .cas .hd {
+    column-gap: 8px;
+    margin: 0;
+    letter-spacing: 0.04em;
+  }
+  .stage-under .cas .hd > :last-child {
+    margin-left: 0;
+  }
+  .stage-under .cas ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
   }
   .stage-under .caps-hud {
     display: flex;
@@ -1420,7 +1614,7 @@ button.chip:hover {
     gap: 2px 10px;
     border: 0;
     border-radius: 0;
-    padding: 0;
+    padding: 10px 16px;
     background: none;
   }
   .stage-under .caps-hud b {

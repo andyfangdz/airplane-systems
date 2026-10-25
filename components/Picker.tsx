@@ -9,7 +9,6 @@ export interface PickerEntry {
   name: string;
   sub: string;
   current: boolean;
-  walk?: boolean;
   onPick?: () => void;
   href?: string;
 }
@@ -158,11 +157,6 @@ export function Picker({
                   <>
                     <span className="fleet-option-heading">
                       <span className="fleet-name">{a.name}</span>
-                      {a.walk && (
-                        <span className="fleet-walk" title="Preflight walk-around available">
-                          Walk-around
-                        </span>
-                      )}
                       <span className="fleet-check" aria-hidden="true">
                         {a.current ? "✓" : ""}
                       </span>

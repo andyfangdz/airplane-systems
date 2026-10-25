@@ -63,8 +63,8 @@ const STEPS: Step[] = [
     title: "Change the view",
     body: (
       <>
-        See through the skin with X-ray, show or hide labels, auto-rotate, switch between light and dark, or reset the
-        camera.
+        Preflight starts a guided walk-around. See through the skin with X-ray, show or hide labels, auto-rotate, or
+        reset the camera.
       </>
     ),
   },
@@ -94,8 +94,8 @@ const STEPS: Step[] = [
     title: "You're all set",
     body: (
       <>
-        Replay this tour any time from the ? button in the toolbar. This is an unofficial study aid: always use the
-        POH/AFM and supplements for your serial number.
+        Replay this tour any time from the ? button beside the light and dark switch. This is an unofficial study aid:
+        always use the POH/AFM and supplements for your serial number.
       </>
     ),
   },

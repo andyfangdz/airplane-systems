@@ -98,10 +98,10 @@ try {
   // Evaluate only light metadata, never full definitions or procedural geometry.
   const entries = [];
   const views = [];
-  for (const { id, walk } of fleet) {
+  for (const { id } of fleet) {
     const meta = (await server.ssrLoadModule(`/aircraft/${id}/meta.ts`))[`${id.toUpperCase()}_META`];
     if (meta.id !== id) throw new Error(`Metadata identity mismatch for ${id}`);
-    entries.push({ id, name: meta.name, sub: meta.sub, walk });
+    entries.push({ id, name: meta.name, sub: meta.sub });
     views.push({ id, systems: meta.systems.map((system) => system.id) });
   }
   outputs.set("aircraft/views.json", JSON.stringify(views));
@@ -110,7 +110,7 @@ try {
     `${header}
 import type { AircraftId } from "./systems";
 /** Picker labels compiled from aircraft metadata without loading system descriptions or scenes. */
-export const FLEET_INDEX: { id: AircraftId; name: string; sub: string; walk: boolean }[] = ${JSON.stringify(entries)};
+export const FLEET_INDEX: { id: AircraftId; name: string; sub: string }[] = ${JSON.stringify(entries)};
 `,
   );
   const { ENGINE_IDS } = await server.ssrLoadModule("/engines/index.ts");

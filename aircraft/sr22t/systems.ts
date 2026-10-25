@@ -37,8 +37,8 @@ export const SYS: SysDef[] = [
     name: "Flight controls",
     pg: "7-6",
     cam: [
-      [-7, 4.8, 7.5],
-      [-0.6, -0.1, 0],
+      [-7.85, 5.68, 10.85],
+      [-0.3, -0.1, 2],
     ],
     blurb: "Cables, push rods, spring trim",
   },
@@ -107,8 +107,8 @@ export const SYS: SysDef[] = [
     name: "Lighting",
     pg: "7-57",
     cam: [
-      [-4.5, 3.4, 8.5],
-      [0.6, 0, 0],
+      [-6.33, 4.42, 12.65],
+      [0.3, 0, 1.6],
     ],
     blurb: "Wingtip, cowl landing, ice and cabin lights",
   },
@@ -169,7 +169,7 @@ export const SYS: SysDef[] = [
     pg: "3-41",
     ref: "Precise Flight Built-In Oxygen AFMS (STC SA01708SE)",
     cam: [
-      [-1.1, 3.9, 4.8],
+      [-1.26, 4.36, 5.38],
       [0.25, 0.1, 0],
     ],
     blurb: "77 cu ft bottle, 5 outlets",

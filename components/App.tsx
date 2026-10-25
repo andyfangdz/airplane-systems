@@ -18,11 +18,13 @@ import {
 import { setBuild } from "@/lib/build";
 import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
 import { useSimulationLoop } from "@/lib/useSimulationLoop";
-import { sysColor, type SysId, type Theme } from "@/lib/systems";
+import { sysColor, sysVars, type SysId, type Theme } from "@/lib/systems";
 import { revealPanelStart, revealStage, useAircraftHover, useNarrowLayout, useView } from "@/lib/view";
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
+import { Icon, PREFLIGHT_ICON, ResetViewButton, ThemeButton } from "./ui/chrome";
+import { useScenarioMarks } from "./ui/controls";
 
 // WebGL scene is client-only; the Loader overlay shows while it loads (the placeholder keeps the canvas's slot)
 const Scene = dynamic(() => import("./scene/Scene"), { ssr: false, loading: () => <div /> });
@@ -82,6 +84,7 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
           Drag to orbit · scroll or pinch to zoom · right-drag to pan. Hover a part for its note.
         </div>
       </div>
+      <Settings />
     </nav>
   );
 }
@@ -114,7 +117,7 @@ function Panel({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }
             <Walk />
           </div>
         ) : (
-          <div ref={inner} className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
+          <div ref={inner} className="panel-inner" style={sysVars(s.id, theme)}>
             <div className="ref">
               <i />
               {s.ref ?? `${def.doc} · p. ${s.pg}`}
@@ -214,66 +217,54 @@ function PanelToggle({
   );
 }
 
-const SUN = (
-  <>
-    <circle cx="8" cy="8" r="3" />
-    <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3" />
-  </>
-);
-const MOON = <path d="M13.5 10.2A5.8 5.8 0 0 1 5.8 2.5a5.8 5.8 0 1 0 7.7 7.7z" />;
-
 function Toolbar() {
   const def = useAircraft();
   const xray = useView((x) => x.xray),
     labels = useView((x) => x.labels),
     spin = useView((x) => x.spin),
-    theme = useView((x) => x.theme),
     walking = useView((x) => x.walking);
   const set = useView((v) => v.set),
-    setTheme = useView((v) => v.setTheme),
     flyTo = useView((v) => v.flyTo);
-  const dark = theme === "dark";
   const walk = def.walk;
   return (
     <div className="toolbar">
       {walk && (
         <button
-          className="tb"
+          className="tb tb-mode"
           aria-pressed={walking}
           title={walking ? "Leave the preflight walk-around" : "Guided preflight walk-around"}
           onClick={() => (walking ? walk.close() : walk.open())}
         >
+          <Icon>{PREFLIGHT_ICON}</Icon>
           Preflight
         </button>
       )}
-      <button className="tb" aria-pressed={xray} onClick={() => set({ xray: !xray })}>
-        X-ray
-      </button>
-      <button className="tb" aria-pressed={labels} onClick={() => set({ labels: !labels })}>
-        Labels
-      </button>
-      <button className="tb" aria-pressed={spin} onClick={() => set({ spin: !spin })}>
-        Auto-rotate
-      </button>
-      <button
-        className="tb tb-theme"
-        title={dark ? "Switch to light mode" : "Switch to dark mode"}
-        onClick={() => setTheme(dark ? "light" : "dark")}
-      >
-        <svg className="ico" viewBox="0 0 16 16" aria-hidden="true">
-          {dark ? SUN : MOON}
-        </svg>
-        <span>{dark ? "Light" : "Dark"}</span>
-      </button>
-      <button
-        className="tb"
+      <div className="tb-group" role="group" aria-label="View">
+        <button className="tb" aria-pressed={xray} onClick={() => set({ xray: !xray })}>
+          X-ray
+        </button>
+        <button className="tb" aria-pressed={labels} onClick={() => set({ labels: !labels })}>
+          Labels
+        </button>
+        <button className="tb" aria-pressed={spin} onClick={() => set({ spin: !spin })}>
+          Auto-rotate
+        </button>
+      </div>
+      <ResetViewButton
         onClick={() => {
           const [p, t] = resetCam();
           flyTo([...p], [...t]);
         }}
-      >
-        Reset view
-      </button>
+      />
+    </div>
+  );
+}
+
+/** The page's settings, out of the 3D view: the theme and the welcome tour (the rail's foot; a phone's top corner). */
+function Settings() {
+  return (
+    <div className="rail-settings">
+      <ThemeButton />
       <button
         className="tb tb-help"
         title="Show the welcome tour"
@@ -415,6 +406,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
   registerAircraft(def); // for the view-state helpers in lib/fleet (idempotent)
   useTheme();
   const session = useBoot(def);
+  useScenarioMarks();
   // Next may retain this client shell when its catch-all system parameter changes. Apply that navigation without
   // replacing the aircraft session; the URL guard ignores an older server prop after the rail's replaceState.
   useLayoutEffect(() => {
@@ -427,6 +419,8 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
   const [systemsCollapsed, toggleSystems] = useCollapsed("systems");
   const [detailsCollapsed, toggleDetails] = useCollapsed("details");
   const Alerts = def.Alerts;
+  // phones: the alert window is a strip under the 3D view, clear of the model. One copy only: it is a live region.
+  const narrow = useNarrowLayout();
   return (
     <AircraftContext value={def}>
       <RouteSys value={{ sys: sys ?? "overview", booted: !!session }}>
@@ -440,14 +434,15 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
             <Loader />
             <Toolbar />
             <div className="stage-foot">
-              <Alerts />
+              {!narrow && <Alerts />}
               <Hud />
               <div id="walk-scene" className="walk-scene" />
             </div>
             <Tooltip />
           </main>
-          {/* phones: the HUD shows here, under the 3D view, instead (see globals.css) */}
+          {/* phones: the alert window and the HUD show here, under the 3D view, instead (see globals.css) */}
           <div className="stage-under">
+            {narrow && <Alerts />}
             <Hud />
           </div>
           <Panel collapsed={detailsCollapsed} toggle={toggleDetails} />

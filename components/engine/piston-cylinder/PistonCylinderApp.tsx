@@ -96,9 +96,9 @@ export default function PistonCylinderApp() {
         </div>
       }
       panel={
-        <div className="piston-panel">
-          <h2>Inside the cylinder</h2>
-          <p>Follow one cylinder through two crankshaft revolutions. Drag to orbit; scroll to zoom.</p>
+        <div className="panel-inner piston-panel">
+          <div className="ref">Component simulation · Lycoming IO-390-C cylinder</div>
+          <p className="lead">Follow one cylinder through two crankshaft revolutions. Drag to orbit; scroll to zoom.</p>
           <h3>Operating conditions</h3>
           <p>A driven single-cylinder bench: shaft speed and charge are held externally so faults remain visible.</p>
           <Slider

@@ -56,7 +56,7 @@ export interface CapsHarness {
 export function Parachute({
   rootRef,
   modelRef,
-  gridRef,
+  groundRef,
   caps,
   deployed,
   time,
@@ -84,12 +84,12 @@ export function Parachute({
     },
     [lineGeo, goreGeo],
   );
-  // leaving the airplane mid-deployment: show the ground grid again
+  // leaving the airplane mid-deployment: show the ground again
   useEffect(
     () => () => {
-      if (gridRef.current) gridRef.current.visible = true;
+      if (groundRef.current) groundRef.current.visible = true;
     },
-    [gridRef],
+    [groundRef],
   );
 
   useFrame(() => {
@@ -100,7 +100,7 @@ export function Parachute({
     if (!on) {
       if (wasOn.current) {
         root.rotation.set(0, 0, 0);
-        if (gridRef.current) gridRef.current.visible = true;
+        if (groundRef.current) groundRef.current.visible = true;
       }
       wasOn.current = false;
       group.current.visible = false;
@@ -111,7 +111,7 @@ export function Parachute({
     const t = time();
     root.rotation.z = pitchAt(t) * D2R;
     root.rotation.x = t > 9.8 ? Math.sin((t - 9.8) * 0.8) * 0.04 : 0;
-    if (gridRef.current) gridRef.current.visible = t < 1.5;
+    if (groundRef.current) groundRef.current.visible = t < 1.5;
     model.updateMatrixWorld(true);
     const can = model.localToWorld(V(...CAPS_BOX));
     const top = V(-0.3, 11.5, 0),

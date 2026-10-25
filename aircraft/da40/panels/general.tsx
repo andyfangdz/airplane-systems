@@ -2,11 +2,25 @@
 import { selectSys } from "@/lib/fleet";
 import { sysColor } from "@/lib/systems";
 import { useView } from "@/lib/view";
-import { BtnRow, Ctl, Facts, H3, Notes, PartsList, Readouts, Rocker, Slider, Small } from "@/components/ui/controls";
+import {
+  BtnRow,
+  Ctl,
+  Facts,
+  H3,
+  Notes,
+  PartsList,
+  Readouts,
+  Rocker,
+  ScenarioButton,
+  Slider,
+  Small,
+  TryLink,
+} from "@/components/ui/controls";
 import { extLit } from "../model";
 import { CAT } from "../parts";
 import { scenarioCruise, scenarioRamp, useDA40 } from "../store";
 import { SYS } from "../systems";
+import { ALT_FAILS } from "./electrical";
 
 export function Overview() {
   const theme = useView((x) => x.theme);
@@ -21,22 +35,22 @@ export function Overview() {
         failures in the panel. Everything is linked — pull a breaker and the bus, the load, the displays, the
         annunciations and the 3D model respond.
       </p>
+      <TryLink sys="electrical" mark={ALT_FAILS} title="Try it: fail the alternator">
+        Opens Electrical with the engine running and the alternator failed. Watch the buses, the loads and the
+        annunciations respond.
+      </TryLink>
       <H3>Start from</H3>
       <Ctl>
         <BtnRow>
-          <button type="button" className="btn" onClick={scenarioCruise}>
-            Cruise · 4,500 ft
-          </button>
-          <button
-            type="button"
-            className="btn"
+          <ScenarioButton onClick={scenarioCruise}>Cruise · 4,500 ft</ScenarioButton>
+          <ScenarioButton
             onClick={() => {
               scenarioRamp();
               selectSys("engine");
             }}
           >
             Cold &amp; dark on the ramp → start
-          </button>
+          </ScenarioButton>
         </BtnRow>
         <Readouts
           items={[
@@ -63,19 +77,22 @@ export function Overview() {
           ["Speeds", "VNE 178 · VNO 129 · VFE 108 / 91 · VA 111 KIAS (1,200 kg)"],
         ]}
       />
-      <H3>Systems</H3>
-      <div className="overview-grid">
-        {SYS.slice(1).map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
-            onClick={() => selectSys(s.id)}
-          >
-            <b>{s.name}</b>
-            <span>{s.blurb}</span>
-          </button>
-        ))}
+      {/* phones: the rail is a strip of chips, so the systems are listed here too, with their blurbs */}
+      <div className="overview-systems">
+        <H3>Systems</H3>
+        <div className="overview-grid">
+          {SYS.slice(1).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
+              onClick={() => selectSys(s.id)}
+            >
+              <b>{s.name}</b>
+              <span>{s.blurb}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <p className="disc">
         Unofficial study aid. Built from the Diamond DA 40 Airplane Flight Manual Doc. No. 6.01.01-E Rev. 8 (Section 7,

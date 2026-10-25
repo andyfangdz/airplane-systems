@@ -25,7 +25,7 @@ for (const [name, viewport] of Object.entries({
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${baseURL}/components/piston-cylinder`);
-    await expect(page.getByRole("heading", { name: "Inside the cylinder" })).toBeVisible();
+    await expect(page.getByText("Follow one cylinder through two crankshaft revolutions")).toBeVisible();
     await expect(page.locator("canvas")).toBeVisible();
     const angle = page.locator("#piston-angle");
     await page.getByRole("button", { name: "Reset to firing TDC" }).click();

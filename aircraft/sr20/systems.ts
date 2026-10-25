@@ -27,8 +27,8 @@ export const SYS: SysDef[] = [
     name: "Flight controls",
     pg: "7-6",
     cam: [
-      [-7, 4.8, 7.5],
-      [-0.6, -0.1, 0],
+      [-7.57, 5.39, 9.8],
+      [-0.4, -0.1, 1.4],
     ],
     blurb: "Cables, push rods, spring trim",
   },
@@ -107,8 +107,8 @@ export const SYS: SysDef[] = [
     name: "Lighting",
     pg: "7-59",
     cam: [
-      [-4.5, 3.4, 8.5],
-      [0.6, 0, 0],
+      [-6.33, 4.42, 12.65],
+      [0.3, 0, 1.6],
     ],
     blurb: "Wingtip, landing, ice and cabin lights",
   },
@@ -117,8 +117,8 @@ export const SYS: SysDef[] = [
     name: "Environmental",
     pg: "7-62",
     cam: [
-      [4.4, 1.8, 3.8],
-      [2.0, -0.2, 0],
+      [4.84, 2.45, 5.13],
+      [1.6, -0.25, 0],
     ],
     blurb: "Heat, fresh air, optional A/C",
   },

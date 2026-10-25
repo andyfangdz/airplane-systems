@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { Vec3 } from "./math";
 
 import { AIRCRAFT_IDS, type AircraftId } from "./aircraft-ids";
@@ -108,3 +109,30 @@ const DARK: Palette = {
 
 export const palette = (t: Theme) => (t === "dark" ? DARK : LIGHT);
 export const sysColor = (id: SysId, t: Theme) => palette(t)[SYS_COLOR[id]];
+
+/** WCAG relative luminance of a #rrggbb colour. */
+export function luminance(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map((v) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+/** WCAG contrast ratio between two #rrggbb colours (1 to 21). */
+export function contrast(a: string, b: string) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** Near-black text, for a label on a light fill. */
+export const ON_LIGHT = "#0B1117";
+/** Text for a label on a fill of colour `c`: white or near-black, whichever contrasts more. */
+export const onColor = (c: string) => (contrast(c, "#FFFFFF") >= contrast(c, ON_LIGHT) ? "#FFFFFF" : ON_LIGHT);
+/**
+ * A system's colour as CSS variables: `--c` for swatches, borders and selected fills, `--on-c` for text on that fill.
+ * Set them together, so a selected button never pairs one system's fill with another's text colour.
+ */
+export const sysVars = (id: SysId, t: Theme) => {
+  const c = sysColor(id, t);
+  return { "--c": c, "--on-c": onColor(c) } as CSSProperties;
+};
