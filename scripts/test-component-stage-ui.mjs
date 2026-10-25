@@ -127,7 +127,17 @@ test("a live monitor caption preserves an explored camera, while Reset view fits
   await page.waitForTimeout(600);
   const withCaption = await pose();
   expect(Math.max(...explored.map((v, i) => Math.abs(v - withCaption[i])))).toBeLessThan(0.001);
+  // A production event can return before the next rendered frame. Do not accept the old, already-stable pose.
+  await page.evaluate(() => {
+    window.__stageCameraProbe.stable = 0;
+  });
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
+  await expect
+    .poll(async () => {
+      const current = await pose();
+      return Math.max(...current.map((v, i) => Math.abs(v - explored[i])));
+    })
+    .toBeGreaterThan(0.05);
   await page.waitForFunction(() => window.__stageCameraProbe.stable > 10);
   const reset = await pose();
   expect(Math.max(...reset.map((v, i) => Math.abs(v - explored[i])))).toBeGreaterThan(0.05);
