@@ -56,6 +56,7 @@ const views = [
   ...new Set(
     args.flatMap((a) => {
       const [ac, sys] = a.replace(/^\/+/, "").split("/");
+      if (ac === "components" && sys === "pitot-static") return [a];
       if (ac === "all") return ids.flatMap((id) => systemsOf(id).map((s) => `${id}/${s}`));
       if (!ids.includes(ac)) throw new Error(`Unknown airplane "${ac}" (one of ${ids.join(", ")}, or "all")`);
       if (sys) {

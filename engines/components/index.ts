@@ -1,5 +1,5 @@
 /**
- * Standalone component simulations (`/components/<id>`): one engine accessory on its own, bigger than it is drawn on
+ * Standalone component simulations (`/components/<id>`): one aircraft system or engine accessory on its own, bigger than it is drawn on
  * an engine, with its own controls. Each folder here holds a component's model and its SOURCES.md; its page is in
  * `components/engine/<id>/`, loaded by `components/engine/ComponentPage.tsx`, whose map is keyed by `ComponentId` so
  * the two can't drift (and `tests/component-pages.test.ts` checks it). This list is the picker order.
@@ -17,6 +17,12 @@ export interface ComponentEntry {
 }
 
 export const COMPONENTS = [
+  {
+    id: "pitot-static",
+    name: "Pitot-static system",
+    sub: "Pressure instruments · alternate static",
+    lead: "Explore pitot and static pressures, airspeed, altitude and vertical speed, alternate static, icing, leaks and trapped-pressure failures.",
+  },
   {
     id: "piston-cylinder",
     name: "Piston cylinder",
