@@ -45,6 +45,10 @@ canvases cap touch-only rendering at 1.5 DPR (44% fewer drawing-buffer pixels th
 native screen resolution. Run `npx playwright test --project=iphone-webkit` for iPhone rotation, touch controls,
 picker bounds and scene-resolution regressions.
 
+Electrical power-flow diagrams stay expanded and stick while the following notes and breakers scroll. Their scroll
+area preserves diagram text size and leaves room for controls. On narrow electrical pages, the 3D model scrolls away
+so the diagram can serve as the sticky reference without covering the breakers.
+
 For iPhone Duo, follow [Apple's adaptive-layout guidance](https://developer.apple.com/videos/play/tech-talks/111466/):
 keep the same controls and study state as the available space changes. The outer display and Split View stack the
 scene and details; both inner-display orientations show them side by side. The horizontal header's toggle stays in

@@ -373,6 +373,107 @@ test("phone reading space keeps the model visible and restores its previous size
   await page.screenshot({ path: ".shots/phone-study-navigation.png" });
 });
 
+test("power-flow diagrams stay open and pinned while breaker controls remain reachable", async ({ page, isMobile }) => {
+  const activate = (button) => (isMobile ? button.tap() : button.click());
+  await activate(page.locator(".syslist").getByRole("button", { name: /Electrical/ }));
+  const flow = page.locator(".power-flow");
+  const diagram = flow.locator("svg.wiring");
+  const region = flow.getByRole("region", { name: "Power distribution (Figure 7-7) diagram" });
+  const breaker = page.locator(".bus button.chip").filter({ hasText: "STDBY BATT" });
+  await expect(diagram).toBeVisible();
+  expect(await diagram.evaluate((svg) => !!svg.closest("details"))).toBe(false);
+  await expect(region).toHaveAttribute("tabindex", "0");
+  const original = await diagram.elementHandle();
+  const scroll = (amount) =>
+    page.evaluate((delta) => {
+      const panel = document.querySelector(".panel");
+      if (getComputedStyle(panel).overflowY === "auto") panel.scrollTop += delta;
+      else window.scrollBy(0, delta);
+    }, amount);
+  const reachable = (button) =>
+    button.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return node.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+    });
+
+  for (const viewport of isMobile
+    ? [
+        { width: 382, height: 580 },
+        { width: 594, height: 368 },
+      ]
+    : [
+        { width: 669, height: 867 },
+        { width: 951, height: 500 },
+      ]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => {
+      scrollTo(0, 0);
+      document.querySelector(".panel").scrollTop = 0;
+    });
+    const inset = await flow.evaluate((node) => parseFloat(getComputedStyle(node).top));
+    const origin = isMobile ? 0 : (await page.locator(".panel").boundingBox()).y;
+    const pinnedTop = origin + inset;
+    await scroll((await flow.boundingBox()).y - pinnedTop + 80);
+    await expect.poll(async () => Math.abs((await flow.boundingBox()).y - pinnedTop)).toBeLessThanOrEqual(1);
+    await scroll(120);
+    expect((await flow.boundingBox()).y).toBeCloseTo(pinnedTop, 0);
+    if (isMobile) expect((await page.locator(".stage").boundingBox()).y).toBeLessThan(0);
+    const pinned = await flow.boundingBox();
+    expect(viewport.height - pinned.y - pinned.height).toBeGreaterThanOrEqual(52);
+    const svg = await diagram.boundingBox();
+    expect(svg.height / svg.width).toBeCloseTo(394 / 340, 2);
+    // The diagram stays readable at its natural aspect ratio; a short screen scrolls within its labeled region.
+    await region.evaluate((node) => {
+      node.scrollTop = node.scrollHeight;
+    });
+    expect((await flow.boundingBox()).y).toBeCloseTo(pinnedTop, 0);
+    await region.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+    await scroll((await breaker.boundingBox()).y - (pinned.y + pinned.height + 12));
+    const control = await breaker.boundingBox();
+    expect(control.y).toBeGreaterThanOrEqual(pinned.y + pinned.height);
+    expect(control.y + control.height).toBeLessThanOrEqual(viewport.height);
+    expect(await reachable(breaker)).toBe(true);
+    for (const name of ["Hide systems panel", "Hide details panel"]) {
+      const toggle = page.getByRole("button", { name, exact: true });
+      if (isMobile && name === "Hide details panel") continue; // The phone details header scrolls above the diagram.
+      expect(await reachable(toggle), name).toBe(true);
+    }
+    await activate(breaker);
+    await expect(breaker).toHaveAttribute("aria-pressed", "true");
+    await expect(diagram).toContainText("STDBY BATT ⏏ out");
+    expect((await flow.boundingBox()).y).toBeCloseTo(pinnedTop, 0);
+    await activate(breaker);
+    await expect(breaker).toHaveAttribute("aria-pressed", "false");
+    await expect(diagram).not.toContainText("STDBY BATT ⏏ out");
+    await breaker.focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const button = document.activeElement;
+          const box = button.getBoundingClientRect();
+          const sticky = document.querySelector(".power-flow").getBoundingClientRect();
+          return (
+            button.matches(".chip") &&
+            box.top >= sticky.bottom &&
+            box.bottom <= innerHeight &&
+            button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+          );
+        }),
+      )
+      .toBe(true);
+    expect(await original.evaluate((svg) => svg.isConnected && svg === document.querySelector(".power-flow svg"))).toBe(
+      true,
+    );
+    await page.screenshot({ path: `.shots/power-flow-${viewport.width}x${viewport.height}-pinned.png` });
+    await scroll(-100_000);
+    expect((await flow.boundingBox()).y).toBeGreaterThan(pinnedTop + 20);
+    expect(await page.getByRole("button", { name: "BAT", exact: true }).getAttribute("aria-pressed")).toBe("true");
+  }
+});
+
 test("skip to controls opens a collapsed panel and moves keyboard focus", async ({ page }) => {
   await page.getByRole("button", { name: "Hide details panel", exact: true }).click();
   const skip = page.getByRole("link", { name: "Skip to system controls" });

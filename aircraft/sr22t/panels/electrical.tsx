@@ -1,4 +1,5 @@
 "use client";
+import { PowerFlow } from "@/components/ui/PowerFlow";
 import { StudySection } from "@/components/ui/StudySection";
 import { busTable, fuelAvail } from "../model";
 import { useSR22T } from "../store";
@@ -32,32 +33,31 @@ export function Electrical() {
         Currents, battery voltages and diode drop are illustrative. ALT 1 regulates M1 to 28 V and ALT 2 regulates M2 to
         28.75 V (SR22T POH 13772-007 7-47). BAT 1 has no published endurance and is not depleted by the timeline.
       </Small>
-      <StudySection title="How power flows">
-        <H3>Power distribution (Figure 7-10)</H3>
+      <PowerFlow title="Power distribution (Figure 7-10)">
         <PowerDiagram
           s={s}
           E={E}
           digits={2}
           label="SR22T power distribution single-line diagram after POH Figure 7-10"
         />
-        <Small>
-          Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them
-          are on the circuit-breaker panel, the main and A/C buses grouped by the distribution bus that feeds them. With
-          both alternators failed BAT 1 feeds the Ess Dist Bus directly; with BAT 1 gone too, BAT 2 feeds ESS BUS 1, and
-          ESS BUS 2 back through ESSENTIAL POWER (POH 7-50; Fig 7-10 on 7-48). Pull ESSENTIAL POWER, BAT 2 or AVIONICS
-          below, or flip a switch, to watch it change.
-        </Small>
-        <H3>Battery endurance (POH 3-17)</H3>
-        <Facts
-          rows={[
-            [
-              "BAT 2 alone",
-              "With ALT 1, ALT 2 and BAT 1 off, BAT 2 keeps the PFD operational for approximately 30 minutes (POH 3-17)",
-            ],
-            ["BAT 1", "No published endurance; this model does not deplete BAT 1 on a timer"],
-          ]}
-        />
-      </StudySection>
+      </PowerFlow>
+      <Small>
+        Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them
+        are on the circuit-breaker panel, the main and A/C buses grouped by the distribution bus that feeds them. With
+        both alternators failed BAT 1 feeds the Ess Dist Bus directly; with BAT 1 gone too, BAT 2 feeds ESS BUS 1, and
+        ESS BUS 2 back through ESSENTIAL POWER (POH 7-50; Fig 7-10 on 7-48). Pull ESSENTIAL POWER, BAT 2 or AVIONICS
+        below, or flip a switch, to watch it change.
+      </Small>
+      <H3>Battery endurance (POH 3-17)</H3>
+      <Facts
+        rows={[
+          [
+            "BAT 2 alone",
+            "With ALT 1, ALT 2 and BAT 1 off, BAT 2 keeps the PFD operational for approximately 30 minutes (POH 3-17)",
+          ],
+          ["BAT 1", "No published endurance; this model does not deplete BAT 1 on a timer"],
+        ]}
+      />
       <H3>Circuit-breaker buses</H3>
       <Small>
         Tap a breaker to pull it (white collar showing) or reset it. Pulled breakers remove that load everywhere in the

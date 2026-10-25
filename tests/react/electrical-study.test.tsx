@@ -95,7 +95,7 @@ function ReadingHarness() {
   return (
     <div className="panel">
       <ScenarioButton onClick={() => {}}>Normal cruise</ScenarioButton>
-      <StudySection title="How power flows">
+      <StudySection title="Reference and source notes">
         <p>Original cited explanation.</p>
       </StudySection>
     </div>
@@ -108,7 +108,7 @@ test("opening a reference disclosure preserves the loaded scenario and its conte
   fireEvent.click(scenario);
   const details = container.querySelector("details")!;
   expect(details.open).toBe(false);
-  fireEvent.click(screen.getByText("How power flows"));
+  fireEvent.click(screen.getByText("Reference and source notes"));
   expect(details.open).toBe(true);
   expect(screen.getByText("Original cited explanation.")).toBeTruthy();
   expect(scenario.getAttribute("aria-pressed")).toBe("true");

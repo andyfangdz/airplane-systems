@@ -1,4 +1,5 @@
 "use client";
+import { PowerFlow } from "@/components/ui/PowerFlow";
 import { StudySection } from "@/components/ui/StudySection";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Caution, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Small } from "@/components/ui/controls";
@@ -99,10 +100,9 @@ export function Electrical() {
           on, MASTER (ALT only) OFF, reduce load, land as soon as practical (POH 3-17 – 3-19).
         </Caution>
       )}
-      <StudySection title="How power flows">
-        <H3>Power distribution (Figure 7-7)</H3>
+      <PowerFlow title="Power distribution (Figure 7-7)">
         <Nav3Diagram e={e} E={E} />
-      </StudySection>
+      </PowerFlow>
       <H3>Circuit breakers (Figure 7-7 Sheet 2)</H3>
       <Small>
         Tap an ESS or AVN breaker to pull it (white collar) or reset it. ELECTRICAL BUS 1, BUS 2 and CROSSFEED breakers
