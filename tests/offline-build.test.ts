@@ -251,7 +251,9 @@ describe("Next adapter offline publication", () => {
     for (const previous of original) expect(published.get(previous.pathname)).toEqual(previous);
     for (const file of manifest.files.filter((file) => file.url.startsWith("/_next/static/offline/"))) {
       const output = published.get(file.url)!;
-      expect(output).toMatchObject({ type: "STATIC_FILE", pathname: file.url, immutableHash: file.sha256 });
+      expect(output).toMatchObject({ type: "STATIC_FILE", pathname: file.url });
+      // Preserve SHA-256 verification without registering that digest as a platform-specific immutable hash.
+      expect(output.immutableHash).toBeUndefined();
       expect(hash(await readFile(output.filePath))).toBe(file.sha256);
     }
     for (const [url, expected] of [

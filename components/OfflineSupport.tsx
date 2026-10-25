@@ -100,10 +100,19 @@ export function OfflineSupport() {
     const watch = (worker: ServiceWorker | null) => {
       if (!worker || watched.has(worker) || worker.scriptURL !== workerUrl) return;
       watched.add(worker);
+      let installed = ["installed", "activating", "activated"].includes(worker.state);
       const changed = () => {
         if (disposed) return;
-        if (worker.state === "activated" || worker.state === "installed") query(worker);
-        if (worker.state === "redundant" && !registration?.active) useOffline.setState({ state: "error" });
+        if (worker.state === "activated" || worker.state === "installed") {
+          installed = true;
+          query(worker);
+        }
+        if (worker.state === "redundant") {
+          if (!registration?.active) useOffline.setState({ state: "error" });
+          // Failed installation can clear registration.installing before its final error message arrives.
+          // Installed workers also become redundant when replaced; only an unfinished installer failed here.
+          else if (!installed) useOffline.setState({ update: "error" });
+        }
       };
       worker.addEventListener("statechange", changed);
       cleanup.push(() => worker.removeEventListener("statechange", changed));

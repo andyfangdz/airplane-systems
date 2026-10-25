@@ -77,17 +77,23 @@ test("Retry recovers failed installs, newer updates and evicted active packs wit
 
   // A newer download fails. The existing ready worker stays active, and register() returns it unchanged.
   const failed = new Worker();
-  failed.status.state = "error";
   await act(async () => {
     registration.installing = failed;
     registration.dispatchEvent(new Event("updatefound"));
   });
-  await screen.findByText("The saved version is still available. Retry the update online.");
+  await screen.findByText("Downloading an update…");
   await act(async () => {
+    failed.status.state = "error";
     failed.state = "redundant";
     registration.installing = null;
     failed.dispatchEvent(new Event("statechange"));
+    // The worker's final broadcast arrives after it is no longer registration.installing.
+    const message = new Event("message");
+    Object.defineProperties(message, { source: { value: failed }, data: { value: { ...failed.status } } });
+    serviceWorker.dispatchEvent(message);
   });
+  await screen.findByText("The saved version is still available. Retry the update online.");
+  expect(screen.getByText("Available offline")).toBeTruthy();
   registration.update.mockImplementationOnce(async () => {
     const interrupted = new Worker();
     registration.installing = interrupted;
@@ -128,16 +134,28 @@ test("Retry recovers failed installs, newer updates and evicted active packs wit
   expect(registration.active).toBe(first);
   expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
 
+  // Retiring the old active worker after a successful activation is not an update failure.
+  await act(async () => {
+    registration.active = replacement;
+    registration.waiting = null;
+    replacement.state = "activated";
+    replacement.dispatchEvent(new Event("statechange"));
+    first.state = "redundant";
+    first.dispatchEvent(new Event("statechange"));
+  });
+  expect(screen.getByText("Available offline")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+
   // Cache eviction is repaired on the active worker, without another update check or forced activation.
   await act(async () => {
-    first.status.state = "error";
+    replacement.status.state = "error";
     const message = new Event("message");
-    Object.defineProperties(message, { source: { value: first }, data: { value: { ...first.status } } });
+    Object.defineProperties(message, { source: { value: replacement }, data: { value: { ...replacement.status } } });
     serviceWorker.dispatchEvent(message);
   });
   await screen.findByText("Offline download interrupted");
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  await waitFor(() => expect(first.postMessage).toHaveBeenCalledWith({ type: "DOWNLOAD_OFFLINE" }));
+  await waitFor(() => expect(replacement.postMessage).toHaveBeenCalledWith({ type: "DOWNLOAD_OFFLINE" }));
   expect(registration.update).toHaveBeenCalledTimes(2);
-  expect(registration.active).toBe(first);
+  expect(registration.active).toBe(replacement);
 });

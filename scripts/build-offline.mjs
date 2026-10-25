@@ -267,7 +267,9 @@ export async function buildOffline(
         id: file.url,
         pathname: file.url,
         filePath: join(staticExport ? join(root, "out/_next/static") : join(distDir, "static"), file.url.slice(14)),
-        immutableHash: file.sha256,
+        // immutableHash opts into the platform's bundler hash protocol, not our SHA-256 integrity format.
+        // Publish these versioned files normally; the adapter's explicit cache rule makes them immutable.
+        immutableHash: undefined,
       });
     }
     for (const pathname of ["/sw.js", "/offline-manifest.json"])
