@@ -1,6 +1,6 @@
 "use client";
 /**
- * Welcome tour: a few cards that spotlight the parts of the page in turn. The page stays usable underneath (only the card
+ * First-visit choices, followed by an optional welcome tour: a few cards that spotlight the parts of the page in turn. The page stays usable underneath (only the card
  * takes pointer input), so visitors can try each thing as it is pointed out. Shown once on a first visit; skipping or
  * finishing it is remembered, and the toolbar's ? button replays it.
  */
@@ -8,6 +8,8 @@ import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { create } from "zustand";
 import { autoUpdate, computePosition, flip, offset, shift, type Placement } from "@floating-ui/react";
 import { narrowLayout, useView } from "@/lib/view";
+import { aircraft } from "@/lib/fleet";
+import { showStudyExample } from "./ui/controls";
 
 const DONE_KEY = "tourDone";
 
@@ -21,11 +23,11 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    title: "Welcome aboard",
+    title: "Start with the aircraft",
     body: (
       <>
-        Interactive 3D study models of airplane systems, built from POH/AFM Section 7. This quick tour shows you around,
-        and everything stays usable while it&apos;s open, so try things as you go.
+        Explore a system, see what changes when a component fails, or follow a guided preflight. Choose where to begin;
+        the interface tour is here whenever you need it.
       </>
     ),
   },
@@ -102,7 +104,7 @@ const STEPS: Step[] = [
 ];
 
 const useTour = create<{ step: number | null }>(() => ({ step: null }));
-export const startTour = () => useTour.setState({ step: 0 });
+export const startTour = () => useTour.setState({ step: 1 });
 /** Close the tour (skipped or finished) and remember it, so it isn't shown again on the next visit. */
 function endTour() {
   useTour.setState({ step: null });
@@ -133,7 +135,7 @@ export function Tour() {
     try {
       done = localStorage.getItem(DONE_KEY);
     } catch {}
-    if (done !== "1") startTour();
+    if (done !== "1") useTour.setState({ step: 0 });
   }, []);
 
   const s = step === null ? null : STEPS[step];
@@ -243,28 +245,63 @@ export function Tour() {
     <div className={`tour${s.sel ? "" : " tour-dim"}`}>
       <div ref={spot} className="tour-spot" hidden />
       <div ref={card} className="tour-card" role="dialog" aria-labelledby="tour-title" aria-describedby="tour-body">
-        <div className="tour-count">
-          {step + 1} of {STEPS.length}
-        </div>
+        {step > 0 && (
+          <div className="tour-count">
+            {step} of {STEPS.length - 1}
+          </div>
+        )}
         <h2 id="tour-title">{s.title}</h2>
         <p id="tour-body">{s.body}</p>
-        <div className="tour-dots" aria-hidden="true">
-          {STEPS.map((_, i) => (
-            <i key={i} className={i === step ? "on" : ""} />
-          ))}
-        </div>
+        {step === 0 ? (
+          <div className="welcome-choices">
+            <button ref={next} type="button" className="btn primary" onClick={endTour}>
+              Explore aircraft
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                endTour();
+                showStudyExample();
+              }}
+            >
+              Find a quick experiment
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                endTour();
+                aircraft(useView.getState().ac).walk?.open();
+              }}
+            >
+              Start preflight
+            </button>
+          </div>
+        ) : (
+          <div className="tour-dots" aria-hidden="true">
+            {STEPS.slice(1).map((_, i) => (
+              <i key={i} className={i + 1 === step ? "on" : ""} />
+            ))}
+          </div>
+        )}
         <div className="tour-actions">
-          {!last && (
+          {!last && step > 0 && (
             <button type="button" className="tour-skip" onClick={endTour}>
               Skip tour
             </button>
           )}
-          {step > 0 && (
+          {step > 1 && (
             <button type="button" className="btn" onClick={() => go(step - 1)}>
               Back
             </button>
           )}
-          <button ref={next} type="button" className="btn primary" onClick={() => go(step + 1)}>
+          <button
+            ref={step > 0 ? next : undefined}
+            type="button"
+            className={step === 0 ? "tour-skip" : "btn primary"}
+            onClick={() => go(step + 1)}
+          >
             {step === 0 ? "Show me around" : last ? "Start exploring" : "Next"}
           </button>
         </div>

@@ -2,7 +2,7 @@
  * Walk-around spotlight ("dim everything else"; POH 13772-007 4-4 – 4-9): while an item is spotted,
  * its parts are highlighted and every other part, surface and skin is dimmed, including the rest of the item's own system
  * and the other side's instance of a shared name; the system stays visible in X-ray at the dimmed level. With no spot,
- * parts, surfaces and skins look exactly as before the walk-around existed.
+ * parts, surfaces and skins regain their normal system appearance, including the higher-contrast X-ray study materials.
  */
 import * as THREE from "three";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -21,6 +21,7 @@ import { sysColor, type Chan, type SysId } from "@/lib/systems";
 import { useView } from "@/lib/view";
 import { animatePart } from "@/lib/anims";
 import type { PartAppearance } from "@/lib/scene/part-animations";
+import { studyMaterial } from "@/lib/scene/study-materials";
 
 const frame = vi.hoisted(() => ({ cbs: [] as ((s: unknown) => void)[], seen: [] as { active: boolean }[] }));
 vi.mock("react", async (original) => ({
@@ -34,6 +35,8 @@ vi.mock("@react-three/fiber", () => ({
   useFrame: (cb: (s: unknown) => void) => frame.cbs.push(cb),
   useThree: () => null,
 }));
+// This direct-render harness exercises spotlight policy; OS preference subscriptions have their own React test.
+vi.mock("@/lib/useReducedMotion", () => ({ useReducedMotion: () => false }));
 vi.mock("@/components/scene/PartAnimations", () => ({
   usePartAnimation: (ref: { current: THREE.Mesh }, spec: PartSpec, appearance: PartAppearance) =>
     frame.cbs.push(() => animatePart(ref.current, 0, spec, appearance)),
@@ -222,14 +225,14 @@ describe("tanks, fuel lines and linkages dim with the rest (7c: fuel drains)", (
     walkView("fuel", null);
     useView.setState({ xray });
     expect(tankLook()).toEqual([0.14, 0.62]);
-    expect(lineLook()).toEqual({ pipe: mats(fuel()).on, dots: true });
+    expect(lineLook()).toEqual({ pipe: xray ? studyMaterial(fuel(), theme()) : mats(fuel()).on, dots: true });
     expect(cableLook()).toBe(mats("#8C959C").on);
   });
 });
 
-describe("with no spot, everything looks as it did before the walk-around", () => {
-  /** Part material and activity as drawn before the walk-around existed (no spot). */
-  function before(p: PartSpec, sys: SysId, cf: Chan | "all") {
+describe("clearing a spot restores the normal system appearance", () => {
+  /** Normal parts use the study material only in the selected X-ray system; overview and inactive parts retain theirs. */
+  function normalAppearance(p: PartSpec, sys: SysId, cf: Chan | "all") {
     const color = p.color || sysColor(p.sys[0], theme());
     const all = sys === "overview";
     const chanDim = sys === "controls" && cf !== "all" && !p.chan?.includes(cf);
@@ -243,7 +246,11 @@ describe("with no spot, everything looks as it did before the walk-around", () =
         ? all
           ? shellMat
           : ghostMat(sysColor(p.sys[0], theme()))
-        : mats(color)[act ? "on" : "dim"];
+        : act
+          ? all
+            ? mats(color).on
+            : studyMaterial(color, theme())
+          : mats(color).dim;
     return { material, active: act };
   }
   const views: [SysId, Chan | "all"][] = [
@@ -253,10 +260,35 @@ describe("with no spot, everything looks as it did before the walk-around", () =
     ["controls", "aileron"],
   ];
   for (const [sys, cf] of views)
-    it(`every part in the ${sys} view${cf === "all" ? "" : ` (${cf} channel)`}`, () => {
-      useView.setState({ ac: "sr22t", sys, spot: null, xray: true, labels: false, focus: null, ctrlFocus: cf });
-      for (const p of CAT.parts) expect(drawPart(p), p.id).toEqual(before(p, sys, cf));
-    });
+    it.each(["light", "dark"] as const)(
+      `every part in the ${sys} view${cf === "all" ? "" : ` (${cf} channel)`}, %s`,
+      (theme) => {
+        useView.setState({
+          ac: "sr22t",
+          sys,
+          spot: null,
+          xray: true,
+          labels: false,
+          focus: null,
+          ctrlFocus: cf,
+          theme,
+        });
+        const before = CAT.parts.map((p) => {
+          const drawn = drawPart(p);
+          expect(drawn, p.id).toEqual(normalAppearance(p, sys, cf));
+          return drawn;
+        });
+        useView.setState({ spot: { names: ["Main wheel"], side: 1 } });
+        const spotted = CAT.parts.map(drawPart);
+        expect(spotted.some((drawn, i) => drawn.material !== before[i].material)).toBe(true);
+        useView.setState({ spot: null });
+        CAT.parts.forEach((p, i) => {
+          const restored = drawPart(p);
+          expect(restored.material, p.id).toBe(before[i].material);
+          expect(restored.active, p.id).toBe(before[i].active);
+        });
+      },
+    );
 
   it("control surfaces and skins", () => {
     useView.setState({ ac: "sr22t", sys: "controls", spot: null, xray: true, ctrlFocus: "all" });

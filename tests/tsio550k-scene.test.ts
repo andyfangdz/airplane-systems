@@ -616,10 +616,10 @@ describe("TSIO-550-K magneto drive train (M-18 2-2.2; AMM Fig 74-20-1 detail A)"
 });
 
 describe("TSIO-550-K oil filter label, seen from each side", () => {
-  // the page's model (EngineScene.tsx EngineModel) as it opens: X-ray on, every group shown, propeller on
+  // The initial Engine internals view: X-ray on, every engine group shown, propeller hidden.
   async function model() {
     const sim = simFor(S);
-    expect(sim.useUi.getState().view).toMatchObject({ xray: true, prop: true, hidden: [] });
+    expect(sim.useUi.getState().view).toMatchObject({ xray: true, prop: false, hidden: [] });
     const mats = makeMats();
     for (const k of XRAY_MATS) mats[k].opacity = k === "barrel" || k === "head" ? 0.28 : 0.16;
     const p = { sim, d, mats };
@@ -1624,14 +1624,28 @@ describe("TSIO-550-K induction and fuel injection (POH 7-37, 7-38; M-18 2-1)", (
     Object.values(g).forEach((x) => x instanceof THREE.BufferGeometry && x.dispose());
   });
 
-  test("the oil cooler, fuel pump, throttle body and alternate air door labels hide with their groups", () => {
+  test("all accessory labels hide with their part groups", () => {
     const shown = (hidden: string[]) => shownLabels(L.labels(d, S), hidden).map(([t]) => t);
-    const mine = ["Oil cooler", "Fuel pump", "Throttle body", "Alternate air door"];
+    const mine = [
+      "Magnetos",
+      "Oil filter",
+      "Oil cooler",
+      "Fuel manifold",
+      "Fuel pump",
+      "Starter",
+      "ALT 1",
+      "ALT 2",
+      "Governor",
+      "Throttle body",
+      "Alternate air door",
+    ];
     expect(shown([])).toEqual(expect.arrayContaining(mine));
     for (const [group, gone] of [
-      ["oil", ["Oil cooler"]],
-      ["fuel", ["Fuel pump"]],
+      ["oil", ["Oil filter", "Oil cooler"]],
+      ["fuel", ["Fuel manifold", "Fuel pump"]],
       ["induction", ["Throttle body", "Alternate air door"]],
+      ["ignition", ["Magnetos"]],
+      ["drives", ["Starter", "ALT 1", "ALT 2", "Governor"]],
     ] as const) {
       const left = shown([group]);
       for (const t of mine) expect(left.includes(t), `${t} with ${group} hidden`).toBe(!gone.includes(t as never));

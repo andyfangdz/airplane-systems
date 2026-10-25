@@ -9,6 +9,7 @@ import { useFrame } from "@react-three/fiber";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { CylinderDef, EngineSpec } from "@/engines/types";
+import type { XRotationEnvelope } from "@/lib/component-stage";
 import type { EngineSim } from "../store";
 import {
   bank,
@@ -1343,8 +1344,19 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
     return () => originals.forEach((raycast, mesh) => (mesh.raycast = raycast));
   }, [sim]);
   const n = spec.propeller.blades;
+  // The box blade/tip can pitch about y as well as spin about x; use its full x/z reach at any pitch, not one frame.
+  const bladeReach = Math.hypot(0.04 + 0.0145 / 2, 0.131 / 2);
+  const envelope: XRotationEnvelope = {
+    minX: -bladeReach,
+    maxX: 0.26, // spinner cone's nose
+    radius: Math.hypot((spec.propeller.diameterIn * IN) / 2, bladeReach),
+  };
   return (
-    <group ref={prop} position={[d.flangeX + 0.008 + layoutFor(spec).propSpacer, 0, 0]}>
+    <group
+      ref={prop}
+      position={[d.flangeX + 0.008 + layoutFor(spec).propSpacer, 0, 0]}
+      userData={{ cameraRotationEnvelope: envelope }}
+    >
       <P name="Spinner" geometry={geo.spinner} material={mats.spinner} />
       <P name="Spinner bulkhead" geometry={geo.bulkhead} material={mats.spinner} />
       {Array.from({ length: n }, (_, k) => (

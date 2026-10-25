@@ -1,4 +1,5 @@
 "use client";
+import { StudySection } from "@/components/ui/StudySection";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Caution, Ctl, Facts, H3, Notes, PartsList, Readouts, Small } from "@/components/ui/controls";
 import { NAV3_BUSES } from "../../cessna/electrical";
@@ -79,8 +80,10 @@ export function Electrical() {
           as soon as practical (POH 3-19).
         </Caution>
       )}
-      <H3>Power distribution (Figure 7-7)</H3>
-      <Nav3Diagram e={e} E={E} />
+      <StudySection title="How power flows">
+        <H3>Power distribution (Figure 7-7)</H3>
+        <Nav3Diagram e={e} E={E} />
+      </StudySection>
       <H3>Circuit breakers</H3>
       <Small>
         Tap an ESS or AVN breaker to pull it (white collar) or reset it. ELECTRICAL BUS 1, BUS 2 and CROSSFEED breakers
@@ -89,34 +92,37 @@ export function Electrical() {
       </Small>
       <BreakerBoard breakers={BREAKERS} buses={NAV3_BUSES} E={E} cb={e.cb} up={upE} />
       <Nav3TripButtons cb={e.cb} up={upE} />
-      <H3>Monitoring (POH 7-53 – 7-56)</H3>
-      <Facts
-        rows={[
-          ["M BUS volts", "Measured at the WARN breaker (CROSSFEED BUS); ~28 V normal, 27–29 V at 1,800 RPM"],
-          ["E BUS volts", "Measured at NAV 1 ENG (ESSENTIAL BUS)"],
-          ["VOLTS red", "Above 32.0 V or below 24.5 V"],
-          ["M BATT amps", "White above −1.5 A; < 5 A charge after 30 min of cruise"],
-          ["S BATT amps", "+ white charging, − amber discharging (normally < 4 A)"],
-          ["LOW VOLTS", "Red: main bus below 24.5 V (ACU signal)"],
-          ["HIGH VOLTS", "Red: bus above 32.0 V — the ACU should have tripped ALT FIELD at ~31.75 V"],
-          ["M BATT > 40 A", "Same emergency checklist as HIGH VOLTS: MASTER (ALT only) OFF, shed load (POH 3-17)"],
-          ["STBY BATT", "Amber: standby discharging > 0.5 A for > 10 s"],
-        ]}
-      />
+      <StudySection title="Reference and source notes">
+        <H3>Monitoring (POH 7-53 – 7-56)</H3>
+        <Facts
+          rows={[
+            ["M BUS volts", "Measured at the WARN breaker (CROSSFEED BUS); ~28 V normal, 27–29 V at 1,800 RPM"],
+            ["E BUS volts", "Measured at NAV 1 ENG (ESSENTIAL BUS)"],
+            ["VOLTS red", "Above 32.0 V or below 24.5 V"],
+            ["M BATT amps", "White above −1.5 A; < 5 A charge after 30 min of cruise"],
+            ["S BATT amps", "+ white charging, − amber discharging (normally < 4 A)"],
+            ["LOW VOLTS", "Red: main bus below 24.5 V (ACU signal)"],
+            ["HIGH VOLTS", "Red: bus above 32.0 V — the ACU should have tripped ALT FIELD at ~31.75 V"],
+            ["M BATT > 40 A", "Same emergency checklist as HIGH VOLTS: MASTER (ALT only) OFF, shed load (POH 3-17)"],
+            ["STBY BATT", "Amber: standby discharging > 0.5 A for > 10 s"],
+          ]}
+        />
+
+        <Caution title="Caution">
+          Both AVIONICS switches OFF before turning the MASTER on or off, starting the engine or connecting external
+          power (POH 7-47). MASTER ALT and BAT off before plugging in ground power.
+        </Caution>
+        <Notes
+          items={[
+            "There is no hot battery bus: with the MASTER off only the standby battery (ARM) can power anything, and only the essential bus.",
+            "On the standby battery alone: PFD, ADC/AHRS, NAV 1/engine unit, COM 1 and standby instrument lights — no MFD, transponder, audio panel or cooling fans (POH 3-38, 7-73).",
+            "To stretch the main battery, the POH suggests MASTER (ALT and BAT) OFF and flying on the ESS BUS from the standby battery, saving the main battery for flaps and the landing light (POH 3-38).",
+            "ALT FIELD may open during a normal start (nuisance); reset it once. If it opens again after the reset, leave it open and have it fixed before flight (POH 7-56). In flight, attempt one reset only (POH 3-37).",
+          ]}
+        />
+      </StudySection>
       <H3>Components — tap to locate</H3>
       <PartsList cat={CAT} sys="electrical" />
-      <Caution title="Caution">
-        Both AVIONICS switches OFF before turning the MASTER on or off, starting the engine or connecting external power
-        (POH 7-47). MASTER ALT and BAT off before plugging in ground power.
-      </Caution>
-      <Notes
-        items={[
-          "There is no hot battery bus: with the MASTER off only the standby battery (ARM) can power anything, and only the essential bus.",
-          "On the standby battery alone: PFD, ADC/AHRS, NAV 1/engine unit, COM 1 and standby instrument lights — no MFD, transponder, audio panel or cooling fans (POH 3-38, 7-73).",
-          "To stretch the main battery, the POH suggests MASTER (ALT and BAT) OFF and flying on the ESS BUS from the standby battery, saving the main battery for flaps and the landing light (POH 3-38).",
-          "ALT FIELD may open during a normal start (nuisance); reset it once. If it opens again after the reset, leave it open and have it fixed before flight (POH 7-56). In flight, attempt one reset only (POH 3-37).",
-        ]}
-      />
     </>
   );
 }

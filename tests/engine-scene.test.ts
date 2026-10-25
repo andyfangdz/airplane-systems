@@ -330,6 +330,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     const sim = simFor(S),
       ui = sim.useUi;
     const view = ui.getState().view;
+    ui.getState().setView({ prop: true });
     const el = h(Propeller, { sim, d, mats: makeMats() });
     const { hoverTargets, render, unmount } = await mountScene(el);
     // the pointer from in front of the engine, aimed at the top blade halfway out (the crankshaft at 0°)
@@ -417,13 +418,13 @@ describe("IO-390 scene layout defaults", () => {
     expect(driveLayout(IO390, d).alternators.map((a) => a.transverse)).toEqual([null]);
     // the label pins EngineScene placed before the layouts, none hidden by the parts in front of them
     expect(IO390_DEFAULTS.labels(d, IO390)).toEqual([
-      ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
-      ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
-      ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0]],
-      ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
-      ["Starter", [d.flangeX - 0.02, -0.17, -0.22]],
-      ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
-      ["Governor", [d.front + 0.04, 0.16, -0.07]],
+      ["Magnetos", [d.accRear - 0.08, 0.22, 0], { group: "ignition" }],
+      ["Oil filter", [d.accRear - 0.12, -0.04, 0], { group: "oil" }],
+      ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0], { group: "fuel" }],
+      ["Fuel manifold", [0, d.caseTop + 0.09, 0], { group: "fuel" }],
+      ["Starter", [d.flangeX - 0.02, -0.17, -0.22], { group: "drives" }],
+      ["Alternator", [d.flangeX - 0.1, -0.27, 0.25], { group: "drives" }],
+      ["Governor", [d.front + 0.04, 0.16, -0.07], { group: "drives" }],
     ]);
   });
 
@@ -431,12 +432,12 @@ describe("IO-390 scene layout defaults", () => {
     expect(layoutFor(O360)).toBe(IO390_DEFAULTS);
     const d = dims(O360);
     expect(IO390_DEFAULTS.labels(d, O360)).toEqual([
-      ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
-      ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
-      ["Carburetor", [d.front + 0.02, d.sumpBottom - 0.13, 0]],
-      ["Starter", [d.flangeX - 0.02, -0.17, -0.22]],
-      ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
-      ["Governor", [d.front + 0.04, 0.16, -0.07]],
+      ["Magnetos", [d.accRear - 0.08, 0.22, 0], { group: "ignition" }],
+      ["Oil filter", [d.accRear - 0.12, -0.04, 0], { group: "oil" }],
+      ["Carburetor", [d.front + 0.02, d.sumpBottom - 0.13, 0], { group: "fuel" }],
+      ["Starter", [d.flangeX - 0.02, -0.17, -0.22], { group: "drives" }],
+      ["Alternator", [d.flangeX - 0.1, -0.27, 0.25], { group: "drives" }],
+      ["Governor", [d.front + 0.04, 0.16, -0.07], { group: "drives" }],
     ]);
   });
 });
@@ -529,6 +530,8 @@ describe("the propeller switch", () => {
     ["TSIO-550-K", TSIO550K],
   ] as const)("on the %s hides the propeller and keeps it mounted, as main draws it", async (name, S) => {
     const sim = simFor(S, `propeller-switch-${S.id}`);
+    const view = sim.useUi.getState().view;
+    sim.useUi.getState().setView({ prop: true });
     const el = h(Propeller, { sim, d: dims(S), mats: makeMats() });
     const { scene, frame, render, unmount } = await mountScene(el);
     const blades = () => {
@@ -546,7 +549,6 @@ describe("the propeller switch", () => {
       return v;
     };
     expect(visible()).toBe(true);
-    const view = sim.useUi.getState().view;
     sim.useUi.setState({ view: { ...view, prop: false } });
     await render(el);
     frame();

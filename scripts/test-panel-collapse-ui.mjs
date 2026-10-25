@@ -70,3 +70,66 @@ test("active phone preflight keeps the details opener and check navigation reach
   await page.locator(".walk-x").tap();
   await expect(page.locator(".walk")).toHaveCount(0);
 });
+
+test("tablet navigation preserves model width and selecting a system keeps the controls available", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "Tablet layout is checked with a desktop browser viewport");
+  await page.setViewportSize({ width: 900, height: 800 });
+  const stage = await page.locator(".stage").boundingBox();
+  expect(stage.width).toBeGreaterThanOrEqual(550);
+  await page
+    .locator(".syslist")
+    .getByRole("button", { name: /Electrical/ })
+    .click();
+  await expect(page.locator(".panel h2")).toHaveText("Electrical");
+  await page.screenshot({ path: ".shots/tablet-study-navigation.png" });
+});
+
+test("phone reading space keeps the model visible and restores its previous size", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "Reading space is a phone layout option");
+  const height = (await page.locator(".stage").boundingBox()).height;
+  const reading = page.getByRole("button", { name: "More reading space", exact: true });
+  await page.screenshot({ path: ".shots/phone-study-before-reading.png" });
+  await reading.tap();
+  const compactHeight = (await page.locator(".stage").boundingBox()).height;
+  expect(compactHeight).toBeLessThan(height - 50);
+  expect(compactHeight).toBeGreaterThanOrEqual(210);
+  await expect(page.locator("canvas")).toBeVisible();
+  // The responsive canvas buffer and camera fit follow ResizeObserver, after the CSS box has resized.
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: ".shots/phone-study-reading.png" });
+  await page.getByRole("button", { name: "Expand model", exact: true }).tap();
+  expect((await page.locator(".stage").boundingBox()).height).toBeCloseTo(height, 0);
+  await page.screenshot({ path: ".shots/phone-study-navigation.png" });
+});
+
+test("skip to controls opens a collapsed panel and moves keyboard focus", async ({ page }) => {
+  await page.getByRole("button", { name: "Hide details panel", exact: true }).click();
+  const skip = page.getByRole("link", { name: "Skip to system controls" });
+  await skip.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#details-panel")).toBeVisible();
+  await expect(page.locator("#details-panel")).toBeFocused();
+});
+
+test("phone circuit breakers keep touch-sized hit areas", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "Touch sizes apply to coarse pointers");
+  await page
+    .locator(".syslist")
+    .getByRole("button", { name: /Electrical/ })
+    .click();
+  await expect(page.locator(".bus button.chip").first()).toBeAttached();
+  const sizes = await page.locator(".bus button.chip").evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const box = button.getBoundingClientRect();
+      return { width: box.width, height: box.height };
+    }),
+  );
+  expect(sizes.length).toBeGreaterThan(10);
+  for (const size of sizes) {
+    expect(size.width).toBeGreaterThanOrEqual(44);
+    expect(size.height).toBeGreaterThanOrEqual(44);
+  }
+});

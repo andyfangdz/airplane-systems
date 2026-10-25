@@ -23,6 +23,7 @@ import type { FleetWalkController, FleetWalkPhase } from "@/lib/fleet-walk-store
 import { useAircraftSceneReady } from "@/lib/aircraft-session";
 import { view as scene } from "@/lib/registry";
 import { SPOT_COLOR } from "@/lib/spot";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 import { revealStage, useView, type AircraftSessionOwner } from "@/lib/view";
 import "./walkaround.css";
 
@@ -598,6 +599,7 @@ function Sight<S>({ controller, step }: { controller: FleetWalkController<S>; st
 }
 /** Pulsing halos on an emphasized item's parts, drawn through the skin; each mesh's `radius` scales the HALO_R sphere. */
 function Halos<S>({ controller, step }: { controller: FleetWalkController<S>; step: FleetWalkStep<S> }) {
+  const reducedMotion = useReducedMotion();
   const halos = useMemo(() => controller.logic.emphasisHalos(step), [controller, step]);
   const mat = useMemo(
     () =>
@@ -615,7 +617,7 @@ function Halos<S>({ controller, step }: { controller: FleetWalkController<S>; st
   const group = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     // approximate: the pulse's opacity and size range are a display choice
-    const k = 0.5 + 0.5 * Math.sin(clock.elapsedTime * PULSE_HZ * 2 * Math.PI);
+    const k = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(clock.elapsedTime * PULSE_HZ * 2 * Math.PI);
     mat.setValues({ opacity: 0.35 + 0.5 * k });
     group.current?.children.forEach((o) => o.scale.setScalar((o.userData.radius / HALO_R) * (1 + 0.6 * k)));
   });

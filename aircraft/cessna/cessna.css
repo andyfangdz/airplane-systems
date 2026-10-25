@@ -113,7 +113,7 @@
     color-mix(in srgb, var(--elec) 40%, var(--panel2)) 3px 6px
   );
   color: color-mix(in srgb, var(--elec) 45%, var(--ink));
-  text-decoration: line-through;
+  text-decoration: none;
   opacity: 1;
   border-color: var(--elec);
   cursor: pointer;

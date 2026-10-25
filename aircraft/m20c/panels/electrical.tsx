@@ -1,4 +1,5 @@
 "use client";
+import { StudySection, BreakerState } from "@/components/ui/StudySection";
 import { DepthDetail } from "./depth";
 import {
   BtnRow,
@@ -65,6 +66,7 @@ function Chips({ items, kind }: { items: readonly Breaker[]; kind: "switch" | "p
           >
             {n}
             {a ? ` ${a}` : ""}
+            <BreakerState open={!!cb[n]} powered={on} trip={kind === "switch"} />
           </button>
         ))}
       </div>
@@ -284,39 +286,43 @@ export function Electrical() {
           battery is all that is left.
         </Caution>
       )}
-      <H3>Power distribution</H3>
-      <PowerDiagram s={s} E={E} />
-      <Notes
-        items={[
-          "Battery → master relay at the battery (master switch, left of the flight panel) → bus (OM p. 3).",
-          "Alternator → ALT 60 A → bus; bus → ALT FIELD → regulator → field. A dead battery and an alternator that has dropped off line cannot restart each other (field needs the bus).",
-          "Bus → five switch-breakers (fuel pump, pitot heat, beacon, nav lights, landing light) and the push-to-reset panel (gear warn, stall warn, ignition/vibrator, instruments, turn & bank, vacuum warn, instrument lights, radios).",
-          "Starter: battery relay → heavy cable → starter; the vibrator shares the IGN breaker. The magnetos need none of this.",
-          "Over-voltage: radios off, master off and on to reset the regulator; if the light or discharge returns, pull ALT FIELD (Ranger 2-15).",
-        ]}
-      />
+      <StudySection title="How power flows">
+        <H3>Power distribution</H3>
+        <PowerDiagram s={s} E={E} />
+        <Notes
+          items={[
+            "Battery → master relay at the battery (master switch, left of the flight panel) → bus (OM p. 3).",
+            "Alternator → ALT 60 A → bus; bus → ALT FIELD → regulator → field. A dead battery and an alternator that has dropped off line cannot restart each other (field needs the bus).",
+            "Bus → five switch-breakers (fuel pump, pitot heat, beacon, nav lights, landing light) and the push-to-reset panel (gear warn, stall warn, ignition/vibrator, instruments, turn & bank, vacuum warn, instrument lights, radios).",
+            "Starter: battery relay → heavy cable → starter; the vibrator shares the IGN breaker. The magnetos need none of this.",
+            "Over-voltage: radios off, master off and on to reset the regulator; if the light or discharge returns, pull ALT FIELD (Ranger 2-15).",
+          ]}
+        />
+      </StudySection>
       <H3>Breakers — tap to trip or reset</H3>
       <div className="buses">
         <Chips items={SWITCH_CB} kind="switch" />
         <Chips items={PUSH_BREAKERS} kind="push" />
       </div>
-      <H3>What the bus feeds (OM p. 3)</H3>
-      <Facts
-        rows={[
-          [
-            "Always",
-            "Radios, starter and vibrator, nav and interior lights, landing light, beacon, heated pitot (if installed), turn and bank, cigarette lighter, fuel gauges, boost pump, stall horn, gear horn and lights",
-          ],
-          ["Not electric", "Magnetos, the gyros (vacuum), PC (vacuum), flaps and gear (muscle), brakes"],
-          ["Starter", "Delco-Remy or Prestolite 12 V (TCDS); 10–15 s max, then 5 min cooling (Ranger 3-7)"],
-          [
-            "Battery",
-            "Auto-Lite / Prestolite R-35, 27 lb at +2.5 (TCDS); check fluid every 25 h or 30 days (OM p. 26)",
-          ],
-          ["Polarity", "Negative ground; mind it with chargers and jump batteries (Ranger 7-8)"],
-        ]}
-      />
-      <DepthDetail system="electrical" />
+      <StudySection title="Reference and source notes">
+        <H3>What the bus feeds (OM p. 3)</H3>
+        <Facts
+          rows={[
+            [
+              "Always",
+              "Radios, starter and vibrator, nav and interior lights, landing light, beacon, heated pitot (if installed), turn and bank, cigarette lighter, fuel gauges, boost pump, stall horn, gear horn and lights",
+            ],
+            ["Not electric", "Magnetos, the gyros (vacuum), PC (vacuum), flaps and gear (muscle), brakes"],
+            ["Starter", "Delco-Remy or Prestolite 12 V (TCDS); 10–15 s max, then 5 min cooling (Ranger 3-7)"],
+            [
+              "Battery",
+              "Auto-Lite / Prestolite R-35, 27 lb at +2.5 (TCDS); check fluid every 25 h or 30 days (OM p. 26)",
+            ],
+            ["Polarity", "Negative ground; mind it with chargers and jump batteries (Ranger 7-8)"],
+          ]}
+        />
+        <DepthDetail system="electrical" />
+      </StudySection>
       <H3>Components — tap to locate</H3>
       <PartsList cat={CAT} sys="electrical" />
     </>

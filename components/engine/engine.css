@@ -38,6 +38,40 @@
   padding: 2px 6px;
   white-space: nowrap;
 }
+.eng-study {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-size: 13px;
+}
+.eng-study select {
+  min-height: 28px;
+  max-width: 170px;
+  border: 0;
+  color: var(--ink);
+  background: var(--panel);
+  font: inherit;
+}
+.eng-motion-state {
+  margin: 0;
+  padding: 6px 10px;
+  max-width: 280px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-size: 12px;
+}
+@media (pointer: coarse) {
+  .eng-study select {
+    min-height: 40px;
+  }
+}
 
 /* foot of the view: engine monitor and limit flags, over the bottom of the 3D view */
 .eng-foot {

@@ -10,6 +10,7 @@
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 import * as THREE from "three";
 import type { EngineSim } from "./store";
 import { Crankcase, Lubrication } from "./scene/Case";
@@ -25,6 +26,7 @@ import { Turbo } from "./scene/Turbo";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
 
 function EngineModel({ sim }: { sim: EngineSim }) {
+  const reducedMotion = useReducedMotion();
   const d = useMemo(() => dims(sim.spec), [sim]);
   const mats = useMemo(makeMats, []);
   useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
@@ -38,7 +40,7 @@ function EngineModel({ sim }: { sim: EngineSim }) {
     }
     // a rough engine shakes on its mounts
     if (body.current) {
-      const a = s.rpm > 50 ? s.rough * 0.006 : 0;
+      const a = !reducedMotion && s.rpm > 50 ? s.rough * 0.006 : 0;
       const t = state.clock.elapsedTime;
       body.current.position.set(0, Math.sin(t * 37) * a, Math.sin(t * 23 + 1) * a);
     }
@@ -108,10 +110,12 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
   const items: [string, [number, number, number], { occlude?: true; group?: string }?][] = [
-    ...sim.spec.geometry.cylinders.map((c): [string, [number, number, number]] => [
-      `Cyl ${c.n}`,
-      [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
-    ]),
+    ...(hidden.includes("cylinders")
+      ? []
+      : sim.spec.geometry.cylinders.map((c): [string, [number, number, number]] => [
+          `Cyl ${c.n}`,
+          [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
+        ])),
     ...shownLabels(layoutFor(sim.spec).labels(d, sim.spec), hidden),
     // the turbo group's labels go with its parts
     ...((!turboHidden && layoutFor(sim.spec).turbo?.labels) || []),
@@ -142,8 +146,11 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
   const cam = layoutFor(sim.spec).camera;
+  const prop = sim.useUi((x) => x.view.prop),
+    hidden = sim.useUi((x) => x.view.hidden);
   return (
     <ComponentStage
+      frameKey={`${prop}:${hidden.join(",")}`}
       camera={{ position: cam.position, fov: 38, near: 0.02, far: 40 }}
       target={cam.target}
       minDistance={0.5}

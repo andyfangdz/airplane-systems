@@ -7,6 +7,8 @@
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useReducedMotion } from "@/lib/useReducedMotion";
+import type { XRotationEnvelope } from "@/lib/component-stage";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { makeMats, coil, gear, merge, rod, slab, tube, type Mats } from "../../engine/scene/kit";
@@ -58,19 +60,27 @@ const OIL = {
 
 /** Oil particles running along a path at a signed speed (path lengths per second); none while it is 0. */
 function Flow({ points, mat, rate }: { points: V3[]; mat: THREE.Material; rate: () => number }) {
+  const reducedMotion = useReducedMotion();
   const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p))), [points]);
-  const geo = useMemo(() => new THREE.SphereGeometry(0.0032, 8, 6), []);
+  const geo = useMemo(
+    () => (reducedMotion ? new THREE.ConeGeometry(0.006, 0.02, 8) : new THREE.SphereGeometry(0.0032, 8, 6)),
+    [reducedMotion],
+  );
+  const up = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   useEffect(() => () => geo.dispose(), [geo]);
   const refs = useRef<(THREE.Mesh | null)[]>([]);
   const phase = useRef(0);
   const N = 9;
   useFrame((_, dt) => {
     const r = useGovView.getState().paused ? 0 : rate();
-    phase.current = (phase.current + r * Math.min(dt, 0.1) + 1) % 1;
+    if (!reducedMotion) phase.current = (phase.current + r * Math.min(dt, 0.1) + 1) % 1;
     refs.current.forEach((m, i) => {
       if (!m) return;
-      m.visible = r !== 0;
-      if (r !== 0) m.position.copy(curve.getPointAt((phase.current + i / N) % 1));
+      m.visible = r !== 0 && (!reducedMotion || i === 0);
+      if (m.visible) {
+        m.position.copy(curve.getPointAt(reducedMotion ? 0.55 : (phase.current + i / N) % 1));
+        if (reducedMotion) m.quaternion.setFromUnitVectors(up, curve.getTangentAt(0.55).multiplyScalar(Math.sign(r)));
+      }
     });
   });
   return (
@@ -82,6 +92,7 @@ function Flow({ points, mat, rate }: { points: V3[]; mat: THREE.Material; rate: 
             refs.current[i] = m;
           }}
           geometry={geo}
+          userData={{ cameraBounds: false, presentation: true }}
           material={mat}
           renderOrder={2}
         />
@@ -340,9 +351,15 @@ function Hub({ mats }: { mats: Mats }) {
     // blade angle: chord in the plane of rotation at 0°, turned about the blade's own axis
     for (const r of [b0, b1, b2]) if (r.current) r.current.rotation.y = (s.beta * Math.PI) / 180;
   });
+  // Bound the authored shortened blades through a complete turn, plus the cylinder and spring's full stroke.
+  const envelope: XRotationEnvelope = {
+    minX: -0.05 * 0.5, // flattened hub sphere
+    maxX: 0.15 + 0.0018, // cylinder end and spring wire
+    radius: Math.hypot(BLADE_R0 + BLADE_LEN + 0.02, 0.03),
+  };
   return (
     <group position={HUB}>
-      <group ref={turn}>
+      <group ref={turn} userData={{ cameraRotationEnvelope: envelope }}>
         <P name="Propeller hub" note={NOTE.hub} geometry={hub} material={mats.shroud} />
         <P name="Hydraulic cylinder" note={NOTE.cylinder} geometry={cyl} material={mats.cover} />
         <group ref={pistonRef}>

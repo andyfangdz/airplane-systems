@@ -189,8 +189,8 @@ const objectSummaries = (page, remeshed) =>
     const out = [];
     scene.traverse((o) => {
       if (!o.isMesh && !o.isLine) return;
-      // The ground under the airplane (grid and shadow) is stage, not model.
-      if (o.userData.ground) return;
+      // Ground and presentation overlays (such as reduced-motion arrows) are stage, not physical model geometry.
+      if (o.userData.ground || o.userData.presentation) return;
       // Compare the original triangle stream: exact indexing changes storage, not the reviewed surface.
       const g = o.geometry.userData.unindexedSource ? o.geometry.toNonIndexed() : o.geometry,
         p = g.attributes.position.array,
@@ -828,7 +828,7 @@ test("one-shot fleet switch paints an opaque loader before mounting the new airc
       };
       requestAnimationFrame(sample);
     });
-    await p.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
+    await p.getByRole("button", { name: /^Choose a model/ }).click();
     await p.getByRole("button", { name: /C182T Skylane/ }).click();
     // The source route remains ready until Next commits the destination; don't stop sampling that old scene.
     await p.waitForURL("**/c182t/overview");

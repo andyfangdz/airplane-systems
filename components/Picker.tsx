@@ -16,7 +16,7 @@ export interface PickerEntry {
 /**
  * The airplane picker: an explicit switch control and what is shown share one compact button, and its menu lists the
  * airplanes, then the engine simulations and the component simulations, so each is chosen the way an airplane is. A
- * `compact` group lays its entries out two to a row (name only, the type as a tooltip) to keep the menu short.
+ * `compact` group lays its entries out two to a row (with their short descriptions) to keep the menu short.
  */
 export function Picker({
   current,
@@ -32,7 +32,7 @@ export function Picker({
   const id = useId();
   const [open, setOpen] = useState(false);
   // the menu offers airplanes, engines and components; the label names what this page shows
-  const label = kind === "airplane" ? "Switch airplane" : "Switch simulation";
+  const label = "Choose a model";
 
   useLayoutEffect(() => {
     const panel = menu.current,
@@ -165,13 +165,7 @@ export function Picker({
                   </>
                 );
                 return a.href && !a.current ? (
-                  <Link
-                    key={a.id}
-                    className="fleet-option"
-                    href={a.href}
-                    title={g.compact ? a.sub : undefined}
-                    onClick={close}
-                  >
+                  <Link key={a.id} className="fleet-option" href={a.href} onClick={close}>
                     {body}
                   </Link>
                 ) : (

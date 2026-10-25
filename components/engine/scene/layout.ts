@@ -230,17 +230,17 @@ export const IO390_DEFAULTS: EngineLayout = {
     brackets: [],
   }),
   labels: (d, spec) => [
-    ["Magnetos", [d.accRear - 0.08, 0.22, 0]],
-    ["Oil filter", [d.accRear - 0.12, -0.04, 0]],
+    ["Magnetos", [d.accRear - 0.08, 0.22, 0], { group: "ignition" }],
+    ["Oil filter", [d.accRear - 0.12, -0.04, 0], { group: "oil" }],
     ...((spec.fuelSystem.kind === "carburetor"
-      ? [["Carburetor", [d.front + 0.02, d.sumpBottom - 0.13, 0]]]
+      ? [["Carburetor", [d.front + 0.02, d.sumpBottom - 0.13, 0], { group: "fuel" }]]
       : [
-          ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0]],
-          ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
-        ]) as [string, V3][]),
-    ["Starter", [d.flangeX - 0.02, -0.17, -0.22]],
-    ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
-    ["Governor", [d.front + 0.04, 0.16, -0.07]],
+          ["Fuel injector", [d.front + 0.02, d.sumpBottom - 0.1, 0], { group: "fuel" }],
+          ["Fuel manifold", [0, d.caseTop + 0.09, 0], { group: "fuel" }],
+        ]) as [string, V3, { group: GroupId }][]),
+    ["Starter", [d.flangeX - 0.02, -0.17, -0.22], { group: "drives" }],
+    ["Alternator", [d.flangeX - 0.1, -0.27, 0.25], { group: "drives" }],
+    ["Governor", [d.front + 0.04, 0.16, -0.07], { group: "drives" }],
   ],
   camera: { position: [0.3, 0.6, 1.8], target: [0, -0.02, 0], maxDistance: 6 },
   notes: {},

@@ -1,4 +1,5 @@
 "use client";
+import { StudySection } from "@/components/ui/StudySection";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { Caution, Ctl, Facts, H3, Notes, PartsList, Readouts, Seg, Small } from "@/components/ui/controls";
 import { NAV3_BUSES } from "../../cessna/electrical";
@@ -98,8 +99,10 @@ export function Electrical() {
           on, MASTER (ALT only) OFF, reduce load, land as soon as practical (POH 3-17 – 3-19).
         </Caution>
       )}
-      <H3>Power distribution (Figure 7-7)</H3>
-      <Nav3Diagram e={e} E={E} />
+      <StudySection title="How power flows">
+        <H3>Power distribution (Figure 7-7)</H3>
+        <Nav3Diagram e={e} E={E} />
+      </StudySection>
       <H3>Circuit breakers (Figure 7-7 Sheet 2)</H3>
       <Small>
         Tap an ESS or AVN breaker to pull it (white collar) or reset it. ELECTRICAL BUS 1, BUS 2 and CROSSFEED breakers
@@ -114,40 +117,43 @@ export function Electrical() {
         voltmeter, hour meter, starter relay, standby battery controller and main bus sense — trip it and watch the
         starter, Hobbs, stall horn and M BUS reading go (Fig. 7-7).
       </Small>
-      <H3>Monitoring (POH 7-53 – 7-55)</H3>
-      <Facts
-        rows={[
-          ["M BUS volts", "Measured at the WARN breaker (CROSSFEED BUS); ≈ 28 V normal, 27–29 V at 1,800 RPM"],
-          ["E BUS volts", "Measured at NAV 1 ENG (ESSENTIAL BUS)"],
-          ["VOLTS red", "At or below 24.5 V (POH 7-53); above 32.0 V per the 2007 edition (GFC 7-57)"],
-          ["M BATT amps", "+ charging; < 5 A charge after 30 min of cruise"],
-          ["S BATT amps", "+ charging, − discharging (normally < 4 A)"],
-          [
-            "LOW VOLTS",
-            "Red, continuous tone (tone inhibited on the ground): main bus below 24.5 V (ACU signal) — expected on the ground before start (POH 7-54, 4-8; CRG 115)",
-          ],
-          [
-            "HIGH VOLTS",
-            "Red: bus above 32.0 V (2007 edition threshold, GFC 7-60) — the ACU should have opened ALT FIELD at ≈ 31.75 V",
-          ],
-          ["STBY BATT", "Amber: standby battery discharging"],
-        ]}
-      />
+      <StudySection title="Reference and source notes">
+        <H3>Monitoring (POH 7-53 – 7-55)</H3>
+        <Facts
+          rows={[
+            ["M BUS volts", "Measured at the WARN breaker (CROSSFEED BUS); ≈ 28 V normal, 27–29 V at 1,800 RPM"],
+            ["E BUS volts", "Measured at NAV 1 ENG (ESSENTIAL BUS)"],
+            ["VOLTS red", "At or below 24.5 V (POH 7-53); above 32.0 V per the 2007 edition (GFC 7-57)"],
+            ["M BATT amps", "+ charging; < 5 A charge after 30 min of cruise"],
+            ["S BATT amps", "+ charging, − discharging (normally < 4 A)"],
+            [
+              "LOW VOLTS",
+              "Red, continuous tone (tone inhibited on the ground): main bus below 24.5 V (ACU signal) — expected on the ground before start (POH 7-54, 4-8; CRG 115)",
+            ],
+            [
+              "HIGH VOLTS",
+              "Red: bus above 32.0 V (2007 edition threshold, GFC 7-60) — the ACU should have opened ALT FIELD at ≈ 31.75 V",
+            ],
+            ["STBY BATT", "Amber: standby battery discharging"],
+          ]}
+        />
+
+        <Caution title="Caution">
+          Both AVIONICS switches OFF before turning the MASTER on or off, starting the engine or connecting external
+          power (POH 7-47, 4-12).
+        </Caution>
+        <Notes
+          items={[
+            "There is no hot battery bus: with the MASTER off only the standby battery (ARM) can power anything, and only the essential bus.",
+            "On the standby battery alone: PFD, ADC/AHRS, NAV 1/engine unit (EIS), COM 1 and the standby instrument lights — no MFD, transponder, audio panel, autopilot, cooling fans or exterior lights (POH 3-35, 7-69).",
+            "To stretch the main battery, the POH suggests MASTER (ALT and BAT) OFF and flying on the ESS BUS from the standby battery, saving the main battery for the flaps and the landing light (POH 3-35).",
+            "ALT FIELD may open during a normal start (transient over-voltage); reset it once. If it opens again, don't reset it (POH 7-55, 3-34).",
+            "Electrical fire: STBY BATT OFF, MASTER OFF, vents closed, extinguisher, AVIONICS OFF, all other switches except MAGNETOS OFF (POH 3-10).",
+          ]}
+        />
+      </StudySection>
       <H3>Components — tap to locate</H3>
       <PartsList cat={CAT} sys="electrical" />
-      <Caution title="Caution">
-        Both AVIONICS switches OFF before turning the MASTER on or off, starting the engine or connecting external power
-        (POH 7-47, 4-12).
-      </Caution>
-      <Notes
-        items={[
-          "There is no hot battery bus: with the MASTER off only the standby battery (ARM) can power anything, and only the essential bus.",
-          "On the standby battery alone: PFD, ADC/AHRS, NAV 1/engine unit (EIS), COM 1 and the standby instrument lights — no MFD, transponder, audio panel, autopilot, cooling fans or exterior lights (POH 3-35, 7-69).",
-          "To stretch the main battery, the POH suggests MASTER (ALT and BAT) OFF and flying on the ESS BUS from the standby battery, saving the main battery for the flaps and the landing light (POH 3-35).",
-          "ALT FIELD may open during a normal start (transient over-voltage); reset it once. If it opens again, don't reset it (POH 7-55, 3-34).",
-          "Electrical fire: STBY BATT OFF, MASTER OFF, vents closed, extinguisher, AVIONICS OFF, all other switches except MAGNETOS OFF (POH 3-10).",
-        ]}
-      />
     </>
   );
 }

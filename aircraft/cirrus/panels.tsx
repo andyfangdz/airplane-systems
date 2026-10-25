@@ -5,6 +5,7 @@
  * callback, and its own numbers (how many decimals its volts show, its battery-time slider's label).
  */
 import { BtnRow, Check, Readouts, Rocker, ScenarioButton, Slider } from "@/components/ui/controls";
+import { BreakerState } from "@/components/ui/StudySection";
 
 /** The bolster switches, their failures and the time on batteries. */
 interface CirrusElecState {
@@ -25,7 +26,10 @@ export interface PowerSim {
 }
 /** The readouts' sources: bus volts, source amps and battery states. */
 export interface PowerElec {
+  alt1: boolean;
+  alt2: boolean;
   ess1: number;
+  ess2: number;
   mdb1: number;
   mdb2: number;
   a1: number;
@@ -81,6 +85,7 @@ export function BusCard({
           >
             {n}
             {a ? ` ${a}A` : ""}
+            <BreakerState open={!!cb[n]} powered={on} />
           </button>
         ))}
       </div>
@@ -90,6 +95,35 @@ export function BusCard({
 
 /** The electrical scenario the overview's "try it" loads. */
 export const ALT1_FAILS = "ALT 1 fails";
+
+/** Live interpretation of the same source and bus solution used by Figure 7-10 and the meters. */
+export function PowerPath({ E }: { E: PowerElec }) {
+  const main1 = E.alt1
+    ? "ALT 1 supplies Main Dist Bus 1."
+    : E.bat1ok
+      ? "BAT 1 supplies Main Dist Bus 1 while ALT 1 is offline."
+      : "Main Dist Bus 1 is unpowered; ALT 2 cannot feed it through the diode.";
+  const main2 = E.alt2
+    ? "ALT 2 supplies Main Dist Bus 2."
+    : E.mdb1 > 0
+      ? "Main Dist Bus 1 feeds Main Dist Bus 2 through the diode."
+      : "Main Dist Bus 2 is unpowered.";
+  const essential =
+    !E.alt1 && !E.alt2 && !E.bat1ok && E.bat2ok
+      ? E.ess2 > 0
+        ? "BAT 2 supplies ESS BUS 1 and feeds ESS BUS 2 through ESSENTIAL POWER."
+        : "BAT 2 supplies ESS BUS 1. ESS BUS 2 is unpowered because ESSENTIAL POWER is open."
+      : `ESS BUS 1 is ${E.ess1 > 0 ? "powered" : "unpowered"}; ESS BUS 2 is ${E.ess2 > 0 ? "powered" : "unpowered"}.`;
+  return (
+    <div className="power-path" role="status" aria-label="Current power path">
+      <strong>Current power path</strong>
+      <p>
+        {main1} {main2}
+      </p>
+      <p>{essential}</p>
+    </div>
+  );
+}
 
 /** Engine running in flight: key BOTH, mixture out of cutoff, a tank with fuel, breakers in. */
 const fly = <S extends PowerSim>(d: S, fuelAvail: (d: S) => boolean) => {
@@ -300,6 +334,7 @@ export function PowerControls<S extends PowerSim>({
           ],
         ]}
       />
+      <PowerPath E={E} />
     </>
   );
 }

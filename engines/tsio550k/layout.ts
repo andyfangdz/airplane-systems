@@ -415,15 +415,15 @@ export const TSIO550K_LAYOUT: Partial<EngineLayout> = {
     };
   },
   labels: (d) => [
-    ["Magnetos", [d.accRear + 0.045, 0.26, 0]],
+    ["Magnetos", [d.accRear + 0.045, 0.26, 0], { group: "ignition" }],
     // over the canister's top (2.42 in above the crankshaft), shown while the canister is in view: hidden by the magnetos
     // from the default and iso cameras, never by the filter and its adapter
-    ["Oil filter", [d.accRear - 2.96 * IN, 2.42 * IN + 0.025, -4 * IN], { occlude: true }],
-    ["Fuel manifold", [0, d.caseTop + 0.09, 0]],
-    ["Starter", [d.accRear - 1.78 * IN, -0.2, 0.2]],
-    ["ALT 1", [d.accRear + 27.3 * IN, 0.1, 0.26]],
-    ["ALT 2", [d.flangeX - 0.02, -0.01, -0.3]],
-    ["Governor", [d.front, -0.22, -0.12]],
+    ["Oil filter", [d.accRear - 2.96 * IN, 2.42 * IN + 0.025, -4 * IN], { occlude: true, group: "oil" }],
+    ["Fuel manifold", [0, d.caseTop + 0.09, 0], { group: "fuel" }],
+    ["Starter", [d.accRear - 1.78 * IN, -0.2, 0.2], { group: "drives" }],
+    ["ALT 1", [d.accRear + 27.3 * IN, 0.1, 0.26], { group: "drives" }],
+    ["ALT 2", [d.flangeX - 0.02, -0.01, -0.3], { group: "drives" }],
+    ["Governor", [d.front, -0.22, -0.12], { group: "drives" }],
     // these hide with their part groups, as the turbo and exhaust labels do
     ["Oil cooler", at(-0.41, 5.3, -10.2), { group: "oil" }],
     ["Fuel pump", at(-3.9, -1.3, -0.3), { group: "fuel" }],

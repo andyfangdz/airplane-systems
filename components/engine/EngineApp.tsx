@@ -15,6 +15,8 @@ import { StageResetButton, useTheme, ViewToggles } from "./chrome";
 import { simFor, useEngineLoop, type EngineSim } from "./store";
 import { EnginePanel } from "./EnginePanel";
 import { Monitor, Flags } from "./Monitor";
+import { MotionState, StudyViews } from "./StudyViews";
+import { PartInspectionProvider, PartInspector } from "./PartInspector";
 import "./engine.css";
 
 const Scene = dynamic(() => import("./EngineScene"), { ssr: false, loading: () => <div /> });
@@ -32,6 +34,7 @@ function Toolbar({ sim }: { sim: EngineSim }) {
     setView = sim.useUi((x) => x.setView);
   return (
     <div className="toolbar">
+      <StudyViews sim={sim} />
       <div className="tb-group" role="group" aria-label="View">
         <ViewToggles items={TOGGLES} view={view} set={setView} />
       </div>
@@ -47,33 +50,37 @@ export default function EngineApp({ id }: { id: string }) {
   useTheme();
   useScenarioMarks();
   return (
-    <div className="eng-app">
-      <title>{`${spec.name} engine · Airplane Systems`}</title>
-      <div className="brand eng-brand">
-        <Picker
-          current={{ name: spec.name, sub: engineSub(spec) }}
-          kind="engine"
-          groups={[
-            { label: "Airplanes", entries: airplaneLinks() },
-            { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
-            { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
-          ]}
-        />
-        <ThemeButton />
-      </div>
-      <main className="stage eng-stage">
-        <div className="eng-view">
-          <Scene sim={sim} />
-          <Toolbar sim={sim} />
+    <PartInspectionProvider key={id}>
+      <div className="eng-app">
+        <title>{`${spec.name} engine · Airplane Systems`}</title>
+        <div className="brand eng-brand">
+          <Picker
+            current={{ name: spec.name, sub: engineSub(spec) }}
+            kind="engine"
+            groups={[
+              { label: "Airplanes", entries: airplaneLinks() },
+              { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
+              { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
+            ]}
+          />
+          <ThemeButton />
         </div>
-      </main>
-      <div className="eng-foot">
-        <Monitor sim={sim} />
-        <Flags sim={sim} />
+        <main className="stage eng-stage">
+          <div className="eng-view">
+            <Scene sim={sim} />
+            <Toolbar sim={sim} />
+          </div>
+        </main>
+        <div className="eng-foot">
+          <Monitor sim={sim} />
+          <Flags sim={sim} />
+          <MotionState sim={sim} />
+        </div>
+        <aside className="panel">
+          <PartInspector />
+          <EnginePanel sim={sim} />
+        </aside>
       </div>
-      <aside className="panel">
-        <EnginePanel sim={sim} />
-      </aside>
-    </div>
+    </PartInspectionProvider>
   );
 }

@@ -10,6 +10,7 @@
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { coil, merge, slab, tube, zrod } from "../scene/kit";
@@ -164,19 +165,28 @@ function Flow({
   rate: () => number;
   show?: () => boolean;
 }) {
+  const reducedMotion = useReducedMotion();
   const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p))), [points]);
-  const geo = useGeo(() => new THREE.SphereGeometry(0.0045, 8, 6));
+  const geo = useMemo(
+    () => (reducedMotion ? new THREE.ConeGeometry(0.008, 0.025, 8) : new THREE.SphereGeometry(0.0045, 8, 6)),
+    [reducedMotion],
+  );
+  useEffect(() => () => geo.dispose(), [geo]);
+  const up = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   const refs = useRef<(THREE.Mesh | null)[]>([]);
   const phase = useRef(0);
   const N = 8;
   useFrame((_, dt) => {
     const view = usePsView.getState();
     const r = view.paused || !view.flow || !show() ? 0 : flowSpeed(rate());
-    phase.current = (phase.current + r * Math.min(dt, 0.1) + 1) % 1;
+    if (!reducedMotion) phase.current = (phase.current + r * Math.min(dt, 0.1) + 1) % 1;
     refs.current.forEach((m, i) => {
       if (!m) return;
-      m.visible = r !== 0;
-      if (r !== 0) m.position.copy(curve.getPointAt((phase.current + i / N) % 1));
+      m.visible = r !== 0 && (!reducedMotion || i === 0);
+      if (m.visible) {
+        m.position.copy(curve.getPointAt(reducedMotion ? 0.55 : (phase.current + i / N) % 1));
+        if (reducedMotion) m.quaternion.setFromUnitVectors(up, curve.getTangentAt(0.55).multiplyScalar(Math.sign(r)));
+      }
     });
   });
   return (
@@ -188,6 +198,7 @@ function Flow({
             refs.current[i] = m;
           }}
           geometry={geo}
+          userData={{ cameraBounds: false, presentation: true }}
           material={mat}
           renderOrder={3}
         />
@@ -1028,28 +1039,6 @@ function PressureTags() {
 /** Where the camera starts and what it orbits; it backs off along that line until the whole layout fits the view. */
 const CAMERA: V3 = [-0.2, 0.4, 1.7];
 const TARGET: V3 = [-0.26, 0.17, -0.05];
-const FIT = { w: 1.5, h: 0.98 };
-/** Where the instruments sit under the view rather than over its foot (engine.css), the layout can be centred. */
-const NARROW = "(max-width: 860px)";
-const CENTRED = 0.27;
-
-function FitCamera() {
-  const done = useRef(false);
-  useFrame(({ camera, size, controls }) => {
-    if (done.current || !size.width || !(camera instanceof THREE.PerspectiveCamera)) return;
-    done.current = true;
-    const t = Math.tan((camera.fov * Math.PI) / 360);
-    const d = Math.max(FIT.w / 2 / (t * (size.width / size.height)), FIT.h / 2 / t);
-    const target = new THREE.Vector3(...TARGET);
-    const dir = new THREE.Vector3(...CAMERA).sub(target).normalize();
-    if (window.matchMedia(NARROW).matches) target.y = CENTRED;
-    camera.position.copy(target).addScaledVector(dir, d);
-    const orbit = controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
-    orbit?.target?.copy(target);
-    orbit?.update?.();
-  });
-  return null;
-}
 
 export default function PitotStaticScene() {
   return (
@@ -1059,7 +1048,6 @@ export default function PitotStaticScene() {
       minDistance={0.3}
       maxDistance={5}
     >
-      <FitCamera />
       <Model />
     </ComponentStage>
   );

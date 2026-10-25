@@ -3,8 +3,9 @@
  * can raycast what the components actually build. `frame()` runs their `useFrame` once, as the page does every frame.
  */
 import { act, advance, createRoot, extend, type RootState } from "@react-three/fiber";
-import type { ReactNode } from "react";
+import { createElement, type ReactNode } from "react";
 import * as THREE from "three";
+import { PartInspectionProvider } from "@/components/engine/PartInspector";
 
 export async function mountScene(el: ReactNode) {
   // the fiber package loads its own copy of three; build with this one, so tests can check the objects it makes
@@ -37,7 +38,8 @@ export async function mountScene(el: ReactNode) {
       state = s;
     },
   });
-  await act(async () => root.render(el));
+  const inspection = (children: ReactNode) => createElement(PartInspectionProvider, { children });
+  await act(async () => root.render(inspection(el)));
   const frame = () => {
     advance(0);
     state!.scene.updateMatrixWorld(true);
@@ -48,7 +50,7 @@ export async function mountScene(el: ReactNode) {
     /** What the pointer is tested against: the objects with pointer handlers (R3F's event system). */
     hoverTargets: () => state!.get().internal.interaction,
     frame,
-    render: (next: ReactNode) => act(async () => root.render(next)).then(frame),
+    render: (next: ReactNode) => act(async () => root.render(inspection(next))).then(frame),
     unmount: () => act(async () => root.unmount()),
   };
 }

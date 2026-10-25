@@ -655,7 +655,10 @@ function Parts({ sim }: { sim: EngineSim }) {
   return (
     <>
       <H3>Parts</H3>
-      <Small>Point at any part for its name and what it does. Untick a group to see what it hides.</Small>
+      <Small>
+        Select a part in the model or search the parts list to keep its explanation open. Untick a group to see what it
+        hides.
+      </Small>
       <div className="eng-parts">
         {groupsFor(sim.spec).map((g) => (
           <Check

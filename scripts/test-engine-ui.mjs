@@ -131,7 +131,7 @@ for (const engine of ENGINES)
 
       // ---- load: the page title, the picker names the engine, its description shows, no sideways scroll
       await page.goto(`${base}/engines/${engine.id}`);
-      const trigger = page.getByRole("button", { name: `Switch simulation, current engine ${engine.name}` });
+      const trigger = page.getByRole("button", { name: `Choose a model, current engine ${engine.name}` });
       await trigger.waitFor();
       await page.locator("canvas").first().waitFor();
       // two title sources on the engine page (metadata, and EngineApp's own): read the elements, not document.title
@@ -298,7 +298,7 @@ for (const engine of ENGINES)
       const engines = dialog.getByRole("group", { name: "Engines" });
       await trigger.click();
       await engines.getByRole("link", { name: new RegExp(engine.other) }).click();
-      const otherTrigger = page.getByRole("button", { name: `Switch simulation, current engine ${engine.other}` });
+      const otherTrigger = page.getByRole("button", { name: `Choose a model, current engine ${engine.other}` });
       await otherTrigger.waitFor();
       await otherTrigger.click();
       await engines.getByRole("link", { name: new RegExp(engine.name) }).click();

@@ -9,6 +9,7 @@ import "./cessna.css";
 import type { ReactNode } from "react";
 import { HoldKey } from "@/components/avionics/parts";
 import { Facts, HoldButton, Readouts, Rocker } from "@/components/ui/controls";
+import { BreakerState } from "@/components/ui/StudySection";
 import { Box, Cb, Diode, Dot, Key, Sw, W as Wire } from "@/components/ui/wiring";
 import type { Nav3AnnDef } from "./annunciations";
 import {
@@ -358,6 +359,7 @@ export function BreakerBoard({
                           </i>
                         ) : null}
                         {E.amps[k] > 0.05 ? <i> · {E.amps[k].toFixed(1)}A</i> : null}
+                        <BreakerState open={outNow} powered={lit} trip={!pull} />
                       </button>
                     );
                   })}

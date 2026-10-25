@@ -111,7 +111,7 @@ function Panel({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }
   return (
     <aside className="panel" aria-label="System details">
       <PanelToggle side="details" collapsed={collapsed} toggle={toggle} />
-      <div id="details-panel" hidden={collapsed}>
+      <div id="details-panel" hidden={collapsed} tabIndex={-1}>
         {Walk ? (
           <div className="panel-inner">
             <Walk />
@@ -418,15 +418,35 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
   const walking = useView((x) => x.walking);
   const [systemsCollapsed, toggleSystems] = useCollapsed("systems");
   const [detailsCollapsed, toggleDetails] = useCollapsed("details");
+  const narrow = useNarrowLayout();
+  const [reading, setReading] = useState(false);
+  const [focusDetails, setFocusDetails] = useState(false);
+  useEffect(() => {
+    if (!focusDetails || detailsCollapsed) return;
+    const details = document.getElementById("details-panel");
+    details?.focus({ preventScroll: true });
+    if (narrow) details?.scrollIntoView({ block: "start" });
+    setFocusDetails(false);
+  }, [focusDetails, detailsCollapsed, narrow]);
   const Alerts = def.Alerts;
   // phones: the alert window is a strip under the 3D view, clear of the model. One copy only: it is a live region.
-  const narrow = useNarrowLayout();
   return (
     <AircraftContext value={def}>
       <RouteSys value={{ sys: sys ?? "overview", booted: !!session }}>
         <div
-          className={`app${walking ? " walking" : ""}${systemsCollapsed ? " systems-collapsed" : ""}${detailsCollapsed ? " details-collapsed" : ""}`}
+          className={`app${walking ? " walking" : ""}${systemsCollapsed ? " systems-collapsed" : ""}${detailsCollapsed ? " details-collapsed" : ""}${reading ? " reading-space" : ""}`}
         >
+          <a
+            className="skip-controls"
+            href="#details-panel"
+            onClick={(event) => {
+              event.preventDefault();
+              if (detailsCollapsed) toggleDetails();
+              setFocusDetails(true);
+            }}
+          >
+            Skip to system controls
+          </a>
           <Rail collapsed={systemsCollapsed} toggle={toggleSystems} />
           <main className="stage">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
@@ -442,6 +462,11 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
           </main>
           {/* phones: the alert window and the HUD show here, under the 3D view, instead (see globals.css) */}
           <div className="stage-under">
+            {narrow && !walking && !detailsCollapsed && (
+              <button className="tb tb-reading" aria-pressed={reading} onClick={() => setReading(!reading)}>
+                {reading ? "Expand model" : "More reading space"}
+              </button>
+            )}
             {narrow && <Alerts />}
             <Hud />
           </div>
