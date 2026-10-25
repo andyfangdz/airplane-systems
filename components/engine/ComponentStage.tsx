@@ -5,13 +5,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import {
-  componentBounds,
-  fitComponentCamera,
-  intersects,
-  visibleStageLabels,
-  type StageRect,
-} from "@/lib/component-stage";
+import { fitComponentCamera, intersects, visibleStageLabels, type StageRect } from "@/lib/component-stage";
 import { clamp, ease, type Vec3 } from "@/lib/math";
 import { useSceneRendering } from "@/lib/useSceneRendering";
 import { useStageReset } from "./chrome";
@@ -83,7 +77,7 @@ function CameraRig({
       const view = gl.domElement.getBoundingClientRect();
       const safe = safeFrame(view, obstaclesFor(gl.domElement));
       const fit = fitComponentCamera(
-        componentBounds(model.current),
+        model.current,
         new THREE.Vector3(...position).sub(new THREE.Vector3(...target)),
         camera.fov,
         view.width,
@@ -134,14 +128,7 @@ function CameraRig({
       const explicit = request !== previous.current.request;
       if (explicit || overlays !== previous.current.overlays) {
         const direction = new THREE.Vector3(...position).sub(new THREE.Vector3(...target));
-        const fit = fitComponentCamera(
-          componentBounds(model.current),
-          direction,
-          camera.fov,
-          view.width,
-          view.height,
-          safe,
-        );
+        const fit = fitComponentCamera(model.current, direction, camera.fov, view.width, view.height, safe);
         if (fit) {
           previous.current = { request, overlays };
           if (explicit || !exploring.current) {

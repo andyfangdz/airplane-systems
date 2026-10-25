@@ -19,11 +19,17 @@ it("keeps a rotational envelope stable under translated, rotated and scaled ance
   rotor.userData.cameraRotationEnvelope = { minX: -0.03, maxX: 0.15, radius: 0.3 };
   parent.add(rotor);
   const initial = componentBounds(parent);
+  const direction = new Vector3(1, 0.4, 0.8),
+    safe = { left: 20, top: 74, right: 362, bottom: 240 };
+  const pose = fitComponentCamera(parent, direction, 38, 382, 260, safe)!;
   for (let phase = 0; phase < 360; phase += 15) {
     rotor.rotation.x = (phase * Math.PI) / 180;
     const bounds = componentBounds(parent);
     expect(bounds.min.distanceTo(initial.min)).toBeLessThan(1e-10);
     expect(bounds.max.distanceTo(initial.max)).toBeLessThan(1e-10);
+    const next = fitComponentCamera(parent, direction, 38, 382, 260, safe)!;
+    expect(next.position.distanceTo(pose.position)).toBeLessThan(1e-10);
+    expect(next.target.distanceTo(pose.target)).toBeLessThan(1e-10);
   }
   rotor.visible = false;
   expect(componentBounds(parent).isEmpty()).toBe(true);
@@ -39,7 +45,7 @@ for (const spec of [IO390, O360, TSIO550K]) {
     try {
       const envelope = componentBounds(mounted.scene);
       const safe = { left: 20, top: 60, right: 370, bottom: 334 };
-      const fit = fitComponentCamera(envelope, new Vector3(1, 0.4, 0.8), 38, 390, 354, safe)!;
+      const fit = fitComponentCamera(mounted.scene, new Vector3(1, 0.4, 0.8), 38, 390, 354, safe)!;
       const camera = new PerspectiveCamera(38, 390 / 354, 0.01, 40);
       camera.position.copy(fit.position);
       camera.lookAt(fit.target);

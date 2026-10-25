@@ -14,7 +14,7 @@ import { airplaneLinks, componentEntries, engineEntries } from "../pickerEntries
 import { ModelSizeToggle, ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
 import { StageResetButton, useTheme } from "./chrome";
-import { PartInspectionProvider, PartInspector } from "./PartInspector";
+import { PartInspectionProvider } from "./PartInspector";
 import "./engine.css";
 
 export function ComponentShell({
@@ -75,10 +75,7 @@ export function ComponentShell({
           </div>
         </main>
         {foot && <div className="eng-foot">{foot}</div>}
-        <aside className="panel">
-          <PartInspector />
-          {panel}
-        </aside>
+        <aside className="panel">{panel}</aside>
       </div>
     </PartInspectionProvider>
   );

@@ -411,6 +411,19 @@ test("power-flow diagrams stay open and pinned while breaker controls remain rea
       document.querySelector(".panel").scrollTop = 0;
     });
     const inset = await flow.evaluate((node) => parseFloat(getComputedStyle(node).top));
+    if (isMobile) {
+      await page.getByRole("button", { name: "Hide details panel", exact: true }).tap();
+      await page.getByRole("link", { name: "Skip to system controls" }).focus();
+      await page.keyboard.press("Enter");
+      const details = page.locator("#details-panel");
+      await expect(details).toBeFocused();
+      // Breaker-focus scroll padding must not push the panel's heading down by another diagram-height.
+      await expect.poll(async () => (await details.boundingBox()).y).toBeCloseTo(inset + 64, 0);
+      const title = await details.locator("h2").boundingBox();
+      expect(title.y).toBeGreaterThanOrEqual(inset + 64);
+      expect(title.y + title.height).toBeLessThan(viewport.height / 2);
+      await page.evaluate(() => scrollTo(0, 0));
+    }
     const origin = isMobile ? 0 : (await page.locator(".panel").boundingBox()).y;
     const pinnedTop = origin + inset;
     await scroll((await flow.boundingBox()).y - pinnedTop + 80);

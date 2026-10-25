@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 /**
  * The fuel injection page's panel: the engine's controls (it runs on the IO-390), what each part of the injector is
  * doing, the nozzle-pressure chart with the gauge's reading on it, fuel-system failures, and the documents.
@@ -326,8 +327,9 @@ function Sources() {
 export function InjectorPanel({ sim }: { sim: EngineSim }) {
   return (
     <div className="panel-inner">
-      <div className="ref">Component simulation · RSA-type injection on the Lycoming IO-390-C</div>
-      <p className="lead">{LEAD}</p>
+      <ComponentIntro source="RSA-type injection on the Lycoming IO-390-C">
+        <p className="lead">{LEAD}</p>
+      </ComponentIntro>
       <StartFrom sim={sim} />
       <Controls sim={sim} />
       <Injector sim={sim} />

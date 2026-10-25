@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { Readouts, Slider, Seg } from "@/components/ui/controls";
@@ -103,10 +104,13 @@ export default function PistonCylinderApp() {
       }
       panel={
         <div className="panel-inner piston-panel">
-          <div className="ref">Component simulation · Lycoming IO-390-C cylinder</div>
-          <p className="lead">Follow one cylinder through two crankshaft revolutions. Drag to orbit; scroll to zoom.</p>
+          <ComponentIntro source="Lycoming IO-390-C cylinder">
+            <p className="lead">
+              Follow one cylinder through two crankshaft revolutions. Drag to orbit; scroll to zoom.
+            </p>
+            <p>A driven single-cylinder bench: shaft speed and charge are held externally so faults remain visible.</p>
+          </ComponentIntro>
           <h3>Operating conditions</h3>
-          <p>A driven single-cylinder bench: shaft speed and charge are held externally so faults remain visible.</p>
           <Slider
             id="piston-engine-rpm"
             label="Shaft speed"

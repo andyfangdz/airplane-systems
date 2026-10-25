@@ -76,14 +76,55 @@ describe("component study framing", () => {
         group.add(new Mesh(geo, mat));
         root.add(group);
       }
-      expect(componentBounds(root)).toEqual(new Box3(new Vector3(0, 0, 0), new Vector3(2, 4, 6)));
+      const bounds = componentBounds(root);
+      expect(bounds.min.distanceTo(new Vector3(0, 0, 0))).toBe(0);
+      expect(bounds.max.distanceTo(new Vector3(2, 4, 6))).toBe(0);
     } finally {
       geo.dispose();
       mat.dispose();
     }
   });
+  it.each([
+    { width: 382, height: 260, safe: rect(20, 74, 362, 240) },
+    { width: 382, height: 210, safe: rect(20, 74, 362, 190) },
+    { width: 1020, height: 900, safe: rect(28, 70, 992, 650) },
+  ])("uses physical corners instead of empty world-box corners at $width × $height", ({ width, height, safe }) => {
+    const model = new Group();
+    const geometry = new BoxGeometry(0.2, 0.3, 2),
+      material = new MeshBasicMaterial();
+    const mesh = new Mesh(geometry, material);
+    mesh.rotation.set(0.3, 0.8, -0.15);
+    mesh.position.set(0.4, -0.2, 0.1);
+    model.add(mesh);
+    const direction = new Vector3(0, 0, 1).applyEuler(mesh.rotation);
+    try {
+      const fit = fitComponentCamera(model, direction, 38, width, height, safe)!;
+      const enclosingBoxFit = fitComponentCamera(componentBounds(model), direction, 38, width, height, safe)!;
+      expect(fit.position.distanceTo(fit.target)).toBeLessThan(
+        enclosingBoxFit.position.distanceTo(enclosingBoxFit.target) * 0.8,
+      );
+      const camera = new PerspectiveCamera(38, width / height, 0.01, 40);
+      camera.position.copy(fit.position);
+      camera.lookAt(fit.target);
+      camera.updateMatrixWorld();
+      const vertices = geometry.getAttribute("position");
+      for (let i = 0; i < vertices.count; i++) {
+        const point = new Vector3().fromBufferAttribute(vertices, i).applyMatrix4(mesh.matrixWorld).project(camera);
+        const x = ((point.x + 1) / 2) * width,
+          y = ((1 - point.y) / 2) * height;
+        expect(x).toBeGreaterThanOrEqual(safe.left - 0.001);
+        expect(x).toBeLessThanOrEqual(safe.right + 0.001);
+        expect(y).toBeGreaterThanOrEqual(safe.top - 0.001);
+        expect(y).toBeLessThanOrEqual(safe.bottom + 0.001);
+      }
+    } finally {
+      geometry.dispose();
+      material.dispose();
+    }
+  });
   it("waits for physical geometry and nonzero layout instead of generating a non-finite camera", () => {
     expect(fitComponentCamera(new Box3(), new Vector3(0, 0, 1), 38, 390, 400, rect(20, 50, 370, 380))).toBeNull();
+    expect(fitComponentCamera(new Group(), new Vector3(0, 0, 1), 38, 390, 400, rect(20, 50, 370, 380))).toBeNull();
     const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
     expect(fitComponentCamera(bounds, new Vector3(0, 0, 1), 38, 0, 400, rect(0, 0, 0, 400))).toBeNull();
   });

@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 /**
  * The propeller governor page: the governor cut away with its propeller hub, a readout over the view, and a panel with
  * the controls, the hub, failures, a chart of rpm and blade angle, the forces on the pilot valve and the documents.
@@ -90,15 +91,15 @@ function Monitor() {
       <div className={`gov-mode gov-${x.mode}`}>{MODE[x.mode]}</div>
       <div className="mon-small">
         <div>
-          <span>Pump</span>
+          <span>Pump psi</span>
           <b>{f0(x.pumpPsi)}</b>
         </div>
         <div>
-          <span>Hub</span>
+          <span>Hub psi</span>
           <b>{f0(x.hubPsi)}</b>
         </div>
         <div>
-          <span>Valve</span>
+          <span>Valve mm</span>
           <b>{(x.x >= 0 ? "+" : "") + x.x.toFixed(2)}</b>
         </div>
         <div>
@@ -384,8 +385,9 @@ function Docs() {
 function Panel() {
   return (
     <div className="panel-inner">
-      <div className="ref">Component simulation · {AMT}</div>
-      <p className="lead">{spec.lead}</p>
+      <ComponentIntro source={AMT}>
+        <p className="lead">{spec.lead}</p>
+      </ComponentIntro>
       <Try />
       <ControlsPanel />
       <Chart />

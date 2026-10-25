@@ -84,8 +84,77 @@
     font-size: 10px;
   }
 }
+@media (min-width: 640px) and (max-width: 860px) {
+  .inj-legend {
+    top: 68px;
+    bottom: auto;
+  }
+}
 @media (max-width: 639px) {
   .inj-legend {
     right: 68px; /* leave the standalone scene-size button clear */
+  }
+  .eng-mon.inj-mon {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-areas: "big big" "bars small";
+    gap: 6px 8px;
+    padding: 6px;
+    line-height: 1.2;
+  }
+  .inj-mon .mon-big {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px 8px;
+  }
+  .inj-mon .mon-big > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 3px;
+    min-width: 0;
+    align-items: baseline;
+  }
+  .inj-mon .mon-big span {
+    grid-column: 1 / -1;
+  }
+  .inj-mon .mon-big b {
+    font-size: 16px;
+    text-align: left;
+  }
+  .inj-mon .mon-big i {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .inj-mon .mon-bars {
+    gap: 6px;
+    justify-content: space-between;
+    align-self: center;
+  }
+  .inj-mon .mon-cyl {
+    grid-template-columns: 8px 8px;
+    column-gap: 2px;
+  }
+  .inj-mon .mon-cyl .bar {
+    width: 8px;
+    height: 28px;
+  }
+  .inj-mon .mon-key {
+    gap: 3px;
+    font-size: 10px;
+  }
+  .inj-mon .mon-key i {
+    width: 6px;
+    height: 6px;
+    margin-right: 0;
+  }
+  .inj-mon .mon-small {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2px 6px;
+    border-top: 0;
+    border-left: 1px solid #23313b;
+    padding: 0 0 0 8px;
+    align-content: center;
+  }
+  .inj-mon .mon-small b {
+    margin: 0;
+    text-align: right;
   }
 }

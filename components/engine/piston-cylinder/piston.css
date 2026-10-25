@@ -55,6 +55,11 @@
   font-size: 11px;
   line-height: 1.35;
 }
+@media (max-width: 639px) {
+  .eng-mon.piston-monitor {
+    width: 100%;
+  }
+}
 .piston-scenarios {
   display: grid;
   grid-template-columns: 1fr 1fr;

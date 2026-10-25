@@ -11,6 +11,47 @@
     grid-template-columns: repeat(2, auto auto);
   }
 }
+@media (max-width: 639px) {
+  .eng-mon.gov-mon {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "big mode" "small small";
+    gap: 6px 10px;
+    padding: 6px 8px;
+    line-height: 1.2;
+  }
+  .gov-mon .mon-big {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+  .gov-mon .mon-big > div {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    gap: 2px 4px;
+    align-items: baseline;
+  }
+  .gov-mon .mon-big > div:first-child i {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .gov-mon .mon-small {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px 8px;
+    padding-top: 4px;
+  }
+  .gov-mon .mon-small > div {
+    display: grid;
+    gap: 2px;
+  }
+  .gov-mon .mon-small b {
+    margin: 0;
+  }
+  .gov-mon .gov-mode {
+    align-self: center;
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+}
 .gov-mode {
   grid-area: mode;
   justify-self: start;

@@ -46,6 +46,8 @@
     padding-right: 0;
   }
   .app #details-panel:has(.power-flow) {
-    scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 64px);
+    /* Skip to the panel's beginning before the diagram is pinned. Offset the root's breaker-focus clearance
+       so scrollIntoView leaves just the safe area and the 64px systems-toggle row above the panel. */
+    scroll-margin-top: calc(64px - 65dvh - 12px);
   }
 }

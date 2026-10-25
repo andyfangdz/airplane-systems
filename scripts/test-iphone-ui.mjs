@@ -443,6 +443,30 @@ for (const { id, control, checkbox } of componentControls) {
     await page.locator(".eng-view canvas").waitFor();
     await boundedCanvas(page);
     await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+    const intro = page.getByRole("button", { name: "About this model" });
+    await expect(intro).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(".component-intro .lead")).toBeHidden();
+    await intro.tap();
+    await expect(page.locator(".component-intro .lead")).toBeVisible();
+    await intro.tap();
+    await expect(page.locator(".component-intro .lead")).toBeHidden();
+    const inspect = page.locator(".part-inspector summary");
+    if (await inspect.count()) {
+      const aboutBox = await intro.boundingBox();
+      const inspectBox = await inspect.boundingBox();
+      expect(Math.abs(inspectBox.y - aboutBox.y)).toBeLessThanOrEqual(1);
+      expect(inspectBox.x + inspectBox.width).toBeLessThanOrEqual(aboutBox.x + 1);
+      await inspect.tap();
+      await expect(page.getByRole("searchbox", { name: "Find a part" })).toBeVisible();
+      await inspect.tap();
+    }
+    const footWidth = (await page.locator(".eng-foot").boundingBox()).width;
+    expect(footWidth).toBeGreaterThanOrEqual(outer.width - 1);
+    const footPadding = await page.locator(".eng-foot").evaluate((node) => {
+      const style = getComputedStyle(node);
+      return parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    });
+    expect((await page.locator(".eng-mon").boundingBox()).width).toBeGreaterThanOrEqual(footWidth - footPadding - 1);
     const canvas = await page.locator(".eng-view canvas").elementHandle();
     const selected = page.locator(control);
     if (checkbox) await selected.check();
@@ -484,6 +508,8 @@ for (const { id, control, checkbox } of componentControls) {
         await preserved();
         if (viewport.width >= 640) {
           await expect(toggle).toBeHidden();
+          await expect(intro).toBeHidden();
+          await expect(page.locator(".component-intro .lead")).toBeVisible();
           expect((await page.locator(".eng-stage").boundingBox()).height).toBeGreaterThan(500);
         } else {
           await expect(toggle).toHaveAttribute("aria-expanded", "false");

@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 /** The SureFly page's side panel: the dip switch, installing and timing the SIM, running it, and the documents. */
 import {
   BtnRow,
@@ -282,11 +283,13 @@ export function SureFlyPanel() {
     set = useUi((x) => x.set);
   return (
     <div className="panel-inner">
-      <div className="ref">Component simulation · SureFly SF1001 Rev B</div>
-      <p className="lead">
-        The SureFly SIM4P replaces a four-cylinder magneto with an electronic module: it fires from #1 top centre at the
-        timing its dip switch selects, and in advance mode adds advance at part power from rpm and manifold pressure.
-      </p>
+      <ComponentIntro source="SureFly SF1001 Rev B">
+        <p className="lead">
+          The SureFly SIM4P replaces a four-cylinder magneto with an electronic module: it fires from #1 top centre at
+          the timing its dip switch selects, and in advance mode adds advance at part power from rpm and manifold
+          pressure.
+        </p>
+      </ComponentIntro>
       <Seg<Stage>
         id="sf-stage"
         label="Bench"

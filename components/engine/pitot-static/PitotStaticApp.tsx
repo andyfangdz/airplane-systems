@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 /**
  * The pitot-static page: the system laid out in 3D, the instruments with what the airplane is really doing over the
  * foot of the view (the six-pack's three, or the G1000 PFD's air data with the standby airspeed indicator and
@@ -977,8 +978,9 @@ function Readings() {
 function Panel() {
   return (
     <div className="panel-inner">
-      <div className="ref">Component simulation · {PHAK} ch. 8 · Cessna 172S POH</div>
-      <p className="lead">{spec.lead}</p>
+      <ComponentIntro source={`${PHAK} ch. 8 · Cessna 172S POH`}>
+        <p className="lead">{spec.lead}</p>
+      </ComponentIntro>
       <Try />
       <Flight />
       <LeakTest />

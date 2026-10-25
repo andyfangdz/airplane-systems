@@ -417,6 +417,9 @@
   stroke-opacity: 0.35;
 }
 
+.component-intro .part-inspector {
+  margin: 0 0 12px;
+}
 @media (max-width: 1100px) {
   .eng-app {
     grid-template-columns: minmax(0, 1fr) clamp(280px, 42vw, 340px);
@@ -455,6 +458,62 @@
   }
   .eng-app .eng-brand {
     border-left: 0;
+  }
+  /* These are ordinary full-width rows once the desktop overlay becomes a stacked page. */
+  .component-app .eng-foot {
+    align-self: stretch;
+  }
+  .component-app .panel-inner {
+    padding-top: 0;
+  }
+  .component-intro {
+    position: relative;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .component-intro .part-inspector {
+    margin: 0;
+    border: 0;
+  }
+  .component-intro:has(.part-inspector) > button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 138px;
+    text-align: right;
+  }
+  .component-intro .part-inspector summary {
+    width: calc(100% - 138px);
+  }
+  .component-intro > button {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: 600 14px var(--f-body);
+    text-align: left;
+    cursor: pointer;
+  }
+  .component-intro .ref {
+    padding: 4px 0;
+  }
+  .component-app .lead {
+    margin-bottom: 8px;
+  }
+  .component-app .panel h3 {
+    margin-top: 12px;
+  }
+  .component-app .row {
+    gap: 0;
+  }
+  .component-app .row output {
+    flex-shrink: 0;
+  }
+  .component-app .ctl {
+    gap: 8px;
   }
 }
 /* Dense instruments also fit the inner display's side-by-side scene; they do not select the page layout. */
