@@ -162,7 +162,9 @@ function clampLead(inner: HTMLElement) {
 /** Which side panels are collapsed, remembered for the next visit ("systems,details"); the server renders both open. */
 const COLLAPSED_KEY = "panelsCollapsed";
 const collapsedListeners = new Set<() => void>();
-const readCollapsed = () => read(COLLAPSED_KEY) ?? "";
+// Held in memory so the buttons still work when storage is blocked or full; storage only remembers it.
+let collapsedSides: string | undefined;
+const readCollapsed = () => (collapsedSides ??= read(COLLAPSED_KEY) ?? "");
 function subscribeCollapsed(notify: () => void) {
   collapsedListeners.add(notify);
   return () => collapsedListeners.delete(notify);
@@ -174,8 +176,9 @@ function useCollapsed(side: "systems" | "details"): [boolean, () => void] {
     const next = new Set(readCollapsed().split(",").filter(Boolean));
     if (collapsed) next.delete(side);
     else next.add(side);
+    collapsedSides = [...next].join(",");
     try {
-      localStorage.setItem(COLLAPSED_KEY, [...next].join(","));
+      localStorage.setItem(COLLAPSED_KEY, collapsedSides);
     } catch {}
     collapsedListeners.forEach((notify) => notify());
   };

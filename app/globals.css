@@ -1283,13 +1283,16 @@ button.chip:hover {
     min-height: 340px;
   }
   /* the 3D view stays at the top of the screen while the panel scrolls under it, so a switch and what it does are seen
-     together (the walk-around has its own layout, components/walkaround.css) */
-  .app:not(.walking):not(.details-collapsed) > .stage {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    height: 48svh;
-    min-height: 300px;
+     together (the walk-around has its own layout, components/walkaround.css). Only on screens tall enough to leave
+     room for the panel under it: on a landscape phone the view would cover the whole screen. */
+  @media (min-height: 560px) {
+    .app:not(.walking):not(.details-collapsed) > .stage {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      height: 48svh;
+      min-height: 300px;
+    }
   }
   /* one row of touch-sized buttons that scrolls sideways, rather than two rows over the model */
   .toolbar {
