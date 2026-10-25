@@ -201,9 +201,6 @@ button {
 .skip-controls:focus {
   transform: none;
 }
-.tb-reading {
-  display: none;
-}
 .welcome-choices {
   display: grid;
   gap: 8px;
@@ -1512,13 +1509,14 @@ button.chip:hover {
       min-height: 300px;
     }
   }
-  .tb-reading {
-    display: flex;
+  .model-size-toggle {
+    position: absolute;
+    z-index: 21; /* keep the control above the scene's part labels */
+    right: 12px;
+    bottom: 12px;
+    width: 44px;
+    height: 44px;
     justify-content: center;
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-    margin: 8px;
   }
   .app.reading-space:not(.walking):not(.details-collapsed) > .stage {
     height: 30svh;
@@ -1637,20 +1635,6 @@ button.chip:hover {
     display: block;
     background: var(--panel);
     border-top: 1px solid var(--rule);
-  }
-  .stage-under:has(.tb-reading) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) fit-content(36%);
-    align-items: center;
-  }
-  .stage-under:has(.tb-reading) > .cas {
-    grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
-    margin-right: 0;
-  }
-  .stage-under:has(.tb-reading) > .caps-hud {
-    grid-column: 1 / -1;
   }
   .stage-under > * + * {
     border-top: 1px solid var(--rule);

@@ -474,7 +474,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
             Skip to system controls
           </a>
           <Rail collapsed={systemsCollapsed} toggle={toggleSystems} />
-          <main className="stage">
+          <main className="stage" id="model-view">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
             {session ? <Scene owner={session.owner} /> : <div />}
             <Loader />
@@ -485,14 +485,24 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
               <div id="walk-scene" className="walk-scene" />
             </div>
             <Tooltip />
+            {narrow && !walking && !detailsCollapsed && (
+              <button
+                type="button"
+                className="tb model-size-toggle"
+                title={reading ? "Expand model" : "Collapse model"}
+                aria-label={reading ? "Expand model" : "Collapse model"}
+                aria-expanded={!reading}
+                aria-controls="model-view"
+                onClick={() => setReading(!reading)}
+              >
+                <Icon>
+                  <path d={reading ? "m4 6 4 4 4-4" : "m4 10 4-4 4 4"} />
+                </Icon>
+              </button>
+            )}
           </main>
           {/* phones: the alert window and the HUD show here, under the 3D view, instead (see globals.css) */}
           <div className="stage-under">
-            {narrow && !walking && !detailsCollapsed && (
-              <button className="tb tb-reading" aria-pressed={reading} onClick={() => setReading(!reading)}>
-                {reading ? "Expand model" : "More reading space"}
-              </button>
-            )}
             {narrow && <Alerts />}
             <Hud />
           </div>

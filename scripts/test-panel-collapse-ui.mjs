@@ -229,28 +229,47 @@ test("Duo headers collapse without moving their button and give their height bac
   }
 });
 
-test("outer Duo view actions fit without scrolling and reading space shares the alert row", async ({
+test("outer Duo view actions fit without scrolling and model size stays separate from alerts", async ({
   page,
   isMobile,
 }) => {
   test.skip(!isMobile, "Compact scene controls are checked with touch input");
   const toolbar = page.locator(".scene-toolbar");
   const cas = page.locator(".stage-under .cas");
-  const reading = page.getByRole("button", { name: "More reading space", exact: true });
-  const checkStatusRow = async () => {
+  const reading = page.getByRole("button", { name: "Collapse model", exact: true });
+  const checkModelControl = async () => {
+    const stage = await page.locator(".stage").boundingBox();
+    const row = await page.locator(".stage-under").boundingBox();
     const status = await cas.boundingBox();
     const action = await reading.boundingBox();
-    expect(status.x + status.width).toBeLessThanOrEqual(action.x);
-    expect(Math.min(status.y + status.height, action.y + action.height)).toBeGreaterThan(Math.max(status.y, action.y));
-    expect(action.width).toBeGreaterThanOrEqual(44);
-    expect(action.height).toBeGreaterThanOrEqual(44);
-    for (const element of [cas, reading]) {
-      expect(
-        await element.evaluate(
-          (node) => node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight,
-        ),
-      ).toBe(true);
-    }
+    expect(status.width).toBeGreaterThanOrEqual(row.width - 24);
+    expect(status.x).toBeGreaterThanOrEqual(row.x);
+    expect(status.x + status.width).toBeLessThanOrEqual(row.x + row.width);
+    expect(action.width).toBeCloseTo(44, 0);
+    expect(action.height).toBeCloseTo(44, 0);
+    expect(action.x).toBeGreaterThanOrEqual(stage.x);
+    expect(action.x + action.width).toBeLessThanOrEqual(stage.x + stage.width);
+    expect(action.y).toBeGreaterThanOrEqual(stage.y);
+    expect(action.y + action.height).toBeLessThanOrEqual(stage.y + stage.height);
+    expect(action.y + action.height).toBeLessThanOrEqual(status.y);
+    const bar = await toolbar.boundingBox();
+    expect(action.y).toBeGreaterThanOrEqual(bar.y + bar.height);
+    await expect(reading).toHaveAttribute("aria-controls", "model-view");
+    await expect(reading).toHaveAttribute("aria-expanded", "true");
+    expect(await reading.innerText()).toBe("");
+    expect(
+      await reading.evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        return (
+          !!button.closest(".stage") &&
+          button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+        );
+      }),
+    ).toBe(true);
+    await expect(page.locator(".stage-under button[aria-controls='model-view']")).toHaveCount(0);
+    expect(
+      await cas.evaluate((node) => node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight),
+    ).toBe(true);
     await expect(cas.locator("li").first()).toBeVisible();
   };
   for (const viewport of [
@@ -307,14 +326,14 @@ test("outer Duo view actions fit without scrolling and reading space shares the 
         await expect(button).toHaveAttribute("aria-pressed", initial);
       }
       await toolbar.getByRole("button", { name: "Reset view", exact: true }).tap();
-      await checkStatusRow();
+      await checkModelControl();
       await page.screenshot({
         path: `.shots/duo-front-${viewport.width}x${viewport.height}${collapsed ? "-collapsed" : ""}.png`,
       });
     }
     await page.getByRole("button", { name: "Show systems panel", exact: true }).tap();
   }
-  // Keep real warning text readable in the narrow shared row, not only the quiet "No alerts" state.
+  // Keep real warning text readable across the full alert row, not only the quiet "No alerts" state.
   await page
     .locator(".syslist")
     .getByRole("button", { name: /Electrical/ })
@@ -323,15 +342,20 @@ test("outer Duo view actions fit without scrolling and reading space shares the 
   if ((await battery.getAttribute("aria-pressed")) === "true") await battery.tap();
   await page.evaluate(() => scrollTo(0, 0));
   await expect(cas).toContainText("LOW VOLTS");
-  await checkStatusRow();
+  await checkModelControl();
 });
 
 test("phone reading space keeps the model visible and restores its previous size", async ({ page, isMobile }) => {
   test.skip(!isMobile, "Reading space is a phone layout option");
   const height = (await page.locator(".stage").boundingBox()).height;
-  const reading = page.getByRole("button", { name: "More reading space", exact: true });
+  const canvas = await page.locator("#model-view canvas").elementHandle();
+  const reading = page.locator('.stage button[aria-controls="model-view"]');
+  await expect(reading).toHaveAccessibleName("Collapse model");
+  await expect(reading).toHaveAttribute("aria-expanded", "true");
   await page.screenshot({ path: ".shots/phone-study-before-reading.png" });
   await reading.tap();
+  await expect(reading).toHaveAccessibleName("Expand model");
+  await expect(reading).toHaveAttribute("aria-expanded", "false");
   const compactHeight = (await page.locator(".stage").boundingBox()).height;
   expect(compactHeight).toBeLessThan(height - 50);
   expect(compactHeight).toBeGreaterThanOrEqual(210);
@@ -339,8 +363,13 @@ test("phone reading space keeps the model visible and restores its previous size
   // The responsive canvas buffer and camera fit follow ResizeObserver, after the CSS box has resized.
   await page.waitForTimeout(1200);
   await page.screenshot({ path: ".shots/phone-study-reading.png" });
-  await page.getByRole("button", { name: "Expand model", exact: true }).tap();
+  await reading.tap();
+  await expect(reading).toHaveAccessibleName("Collapse model");
+  await expect(reading).toHaveAttribute("aria-expanded", "true");
   expect((await page.locator(".stage").boundingBox()).height).toBeCloseTo(height, 0);
+  expect(
+    await canvas.evaluate((node) => node.isConnected && node === document.querySelector("#model-view canvas")),
+  ).toBe(true);
   await page.screenshot({ path: ".shots/phone-study-navigation.png" });
 });
 
