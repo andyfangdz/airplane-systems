@@ -197,7 +197,13 @@ function LabelClear({ every = 0.2 }: { every?: number }) {
     const shown = visibleStageLabels(
       labels.filter(({ rect }) => rect.width && rect.height),
       viewport,
-      obstaclesFor(gl.domElement),
+      [
+        ...obstaclesFor(gl.domElement),
+        // A corner control blocks labels, but does not need a full-width band reserved by the camera fit.
+        ...[...view.querySelectorAll<HTMLElement>(".model-size-toggle")].map((button) =>
+          button.getBoundingClientRect(),
+        ),
+      ],
       viewport.width < 600 ? 6 : Infinity,
     );
     for (const { el, id } of labels) {

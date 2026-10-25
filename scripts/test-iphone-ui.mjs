@@ -367,3 +367,150 @@ test("iPhone Duo screen transitions preserve the aircraft session and controls",
   }
   expect(errors).toEqual([]);
 });
+
+const componentControls = [
+  { id: "piston-cylinder", control: "#piston-ignition-top" },
+  { id: "carburetor", control: "#f-filter", checkbox: true },
+  { id: "fuel-injector", control: "#f-pump", checkbox: true },
+  { id: "surefly", control: "#sf-stage-time" },
+  { id: "governor", control: "#gov-f-stickyValve", checkbox: true },
+  { id: "pitot-static", control: "#ps-avionics-g1000" },
+];
+
+async function componentToggleLayout(page) {
+  const toggle = page.locator(".eng-view .model-size-toggle");
+  await expect(toggle).toHaveAttribute("aria-controls", "component-model-view");
+  await expect
+    .poll(() =>
+      toggle.evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        const view = button.closest(".eng-view").getBoundingClientRect();
+        return (
+          box.width >= 44 &&
+          box.height >= 44 &&
+          box.left >= view.left &&
+          box.right <= view.right &&
+          box.top >= view.top &&
+          box.bottom <= view.bottom &&
+          button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+        );
+      }),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const button = document.querySelector(".model-size-toggle").getBoundingClientRect();
+        const overlaps = (box) =>
+          box.left < button.right && box.right > button.left && box.top < button.bottom && box.bottom > button.top;
+        return [...document.querySelectorAll(".eng-label, .inj-legend")]
+          .filter((el) => getComputedStyle(el).visibility !== "hidden" && el.getBoundingClientRect().width)
+          .filter((el) => overlaps(el.getBoundingClientRect()))
+          .map((el) => el.textContent);
+      }),
+    )
+    .toEqual([]);
+  const stage = await page.locator(".eng-stage").boundingBox();
+  const foot = await page.locator(".eng-foot").boundingBox();
+  expect(foot.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1);
+  expect(foot.height).toBeGreaterThan(0);
+}
+
+async function pinnedPitotInstruments(page) {
+  await page.evaluate(() => scrollTo(0, 500));
+  await expect(page.locator(".eng-stage")).toHaveCSS("position", "sticky");
+  await expect(page.locator(".eng-foot")).toHaveCSS("position", "sticky");
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const stage = document.querySelector(".eng-stage").getBoundingClientRect();
+        const monitor = document.querySelector(".eng-foot").getBoundingClientRect();
+        return Math.abs(stage.top) <= 1 && Math.abs(monitor.top - stage.bottom) <= 1;
+      }),
+    )
+    .toBe(true);
+  await componentToggleLayout(page);
+  await page.evaluate(() => scrollTo(0, 0));
+}
+
+for (const { id, control, checkbox } of componentControls) {
+  test(`iPhone component ${id}: model collapse preserves study controls and clear overlays`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const outer = { width: 382, height: 580 };
+    await page.setViewportSize(outer);
+    await page.goto(`/components/${id}`);
+    await page.locator(".eng-view canvas").waitFor();
+    await boundedCanvas(page);
+    await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+    const canvas = await page.locator(".eng-view canvas").elementHandle();
+    const selected = page.locator(control);
+    if (checkbox) await selected.check();
+    else await selected.tap();
+    const preserved = async () => {
+      if (checkbox) await expect(selected).toBeChecked();
+      else await expect(selected).toHaveAttribute("aria-pressed", "true");
+      expect(
+        await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".eng-view canvas")),
+      ).toBe(true);
+    };
+    await page.evaluate(() => scrollTo(0, 0));
+    await boundedCanvas(page);
+    const expanded = (await page.locator(".eng-stage").boundingBox()).height;
+    const toggle = page.locator(".model-size-toggle");
+    await expect(toggle).toHaveAccessibleName("Collapse model");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await componentToggleLayout(page);
+    await page.screenshot({ path: `.shots/component-collapse/${id}-before.png` });
+    if (id === "pitot-static") await pinnedPitotInstruments(page);
+
+    await toggle.tap();
+    await expect(toggle).toHaveAccessibleName("Expand model");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect.poll(async () => (await page.locator(".eng-stage").boundingBox()).height).toBeLessThan(expanded - 20);
+    await boundedCanvas(page);
+    await preserved();
+    await componentToggleLayout(page);
+    await page.screenshot({ path: `.shots/component-collapse/${id}-collapsed.png` });
+    if (id === "pitot-static") await pinnedPitotInstruments(page);
+
+    if (id === "piston-cylinder") {
+      // Opening the inner display keeps the compact preference without applying a phone-only height to its grid.
+      for (const viewport of [{ width: 594, height: 368 }, { width: 669, height: 867 }, outer]) {
+        await page.setViewportSize(viewport);
+        await page.evaluate(() => scrollTo(0, 0));
+        await expectStudyLayout(page, viewport, ".eng-app");
+        await boundedCanvas(page);
+        await preserved();
+        if (viewport.width >= 640) {
+          await expect(toggle).toBeHidden();
+          expect((await page.locator(".eng-stage").boundingBox()).height).toBeGreaterThan(500);
+        } else {
+          await expect(toggle).toHaveAttribute("aria-expanded", "false");
+          await componentToggleLayout(page);
+          if (viewport.width === 594) {
+            const compact = (await page.locator(".eng-stage").boundingBox()).height;
+            await toggle.tap();
+            await expect
+              .poll(async () => (await page.locator(".eng-stage").boundingBox()).height)
+              .toBeGreaterThan(compact + 20);
+            await toggle.tap();
+            await expect(toggle).toHaveAttribute("aria-expanded", "false");
+            await boundedCanvas(page);
+          }
+        }
+        await page.screenshot({ path: `.shots/component-collapse/${id}-${viewport.width}-compact.png` });
+      }
+    }
+
+    await toggle.tap();
+    await expect(toggle).toHaveAccessibleName("Collapse model");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect.poll(async () => (await page.locator(".eng-stage").boundingBox()).height).toBe(expanded);
+    await boundedCanvas(page);
+    await preserved();
+    await componentToggleLayout(page);
+    await page.screenshot({ path: `.shots/component-collapse/${id}-after.png` });
+    expect(errors).toEqual([]);
+  });
+}

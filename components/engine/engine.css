@@ -423,6 +423,16 @@
   }
 }
 @media (max-width: 639px) {
+  .component-app {
+    --component-stage-height: max(42svh, 260px);
+  }
+  .component-app.reading-space {
+    --component-stage-height: max(30svh, 210px);
+  }
+  .eng-app.component-app .eng-stage {
+    height: var(--component-stage-height);
+    min-height: 0;
+  }
   .eng-app {
     display: flex;
     flex-direction: column;
@@ -596,6 +606,9 @@
 
 /* Landscape phones need the whole viewport for reading/operating controls once the model scrolls away. */
 @media (max-width: 639px) and (max-height: 560px) and (pointer: coarse) {
+  .component-app {
+    --component-stage-height: max(65svh, 210px);
+  }
   .eng-app .eng-stage {
     position: relative;
     top: auto;

@@ -57,6 +57,36 @@ export function ThemeButton() {
   );
 }
 
+/** Standalone scene-size control, separate from instruments and alerts. */
+export function ModelSizeToggle({
+  collapsed,
+  controls,
+  onClick,
+}: {
+  collapsed: boolean;
+  controls: string;
+  onClick: () => void;
+}) {
+  const touchClick = useTouchClick();
+  const label = collapsed ? "Expand model" : "Collapse model";
+  return (
+    <button
+      {...touchClick}
+      type="button"
+      className="tb model-size-toggle"
+      title={label}
+      aria-label={label}
+      aria-expanded={!collapsed}
+      aria-controls={controls}
+      onClick={onClick}
+    >
+      <Icon>
+        <path d={collapsed ? "m4 6 4 4 4-4" : "m4 10 4-4 4 4"} />
+      </Icon>
+    </button>
+  );
+}
+
 /** The toolbar's Reset view: back to the view's starting frame. Icon-only on phones, where the toolbar is one row. */
 export function ResetViewButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (

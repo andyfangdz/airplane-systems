@@ -84,3 +84,8 @@
     font-size: 10px;
   }
 }
+@media (max-width: 639px) {
+  .inj-legend {
+    right: 68px; /* leave the standalone scene-size button clear */
+  }
+}

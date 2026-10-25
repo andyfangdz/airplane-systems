@@ -48,7 +48,7 @@
   /* the instruments are the point: they stay in sight under the view while the panel scrolls */
   .eng-foot:has(> .ps-mon) {
     position: sticky;
-    top: calc(max(42svh, 260px) + env(safe-area-inset-top, 0px));
+    top: calc(var(--component-stage-height, max(42svh, 260px)) + env(safe-area-inset-top, 0px));
     z-index: 3;
     align-self: stretch;
     padding: 6px 10px;

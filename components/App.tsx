@@ -23,7 +23,7 @@ import { revealPanelStart, revealStage, useAircraftHover, useNarrowLayout, useVi
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
-import { Icon, PREFLIGHT_ICON, ResetViewButton, ThemeButton } from "./ui/chrome";
+import { Icon, ModelSizeToggle, PREFLIGHT_ICON, ResetViewButton, ThemeButton } from "./ui/chrome";
 import { useScenarioMarks } from "./ui/controls";
 import { useCollapsed } from "@/lib/panels";
 
@@ -486,19 +486,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
             </div>
             <Tooltip />
             {narrow && !walking && !detailsCollapsed && (
-              <button
-                type="button"
-                className="tb model-size-toggle"
-                title={reading ? "Expand model" : "Collapse model"}
-                aria-label={reading ? "Expand model" : "Collapse model"}
-                aria-expanded={!reading}
-                aria-controls="model-view"
-                onClick={() => setReading(!reading)}
-              >
-                <Icon>
-                  <path d={reading ? "m4 6 4 4 4-4" : "m4 10 4-4 4 4"} />
-                </Icon>
-              </button>
+              <ModelSizeToggle collapsed={reading} controls="model-view" onClick={() => setReading(!reading)} />
             )}
           </main>
           {/* phones: the alert window and the HUD show here, under the 3D view, instead (see globals.css) */}
