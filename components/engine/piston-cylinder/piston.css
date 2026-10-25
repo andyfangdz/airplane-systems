@@ -21,7 +21,7 @@
   text-transform: capitalize;
 }
 .piston-strokes [aria-pressed="true"] {
-  outline: 2px solid #699bc3;
+  outline: 2px solid var(--accent);
 }
 .piston-monitor {
   display: flex;
@@ -33,22 +33,13 @@
 .piston-monitor strong {
   font-size: 24px;
 }
-.piston-label {
-  pointer-events: none;
-  white-space: nowrap;
-  font-size: 12px;
-  padding: 4px 7px;
-  border-radius: 4px;
-  background: #172632e6;
-  color: #eef5fa;
-}
 .piston-scenarios {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 .piston-scenarios [aria-pressed="true"] {
-  outline: 2px solid #699bc3;
+  outline: 2px solid var(--accent);
 }
 .piston-thermal {
   display: grid;
@@ -66,16 +57,10 @@
 }
 .piston-panel .piston-hot,
 .piston-hot {
-  color: #dc744a;
+  color: var(--hot);
 }
 .piston-monitor {
   gap: 8px 16px;
-}
-@media (max-width: 860px) {
-  .piston-label {
-    font-size: 10px;
-    padding: 3px 4px;
-  }
 }
 .piston-fault-select {
   display: grid;

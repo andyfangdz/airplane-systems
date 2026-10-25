@@ -160,7 +160,7 @@ for (const [id, short] of airplanes) {
     await shot("restored");
 
     // The current compact fleet picker must be usable after a walk, including on phones.
-    await activate(page.getByRole("button", { name: /^Switch Airplanes, current airplane/ }));
+    await activate(page.getByRole("button", { name: /^Switch airplane, current airplane/ }));
     const picker = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
     await activate(picker.getByRole("button", { name: /^Cirrus SR20|^SR20 G6/ }));
     await page.reload();

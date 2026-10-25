@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import { parseCameraPreset } from "@/lib/camera";
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { AircraftDef } from "@/aircraft/types";
 import {
   AircraftContext,
@@ -19,7 +19,7 @@ import { setBuild } from "@/lib/build";
 import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
 import { useSimulationLoop } from "@/lib/useSimulationLoop";
 import { sysColor, type SysId, type Theme } from "@/lib/systems";
-import { revealStage, useAircraftHover, useView } from "@/lib/view";
+import { revealPanelStart, revealStage, useAircraftHover, useNarrowLayout, useView } from "@/lib/view";
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
@@ -93,10 +93,17 @@ function Panel({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }
     walking = useView((x) => x.walking);
   const s = sysOf(def, sys),
     Body = def.panels[s.id];
-  // phones: after picking a system from far down the panel, bring the 3D view back up
+  const inner = useRef<HTMLDivElement>(null);
+  const narrow = useNarrowLayout();
+  // phones: after picking a system from far down the panel, bring the 3D view and the panel's start back up
   useEffect(() => {
-    if (!walking) revealStage();
+    if (walking) return;
+    revealStage();
+    revealPanelStart();
   }, [sys, def, walking]);
+  useLayoutEffect(() => {
+    if (!walking && narrow && inner.current) return clampLead(inner.current);
+  }, [sys, def, walking, narrow, collapsed]);
   const Walk = walking ? def.walk?.Panel : undefined;
   return (
     <aside className="panel" aria-label="System details">
@@ -107,7 +114,7 @@ function Panel({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }
             <Walk />
           </div>
         ) : (
-          <div className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
+          <div ref={inner} className="panel-inner" style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}>
             <div className="ref">
               <i />
               {s.ref ?? `${def.doc} · p. ${s.pg}`}
@@ -119,6 +126,63 @@ function Panel({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }
       </div>
     </aside>
   );
+}
+
+/**
+ * Phones: the 3D view and the panel share the screen, so a long introduction is cut to a few lines with a "Read more"
+ * button after it, and the system's controls come into view sooner. The introduction is each panel's own first
+ * paragraph (`.lead` just under the heading); the button is added beside it here, outside React's tree, and removed on
+ * cleanup. Returns the cleanup.
+ */
+function clampLead(inner: HTMLElement) {
+  const lead = inner.querySelector<HTMLElement>(":scope > h2 + .lead");
+  if (!lead) return;
+  lead.dataset.clamp = "closed";
+  if (lead.scrollHeight <= lead.clientHeight + 1) {
+    delete lead.dataset.clamp;
+    return;
+  }
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "lead-more";
+  const show = (open: boolean) => {
+    lead.dataset.clamp = open ? "open" : "closed";
+    more.textContent = open ? "Show less" : "Read more";
+    more.setAttribute("aria-expanded", String(open));
+  };
+  show(false);
+  more.onclick = () => show(lead.dataset.clamp !== "open");
+  lead.after(more);
+  return () => {
+    more.remove();
+    delete lead.dataset.clamp;
+  };
+}
+
+/** Which side panels are collapsed, remembered for the next visit ("systems,details"); the server renders both open. */
+const COLLAPSED_KEY = "panelsCollapsed";
+const collapsedListeners = new Set<() => void>();
+// Held in memory so the buttons still work when storage is blocked or full; storage only remembers it.
+let collapsedSides: string | undefined;
+const readCollapsed = () => (collapsedSides ??= read(COLLAPSED_KEY) ?? "");
+function subscribeCollapsed(notify: () => void) {
+  collapsedListeners.add(notify);
+  return () => collapsedListeners.delete(notify);
+}
+function useCollapsed(side: "systems" | "details"): [boolean, () => void] {
+  const sides = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => "");
+  const collapsed = sides.split(",").includes(side);
+  const toggle = () => {
+    const next = new Set(readCollapsed().split(",").filter(Boolean));
+    if (collapsed) next.delete(side);
+    else next.add(side);
+    collapsedSides = [...next].join(",");
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsedSides);
+    } catch {}
+    collapsedListeners.forEach((notify) => notify());
+  };
+  return [collapsed, toggle];
 }
 
 function PanelToggle({
@@ -360,8 +424,8 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
   }, [def, session, sys]);
   useSimulationLoop(session?.advance ?? def.advance, 1, !!session);
   const walking = useView((x) => x.walking);
-  const [systemsCollapsed, setSystemsCollapsed] = useState(false);
-  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [systemsCollapsed, toggleSystems] = useCollapsed("systems");
+  const [detailsCollapsed, toggleDetails] = useCollapsed("details");
   const Alerts = def.Alerts;
   return (
     <AircraftContext value={def}>
@@ -369,7 +433,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
         <div
           className={`app${walking ? " walking" : ""}${systemsCollapsed ? " systems-collapsed" : ""}${detailsCollapsed ? " details-collapsed" : ""}`}
         >
-          <Rail collapsed={systemsCollapsed} toggle={() => setSystemsCollapsed((value) => !value)} />
+          <Rail collapsed={systemsCollapsed} toggle={toggleSystems} />
           <main className="stage">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
             {session ? <Scene owner={session.owner} /> : <div />}
@@ -386,7 +450,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
           <div className="stage-under">
             <Hud />
           </div>
-          <Panel collapsed={detailsCollapsed} toggle={() => setDetailsCollapsed((value) => !value)} />
+          <Panel collapsed={detailsCollapsed} toggle={toggleDetails} />
         </div>
       </RouteSys>
     </AircraftContext>

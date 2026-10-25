@@ -404,7 +404,7 @@ describe("IO-390 scene layout defaults", () => {
       [3, 0.025],
     ]);
     expect(cl.bearings).toHaveLength(3);
-    expect(IO390_DEFAULTS.camera).toEqual({ position: [1.15, 0.62, 1.35], target: [0, -0.02, 0], maxDistance: 6 });
+    expect(IO390_DEFAULTS.camera).toEqual({ position: [0.3, 0.6, 1.8], target: [0, -0.02, 0], maxDistance: 6 });
     // magnetos aft of the accessory housing on the camshaft gear, filter on its rear, filler on the right, the
     // propeller on the flange
     expect(IO390_DEFAULTS.magnetos).toEqual({ mount: "aft", r: 0.04, len: 0.1, z: 0.1, y: null });

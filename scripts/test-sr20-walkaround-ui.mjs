@@ -160,7 +160,7 @@ test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }
   assert.equal(await page.locator(".walk-nm").count(), 0, "the actual wing/fuselage junction is highlighted");
   await shot("wing-root-fairing");
   if (phone) await page.getByRole("button", { name: "Exit the SR20 study walk", exact: true }).click();
-  await page.getByRole("button", { name: /^Switch Airplanes, current airplane/ }).click();
+  await page.getByRole("button", { name: /^Switch airplane, current airplane/ }).click();
   await page
     .getByRole("dialog", { name: "Choose an airplane, engine or component" })
     .getByRole("button", { name: /^Cirrus SR22T|^SR22T G6/ })

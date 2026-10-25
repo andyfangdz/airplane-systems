@@ -58,11 +58,11 @@ async function cameraPose(page) {
 
 const picker = (page) => page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
 async function chooseAircraft(page, name) {
-  await page.getByRole("button", { name: /^Switch Airplanes/ }).click();
+  await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
   await picker(page).getByRole("group", { name: "Airplanes" }).getByText(name, { exact: true }).click();
 }
 async function chooseDestination(page, group, path) {
-  await page.getByRole("button", { name: /^Switch Airplanes/ }).click();
+  await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
   await picker(page).getByRole("group", { name: group }).locator(`a[href="${path}"]`).click();
 }
 async function chooseSystem(page, name) {

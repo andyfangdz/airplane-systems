@@ -242,7 +242,7 @@ export const IO390_DEFAULTS: EngineLayout = {
     ["Alternator", [d.flangeX - 0.1, -0.27, 0.25]],
     ["Governor", [d.front + 0.04, 0.16, -0.07]],
   ],
-  camera: { position: [1.15, 0.62, 1.35], target: [0, -0.02, 0], maxDistance: 6 },
+  camera: { position: [0.3, 0.6, 1.8], target: [0, -0.02, 0], maxDistance: 6 },
   notes: {},
 };
 

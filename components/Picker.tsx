@@ -32,6 +32,8 @@ export function Picker({
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
   const [open, setOpen] = useState(false);
+  // the menu offers airplanes, engines and components; the label names what this page shows
+  const label = kind === "airplane" ? "Switch airplane" : "Switch simulation";
 
   useLayoutEffect(() => {
     const panel = menu.current,
@@ -81,7 +83,7 @@ export function Picker({
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={id}
-          aria-label={`Switch Airplanes, current ${kind} ${current.name}`}
+          aria-label={`${label}, current ${kind} ${current.name}`}
           onClick={(event) => {
             event.preventDefault();
             if (menu.current?.matches(":popover-open")) return close();
@@ -95,7 +97,7 @@ export function Picker({
               <svg viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M3 6h14m-4-4 4 4-4 4M17 14H3m4-4-4 4 4 4" />
               </svg>
-              Switch Airplanes
+              {label}
             </span>
             <span className="fleet-current-name">{current.name}</span>
           </span>

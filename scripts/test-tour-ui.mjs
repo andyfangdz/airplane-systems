@@ -35,7 +35,7 @@ test("tour follows targets, fits the viewport and remembers completion", async (
     await fits();
     if (i === 1) {
       // The nonmodal tour must still allow the picker underneath it to be used.
-      await page.getByRole("button", { name: /^Switch Airplanes/ }).click();
+      await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
       const picker = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
       await expect(picker).toBeVisible();
       await picker.getByRole("button", { pressed: true }).click();
@@ -52,7 +52,7 @@ test("tour follows targets, fits the viewport and remembers completion", async (
     }
     if (i === 6) {
       const previousAlerts = await page.locator(".cas").elementHandle();
-      await page.getByRole("button", { name: /^Switch Airplanes/ }).click();
+      await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
       await page
         .getByRole("dialog", { name: "Choose an airplane, engine or component" })
         .getByRole("button", { name: /^C172S/ })
