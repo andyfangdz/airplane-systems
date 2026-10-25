@@ -726,9 +726,9 @@ function SixPackPanel({ m }: { m: Mats }) {
   );
 }
 
-/** The G1000's pitot line to the standby ASI and on to the air data computer, the static branches, the data cable. */
 /** The air data computer's pitot fitting; its static fitting is where the manifold ends. */
 const ADC_PITOT: V3 = [ADC[0] - 0.035, ADC[1] + 0.016, ADC[2]];
+/** The G1000's pitot line to the standby ASI and on to the air data computer, the static branches, the data cable. */
 const G1 = {
   pitot: [
     PITOT_TRUNK[PITOT_TRUNK.length - 1],
