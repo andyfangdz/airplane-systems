@@ -26,10 +26,14 @@ const useScenarioMark = create<{ mark: string | null; request: string | null }>(
 /** Panel controls that change nothing in the simulation: locating a part, opening text, the walk-around's own steps. */
 const NOT_A_CHANGE = "[data-scenario], .parts, .lead-more, [aria-expanded], a, .walk";
 
+/** Events that can change the simulation: a HoldButton pressed from the keyboard sends no click, only its keydown. */
+const CHANGE_EVENTS = ["click", "keydown", "input", "change"];
+
 function clearOnChange(e: Event) {
   const t = e.target;
   if (!(t instanceof Element) || !t.closest(".panel") || t.closest(NOT_A_CHANGE)) return;
-  if (e.type === "click" && !t.closest("button")) return;
+  if ((e.type === "click" || e.type === "keydown") && !t.closest("button")) return;
+  if (e instanceof KeyboardEvent && e.key !== " " && e.key !== "Enter") return;
   if (useScenarioMark.getState().mark !== null) useScenarioMark.setState({ mark: null });
 }
 
@@ -37,9 +41,9 @@ function clearOnChange(e: Event) {
 export function useScenarioMarks() {
   useEffect(() => {
     // capture, so a control that stops its event's propagation still counts
-    for (const type of ["click", "input", "change"]) document.addEventListener(type, clearOnChange, true);
+    for (const type of CHANGE_EVENTS) document.addEventListener(type, clearOnChange, true);
     return () => {
-      for (const type of ["click", "input", "change"]) document.removeEventListener(type, clearOnChange, true);
+      for (const type of CHANGE_EVENTS) document.removeEventListener(type, clearOnChange, true);
       useScenarioMark.setState({ mark: null, request: null });
     };
   }, []);

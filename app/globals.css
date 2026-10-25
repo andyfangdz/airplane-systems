@@ -985,8 +985,9 @@ input[type="range"] {
   border-color: transparent;
   color: var(--on-c, var(--on-accent));
 }
-/* pressed: the scenario last loaded (ScenarioButton) until a control in the panel changes, or a selected option */
-.btn[aria-pressed="true"] {
+/* pressed: the scenario last loaded (ScenarioButton) until a control in the panel changes, or a selected option (a
+   primary button that is on keeps its solid fill and the text colour paired with it) */
+.btn:not(.primary)[aria-pressed="true"] {
   border-color: var(--c, var(--accent));
   background: color-mix(in srgb, var(--c, var(--accent)) 16%, var(--panel));
   box-shadow: inset 0 0 0 1px var(--c, var(--accent));
