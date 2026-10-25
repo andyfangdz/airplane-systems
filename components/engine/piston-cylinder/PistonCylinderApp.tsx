@@ -84,15 +84,21 @@ export default function PistonCylinderApp() {
       }
       foot={
         <div className="eng-mon piston-monitor">
-          <strong>{x.stroke}</strong>
-          <span>{x.phase.toFixed(0)}° / 720°</span>
-          <span className={snapshot.cht > IO390.limits.chtMax.value ? "piston-hot" : ""}>
-            CHT <b>{snapshot.cht.toFixed(0)}°F</b>
+          <span className="piston-cycle">
+            <strong>{x.stroke}</strong>
+            <small>{x.phase.toFixed(0)}° / 720°</small>
           </span>
-          <span>
-            EGT <b>{snapshot.egt.toFixed(0)}°F</b>
+          <span className={`piston-reading${snapshot.cht > IO390.limits.chtMax.value ? " piston-hot" : ""}`}>
+            <small>CHT</small>
+            <b>{snapshot.cht.toFixed(0)}°F</b>
           </span>
-          {snapshot.abnormal !== "none" && <span className="piston-hot">{COMBUSTION_NAMES[snapshot.abnormal]}</span>}
+          <span className="piston-reading">
+            <small>EGT</small>
+            <b>{snapshot.egt.toFixed(0)}°F</b>
+          </span>
+          {snapshot.abnormal !== "none" && (
+            <span className="piston-alert piston-hot">{COMBUSTION_NAMES[snapshot.abnormal]}</span>
+          )}
         </div>
       }
       panel={
