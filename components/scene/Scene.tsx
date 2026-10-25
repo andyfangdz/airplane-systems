@@ -15,6 +15,7 @@ import { markAircraftSceneReady } from "@/lib/aircraft-session";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { airplaneBounds, CAMERA_FOV, cameraFitDistance as fitDist, viewPresetCamera } from "@/lib/camera";
 import { useAircraftHover, useView, type AircraftSessionOwner, type CamRequest } from "@/lib/view";
+import { useSceneRendering } from "@/lib/useSceneRendering";
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
 import { PartAnimationScope } from "./PartAnimations";
@@ -361,6 +362,7 @@ function AircraftScene({ def, owner }: { def: AircraftDef; owner: AircraftSessio
 
 export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
   const def = useAircraft();
+  const rendering = useSceneRendering();
   const theme = useView((x) => x.theme);
   const spin = useView((x) => x.spin);
   const pal = palette(theme);
@@ -370,7 +372,7 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
   return (
     <Canvas
       flat
-      dpr={[1, 2]}
+      {...rendering}
       camera={{ fov: CAMERA_FOV, near: 0.05, far: 400, position: startPos }}
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;

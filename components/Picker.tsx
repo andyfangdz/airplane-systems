@@ -40,20 +40,28 @@ export function Picker({
     if (!open || !panel || !button) return;
     let active = true;
     const stop = autoUpdate(button, panel, () => {
+      // The popover escapes the padded app shell; keep its floating bounds inside the same safe area.
+      const shell = getComputedStyle(button.closest(".app, .eng-app") ?? document.body);
+      const padding = {
+        top: 12 + (parseFloat(shell.paddingTop) || 0),
+        right: 12 + (parseFloat(shell.paddingRight) || 0),
+        bottom: 12 + (parseFloat(shell.paddingBottom) || 0),
+        left: 12 + (parseFloat(shell.paddingLeft) || 0),
+      };
       void computePosition(button, panel, {
         strategy: "fixed",
         placement: "bottom-start",
         middleware: [
           offset(8),
-          flip({ padding: 12, crossAxis: false }),
+          flip({ padding, crossAxis: false }),
           // a list taller than the room below the trigger scrolls rather than sliding up over the trigger
           size({
-            padding: 12,
+            padding,
             apply: ({ availableHeight, elements }) => {
-              elements.floating.style.maxHeight = `${Math.min(700, Math.max(240, availableHeight))}px`;
+              elements.floating.style.maxHeight = `${Math.max(0, Math.min(700, availableHeight))}px`;
             },
           }),
-          shift({ padding: 12, crossAxis: true }),
+          shift({ padding, crossAxis: true }),
         ],
       }).then(({ x, y }) => {
         if (active) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });

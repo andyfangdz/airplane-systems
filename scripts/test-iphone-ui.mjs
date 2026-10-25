@@ -1,0 +1,259 @@
+import { test, expect } from "@playwright/test";
+
+const portrait = { width: 390, height: 844 };
+const landscapes = [
+  { width: 844, height: 390 },
+  { width: 932, height: 430 },
+];
+
+// Safari 27.1's documented iPhone Duo CSS bounds with browser chrome expanded (svh) and collapsed (lvh):
+// https://webkit.org/blog/18486/webkit-features-for-safari-27-1/
+// This exercises responsive bounds in WebKit, not Duo hardware, its user agent, or experimental posture APIs.
+const duoSizes = [
+  {
+    chrome: "expanded",
+    outerHeight: 580,
+    outerLandscapeHeight: 368,
+    innerHeight: 867,
+    innerLandscapeHeight: 585,
+    splitHeight: 571,
+  },
+  {
+    chrome: "collapsed",
+    outerHeight: 618,
+    outerLandscapeHeight: 406,
+    innerHeight: 902,
+    innerLandscapeHeight: 620,
+    splitHeight: 609,
+  },
+];
+
+test.beforeEach(async ({ context, page }) => {
+  await context.addInitScript(() => {
+    localStorage.setItem("tourDone", "1");
+    localStorage.setItem("sr20theme", "light");
+    const probe = (window.__iphoneScene = { frames: 0, triangles: 0 });
+    const devtools = new EventTarget();
+    devtools.addEventListener("observe", ({ detail: renderer }) => {
+      if (!renderer?.isWebGLRenderer) return;
+      const render = renderer.render.bind(renderer);
+      renderer.render = (scene, camera) => {
+        const result = render(scene, camera);
+        probe.triangles = renderer.info.render.triangles;
+        probe.frames++;
+        return result;
+      };
+    });
+    window.__THREE_DEVTOOLS__ = devtools;
+  });
+  await page.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
+});
+
+async function boundedCanvas(page) {
+  // The device has DPR 3. Check the real backing buffer after ResizeObserver and the rendering policy settle.
+  await expect
+    .poll(() =>
+      page
+        .locator(".stage canvas")
+        .first()
+        .evaluate((canvas) => {
+          const box = canvas.getBoundingClientRect();
+          return (
+            box.width > 100 &&
+            box.height > 100 &&
+            canvas.width >= box.width - 1 &&
+            canvas.height >= box.height - 1 &&
+            canvas.width <= box.width * 1.5 + 1 &&
+            canvas.height <= box.height * 1.5 + 1
+          );
+        }),
+    )
+    .toBe(true);
+  // Resizing clears the drawing buffer. Inspect a real rendered scene, not the correctly sized but empty canvas.
+  const frame = await page.evaluate(() => window.__iphoneScene.frames);
+  await page.waitForFunction(
+    (previous) => window.__iphoneScene.frames >= previous + 2 && window.__iphoneScene.triangles > 0,
+    frame,
+  );
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+}
+
+test("iPhone aircraft rotation preserves a usable scene and reachable collapsed controls", async ({ page }, info) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/c172s/overview");
+  await page.locator(".stage canvas").waitFor();
+  await page.waitForFunction(
+    () => !document.querySelector("[data-building]") || document.querySelector(".loader-skip"),
+    null,
+    { timeout: 120_000 },
+  );
+  const addAll = page.getByRole("button", { name: "Add all the remaining parts now", exact: true });
+  if (await addAll.isVisible()) await addAll.tap();
+  await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 120_000 });
+
+  for (const viewport of [portrait, ...landscapes, portrait]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => scrollTo(0, 0));
+    await expect(page.locator(".app")).toHaveCSS("display", "flex");
+    await boundedCanvas(page);
+    if (viewport.width === 932) {
+      // Device emulation reports zero safe-area env values. Supply the shell padding used by a notched iPhone.
+      const safeArea = await page.addStyleTag({ content: ".app { padding: 0 47px 21px !important; }" });
+      await page.getByRole("button", { name: /^Choose a model/ }).tap();
+      const picker = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+      await expect(picker).toBeVisible();
+      await expect
+        .poll(() =>
+          picker.evaluate((menu) => {
+            const box = menu.getBoundingClientRect();
+            return box.left >= 47 && box.right <= innerWidth - 47 && box.top >= 0 && box.bottom <= innerHeight - 21;
+          }),
+        )
+        .toBe(true);
+      await page.keyboard.press("Escape");
+      await expect(picker).toBeHidden();
+      await safeArea.evaluate((style) => style.remove());
+    }
+    const labels = page.getByRole("button", { name: "Labels", exact: true });
+    expect((await labels.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    const reset = await page.getByRole("button", { name: "Reset view", exact: true }).boundingBox();
+    expect(reset.width).toBeGreaterThanOrEqual(44);
+    expect(reset.height).toBeGreaterThanOrEqual(44);
+    await labels.tap();
+    await expect(labels).toHaveAttribute("aria-pressed", "false");
+    await labels.tap();
+    await expect(labels).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "Hide details panel", exact: true }).tap();
+    await page.evaluate(() => scrollTo(0, 0));
+    await boundedCanvas(page);
+    const show = page.getByRole("button", { name: "Show details panel", exact: true });
+    await expect
+      .poll(() =>
+        show.evaluate((button) => {
+          const box = button.getBoundingClientRect();
+          return (
+            box.top >= 0 &&
+            box.bottom <= innerHeight &&
+            button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+          );
+        }),
+      )
+      .toBe(true);
+    await page.screenshot({ path: info.outputPath(`aircraft-${viewport.width}-collapsed.png`) });
+    await show.tap();
+    await expect(page.locator("#details-panel")).toBeVisible();
+  }
+  expect(errors).toEqual([]);
+});
+
+for (const route of ["engines/io390", "components/pitot-static"]) {
+  test(`iPhone ${route}: controls remain reachable after portrait and landscape rotation`, async ({ page }, info) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`/${route}`);
+    await page.locator(".eng-view canvas").waitFor();
+    await page.locator(".part-inspector").waitFor();
+    const canvas = await page.locator(".eng-view canvas").elementHandle();
+    for (const viewport of [
+      portrait,
+      ...landscapes,
+      { width: 951, height: 585 },
+      { width: 669, height: 867 },
+      portrait,
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => scrollTo(0, 0));
+      const expanded = viewport.width > 860 && viewport.height > 560;
+      await expect(page.locator(".eng-app")).toHaveCSS("display", expanded ? "grid" : "flex");
+      await boundedCanvas(page);
+      expect(
+        await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".eng-view canvas")),
+      ).toBe(true);
+      if (expanded) {
+        await expect(page.locator(".eng-stage")).not.toHaveCSS("position", "sticky");
+        expect((await page.locator(".eng-app").boundingBox()).height).toBeLessThanOrEqual(viewport.height);
+      } else if (viewport.height < 560) {
+        await expect(page.locator(".eng-stage")).not.toHaveCSS("position", "sticky");
+        await page.evaluate(() => scrollBy(0, 300));
+        expect((await page.locator(".eng-stage").boundingBox()).y).toBeLessThan(0);
+      } else {
+        await expect(page.locator(".eng-stage")).toHaveCSS("position", "sticky");
+      }
+      const inspector = page.locator(".part-inspector details");
+      if (!(await inspector.evaluate((details) => details.open))) await inspector.locator("summary").tap();
+      const search = page.getByRole("searchbox", { name: "Find a part" });
+      expect(await search.evaluate((input) => parseFloat(getComputedStyle(input).fontSize))).toBeGreaterThanOrEqual(16);
+      await search.fill("no such aircraft part");
+      await expect(page.locator(".part-empty")).toBeVisible();
+      await search.fill("");
+      const part = page.locator(".part-index button").first();
+      const name = await part.innerText();
+      await part.tap();
+      await expect(page.locator(".part-explanation h3")).toHaveText(name);
+      await page.screenshot({ path: info.outputPath(`inspector-${viewport.width}.png`) });
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
+test("iPhone Duo screen transitions preserve the aircraft session and controls", async ({ page }, info) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 382, height: duoSizes[0].outerHeight });
+  await page.goto("/c172s/electrical");
+  await page.locator(".stage canvas").waitFor();
+  await page.waitForFunction(
+    () => !document.querySelector("[data-building]") || document.querySelector(".loader-skip"),
+    null,
+    { timeout: 120_000 },
+  );
+  const addAll = page.getByRole("button", { name: "Add all the remaining parts now", exact: true });
+  if (await addAll.isVisible()) await addAll.tap();
+  await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 120_000 });
+  const canvas = await page.locator(".stage canvas").elementHandle();
+  const xray = page.getByRole("button", { name: "X-ray", exact: true });
+  await xray.tap();
+  await expect(xray).toHaveAttribute("aria-pressed", "false");
+  const battery = page.getByRole("button", { name: "BAT", exact: true });
+  await battery.tap();
+  const batteryState = await battery.getAttribute("aria-pressed");
+  const route = page.url();
+
+  for (const size of duoSizes) {
+    const screens = [
+      { name: "outer", width: 382, height: size.outerHeight },
+      { name: "inner-landscape", width: 951, height: size.innerLandscapeHeight },
+      { name: "inner-portrait", width: 669, height: size.innerHeight },
+      { name: "split-view", width: 385, height: size.splitHeight },
+      { name: "outer-landscape", width: 594, height: size.outerLandscapeHeight },
+      { name: "outer-return", width: 382, height: size.outerHeight },
+    ];
+    for (const { name, width, height } of screens) {
+      await page.setViewportSize({ width, height });
+      await page.evaluate(() => scrollTo(0, 0));
+      await expect(page.locator(".app")).toHaveCSS("display", name === "inner-landscape" ? "grid" : "flex");
+      if (name === "inner-landscape")
+        expect((await page.locator(".app").boundingBox()).height).toBeLessThanOrEqual(height);
+      await boundedCanvas(page);
+      expect(
+        await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".stage canvas")),
+      ).toBe(true);
+      expect(page.url()).toBe(route);
+      await expect(page.locator('.syslist button[aria-current="true"] .nm')).toHaveText("Electrical");
+      await expect(xray).toHaveAttribute("aria-pressed", "false");
+      await expect(battery).toHaveAttribute("aria-pressed", batteryState);
+
+      // A real tap verifies the resized toolbar remains reachable, while resetting only the camera.
+      const reset = page.getByRole("button", { name: "Reset view", exact: true });
+      await reset.tap();
+      const box = await reset.boundingBox();
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      await boundedCanvas(page);
+      if (size.chrome === "expanded") await page.screenshot({ path: info.outputPath(`duo-${name}.png`) });
+    }
+  }
+  expect(errors).toEqual([]);
+});

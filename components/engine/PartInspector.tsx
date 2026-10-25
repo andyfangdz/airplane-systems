@@ -46,9 +46,15 @@ export function PartInspector() {
     if (getComputedStyle(panel).overflowY === "auto") {
       panel.scrollTop += targetRect.top - panelRect.top - 12;
     } else {
-      // Phones retain their sticky model above the note. Scrolling never changes keyboard focus.
-      const stage = panel.closest(".eng-app")?.querySelector<HTMLElement>(".eng-stage");
-      const inset = stage && getComputedStyle(stage).position === "sticky" ? stage.getBoundingClientRect().height : 0;
+      // Phones retain the model and, for pitot-static, its instrument strip above the note. Use their eventual
+      // sticky edges rather than their current scroll positions. Scrolling never changes keyboard focus.
+      const overlays = panel.closest(".eng-app")?.querySelectorAll<HTMLElement>(".eng-stage, .eng-foot") ?? [];
+      let inset = 0;
+      for (const overlay of overlays) {
+        const style = getComputedStyle(overlay);
+        if (style.position === "sticky")
+          inset = Math.max(inset, overlay.getBoundingClientRect().height + (parseFloat(style.top) || 0));
+      }
       window.scrollTo({ top: Math.max(0, scrollY + targetRect.top - inset - 12), behavior: "instant" });
     }
   }, [reveal, selected]);

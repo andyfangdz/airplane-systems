@@ -13,6 +13,7 @@ import {
   type StageRect,
 } from "@/lib/component-stage";
 import { clamp, ease, type Vec3 } from "@/lib/math";
+import { useSceneRendering } from "@/lib/useSceneRendering";
 import { useStageReset } from "./chrome";
 import { usePartInspectionStore } from "./PartInspector";
 import { HoverTip, useHover } from "./scene/parts";
@@ -229,10 +230,11 @@ export function ComponentStage({
   children: ReactNode;
 }) {
   const model = useRef<THREE.Group>(null);
+  const rendering = useSceneRendering();
   useEffect(() => clearHover, []);
   return (
     <>
-      <Canvas camera={camera} dpr={[1, 2]} gl={{ antialias: true, alpha: true }} onPointerMissed={clearHover}>
+      <Canvas camera={camera} {...rendering} gl={{ antialias: true, alpha: true }} onPointerMissed={clearHover}>
         <ambientLight intensity={ambient} />
         <directionalLight position={keyLight.position} intensity={keyLight.intensity} />
         <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />

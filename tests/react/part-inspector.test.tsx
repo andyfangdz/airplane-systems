@@ -1,9 +1,13 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useLayoutEffect } from "react";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { PartInspectionProvider, PartInspector, usePartInspectionStore } from "@/components/engine/PartInspector";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 function RegisteredParts({ model }: { model: string }) {
   const store = usePartInspectionStore();
@@ -66,4 +70,50 @@ test("switching model clears selection and the previous search", () => {
   fireEvent.click(screen.getByText("Inspect a part"));
   expect((screen.getByRole("searchbox") as HTMLInputElement).value).toBe("");
   expect(screen.getByRole("button", { name: "Second pump" })).toBeDefined();
+});
+
+function PickFromScene() {
+  const store = usePartInspectionStore();
+  return <button onClick={() => store.getState().select("Engine pump", true)}>Pick the pump in the scene</button>;
+}
+
+function RevealPage({ sticky, monitor }: { sticky: boolean; monitor: boolean }) {
+  return (
+    <PartInspectionProvider>
+      <RegisteredParts model="Engine" />
+      <div className="eng-app">
+        <div className="eng-stage" style={{ position: sticky ? "sticky" : "relative", top: sticky ? 47 : "auto" }}>
+          <PickFromScene />
+        </div>
+        {monitor && (
+          <div className="eng-foot" style={{ position: sticky ? "sticky" : "relative", top: sticky ? 347 : "auto" }} />
+        )}
+        <div className="panel" style={{ overflowY: "visible" }}>
+          <PartInspector />
+        </div>
+      </div>
+    </PartInspectionProvider>
+  );
+}
+
+test.each([
+  { name: "portrait stage and instrument strip", sticky: true, monitor: true, inset: 467 },
+  { name: "portrait stage without an instrument strip", sticky: true, monitor: false, inset: 347 },
+  { name: "landscape with scrolling stage and instruments", sticky: false, monitor: true, inset: 0 },
+])("scene selection reveals the note below the $name without moving focus", ({ sticky, monitor, inset }) => {
+  vi.stubGlobal("scrollY", 150);
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.classList.contains("eng-stage")) return new DOMRect(0, 200, 390, 300);
+    if (this.classList.contains("eng-foot")) return new DOMRect(0, 500, 390, 120);
+    if (this.classList.contains("part-explanation")) return new DOMRect(0, 900, 390, 100);
+    return new DOMRect();
+  });
+  render(<RevealPage sticky={sticky} monitor={monitor} />);
+  const pick = screen.getByRole("button", { name: "Pick the pump in the scene" });
+  pick.focus();
+  fireEvent.click(pick);
+  expect(screen.getByRole("heading", { name: "Engine pump" })).toBeDefined();
+  expect(scroll).toHaveBeenCalledWith({ top: 150 + 900 - inset - 12, behavior: "instant" });
+  expect(document.activeElement).toBe(pick);
 });

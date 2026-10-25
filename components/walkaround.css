@@ -329,7 +329,7 @@
   display: none;
 }
 /* Keep a large scene in view while the map, warnings and supporting notes scroll. */
-@media (max-width: 860px) {
+@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
   .app.walking .rail {
     display: none;
   }
@@ -340,15 +340,15 @@
   }
   .app.walking .stage:has(.walk-scene:not(:empty)) {
     position: sticky;
-    top: 0;
+    top: env(safe-area-inset-top, 0px);
     z-index: 32;
   }
   .app.walking .stage-foot {
     flex-direction: column;
     align-items: stretch;
     z-index: 31; /* above scene pins and tooltips */
-    left: max(8px, env(safe-area-inset-left, 0px));
-    right: max(8px, env(safe-area-inset-right, 0px));
+    left: 8px;
+    right: 8px;
     bottom: 8px;
   }
   .walk-scene {
@@ -421,7 +421,7 @@
     padding: 8px 12px 16px;
   }
   .app.walking .panel :is(button, input, summary, a, .walk-map) {
-    scroll-margin-top: calc(65svh + 8px);
+    scroll-margin-top: calc(65svh + env(safe-area-inset-top, 0px) + 8px);
   }
   .walk {
     gap: 6px;

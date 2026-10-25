@@ -38,6 +38,27 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 `npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright install chromium webkit`); it tests desktop input
 and touch taps with Android and iPhone device profiles.
 
+iPhone layouts respect display safe areas and use a stacked layout in portrait and short touch-screen landscape
+viewports. Engine views scroll away on short screens so controls remain accessible. Aircraft, engine and component
+canvases cap touch-only rendering at 1.5 DPR (44% fewer drawing-buffer pixels than 2 DPR); text and controls stay at
+native screen resolution. Run `npx playwright test --project=iphone-webkit` for iPhone rotation, touch controls,
+picker bounds and scene-resolution regressions.
+
+For iPhone Duo, follow [Apple's adaptive-layout guidance](https://developer.apple.com/videos/play/tech-talks/111466/):
+keep the same controls and study state as the available space changes. The compact layout stacks the scene and
+details; the wide layout shows them side by side. Canvas sizing follows its container, without remounting the model.
+The browser tests also exercise the [Duo viewport sizes published by WebKit](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/):
+382×580–618 and 594×368–406 for the outer display, 669×867–902 and 951×585–620 for the inner display, and
+385×571–609 for a Split View window. These are CSS viewports, not physical display resolutions or device detection rules.
+[Safari 27.1 reserves the right-edge strip for browser controls](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/#web-content-under-the-controls)
+and extends the page background behind it; webpage content and the app's controls stay inside the supplied viewport.
+Using `viewport-fit=cover` to extend web content into that strip is a future proposal, not a supported opt-in.
+[Native SwiftUI/UIKit container bars](https://developer.apple.com/videos/play/tech-talks/111462/) can move into side
+regions through native layout behavior; that capability does not give a webpage control of Safari's reserved strip.
+Posture/segment APIs are behind feature flags, so the app works without them and does not infer a hinge from screen
+dimensions. Playwright checks WebKit viewport resizing, not Safari's system controls or fold posture. Safari 27.1 on
+iPhone Duo or Apple's Xcode 27.1 Device Hub simulator still needs testing, especially for partial folds.
+
 Browser regressions use **Playwright Test**. `npm run test:ui` runs all suites; the existing `test:ui:*` commands select
 one suite. The runner starts and stops the production server after `npm run build`. Set `UI_BASE_URL` to test an
 already-running server. With `STATIC_EXPORT=1` (after `STATIC_EXPORT=1 npm run build`) it serves the static export in

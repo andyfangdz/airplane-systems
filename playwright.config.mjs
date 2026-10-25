@@ -6,6 +6,7 @@ const launchOptions = { args: softwareGL };
 const phoneTests =
   /test-(m20c|fleet-depth|sr20-walkaround|walkaround|door-mechanisms|tour|aircraft-session|panel-collapse)-ui\.mjs/;
 const fleetTests = /test-fleet-ui\.mjs/;
+const iphoneTests = /test-iphone-ui\.mjs/;
 
 export default defineConfig({
   testDir: "./scripts",
@@ -45,7 +46,7 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testIgnore: fleetTests,
+      testIgnore: [fleetTests, iphoneTests],
       use: { browserName: "chromium", viewport: { width: 1440, height: 900 }, launchOptions },
     },
     {
@@ -59,6 +60,11 @@ export default defineConfig({
         hasTouch: true,
         launchOptions,
       },
+    },
+    {
+      name: "iphone-webkit",
+      testMatch: iphoneTests,
+      use: { ...devices["iPhone 13"], browserName: "webkit" },
     },
     ...[
       ["chromium", 1440, 900, "light"],

@@ -74,7 +74,7 @@
 .inj-chart text.off {
   fill: var(--ink);
 }
-@media (max-width: 860px) {
+@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
   .inj-legend {
     top: auto;
     bottom: 8px;

@@ -61,10 +61,10 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
   return (
     <nav className="rail" aria-label="Systems">
       <PanelToggle side="systems" collapsed={collapsed} toggle={toggle} />
+      <div className="brand">
+        <Fleet />
+      </div>
       <div id="systems-panel" className="rail-content" hidden={collapsed}>
-        <div className="brand">
-          <Fleet />
-        </div>
         <ul className="syslist">
           {def.systems.map((s) => (
             <li key={s.id}>
@@ -202,27 +202,63 @@ function Toolbar() {
     flyTo = useView((v) => v.flyTo);
   const walk = def.walk;
   return (
-    <div className="toolbar">
+    <div className="toolbar scene-toolbar">
       {walk && (
         <button
           className="tb tb-mode"
+          aria-label="Preflight"
           aria-pressed={walking}
           title={walking ? "Leave the preflight walk-around" : "Guided preflight walk-around"}
           onClick={() => (walking ? walk.close() : walk.open())}
         >
           <Icon>{PREFLIGHT_ICON}</Icon>
-          Preflight
+          <span className="tb-word">Preflight</span>
         </button>
       )}
       <div className="tb-group" role="group" aria-label="View">
-        <button className="tb" aria-pressed={xray} onClick={() => set({ xray: !xray })}>
-          X-ray
+        <button
+          className="tb"
+          aria-label="X-ray"
+          title="X-ray"
+          aria-pressed={xray}
+          onClick={() => set({ xray: !xray })}
+        >
+          <span className="tb-symbol">
+            <Icon>
+              <rect x="2" y="2" width="9" height="9" rx="1.5" />
+              <rect x="5" y="5" width="9" height="9" rx="1.5" strokeDasharray="2 2" />
+            </Icon>
+          </span>
+          <span className="tb-word">X-ray</span>
         </button>
-        <button className="tb" aria-pressed={labels} onClick={() => set({ labels: !labels })}>
-          Labels
+        <button
+          className="tb"
+          aria-label="Labels"
+          title="Labels"
+          aria-pressed={labels}
+          onClick={() => set({ labels: !labels })}
+        >
+          <span className="tb-symbol">
+            <Icon>
+              <path d="M2 2h6l6 6-6 6-6-6z" />
+              <circle cx="5.5" cy="5.5" r="1" />
+            </Icon>
+          </span>
+          <span className="tb-word">Labels</span>
         </button>
-        <button className="tb" aria-pressed={spin} onClick={() => set({ spin: !spin })}>
-          Auto-rotate
+        <button
+          className="tb"
+          aria-label="Auto-rotate"
+          title="Auto-rotate"
+          aria-pressed={spin}
+          onClick={() => set({ spin: !spin })}
+        >
+          <span className="tb-symbol">
+            <Icon>
+              <path d="M13 6a5.2 5.2 0 0 0-9-2L2 6m0-4v4h4M3 10a5.2 5.2 0 0 0 9 2l2-2m0 4v-4h-4" />
+            </Icon>
+          </span>
+          <span className="tb-word">Auto-rotate</span>
         </button>
       </div>
       <ResetViewButton
