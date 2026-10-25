@@ -120,9 +120,10 @@ export function OfflineSupport() {
       watch(reg.waiting);
       watch(reg.installing);
     };
-    const prepare = async () => {
+    const prepare = async (retry = false) => {
       if (disposed || starting) return;
       starting = true;
+      const retryUpdate = retry && useOffline.getState().update === "error";
       try {
         const existing = await navigator.serviceWorker.getRegistration("/");
         if (disposed) return;
@@ -132,10 +133,16 @@ export function OfflineSupport() {
           if (useOffline.getState().state === "error") existing.active.postMessage({ type: "DOWNLOAD_OFFLINE" });
         }
         const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
-        if (!disposed) observe(reg);
+        if (!disposed) {
+          observe(reg);
+          // Re-registering the same worker can return without checking its script again. A failed newer pack
+          // needs an explicit update check; keep the active pack and its study sessions running throughout.
+          if (retryUpdate && reg.active) await reg.update();
+        }
       } catch {
         // An existing offline pack remains usable when an online update cannot be checked.
         if (!disposed && !registration?.active) useOffline.setState({ state: "error" });
+        else if (!disposed && retryUpdate) useOffline.setState({ update: "error" });
       } finally {
         starting = false;
       }
@@ -151,7 +158,7 @@ export function OfflineSupport() {
     navigator.serviceWorker.addEventListener("message", message);
     window.addEventListener("online", connectivity);
     window.addEventListener("offline", connectivity);
-    useOffline.setState({ retry: () => void prepare() });
+    useOffline.setState({ retry: () => void prepare(true) });
     void prepare();
     return () => {
       disposed = true;
