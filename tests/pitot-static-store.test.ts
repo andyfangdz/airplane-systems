@@ -50,6 +50,21 @@ describe("the pitot-static store", () => {
     expect(s.ias).toBeGreaterThan(100);
   });
 
+  test("avionics: switching keeps the flight; set-ups keep the panel unless they need another", () => {
+    usePs.getState().setAvionics("g1000");
+    advance(0.5);
+    expect(s.pfd.valid).toBe(true);
+    expect(s.pfd.ias).toBeCloseTo(110, 0);
+    usePs.getState().start("static-climb");
+    expect(usePs.getState().avionics).toBe("g1000");
+    usePs.getState().start("glass");
+    expect(usePs.getState().avionics).toBe("six-pack");
+    usePs.getState().start("adc");
+    expect(usePs.getState().avionics).toBe("g1000");
+    advance(0.5);
+    expect(s.pfd.valid).toBe(false);
+  });
+
   test("the static sump drains on the ground only", () => {
     usePs.getState().start("water");
     usePs.getState().drainSump();

@@ -2,9 +2,11 @@
 /**
  * The pitot-static system laid out like PHAK Figure 8-1: the heated pitot head under a piece of the left wing, the
  * static port in a piece of the fuselage's left side with its line down to the sump and up to the ALT STATIC AIR
- * selector, the manifold to the three instruments and the encoder, and the instruments in a panel with their faces
- * live and their mechanisms in their cases (X-ray). Sizes and distances are schematic. Air moving through each opening
- * and line is drawn as particles; ice, tape, water, broken glass and the ramp test set appear when they are there.
+ * selector, and the manifold to the panel. The six-pack panel has the three instruments and the encoder; the G1000
+ * panel the PFD, the standby airspeed indicator and altimeter, and the air data computer behind them with a data
+ * cable to the PFD. Faces are live and mechanisms show in their cases (X-ray). Sizes and distances are schematic. Air
+ * moving through each opening and line is drawn as particles; ice, tape, water, broken glass and the ramp test set
+ * appear when they are there.
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -14,8 +16,8 @@ import { coil, merge, slab, tube, zrod } from "../scene/kit";
 import { P } from "../scene/parts";
 import { ComponentStage } from "../ComponentStage";
 import { inHg, P0, qcFromCas } from "@/engines/components/pitot-static/model";
-import { AMT, IFH, IPC, PHAK, POH } from "@/engines/components/pitot-static/spec";
-import { drawAlt, drawAsi, drawVsi } from "./dials";
+import { AMT, GPG, IFH, IPC, PHAK, POH } from "@/engines/components/pitot-static/spec";
+import { drawAlt, drawAsi, drawPfd, drawVsi, pitchOf } from "./dials";
 import { s, spec, usePs, usePsView } from "./store";
 
 type V3 = [number, number, number];
@@ -36,6 +38,15 @@ const KNOB: V3 = [-0.3, 0.235, 0];
 const MANIFOLD_Y = 0.22,
   MANIFOLD_Z = -0.15;
 const ENCODER: V3 = [0.38, 0.22, -0.15];
+/** G1000: the PFD's screen (centre, width, height), the smaller standby instruments, and the air data computer behind
+ * the panel where the six-pack has its encoder (schematic: the POH puts it "just forward of the MFD", p. 7-70). */
+const PFD: V3 = [-0.17, 0.33, 0],
+  PFD_W = 0.3,
+  PFD_H = 0.225;
+const STBY = 0.62;
+const STBY_ASI: V3 = [0.09, 0.36, 0],
+  STBY_ALT: V3 = [0.24, 0.36, 0];
+const ADC: V3 = ENCODER;
 const TEST_SET: V3 = [0.12, 0.03, 0.22];
 
 const NOTE = {
@@ -74,6 +85,11 @@ const NOTE = {
   hose: "Test set hose.",
   portR: `Right static port, the paired installation: ports on opposite sides joined with Y tubing cancel sideslip error (${IFH} p. 5-2; ${AMT} p. 10-13). Not the 172S's.`,
   ice: `Ice on the pitot head: small objects collect ice fastest (${IFH} p. 4-13).`,
+  pfd: `G1000 PFD: airspeed tape with true airspeed below it, altimeter with the BARO setting, and the VSI, all from the air data computer; a red X where it gets no air data (${POH} pp. 7-18, 7-20; ${GPG} pp. 50 to 55, 565). Attitude and heading aren't simulated here.`,
+  stbyAsi: `Standby (pneumatic) airspeed indicator on the lower centre panel (${POH} p. 7-18): it shares the pitot head and static port with the air data computer (p. 7-12).`,
+  stbyAlt: `Standby (aneroid) sensitive altimeter (${POH} p. 7-18), set separately from the PFD's BARO (p. 4-15). Use it, set to the current pressure, if the PFD's altitude has a red X (p. 3-21).`,
+  adc: `GDC 74A air data computer: processes data from the pitot/static system and the OAT probe, giving pressure altitude, airspeed, vertical speed and OAT (${GPG} p. 2); behind the panel, just forward of the MFD (${POH} p. 7-70).`,
+  data: `Data from the air data computer to the displays, digital (ARINC 429; ${GPG} p. 2).`,
   debris: `Insects or debris in the opening (${PHAK} p. 8-10).`,
   crack: "A leak in the static line behind the panel: cabin air gets in.",
 };
@@ -349,15 +365,16 @@ function Adapter({ m, at, axis }: { m: Mats; at: V3; axis: "x" | "z" }) {
 
 // ---------------------------------------------------------------- lines, sump and the selector
 
-const PITOT_LINE: V3[] = [
+/** The pitot line from the stem through the wing to behind the panel; each panel takes it on from there. */
+const PITOT_TRUNK: V3[] = [
   [PT.mast, 0.56, PT.z],
   [PT.mast + 0.035, 0.578, PT.z - 0.01],
   [-0.45, 0.578, -0.09],
   [-0.33, 0.52, -0.14],
-  [-0.24, 0.4, -0.15],
-  [ASI[0], ASI[1] + 0.015, -0.14],
-  [ASI[0], ASI[1], BACK - 0.015],
+  [-0.24, 0.42, -0.15],
 ];
+/** Where an instrument's back fitting ends, for an instrument scaled by `k`. */
+const backOf = (at: V3, k = 1, dx = 0, dy = 0): V3 => [at[0] + dx * k, at[1] + dy * k, (BACK - 0.015) * k];
 const PORT_LINE: V3[] = [
   [PORT[0], PORT[1], -0.085],
   [PORT[0] + 0.02, 0.08, -0.12],
@@ -388,26 +405,19 @@ const MANIFOLD: V3[] = [
   [0.1, MANIFOLD_Y, MANIFOLD_Z],
   [ENCODER[0] - 0.035, MANIFOLD_Y, MANIFOLD_Z],
 ];
-/** The branch to each instrument's static fitting: the ASI's off-centre (its pitot fitting is in the middle). */
-const BRANCH = (x: number, y = 0.33, dx = 0): V3[] => [
-  [x, MANIFOLD_Y, MANIFOLD_Z],
-  [x + dx, y - 0.05, -0.135],
-  [x + dx, y, BACK - 0.015],
-];
-const ASI_STATIC = BRANCH(-0.165, 0.29, 0);
-const ALT_STATIC = BRANCH(0);
-const VSI_STATIC = BRANCH(0.2);
+/** A branch from the manifold up to a fitting. */
+const branch = (to: V3): V3[] => [[to[0], MANIFOLD_Y, MANIFOLD_Z], [to[0], to[1] - 0.05, (MANIFOLD_Z + to[2]) / 2], to];
+/** The ASI's static fitting is off centre: its pitot fitting is in the middle. */
+const ASI_STATIC_AT = { dx: 0.035, dy: -0.04 };
 
 function Lines({ m }: { m: Mats }) {
   const ports = usePs((x) => x.ports);
   const r = 0.0042;
-  const pitot = useGeo(() => tube(PITOT_LINE, r));
+  const pitot = useGeo(() => tube(PITOT_TRUNK, r));
   const port = useGeo(() => tube(PORT_LINE, r, 30));
   const portR = useGeo(() => tube(PORT_R_LINE, r, 50));
   const sumpLine = useGeo(() => tube(SUMP_LINE, r, 30));
-  const manifold = useGeo(() =>
-    merge([tube(MANIFOLD, r, 50), tube(ASI_STATIC, r, 16), tube(ALT_STATIC, r, 16), tube(VSI_STATIC, r, 16)]),
-  );
+  const manifold = useGeo(() => tube(MANIFOLD, r, 50));
   const cabinIn = useGeo(() =>
     merge([
       tube(CABIN_IN, r, 6),
@@ -436,7 +446,6 @@ function Lines({ m }: { m: Mats }) {
     ),
   );
   const knob = useGeo(() => merge([zrod(0.004, -0.02, 0.012, 12), zrod(0.012, 0.012, 0.026, 20)]));
-  const encoder = useGeo(() => new THREE.BoxGeometry(0.07, 0.045, 0.06));
   const crack = useGeo(() => new THREE.TorusGeometry(0.008, 0.0016, 8, 16));
   const waterRef = useRef<THREE.Mesh>(null),
     leverRef = useRef<THREE.Mesh>(null),
@@ -482,7 +491,6 @@ function Lines({ m }: { m: Mats }) {
       <group position={KNOB}>
         <P name="ALT STATIC AIR knob" note={NOTE.knob} geometry={knob} material={m.knob} meshRef={knobRef} />
       </group>
-      <P name="Blind encoder (Mode C)" note={NOTE.encoder} geometry={encoder} material={m.encoder} position={ENCODER} />
       <P
         name="Leaking fitting"
         note={NOTE.crack}
@@ -497,25 +505,30 @@ function Lines({ m }: { m: Mats }) {
 
 // ---------------------------------------------------------------- the instruments
 
-/** A live instrument face: a canvas redrawn up to 30 times a second. */
+/** A live face: a round instrument's (radius `r`) or a screen's (`screen`: width, height), redrawn as it changes. */
 function Face({
   at,
   paint,
   name,
   note,
+  r = R,
+  screen,
 }: {
   at: V3;
-  paint: (ctx: CanvasRenderingContext2D, W: number) => void;
+  paint: (ctx: CanvasRenderingContext2D, W: number, H: number) => void;
   name: string;
   note: string;
+  r?: number;
+  screen?: [number, number];
 }) {
+  const [W, H] = screen ? [640, 480] : [256, 256];
   const { ctx, tex } = useMemo(() => {
     const c = document.createElement("canvas");
-    c.width = c.height = 256;
+    [c.width, c.height] = [W, H];
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return { ctx: c.getContext("2d"), tex };
-  }, []);
+  }, [W, H]);
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), [tex]);
   useEffect(
     () => () => {
@@ -524,20 +537,39 @@ function Face({
     },
     [tex, mat],
   );
-  const geo = useGeo(() => new THREE.CircleGeometry(R, 48));
+  const geo = useGeo(() => (screen ? new THREE.PlaneGeometry(screen[0], screen[1]) : new THREE.CircleGeometry(r, 48)));
   const last = useRef(-1);
+  const every = screen ? 1 / 15 : 1 / 30;
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
-    if (!ctx || t - last.current < 1 / 30) return;
+    if (!ctx || t - last.current < every) return;
     last.current = t;
-    paint(ctx, 256);
+    paint(ctx, W, H);
     tex.needsUpdate = true;
   });
   return <P name={name} note={note} geometry={geo} material={mat} position={[at[0], at[1], 0.004]} />;
 }
 
-function Instruments({ m }: { m: Mats }) {
-  const panel = useGeo(() => slab(-0.33, 0.33, 0.2, 0.46, -0.012, 0, 0.02));
+type Kind = "asi" | "alt" | "vsi";
+
+/**
+ * A round pneumatic instrument with its face, case, fittings and mechanism, `k` times the six-pack's size: the ASI's
+ * diaphragm swells with pitot over static, the altimeter's wafers with falling static, the VSI's diaphragm with its
+ * case over the line.
+ */
+function Round({
+  kind,
+  at,
+  k = 1,
+  m,
+  names,
+}: {
+  kind: Kind;
+  at: V3;
+  k?: number;
+  m: Mats;
+  names: { face: string; note: string };
+}) {
   const caseG = useGeo(() =>
     merge([zrod(R * 0.92, BACK, -0.012, 36), new THREE.CircleGeometry(R * 0.92, 36).translate(0, 0, BACK)]),
   );
@@ -549,94 +581,235 @@ function Instruments({ m }: { m: Mats }) {
   const orifice = useGeo(() =>
     merge([zrod(0.005, BACK - 0.004, BACK + 0.012, 12), coil(0.004, 0.0009, BACK + 0.012, -0.075, 4)]),
   );
-  const asiDia = useRef<THREE.Mesh>(null),
+  const dia = useRef<THREE.Mesh>(null),
     w0 = useRef<THREE.Mesh>(null),
     w1 = useRef<THREE.Mesh>(null),
-    w2 = useRef<THREE.Mesh>(null),
-    vsiDia = useRef<THREE.Mesh>(null);
+    w2 = useRef<THREE.Mesh>(null);
   const qcTop = qcFromCas(200);
   useFrame(() => {
-    // the ASI's diaphragm swells with pitot over static; the wafers with falling static; the VSI's with case over line
-    const d = Math.max(0, s.pitot - s.stat) / qcTop;
-    asiDia.current?.scale.set(0.034, 0.034, 0.004 + 0.014 * Math.min(1, d));
-    const e = Math.min(1, Math.max(0, (P0 - s.stat) / (0.35 * P0)));
-    for (const [i, r] of [w0, w1, w2].entries()) {
-      if (!r.current) continue;
-      r.current.scale.set(0.03, 0.03, 0.003 + 0.005 * e);
-      r.current.position.z = -0.085 + i * (0.008 + 0.011 * e);
+    if (kind === "asi") {
+      const d = Math.max(0, s.pitot - s.stat) / qcTop;
+      dia.current?.scale.set(0.034, 0.034, 0.004 + 0.014 * Math.min(1, d));
+    } else if (kind === "alt") {
+      const e = Math.min(1, Math.max(0, (P0 - s.stat) / (0.35 * P0)));
+      for (const [i, r] of [w0, w1, w2].entries()) {
+        if (!r.current) continue;
+        r.current.scale.set(0.03, 0.03, 0.003 + 0.005 * e);
+        r.current.position.z = -0.085 + i * (0.008 + 0.011 * e);
+      }
+    } else {
+      const v = Math.max(-1, Math.min(1, s.vsi / spec.model.vsiStop));
+      dia.current?.scale.set(0.03, 0.03, 0.007 - 0.004 * v);
     }
-    const v = Math.max(-1, Math.min(1, s.vsi / spec.model.vsiStop));
-    vsiDia.current?.scale.set(0.03, 0.03, 0.007 - 0.004 * v);
   });
+  const paint = (c: CanvasRenderingContext2D, W: number, H: number) => {
+    const u = usePs.getState();
+    if (kind === "asi") drawAsi(c, W, H, s.ias);
+    else if (kind === "alt") drawAlt(c, W, H, s.alt, u.cockpit.kollsman);
+    else drawVsi(c, W, H, s.vsi, u.failures.vsiGlass);
+  };
+  const line = kind === "asi" ? m.pitotLine : m.staticLine;
+  return (
+    <>
+      <Face at={at} name={names.face} note={names.note} r={R * k} paint={paint} />
+      <group position={[at[0], at[1], 0]} scale={[k, k, k]}>
+        <P name="Bezel" note={names.note} geometry={bezel} material={m.bezel} />
+        <P
+          name={`${names.face} case`}
+          note={kind === "asi" ? NOTE.asiCase : kind === "alt" ? NOTE.altCase : NOTE.vsiCase}
+          geometry={caseG}
+          material={m.caseM}
+        />
+        <P
+          name={kind === "asi" ? "Pitot fitting" : "Static fitting"}
+          note={names.note}
+          geometry={fitting}
+          material={line}
+        />
+        {kind === "asi" && (
+          <>
+            <P name="Pitot feed to the diaphragm" note={NOTE.asiDia} geometry={feed} material={m.pitotLine} />
+            <P
+              name="ASI diaphragm"
+              note={NOTE.asiDia}
+              geometry={capsule}
+              material={m.bronze}
+              meshRef={dia}
+              position={[0, 0, -0.07]}
+            />
+            <P name="Rocking shaft and sector" note={NOTE.asiDia} geometry={link} material={m.steel} />
+            <P
+              name="Static fitting (case)"
+              note={NOTE.asiCase}
+              geometry={fitting}
+              material={m.staticLine}
+              position={[ASI_STATIC_AT.dx, ASI_STATIC_AT.dy, 0]}
+            />
+          </>
+        )}
+        {kind === "alt" && (
+          <>
+            <P name="Aneroid wafer" note={NOTE.wafers} geometry={capsule} material={m.bronze} meshRef={w0} />
+            <P name="Aneroid wafer" note={NOTE.wafers} geometry={capsule} material={m.bronze} meshRef={w1} />
+            <P name="Aneroid wafer" note={NOTE.wafers} geometry={capsule} material={m.bronze} meshRef={w2} />
+            <P name="Linkage" note={NOTE.wafers} geometry={link} material={m.steel} />
+          </>
+        )}
+        {kind === "vsi" && (
+          <>
+            <P name="Static feed to the diaphragm" note={NOTE.vsiDia} geometry={feed} material={m.staticLine} />
+            <P
+              name="VSI diaphragm"
+              note={NOTE.vsiDia}
+              geometry={capsule}
+              material={m.bronze}
+              meshRef={dia}
+              position={[0, 0, -0.07]}
+            />
+            <P
+              name="Calibrated leak"
+              note={NOTE.leak}
+              geometry={orifice}
+              material={m.dark}
+              position={[0.03, 0.03, 0]}
+            />
+            <P name="Linkage" note={NOTE.vsiDia} geometry={link} material={m.steel} />
+          </>
+        )}
+      </group>
+    </>
+  );
+}
+
+/** The pitot line's end at the six-pack's ASI, and the manifold's branches to each instrument. */
+const SIX = {
+  pitot: [PITOT_TRUNK[PITOT_TRUNK.length - 1], [ASI[0], ASI[1] + 0.015, -0.14], backOf(ASI)] as V3[],
+  asiStatic: branch(backOf(ASI, 1, ASI_STATIC_AT.dx, ASI_STATIC_AT.dy)),
+  alt: branch(backOf(ALT)),
+  vsi: branch(backOf(VSI)),
+};
+
+function SixPackPanel({ m }: { m: Mats }) {
+  const r = 0.0042;
+  const pitot = useGeo(() => tube(SIX.pitot, r, 16));
+  const branches = useGeo(() => merge([tube(SIX.asiStatic, r, 16), tube(SIX.alt, r, 16), tube(SIX.vsi, r, 16)]));
+  const encoder = useGeo(() => new THREE.BoxGeometry(0.07, 0.045, 0.06));
   return (
     <group>
-      <P name="Instrument panel (schematic)" note={NOTE.panel} geometry={panel} material={m.panel} />
-      {/* airspeed indicator */}
-      <Face at={ASI} name="Airspeed indicator" note={NOTE.asi} paint={(c, W) => drawAsi(c, W, W, s.ias)} />
-      <group position={[ASI[0], ASI[1], 0]}>
-        <P name="Bezel" note={NOTE.asi} geometry={bezel} material={m.bezel} />
-        <P name="Airspeed indicator case" note={NOTE.asiCase} geometry={caseG} material={m.caseM} />
-        <P name="Pitot fitting" note={NOTE.asiDia} geometry={fitting} material={m.pitotLine} />
-        <P name="Pitot feed to the diaphragm" note={NOTE.asiDia} geometry={feed} material={m.pitotLine} />
-        <P
-          name="ASI diaphragm"
-          note={NOTE.asiDia}
-          geometry={capsule}
-          material={m.bronze}
-          meshRef={asiDia}
-          position={[0, 0, -0.07]}
-        />
-        <P name="Rocking shaft and sector" note={NOTE.asiDia} geometry={link} material={m.steel} />
-        <P
-          name="Static fitting (case)"
-          note={NOTE.asiCase}
-          geometry={fitting}
-          material={m.staticLine}
-          position={[0.035, -0.04, 0]}
-        />
-      </group>
-      {/* altimeter */}
-      <Face
-        at={ALT}
-        name="Altimeter"
-        note={NOTE.alt}
-        paint={(c, W) => drawAlt(c, W, W, s.alt, usePs.getState().cockpit.kollsman)}
+      <P name="Pitot line" note={NOTE.pitotLine} geometry={pitot} material={m.pitotLine} />
+      <P name="Static manifold and tees" note={NOTE.manifold} geometry={branches} material={m.staticLine} />
+      <Round kind="asi" at={ASI} m={m} names={{ face: "Airspeed indicator", note: NOTE.asi }} />
+      <Round kind="alt" at={ALT} m={m} names={{ face: "Altimeter", note: NOTE.alt }} />
+      <Round kind="vsi" at={VSI} m={m} names={{ face: "Vertical speed indicator", note: NOTE.vsi }} />
+      <P name="Blind encoder (Mode C)" note={NOTE.encoder} geometry={encoder} material={m.encoder} position={ENCODER} />
+      <Flow points={[...PITOT_TRUNK, ...SIX.pitot.slice(1)]} mat={AIR.pitot} rate={pitotFlow} />
+      <Flow points={[...MANIFOLD.slice(0, 3), ...SIX.alt.slice(1)]} mat={AIR.static} rate={staticFlow} />
+      {/* into the VSI's case through the calibrated leak, or the broken glass */}
+      <Flow
+        points={[
+          [VSI[0] + 0.03, VSI[1] + 0.03, BACK - 0.01],
+          [VSI[0] + 0.03, VSI[1] + 0.03, -0.075],
+          [VSI[0] + 0.05, VSI[1] + 0.045, -0.04],
+        ]}
+        mat={AIR.static}
+        rate={() => s.flows.vsi}
       />
-      <group position={[ALT[0], ALT[1], 0]}>
-        <P name="Bezel" note={NOTE.alt} geometry={bezel} material={m.bezel} />
-        <P name="Altimeter case" note={NOTE.altCase} geometry={caseG} material={m.caseM} />
-        <P name="Static fitting" note={NOTE.altCase} geometry={fitting} material={m.staticLine} />
-        <P name="Aneroid wafer" note={NOTE.wafers} geometry={capsule} material={m.bronze} meshRef={w0} />
-        <P name="Aneroid wafer" note={NOTE.wafers} geometry={capsule} material={m.bronze} meshRef={w1} />
-        <P name="Aneroid wafer" note={NOTE.wafers} geometry={capsule} material={m.bronze} meshRef={w2} />
-        <P name="Linkage" note={NOTE.wafers} geometry={link} material={m.steel} />
-      </group>
-      {/* vertical speed indicator */}
-      <Face
-        at={VSI}
-        name="Vertical speed indicator"
-        note={NOTE.vsi}
-        paint={(c, W) => drawVsi(c, W, W, s.vsi, usePs.getState().failures.vsiGlass)}
+      <Flow
+        points={[
+          [VSI[0] + 0.02, VSI[1] + 0.02, 0.09],
+          [VSI[0] + 0.02, VSI[1] + 0.02, -0.04],
+        ]}
+        mat={AIR.cabin}
+        rate={() => s.flows.glass}
       />
-      <group position={[VSI[0], VSI[1], 0]}>
-        <P name="Bezel" note={NOTE.vsi} geometry={bezel} material={m.bezel} />
-        <P name="VSI case" note={NOTE.vsiCase} geometry={caseG} material={m.caseM} />
-        <P name="Static fitting" note={NOTE.vsiDia} geometry={fitting} material={m.staticLine} />
-        <P name="Static feed to the diaphragm" note={NOTE.vsiDia} geometry={feed} material={m.staticLine} />
-        <P
-          name="VSI diaphragm"
-          note={NOTE.vsiDia}
-          geometry={capsule}
-          material={m.bronze}
-          meshRef={vsiDia}
-          position={[0, 0, -0.07]}
-        />
-        <P name="Calibrated leak" note={NOTE.leak} geometry={orifice} material={m.dark} position={[0.03, 0.03, 0]} />
-        <P name="Linkage" note={NOTE.vsiDia} geometry={link} material={m.steel} />
-      </group>
     </group>
   );
 }
+
+/** The G1000's pitot line to the standby ASI and on to the air data computer, the static branches, the data cable. */
+/** The air data computer's pitot fitting; its static fitting is where the manifold ends. */
+const ADC_PITOT: V3 = [ADC[0] - 0.035, ADC[1] + 0.016, ADC[2]];
+const G1 = {
+  pitot: [
+    PITOT_TRUNK[PITOT_TRUNK.length - 1],
+    [-0.05, 0.44, -0.15],
+    [STBY_ASI[0], STBY_ASI[1] + 0.02, -0.12],
+    backOf(STBY_ASI, STBY),
+  ] as V3[],
+  adcPitot: [[-0.05, 0.44, -0.15], [0.25, 0.44, -0.17], [ADC_PITOT[0] - 0.04, ADC_PITOT[1], ADC[2]], ADC_PITOT] as V3[],
+  asiStatic: branch(backOf(STBY_ASI, STBY, ASI_STATIC_AT.dx, ASI_STATIC_AT.dy)),
+  alt: branch(backOf(STBY_ALT, STBY)),
+  // low and behind the standby instruments, to the back of the PFD
+  data: [
+    [ADC[0], ADC[1] - 0.025, ADC[2]],
+    [ADC[0] - 0.08, 0.17, -0.2],
+    [PFD[0] + 0.1, 0.2, -0.17],
+    [PFD[0], PFD[1] - 0.05, -0.06],
+    [PFD[0], PFD[1], -0.03],
+  ] as V3[],
+};
+
+function G1000Panel({ m }: { m: Mats }) {
+  const r = 0.0042;
+  const pitot = useGeo(() => merge([tube(G1.pitot, r, 24), tube(G1.adcPitot, r, 24)]));
+  const branches = useGeo(() => merge([tube(G1.asiStatic, r, 16), tube(G1.alt, r, 16)]));
+  const data = useGeo(() => tube(G1.data, 0.0025, 30, 6));
+  const adc = useGeo(() =>
+    merge([
+      new THREE.BoxGeometry(0.07, 0.05, 0.08),
+      zrod(0.006, -0.012, 0.012, 12)
+        .rotateY(Math.PI / 2)
+        .translate(-0.04, 0.016, 0),
+      zrod(0.006, -0.012, 0.012, 12)
+        .rotateY(Math.PI / 2)
+        .translate(-0.04, 0, 0),
+    ]),
+  );
+  const bezel = useGeo(() =>
+    slab(-PFD_W / 2 - 0.012, PFD_W / 2 + 0.012, -PFD_H / 2 - 0.012, PFD_H / 2 + 0.03, -0.03, 0.002, 0.008),
+  );
+  return (
+    <group>
+      <P
+        name="Pitot line (to the standby ASI and the air data computer)"
+        note={NOTE.pitotLine}
+        geometry={pitot}
+        material={m.pitotLine}
+      />
+      <P name="Static manifold and tees" note={NOTE.manifold} geometry={branches} material={m.staticLine} />
+      <P name="Data cable" note={NOTE.data} geometry={data} material={m.dark} />
+      <P name="GDC 74A air data computer" note={NOTE.adc} geometry={adc} material={m.encoder} position={ADC} />
+      <group position={[PFD[0], PFD[1], 0]}>
+        <P name="PFD bezel" note={NOTE.pfd} geometry={bezel} material={m.bezel} />
+      </group>
+      <Face
+        at={PFD}
+        name="Primary flight display"
+        note={NOTE.pfd}
+        screen={[PFD_W, PFD_H]}
+        paint={(c, W, H) => {
+          const u = usePs.getState();
+          drawPfd(c, W, H, { pfd: s.pfd, baro: u.cockpit.baro, oat: s.oat, pitch: pitchOf(s) });
+        }}
+      />
+      <Round
+        kind="asi"
+        at={STBY_ASI}
+        k={STBY}
+        m={m}
+        names={{ face: "Standby airspeed indicator", note: NOTE.stbyAsi }}
+      />
+      <Round kind="alt" at={STBY_ALT} k={STBY} m={m} names={{ face: "Standby altimeter", note: NOTE.stbyAlt }} />
+      <Flow points={[...PITOT_TRUNK, ...G1.adcPitot]} mat={AIR.pitot} rate={pitotFlow} />
+      <Flow points={[...MANIFOLD]} mat={AIR.static} rate={staticFlow} />
+    </group>
+  );
+}
+
+const sum = (...xs: number[]) => xs.reduce((a, b) => a + b, 0);
+/** Air along the pitot line and the static manifold: everything entering those volumes. */
+const pitotFlow = () => sum(s.flows.ram, s.flows.drain, s.flows.pitotLeak, s.flows.testPitot);
+const staticFlow = () => sum(s.flows.portL, s.flows.portR, s.flows.alt, s.flows.leak, s.flows.testStatic);
 
 // ---------------------------------------------------------------- the ramp test set
 
@@ -677,7 +850,6 @@ const HOSE_STATIC_R: V3[] = [
 
 // ---------------------------------------------------------------- air flows
 
-const sum = (...xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const isTest = () => usePs.getState().mode === "test";
 
 const FLOWS: { points: V3[]; mat: THREE.Material; rate: () => number; show?: () => boolean }[] = [
@@ -700,12 +872,6 @@ const FLOWS: { points: V3[]; mat: THREE.Material; rate: () => number; show?: () 
     mat: AIR.pitot,
     rate: () => s.flows.drain,
   },
-  // along the pitot line to the ASI's diaphragm
-  {
-    points: PITOT_LINE,
-    mat: AIR.pitot,
-    rate: () => sum(s.flows.ram, s.flows.drain, s.flows.pitotLeak, s.flows.testPitot),
-  },
   // the static port, its line and the sump, to the selector
   {
     points: [[PORT[0], PORT[1], 0.05], ...PORT_LINE, ...SUMP_LINE.slice(1)],
@@ -720,30 +886,6 @@ const FLOWS: { points: V3[]; mat: THREE.Material; rate: () => number; show?: () 
   },
   // cabin air through the alternate source
   { points: CABIN_IN, mat: AIR.cabin, rate: () => s.flows.alt },
-  // the manifold to the instruments
-  {
-    points: [...MANIFOLD.slice(0, 3), ...ALT_STATIC.slice(1)],
-    mat: AIR.static,
-    rate: () => sum(s.flows.portL, s.flows.portR, s.flows.alt, s.flows.leak, s.flows.testStatic),
-  },
-  // into the VSI's case through the calibrated leak, or the broken glass
-  {
-    points: [
-      [VSI[0] + 0.03, VSI[1] + 0.03, BACK - 0.01],
-      [VSI[0] + 0.03, VSI[1] + 0.03, -0.075],
-      [VSI[0] + 0.05, VSI[1] + 0.045, -0.04],
-    ],
-    mat: AIR.static,
-    rate: () => s.flows.vsi,
-  },
-  {
-    points: [
-      [VSI[0] + 0.02, VSI[1] + 0.02, 0.09],
-      [VSI[0] + 0.02, VSI[1] + 0.02, -0.04],
-    ],
-    mat: AIR.cabin,
-    rate: () => s.flows.glass,
-  },
   // cabin air in at a leaking fitting
   {
     points: [
@@ -760,8 +902,14 @@ const FLOWS: { points: V3[]; mat: THREE.Material; rate: () => number; show?: () 
 
 // ---------------------------------------------------------------- scene
 
+function PanelSlab({ m }: { m: Mats }) {
+  const panel = useGeo(() => slab(-0.33, 0.33, 0.2, 0.46, -0.012, 0, 0.02));
+  return <P name="Instrument panel (schematic)" note={NOTE.panel} geometry={panel} material={m.panel} />;
+}
+
 function Model() {
   const m = useMemo(makeMats, []);
+  const avionics = usePs((x) => x.avionics);
   useEffect(() => () => Object.values(m).forEach((x) => x.dispose()), [m]);
   useFrame(() => {
     const xray = usePsView.getState().xray;
@@ -779,7 +927,8 @@ function Model() {
       <Airframe m={m} />
       <Pitot m={m} />
       <Lines m={m} />
-      <Instruments m={m} />
+      <PanelSlab m={m} />
+      {avionics === "g1000" ? <G1000Panel m={m} /> : <SixPackPanel m={m} />}
       <TestSet m={m} />
       {FLOWS.map((f, i) => (
         <Flow key={i} {...f} />
@@ -792,10 +941,24 @@ function Model() {
 
 function Labels() {
   const show = usePsView((x) => x.labels);
-  const ports = usePs((x) => x.ports);
+  const ports = usePs((x) => x.ports),
+    g1000 = usePs((x) => x.avionics) === "g1000";
   const gl = useThree((x) => x.gl);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
+  const panel: [string, V3][] = g1000
+    ? [
+        ["PFD", [PFD[0], PFD[1] + PFD_H / 2 + 0.05, 0.02]],
+        ["Standby airspeed", [STBY_ASI[0], STBY_ASI[1] + R * STBY + 0.035, 0.02]],
+        ["Standby altimeter", [STBY_ALT[0], STBY_ALT[1] + R * STBY + 0.035, 0.02]],
+        ["Air data computer", [ADC[0] + 0.02, ADC[1] - 0.07, ADC[2]]],
+      ]
+    : [
+        ["Airspeed", [ASI[0], ASI[1] + R + 0.035, 0.02]],
+        ["Altimeter", [ALT[0], ALT[1] + R + 0.035, 0.02]],
+        ["Vertical speed", [VSI[0], VSI[1] + R + 0.035, 0.02]],
+        ["Encoder", [ENCODER[0] + 0.02, ENCODER[1] - 0.06, ENCODER[2]]],
+      ];
   const items: [string, V3][] = [
     ["Pitot tube (heated)", [PT.tip + 0.09, PT.y - 0.05, PT.z + 0.04]],
     ["Ram air", [PT.tip - 0.08, PT.y + 0.03, PT.z]],
@@ -803,10 +966,7 @@ function Labels() {
     ["Static port", [PORT[0], PORT[1] + 0.06, PORT[2] + 0.02]],
     ["Sump", [SUMP[0], SUMP[1] - 0.07, SUMP[2] + 0.03]],
     ["ALT STATIC AIR selector", [VALVE[0] - 0.09, VALVE[1] + 0.1, VALVE[2]]],
-    ["Airspeed", [ASI[0], ASI[1] + R + 0.035, 0.02]],
-    ["Altimeter", [ALT[0], ALT[1] + R + 0.035, 0.02]],
-    ["Vertical speed", [VSI[0], VSI[1] + R + 0.035, 0.02]],
-    ["Encoder", [ENCODER[0] + 0.02, ENCODER[1] - 0.06, ENCODER[2]]],
+    ...panel,
     ...(ports === "paired"
       ? ([["Right static port", [PORT_R[0], PORT_R[1] + 0.06, PORT_R[2] + 0.02]]] as [string, V3][])
       : []),

@@ -4,7 +4,10 @@
  * tests/pitot-static-scenarios.test.ts checks that each shows it.
  */
 import { defaultInputs, type Inputs } from "./model";
-import { IFH, PHAK, POH } from "./spec";
+import { GPG, IFH, PHAK, POH } from "./spec";
+
+/** What the airplane has: the scenarios keep it unless they need one in particular. */
+export type Installation = Pick<Inputs, "avionics" | "ports">;
 
 export type Group = "Blockages" | "Alternate static" | "Errors" | "Maintenance";
 
@@ -136,13 +139,30 @@ export const SCENARIOS: Scenario[] = [
     id: "glass",
     label: "No alternate: break the VSI glass",
     group: "Alternate static",
-    setup: level(90, 4000),
+    setup: (i) => {
+      level(90, 4000)(i);
+      // the G1000 has no mechanical VSI to break
+      i.avionics = "six-pack";
+    },
     then: (i) => {
       i.failures.portL = true;
       Object.assign(i.controls, { alt: 5500, rate: 500 });
       i.failures.vsiGlass = true;
     },
     note: `With no alternate source, breaking the VSI's glass lets cabin air into the static line through the VSI's calibrated leak: altimeter and airspeed work again, seconds late and reading high, and the VSI is "most likely … inoperative" (${PHAK} p. 8-3; ${IFH} p. 11-8). Here it reads backwards.`,
+  },
+  {
+    id: "adc",
+    label: "G1000: air data computer fails",
+    group: "Errors",
+    setup: (i) => {
+      level(107, 5500)(i);
+      i.avionics = "g1000";
+    },
+    then: (i) => {
+      i.failures.adc = true;
+    },
+    note: `Red X over the PFD's airspeed, altitude and vertical speed: the display gets no air data (${GPG} p. 565). ${POH} p. 3-21: ADC/AHRS circuit breakers CHECK IN (ESS BUS and AVN BUS 1), then use the standby airspeed indicator, and the standby altimeter set to the current pressure. The standby instruments read the same pitot and static lines, without the computer.`,
   },
   {
     id: "slip",
@@ -217,9 +237,9 @@ export const SCENARIOS: Scenario[] = [
 
 export const scenarioById = (id: string) => SCENARIOS.find((x) => x.id === id);
 
-/** The inputs a scenario settles in, and those it then flies. */
-export function scenarioInputs(sc: Scenario): { setup: Inputs; then: Inputs } {
-  const setup = defaultInputs();
+/** The inputs a scenario settles in, and those it then flies, on the airplane's installation unless it needs another. */
+export function scenarioInputs(sc: Scenario, installation?: Installation): { setup: Inputs; then: Inputs } {
+  const setup = { ...defaultInputs(), ...installation };
   sc.setup(setup);
   const then = structuredClone(setup);
   sc.then(then);

@@ -1,7 +1,8 @@
 # Pitot-static system sources and how the numbers were read
 
-The component is the pitot-static system of a Cessna 172S with conventional instruments. Its behaviour follows the
-FAA handbooks; its installation, calibration, markings and procedures follow the 172S documents. Where the two
+The component is the pitot-static system of a Cessna 172S, with either its conventional instruments (six-pack) or the
+NAV III's G1000. Its behaviour follows the FAA handbooks; its installation, calibration, markings and procedures follow
+the 172S documents, and the G1000's air data displays Garmin's pilot's guide. Where the two
 differ in kind (the handbooks describe a generic system, the POH one airplane), the POH governs the numbers and the
 handbooks the mechanism.
 
@@ -13,6 +14,7 @@ handbooks the mechanism.
 | [Instrument Flying Handbook, FAA-H-8083-15B](https://www.faa.gov/sites/faa.gov/files/regulations_policies/handbooks_manuals/aviation/FAA-H-8083-15B.pdf), chapters 4, 5, 10, 11         | pp. 5-2 to 5-9: paired static ports, port heaters, blockages, position error, sensitive altimeter, encoding, VSI; p. 4-13 and 10-23: icing; p. 11-8: pitot/static failure and the VSI glass       |
 | [Aviation Maintenance Technician Handbook – Airframe, FAA-H-8083-31B](https://www.faa.gov/sites/faa.gov/files/FAA-H-8083-31B_Aviation_Maintenance_Technician_Handbook.pdf), chapter 10  | pp. 10-11 to 10-13: pitot tube, baffle and drain, heater, alternate static from the cabin, Y-connected ports; p. 10-20: position error; p. 10-81: water, drains, leak test                        |
 | [Cessna 172S NAV III POH, 172SPHBUS-00](https://aerocadet.com/cbts/pdf/172S-POH.pdf) (the Information Manual copy cited in `aircraft/c172s/SOURCES.md`)                                 | Figures 2-1, 2-2, 5-1 Sheets 1 and 2; pp. 3-14, 3-15, 3-31, 3-32, 4-4 to 4-9, 7-12, 7-64                                                                                                          |
+| [Garmin G1000 Pilot's Guide for Cessna NAV III, 190-00498-07 Rev. A](https://static.garmin.com/pumac/190-00498-07_0A_Web.pdf) (as cited in `aircraft/c172s/SOURCES.md`)                 | p. 2: the GDC 74A; pp. 50 to 55: airspeed tape, altimeter, VSI, trend vectors; p. 565: red X failures                                                                                             |
 | [Cessna Model 172 Illustrated Parts Catalog, 172RPC24](https://mxdocs.thrustinstitute.com/wp-content/uploads/2025/06/172RPC-compressed-1.pdf) (as cited in `aircraft/c172s/SOURCES.md`) | 34-11-00 Figure 01, Pitot and Static System (conventional instruments), and Figure 02 (NAV III)                                                                                                   |
 
 ## Taken as printed
@@ -45,10 +47,32 @@ handbooks the mechanism.
 | ASI markings white 40–85, green 48–129, yellow 129–163, red line 163 KIAS (the red arc is G1000 only); VFE 110 / 85 KIAS                                                                          | POH Figures 2-1, 2-2, pp. 2-4, 2-5           |
 | Parts: heated pitot tube (body, tube, nose fitting, heater), pitot line 55.0 in, static line 16.0 in, static port button, sump, selector valve and knob, altimeter, VSI, ASI, blind encoder, tees | IPC 34-11-00 Figure 01                       |
 
-The 172S NAV III's pitot head and static port feed the air data computer and the standby airspeed indicator and
-altimeter (POH pp. 7-12, 7-64; IPC Figure 02). The component draws the conventional instruments of the parts
-catalogue's Figure 01 (172 series 1996 and on), with its VSI and encoder, so that the handbooks' VSI cases can be
-shown. The airspeed calibration is the NAV III POH's: both installations use the one pitot head and static port.
+The six-pack is the conventional instruments of the parts catalogue's Figure 01 (172 series 1996 and on), with its VSI
+and encoder, so that the handbooks' VSI cases can be shown. The airspeed calibration is the NAV III POH's: both
+installations use the one pitot head and static port.
+
+### The G1000 (NAV III)
+
+| What                                                                                                                                          | Where                               |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| The GDC 74A "processes data from the pitot/static system as well as the OAT probe" and gives pressure altitude, airspeed, vertical speed, OAT | Garmin p. 2; POH p. 7-70            |
+| The standby airspeed indicator and altimeter share the pitot head and static ports with the air data computer                                 | POH p. 7-12; IPC 34-11-00 Figure 02 |
+| PFD airspeed from the ADC, TAS below the tape; altimeter from the ADC with the BARO knob; standby instruments on the lower centre panel       | POH p. 7-18                         |
+| Airspeed tape starts at 20 kt; trend vectors show about six seconds ahead; red low-airspeed arc 20–40 KIAS on the G1000 only                  | Garmin pp. 50, 53; POH Figure 2-2   |
+| VSI digits above 100 fpm; beyond 2,000 fpm the pointer sits at the edge of the scale                                                          | Garmin p. 55; POH p. 7-20           |
+| Red X over airspeed, altitude or vertical speed: no data from the air data computer                                                           | Garmin p. 565                       |
+| Red X: ADC/AHRS circuit breakers CHECK IN (ESS BUS and AVN BUS 1), then the standby airspeed indicator, and the standby altimeter set         | POH p. 3-21                         |
+| Altimeters before take-off: PFD (BARO) SET, standby altimeter SET                                                                             | POH p. 4-15                         |
+| G1000 VSI not required for any kind of operation; standby airspeed and altimeter required for IFR                                             | POH p. 2-16                         |
+
+The G1000 panel has no mechanical VSI and no blind encoder on the static line: the static side is the lines, the air
+data computer and the standby cases. The model's air data computer reads the same two volumes as the instruments:
+airspeed and altitude with the same standard calibrations, vertical speed from the rate its pressure altitude
+changes, true airspeed from its airspeed, the static pressure it senses and the OAT probe (taken as reading the true
+air temperature). So a blockage, a leak or the alternate source moves the PFD and the standby instruments alike;
+comparing them finds an air data computer failure, not a blocked port. The ADC's displays use the PFD drawing shared
+with the airplanes (`lib/avionics/g1000`); attitude and heading aren't simulated (wings level, nose on the flight
+path).
 
 ## How the POH's calibration is used
 
@@ -86,6 +110,9 @@ Everything in `PITOT_STATIC.model` (spec.ts):
 - **The test set.** Its rates (it changes pressure slowly, as AMT p. 10-81 asks) and its adapters. The test is the
   handbook's 1,000-ft, one-minute check; 14 CFR part 43 Appendix E now asks only for a proof test "acceptable to the
   Administrator" for these airplanes, so follow the test equipment's and the airplane's maintenance instructions.
+- **The G1000's air data computer.** The lag on its airspeed and altitude (0.1 s) and the filters on its vertical speed
+  and airspeed trend (1 s). Garmin doesn't publish them, nor whether the GDC 74A corrects for static source error; the
+  NAV III POH still tabulates IAS against CAS, so the model applies none.
 - **Instruments.** Ideal mechanisms with small pointer lags, calibrated to the standard atmosphere: no scale,
   hysteresis or friction error. The VSI is calibrated to standard density at the pressure it senses and stops at
   ±2,000 fpm. Dial faces are schematic, with the POH's markings.

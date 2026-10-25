@@ -17,6 +17,16 @@
   height: 124px;
   display: block;
 }
+/* the G1000's air data, cut from its PFD: airspeed tape | altimeter and VSI, (76 + 112 + 6) × 238 (dials.ts CROPS) */
+.ps-pfd {
+  height: 150px;
+  aspect-ratio: 194 / 238;
+  display: block;
+  border-radius: 3px;
+}
+.ps-gauge span b.bad {
+  color: var(--warn);
+}
 .ps-gauge span {
   font-size: 11px;
   color: #8fa1ae;
@@ -53,8 +63,21 @@
     width: 84px;
     height: 84px;
   }
+  .ps-pfd {
+    height: 104px;
+  }
   .ps-gauge span b {
     font-size: 15px;
+  }
+  .ps-g1000 .ps-gauge:first-child {
+    min-width: 104px;
+  }
+  /* three narrow columns: captions wrap under their instruments */
+  .ps-gauge span,
+  .ps-gauge small {
+    white-space: normal;
+    text-align: center;
+    max-width: 112px;
   }
 }
 @media (max-width: 359px) {

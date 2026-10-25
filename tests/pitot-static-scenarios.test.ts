@@ -130,6 +130,32 @@ describe("the pitot-static scenarios", () => {
     expect(cold.alt - cold.h).toBeGreaterThan(300);
   });
 
+  it("G1000 air data computer failure: red X on the PFD, the standby instruments right (POH p. 3-21)", () => {
+    const { s } = play("adc", 3);
+    expect(s.pfd.valid).toBe(false);
+    expect(s.ias).toBeCloseTo(110, 0);
+  });
+
+  it("set-ups keep the airplane's installation unless they need another", () => {
+    const keep = scenarioInputs(scenarioById("static-climb")!, { avionics: "g1000", ports: "paired" });
+    expect(keep.then.avionics).toBe("g1000");
+    expect(keep.then.ports).toBe("paired");
+    expect(scenarioInputs(scenarioById("glass")!, { avionics: "g1000", ports: "single" }).then.avionics).toBe(
+      "six-pack",
+    );
+    expect(scenarioInputs(scenarioById("adc")!, { avionics: "six-pack", ports: "single" }).then.avionics).toBe("g1000");
+  });
+
+  it("every set-up shows its effect on the G1000 too, the broken VSI glass aside", () => {
+    for (const sc of SCENARIOS) {
+      const { setup, then } = scenarioInputs(sc, { avionics: "g1000", ports: "single" });
+      const s = initialState(S, setup);
+      run(S, s, then, 2);
+      expect(then.avionics).toBe(sc.id === "glass" ? "six-pack" : "g1000");
+      expect(Number.isFinite(s.pfd.ias)).toBe(true);
+    }
+  });
+
   it("the leak test with a cracked fitting fails; repaired, it passes", () => {
     const test = (repair: boolean) => {
       const { s, i } = play("leak-test", 50);

@@ -1,8 +1,9 @@
 "use client";
 /**
- * The pitot-static page: the system laid out in 3D, the three instruments with what the airplane is really doing over
- * the foot of the view, and a panel with set-ups to try, the airplane, the cockpit controls, the weather, the
- * installation, failures, the ramp leak test, charts, the pressures inside the system and the documents.
+ * The pitot-static page: the system laid out in 3D, the instruments with what the airplane is really doing over the
+ * foot of the view (the six-pack's three, or the G1000 PFD's air data with the standby airspeed indicator and
+ * altimeter), and a panel with set-ups to try, the airplane, the cockpit controls, the weather, the installation,
+ * failures, the ramp leak test, charts, the pressures inside the system and the documents.
  */
 import dynamic from "next/dynamic";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -22,12 +23,20 @@ import {
 } from "@/components/ui/controls";
 import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
-import { HIST_S, inHg, pohKias, type Failures, type Leak } from "@/engines/components/pitot-static/model";
-import { AMT, IFH, IPC, PHAK, POH, type Flaps } from "@/engines/components/pitot-static/spec";
+import {
+  HIST_S,
+  inHg,
+  pohKias,
+  type Avionics,
+  type Failures,
+  type Leak,
+  type PSState,
+} from "@/engines/components/pitot-static/model";
+import { AMT, GPG, IFH, IPC, PHAK, POH, type Flaps } from "@/engines/components/pitot-static/spec";
 import { SCENARIOS, scenarioById, type Group } from "@/engines/components/pitot-static/scenarios";
 import { ComponentShell } from "../ComponentShell";
 import { ViewToggles } from "../chrome";
-import { drawAlt, drawAsi, drawVsi } from "./dials";
+import { drawAlt, drawAsi, drawPfdTapes, drawVsi, pitchOf, type PfdView } from "./dials";
 import { onGround, s, spec, usePs, usePsLoop, usePsView } from "./store";
 import "./pitot-static.css";
 
@@ -49,50 +58,81 @@ const FLAPS: [Flaps, string][] = [
 // ---------------------------------------------------------------- the instruments over the view
 
 /** A canvas drawn by `draw` at its displayed size. */
-function Dial({ label, draw }: { label: string; draw: (ctx: CanvasRenderingContext2D, W: number, H: number) => void }) {
+function Dial({
+  label,
+  draw,
+  className = "ps-dial",
+}: {
+  label: string;
+  draw: (ctx: CanvasRenderingContext2D, W: number, H: number) => void;
+  className?: string;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const px = Math.round(c.clientWidth * Math.min(2, window.devicePixelRatio || 1)) || 120;
-    if (c.width !== px) c.width = c.height = px;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.round(c.clientWidth * dpr) || 120,
+      h = Math.round(c.clientHeight * dpr) || 120;
+    if (c.width !== w || c.height !== h) [c.width, c.height] = [w, h];
     const ctx = c.getContext("2d");
-    if (ctx) draw(ctx, px, px);
+    if (ctx) draw(ctx, w, h);
   });
-  return <canvas ref={ref} className="ps-dial" role="img" aria-label={label} />;
+  return <canvas ref={ref} className={className} role="img" aria-label={label} />;
 }
 
-function Monitor() {
-  const x = useLiveSnapshot(s, 50);
+/** The airspeed indicator, six-pack or standby, against what the airplane flies and the POH says it should read. */
+function AsiGauge({ x, standby }: { x: PSState; standby: boolean }) {
   const u = usePs();
-  const alternate = u.cockpit.altStatic;
-  const poh = x.kcas >= 1 ? pohKias(spec, x.kcas, u.controls.flaps, alternate) : 0;
-  const dAlt = x.alt - x.h;
-  const dIas = x.ias - poh;
+  const poh = x.kcas >= 1 ? pohKias(spec, x.kcas, u.controls.flaps, u.cockpit.altStatic) : 0;
+  return (
+    <div className="ps-gauge">
+      <Dial
+        label={`${standby ? "Standby airspeed" : "Airspeed"} ${f0(x.ias)} knots`}
+        draw={(c, W, H) => drawAsi(c, W, H, x.ias)}
+      />
+      <span>
+        {standby && "stby "}
+        <b>{f0(x.ias)}</b> KIAS
+      </span>
+      <small className={Math.abs(x.ias - poh) > 3 && x.kcas >= 1 ? "bad" : ""}>
+        {f0(x.kcas)} KCAS{x.kcas >= 1 ? ` · POH ${f0(poh)}` : ""}
+      </small>
+    </div>
+  );
+}
+
+function AltGauge({ x, standby }: { x: PSState; standby: boolean }) {
+  const kollsman = usePs((u) => u.cockpit.kollsman);
+  const d = x.alt - x.h;
+  return (
+    <div className="ps-gauge">
+      <Dial
+        label={`${standby ? "Standby altimeter" : "Altimeter"} ${f0(x.alt)} feet`}
+        draw={(c, W, H) => drawAlt(c, W, H, x.alt, kollsman)}
+      />
+      <span>
+        {standby && "stby "}
+        <b>{f0(x.alt)}</b> ft
+      </span>
+      <small className={Math.abs(d) > 100 ? "bad" : ""}>
+        true {f0(x.h)} ({signed(d)})
+      </small>
+    </div>
+  );
+}
+
+function SixPackMonitor() {
+  const x = useLiveSnapshot(s, 50);
+  const glass = usePs((u) => u.failures.vsiGlass);
   return (
     <div className="eng-mon ps-mon" aria-live="off">
-      <div className="ps-gauge">
-        <Dial label={`Airspeed ${f0(x.ias)} knots`} draw={(c, W, H) => drawAsi(c, W, H, x.ias)} />
-        <span>
-          <b>{f0(x.ias)}</b> KIAS
-        </span>
-        <small className={Math.abs(dIas) > 3 && x.kcas >= 1 ? "bad" : ""}>
-          {f0(x.kcas)} KCAS{x.kcas >= 1 ? ` · POH ${f0(poh)}` : ""}
-        </small>
-      </div>
-      <div className="ps-gauge">
-        <Dial label={`Altimeter ${f0(x.alt)} feet`} draw={(c, W, H) => drawAlt(c, W, H, x.alt, u.cockpit.kollsman)} />
-        <span>
-          <b>{f0(x.alt)}</b> ft
-        </span>
-        <small className={Math.abs(dAlt) > 100 ? "bad" : ""}>
-          true {f0(x.h)} ({signed(dAlt)})
-        </small>
-      </div>
+      <AsiGauge x={x} standby={false} />
+      <AltGauge x={x} standby={false} />
       <div className="ps-gauge">
         <Dial
           label={`Vertical speed ${f0(x.vsi)} feet per minute`}
-          draw={(c, W, H) => drawVsi(c, W, H, x.vsi, u.failures.vsiGlass)}
+          draw={(c, W, H) => drawVsi(c, W, H, x.vsi, glass)}
         />
         <span>
           <b>{signed(Math.round(x.vsi / 10) * 10)}</b> fpm
@@ -101,6 +141,51 @@ function Monitor() {
       </div>
     </div>
   );
+}
+
+/** The G1000: the PFD's air data (its airspeed tape, altimeter and VSI), then the standby airspeed and altimeter. */
+function G1000Monitor() {
+  const x = useLiveSnapshot(s, 50);
+  const k = usePs((u) => u.cockpit);
+  const scratch = useRef<HTMLCanvasElement | null>(null);
+  const p = x.pfd;
+  const view: PfdView = { pfd: p, baro: k.baro, oat: x.oat, pitch: pitchOf(x) };
+  const off = p.valid && (Math.abs(p.alt - x.h) > 100 || Math.abs(p.vs - x.vs) > 300);
+  return (
+    <div className="eng-mon ps-mon ps-g1000" aria-live="off">
+      <div className="ps-gauge">
+        <Dial
+          className="ps-pfd"
+          label={
+            p.valid ? `PFD ${f0(p.ias)} knots, ${f0(p.alt)} feet, ${f0(p.vs)} feet per minute` : "PFD air data red X"
+          }
+          draw={(c, W, H) => drawPfdTapes(c, W, H, view, (scratch.current ??= document.createElement("canvas")))}
+        />
+        <span>
+          PFD{" "}
+          {p.valid ? (
+            <>
+              <b>{f0(p.ias)}</b> kt <b>{f0(p.alt)}</b> ft
+            </>
+          ) : (
+            <b className="bad">red X</b>
+          )}
+        </span>
+        <small className={!p.valid || off ? "bad" : ""}>
+          {p.valid
+            ? `VS ${signed(Math.round(p.vs / 10) * 10)} · actual ${signed(Math.round(x.vs / 10) * 10)}`
+            : "no air data"}
+        </small>
+      </div>
+      <AsiGauge x={x} standby />
+      <AltGauge x={x} standby />
+    </div>
+  );
+}
+
+function Monitor() {
+  const avionics = usePs((u) => u.avionics);
+  return avionics === "g1000" ? <G1000Monitor /> : <SixPackMonitor />;
 }
 
 // ---------------------------------------------------------------- panel
@@ -139,9 +224,21 @@ function Flight() {
     setMode = usePs((x) => x.setMode);
   const c = usePs((x) => x.controls),
     set = usePs((x) => x.setControls);
+  const avionics = usePs((x) => x.avionics),
+    setAvionics = usePs((x) => x.setAvionics);
+  const panels: [Avionics, string][] = [
+    ["six-pack", "Six-pack"],
+    ["g1000", "G1000 (NAV III)"],
+  ];
   return (
     <>
       <H3>The airplane</H3>
+      <Seg id="ps-avionics" label="Panel" options={panels} value={avionics} onChange={setAvionics} />
+      <Small>
+        {avionics === "g1000"
+          ? `The NAV III: the GDC 74A air data computer reads the pitot and static lines and the OAT probe and gives the PFD airspeed, true airspeed, altitude and vertical speed (${GPG} p. 2; ${POH} p. 7-70). The standby airspeed indicator and altimeter share its pitot head and static port (p. 7-12), so a blockage fools them all alike: comparing them won't find it. No mechanical VSI.`
+          : `Conventional instruments: airspeed indicator, altimeter and vertical speed indicator, with a blind encoder for the transponder, all on the one pitot head and static port (${IPC} 34-11-00 Figure 01).`}
+      </Small>
       <Seg
         id="ps-mode"
         label="Where"
@@ -214,6 +311,7 @@ function Flight() {
 function CockpitPanel() {
   const k = usePs((x) => x.cockpit),
     set = usePs((x) => x.setCockpit);
+  const g1000 = usePs((x) => x.avionics) === "g1000";
   const [lo, hi] = spec.handbook.kollsman;
   return (
     <>
@@ -244,9 +342,21 @@ function CockpitPanel() {
           onChange={(v) => set({ heatAir: v })}
         />
       </div>
+      {g1000 && (
+        <Slider
+          id="ps-baro"
+          label="PFD BARO"
+          min={lo}
+          max={hi}
+          step={0.01}
+          value={k.baro}
+          onChange={(v) => set({ baro: v })}
+          fmt={(v) => `${v.toFixed(2)} inHg`}
+        />
+      )}
       <Slider
         id="ps-kollsman"
-        label="Altimeter setting (barometric scale)"
+        label={g1000 ? "Standby altimeter setting" : "Altimeter setting (barometric scale)"}
         min={lo}
         max={hi}
         step={0.01}
@@ -254,6 +364,7 @@ function CockpitPanel() {
         onChange={(v) => set({ kollsman: v })}
         fmt={(v) => `${v.toFixed(2)} inHg`}
       />
+      {g1000 && <Small>Before take-off: altimeters, PFD (BARO) SET and standby altimeter SET ({POH} p. 4-15).</Small>}
       <Caution title={`Static source blockage (${POH} p. 3-15)`}>
         ALT STATIC AIR valve ON (pull full out) · cabin vents CLOSED · CABIN HT and CABIN AIR control knobs ON (pull
         full out) · airspeed: refer to Figure 5-1 Sheet 2, alternate static source.
@@ -348,6 +459,7 @@ function FailuresPanel() {
   const ports = usePs((x) => x.ports),
     drain = usePs((x) => x.drainSump);
   const mode = usePs((x) => x.mode);
+  const g1000 = usePs((x) => x.avionics) === "g1000";
   const ground = useLiveSnapshot(s, 250).h <= 0 && onGround({ mode });
   const items: [keyof Failures, string][] = [
     ["ram", "Pitot ram inlet blocked (insects, debris)"],
@@ -357,7 +469,7 @@ function FailuresPanel() {
     ["water", "Water in the static line"],
     ["heater", "Pitot heater element open"],
     ["pitotLeak", "Pitot line leaking behind the panel"],
-    ["vsiGlass", "VSI glass broken"],
+    g1000 ? ["adc", "Air data computer failed (or its breaker open)"] : ["vsiGlass", "VSI glass broken"],
   ];
   const leaks: [Leak, string][] = [
     ["none", "None"],
@@ -495,17 +607,27 @@ function Trace({
     H = 110,
     P = { l: 46, r: 8, t: 8, b: 16 };
   const t1 = t.length ? t[t.length - 1] : 0;
-  let lo = Math.min(...actual, ...shown),
-    hi = Math.max(...actual, ...shown);
-  if (!Number.isFinite(lo)) [lo, hi] = [0, 1];
+  const all = [...actual, ...shown].filter(Number.isFinite);
+  let lo = Math.min(...all),
+    hi = Math.max(...all);
+  if (!all.length) [lo, hi] = [0, 1];
   if (hi - lo < floor) {
     const mid = (hi + lo) / 2;
     [lo, hi] = [mid - floor / 2, mid + floor / 2];
   }
   const px = (v: number) => P.l + (1 - (t1 - v) / HIST_S) * (W - P.l - P.r);
   const py = (v: number) => H - P.b - ((v - lo) / (hi - lo)) * (H - P.t - P.b);
-  const path = (ys: number[]) =>
-    ys.map((v, i) => `${i ? "L" : "M"}${px(t[i]).toFixed(1)},${py(v).toFixed(1)}`).join("");
+  // no reading (a red X) breaks the line
+  const path = (ys: number[]) => {
+    let d = "",
+      pen = false;
+    ys.forEach((v, i) => {
+      if (!Number.isFinite(v)) return void (pen = false);
+      d += `${pen ? "L" : "M"}${px(t[i]).toFixed(1)},${py(v).toFixed(1)}`;
+      pen = true;
+    });
+    return d;
+  };
   return (
     <figure className="ps-fig">
       <figcaption>{title}</figcaption>
@@ -533,6 +655,7 @@ function Trace({
 
 function Charts() {
   const h = useLiveSnapshot(s, 200).hist;
+  const shown = usePs((x) => x.avionics) === "g1000" ? "PFD" : "indicated";
   return (
     <>
       <H3>Last minute: actual and indicated</H3>
@@ -541,7 +664,7 @@ function Charts() {
           <i className="k-actual" /> actual
         </span>
         <span>
-          <i className="k-shown" /> indicated
+          <i className="k-shown" /> {shown}
         </span>
       </div>
       <Trace
@@ -568,6 +691,7 @@ function Charts() {
 function Inside() {
   const x = useLiveSnapshot(s, 150);
   const u = usePs();
+  const g1000 = u.avionics === "g1000";
   const hg = (pa: number) => `${inHg(pa).toFixed(3)} inHg`;
   const items: [string, Reading][] = [
     ["Outside, free stream", hg(x.pInf)],
@@ -575,14 +699,23 @@ function Inside() {
     [u.ports === "paired" ? "At the left port" : "At the static port", hg(x.portL)],
     ...(u.ports === "paired" ? ([["At the right port", hg(x.portR)]] as [string, Reading][]) : []),
     ["Cabin", hg(x.cabin)],
-    ["Pitot side (ASI diaphragm)", hg(x.pitot)],
-    ["Static side (cases, encoder)", hg(x.stat)],
-    ["VSI case", hg(x.vsiCase)],
+    ...((g1000
+      ? [
+          ["Pitot side (ADC, standby ASI)", hg(x.pitot)],
+          ["Static side (ADC, standby cases)", hg(x.stat)],
+        ]
+      : [
+          ["Pitot side (ASI diaphragm)", hg(x.pitot)],
+          ["Static side (cases, encoder)", hg(x.stat)],
+          ["VSI case", hg(x.vsiCase)],
+        ]) as [string, Reading][]),
     [
       "Static source",
       u.cockpit.altStatic ? ["CABIN (alternate)", "warnc"] : u.ports === "paired" ? "Both ports" : "Port",
     ],
-    ["Encoder (Mode C)", `${n0(x.modeC)} ft`],
+    g1000
+      ? ["ADC pressure altitude", x.pfd.valid ? `${n0(x.pfd.pa)} ft` : ["no data", "bad"]]
+      : ["Encoder (Mode C)", `${n0(x.modeC)} ft`],
     [
       "Pitot head",
       `${x.headC.toFixed(0)} °C${u.cockpit.pitotHeat ? (u.failures.heater ? ", heater open" : ", heated") : ""}`,
@@ -609,7 +742,7 @@ function Inside() {
       <Small>
         0.001 inHg is about one foot of altitude near sea level. The airspeed indicator reads the pitot side against the
         static side; the altimeter the static side; the VSI the static side against its own case, which follows through
-        the calibrated leak ({PHAK} pp. 8-3 to 8-8).
+        the calibrated leak ({PHAK} pp. 8-3 to 8-8). The G1000&apos;s air data computer reads the same two sides.
       </Small>
     </>
   );
@@ -651,7 +784,8 @@ function PohTable() {
 }
 
 function Docs() {
-  const m = spec.poh.markings;
+  const m = spec.poh.markings,
+    g = spec.g1000;
   const facts: [ReactNode, ReactNode][] = [
     ["Pitot head", `Heated, on the lower surface of the left wing (${POH} p. 7-64)`],
     ["Static port", `Left side of the forward fuselage; check the opening clear on preflight (${POH} pp. 7-64, 4-9)`],
@@ -674,6 +808,15 @@ function Docs() {
       "Barometric scale",
       `${spec.handbook.kollsman[0].toFixed(2)}–${spec.handbook.kollsman[1].toFixed(2)} inHg; 1 inHg ≈ 1,000 ft (${IFH} p. 5-4)`,
     ],
+    [
+      "G1000 airspeed tape",
+      `Starts at ${g.tapeMinKt} kt; red arc ${g.redArc.join("–")} KIAS on the G1000 only; TAS below the tape (${GPG} p. 50; ${POH} Figure 2-2, p. 7-18)`,
+    ],
+    ["G1000 trend vectors", `Airspeed and altitude about ${g.trendS} seconds ahead (${GPG} pp. 50, 53)`],
+    [
+      "G1000 VSI",
+      `Digits above ${g.vsiDigitsFpm} fpm; at the edge of the scale beyond ${f0(g.vsiScaleFpm)} fpm (${GPG} p. 55; ${POH} p. 7-20)`,
+    ],
   ];
   return (
     <>
@@ -686,6 +829,7 @@ function Docs() {
           `Inadvertent icing: PITOT HEAT ON, turn back or change altitude (${POH} p. 3-14).`,
           `Static source blockage: ALT STATIC AIR ON, cabin vents CLOSED, CABIN HT and CABIN AIR ON, airspeed from Figure 5-1 Sheet 2 (${POH} p. 3-15). With no alternate source, break the VSI's glass (${PHAK} p. 8-3).`,
           `Before take-off the airspeed reads zero; on the roll, make sure it increases at an appropriate rate (${PHAK} p. 8-10).`,
+          `G1000, red X on the PFD's airspeed or altitude: ADC/AHRS circuit breakers CHECK IN (ESS BUS and AVN BUS 1; reset once), then use the standby airspeed indicator, and the standby altimeter set to the current pressure (${POH} p. 3-21).`,
         ]}
       />
       <H3>How the model works</H3>
@@ -693,6 +837,7 @@ function Docs() {
         items={[
           "Three volumes of air (the pitot side, the static side and the VSI's case) each move toward the pressures they are open to, as fast as their openings let air through. Block an opening and the volume keeps what it had.",
           "The instruments are ideal: the ASI turns the pitot-side minus static-side pressure into airspeed with the standard sea-level calibration, the altimeter the static side into altitude from the barometric scale, the VSI its diaphragm against its lagging case into feet per minute.",
+          "The G1000's air data computer reads the same two volumes: airspeed and altitude as the instruments do, vertical speed from the rate its pressure altitude changes, true airspeed with the OAT probe. Its filters aren't published; the ones here are chosen. The PFD's attitude and heading are not simulated: wings level, nose on the flight path.",
           "The static port and the cabin read the POH's Figure 5-1 calibration: the whole KIAS–KCAS difference is put on the static source, so a healthy system reads the POH's KIAS exactly, and the altimeter error that follows is this model's, not the POH's.",
           `Not published, so chosen to behave as the handbooks describe: every time constant, the leak sizes, the icing and melting rates, the water's sloshing, the sideslip effect, the cabin pressure outside Sheet 2's conditions and the test set's rates. The 3D view is schematic, after ${PHAK} Figure 8-1.`,
         ]}
@@ -732,8 +877,16 @@ function Docs() {
           leak tests (p. 10-81).
         </li>
         <li>
-          Cessna 172S NAV III Pilot&apos;s Operating Handbook (172SPHBUS-00): Figures 2-1, 2-2 and 5-1; pp. 3-14, 3-15,
-          3-32, 4-4 to 4-9, 7-12, 7-64. Cessna Model 172 Illustrated Parts Catalog ({IPC}), 34-11-00 Figure 01.
+          Cessna 172S NAV III Pilot&apos;s Operating Handbook (172SPHBUS-00): Figures 2-1, 2-2 and 5-1; pp. 2-16, 3-14,
+          3-15, 3-21, 3-32, 4-4 to 4-9, 4-15, 7-12, 7-18, 7-20, 7-64, 7-70. Cessna Model 172 Illustrated Parts Catalog (
+          {IPC}), 34-11-00 Figures 01 and 02.
+        </li>
+        <li>
+          <a href="https://static.garmin.com/pumac/190-00498-07_0A_Web.pdf" target="_blank" rel="noreferrer">
+            {GPG}, G1000 Pilot&apos;s Guide for Cessna NAV III
+          </a>
+          : the air data computer (p. 2), the airspeed tape, altimeter, VSI and trend vectors (pp. 50 to 55), and the
+          red X failures (p. 565).
         </li>
       </ul>
     </>
@@ -743,9 +896,13 @@ function Docs() {
 function Readings() {
   const x = useLiveSnapshot(s, 150);
   const u = usePs();
+  const g1000 = u.avionics === "g1000";
   const flying = x.kcas >= 1;
   const poh = (alt: boolean) => pohKias(spec, x.kcas, u.controls.flaps, alt);
-  const off = flying && Math.abs(x.ias - poh(u.cockpit.altStatic)) > 3;
+  const want = poh(u.cockpit.altStatic);
+  const bad = (on: boolean) => (on ? "bad" : "");
+  const p = x.pfd;
+  const pfd = (v: string) => (p.valid ? v : "red X");
   return (
     <>
       <H3>Flying and reading</H3>
@@ -754,7 +911,8 @@ function Readings() {
           <tr>
             <th />
             <th>Actual</th>
-            <th>Indicated</th>
+            {g1000 && <th>PFD</th>}
+            <th>{g1000 ? "Standby" : "Indicated"}</th>
           </tr>
         </thead>
         <tbody>
@@ -763,23 +921,36 @@ function Readings() {
             <td>
               {n0(x.kcas)} KCAS <small>{n0(x.ktas)} KTAS</small>
             </td>
-            <td className={off ? "bad" : ""}>{n0(x.ias)} KIAS</td>
+            {g1000 && (
+              <td className={bad(!p.valid || (flying && Math.abs(p.ias - want) > 3))}>
+                {pfd(`${n0(p.ias)} KIAS`)} {p.valid && <small>TAS {n0(p.tas)}</small>}
+              </td>
+            )}
+            <td className={bad(flying && Math.abs(x.ias - want) > 3)}>{n0(x.ias)} KIAS</td>
           </tr>
           <tr>
             <th>Figure 5-1</th>
-            <td colSpan={2}>{flying ? `normal source ${n0(poh(false))}, alternate ${n0(poh(true))} KIAS` : "—"}</td>
+            <td colSpan={g1000 ? 3 : 2}>
+              {flying ? `normal source ${n0(poh(false))}, alternate ${n0(poh(true))} KIAS` : "—"}
+            </td>
           </tr>
           <tr>
             <th>Altitude</th>
             <td>{n0(x.h)} ft</td>
-            <td className={Math.abs(x.alt - x.h) > 100 ? "bad" : ""}>{n0(x.alt)} ft</td>
+            {g1000 && <td className={bad(!p.valid || Math.abs(p.alt - x.h) > 100)}>{pfd(`${n0(p.alt)} ft`)}</td>}
+            <td className={bad(Math.abs(x.alt - x.h) > 100)}>{n0(x.alt)} ft</td>
           </tr>
           <tr>
             <th>Vertical speed</th>
             <td>{signed(x.vs)} fpm</td>
-            <td className={Math.abs(x.vsi - x.vs) > 300 ? "bad" : ""}>
-              {signed(x.vsi)} fpm{x.vsiPegged ? " (pegged)" : ""}
-            </td>
+            {g1000 && <td className={bad(!p.valid || Math.abs(p.vs - x.vs) > 300)}>{pfd(`${signed(p.vs)} fpm`)}</td>}
+            {g1000 ? (
+              <td>none</td>
+            ) : (
+              <td className={bad(Math.abs(x.vsi - x.vs) > 300)}>
+                {signed(x.vsi)} fpm{x.vsiPegged ? " (pegged)" : ""}
+              </td>
+            )}
           </tr>
         </tbody>
       </table>

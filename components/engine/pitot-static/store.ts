@@ -12,6 +12,7 @@ import {
   defaultTest,
   initialState,
   step,
+  type Avionics,
   type Cockpit,
   type Controls,
   type Failures,
@@ -36,9 +37,11 @@ export interface PsUi extends Inputs {
   setFailures: (p: Partial<Failures>) => void;
   setTest: (p: Partial<TestSet>) => void;
   setPorts: (ports: Ports) => void;
+  /** Six-pack or G1000: the panel changes, the lines and the flight carry on. */
+  setAvionics: (avionics: Avionics) => void;
   /** Flying, or on the ramp with the test set: the airplane starts over, steady where the controls put it. */
   setMode: (mode: Mode) => void;
-  /** Start a "Try" set-up. */
+  /** Start a "Try" set-up, on this airplane's installation unless the set-up needs another. */
   start: (id: string) => void;
   /** Drain the static line's sump: only on the ground. */
   drainSump: () => void;
@@ -55,6 +58,7 @@ const restart = (next: PSState) => Object.assign(s, next);
 
 export const inputsOf = (u: Inputs): Inputs => ({
   mode: u.mode,
+  avionics: u.avionics,
   controls: u.controls,
   cockpit: u.cockpit,
   weather: u.weather,
@@ -75,6 +79,7 @@ export const usePs = create<PsUi>((set, get) => ({
   setFailures: (p) => set((x) => ({ failures: { ...x.failures, ...p } })),
   setTest: (p) => set((x) => ({ test: { ...x.test, ...p } })),
   setPorts: (ports) => set({ ports }),
+  setAvionics: (avionics) => set({ avionics }),
   setMode: (mode) => {
     if (mode === get().mode) return;
     const next = { ...inputsOf(get()), mode, test: defaultTest() };
@@ -85,7 +90,8 @@ export const usePs = create<PsUi>((set, get) => ({
   start: (id) => {
     const sc = scenarioById(id);
     if (!sc) return;
-    const { setup, then } = scenarioInputs(sc);
+    const { avionics, ports } = get();
+    const { setup, then } = scenarioInputs(sc, { avionics, ports });
     restart(initialState(spec, setup));
     clock.reset();
     set({ ...then, scenario: id });

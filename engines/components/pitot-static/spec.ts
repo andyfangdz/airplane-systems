@@ -15,6 +15,7 @@ export const IFH = "FAA-H-8083-15B";
 export const AMT = "FAA-H-8083-31B";
 export const POH = "172S POH";
 export const IPC = "172RPC24";
+export const GPG = "Garmin 190-00498-07";
 
 export type Flaps = "up" | "10" | "full";
 
@@ -24,11 +25,11 @@ export type Calibration = readonly (readonly [kias: number, kcas: number])[];
 export const PITOT_STATIC = {
   id: "pitot-static",
   name: "Pitot-static system",
-  sub: "Cessna 172S · alternate static",
+  sub: "Cessna 172S · six-pack or G1000",
   lead:
-    "The pitot-static system of a Cessna 172S, with its airspeed indicator, altimeter and vertical speed indicator: " +
-    "fly it, block the pitot tube, its drain or the static port, pull the alternate static source and watch every " +
-    "instrument respond the way the FAA handbooks and the POH describe.",
+    "The pitot-static system of a Cessna 172S, with its six-pack or its G1000 air data computer and standby " +
+    "instruments: fly it, block the pitot tube, its drain or the static port, pull the alternate static source and " +
+    "watch every instrument respond the way the FAA handbooks, the POH and Garmin describe.",
 
   /** Printed in the Cessna 172S NAV III POH (172SPHBUS-00) and the Model 172 parts catalogue (172RPC24). */
   poh: {
@@ -121,6 +122,24 @@ export const PITOT_STATIC = {
     staticLineIn: 16,
   },
 
+  /**
+   * The NAV III's G1000: Garmin's G1000 Pilot's Guide for Cessna NAV III (190-00498-07 Rev. A) and the NAV III POH.
+   * The GDC 74A air data computer "processes data from the pitot/static system as well as the OAT probe" and gives
+   * the G1000 pressure altitude, airspeed, vertical speed and OAT (p. 2; POH p. 7-70); the standby airspeed indicator
+   * and altimeter share the pitot head and static port with it (POH p. 7-12).
+   */
+  g1000: {
+    /** "Speed indication starts at 20 knots" (p. 50). */
+    tapeMinKt: 20,
+    /** The trend vectors show about where airspeed and altitude will be in six seconds (pp. 50, 53). */
+    trendS: 6,
+    /** Digits in the VSI pointer above 100 fpm; beyond 2,000 fpm it sits at the edge of the scale (p. 55; POH p. 7-20). */
+    vsiDigitsFpm: 100,
+    vsiScaleFpm: 2000,
+    /** Red arc 20–40 KIAS for low-airspeed awareness, on the G1000 airspeed indicator only (POH Figure 2-2). */
+    redArc: [20, 40] as const,
+  },
+
   /** Printed in the FAA handbooks. */
   handbook: {
     /** The VSI needle "stabilizes after a short period (6–9 seconds)" (PHAK p. 8-8). */
@@ -178,6 +197,9 @@ export const PITOT_STATIC = {
     airplane: { ktPerS: 4, vsTau: 0.8, levelOff: 6, liftOffKcas: 55 },
     /** Test set: how fast it changes the pressures it holds (ft/min and kt/s), and its adapters' time constant. */
     testSet: { ftPerMin: 1500, ktPerS: 8, tau: 0.1 },
+    /** G1000 air data computer: display lag of airspeed and altitude, and the filters on its vertical speed and the
+     * airspeed trend (s). Garmin doesn't publish them. */
+    adc: { tau: 0.1, vsTau: 1, trendTau: 1 },
     /** Indicator stops: the VSI needle stops at ±2,000 fpm. */
     vsiStop: 2000,
     /** Largest integration step (s). */

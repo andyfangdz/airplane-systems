@@ -72,6 +72,20 @@ for (const [name, viewport] of Object.entries({
     await labels.click();
     await expect(page.locator(".ps-tag")).toHaveCount(2);
 
+    // the G1000: the PFD's air data and the standby instruments; an air data computer failure leaves the standby
+    await page.getByRole("button", { name: "Cruise", exact: true }).click();
+    await page.getByRole("button", { name: "G1000 (NAV III)", exact: true }).click();
+    await expect(page.locator("canvas.ps-pfd")).toHaveCount(1);
+    await expect(page.locator("canvas.ps-dial")).toHaveCount(2);
+    await expect(gauge(0).locator("span")).toContainText("110");
+    await expect(gauge(1).locator("b")).toHaveText("110");
+    await page.getByRole("button", { name: "G1000: air data computer fails", exact: true }).click();
+    await expect(gauge(0).locator("span")).toContainText("red X");
+    await expect(gauge(1).locator("b")).toHaveText("110");
+    // breaking the VSI glass needs a six-pack: the set-up switches back
+    await page.getByRole("button", { name: "No alternate: break the VSI glass", exact: true }).click();
+    await expect(page.locator("canvas.ps-dial")).toHaveCount(3);
+
     // the ramp leak test: the test set takes the altimeter up; it can't be sealed until it's there
     await page.getByRole("button", { name: "Static leak test", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Static system leak test" })).toBeVisible();

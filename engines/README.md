@@ -39,8 +39,9 @@ The driven cylinder bench shares the engine mixture and thermal relationships; i
 `engines/components/piston-cylinder/SOURCES.md`.
 
 The pitot-static system (`/components/pitot-static`) is an airframe system rather than an engine accessory: the
-Cessna 172S's pitot head, static port, sump, ALT STATIC AIR selector and instruments as three lumped air volumes (the
-pitot side, the static side and the VSI's case) joined by restrictions to the pressures around the airplane. The static
+Cessna 172S's pitot head, static port, sump, ALT STATIC AIR selector and instruments (the six-pack, or the G1000's air
+data computer, PFD and standby instruments) as lumped air volumes (the pitot side, the static side and the six-pack
+VSI's case) joined by restrictions to the pressures around the airplane. The static
 port and the cabin read the POH's Figure 5-1 airspeed calibration for the normal and alternate sources; blockages, ice,
 water, leaks, a broken VSI glass, sideslip, altimeter setting and temperature errors and the ramp leak test follow the
 FAA handbooks. Its "Try" set-ups are pure data (`scenarios.ts`) so tests check each shows what its note says; its

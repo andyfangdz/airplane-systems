@@ -13,6 +13,10 @@
  * standard atmosphere from the barometric scale's setting; the VSI the difference between its diaphragm and its
  * lagging case; the encoder the static pressure from 29.92 inHg.
  *
+ * With the G1000 (the NAV III panel) there is no VSI case or encoder: the air data computer reads the same two
+ * volumes and gives the PFD airspeed, true airspeed, altitude from the BARO setting and vertical speed from the rate
+ * its pressure altitude changes, and the standby airspeed indicator and altimeter share its lines (POH p. 7-12).
+ *
  * The airplane flies a commanded airspeed and altitude in an atmosphere set by the sea-level pressure and its
  * deviation from standard temperature. The static port and the cabin see the free-stream pressure plus a position
  * error taken from the 172S POH's airspeed calibration (Figure 5-1): the whole of each sheet's KIAS–KCAS difference is
@@ -148,6 +152,12 @@ export interface Controls {
   slip: number;
 }
 
+/**
+ * The panel: conventional instruments ("six-pack"), or the NAV III's G1000, whose air data computer feeds the PFD, with
+ * the standby airspeed indicator and altimeter on the same pitot and static lines.
+ */
+export type Avionics = "six-pack" | "g1000";
+
 export interface Cockpit {
   pitotHeat: boolean;
   /** ALT STATIC AIR valve pulled ON. */
@@ -156,8 +166,10 @@ export interface Cockpit {
   ventsOpen: boolean;
   /** CABIN HT and CABIN AIR pulled ON. */
   heatAir: boolean;
-  /** Barometric scale (Kollsman window), inHg. */
+  /** Barometric scale (Kollsman window) of the altimeter, the G1000's standby altimeter included, inHg. */
   kollsman: number;
+  /** G1000: the PFD's barometric setting (BARO knob), inHg. */
+  baro: number;
 }
 
 export type Ports = "single" | "paired";
@@ -180,8 +192,10 @@ export interface Failures {
   leak: Leak;
   /** Pitot line leak into the cabin. */
   pitotLeak: boolean;
-  /** VSI glass broken: its case open to the cabin. */
+  /** VSI glass broken: its case open to the cabin (six-pack only). */
   vsiGlass: boolean;
+  /** G1000: the air data computer has failed, or its circuit breaker is open. */
+  adc: boolean;
 }
 
 export type Mode = "flight" | "test";
@@ -198,6 +212,7 @@ export interface TestSet {
 
 export interface Inputs {
   mode: Mode;
+  avionics: Avionics;
   controls: Controls;
   cockpit: Cockpit;
   weather: Weather;
@@ -213,6 +228,7 @@ export const defaultCockpit = (): Cockpit => ({
   ventsOpen: false,
   heatAir: false,
   kollsman: 29.92,
+  baro: 29.92,
 });
 export const defaultWeather = (): Weather => ({ qnh: 29.92, isaDev: 0, moisture: false });
 export const noFailures = (): Failures => ({
@@ -225,11 +241,13 @@ export const noFailures = (): Failures => ({
   leak: "none",
   pitotLeak: false,
   vsiGlass: false,
+  adc: false,
 });
 export const defaultTest = (): TestSet => ({ alt: 0, kt: 0, sealed: false });
 
 export const defaultInputs = (): Inputs => ({
   mode: "flight",
+  avionics: "six-pack",
   controls: defaultControls(),
   cockpit: defaultCockpit(),
   weather: defaultWeather(),
@@ -265,6 +283,20 @@ export interface Flows {
   glass: number;
   testPitot: number;
   testStatic: number;
+}
+
+/** G1000: what the air data computer gives the PFD. */
+export interface Pfd {
+  /** Its data is valid: a G1000 panel with the ADC working (no red X). */
+  valid: boolean;
+  ias: number;
+  tas: number;
+  alt: number;
+  vs: number;
+  /** Airspeed six seconds ahead at the present acceleration, less now (kt): the trend vector. */
+  iasTrend: number;
+  /** The pressure altitude it last sensed, ft (its vertical speed is the rate this changes). */
+  pa: number;
 }
 
 export interface LeakTest {
@@ -323,6 +355,8 @@ export interface PSState {
   modeC: number;
   /** The VSI needle is on a stop. */
   vsiPegged: boolean;
+  /** G1000: the PFD's air data. */
+  pfd: Pfd;
   flows: Flows;
   // ---- the ramp test set
   testAlt: number;
@@ -416,6 +450,7 @@ export function initialState(spec: PitotStaticSpec, i: Inputs = defaultInputs())
     vsi: 0,
     modeC: 0,
     vsiPegged: false,
+    pfd: { valid: false, ias: 0, tas: 0, alt: 0, vs: 0, iasTrend: 0, pa: 0 },
     flows: noFlows(),
     testAlt: 0,
     testKt: 0,
@@ -493,7 +528,9 @@ function network(spec: PitotStaticSpec, s: PSState, src: Sources, i: Inputs, t: 
   const ext = i.cockpit.altStatic ? 0 : water / m.tauPort;
   const paired = i.ports === "paired";
   const gPort = paired ? ext / 2 : ext;
-  const gV = m.vsiCase / m.tauVsi;
+  // the G1000 has no mechanical VSI on the static line
+  const sixPack = i.avionics === "six-pack";
+  const gV = sixPack ? m.vsiCase / m.tauVsi : 0;
   // on the ramp the test set's adapters seal over the port (both of a pair): it reaches the line through open ports
   const reach = (paired ? (f.portL ? 0 : 0.5) + (f.portR ? 0 : 0.5) : f.portL ? 0 : 1) * water;
   const stat: Record<"portL" | "portR" | "alt" | "leak" | "testStatic", Link> = {
@@ -516,7 +553,7 @@ function network(spec: PitotStaticSpec, s: PSState, src: Sources, i: Inputs, t: 
     pitot,
     stat,
     gV,
-    gGlass: f.vsiGlass ? m.glass * gV : 0,
+    gGlass: f.vsiGlass && sixPack ? m.glass * gV : 0,
     pitotSteady: steady(Object.values(pitot), s.pitot),
     staticSteady: steady(Object.values(stat), s.stat),
   };
@@ -645,8 +682,10 @@ function substep(spec: PitotStaticSpec, s: PSState, i: Inputs, dt: number) {
   fl.vsi = (n.gV / cv) * (s.stat - s.vsiCase);
   fl.glass = (n.gGlass / cv) * (src.cabin - s.vsiCase);
 
+  if (i.avionics !== "six-pack") s.vsiCase = s.stat;
+
   readInstruments(spec, s, i, dt);
-  sample(s);
+  sample(s, i);
 }
 
 function record(s: PSState, src: Sources) {
@@ -677,18 +716,50 @@ function readInstruments(spec: PitotStaticSpec, s: PSState, i: Inputs, dt: numbe
   s.vsi = lag(s.vsi, clamp(r.vsi, -stop, stop), p.vsi);
   const step100 = spec.handbook.modeCft;
   s.modeC = Math.round(pressureAltitude(s.stat) / step100) * step100;
+  readAdc(spec, s, i, dt);
 }
 
-function sample(s: PSState) {
+/**
+ * The air data computer: airspeed from the pitot side against the static side, altitude from the static side and the
+ * PFD's BARO setting, vertical speed from the rate its pressure altitude changes, true airspeed from its airspeed,
+ * the static pressure it senses and the OAT probe (POH p. 7-70; Garmin 190-00498-07 p. 2).
+ */
+function readAdc(spec: PitotStaticSpec, s: PSState, i: Inputs, dt: number) {
+  const a = spec.model.adc,
+    p = s.pfd;
+  p.valid = i.avionics === "g1000" && !i.failures.adc;
+  const pa = pressureAltitude(s.stat);
+  const ias = casFromQc(s.pitot - s.stat);
+  const alt = altitudeFor(s.stat, i.cockpit.baro);
+  if (dt > 0) {
+    const before = p.ias;
+    p.ias += (ias - p.ias) * Math.min(1, dt / a.tau);
+    p.alt += (alt - p.alt) * Math.min(1, dt / a.tau);
+    p.vs += (((pa - p.pa) / dt) * 60 - p.vs) * Math.min(1, dt / a.vsTau);
+    p.iasTrend += (((p.ias - before) / dt) * 6 - p.iasTrend) * Math.min(1, dt / a.trendTau);
+  } else Object.assign(p, { ias, alt, vs: 0, iasTrend: 0 });
+  p.pa = pa;
+  const T = s.oat + 273.15;
+  p.tas = tasFromCas(p.ias, { p: s.stat, T, oat: s.oat, rho: s.stat / (R_AIR * T) });
+}
+
+/** The primary instruments' readings: the six-pack's, or the PFD's (none while it shows a red X). */
+export function primary(s: PSState, i: Pick<Inputs, "avionics">) {
+  if (i.avionics === "six-pack") return { ias: s.ias, alt: s.alt, vs: s.vsi };
+  return s.pfd.valid ? { ias: s.pfd.ias, alt: s.pfd.alt, vs: s.pfd.vs } : { ias: NaN, alt: NaN, vs: NaN };
+}
+
+function sample(s: PSState, i: Inputs) {
   const h = s.hist;
   if (h.t.length && s.t - h.t[h.t.length - 1] < HIST_DT) return;
+  const r = primary(s, i);
   h.t.push(s.t);
   h.kcas.push(s.kcas);
-  h.ias.push(s.ias);
+  h.ias.push(r.ias);
   h.h.push(s.h);
-  h.alt.push(s.alt);
+  h.alt.push(r.alt);
   h.vs.push(s.vs);
-  h.vsi.push(s.vsi);
+  h.vsi.push(r.vs);
   while (h.t.length && s.t - h.t[0] > HIST_S) for (const k of Object.keys(h) as (keyof History)[]) h[k].shift();
 }
 

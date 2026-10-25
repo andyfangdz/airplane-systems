@@ -9,6 +9,7 @@ import {
   initialState,
   pohKias,
   pressureAltitude,
+  primary,
   run,
   step,
   type Inputs,
@@ -399,6 +400,99 @@ describe("the altimeter (PHAK pp. 8-3 to 8-5, IFH pp. 5-4, 5-7)", () => {
     i.controls.alt = 7000;
     run(S, s, i, 60);
     expect(s.modeC).toBe(reported);
+  });
+});
+
+describe("the G1000 (NAV III): air data computer, PFD and standby instruments", () => {
+  const g1000 = (i: Inputs) => (i.avionics = "g1000");
+
+  it("the PFD and the standby instruments read the POH's KIAS and the same altitude; the PFD adds true airspeed", () => {
+    const { s } = steady(107, 5500, g1000);
+    expect(s.pfd.valid).toBe(true);
+    expect(s.pfd.ias).toBeCloseTo(110, 0);
+    expect(s.ias).toBeCloseTo(110, 0);
+    expect(Math.abs(s.pfd.alt - s.alt)).toBeLessThan(1);
+    expect(Math.abs(s.pfd.vs)).toBeLessThan(1);
+    // TAS from the ADC's airspeed, the static pressure it senses and the OAT probe (POH p. 7-18)
+    expect(Math.abs(s.pfd.tas - s.ktas)).toBeLessThan(4);
+  });
+
+  it("they share the pitot head and static port (POH p. 7-12): a blocked port fools both alike", () => {
+    const { i, s } = steady(90, 4000, g1000);
+    const frozen = s.pfd.alt;
+    i.failures.portL = true;
+    i.controls.alt = 5500;
+    run(S, s, i, 60);
+    expect(s.h).toBeGreaterThan(4500);
+    expect(Math.abs(s.pfd.alt - frozen)).toBeLessThan(2);
+    expect(Math.abs(s.alt - s.pfd.alt)).toBeLessThan(2);
+    expect(Math.abs(s.pfd.vs)).toBeLessThan(5);
+    expect(Math.abs(s.pfd.ias - s.ias)).toBeLessThan(1);
+    expect(s.pfd.ias).toBeLessThan(pohKias(S, 90, "up", false) - 10);
+  });
+
+  it("the alternate source moves both, and the PFD's vertical speed shows the momentary climb too", () => {
+    const { i, s } = steady(107, 5500, (i) => (g1000(i), (i.cockpit.heatAir = true)));
+    const before = { pfd: s.pfd.alt, stby: s.alt };
+    i.cockpit.altStatic = true;
+    let peak = 0;
+    for (let t = 0; t < 10; t += 0.1) {
+      run(S, s, i, 0.1);
+      peak = Math.max(peak, s.pfd.vs);
+    }
+    expect(peak).toBeGreaterThan(100);
+    expect(Math.abs(s.pfd.vs)).toBeLessThan(10);
+    expect(s.pfd.ias).toBeCloseTo(112, 0);
+    expect(s.pfd.alt - before.pfd).toBeGreaterThan(5);
+    expect(s.alt - before.stby).toBeGreaterThan(5);
+  });
+
+  it("an air data computer failure puts a red X on the PFD; the standby instruments carry on (POH p. 3-21)", () => {
+    const { i, s } = steady(107, 5500, g1000);
+    i.failures.adc = true;
+    run(S, s, i, 2);
+    expect(s.pfd.valid).toBe(false);
+    const p = primary(s, i);
+    expect(Number.isNaN(p.ias) && Number.isNaN(p.alt) && Number.isNaN(p.vs)).toBe(true);
+    expect(s.ias).toBeCloseTo(110, 0);
+    expect(Math.abs(s.alt - 5541)).toBeLessThan(5);
+  });
+
+  it("the PFD's BARO and the standby altimeter are set separately (POH p. 4-15)", () => {
+    const { s } = steady(100, 3000, (i) => (g1000(i), (i.cockpit.baro = 30.17)));
+    expect(s.pfd.alt - s.alt).toBeGreaterThan(220);
+    expect(s.pfd.alt - s.alt).toBeLessThan(260);
+  });
+
+  it("vertical speed is the rate of pressure altitude: the climb rate in a steady climb", () => {
+    const { i, s } = steady(90, 3000, g1000);
+    Object.assign(i.controls, { alt: 8000, rate: 1000 });
+    run(S, s, i, 15);
+    expect(Math.abs(s.pfd.vs - s.vs)).toBeLessThan(0.05 * s.vs);
+  });
+
+  it("the trend vector shows the airspeed about six seconds ahead (Garmin 190-00498-07 p. 50)", () => {
+    const { i, s } = steady(90, 3000, g1000);
+    i.controls.kcas = 140;
+    run(S, s, i, 5);
+    // the airplane gains 4 KCAS a second: about 24 kt in six seconds
+    expect(s.pfd.iasTrend).toBeGreaterThan(18);
+    expect(s.pfd.iasTrend).toBeLessThan(30);
+    run(S, s, i, 20);
+    expect(Math.abs(s.pfd.iasTrend)).toBeLessThan(1);
+  });
+
+  it("there is no mechanical VSI on the static line: no VSI glass to break", () => {
+    const a = steady(90, 4000, g1000),
+      b = steady(90, 4000, g1000);
+    for (const x of [a, b]) {
+      x.i.failures.portL = true;
+      x.i.controls.alt = 5000;
+    }
+    b.i.failures.vsiGlass = true;
+    run(S, a.s, a.i, 20);
+    run(S, b.s, b.i, 20);
+    expect(b.s.alt).toBeCloseTo(a.s.alt, 3);
   });
 });
 
