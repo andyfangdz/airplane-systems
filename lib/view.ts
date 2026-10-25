@@ -103,6 +103,16 @@ export function revealStage() {
   if (narrowLayout() && stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
 }
 
+/** Phones: the 3D view sticks to the top while the panel scrolls under it; after picking a system from far down the
+ *  panel, bring the new system's panel back to its start, just under the view. */
+export function revealPanelStart() {
+  const stage = document.querySelector(".stage"),
+    panel = document.querySelector(".panel");
+  if (!narrowLayout() || !stage || !panel) return;
+  const gap = panel.getBoundingClientRect().top - stage.getBoundingClientRect().bottom;
+  if (gap < 0) scrollBy({ top: gap });
+}
+
 let camId = 0;
 let focusTimer: ReturnType<typeof setTimeout> | undefined;
 

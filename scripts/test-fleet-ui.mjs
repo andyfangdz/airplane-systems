@@ -63,10 +63,10 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
   await page.goto(`${base}/sr20/electrical`);
-  const trigger = page.getByRole("button", { name: /^Switch Airplanes/ });
+  const trigger = page.getByRole("button", { name: /^Switch (airplane|simulation)/ });
   await trigger.waitFor();
   assert.ok(
-    await trigger.getByText("Switch Airplanes", { exact: true }).isVisible(),
+    await trigger.getByText("Switch airplane", { exact: true }).isVisible(),
     "The control explicitly names the switching action",
   );
   const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
@@ -231,13 +231,13 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await activate(trigger);
   await activate(engines.first());
   await page.waitForURL("**/engines/io390");
-  const engineTrigger = page.getByRole("button", { name: /^Switch Airplanes, current engine IO-390/ });
+  const engineTrigger = page.getByRole("button", { name: /^Switch simulation, current engine IO-390/ });
   await engineTrigger.waitFor();
   await activate(engineTrigger);
   assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /IO-390/);
   await activate(dialog.getByRole("group", { name: "Engines" }).getByRole("link", { name: /TSIO-550-K/ }));
   await page.waitForURL("**/engines/tsio550k");
-  const turboTrigger = page.getByRole("button", { name: /^Switch Airplanes, current engine TSIO-550-K/ });
+  const turboTrigger = page.getByRole("button", { name: /^Switch simulation, current engine TSIO-550-K/ });
   await turboTrigger.waitFor();
   // two title sources on an engine page (metadata, and EngineApp's own): read the elements, not document.title
   const titles = await page.locator("title").evaluateAll((all) => all.map((t) => t.textContent));
@@ -252,7 +252,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await activate(trigger);
   await activate(components.first());
   await page.waitForURL("**/components/piston-cylinder");
-  const componentTrigger = page.getByRole("button", { name: /^Switch Airplanes, current component Piston cylinder/ });
+  const componentTrigger = page.getByRole("button", { name: /^Switch simulation, current component Piston cylinder/ });
   await componentTrigger.waitFor();
   await activate(componentTrigger);
   assert.match(await dialog.getByRole("button", { pressed: true }).innerText(), /Piston cylinder/);

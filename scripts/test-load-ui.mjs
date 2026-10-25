@@ -826,7 +826,7 @@ test("one-shot fleet switch paints an opaque loader before mounting the new airc
       };
       requestAnimationFrame(sample);
     });
-    await p.getByRole("button", { name: /^Switch Airplanes/ }).click();
+    await p.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
     await p.getByRole("button", { name: /C182T Skylane/ }).click();
     // The source route remains ready until Next commits the destination; don't stop sampling that old scene.
     await p.waitForURL("**/c182t/overview");

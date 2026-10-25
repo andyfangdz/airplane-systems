@@ -34,7 +34,7 @@ function Label({ at, children }: { at: [number, number, number]; children: React
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   return (
     <Html position={at} portal={portal} center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
-      <div className="piston-label">{children}</div>
+      <div className="eng-label piston-label">{children}</div>
     </Html>
   );
 }

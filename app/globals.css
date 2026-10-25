@@ -24,6 +24,7 @@
   --frame: #3d5a73;
   --warn: #e0263b;
   --caut: #e7b416;
+  --caut-text: #8a6600; /* caution amber dark enough to read as text on the panel */
   --adv: #f2f5f7;
   --cas-bg: #05080b;
   --on-accent: #fff;
@@ -48,6 +49,7 @@
     --cabin: #9aa8b3;
     --gear: #8c9dac;
     --on-accent: #0b1117;
+    --caut-text: var(--caut);
   }
 }
 :root[data-theme="dark"] {
@@ -66,6 +68,7 @@
   --cabin: #9aa8b3;
   --gear: #8c9dac;
   --on-accent: #0b1117;
+  --caut-text: var(--caut);
 }
 html,
 body {
@@ -310,7 +313,7 @@ button {
   border: 1px solid var(--rule);
   border-radius: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 .fleet-check {
@@ -615,8 +618,8 @@ button {
   justify-content: space-between;
   gap: 10px;
   white-space: nowrap;
-  font-size: 10px;
-  color: #7e8e99;
+  font-size: 11px;
+  color: #8b9aa6;
   letter-spacing: 0.08em;
   margin-bottom: 4px;
 }
@@ -644,7 +647,7 @@ button {
   color: var(--adv);
 }
 .cas .none {
-  color: #5e6e79;
+  color: #7e8e99;
 }
 .caps-hud {
   background: var(--panel);
@@ -706,6 +709,37 @@ button {
 .lead {
   margin: 0 0 16px;
   max-width: 62ch;
+}
+/* phones: a long introduction is cut to four lines, with a Read more button after it (components/App.tsx) */
+.lead[data-clamp="closed"] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.lead[data-clamp="open"] {
+  margin-bottom: 4px;
+}
+.lead-more {
+  display: block;
+  min-height: 40px;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* the notes and figures are reference material: let them be selected and copied (the page otherwise isn't selectable,
+   so orbiting the model on iOS doesn't start a selection) */
+.panel :is(p, dd, li, .small, .caution),
+.tip {
+  -webkit-user-select: text;
+  user-select: text;
 }
 .panel h3 {
   font-family: var(--f-disp);
@@ -847,7 +881,7 @@ input[type="range"] {
 }
 .rock span {
   font-family: var(--f-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
 }
 .chk {
@@ -887,17 +921,19 @@ input[type="range"] {
   border-color: transparent;
   color: #fff;
 }
+/* the cells' outlines draw the 1px dividers, so a short last row ends in blank space rather than a grey block */
 .readouts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 1px;
-  background: var(--rule);
+  background: var(--panel2);
   border: 1px solid var(--rule);
   border-radius: 6px;
   overflow: hidden;
 }
 .ro {
   background: var(--panel2);
+  outline: 1px solid var(--rule);
   padding: 7px 9px;
 }
 .ro span {
@@ -915,7 +951,7 @@ input[type="range"] {
   color: var(--warn);
 }
 .ro b.warnc {
-  color: #b98a00;
+  color: var(--caut-text);
 }
 .buses {
   display: grid;
@@ -968,7 +1004,7 @@ input[type="range"] {
 }
 .chip {
   font-family: var(--f-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   padding: 2px 5px;
   border-radius: 3px;
   border: 1px solid var(--rule);
@@ -985,7 +1021,7 @@ input[type="range"] {
 button.chip {
   font: inherit;
   font-family: var(--f-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   background: none;
   cursor: pointer;
 }
@@ -1246,11 +1282,32 @@ button.chip:hover {
     height: 58vh;
     min-height: 340px;
   }
+  /* the 3D view stays at the top of the screen while the panel scrolls under it, so a switch and what it does are seen
+     together (the walk-around has its own layout, components/walkaround.css) */
+  .app:not(.walking):not(.details-collapsed) > .stage {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    height: 48svh;
+    min-height: 300px;
+  }
+  /* one row of touch-sized buttons that scrolls sideways, rather than two rows over the model */
   .toolbar {
+    left: 12px;
     gap: 4px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .toolbar > :first-child {
+    margin-left: auto; /* right-aligned while the row fits */
   }
   .tb {
-    padding: 4px 8px;
+    flex: none;
+    min-height: 40px;
+    padding: 4px 10px;
   }
   .panel {
     border-left: 0;
@@ -1325,7 +1382,7 @@ button.chip:hover {
     padding-right: 64px;
   }
   .loader-bar {
-    top: 100px; /* the toolbar wraps to two rows */
+    top: 62px; /* under the toolbar's touch-sized row */
   }
   .stage-foot {
     flex-direction: column-reverse;
@@ -1368,6 +1425,25 @@ button.chip:hover {
   }
   .stage-under .caps-hud .sub {
     flex-basis: 100%;
+  }
+}
+/* touch screens: controls at least 40px tall */
+@media (pointer: coarse) {
+  .btn,
+  .seg button,
+  .overview-grid button,
+  .parts button {
+    min-height: 40px;
+  }
+  .chk {
+    min-height: 40px;
+  }
+  .chk input {
+    width: 20px;
+    height: 20px;
+  }
+  input[type="range"] {
+    height: 32px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

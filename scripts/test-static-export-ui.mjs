@@ -25,7 +25,7 @@ async function shows(page, name, path) {
 }
 
 async function pick(page, name) {
-  await page.getByRole("button", { name: /^Switch Airplanes/ }).click();
+  await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
   await page
     .getByRole("dialog", { name: "Choose an airplane, engine or component" })
     .getByRole("group", { name: "Airplanes" })
