@@ -13,6 +13,7 @@ export const PAGES: Record<ComponentId, ComponentType> = {
   "fuel-injector": dynamic(() => import("./fuel-injector/FuelInjectorApp")),
   surefly: dynamic(() => import("./surefly/App")),
   governor: dynamic(() => import("./governor/GovernorApp")),
+  "pitot-static": dynamic(() => import("./pitot-static/PitotStaticApp")),
 };
 
 export default function ComponentPage({ id }: { id: ComponentId }) {

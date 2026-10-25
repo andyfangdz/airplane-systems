@@ -99,6 +99,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     "/components/fuel-injector",
     "/components/surefly",
     "/components/governor",
+    "/components/pitot-static",
   ]);
   for (const link of await components.all()) assert.ok((await link.boundingBox()).height >= 44);
   for (const name of ["SR20 G6", "SR22T G6"])
@@ -108,7 +109,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  // six airplanes, three engines and five components: bounded by the compact picker height, scrolling as needed
+  // six airplanes, three engines and six components: bounded by the compact picker height, scrolling as needed
   assert.ok(
     box.width <= 352 && box.height <= 700,
     "The entire fleet, the engines and the components fit in a compact dropdown",
