@@ -1,7 +1,4 @@
-.piston-panel {
-  padding: 16px;
-}
-.piston-panel p {
+.piston-panel p:not(.lead) {
   font-size: 13px;
   line-height: 1.6;
   color: var(--muted);
@@ -20,9 +17,6 @@
 .piston-monitor strong {
   text-transform: capitalize;
 }
-.piston-strokes [aria-pressed="true"] {
-  outline: 2px solid var(--accent);
-}
 .piston-monitor {
   display: flex;
   flex-wrap: wrap;
@@ -37,9 +31,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-}
-.piston-scenarios [aria-pressed="true"] {
-  outline: 2px solid var(--accent);
 }
 .piston-thermal {
   display: grid;

@@ -81,11 +81,22 @@
   border-right: 0;
 }
 .n3-seg button[aria-pressed="true"] {
-  background: var(--c, #1b5e88);
-  color: #fff;
+  background: var(--c, var(--accent));
+  color: var(--on-c, var(--on-accent));
 }
 .n3-buses .chip {
   min-height: 24px;
+}
+/* the legend's key for a rating no POH gives, set like the chips' "?" */
+.cb-legend {
+  margin-top: 8px;
+}
+.cb-key {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
 }
 .n3-buses .chip.fixed {
   cursor: default;

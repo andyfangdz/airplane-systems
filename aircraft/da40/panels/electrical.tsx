@@ -10,6 +10,7 @@ import {
   PartsList,
   Readouts,
   Rocker,
+  ScenarioButton,
   Slider,
   Small,
   type Reading,
@@ -67,6 +68,9 @@ const resetElec = (d: Sim) => {
   d.cb = {};
 };
 
+/** The electrical scenario the overview's "try it" loads. */
+export const ALT_FAILS = "Alternator fails";
+
 export function Electrical() {
   const s = useDA40((x) => x.s),
     E = useDA40((x) => x.E),
@@ -74,10 +78,8 @@ export function Electrical() {
   const e = s.elec;
   // every scenario starts from normal operation (alternator online), then applies its switch / breaker changes
   const scen = (label: string, fn: (d: Sim) => void) => (
-    <button
+    <ScenarioButton
       key={label}
-      type="button"
-      className="btn"
       onClick={() => {
         up((d) => {
           resetElec(d);
@@ -90,7 +92,7 @@ export function Electrical() {
       }}
     >
       {label}
-    </button>
+    </ScenarioButton>
   );
   const tie: Reading = !E.tieCb
     ? ["Open — ESS TIE / MAIN TIE pulled", "warnc"]
@@ -214,7 +216,7 @@ export function Electrical() {
           </div>
           <BtnRow>
             {scen("Normal", () => {})}
-            {scen("Alternator fails", (d) => {
+            {scen(ALT_FAILS, (d) => {
               d.elec.fail.alt = true;
             })}
             {scen("…then ESS BUS ON (AFMS 3.7.2b)", (d) => {

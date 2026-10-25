@@ -189,6 +189,8 @@ const objectSummaries = (page, remeshed) =>
     const out = [];
     scene.traverse((o) => {
       if (!o.isMesh && !o.isLine) return;
+      // The ground under the airplane (grid and shadow) is stage, not model.
+      if (o.userData.ground) return;
       // Compare the original triangle stream: exact indexing changes storage, not the reviewed surface.
       const g = o.geometry.userData.unindexedSource ? o.geometry.toNonIndexed() : o.geometry,
         p = g.attributes.position.array,

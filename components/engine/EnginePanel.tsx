@@ -88,10 +88,10 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
   // the checkbox row: a two-position boost pump, and the primer or a pilot alternate-air control
   const checks = !pump3 || carb || !autoAir;
   const mags: [MagSwitch, string][] = [
-    ["OFF", "Off"],
+    ["OFF", "OFF"],
     ["R", "R"],
     ["L", "L"],
-    ["BOTH", "Both"],
+    ["BOTH", "BOTH"],
   ];
   return (
     <>

@@ -8,10 +8,18 @@
 }
 /* the picker heads the panel column, as it heads the rail on the airplane pages */
 .eng-app .eng-brand {
+  position: relative;
   grid-column: 2;
   grid-row: 1;
   border-left: 1px solid var(--rule);
   background: var(--panel);
+  padding-right: 96px; /* clear of the theme switch */
+}
+/* the theme switch in the picker's top corner, out of the 3D view's toolbar */
+.eng-brand > .tb-theme {
+  position: absolute;
+  top: 16px;
+  right: 16px;
 }
 .eng-app .eng-stage {
   grid-column: 1;

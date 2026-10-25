@@ -13,7 +13,8 @@ export interface ModelRefs {
   rootRef: RefObject<THREE.Group | null>;
   /** The airplane model in airplane coordinates. */
   modelRef: RefObject<THREE.Group | null>;
-  gridRef: RefObject<THREE.GridHelper | null>;
+  /** The ground under the airplane (grid and contact shadow), hidden while it descends under CAPS. */
+  groundRef: RefObject<THREE.Group | null>;
 }
 
 /**

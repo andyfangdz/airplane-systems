@@ -13,6 +13,7 @@ import {
   PartsList,
   Readouts,
   Rocker,
+  ScenarioButton,
   Slider,
   Small,
 } from "@/components/ui/controls";
@@ -171,9 +172,9 @@ export function Oxygen() {
         />
         <BtnRow>
           {OXY_SCENARIOS.map(([label], index) => (
-            <button key={label} type="button" className="btn" onClick={() => startOxygenScenario(index)}>
+            <ScenarioButton key={label} onClick={() => startOxygenScenario(index)}>
               {label}
-            </button>
+            </ScenarioButton>
           ))}
         </BtnRow>
         <Readouts

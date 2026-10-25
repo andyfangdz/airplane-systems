@@ -11,6 +11,7 @@ import {
   PartsList,
   Readouts,
   Rocker,
+  ScenarioButton,
   Slider,
   Small,
   type Reading,
@@ -76,16 +77,17 @@ const resetElec = (d: Sim) => {
   d.cb = {};
 };
 
+/** The electrical scenario the overview's "try it" loads. */
+export const ALT_FAILS = "Alternator fails";
+
 export function Electrical() {
   const s = useM20C((x) => x.s),
     E = useM20C((x) => x.E),
     up = useM20C((x) => x.update);
   const e = s.elec;
   const scen = (label: string, fn: (d: Sim) => void) => (
-    <button
+    <ScenarioButton
       key={label}
-      type="button"
-      className="btn"
       onClick={() => {
         up((d) => {
           resetElec(d);
@@ -98,7 +100,7 @@ export function Electrical() {
       }}
     >
       {label}
-    </button>
+    </ScenarioButton>
   );
   const batt: Reading = E.batDead
     ? ["DEPLETED", "bad"]
@@ -219,7 +221,7 @@ export function Electrical() {
           </div>
           <BtnRow>
             {scen("Normal", () => {})}
-            {scen("Alternator fails", (d) => {
+            {scen(ALT_FAILS, (d) => {
               d.elec.fail.gen = true;
             })}
             {scen("…then shed loads (Ranger 2-15)", (d) => {

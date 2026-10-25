@@ -122,8 +122,8 @@ export const SYS: SysDef[] = [
     name: "Lighting",
     pg: "7-44",
     cam: [
-      [-6.8, 6.0, 10.0],
-      [0.0, -0.3, 0.9],
+      [-8.02, 6.94, 11.56],
+      [-0.2, -0.3, 1.1],
     ],
     blurb: "Wing-tip, landing/taxi, flood lights",
   },
@@ -153,8 +153,8 @@ export const SYS: SysDef[] = [
     pg: "AFMS",
     ref: "AFMS 190-00492-10 · p. 9",
     cam: [
-      [0.35, 0.24, -0.14],
-      [1.22, -0.04, -0.1],
+      [-1.99, 1.89, 2.76],
+      [0.2, -0.3, 0],
     ],
     blurb: "Modes, servos, trim, limits",
   },

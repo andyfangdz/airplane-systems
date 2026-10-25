@@ -14,28 +14,25 @@ import {
   Notes,
   PartsList,
   Readouts,
+  ScenarioButton,
   Seg,
   Slider,
   Small,
+  TryLink,
 } from "@/components/ui/controls";
 import { live, type Elt } from "../model";
 import { CAT } from "../parts";
 import { useC182 } from "../store";
 import { SYS } from "../systems";
 import { scenarioColdDark, scenarioCruise, scenarioRunUp } from "../store";
+import { ALT_FAILURE } from "@/aircraft/cessna/electrical-panel";
 
 export function Scenarios() {
   return (
     <BtnRow>
-      <button type="button" className="btn" onClick={scenarioCruise}>
-        Cruise · 6,000 ft
-      </button>
-      <button type="button" className="btn" onClick={scenarioColdDark}>
-        Cold &amp; dark on the ramp
-      </button>
-      <button type="button" className="btn" onClick={scenarioRunUp}>
-        Engine running · ramp
-      </button>
+      <ScenarioButton onClick={scenarioCruise}>Cruise · 6,000 ft</ScenarioButton>
+      <ScenarioButton onClick={scenarioColdDark}>Cold &amp; dark on the ramp</ScenarioButton>
+      <ScenarioButton onClick={scenarioRunUp}>Engine running · ramp</ScenarioButton>
     </BtnRow>
   );
 }
@@ -51,6 +48,10 @@ export function Overview() {
         switches, knobs and breakers in the panel. Everything is linked: pull a breaker or fail the alternator and the
         buses, displays, annunciations, the KAP 140 and the 3D model all respond.
       </p>
+      <TryLink sys="electrical" mark={ALT_FAILURE} title="Try it: fail the alternator">
+        Opens Electrical with the engine running and the alternator failed. Watch the buses, the displays, the
+        annunciations and the KAP 140 respond.
+      </TryLink>
       <H3>Start from</H3>
       <Ctl>
         <Scenarios />
@@ -75,19 +76,22 @@ export function Overview() {
           ["Speeds", "VNE 175 · VNO 140 · VA 110 (3,100 lb) · VFE 140 / 120 / 100 KIAS"],
         ]}
       />
-      <H3>Systems</H3>
-      <div className="overview-grid">
-        {SYS.slice(1).map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
-            onClick={() => selectSys(s.id)}
-          >
-            <b>{s.name}</b>
-            <span>{s.blurb}</span>
-          </button>
-        ))}
+      {/* phones: the rail is a strip of chips, so the systems are listed here too, with their blurbs */}
+      <div className="overview-systems">
+        <H3>Systems</H3>
+        <div className="overview-grid">
+          {SYS.slice(1).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
+              onClick={() => selectSys(s.id)}
+            >
+              <b>{s.name}</b>
+              <span>{s.blurb}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <p className="disc">
         Unofficial study aid. Sources: Cessna Model 182T NAV III Pilot&apos;s Operating Handbook and FAA Approved

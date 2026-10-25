@@ -14,7 +14,7 @@ it("lists every airplane id exactly once", () => {
 });
 
 it("the engine pages' airplane list matches the fleet, in picker order", () => {
-  expect(FLEET_INDEX).toEqual(FLEET.map((a) => ({ id: a.id, name: a.name, sub: a.sub, walk: !!a.walk })));
+  expect(FLEET_INDEX).toEqual(FLEET.map((a) => ({ id: a.id, name: a.name, sub: a.sub })));
 });
 
 describe.each(FLEET.map((a) => [a.id, a] as const))("%s", (_, def) => {

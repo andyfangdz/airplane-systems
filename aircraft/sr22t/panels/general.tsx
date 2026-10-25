@@ -20,7 +20,9 @@ import {
   Rocker,
   Seg,
   Small,
+  TryLink,
 } from "@/components/ui/controls";
+import { ALT1_FAILS } from "@/aircraft/cirrus/panels";
 
 export function Overview() {
   const theme = useView((x) => x.theme);
@@ -37,6 +39,9 @@ export function Overview() {
         <b>Start preflight walk-around</b>
         <span>POH 4-4 – 4-9, stations 1–13: camera, highlights and the cabin switches, item by item</span>
       </button>
+      <TryLink sys="electrical" mark={ALT1_FAILS} title="Try it: fail ALT 1">
+        Opens Electrical in flight with alternator 1 failed. Watch the buses, the displays and the CAS window respond.
+      </TryLink>
       <H3>Key figures</H3>
       <Facts
         rows={[
@@ -68,19 +73,22 @@ export function Overview() {
         Optional on the SR22T (POH 7-13); fitted to the modelled airplane. Clear it to see the airplane without ice
         protection.
       </Small>
-      <H3>Systems</H3>
-      <div className="overview-grid">
-        {SYS.slice(1).map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
-            onClick={() => selectSys(s.id)}
-          >
-            <b>{s.name}</b>
-            <span>{s.blurb}</span>
-          </button>
-        ))}
+      {/* phones: the rail is a strip of chips, so the systems are listed here too, with their blurbs */}
+      <div className="overview-systems">
+        <H3>Systems</H3>
+        <div className="overview-grid">
+          {SYS.slice(1).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              style={{ "--c": sysColor(s.id, theme) } as React.CSSProperties}
+              onClick={() => selectSys(s.id)}
+            >
+              <b>{s.name}</b>
+              <span>{s.blurb}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <p className="disc">
         Unofficial study aid built from SR22T POH/AFM P/N 13772-007 (Reissue A) and, where a note cites it, AMM P/N

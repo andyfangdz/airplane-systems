@@ -18,6 +18,7 @@ import { useAircraftHover, useView, type AircraftSessionOwner, type CamRequest }
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
 import { PartAnimationScope } from "./PartAnimations";
+import { Ground } from "./Ground";
 
 /**
  * Camera views are framed for the desktop viewport (about 0.9 wide per unit height). On narrower or portrait
@@ -290,17 +291,11 @@ function BuildMarks({
 }
 
 /** One airplane: the root group (rotation pivot) around the picking group with the model inside. */
-function AircraftScene({
-  def,
-  gridRef,
-  owner,
-}: {
-  def: AircraftDef;
-  gridRef: React.RefObject<THREE.GridHelper | null>;
-  owner: AircraftSessionOwner;
-}) {
+function AircraftScene({ def, owner }: { def: AircraftDef; owner: AircraftSessionOwner }) {
   const rootRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Group>(null);
+  const groundRef = useRef<THREE.Group>(null);
+  const theme = useView((x) => x.theme);
   const onMove = usePicker();
   const setHover = useAircraftHover((x) => x.setHover);
   const { Model, Overlay } = def;
@@ -328,6 +323,13 @@ function AircraftScene({
   if (loadError) throw loadError;
   return (
     <>
+      <Ground
+        groundRef={groundRef}
+        modelRef={modelRef}
+        y={def.groundY}
+        color={palette(theme).grid}
+        dark={theme === "dark"}
+      />
       <group ref={rootRef} position={[def.pivotX, 0, 0]}>
         {/* Touch has no hover: a tap (a click that is not the end of a drag) shows the note the same way.
             Switching airplane remounts the model. Parts, shells and control surfaces reuse cached geometry and shared
@@ -350,7 +352,7 @@ function AircraftScene({
           )}
         </group>
       </group>
-      {mountModel && Overlay && <Overlay rootRef={rootRef} modelRef={modelRef} gridRef={gridRef} />}
+      {mountModel && Overlay && <Overlay rootRef={rootRef} modelRef={modelRef} groundRef={groundRef} />}
       {!def.progressive && <BuildMarks modelRef={modelRef} owner={owner} />}
       <PinDeclutter {...pins} />
     </>
@@ -362,15 +364,8 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
   const theme = useView((x) => x.theme);
   const spin = useView((x) => x.spin);
   const pal = palette(theme);
-  const gridRef = useRef<THREE.GridHelper>(null);
   // initial camera only: later moves are camera flights, so the controls' target prop must stay stable
   const [[startPos, startTarget]] = useState(() => sysOf(def, useView.getState().sys).cam);
-
-  useEffect(() => {
-    const g = gridRef.current;
-    if (!g) return;
-    (g.material as THREE.LineBasicMaterial).color.set(pal.grid);
-  }, [pal.grid]);
 
   return (
     <Canvas
@@ -388,19 +383,8 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
       <hemisphereLight args={["#ffffff", "#445566", 0.85 * Math.PI]} />
       <directionalLight position={[6, 10, 5]} intensity={0.9 * Math.PI} />
       <directionalLight position={[-6, 3, -6]} intensity={0.35 * Math.PI} />
-      <gridHelper
-        ref={gridRef}
-        args={[40, 40, "#ffffff", "#ffffff"]}
-        position-y={def.groundY}
-        onUpdate={(g) => {
-          const m = g.material as THREE.LineBasicMaterial;
-          m.transparent = true;
-          m.opacity = 0.5;
-          m.color.set(pal.grid);
-        }}
-      />
       <MaterialSync />
-      <AircraftScene def={def} gridRef={gridRef} owner={owner} />
+      <AircraftScene def={def} owner={owner} />
       <OrbitControls
         makeDefault
         enableDamping

@@ -102,8 +102,6 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     "/components/pitot-static",
   ]);
   for (const link of await components.all()) assert.ok((await link.boundingBox()).height >= 44);
-  for (const name of ["SR20 G6", "SR22T G6"])
-    assert.match(await choices.filter({ hasText: name }).innerText(), /Walk-around/);
   assert.equal(await trigger.getAttribute("aria-expanded"), "true");
   assert.equal(await dialog.getByRole("button", { pressed: true }).count(), 1);
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
