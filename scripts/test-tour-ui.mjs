@@ -116,10 +116,14 @@ test("first visit can find the existing experiment without starting it", async (
   await expect(welcome).toBeVisible();
   await mkdir(".shots/tour", { recursive: true });
   await page.screenshot({ path: `.shots/tour/${isMobile ? "phone" : "desktop"}-welcome-choices.png` });
+  await page.getByRole("button", { name: "Hide details panel", exact: true }).click();
+  await expect(page.locator("#details-panel")).toBeHidden();
   await welcome.getByRole("button", { name: "Find a quick experiment", exact: true }).click();
   await expect(welcome).toHaveCount(0);
   await expect(page).toHaveURL(/\/c172s\/overview$/);
   const example = page.locator(".try-link");
+  await expect(page.locator("#details-panel")).toBeVisible();
+  await expect(example).toBeVisible();
   await expect(example).toBeFocused();
   await example.click();
   await expect(page).toHaveURL(/\/c172s\/electrical$/);

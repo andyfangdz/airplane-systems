@@ -74,20 +74,28 @@ test("M20C gear, flaps and electrical controls", async ({ page, context, baseURL
     .getByRole("navigation", { name: "Systems" })
     .getByRole("button", { name: /Electrical/ })
     .click();
-  const com = page.getByRole("button", { name: "NAV/COM 1 5", exact: true });
+  // The visible Pulled/Unpowered state is part of the accessible name, so retain the breaker identity across toggles.
+  const com = page.getByRole("button", { name: /^NAV\/COM 1 5/ });
   await com.click();
   await waitReadout("NAV/COM 1 · 2", "OFF · ON");
+  await expect(com).toHaveAttribute("aria-pressed", "true");
+  await expect(com.locator(".breaker-state")).toHaveText("Pulled");
   await com.click();
   await waitReadout("NAV/COM 1 · 2", "ON · ON");
-  const xpdr = page.getByRole("button", { name: "XPDR 5", exact: true });
+  await expect(com).toHaveAttribute("aria-pressed", "false");
+  await expect(com.locator(".breaker-state")).toHaveCount(0);
+  const xpdr = page.getByRole("button", { name: /^XPDR 5/ });
   await xpdr.click();
   await waitReadout("Transponder", "OFF");
+  await expect(xpdr.locator(".breaker-state")).toHaveText("Pulled");
   await xpdr.click();
   await waitReadout("Transponder", "ON");
   await page.getByRole("button", { name: "MASTER", exact: true }).click();
   await waitReadout("Bus", "0.0 V");
   await waitReadout("NAV/COM 1 · 2", "OFF · OFF");
   await waitReadout("Transponder", "OFF");
+  await expect(com.locator(".breaker-state")).toHaveText("Unpowered");
+  await expect(xpdr.locator(".breaker-state")).toHaveText("Unpowered");
   assert.deepEqual(errors, [], "No application runtime errors");
   console.log(`${phone ? "Touch / phone" : "Pointer + keyboard / desktop"}: gear, flaps and electrical checks passed`);
 });

@@ -14,6 +14,7 @@ import type { SysId } from "@/lib/systems";
 import { create } from "zustand";
 import { selectSys } from "@/lib/fleet";
 import { focusPart } from "@/lib/registry";
+import { setPanelCollapsed } from "@/lib/panels";
 
 /**
  * The scenario the page last loaded, shown pressed on its button until the user changes something in the panel (a
@@ -29,6 +30,7 @@ const useScenarioMark = create<{ mark: string | null; request: string | null; fo
 
 /** Open the aircraft’s existing example without changing its simulation until the learner chooses it. */
 export function showStudyExample() {
+  setPanelCollapsed("details", false);
   useScenarioMark.setState({ focusExample: true });
   selectSys("overview");
 }
