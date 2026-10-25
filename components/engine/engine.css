@@ -29,6 +29,7 @@
 .eng-app .panel {
   grid-column: 2;
   grid-row: 2;
+  min-width: 0;
 }
 .eng-label {
   font: 600 11px/1.2 var(--f-body);
@@ -88,6 +89,7 @@
   align-items: flex-end;
   flex-wrap: wrap;
   pointer-events: none;
+  min-width: 0;
 }
 .eng-mon {
   pointer-events: auto;
@@ -417,10 +419,10 @@
 
 @media (max-width: 1100px) {
   .eng-app {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 42vw, 340px);
   }
 }
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) {
   .eng-app {
     display: flex;
     flex-direction: column;
@@ -436,14 +438,6 @@
     min-height: 260px;
     border-bottom: 1px solid var(--rule);
   }
-  .eng-app .eng-foot {
-    padding: 10px;
-  }
-  .eng-mon,
-  .eng-flags {
-    flex: 1 1 100%;
-    max-width: none;
-  }
   .eng-app .panel {
     border-left: 0;
     border-top: 1px solid var(--rule);
@@ -452,9 +446,80 @@
   .eng-app .eng-brand {
     border-left: 0;
   }
+}
+/* Dense instruments also fit the inner display's side-by-side scene; they do not select the page layout. */
+@media (max-width: 860px) {
+  .eng-app .eng-foot {
+    padding: 8px;
+    gap: 6px;
+  }
+  .eng-mon,
+  .eng-flags {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .eng-app .toolbar {
+    left: 12px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .eng-app .toolbar > * {
+    flex: none;
+  }
+  .eng-app .toolbar .tb {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .eng-app .panel-inner {
+    padding-inline: 16px;
+  }
+  .eng-app .eng-brand {
+    min-width: 0;
+    padding: 8px 60px 8px 12px;
+  }
+  .eng-brand h1 {
+    margin: 0;
+    font-size: 22px;
+  }
+  .eng-brand p,
+  .eng-brand .tb-word {
+    display: none;
+  }
+  .eng-brand .fleet-trigger {
+    min-height: 44px;
+  }
+  .eng-brand .fleet-trigger-copy {
+    gap: 2px;
+    min-width: 0;
+  }
+  .eng-brand .fleet-current-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .eng-brand > .tb-theme {
+    top: 8px;
+    right: 8px;
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 8px;
+  }
+  .eng-fail {
+    display: block;
+    overflow-x: auto;
+  }
   .eng-mon {
     grid-template-areas: "big bars" "small small";
+    gap: 8px;
     padding: 8px;
+  }
+  .mon-bars {
+    gap: 6px;
   }
   .mon-big b {
     font-size: 17px;
@@ -520,9 +585,17 @@
 .carb-mon .mon-small {
   grid-template-columns: repeat(4, auto auto);
 }
+@media (max-width: 860px) {
+  .carb-mon .mon-big {
+    grid-template-columns: repeat(2, auto auto auto);
+  }
+  .carb-mon .mon-small {
+    grid-template-columns: repeat(2, auto auto);
+  }
+}
 
 /* Landscape phones need the whole viewport for reading/operating controls once the model scrolls away. */
-@media (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) and (max-height: 560px) and (pointer: coarse) {
   .eng-app .eng-stage {
     position: relative;
     top: auto;

@@ -93,7 +93,7 @@ test("tablet navigation preserves model width and selecting a system keeps the c
   await page.screenshot({ path: ".shots/tablet-study-navigation.png" });
 });
 
-test("Duo headers collapse to one floating button and give their height back to the scene", async ({
+test("Duo headers collapse without moving their button and give their height back to the scene", async ({
   page,
   isMobile,
 }) => {
@@ -134,25 +134,40 @@ test("Duo headers collapse to one floating button and give their height back to 
   };
   for (const viewport of [
     { width: 951, height: 620 },
+    { width: 951, height: 500 },
+    { width: 669, height: 867 },
+    { width: 669, height: 902 },
     { width: 382, height: 580 },
   ]) {
     await page.setViewportSize(viewport);
     await page.evaluate(() => scrollTo(0, 0));
     await expect(picker).toContainText("C172S Skyhawk");
     await expect(picker.getByText("Choose a model", { exact: true })).toBeVisible();
-    expect((await rail.boundingBox()).height).toBeLessThanOrEqual(viewport.width > 860 ? 64 : 112);
+    expect((await rail.boundingBox()).height).toBeLessThanOrEqual(viewport.width >= 640 ? 80 : 128);
     await checkButtons();
     await page
       .locator(".syslist")
       .getByRole("button", { name: /Electrical/ })
       .tap();
     for (const detailsCollapsed of [false, true]) {
-      if (detailsCollapsed) await page.getByRole("button", { name: "Hide details panel", exact: true }).tap();
+      if (detailsCollapsed) {
+        await page.getByRole("button", { name: "Hide details panel", exact: true }).tap();
+        const opener = await page.getByRole("button", { name: "Show details panel", exact: true }).boundingBox();
+        expect(opener.width).toBeGreaterThanOrEqual(44);
+        expect(opener.height).toBeGreaterThanOrEqual(44);
+      }
       await page.evaluate(() => scrollTo(0, 0));
       const headerHeight = (await rail.boundingBox()).height;
       const before = await page.locator(".stage").boundingBox();
+      const hide = page.getByRole("button", { name: "Hide systems panel", exact: true });
+      const toggleBefore = await hide.boundingBox();
+      if (!detailsCollapsed && viewport.width >= 640) {
+        const details = await page.locator(".panel").boundingBox();
+        expect(details.x).toBeGreaterThanOrEqual(before.x + before.width - 1);
+        expect(details.y).toBeCloseTo(before.y, 0);
+      }
       if (!detailsCollapsed) await page.screenshot({ path: `.shots/duo-header-${viewport.width}-expanded.png` });
-      await page.getByRole("button", { name: "Hide systems panel", exact: true }).tap();
+      await hide.tap();
       await expect(page.locator(".syslist")).toBeHidden();
       await expect(picker).toBeHidden();
       await expect(rail.locator(".rail-settings")).toBeHidden();
@@ -161,9 +176,11 @@ test("Duo headers collapse to one floating button and give their height back to 
       await checkButtons(true);
       const after = await page.locator(".stage").boundingBox();
       expect(before.y - after.y).toBeCloseTo(headerHeight, 0);
-      if (viewport.width > 860 || detailsCollapsed) expect(after.height - before.height).toBeCloseTo(headerHeight, 0);
+      if (viewport.width >= 640 || detailsCollapsed) expect(after.height - before.height).toBeCloseTo(headerHeight, 0);
       const show = page.getByRole("button", { name: "Show systems panel", exact: true });
       const opener = await show.boundingBox();
+      expect(opener.x).toBeCloseTo(toggleBefore.x, 0);
+      expect(opener.y).toBeCloseTo(toggleBefore.y, 0);
       const toolbar = await page.locator(".toolbar").boundingBox();
       expect(opener.x + opener.width).toBeLessThanOrEqual(toolbar.x);
       await page.screenshot({
@@ -171,6 +188,9 @@ test("Duo headers collapse to one floating button and give their height back to 
       });
       await show.tap();
       await expect(picker).toBeVisible();
+      const restored = await hide.boundingBox();
+      expect(restored.x).toBeCloseTo(toggleBefore.x, 0);
+      expect(restored.y).toBeCloseTo(toggleBefore.y, 0);
       await checkButtons();
       await picker.tap();
       await expect(dialog).toBeVisible();
@@ -189,6 +209,22 @@ test("Duo headers collapse to one floating button and give their height back to 
         .toBe(true);
       if (detailsCollapsed) await page.getByRole("button", { name: "Show details panel", exact: true }).tap();
       await expect(page.locator(".panel h2")).toHaveText("Electrical");
+    }
+    if (viewport.width < 640) {
+      await page.evaluate(() => scrollTo(0, 160));
+      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      const hide = page.getByRole("button", { name: "Hide systems panel", exact: true });
+      const before = await hide.boundingBox();
+      await hide.tap();
+      const show = page.getByRole("button", { name: "Show systems panel", exact: true });
+      const collapsed = await show.boundingBox();
+      expect(collapsed.x).toBeCloseTo(before.x, 0);
+      expect(collapsed.y).toBeCloseTo(before.y, 0);
+      await show.tap();
+      const restored = await hide.boundingBox();
+      expect(restored.x).toBeCloseTo(before.x, 0);
+      expect(restored.y).toBeCloseTo(before.y, 0);
+      await expect(picker).toBeInViewport();
     }
   }
 });

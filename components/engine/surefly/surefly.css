@@ -140,9 +140,17 @@
   letter-spacing: 1px;
   color: var(--ink);
 }
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 860px) {
+  .sf-dip {
+    flex-wrap: wrap;
+  }
   .sf-dial {
     width: 92px;
     height: 92px;
+  }
+}
+@media (pointer: coarse) {
+  .sf-sw {
+    min-width: 44px;
   }
 }

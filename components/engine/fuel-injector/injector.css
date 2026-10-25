@@ -74,11 +74,12 @@
 .inj-chart text.off {
   fill: var(--ink);
 }
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 860px) {
   .inj-legend {
     top: auto;
     bottom: 8px;
-    grid-template-columns: repeat(3, auto);
+    right: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 10px;
     font-size: 10px;
   }

@@ -6,6 +6,11 @@
 .gov-mon .mon-small {
   grid-template-columns: repeat(4, auto auto);
 }
+@media (max-width: 860px) {
+  .gov-mon .mon-small {
+    grid-template-columns: repeat(2, auto auto);
+  }
+}
 .gov-mode {
   grid-area: mode;
   justify-self: start;

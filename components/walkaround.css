@@ -329,7 +329,7 @@
   display: none;
 }
 /* Keep a large scene in view while the map, warnings and supporting notes scroll. */
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) {
   .app.walking .rail {
     display: none;
   }

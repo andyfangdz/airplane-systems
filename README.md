@@ -38,15 +38,17 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 `npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright install chromium webkit`); it tests desktop input
 and touch taps with Android and iPhone device profiles.
 
-iPhone layouts respect display safe areas and use a stacked layout in portrait and short touch-screen landscape
-viewports. Engine views scroll away on short screens so controls remain accessible. Aircraft, engine and component
+iPhone layouts respect display safe areas and stack the scene and controls below 640 CSS pixels of available width.
+Wider viewports keep the details on the right, including both inner-display orientations; reducing viewport height
+does not switch them to a stacked layout. Engine views scroll away on narrow, short screens so controls remain accessible. Aircraft, engine and component
 canvases cap touch-only rendering at 1.5 DPR (44% fewer drawing-buffer pixels than 2 DPR); text and controls stay at
 native screen resolution. Run `npx playwright test --project=iphone-webkit` for iPhone rotation, touch controls,
 picker bounds and scene-resolution regressions.
 
 For iPhone Duo, follow [Apple's adaptive-layout guidance](https://developer.apple.com/videos/play/tech-talks/111466/):
-keep the same controls and study state as the available space changes. The compact layout stacks the scene and
-details; the wide layout shows them side by side. Canvas sizing follows its container, without remounting the model.
+keep the same controls and study state as the available space changes. The outer display and Split View stack the
+scene and details; both inner-display orientations show them side by side. The horizontal header's toggle stays in
+the same screen position when the header expands or collapses. Canvas sizing follows its container, without remounting the model.
 The browser tests also exercise the [Duo viewport sizes published by WebKit](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/):
 382×580–618 and 594×368–406 for the outer display, 669×867–902 and 951×585–620 for the inner display, and
 385×571–609 for a Split View window. These are CSS viewports, not physical display resolutions or device detection rules.

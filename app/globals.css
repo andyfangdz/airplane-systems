@@ -428,7 +428,7 @@ button {
   margin-top: auto;
   padding: 0 18px 14px;
 }
-@media (min-width: 861px) and ((min-height: 561px) or (pointer: fine)) {
+@media (min-width: 1101px) {
   .systems-collapsed .rail-settings {
     flex-direction: column;
     align-items: center;
@@ -1380,10 +1380,13 @@ button.chip:hover {
 }
 
 /* Tablets: move navigation above the work area so the model keeps its width. */
-@media (min-width: 861px) and (max-width: 1100px) and ((min-height: 561px) or (pointer: fine)) {
+@media (min-width: 640px) and (max-width: 1100px) {
   .app {
-    grid-template-columns: minmax(0, 1fr) var(--details-width, 340px);
+    grid-template-columns: minmax(0, 1fr) var(--details-width, clamp(280px, 42vw, 340px));
     grid-template-rows: auto minmax(0, 1fr);
+  }
+  .app.details-collapsed {
+    --details-width: 44px;
   }
   .app > .rail {
     grid-column: 1 / -1;
@@ -1397,11 +1400,23 @@ button.chip:hover {
     grid-column: 2;
     grid-row: 2;
   }
+  .app > .panel .panel-toggle {
+    right: 0;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+  }
+  .app.details-collapsed > .panel {
+    border: 0;
+  }
+  .app .panel-inner > .ref {
+    padding-right: 32px;
+  }
   .overview-systems {
     display: block;
   }
 }
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) {
   html,
   body {
     height: auto;
@@ -1539,21 +1554,6 @@ button.chip:hover {
   /* buttons that carry an icon drop their word (their label still names them) */
   .tb-word {
     display: none;
-  }
-  /* Keep every aircraft action visible within Safari's viewport, including when the header is collapsed. */
-  .scene-toolbar .tb {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    justify-content: center;
-    padding: 0;
-  }
-  .scene-toolbar .tb-symbol {
-    display: contents;
-  }
-  .scene-toolbar .tb .ico {
-    width: 18px;
-    height: 18px;
   }
   .panel {
     border-left: 0;
@@ -1707,16 +1707,16 @@ button.chip:hover {
   .app > .rail {
     position: relative;
     display: grid;
-    grid-template-columns: 180px minmax(0, 1fr) 92px 44px;
+    grid-template-columns: 44px 180px minmax(0, 1fr) 92px;
     align-items: center;
     gap: 6px 8px;
-    padding: 6px 8px;
+    padding: 12px 12px 6px;
     border-right: 0;
     border-bottom: 1px solid var(--rule);
   }
   .app > .rail .brand {
     display: block;
-    grid-column: 1;
+    grid-column: 2;
     grid-row: 1;
     min-width: 0;
     padding: 0;
@@ -1751,7 +1751,7 @@ button.chip:hover {
     white-space: nowrap;
   }
   .app > .rail .syslist {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
     display: flex;
     gap: 4px;
@@ -1775,7 +1775,7 @@ button.chip:hover {
   }
   .app > .rail .rail-settings {
     position: static;
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 1;
     flex-direction: row;
     align-items: center;
@@ -1799,9 +1799,10 @@ button.chip:hover {
     display: none;
   }
   .app > .rail .panel-toggle-anchor {
-    position: static;
-    grid-column: 4;
-    grid-row: 1;
+    position: fixed;
+    z-index: 4;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
     width: 44px;
     height: 44px;
   }
@@ -1812,20 +1813,52 @@ button.chip:hover {
     min-width: 44px;
     min-height: 44px;
   }
+  .scene-toolbar {
+    left: 12px;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .scene-toolbar > :first-child {
+    margin-left: auto;
+  }
+  .scene-toolbar .tb,
+  .scene-toolbar .tb-group {
+    flex: none;
+  }
 }
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) {
   .app > .rail {
-    grid-template-columns: minmax(0, 1fr) 92px 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 92px;
   }
   .app > .rail .syslist {
     grid-column: 1 / -1;
     grid-row: 2;
   }
   .app > .rail .rail-settings {
-    grid-column: 2;
-  }
-  .app > .rail .panel-toggle-anchor {
     grid-column: 3;
+  }
+}
+/* Compact split views also need small controls: the scene shares the width with its details panel. */
+@media (max-width: 860px) {
+  .scene-toolbar .tb {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+  .scene-toolbar .tb-word {
+    display: none;
+  }
+  .scene-toolbar .tb-symbol {
+    display: contents;
+  }
+  .scene-toolbar .tb .ico {
+    width: 18px;
+    height: 18px;
   }
 }
 /* Collapse the entire horizontal header out of the layout. Only its reopen button floats over the model. */
@@ -1844,23 +1877,17 @@ button.chip:hover {
   .app.systems-collapsed > .rail .rail-settings {
     display: none;
   }
-  .app.systems-collapsed > .rail .panel-toggle-anchor {
-    position: absolute;
-    grid-area: auto;
-    top: 12px;
-    left: 12px;
-  }
   .systems-collapsed > .stage > .toolbar {
     left: 68px; /* keep view controls clear of the 44px reopen button and its margins */
   }
 }
-@media (max-width: 860px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) {
   .app.walking.systems-collapsed > .stage > .toolbar {
     left: 12px; /* preflight hides the systems header and its reopen button */
   }
 }
 /* Short phones must leave room to scroll controls and keep the collapsed view inside Safari's visible viewport. */
-@media (max-height: 560px) and (pointer: coarse) {
+@media (max-width: 639px) and (max-height: 560px) and (pointer: coarse) {
   .app:not(.walking):not(.details-collapsed) > .stage {
     height: 65svh;
     min-height: 210px;

@@ -78,6 +78,23 @@ async function boundedCanvas(page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 }
 
+async function expectStudyLayout(page, viewport, shell = ".app") {
+  const split = viewport.width >= 640;
+  await expect(page.locator(shell)).toHaveCSS("display", split ? "grid" : "flex");
+  const stage = await page.locator(".stage").boundingBox();
+  const panel = await page.locator(".panel").boundingBox();
+  if (split) {
+    // Assert real placement: a grid can still put the controls below the model.
+    expect(panel.x).toBeGreaterThanOrEqual(stage.x + stage.width - 1);
+    expect(panel.y).toBeLessThan(stage.y + stage.height);
+    expect(stage.width).toBeGreaterThanOrEqual(300);
+    expect(panel.width).toBeGreaterThanOrEqual(260);
+    expect((await page.locator(shell).boundingBox()).height).toBeLessThanOrEqual(viewport.height);
+  } else {
+    expect(panel.y).toBeGreaterThanOrEqual(stage.y + stage.height - 1);
+  }
+}
+
 test("iPhone aircraft rotation preserves a usable scene and reachable collapsed controls", async ({ page }, info) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -91,12 +108,16 @@ test("iPhone aircraft rotation preserves a usable scene and reachable collapsed 
   const addAll = page.getByRole("button", { name: "Add all the remaining parts now", exact: true });
   if (await addAll.isVisible()) await addAll.tap();
   await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 120_000 });
+  const canvas = await page.locator(".stage canvas").elementHandle();
 
   for (const viewport of [portrait, ...landscapes, portrait]) {
     await page.setViewportSize(viewport);
     await page.evaluate(() => scrollTo(0, 0));
-    await expect(page.locator(".app")).toHaveCSS("display", "flex");
+    await expectStudyLayout(page, viewport);
     await boundedCanvas(page);
+    expect(await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".stage canvas"))).toBe(
+      true,
+    );
     if (viewport.width === 932) {
       // Device emulation reports zero safe-area env values. Supply the shell padding used by a notched iPhone.
       const safeArea = await page.addStyleTag({ content: ".app { padding: 0 47px 21px !important; }" });
@@ -159,14 +180,17 @@ for (const route of ["engines/io390", "components/pitot-static"]) {
     for (const viewport of [
       portrait,
       ...landscapes,
+      { width: 594, height: 368 },
       { width: 951, height: 585 },
+      { width: 951, height: 500 },
       { width: 669, height: 867 },
+      { width: 669, height: 902 },
       portrait,
     ]) {
       await page.setViewportSize(viewport);
       await page.evaluate(() => scrollTo(0, 0));
-      const expanded = viewport.width > 860 && viewport.height > 560;
-      await expect(page.locator(".eng-app")).toHaveCSS("display", expanded ? "grid" : "flex");
+      const expanded = viewport.width >= 640;
+      await expectStudyLayout(page, viewport, ".eng-app");
       await boundedCanvas(page);
       expect(
         await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".eng-view canvas")),
@@ -225,6 +249,7 @@ test("iPhone Duo screen transitions preserve the aircraft session and controls",
     const screens = [
       { name: "outer", width: 382, height: size.outerHeight },
       { name: "inner-landscape", width: 951, height: size.innerLandscapeHeight },
+      { name: "inner-short-window", width: 951, height: 500 },
       { name: "inner-portrait", width: 669, height: size.innerHeight },
       { name: "split-view", width: 385, height: size.splitHeight },
       { name: "outer-landscape", width: 594, height: size.outerLandscapeHeight },
@@ -233,15 +258,23 @@ test("iPhone Duo screen transitions preserve the aircraft session and controls",
     for (const { name, width, height } of screens) {
       await page.setViewportSize({ width, height });
       await page.evaluate(() => scrollTo(0, 0));
-      await expect(page.locator(".app")).toHaveCSS("display", name === "inner-landscape" ? "grid" : "flex");
-      if (name === "inner-landscape")
-        expect((await page.locator(".app").boundingBox()).height).toBeLessThanOrEqual(height);
+      await expectStudyLayout(page, { width, height });
       await boundedCanvas(page);
       expect(
         await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".stage canvas")),
       ).toBe(true);
       expect(page.url()).toBe(route);
-      await expect(page.locator('.syslist button[aria-current="true"] .nm')).toHaveText("Electrical");
+      const selected = page.locator('.syslist button[aria-current="true"]');
+      await expect(selected.locator(".nm")).toHaveText("Electrical");
+      await expect
+        .poll(() =>
+          selected.evaluate((button) => {
+            const chip = button.getBoundingClientRect();
+            const strip = button.closest(".syslist").getBoundingClientRect();
+            return chip.left >= strip.left - 1 && chip.right <= strip.right + 1;
+          }),
+        )
+        .toBe(true);
       await expect(xray).toHaveAttribute("aria-pressed", "false");
       await expect(battery).toHaveAttribute("aria-pressed", batteryState);
 

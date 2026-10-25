@@ -45,22 +45,37 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
   const def = useAircraft();
   const sys = useShownSys(),
     theme = useView((x) => x.theme);
-  // keep the selected entry visible (the list scrolls: vertically on desktop, a chip strip on phones) without scrolling the page
+  // Keep the selected entry visible after navigation or a resize, without scrolling the page.
   useEffect(() => {
     if (collapsed) return;
     const b = document.querySelector<HTMLElement>('.syslist button[aria-current="true"]'),
       ul = b?.closest("ul");
     if (!b || !ul) return;
-    const r = b.getBoundingClientRect(),
-      u = ul.getBoundingClientRect();
-    if (r.left < u.left) ul.scrollLeft -= u.left - r.left + 10;
-    else if (r.right > u.right) ul.scrollLeft += r.right - u.right + 10;
-    if (r.top < u.top) ul.scrollTop -= u.top - r.top + 8;
-    else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
+    const reveal = () => {
+      const r = b.getBoundingClientRect(),
+        u = ul.getBoundingClientRect();
+      if (r.left < u.left) ul.scrollLeft -= u.left - r.left + 10;
+      else if (r.right > u.right) ul.scrollLeft += r.right - u.right + 10;
+      if (r.top < u.top) ul.scrollTop -= u.top - r.top + 8;
+      else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
+    };
+    reveal();
+    const resize = new ResizeObserver(reveal);
+    resize.observe(ul);
+    return () => resize.disconnect();
   }, [sys, def, collapsed]);
   return (
     <nav className="rail" aria-label="Systems">
-      <PanelToggle side="systems" collapsed={collapsed} toggle={toggle} />
+      <PanelToggle
+        side="systems"
+        collapsed={collapsed}
+        toggle={() => {
+          toggle();
+          // The fixed toggle remains reachable while scrolling. Reopening also brings the header into view.
+          if (collapsed && window.matchMedia("(max-width: 1100px)").matches)
+            window.scrollTo({ top: 0, behavior: "instant" });
+        }}
+      />
       <div className="brand">
         <Fleet />
       </div>

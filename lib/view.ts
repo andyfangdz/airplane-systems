@@ -72,8 +72,8 @@ export const useAircraftHover = create<{ hover: HoverInfo | null; setHover: (hov
 );
 
 /** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */
-export const NARROW_PX = 860;
-export const NARROW_QUERY = `(max-width: ${NARROW_PX}px), (max-width: 1100px) and (max-height: 560px) and (pointer: coarse)`;
+export const NARROW_PX = 639;
+export const NARROW_QUERY = `(max-width: ${NARROW_PX}px)`;
 export const narrowLayout = () =>
   typeof window !== "undefined" && (layoutQuery ?? window.matchMedia(NARROW_QUERY)).matches;
 
