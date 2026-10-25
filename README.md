@@ -53,6 +53,8 @@ The safe-area background and status-bar color follow the selected theme. The app
 style; it does not rely on the deprecated `black-translucent` setting or attempt to control system blur.
 
 Production builds generate a versioned, verified offline pack and `/sw.js` for both Next hosting and static export.
+On hosting platforms such as Vercel, the deployment adapter receives these files through Next's `onBuildComplete`
+hook before it packages the app. The post-build step then verifies the sealed package instead of replacing it.
 Installation completes only after every file is saved and verified. Updates download in the background and wait
 until all app windows close, so an open simulation keeps its matching page, navigation payloads and scripts.
 `scripts/test-pwa-ui.mjs` exercises a complete download, offline reopening, model switching and deep-link reloads.

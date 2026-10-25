@@ -47,13 +47,64 @@ const safePath = (path) =>
   !/[\\?#%\x00-\x1f\x7f]/.test(path) &&
   !path.split("/").some((segment) => segment === "." || segment === "..");
 
-export async function buildOffline(root = repository, { staticExport = process.env.STATIC_EXPORT === "1" } = {}) {
-  const app = join(root, ".next/server/app");
+const publicAsset = (path) =>
+  !path.endsWith(".map") &&
+  (/^(?:geometry|icons|fonts)\//.test(path) ||
+    /^(?:icon[^/]*|apple[^/]*|favicon\.ico|manifest\.webmanifest)$/.test(path));
+const generatedOutput = (pathname) =>
+  pathname === "/sw.js" || pathname === "/offline-manifest.json" || pathname.startsWith("/_next/static/offline/");
+
+async function readReceipt(path) {
+  return JSON.parse(
+    await readFile(path, "utf8").catch((error) => {
+      if (error.code === "ENOENT") return "null";
+      throw error;
+    }),
+  );
+}
+
+export async function buildOffline(
+  root = repository,
+  {
+    adapterContext,
+    staticExport = adapterContext ? adapterContext.config?.output === "export" : process.env.STATIC_EXPORT === "1",
+  } = {},
+) {
+  const distDir = adapterContext?.distDir ?? join(root, ".next");
+  const app = join(distDir, "server/app");
   const publicRoot = join(root, "public");
-  const prerender = JSON.parse(await readFile(join(root, ".next/prerender-manifest.json"), "utf8"));
-  const buildId = (await readFile(join(root, ".next/BUILD_ID"), "utf8")).trim();
+  const prerenderBytes = await readFile(join(distDir, "prerender-manifest.json"));
+  const prerender = JSON.parse(prerenderBytes);
+  const buildId = adapterContext?.buildId ?? (await readFile(join(distDir, "BUILD_ID"), "utf8")).trim();
   const source = await readFile(join(repository, "scripts/offline-worker.js"), "utf8");
-  const views = JSON.parse(await readFile(join(root, "aircraft/views.json"), "utf8"));
+  const viewBytes = await readFile(join(root, "aircraft/views.json"));
+  const views = JSON.parse(viewBytes);
+  const staticPaths = (await files(join(distDir, "static"))).filter((path) => !path.endsWith(".map"));
+  const publicPaths = (await files(publicRoot)).filter(publicAsset);
+  const inputs = {
+    generator: digest(await readFile(fileURLToPath(import.meta.url))),
+    worker: digest(source),
+    views: digest(viewBytes),
+    prerender: digest(prerenderBytes),
+    staticPaths,
+    publicPaths,
+  };
+  const receiptPath = join(distDir, "offline-adapter.json");
+  const receipt = !adapterContext && (await readReceipt(receiptPath));
+  if (receipt && receipt.buildId === buildId) {
+    // The platform has already consumed the adapter output inventory. A post-build command may verify it,
+    // but must never silently publish a new worker/version after those outputs have been sealed.
+    if (receipt.staticExport !== staticExport)
+      throw new Error("Offline adapter pack mode changed after publication. Run a new Next build.");
+    if (receipt.schema !== 1 || JSON.stringify(receipt.inputs) !== JSON.stringify(inputs))
+      throw new Error("Offline adapter pack inputs changed after publication. Run a new Next build.");
+    for (const file of receipt.files) {
+      const bytes = await readFile(file.path);
+      if (bytes.length !== file.bytes || digest(bytes) !== file.sha256)
+        throw new Error(`Offline adapter pack changed after publication: ${file.path}`);
+    }
+    return JSON.parse(await readFile(join(publicRoot, "offline-manifest.json"), "utf8"));
+  }
   const expected = [
     "/",
     ...views.flatMap(({ id, systems }) => [`/${id}`, ...systems.map((system) => `/${id}/${system}`)]),
@@ -68,6 +119,7 @@ export async function buildOffline(root = repository, { staticExport = process.e
   }
 
   const inventory = new Map();
+  const inventoryPaths = new Map();
   const snapshots = [];
   const routes = {};
   const aliases = {};
@@ -77,6 +129,7 @@ export async function buildOffline(root = repository, { staticExport = process.e
     if (inventory.has(url)) throw new Error(`Duplicate offline URL: ${url}`);
     const bytes = await readFile(path);
     inventory.set(url, { url, bytes: bytes.length, sha256: digest(bytes), contentType: type });
+    inventoryPaths.set(url, path);
     return url;
   }
   async function snapshot(path, target, type = contentType(target)) {
@@ -87,18 +140,59 @@ export async function buildOffline(root = repository, { staticExport = process.e
     snapshots.push({ path, target: stored });
     return url;
   }
+  const adapterPrerenders = new Map();
+  for (const output of adapterContext?.outputs.prerenders ?? []) {
+    if (adapterPrerenders.has(output.pathname)) throw new Error(`Duplicate adapter prerender: ${output.pathname}`);
+    adapterPrerenders.set(output.pathname, output);
+  }
+  const adapterStatic = new Map((adapterContext?.outputs.staticFiles ?? []).map((output) => [output.pathname, output]));
+  function prerenderFile(pathname, page = false) {
+    const output = adapterPrerenders.get(pathname);
+    const fallback = output?.fallback;
+    if (
+      !fallback?.filePath ||
+      fallback.postponedState ||
+      fallback.initialStatus >= 300 ||
+      fallback.initialRevalidate !== false ||
+      output.config?.renderingMode === "PARTIALLY_STATIC" ||
+      (page && output.routeType !== "page") ||
+      (output.response !== undefined && output.response !== "complete") ||
+      (output.compute !== undefined && output.compute !== "static")
+    )
+      throw new Error(`Offline adapter route is not fully prerendered: ${pathname}`);
+    return fallback.filePath;
+  }
   for (const route of [...study].sort()) {
     const key = route === "/" ? "index" : route.slice(1);
-    const meta = JSON.parse(await readFile(join(app, `${key}.meta`), "utf8"));
-    if (meta.postponed || meta.status >= 300)
-      throw new Error(`Offline route has a dynamic or error response: ${route}`);
-    const html = await snapshot(join(app, `${key}.html`), `pages/${key}.html`);
-    const rsc = await snapshot(join(app, `${key}.rsc`), `pages/${key}.rsc`);
+    let htmlPath;
+    let rscPath;
+    const segmentFiles = new Map();
+    if (adapterContext && !staticExport) {
+      // An adapter build owns route-cache paths, including source route groups and parallel slots.
+      // Only the public adapter inventory knows their physical locations; never reconstruct those paths.
+      htmlPath = prerenderFile(route, true);
+      rscPath = prerenderFile(prerender.routes[route].dataRoute ?? `/${key}.rsc`);
+      const directory = `/${key}${adapterContext.routing?.rsc?.prefetchSegmentDirSuffix ?? ".segments"}`;
+      const suffix = adapterContext.routing?.rsc?.prefetchSegmentSuffix ?? ".segment.rsc";
+      for (const pathname of adapterPrerenders.keys())
+        if (pathname.startsWith(`${directory}/`) && pathname.endsWith(suffix))
+          segmentFiles.set(pathname.slice(directory.length, -suffix.length), prerenderFile(pathname));
+    } else {
+      const meta = JSON.parse(await readFile(join(app, `${key}.meta`), "utf8"));
+      if (meta.postponed || meta.status >= 300)
+        throw new Error(`Offline route has a dynamic or error response: ${route}`);
+      htmlPath = join(app, `${key}.html`);
+      rscPath = join(app, `${key}.rsc`);
+      for (const segment of meta.segmentPaths ?? [])
+        segmentFiles.set(segment, join(app, `${key}.segments${segment}.segment.rsc`));
+    }
+    const html = await snapshot(htmlPath, `pages/${key}.html`);
+    const rsc = await snapshot(rscPath, `pages/${key}.rsc`);
     const segments = {};
-    for (const segment of meta.segmentPaths ?? []) {
+    for (const [segment, filePath] of [...segmentFiles].sort(([a], [b]) => a.localeCompare(b))) {
       if (!safePath(segment)) throw new Error(`Invalid offline RSC segment: ${segment}`);
       const path = `${key}.segments${segment}.segment.rsc`;
-      segments[segment] = await snapshot(join(app, path), `pages/${path}`);
+      segments[segment] = await snapshot(filePath, `pages/${path}`);
       // Next's export client encodes segment requests as files, while next start uses the RSC request headers.
       aliases[`${route === "/" ? "" : route}/__next${segment.replaceAll("/", ".")}.txt`] = segments[segment];
     }
@@ -110,19 +204,19 @@ export async function buildOffline(root = repository, { staticExport = process.e
     if (entry.routeType !== "route" || !/^\/(?:manifest\.webmanifest|(?:apple-)?icon(?:[.-][a-z0-9]+)*)$/.test(route))
       continue;
     const key = route.slice(1);
-    aliases[route] = await snapshot(join(app, `${key}.body`), `metadata/${key}`, contentType(route));
+    const filePath =
+      adapterContext && !staticExport
+        ? (adapterStatic.get(route)?.filePath ?? prerenderFile(route))
+        : join(app, `${key}.body`);
+    aliases[route] = await snapshot(filePath, `metadata/${key}`, contentType(route));
   }
-  for (const path of await files(join(root, ".next/static")))
-    if (!path.endsWith(".map")) await add(`/_next/static/${path}`, join(root, ".next/static", path));
-  for (const path of await files(publicRoot)) {
-    // Only assets used by the public study app, never an unrelated HTML/login document or a source map.
-    if (
-      !/^(?:geometry|icons|fonts)\//.test(path) &&
-      !/^(?:icon[^/]*|apple[^/]*|favicon\.ico|manifest\.webmanifest)$/.test(path)
-    )
-      continue;
-    if (!path.endsWith(".map")) await add(`/${path}`, join(publicRoot, path));
-  }
+  for (const path of staticPaths)
+    await add(
+      `/_next/static/${path}`,
+      adapterStatic.get(`/_next/static/${path}`)?.filePath ?? join(distDir, "static", path),
+    );
+  // Only assets used by the public study app, never an unrelated HTML/login document or a source map.
+  for (const path of publicPaths) await add(`/${path}`, join(publicRoot, path));
   const geometry = JSON.parse(await readFile(join(publicRoot, "geometry/manifest.json"), "utf8"));
   const runtime = JSON.parse(await readFile(join(publicRoot, "geometry/runtime.json"), "utf8"));
   const requiredGeometry = [
@@ -149,7 +243,7 @@ export async function buildOffline(root = repository, { staticExport = process.e
     aliases,
   });
   // Remove a prior local build's generated payloads, including those Next copied into a subsequent static export.
-  const payloads = [join(root, ".next/static"), ...(staticExport ? [join(root, "out/_next/static")] : [])];
+  const payloads = [join(distDir, "static"), ...(staticExport ? [join(root, "out/_next/static")] : [])];
   for (const output of payloads) {
     await rm(join(output, "offline"), { recursive: true, force: true });
     for (const { path, target } of snapshots) {
@@ -163,6 +257,46 @@ export async function buildOffline(root = repository, { staticExport = process.e
     await writeFile(join(output, "offline-manifest.json"), JSON.stringify(manifest) + "\n");
     await writeFile(join(output, "sw.js"), source.replace("__OFFLINE_MANIFEST__", JSON.stringify(manifest)));
   }
+  if (adapterContext) {
+    const outputs = adapterContext.outputs.staticFiles;
+    // Next may have inventoried generated public files from an earlier build. Replace those stale entries.
+    outputs.splice(0, outputs.length, ...outputs.filter((output) => !generatedOutput(output.pathname)));
+    for (const file of manifest.files.filter((file) => file.url.startsWith("/_next/static/offline/"))) {
+      outputs.push({
+        type: "STATIC_FILE",
+        id: file.url,
+        pathname: file.url,
+        filePath: join(staticExport ? join(root, "out/_next/static") : join(distDir, "static"), file.url.slice(14)),
+        immutableHash: file.sha256,
+      });
+    }
+    for (const pathname of ["/sw.js", "/offline-manifest.json"])
+      outputs.push({
+        type: "STATIC_FILE",
+        id: pathname,
+        pathname,
+        filePath: join(staticExport ? join(root, "out") : publicRoot, pathname),
+        immutableHash: undefined,
+      });
+    const published = [];
+    for (const file of manifest.files) {
+      const path = file.url.startsWith("/_next/static/offline/")
+        ? join(distDir, "static", file.url.slice(14))
+        : inventoryPaths.get(file.url);
+      published.push({ path, bytes: file.bytes, sha256: file.sha256 });
+    }
+    for (const pathname of ["sw.js", "offline-manifest.json"]) {
+      const path = join(publicRoot, pathname);
+      const bytes = await readFile(path);
+      published.push({ path, bytes: bytes.length, sha256: digest(bytes) });
+    }
+    if (staticExport)
+      for (const output of outputs.filter((output) => generatedOutput(output.pathname))) {
+        const bytes = await readFile(output.filePath);
+        published.push({ path: output.filePath, bytes: bytes.length, sha256: digest(bytes) });
+      }
+    await writeFile(receiptPath, JSON.stringify({ schema: 1, buildId, staticExport, inputs, files: published }) + "\n");
+  } else await rm(receiptPath, { force: true });
   return manifest;
 }
 
