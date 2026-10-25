@@ -24,6 +24,9 @@ export interface Scenario {
 
 const level = (kcas: number, alt: number) => (i: Inputs) => Object.assign(i.controls, { kcas, alt });
 
+/** Block the static port: on a cross-connected pair, both ports, so the set-up shows the same thing either way. */
+const blockStatic = (i: Inputs) => Object.assign(i.failures, { portL: true, portR: i.ports === "paired" });
+
 export const SCENARIOS: Scenario[] = [
   {
     id: "cruise",
@@ -73,7 +76,7 @@ export const SCENARIOS: Scenario[] = [
     group: "Blockages",
     setup: level(90, 4000),
     then: (i) => {
-      i.failures.portL = true;
+      blockStatic(i);
       Object.assign(i.controls, { alt: 6500, rate: 700 });
     },
     note: `The altimeter freezes at 4,000 ft and the VSI sits at zero; the airspeed reads lower and lower as the airplane climbs above the blockage (${PHAK} p. 8-11, Figure 8-11).`,
@@ -84,7 +87,7 @@ export const SCENARIOS: Scenario[] = [
     group: "Blockages",
     setup: level(110, 7500),
     then: (i) => {
-      i.failures.portL = true;
+      blockStatic(i);
       Object.assign(i.controls, { alt: 4500, rate: 700 });
     },
     note: `Below the blockage altitude the airspeed reads higher than the airplane is flying, toward the yellow arc, while the altimeter stays where it was (${PHAK} p. 8-11). Pull ALT STATIC AIR.`,
@@ -106,7 +109,7 @@ export const SCENARIOS: Scenario[] = [
     group: "Blockages",
     setup: level(0, 0),
     then: (i) => {
-      i.failures.portL = true;
+      blockStatic(i);
       Object.assign(i.controls, { kcas: 75, alt: 3000, rate: 700 });
     },
     note: `Tape left on the port after washing: everything is right on the runway, then the altimeter stays at the field and the airspeed shrinks in the climb, to zero by about 500 ft. Remove all tape and plugs (AMT p. 10-81); check the static opening clear (${POH} p. 4-9).`,
@@ -130,7 +133,7 @@ export const SCENARIOS: Scenario[] = [
     group: "Alternate static",
     setup: level(110, 7500),
     then: (i) => {
-      i.failures.portL = true;
+      blockStatic(i);
       Object.assign(i.controls, { alt: 5500, rate: 500 });
     },
     note: `A descent with the port iced over. Do ${POH} p. 3-15: ALT STATIC AIR on, cabin vents closed, CABIN HT and CABIN AIR on, and read the airspeed against Figure 5-1 Sheet 2.`,
@@ -145,7 +148,7 @@ export const SCENARIOS: Scenario[] = [
       i.avionics = "six-pack";
     },
     then: (i) => {
-      i.failures.portL = true;
+      blockStatic(i);
       Object.assign(i.controls, { alt: 5500, rate: 500 });
       i.failures.vsiGlass = true;
     },

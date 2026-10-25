@@ -195,8 +195,9 @@ export const PITOT_STATIC = {
     /** The bench airplane: acceleration (kt/s), vertical-speed lag (s), level-off (fpm per foot to go), and the
      * calibrated airspeed at which it leaves the ground. */
     airplane: { ktPerS: 4, vsTau: 0.8, levelOff: 6, liftOffKcas: 55 },
-    /** Test set: how fast it changes the pressures it holds (ft/min and kt/s), and its adapters' time constant. */
-    testSet: { ftPerMin: 1500, ktPerS: 8, tau: 0.1 },
+    /** Test set: how fast it changes the pressures it holds (ft/min and kt/s), its adapters' time constant, and how
+     * close to its altitude the static side must be when sealed for the test to count (ft). */
+    testSet: { ftPerMin: 1500, ktPerS: 8, tau: 0.1, reachFt: 10 },
     /** G1000 air data computer: display lag of airspeed and altitude, and the filters on its vertical speed and the
      * airspeed trend (s). Garmin doesn't publish them. */
     adc: { tau: 0.1, vsTau: 1, trendTau: 1 },

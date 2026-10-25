@@ -107,9 +107,12 @@ Everything in `PITOT_STATIC.model` (spec.ts):
   has one port; the pair is the handbooks' arrangement, not this airplane's.
 - **The bench airplane.** Acceleration, vertical-speed response, level-off and the airspeed at which it leaves the
   ground. It is a pressure source, not a flight model; the rates and altitudes are whatever the controls ask.
-- **The test set.** Its rates (it changes pressure slowly, as AMT p. 10-81 asks) and its adapters. The test is the
-  handbook's 1,000-ft, one-minute check; 14 CFR part 43 Appendix E now asks only for a proof test "acceptable to the
-  Administrator" for these airplanes, so follow the test equipment's and the airplane's maintenance instructions.
+- **The test set.** Its rates (it changes pressure slowly, as AMT p. 10-81 asks), its adapters, and how close (10 ft)
+  the static side must be to the test set's altitude when sealed for the test to count: the handbook takes the
+  system to "indicate 1,000 feet on the altimeter", so a taped port or ALT STATIC AIR left on gives no result. The
+  test is the handbook's 1,000-ft, one-minute check; 14 CFR part 43 Appendix E now asks only for a proof test
+  "acceptable to the Administrator" for these airplanes, so follow the test equipment's and the airplane's maintenance
+  instructions.
 - **The G1000's air data computer.** The lag on its airspeed and altitude (0.1 s) and the filters on its vertical speed
   and airspeed trend (1 s). Garmin doesn't publish them, nor whether the GDC 74A corrects for static source error; the
   NAV III POH still tabulates IAS against CAS, so the model applies none.

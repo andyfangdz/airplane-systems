@@ -305,6 +305,9 @@ export interface LeakTest {
   /** Altimeter and ASI when sealed. */
   alt0: number;
   ias0: number;
+  /** When sealed: the test set's altitude above the field, and how far above it the static side had got, ft. */
+  testFt: number;
+  staticFt: number;
   /** Change since sealed: altitude lost (ft), airspeed lost (kt). */
   altLoss: number;
   iasLoss: number;
@@ -381,7 +384,16 @@ const noFlows = (): Flows => ({
 
 const emptyHistory = (): History => ({ t: [], kcas: [], ias: [], h: [], alt: [], vs: [], vsi: [] });
 
-const noLeakTest = (): LeakTest => ({ t0: null, alt0: 0, ias0: 0, altLoss: 0, iasLoss: 0, done: false });
+const noLeakTest = (): LeakTest => ({
+  t0: null,
+  alt0: 0,
+  ias0: 0,
+  testFt: 0,
+  staticFt: 0,
+  altLoss: 0,
+  iasLoss: 0,
+  done: false,
+});
 
 /** Seconds of history kept for the charts, and how often it is sampled. */
 export const HIST_S = 60;
@@ -629,7 +641,19 @@ function moveTestSet(spec: PitotStaticSpec, s: PSState, i: Inputs, dt: number) {
   const lt = s.leakTest;
   if (i.test.sealed) {
     const t0 = lt.t0 ?? s.t;
-    if (lt.t0 === null) Object.assign(lt, { t0, alt0: s.alt, ias0: s.ias, altLoss: 0, iasLoss: 0, done: false });
+    if (lt.t0 === null) {
+      const staticFt = pressureAltitude(s.stat) - s.pa;
+      Object.assign(lt, {
+        t0,
+        alt0: s.alt,
+        ias0: s.ias,
+        testFt: s.testAlt,
+        staticFt,
+        altLoss: 0,
+        iasLoss: 0,
+        done: false,
+      });
+    }
     if (!lt.done) {
       lt.altLoss = lt.alt0 - s.alt;
       lt.iasLoss = lt.ias0 - s.ias;
@@ -642,6 +666,14 @@ function moveTestSet(spec: PitotStaticSpec, s: PSState, i: Inputs, dt: number) {
   s.testAlt += clamp(i.test.alt - s.testAlt, (-ts.ftPerMin / 60) * dt, (ts.ftPerMin / 60) * dt);
   s.testKt += clamp(i.test.kt - s.testKt, -ts.ktPerS * dt, ts.ktPerS * dt);
 }
+
+/**
+ * The instruments indicated the test set's altitude when it was sealed, so the leak test measures them: through a taped
+ * port, with ALT STATIC AIR on or with a line off, the test set gets there and the instruments don't, or stay where a
+ * blockage trapped them (AMT p. 10-81: the system is taken to "indicate 1,000 feet on the altimeter").
+ */
+export const leakTestReached = (spec: PitotStaticSpec, lt: LeakTest) =>
+  lt.t0 !== null && Math.abs(lt.testFt - lt.staticFt) <= spec.model.testSet.reachFt;
 
 function substep(spec: PitotStaticSpec, s: PSState, i: Inputs, dt: number) {
   s.t += dt;

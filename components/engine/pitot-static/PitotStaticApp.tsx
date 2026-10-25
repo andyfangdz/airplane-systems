@@ -26,6 +26,7 @@ import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   HIST_S,
   inHg,
+  leakTestReached,
   pohKias,
   type Avionics,
   type Failures,
@@ -516,14 +517,28 @@ function LeakTest() {
   const lim = spec.handbook.leakTest;
   const elapsed = lt.t0 === null ? 0 : Math.min(x.t - lt.t0, lim.s);
   const there = Math.abs(x.testAlt - t.alt) < 1 && Math.abs(x.testKt - t.kt) < 0.5;
+  // the instruments have to indicate the test altitude, not just the test set hold it
+  const reached = leakTestReached(spec, lt);
   const result: Reading =
     lt.t0 === null
       ? "—"
-      : !lt.done
-        ? `timing: ${elapsed.toFixed(0)} of ${lim.s} s, ${f0(lt.altLoss)} ft lost so far`
-        : lt.altLoss > lim.maxLossFt
-          ? [`FAIL: ${f0(lt.altLoss)} ft lost in a minute`, "bad"]
-          : `Pass: ${f0(Math.max(0, lt.altLoss))} ft lost in a minute`;
+      : !reached
+        ? ["No test", "bad"]
+        : !lt.done
+          ? `timing: ${elapsed.toFixed(0)} of ${lim.s} s, ${f0(lt.altLoss)} ft lost so far`
+          : lt.testFt < lim.ft
+            ? `${f0(Math.max(0, lt.altLoss))} ft lost in a minute`
+            : lt.altLoss > lim.maxLossFt
+              ? [`FAIL: ${f0(lt.altLoss)} ft lost in a minute`, "bad"]
+              : `Pass: ${f0(Math.max(0, lt.altLoss))} ft lost in a minute`;
+  const why =
+    lt.t0 === null
+      ? null
+      : !reached
+        ? `Sealed with the static side at ${f0(lt.staticFt)} ft and the test set at ${f0(lt.testFt)}: the instruments never indicated the test altitude, so the minute tests nothing. Look for a blocked port, ALT STATIC AIR on or a large leak.`
+        : lt.done && lt.testFt < lim.ft
+          ? `Pass or fail is judged at the handbook's ${f0(lim.ft)} ft.`
+          : null;
   return (
     <>
       <H3>Static system leak test</H3>
@@ -572,6 +587,7 @@ function LeakTest() {
           ["Result", result],
         ]}
       />
+      {why && <Small>{why}</Small>}
       <Small>
         &ldquo;…pressure is reduced in the system by the amount required to indicate 1,000 feet on the altimeter. Then,
         the system is sealed and observed for 1 minute. A loss of altitude of more than 100 feet is not

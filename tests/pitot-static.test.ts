@@ -7,6 +7,7 @@ import { PITOT_STATIC as S, type Flaps } from "@/engines/components/pitot-static
 import {
   defaultInputs,
   initialState,
+  leakTestReached,
   pohKias,
   pressureAltitude,
   primary,
@@ -333,6 +334,41 @@ describe("water and leaks (AMT p. 10-81)", () => {
     i.test.alt = 1000;
     run(S, s, i, 50);
     expect(s.alt).toBeLessThan(20);
+  });
+
+  it("sealed before the instruments indicate the test altitude, the test has no result: tape, ALT STATIC AIR, a line off", () => {
+    const seal = (patch: (i: Inputs) => void) => {
+      const i = inputs((i) => {
+        i.mode = "test";
+        patch(i);
+      });
+      const s = initialState(S, i);
+      i.test.alt = S.handbook.leakTest.ft;
+      run(S, s, i, 50);
+      i.test.sealed = true;
+      run(S, s, i, 1);
+      expect(s.leakTest.testFt).toBeCloseTo(S.handbook.leakTest.ft, 0);
+      return leakTestReached(S, s.leakTest);
+    };
+    expect(seal(() => {})).toBe(true);
+    expect(seal((i) => (i.failures.leak = "cracked"))).toBe(true);
+    // one port of a pair taped: the test set reaches the line through the other
+    expect(seal((i) => ((i.ports = "paired"), (i.failures.portR = true)))).toBe(true);
+    expect(seal((i) => (i.failures.portL = true))).toBe(false);
+    expect(seal((i) => (i.cockpit.altStatic = true))).toBe(false);
+    expect(seal((i) => (i.failures.leak = "disconnected"))).toBe(false);
+    // taped after the instruments went up: they stay above where the test set comes down to
+    const i = inputs((i) => (i.mode = "test"));
+    const s = initialState(S, i);
+    i.test.alt = 500;
+    run(S, s, i, 25);
+    i.failures.portL = true;
+    i.test.alt = 200;
+    run(S, s, i, 15);
+    i.test.sealed = true;
+    run(S, s, i, 1);
+    expect(s.leakTest.staticFt).toBeGreaterThan(400);
+    expect(leakTestReached(S, s.leakTest)).toBe(false);
   });
 
   it("a static line off its fitting behind the panel reads cabin pressure, like the alternate source", () => {

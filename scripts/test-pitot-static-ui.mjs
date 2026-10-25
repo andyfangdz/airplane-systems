@@ -92,6 +92,17 @@ for (const [name, viewport] of Object.entries({
     await expect(page.getByRole("button", { name: "Seal and time 1 minute" })).toBeDisabled();
     await expect.poll(() => value(1), { timeout: 20_000 }).toBeGreaterThan(200);
     expect(await value(0)).toBe(0);
+    // through a taped port the test set gets to its altitude and the instruments don't: sealed, there is no result
+    await page.getByRole("button", { name: "Static leak test", exact: true }).click();
+    await page.locator("#ps-f-portL").check();
+    await page.locator("#ps-test-alt").focus();
+    await page.keyboard.press("Home");
+    await page.keyboard.press("ArrowRight");
+    const seal = page.getByRole("button", { name: "Seal and time 1 minute" });
+    await expect(seal).toBeEnabled({ timeout: 20_000 });
+    await seal.click();
+    await expect(page.getByText("No test", { exact: true })).toBeVisible();
+    await expect(page.getByText(/never indicated the test altitude/)).toBeVisible();
 
     expect(errors).toEqual([]);
     await context.close();

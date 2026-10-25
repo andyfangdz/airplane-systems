@@ -146,6 +146,21 @@ describe("the pitot-static scenarios", () => {
     expect(scenarioInputs(scenarioById("adc")!, { avionics: "six-pack", ports: "single" }).then.avionics).toBe("g1000");
   });
 
+  it("on a cross-connected pair the blocked-port set-ups block both ports: the altimeter still freezes", () => {
+    const pair = { avionics: "six-pack", ports: "paired" } as const;
+    for (const id of ["static-climb", "static-descent", "tape", "alt-blocked", "glass"]) {
+      const { then } = scenarioInputs(scenarioById(id)!, pair);
+      expect([id, then.failures.portL, then.failures.portR]).toEqual([id, true, true]);
+      expect(scenarioInputs(scenarioById(id)!).then.failures.portR).toBe(false);
+    }
+    const { setup, then } = scenarioInputs(scenarioById("static-climb")!, pair);
+    const s = initialState(S, setup);
+    const frozen = s.alt;
+    run(S, s, then, 60);
+    expect(s.h - setup.controls.alt).toBeGreaterThan(500);
+    expect(Math.abs(s.alt - frozen)).toBeLessThan(2);
+  });
+
   it("every set-up shows its effect on the G1000 too, the broken VSI glass aside", () => {
     for (const sc of SCENARIOS) {
       const { setup, then } = scenarioInputs(sc, { avionics: "g1000", ports: "single" });
