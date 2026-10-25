@@ -1,0 +1,184 @@
+/* The pitot-static page (components/engine/pitot-static): its instruments over the view, the "Try" groups, the charts
+   and the calibration table, on the engine pages' layout. */
+.ps-mon {
+  grid-template-columns: repeat(3, auto);
+  grid-template-areas: none;
+  gap: 4px 14px;
+  padding: 8px 10px;
+}
+.ps-gauge {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+.ps-dial {
+  width: 124px;
+  height: 124px;
+  display: block;
+}
+.ps-gauge span {
+  font-size: 11px;
+  color: #8fa1ae;
+}
+.ps-gauge span b {
+  font-size: 18px;
+  font-weight: 500;
+  color: #6be675;
+}
+.ps-gauge small {
+  font-size: 11px;
+  color: #c7d2da;
+  white-space: nowrap;
+}
+.ps-gauge small.bad {
+  color: var(--warn);
+}
+@media (max-width: 860px) {
+  /* the instruments are the point: they stay in sight under the view while the panel scrolls */
+  .eng-foot:has(> .ps-mon) {
+    position: sticky;
+    top: max(42vh, 260px);
+    z-index: 3;
+    align-self: stretch;
+    padding: 6px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule);
+  }
+  .ps-mon {
+    justify-content: space-around;
+    padding: 6px 8px;
+  }
+  .ps-dial {
+    width: 84px;
+    height: 84px;
+  }
+  .ps-gauge span b {
+    font-size: 15px;
+  }
+}
+@media (max-width: 359px) {
+  .ps-dial {
+    width: 80px;
+    height: 80px;
+  }
+  .ps-gauge small {
+    font-size: 10px;
+  }
+}
+
+.ps-try {
+  margin-bottom: 4px;
+}
+.ps-try > span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 6px 0 2px;
+}
+.ps-note {
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--hot);
+  background: var(--panel2);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.ps-checks {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.ps-fig {
+  margin: 0;
+}
+.ps-fig figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.ps-chart .ps-actual {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+.ps-key {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0;
+}
+.ps-key i {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  vertical-align: middle;
+  border-top: 2px solid var(--hot);
+}
+.ps-key i.k-actual {
+  border-top: 2px dashed var(--muted);
+}
+
+.ps-cal {
+  border-collapse: collapse;
+  font: 12px var(--f-mono);
+  margin: 6px 0;
+}
+.ps-cal th,
+.ps-cal td {
+  padding: 2px 5px;
+  text-align: right;
+  border-bottom: 1px solid var(--rule);
+}
+.ps-cal thead th {
+  font: 600 11px var(--f-body);
+  color: var(--muted);
+}
+.ps-cal tbody th {
+  font-weight: 600;
+}
+
+/* the pressure tags in the 3D view */
+.ps-tag span {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  margin-left: 4px;
+}
+.ps-tag-pitot {
+  border-color: #e0782b;
+}
+.ps-tag-static {
+  border-color: #3b82c4;
+}
+
+/* actual against indicated */
+.ps-read {
+  width: 100%;
+  border-collapse: collapse;
+  font: 13px var(--f-mono);
+  margin: 4px 0 8px;
+}
+.ps-read th,
+.ps-read td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: baseline;
+}
+.ps-read th {
+  font: 600 12px var(--f-body);
+  color: var(--muted);
+}
+.ps-read td.bad {
+  color: var(--warn);
+}
+.ps-read small {
+  color: var(--muted);
+  margin-left: 4px;
+}

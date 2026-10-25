@@ -1,10 +1,12 @@
 /**
- * Standalone component simulations (`/components/<id>`): one engine accessory on its own, bigger than it is drawn on
- * an engine, with its own controls. Each folder here holds a component's model and its SOURCES.md; its page is in
- * `components/engine/<id>/`, loaded by `components/engine/ComponentPage.tsx`, whose map is keyed by `ComponentId` so
- * the two can't drift (and `tests/component-pages.test.ts` checks it). This list is the picker order.
+ * Standalone component simulations (`/components/<id>`): one engine accessory or airframe system on its own, bigger
+ * than it is drawn on an engine or an airplane, with its own controls. Each folder here holds a component's model and
+ * its SOURCES.md; its page is in `components/engine/<id>/`, loaded by `components/engine/ComponentPage.tsx`, whose map
+ * is keyed by `ComponentId` so the two can't drift (and `tests/component-pages.test.ts` checks it). This list is the
+ * picker order.
  */
 import { GOVERNOR } from "./governor/spec";
+import { PITOT_STATIC } from "./pitot-static/spec";
 
 export interface ComponentEntry {
   id: string;
@@ -42,6 +44,7 @@ export const COMPONENTS = [
     lead: "SureFly SIM4P electronic ignition module: dip switch timing, advance with rpm and manifold pressure, the timing light and wasted spark.",
   },
   { id: GOVERNOR.id, name: GOVERNOR.name, sub: GOVERNOR.sub, lead: GOVERNOR.lead },
+  { id: PITOT_STATIC.id, name: PITOT_STATIC.name, sub: PITOT_STATIC.sub, lead: PITOT_STATIC.lead },
 ] as const satisfies readonly ComponentEntry[];
 
 export type ComponentId = (typeof COMPONENTS)[number]["id"];
