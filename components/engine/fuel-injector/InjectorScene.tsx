@@ -10,6 +10,7 @@
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { AVGAS_LB_GAL } from "@/engines/model/atmosphere";
@@ -304,6 +305,7 @@ function ThrottleBody({ v, mats }: { v: ViewRef; mats: Mats }) {
 
 /** Air moving up the bore: faster as the flow rises, and faster still through the throat. */
 function AirFlow({ v }: { v: ViewRef }) {
+  const reducedMotion = useReducedMotion();
   const N = 90;
   const seeds = useMemo(
     () =>
@@ -315,7 +317,10 @@ function AirFlow({ v }: { v: ViewRef }) {
     [],
   );
   const mesh = useRef<THREE.InstancedMesh>(null);
-  const geo = useMemo(() => new THREE.SphereGeometry(0.0035, 6, 4), []);
+  const geo = useMemo(
+    () => (reducedMotion ? new THREE.ConeGeometry(0.008, 0.025, 8) : new THREE.SphereGeometry(0.0035, 6, 4)),
+    [reducedMotion],
+  );
   const mat = useMemo(
     () => new THREE.MeshBasicMaterial({ color: PRESSURE.air, transparent: true, opacity: 0.75, depthWrite: false }),
     [],
@@ -335,18 +340,27 @@ function AirFlow({ v }: { v: ViewRef }) {
     // drawn speed: the bore's height in ~0.6 s at rated air flow, slower below (not to scale)
     const rate = Math.min(1.6, Math.sqrt(s.air / 900)) * 1.6;
     x.visible = s.air > 2;
-    seeds.forEach((p) => {
+    x.count = reducedMotion ? 3 : N;
+    seeds.forEach((p, i) => {
+      if (i >= x.count) return;
       const rr = radiusAt(TB.y0 + p.y * (TB.y1 - TB.y0));
       // continuity: speed ∝ 1 / area
-      p.y = (p.y + (rate * (s.paused ? 0 : dt) * (TB.R / rr) ** 2) / 4.5) % 1;
-      const y = TB.y0 + p.y * (TB.y1 - TB.y0);
-      const r = radiusAt(y) * p.r;
+      p.y = (p.y + (rate * (s.paused || reducedMotion ? 0 : dt) * (TB.R / rr) ** 2) / 4.5) % 1;
+      const y = TB.y0 + (reducedMotion ? (i + 1) / 4 : p.y) * (TB.y1 - TB.y0);
+      const r = reducedMotion ? 0 : radiusAt(y) * p.r;
       m.makeTranslation(r * Math.cos(p.a), y, r * Math.sin(p.a));
-      x.setMatrixAt(seeds.indexOf(p), m);
+      x.setMatrixAt(i, m);
     });
     x.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={mesh} args={[geo, mat, N]} frustumCulled={false} />;
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[geo, mat, N]}
+      frustumCulled={false}
+      userData={{ cameraBounds: false, presentation: true }}
+    />
+  );
 }
 
 function radiusAt(y: number) {
@@ -803,6 +817,7 @@ function Nozzle({ i, n, v, mats }: { i: number; n: number; v: ViewRef; mats: Mat
 
 /** Fuel leaving a nozzle: as many drops as its share of the flow, falling into the port. */
 function Spray({ x, i, v }: { x: number; i: number; v: ViewRef }) {
+  const reducedMotion = useReducedMotion();
   const N = 40;
   const mesh = useRef<THREE.InstancedMesh>(null);
   const geo = useMemo(() => new THREE.SphereGeometry(0.0028, 6, 4), []);
@@ -830,7 +845,7 @@ function Spray({ x, i, v }: { x: number; i: number; v: ViewRef }) {
     // visible drops ∝ flow (a quarter of rated flow per nozzle shows all of them)
     const shown = Math.round(Math.min(1, flow / 25) * N);
     seeds.forEach((p, k) => {
-      p.t = (p.t + (s.paused ? 0 : dt) * (1.2 + flow / 15)) % 1;
+      p.t = (p.t + (s.paused || reducedMotion ? 0 : dt) * (1.2 + flow / 15)) % 1;
       if (k >= shown) {
         m.makeScale(0, 0, 0);
       } else {
@@ -842,7 +857,14 @@ function Spray({ x, i, v }: { x: number; i: number; v: ViewRef }) {
     });
     me.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={mesh} args={[geo, mat, N]} frustumCulled={false} />;
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[geo, mat, N]}
+      frustumCulled={false}
+      userData={{ cameraBounds: false, presentation: true }}
+    />
+  );
 }
 
 // --------------------------------------------------------------------------------------------- lines and pumps
@@ -966,8 +988,16 @@ function Stream({
   rate: (s: InjectorView) => number;
   v: ViewRef;
 }) {
+  const reducedMotion = useReducedMotion();
   const curve = useMemo(() => new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p))), [points]);
-  const geo = useMemo(() => new THREE.SphereGeometry(0.0075, 8, 6), []);
+  const geo = useMemo(
+    () => (reducedMotion ? new THREE.ConeGeometry(0.012, 0.04, 8) : new THREE.SphereGeometry(0.0075, 8, 6)),
+    [reducedMotion],
+  );
+  const rotation = useMemo(
+    () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(0.55)),
+    [curve],
+  );
   const mat = useMemo(() => new THREE.MeshBasicMaterial({ color }), [color]);
   useEffect(
     () => () => {
@@ -986,16 +1016,26 @@ function Stream({
     if (!s || !me) return;
     const flow = rate(s);
     me.visible = flow > 0.3;
+    me.count = reducedMotion ? 1 : count;
     // ~0.12 m/s at idle flows to ~0.5 m/s at rated (drawn)
-    phase.current = (phase.current + ((s.paused ? 0 : dt) * (0.08 + Math.sqrt(flow) * 0.045)) / len) % 1;
-    for (let k = 0; k < count; k++) {
-      curve.getPointAt((k / count + phase.current) % 1, p);
-      m.makeTranslation(p.x, p.y, p.z);
+    phase.current =
+      (phase.current + ((s.paused || reducedMotion ? 0 : dt) * (0.08 + Math.sqrt(flow) * 0.045)) / len) % 1;
+    for (let k = 0; k < me.count; k++) {
+      curve.getPointAt(reducedMotion ? 0.55 : (k / count + phase.current) % 1, p);
+      if (reducedMotion) m.makeRotationFromQuaternion(rotation).setPosition(p);
+      else m.makeTranslation(p.x, p.y, p.z);
       me.setMatrixAt(k, m);
     }
     me.instanceMatrix.needsUpdate = true;
   });
-  return <instancedMesh ref={mesh} args={[geo, mat, count]} frustumCulled={false} />;
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[geo, mat, count]}
+      frustumCulled={false}
+      userData={{ cameraBounds: false, presentation: true }}
+    />
+  );
 }
 
 // ------------------------------------------------------------------------------------------------------ assembly

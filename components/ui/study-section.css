@@ -1,0 +1,31 @@
+.study-section {
+  border-top: 1px solid var(--rule);
+  margin-top: 20px;
+}
+.study-section > summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-weight: 600;
+}
+.study-section-body {
+  padding-bottom: 8px;
+}
+.study-section-body > h3:first-child {
+  margin-top: 4px;
+}
+.power-path {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--elec);
+  background: var(--panel2);
+  font-size: 13px;
+}
+.power-path p {
+  margin: 4px 0 0;
+}
+.breaker-state {
+  display: inline-block;
+  margin-left: 5px;
+  font-family: var(--f-body);
+  font-weight: 600;
+}

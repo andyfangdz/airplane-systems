@@ -14,6 +14,7 @@ const hooks = vi.hoisted(() => ({
   index: 0,
   slots: new Map<string, { deps: unknown[]; value: unknown }>(),
   cleanups: [] as (() => void)[],
+  reducedMotion: false,
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -33,6 +34,7 @@ vi.mock("react", async (original) => ({
   },
 }));
 vi.mock("@react-three/fiber", () => ({ useFrame: () => {} }));
+vi.mock("@/lib/useReducedMotion", () => ({ useReducedMotion: () => hooks.reducedMotion }));
 vi.mock("@/lib/materials", async (original) => ({
   ...(await original<typeof import("@/lib/materials")>()),
   dotTex: () => null,
@@ -77,6 +79,7 @@ afterEach(() => {
   for (const cleanup of hooks.cleanups) cleanup();
   hooks.cleanups = [];
   hooks.slots.clear();
+  hooks.reducedMotion = false;
 });
 
 function renderFlows() {
@@ -100,34 +103,38 @@ function renderFlows() {
   };
 }
 
-it("view switches preserve flow tubes and particle geometry when group visibility is unchanged", () => {
-  useEngineGroups.setState({ shown: allGroups() });
-  useView.setState({ sys: "engine" });
-  const before = renderFlows();
-  expect(before.flows.length).toBeGreaterThan(100);
-  expect(before.particles).toHaveLength(1);
-  for (const sys of ["fuel", "overview", "propeller", "engine"] as const) {
-    useView.setState({ sys });
-    const after = renderFlows();
-    expect(after.flows.map((item) => item.key)).toEqual(before.flows.map((item) => item.key));
-    after.flows.forEach((item, i) => {
-      expect(item.tube).toBe(before.flows[i].tube);
-    });
-    after.particles.forEach((particle, i) => {
-      expect(particle).toBe(before.particles[i]);
-      expect(particle.geometry).toBe(before.particles[i].geometry);
-    });
-  }
-  // A hidden group must still remove its flows in Engine and restore them elsewhere.
-  useEngineGroups.getState().set("oil", false);
-  const filtered = renderFlows();
-  expect(filtered.flows.length).toBeLessThan(before.flows.length);
-  useView.setState({ sys: "fuel" });
-  const restored = renderFlows();
-  expect(restored.flows.map((item) => item.key)).toEqual(before.flows.map((item) => item.key));
-  restored.flows.forEach((item, i) => expect(item.tube).toBe(before.flows[i].tube));
-  useView.setState({ sys: "overview" });
-  const overview = renderFlows();
-  overview.flows.forEach((item, i) => expect(item.tube).toBe(restored.flows[i].tube));
-  overview.particles.forEach((particle, i) => expect(particle).toBe(restored.particles[i]));
-});
+it.each([false, true])(
+  "view switches preserve flow tubes and particle geometry when group visibility is unchanged (reduced motion %s)",
+  (reducedMotion) => {
+    hooks.reducedMotion = reducedMotion;
+    useEngineGroups.setState({ shown: allGroups() });
+    useView.setState({ sys: "engine" });
+    const before = renderFlows();
+    expect(before.flows.length).toBeGreaterThan(100);
+    expect(before.particles).toHaveLength(1);
+    for (const sys of ["fuel", "overview", "propeller", "engine"] as const) {
+      useView.setState({ sys });
+      const after = renderFlows();
+      expect(after.flows.map((item) => item.key)).toEqual(before.flows.map((item) => item.key));
+      after.flows.forEach((item, i) => {
+        expect(item.tube).toBe(before.flows[i].tube);
+      });
+      after.particles.forEach((particle, i) => {
+        expect(particle).toBe(before.particles[i]);
+        expect(particle.geometry).toBe(before.particles[i].geometry);
+      });
+    }
+    // A hidden group must still remove its flows in Engine and restore them elsewhere.
+    useEngineGroups.getState().set("oil", false);
+    const filtered = renderFlows();
+    expect(filtered.flows.length).toBeLessThan(before.flows.length);
+    useView.setState({ sys: "fuel" });
+    const restored = renderFlows();
+    expect(restored.flows.map((item) => item.key)).toEqual(before.flows.map((item) => item.key));
+    restored.flows.forEach((item, i) => expect(item.tube).toBe(before.flows[i].tube));
+    useView.setState({ sys: "overview" });
+    const overview = renderFlows();
+    overview.flows.forEach((item, i) => expect(item.tube).toBe(restored.flows[i].tube));
+    overview.particles.forEach((particle, i) => expect(particle).toBe(restored.particles[i]));
+  },
+);

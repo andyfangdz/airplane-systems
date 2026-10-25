@@ -111,7 +111,8 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
         slow: false,
         xray: true,
         labels: true,
-        prop: true,
+        // Start with the engine internals filling the study view; Installed engine restores the full propeller.
+        prop: false,
         cyl: 0,
         paused: false,
         scenario: null,

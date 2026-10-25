@@ -14,6 +14,7 @@ import type { SysId } from "@/lib/systems";
 import { create } from "zustand";
 import { selectSys } from "@/lib/fleet";
 import { focusPart } from "@/lib/registry";
+import { setPanelCollapsed } from "@/lib/panels";
 
 /**
  * The scenario the page last loaded, shown pressed on its button until the user changes something in the panel (a
@@ -21,10 +22,21 @@ import { focusPart } from "@/lib/registry";
  * system's panel asked for (TryLink), which its button loads when it mounts. Both cleared when the page goes
  * (useScenarioMarks).
  */
-const useScenarioMark = create<{ mark: string | null; request: string | null }>(() => ({ mark: null, request: null }));
+const useScenarioMark = create<{ mark: string | null; request: string | null; focusExample: boolean }>(() => ({
+  mark: null,
+  request: null,
+  focusExample: false,
+}));
+
+/** Open the aircraft’s existing example without changing its simulation until the learner chooses it. */
+export function showStudyExample() {
+  setPanelCollapsed("details", false);
+  useScenarioMark.setState({ focusExample: true });
+  selectSys("overview");
+}
 
 /** Panel controls that change nothing in the simulation: locating a part, opening text, the walk-around's own steps. */
-const NOT_A_CHANGE = "[data-scenario], .parts, .lead-more, [aria-expanded], a, .walk";
+const NOT_A_CHANGE = "[data-scenario], .parts, .part-inspector, .eng-study, .lead-more, [aria-expanded], a, .walk";
 
 /** Events that can change the simulation: a HoldButton pressed from the keyboard sends no click, only its keydown. */
 const CHANGE_EVENTS = ["click", "keydown", "input", "change"];
@@ -44,7 +56,7 @@ export function useScenarioMarks() {
     for (const type of CHANGE_EVENTS) document.addEventListener(type, clearOnChange, true);
     return () => {
       for (const type of CHANGE_EVENTS) document.removeEventListener(type, clearOnChange, true);
-      useScenarioMark.setState({ mark: null, request: null });
+      useScenarioMark.setState({ mark: null, request: null, focusExample: false });
     };
   }, []);
 }
@@ -109,8 +121,17 @@ export function TryLink({
   title: string;
   children: ReactNode;
 }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const focusExample = useScenarioMark((x) => x.focusExample);
+  useEffect(() => {
+    if (!focusExample) return;
+    useScenarioMark.setState({ focusExample: false });
+    button.current?.focus({ preventScroll: true });
+    button.current?.scrollIntoView({ block: "end" });
+  }, [focusExample]);
   return (
     <button
+      ref={button}
       type="button"
       className="try-link"
       onClick={() => {
@@ -191,6 +212,7 @@ export function Slider({
         max={max}
         step={step}
         value={value}
+        aria-valuetext={fmt(value)}
         onChange={(e) => onChange(+e.target.value)}
       />
     </div>

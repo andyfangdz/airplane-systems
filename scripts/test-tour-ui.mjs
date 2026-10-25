@@ -8,7 +8,7 @@ test("tour follows targets, fits the viewport and remembers completion", async (
   await page.goto("/sr20/electrical");
   const card = page.locator(".tour-card");
   const heading = card.getByRole("heading");
-  await expect(heading).toHaveText("Welcome aboard");
+  await expect(heading).toHaveText("Start with the aircraft");
   const fits = async () => {
     await expect
       .poll(() =>
@@ -20,7 +20,7 @@ test("tour follows targets, fits the viewport and remembers completion", async (
       .toBe(true);
   };
   const titles = [
-    "Welcome aboard",
+    "Start with the aircraft",
     "Pick an airplane",
     "Pick a system",
     "Explore the model",
@@ -35,7 +35,7 @@ test("tour follows targets, fits the viewport and remembers completion", async (
     await fits();
     if (i === 1) {
       // The nonmodal tour must still allow the picker underneath it to be used.
-      await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
+      await page.getByRole("button", { name: /^Choose a model/ }).click();
       const picker = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
       await expect(picker).toBeVisible();
       await picker.getByRole("button", { pressed: true }).click();
@@ -52,7 +52,7 @@ test("tour follows targets, fits the viewport and remembers completion", async (
     }
     if (i === 6) {
       const previousAlerts = await page.locator(".cas").elementHandle();
-      await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
+      await page.getByRole("button", { name: /^Choose a model/ }).click();
       await page
         .getByRole("dialog", { name: "Choose an airplane, engine or component" })
         .getByRole("button", { name: /^C172S/ })
@@ -98,13 +98,37 @@ test("tour follows targets, fits the viewport and remembers completion", async (
   await expect(card).toHaveCount(0);
   const replay = page.getByRole("button", { name: "Show the welcome tour" });
   await replay.click();
-  await expect(heading).toHaveText(titles[0]);
-  await page.keyboard.press("ArrowRight");
   await expect(heading).toHaveText(titles[1]);
+  await page.keyboard.press("ArrowRight");
+  await expect(heading).toHaveText(titles[2]);
   await page.keyboard.press("ArrowLeft");
-  await expect(heading).toHaveText(titles[0]);
+  await expect(heading).toHaveText(titles[1]);
   await page.keyboard.press("Escape");
   await expect(card).toHaveCount(0);
   await expect(replay).toBeFocused();
   expect(errors).toEqual([]);
+});
+
+test("first visit can find the existing experiment without starting it", async ({ page, context, isMobile }) => {
+  await context.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
+  await page.goto("/c172s/fuel");
+  const welcome = page.getByRole("dialog", { name: "Start with the aircraft" });
+  await expect(welcome).toBeVisible();
+  await mkdir(".shots/tour", { recursive: true });
+  await page.screenshot({ path: `.shots/tour/${isMobile ? "phone" : "desktop"}-welcome-choices.png` });
+  await page.getByRole("button", { name: "Hide details panel", exact: true }).click();
+  await expect(page.locator("#details-panel")).toBeHidden();
+  await welcome.getByRole("button", { name: "Find a quick experiment", exact: true }).click();
+  await expect(welcome).toHaveCount(0);
+  await expect(page).toHaveURL(/\/c172s\/overview$/);
+  const example = page.locator(".try-link");
+  await expect(page.locator("#details-panel")).toBeVisible();
+  await expect(example).toBeVisible();
+  await expect(example).toBeFocused();
+  await example.click();
+  await expect(page).toHaveURL(/\/c172s\/electrical$/);
+  await expect(page.getByRole("button", { name: "Alternator failure", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });

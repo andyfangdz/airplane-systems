@@ -8,6 +8,7 @@ import { specGeo, type Catalogue, type PartSpec, type ShellSpec } from "@/lib/ca
 import { dimSolidMat, finishMat, ghostMat, mats, plateMat, seeMat, shellMat, skinMat, solidMat } from "@/lib/materials";
 import { geoCentreZ, SPOT_COLOR, spotsAt, spotsPart } from "@/lib/spot";
 import { palette, sysColor, type SysId } from "@/lib/systems";
+import { studyMaterial } from "@/lib/scene/study-materials";
 import { useNarrowLayout, useView } from "@/lib/view";
 import { usePartAnimation } from "./PartAnimations";
 
@@ -89,7 +90,9 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
             : !xray
               ? solid
               : act
-                ? mats(color).on
+                ? all
+                  ? mats(color).on
+                  : studyMaterial(color, theme)
                 : mats(color).dim;
   // a ghosted fairing picks like the skin, so the wheel or brake seen through it gets the tooltip
   const pick: PickInfo | undefined = spec.name

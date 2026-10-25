@@ -178,6 +178,33 @@ button {
 .walking .panel .walk-hd {
   padding-right: 30px;
 }
+.skip-controls {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--panel);
+  color: var(--ink);
+  transform: translateY(-200%);
+}
+.skip-controls:focus {
+  transform: none;
+}
+.tb-reading {
+  display: none;
+}
+.welcome-choices {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 6px;
+}
+.welcome-choices .btn {
+  min-height: 44px;
+  text-align: left;
+}
 /* ---------- rail ---------- */
 .rail {
   border-right: 1px solid var(--rule);
@@ -330,7 +357,8 @@ button {
   font-size: 14px;
 }
 .fleet-compact .fleet-equipment {
-  display: none;
+  font-size: 12px;
+  line-height: 1.3;
 }
 .brand p {
   margin: 0;
@@ -1084,7 +1112,7 @@ input[type="range"] {
   border-radius: 3px;
   border: 1px solid var(--rule);
   color: var(--muted);
-  text-decoration: line-through;
+  text-decoration: none;
   opacity: 0.7;
 }
 .bus.on .chip {
@@ -1107,7 +1135,7 @@ button.chip:hover {
 .bus.on .chip.pulled {
   background: color-mix(in srgb, var(--warn) 10%, var(--panel2));
   color: var(--warn);
-  text-decoration: line-through;
+  text-decoration: none;
   opacity: 1;
   border-color: var(--warn);
 }
@@ -1340,9 +1368,96 @@ button.chip:hover {
   text-decoration: underline;
 }
 
-@media (max-width: 1100px) {
+/* Tablets: move navigation above the work area so the model keeps its width. */
+@media (min-width: 861px) and (max-width: 1100px) {
   .app {
-    grid-template-columns: var(--rail-width, 200px) minmax(0, 1fr) var(--details-width, 340px);
+    grid-template-columns: minmax(0, 1fr) var(--details-width, 340px);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .app > .rail {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    position: relative;
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr) 108px;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    min-height: 44px;
+  }
+  .app > .stage {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .app > .panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .rail .brand {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 10px 14px;
+    border-bottom: 0;
+  }
+  .rail .brand h1 {
+    font-size: 26px;
+  }
+  .rail .fleet-trigger-label {
+    padding-right: 0;
+  }
+  .rail .syslist {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-self: center;
+    gap: 4px;
+    padding: 8px;
+    margin: 0;
+    min-width: 0;
+    overflow-x: auto;
+  }
+  .rail .syslist li {
+    flex: none;
+  }
+  .rail .syslist button {
+    grid-template-columns: 10px auto;
+    border: 1px solid var(--rule);
+  }
+  .rail .syslist .pg,
+  .rail .foot {
+    display: none;
+  }
+  .rail .panel-toggle-anchor {
+    position: absolute;
+    top: 8px;
+    right: 0;
+  }
+  .rail .panel-toggle {
+    right: 4px;
+  }
+  .rail .panel-toggle svg {
+    transform: rotate(90deg);
+  }
+  .rail .rail-settings {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: end;
+    margin: 0;
+    padding: 0 6px 8px;
+    gap: 4px;
+  }
+  .rail-settings .tb-word {
+    display: none;
+  }
+  .systems-collapsed .rail-settings {
+    flex-direction: row;
+    padding-right: 36px;
+    align-self: center;
+  }
+  .systems-collapsed .rail .panel-toggle {
+    right: 4px;
+  }
+  .overview-systems {
+    display: block;
   }
 }
 @media (max-width: 860px) {
@@ -1457,6 +1572,22 @@ button.chip:hover {
       height: 48svh;
       min-height: 300px;
     }
+  }
+  .tb-reading {
+    display: flex;
+    justify-content: center;
+    width: calc(100% - 16px);
+    margin: 8px;
+  }
+  .app.reading-space:not(.walking):not(.details-collapsed) > .stage {
+    height: 30svh;
+    min-height: 210px;
+  }
+  #details-panel {
+    scroll-margin-top: calc(max(48svh, 300px) + 16px);
+  }
+  .reading-space #details-panel {
+    scroll-margin-top: calc(max(30svh, 210px) + 16px);
   }
   /* one row of touch-sized buttons that scrolls sideways, rather than two rows over the model */
   .toolbar {
@@ -1631,6 +1762,12 @@ button.chip:hover {
   .overview-grid button,
   .parts button {
     min-height: 40px;
+  }
+  .bus button.chip {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 8px;
+    font-size: 12px;
   }
   .chk {
     min-height: 40px;

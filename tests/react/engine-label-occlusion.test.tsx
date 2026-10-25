@@ -1,6 +1,7 @@
 import { act, advance, createRoot, extend, type RootState } from "@react-three/fiber";
 import * as THREE from "three";
 import { expect, it } from "vitest";
+import { PartInspectionProvider } from "@/components/engine/PartInspector";
 import { Labels } from "@/components/engine/EngineScene";
 import { dims, makeMats } from "@/components/engine/scene/kit";
 import { layoutFor } from "@/components/engine/scene/layout";
@@ -60,10 +61,10 @@ it("updates the actual Html label when an occluder changes with a stationary cam
   try {
     await act(async () =>
       root.render(
-        <>
+        <PartInspectionProvider>
           <primitive object={group} />
           <Labels sim={sim} d={d} />
-        </>,
+        </PartInspectionProvider>,
       ),
     );
     await frame();
@@ -147,12 +148,12 @@ it("re-checks the oil filter label when the turbo group is hidden or shown, with
   try {
     await act(async () =>
       root.render(
-        <>
+        <PartInspectionProvider>
           <Group sim={sim} id="turbo">
             <Turbo sim={sim} d={d} mats={makeMats()} />
           </Group>
           <Labels sim={sim} d={d} />
-        </>,
+        </PartInspectionProvider>,
       ),
     );
     await frame();

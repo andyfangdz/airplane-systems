@@ -43,7 +43,7 @@ test("a failed download shows didn't load and Retry, which loads the page again"
     await page.evaluate(() => performance.getEntriesByType("resource").map((e) => new URL(e.name).pathname)),
   );
   block = (path) => !loaded.has(path);
-  await page.getByRole("button", { name: /^Switch (airplane|simulation)/ }).click();
+  await page.getByRole("button", { name: /^Choose a model/ }).click();
   await page.getByRole("button", { name: /DA40 XLS/ }).click();
   const alert = page.getByRole("alert").filter({ has: failed(page) });
   await alert.waitFor();

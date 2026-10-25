@@ -1,4 +1,5 @@
 "use client";
+import { StudySection, BreakerState } from "@/components/ui/StudySection";
 import {
   BtnRow,
   Caution,
@@ -56,6 +57,7 @@ function Bus({ id, name, src, loads }: { id: BusId; name: string; src: string; l
             {n}
             {a ? ` ${a}` : ""}
             {SPARE_CB.includes(n) ? "*" : ""}
+            <BreakerState open={!!cb[n]} powered={on} />
           </button>
         ))}
       </div>
@@ -283,25 +285,27 @@ export function Electrical() {
           switch ON.
         </Caution>
       )}
-      <H3>Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)</H3>
-      <PowerDiagram s={s} E={E} />
-      <Small>
-        Laid out after the AFM&apos;s simplified wiring diagram for serial numbers with Essential Bus (AFM 7.11, Rev. 8
-        p. 7-41). That figure is drawn for conventional instruments: it adds an ESSENTIAL AVIONIC BUS behind a second
-        avionics relay, which the G1000 airplane doesn&apos;t have (those loads are on ESSENTIAL), and leaves out the
-        tie relay bypass diode, an optional modification (OAM 40-126).
-      </Small>
-      <Notes
-        items={[
-          "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
-          "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
-          "ESSENTIAL → ESS TIE 25 A → tie relay ‖ diode (MAIN → ESS only) → MAIN TIE 25 A → MAIN. ESS. BUS ON opens the relay.",
-          "MAIN → AV BUSS 25 A → avionics-master relay → MAIN AVIONICS. Both relay coils get power through MSTR CNTRL 2 A on ESSENTIAL.",
-          "Sources disagree: the AFMS (p. 30) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
-          "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 29). Once online it keeps itself excited.",
-          "HORIZON 3 A (ESSENTIAL) or the emergency battery → standby attitude indicator + flood light, chosen by the sealed HORIZON EMERGENCY switch.",
-        ]}
-      />
+      <StudySection title="How power flows">
+        <H3>Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)</H3>
+        <PowerDiagram s={s} E={E} />
+        <Small>
+          Laid out after the AFM&apos;s simplified wiring diagram for serial numbers with Essential Bus (AFM 7.11, Rev.
+          8 p. 7-41). That figure is drawn for conventional instruments: it adds an ESSENTIAL AVIONIC BUS behind a
+          second avionics relay, which the G1000 airplane doesn&apos;t have (those loads are on ESSENTIAL), and leaves
+          out the tie relay bypass diode, an optional modification (OAM 40-126).
+        </Small>
+        <Notes
+          items={[
+            "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
+            "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
+            "ESSENTIAL → ESS TIE 25 A → tie relay ‖ diode (MAIN → ESS only) → MAIN TIE 25 A → MAIN. ESS. BUS ON opens the relay.",
+            "MAIN → AV BUSS 25 A → avionics-master relay → MAIN AVIONICS. Both relay coils get power through MSTR CNTRL 2 A on ESSENTIAL.",
+            "Sources disagree: the AFMS (p. 30) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
+            "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 29). Once online it keeps itself excited.",
+            "HORIZON 3 A (ESSENTIAL) or the emergency battery → standby attitude indicator + flood light, chosen by the sealed HORIZON EMERGENCY switch.",
+          ]}
+        />
+      </StudySection>
       <H3>Circuit-breaker panel (right of the MFD)</H3>
       <Small>
         Tap a breaker to pull it (white collar) or reset it. Pulled breakers remove that load everywhere: try PFD (MFD
@@ -314,42 +318,44 @@ export function Electrical() {
           <Bus key={id} id={id} name={name} src={src} loads={loads} />
         ))}
       </div>
-      <H3>What each bus keeps</H3>
-      <Facts
-        rows={[
-          [
-            "ESSENTIAL",
-            "PFD (composite), AHRS, ADC, GIA 1 (COM 1, GPS/NAV 1), XPDR, audio panel, engine instruments, pitot heat, flaps, landing light, flood light, starter, standby attitude",
-          ],
-          [
-            "MAIN",
-            "MFD, electric fuel pump, strobe, position, taxi/map and instrument lights, cooling fans, alternator field",
-          ],
-          ["MAIN AVIONICS", "GIA 2 (COM 2, GPS/NAV 2), GFC 700 servos, GDL 69A, ADF / DME if installed"],
-        ]}
-      />
-      <H3>Indications &amp; annunciations</H3>
-      <Facts
-        rows={[
-          ["AMPS", "Alternator output only · green 2–75 A, scale 0–80"],
-          ["VOLTS", "red < 24.1 · yellow 24.1–25 · green 25.1–30 · yellow 30.1–32 · red > 32"],
-          ["ALTERNATOR (red)", "Alternator failed — battery is the only source"],
-          ["LOW VOLTS (yellow)", "On-board voltage below 24 V"],
-          ["STARTER ENGD (red)", "Starter engaged"],
-          ["PFD / MFD / GIA FAN FAIL (white)", "Cooling fan inoperative (CDU FAN / AV FAN)"],
-        ]}
-      />
-      <H3>Other procedures</H3>
-      <Notes
-        items={[
-          "LOW VOLTS on the ground: 1,200 RPM, electrical equipment off, check meters; if the ammeter flashes zero, discontinue the flight (AFMS p. 54).",
-          "Over-voltage (> 32 V): ESS BUS ON, ALT OFF — leave BAT ON — shed loads, land (AFM 3-38).",
-          "Electrical smoke: emergency switch ON, master OFF, cabin heat OFF, windows open; then BAT ON + ESS BUS ON; if smoke persists ALT ON, ESS BUS OFF and pull BATT and ESS TIE (AFMS p. 29–30).",
-          "Total failure: check and reset all breakers, emergency switch ON, use the flood light, land at the nearest suitable field (AFM 3-35).",
-          "Before start: avionics master OFF and ESS BUS OFF. 'Ess. Bus NOT for normal operation' — and the battery is not charged with it ON unless the bypass (OAM 40-126) is fitted (AFMS p. 38).",
-          "No external-power start with a flat battery if the flight will be IFR; IFR is not allowed with the emergency switch seal broken (AFM 2-32).",
-        ]}
-      />
+      <StudySection title="Reference and source notes">
+        <H3>What each bus keeps</H3>
+        <Facts
+          rows={[
+            [
+              "ESSENTIAL",
+              "PFD (composite), AHRS, ADC, GIA 1 (COM 1, GPS/NAV 1), XPDR, audio panel, engine instruments, pitot heat, flaps, landing light, flood light, starter, standby attitude",
+            ],
+            [
+              "MAIN",
+              "MFD, electric fuel pump, strobe, position, taxi/map and instrument lights, cooling fans, alternator field",
+            ],
+            ["MAIN AVIONICS", "GIA 2 (COM 2, GPS/NAV 2), GFC 700 servos, GDL 69A, ADF / DME if installed"],
+          ]}
+        />
+        <H3>Indications &amp; annunciations</H3>
+        <Facts
+          rows={[
+            ["AMPS", "Alternator output only · green 2–75 A, scale 0–80"],
+            ["VOLTS", "red < 24.1 · yellow 24.1–25 · green 25.1–30 · yellow 30.1–32 · red > 32"],
+            ["ALTERNATOR (red)", "Alternator failed — battery is the only source"],
+            ["LOW VOLTS (yellow)", "On-board voltage below 24 V"],
+            ["STARTER ENGD (red)", "Starter engaged"],
+            ["PFD / MFD / GIA FAN FAIL (white)", "Cooling fan inoperative (CDU FAN / AV FAN)"],
+          ]}
+        />
+        <H3>Other procedures</H3>
+        <Notes
+          items={[
+            "LOW VOLTS on the ground: 1,200 RPM, electrical equipment off, check meters; if the ammeter flashes zero, discontinue the flight (AFMS p. 54).",
+            "Over-voltage (> 32 V): ESS BUS ON, ALT OFF — leave BAT ON — shed loads, land (AFM 3-38).",
+            "Electrical smoke: emergency switch ON, master OFF, cabin heat OFF, windows open; then BAT ON + ESS BUS ON; if smoke persists ALT ON, ESS BUS OFF and pull BATT and ESS TIE (AFMS p. 29–30).",
+            "Total failure: check and reset all breakers, emergency switch ON, use the flood light, land at the nearest suitable field (AFM 3-35).",
+            "Before start: avionics master OFF and ESS BUS OFF. 'Ess. Bus NOT for normal operation' — and the battery is not charged with it ON unless the bypass (OAM 40-126) is fitted (AFMS p. 38).",
+            "No external-power start with a flat battery if the flight will be IFR; IFR is not allowed with the emergency switch seal broken (AFM 2-32).",
+          ]}
+        />
+      </StudySection>
       <H3>Components — tap to locate</H3>
       <PartsList cat={CAT} sys="electrical" />
     </>

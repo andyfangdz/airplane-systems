@@ -8,6 +8,7 @@
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { P } from "../scene/parts";
@@ -696,6 +697,7 @@ function AcceleratingPump({ mats }: { mats: Mats }) {
  * draws fuel into the barrel; pushing it in sprays it into the cylinders (FAA-H-8083-25B p. 7-25).
  */
 function PrimerSystem({ mats }: { mats: Mats }) {
+  const reducedMotion = useReducedMotion();
   const knob = useRef<THREE.Group>(null);
   const spray = useRef<THREE.InstancedMesh>(null);
   const t = useRef(0);
@@ -772,7 +774,7 @@ function PrimerSystem({ mats }: { mats: Mats }) {
     mats.primerLine.emissiveIntensity = p.t >= 0 ? 0.5 : 0;
     const s = spray.current;
     if (!s) return;
-    if (p.discharging && !carbSim().useUi.getState().view.paused) t.current += Math.min(dt, 0.1);
+    if (p.discharging && !reducedMotion && !carbSim().useUi.getState().view.paused) t.current += Math.min(dt, 0.1);
     const on = p.discharging && useCarbView.getState().flow;
     for (let i = 0; i < N; i++) {
       const [u, r, th] = seeds[i];
@@ -854,7 +856,13 @@ function PrimerSystem({ mats }: { mats: Mats }) {
         geometry={g.nozzle}
         material={mats.brass}
       />
-      <instancedMesh ref={spray} args={[g.drop, g.dropMat, N]} frustumCulled={false} raycast={() => null} />
+      <instancedMesh
+        ref={spray}
+        args={[g.drop, g.dropMat, N]}
+        frustumCulled={false}
+        userData={{ cameraBounds: false, presentation: true }}
+        raycast={() => null}
+      />
     </>
   );
 }
@@ -915,6 +923,7 @@ const POOLS = [
 
 /** Moving air and fuel: air up the bore, spray from the nozzle, the idle ports and the pump jet. */
 function Flow() {
+  const reducedMotion = useReducedMotion();
   const on = useCarbView((x) => x.flow);
   const air = useRef<THREE.InstancedMesh>(null);
   const fuel = useRef<THREE.InstancedMesh>(null);
@@ -933,12 +942,12 @@ function Flow() {
     tPump = useRef(0);
   const g = useMemo(
     () => ({
-      air: new THREE.SphereGeometry(0.0011, 6, 4),
+      air: reducedMotion ? new THREE.ConeGeometry(0.003, 0.01, 8) : new THREE.SphereGeometry(0.0011, 6, 4),
       fuel: new THREE.SphereGeometry(0.0009, 6, 4),
       airMat: new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.75, depthWrite: false }),
       fuelMat: new THREE.MeshBasicMaterial({ color: "#2f7fe6" }),
     }),
-    [],
+    [reducedMotion],
   );
   useEffect(() => () => Object.values(g).forEach((x) => x.dispose()), [g]);
   const m = useMemo(() => new THREE.Matrix4(), []);
@@ -953,15 +962,17 @@ function Flow() {
     const turning = live.rpm > 30;
     // drawing speed: a gentle function of the air flow (lb/h), not to scale
     const paused = carbSim().useUi.getState().view.paused;
-    if (!paused && turning) t.current += Math.min(dt, 0.1) * (0.04 + 0.5 * Math.min(1, live.air / 1100));
+    if (!paused && !reducedMotion && turning)
+      t.current += Math.min(dt, 0.1) * (0.04 + 0.5 * Math.min(1, live.air / 1100));
     // the pump's stream has its own clock: pumping the throttle primes a stopped engine too
-    if (!paused && live.squirt > 0.02) tPump.current += Math.min(dt, 0.1) * 0.3;
+    if (!paused && !reducedMotion && live.squirt > 0.02) tPump.current += Math.min(dt, 0.1) * 0.3;
     const y0 = L.boxBottom + 0.01,
       span = L.riserTop - y0;
-    for (let i = 0; i < N_AIR; i++) {
+    a.count = reducedMotion ? 3 : N_AIR;
+    for (let i = 0; i < a.count; i++) {
       const [u, r, th] = seeds.air[i];
-      const y = y0 + ((u + t.current / span) % 1) * span;
-      const rad = (y < L.boxTop ? 0.04 : boreRadius(y) - 0.002) * Math.sqrt(r);
+      const y = y0 + (reducedMotion ? (i + 1) / 4 : (u + t.current / span) % 1) * span;
+      const rad = reducedMotion ? 0 : (y < L.boxTop ? 0.04 : boreRadius(y) - 0.002) * Math.sqrt(r);
       const ang = th * Math.PI * 2;
       const k = turning ? 1 : 0;
       m.makeScale(k, k, k);
@@ -1011,8 +1022,20 @@ function Flow() {
   if (!on) return null;
   return (
     <>
-      <instancedMesh ref={air} args={[g.air, g.airMat, N_AIR]} frustumCulled={false} raycast={() => null} />
-      <instancedMesh ref={fuel} args={[g.fuel, g.fuelMat, N_FUEL]} frustumCulled={false} raycast={() => null} />
+      <instancedMesh
+        ref={air}
+        args={[g.air, g.airMat, N_AIR]}
+        frustumCulled={false}
+        userData={{ cameraBounds: false, presentation: true }}
+        raycast={() => null}
+      />
+      <instancedMesh
+        ref={fuel}
+        args={[g.fuel, g.fuelMat, N_FUEL]}
+        frustumCulled={false}
+        userData={{ cameraBounds: false, presentation: true }}
+        raycast={() => null}
+      />
     </>
   );
 }

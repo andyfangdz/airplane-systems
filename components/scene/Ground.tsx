@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { airplaneBounds } from "@/lib/camera";
 import { useBuild } from "@/lib/build";
+import { useFrame } from "@react-three/fiber";
+import { useView } from "@/lib/view";
 
 /** Grid extent (m): 1 m cells with a major line every 5 m, faded out well before the edge. */
 const SIZE = 40;
@@ -100,9 +102,17 @@ export function Ground({
   );
   useEffect(() => {
     gridMaterial.uniforms.uColor.value.set(color);
-    gridMaterial.uniforms.uOpacity.value = dark ? 0.8 : 1;
     shadowMaterial.opacity = dark ? 0.55 : 0.3;
   }, [color, dark, gridMaterial, shadowMaterial]);
+  useFrame(({ camera, controls }) => {
+    const { sys, xray, spot } = useView.getState();
+    const target = (controls as unknown as { target?: THREE.Vector3 } | null)?.target;
+    // Presentation distances in metres: an intimate inspection needs less ground detail than a whole-aircraft view.
+    const distance = target ? camera.position.distanceTo(target) : 8;
+    const close = THREE.MathUtils.smoothstep(distance, 2, 8);
+    const system = spot ? 0.08 : sys === "overview" ? 1 : xray ? 0.16 : 0.4;
+    gridMaterial.uniforms.uOpacity.value = (dark ? 0.8 : 1) * system * (0.2 + 0.8 * close);
+  });
 
   // size the shadow to the built airplane's footprint
   const shadow = useRef<THREE.Mesh>(null);
