@@ -146,7 +146,12 @@ test("the installed study pack opens and renders unvisited models offline", asyn
     window.__THREE_DEVTOOLS__ = devtools;
   });
   // Routing also disables the browser HTTP cache: the offline reopen must use the installed CacheStorage pack.
-  await context.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
+  const origin = new URL(baseURL).origin;
+  const analyticsScriptPaths = new Set(["/_vercel/insights/script.js"]);
+  await context.route(
+    (url) => url.origin === origin && analyticsScriptPaths.has(url.pathname),
+    (route) => route.fulfill({ status: 204, body: "" }),
+  );
   const errors = [];
   const failures = [];
   const opened = [];
@@ -157,12 +162,20 @@ test("the installed study pack opens and renders unvisited models offline", asyn
     next.on("requestfailed", (request) => {
       const url = new URL(request.url());
       const reason = request.failure()?.errorText ?? "unknown failure";
-      // A cancelled prefetch and an offline update check are expected; study resources must still load.
-      if (url.origin !== new URL(baseURL).origin || url.pathname === "/sw.js" || /abort|cancel/i.test(reason)) return;
+      // WebKit may bypass routing for requests from a controlled page. Analytics is optional offline; study
+      // resources must still load. Only the SDK's exact script paths, cancelled prefetches and update checks qualify.
+      if (
+        url.origin !== origin ||
+        analyticsScriptPaths.has(url.pathname) ||
+        url.pathname === "/sw.js" ||
+        /abort|cancel/i.test(reason)
+      )
+        return;
       failures.push(`${reason} ${url.pathname}`);
     });
     next.on("response", (response) => {
-      if (response.url().startsWith(baseURL) && response.status() >= 400)
+      const url = new URL(response.url());
+      if (url.origin === origin && !analyticsScriptPaths.has(url.pathname) && response.status() >= 400)
         failures.push(`${response.status()} ${response.url()}`);
     });
   });
@@ -174,6 +187,17 @@ test("the installed study pack opens and renders unvisited models offline", asyn
     "The production browser context must expose the service worker API",
   ).toBe(true);
   await rendered(page, "/sr20/overview", "SR20 G6");
+  // The SDK identifies its own script with data-sdkn; Vercel can publish it at a deployment-specific path.
+  // Record only those same-origin script paths while online, including when testing a hosted preview.
+  for (const path of await page
+    .locator('script[data-sdkn="@vercel/analytics"], script[data-sdkn^="@vercel/analytics/"]')
+    .evaluateAll((scripts) =>
+      scripts
+        .map((script) => new URL(script.src))
+        .filter((url) => url.origin === location.origin)
+        .map((url) => url.pathname),
+    ))
+    analyticsScriptPaths.add(path);
   const manifestURL = await page.locator('link[rel="manifest"]').getAttribute("href");
   const manifest = await page.evaluate(async (url) => {
     const response = await fetch(url);
