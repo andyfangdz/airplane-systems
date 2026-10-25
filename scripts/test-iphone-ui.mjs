@@ -28,6 +28,83 @@ const duoSizes = [
   },
 ];
 
+test("iPhone cylinder header taps activate once even without a compatibility click", async ({ page }, info) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 382, height: 580 });
+  await page.goto("/c172s/overview");
+  await page.locator(".stage canvas").waitFor();
+  await boundedCanvas(page);
+  await page.getByRole("button", { name: "Switch to dark mode" }).tap();
+  await expect(page.locator(".tb-theme")).toHaveAccessibleName("Switch to light mode");
+  await page.getByRole("button", { name: "Switch to light mode" }).tap();
+  await expect(page.locator(".tb-theme")).toHaveAccessibleName("Switch to dark mode");
+  await page.getByRole("button", { name: /^Choose a model/ }).tap();
+  await page.getByRole("link", { name: /Piston cylinder/ }).tap();
+  await page.waitForURL("**/components/piston-cylinder");
+  await page.locator(".eng-view canvas").waitFor();
+  await boundedCanvas(page);
+  const picker = page.getByRole("button", { name: /^Choose a model/ });
+  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  const theme = page.locator(".tb-theme");
+  const pause = page.getByRole("button", { name: "Pause", exact: true });
+  await page.evaluate(() => {
+    window.__headerClicks = 0;
+    window.__dropCompatibilityClick = false;
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (!event.target.closest?.(".fleet-trigger, .tb-theme")) return;
+        // Reproduce the reported highlight-without-activation outcome while retaining the real touch sequence.
+        if (window.__dropCompatibilityClick && event.isTrusted) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+        window.__headerClicks++;
+      },
+      true,
+    );
+  });
+  for (const paused of [false, true]) {
+    if (paused) await pause.tap();
+    await expect(pause).toHaveAttribute("aria-pressed", String(paused));
+    for (const drop of [false, true]) {
+      await page.evaluate((drop) => {
+        window.__dropCompatibilityClick = drop;
+        window.__headerClicks = 0;
+      }, drop);
+      const icon = await theme.locator("svg").boundingBox();
+      await page.touchscreen.tap(icon.x + icon.width / 2, icon.y + icon.height / 2);
+      await expect(theme).toHaveAccessibleName("Switch to light mode");
+      await theme.tap();
+      await expect(theme).toHaveAccessibleName("Switch to dark mode");
+      const label = await picker.locator(".fleet-current-name").boundingBox();
+      await page.touchscreen.tap(label.x + label.width / 2, label.y + label.height / 2);
+      await expect(menu).toBeVisible();
+      // Allow a delayed native click time to arrive: a double activation would close the list again.
+      await page.waitForTimeout(400);
+      await expect(menu).toBeVisible();
+      expect(await page.evaluate(() => window.__headerClicks)).toBe(3);
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+    }
+  }
+  await page.evaluate(() => (window.__dropCompatibilityClick = false));
+  await picker.focus();
+  await page.keyboard.press("Enter");
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await theme.focus();
+  await page.keyboard.press("Space");
+  await expect(theme).toHaveAccessibleName("Switch to light mode");
+  await page.keyboard.press("Space");
+  await expect(theme).toHaveAccessibleName("Switch to dark mode");
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  await page.screenshot({ path: info.outputPath("cylinder-header-touch.png") });
+  expect(errors).toEqual([]);
+});
+
 test.beforeEach(async ({ context, page }) => {
   await context.addInitScript(() => {
     localStorage.setItem("tourDone", "1");

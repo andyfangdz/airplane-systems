@@ -2,6 +2,7 @@
 import { useLayoutEffect, useId, useRef, useState } from "react";
 import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/react";
 import Link from "next/link";
+import { useTouchClick } from "@/lib/useTouchClick";
 
 /** One choice: a button that acts on this page, or a link to another page (an engine or component from an airplane, or back). */
 export interface PickerEntry {
@@ -31,6 +32,7 @@ export function Picker({
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
   const [open, setOpen] = useState(false);
+  const touchClick = useTouchClick();
   // the menu offers airplanes, engines and components; the label names what this page shows
   const label = "Choose a model";
 
@@ -83,6 +85,7 @@ export function Picker({
     <div className="fleet">
       <h1>
         <button
+          {...touchClick}
           ref={trigger}
           type="button"
           className="fleet-trigger"
