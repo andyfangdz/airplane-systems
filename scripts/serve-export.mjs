@@ -8,27 +8,13 @@
  */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, join, normalize, resolve } from "node:path";
+import { join, normalize, resolve } from "node:path";
 import { runInNewContext } from "node:vm";
-import { cacheControl } from "./release-manifest.mjs";
+import { cacheControl, contentType } from "./release-manifest.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const out = join(root, "out");
 const rewrite = await readFile(join(root, "infra/cloudfront/view-rewrite.js"), "utf8");
-const TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".txt": "text/plain; charset=utf-8",
-  ".woff2": "font/woff2",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".ico": "image/x-icon",
-  ".webmanifest": "application/manifest+json",
-  ".bin": "application/octet-stream",
-  ".glb": "model/gltf-binary",
-};
 
 /** The viewer-request event CloudFront would hand the function for this URL, with its query in CloudFront's shape. */
 function event(url) {
@@ -63,12 +49,12 @@ const server = createServer(async (req, res) => {
     const body = await file(key);
     if (body) {
       res.writeHead(200, {
-        "content-type": TYPES[extname(key)] ?? "application/octet-stream",
+        "content-type": contentType(key),
         "cache-control": cacheControl(key.slice(1)),
       });
       return res.end(body);
     }
-    res.writeHead(404, { "content-type": TYPES[".html"] });
+    res.writeHead(404, { "content-type": contentType("404.html") });
     res.end(await file("/404.html"));
   } catch (err) {
     console.error(err);

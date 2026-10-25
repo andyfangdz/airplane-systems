@@ -148,10 +148,15 @@ describe("parseBase", () => {
   });
 });
 
-type Mode = "good" | "bad" | "no404" | "badmime" | "geometrycache" | "geometrybytes";
+type Mode = "good" | "bad" | "no404" | "badmime" | "geometrycache" | "geometrybytes" | "pwacache" | "pwamime";
 const GEOMETRY_PATH = `/geometry/sr20-${"a".repeat(20)}.bin.gz`;
 const GEOMETRY_BYTES = "compressed geometry fixture";
 const GEOMETRY_SHA = createHash("sha256").update(GEOMETRY_BYTES).digest("hex");
+const PWA_ASSETS: Record<string, string> = {
+  "/sw.js": "text/javascript",
+  "/manifest.webmanifest": "application/manifest+json",
+  "/offline-manifest.json": "application/json",
+};
 
 /**
  * Answers like the S3 + CloudFront site (see infra/cloudfront/README.md), or, in "bad" mode, like a misconfigured host. In
@@ -170,8 +175,24 @@ function answer(mode: Mode, path: string): [number, Record<string, string>, stri
       { "content-type": "application/json" },
       JSON.stringify({
         version: 1,
-        files: [{ path: GEOMETRY_PATH.slice(1), contentType: "application/octet-stream", sha256: GEOMETRY_SHA }],
+        files: [
+          { path: GEOMETRY_PATH.slice(1), contentType: "application/octet-stream", sha256: GEOMETRY_SHA },
+          ...Object.entries(PWA_ASSETS).map(([path, contentType]) => ({
+            path: path.slice(1),
+            contentType,
+            sha256: createHash("sha256").update("fixture").digest("hex"),
+          })),
+        ],
       }),
+    ];
+  if (path in PWA_ASSETS)
+    return [
+      200,
+      {
+        "content-type": mode === "pwamime" ? "application/octet-stream" : PWA_ASSETS[path],
+        "cache-control": mode === "pwacache" ? "public, max-age=60" : "no-cache",
+      },
+      "fixture",
     ];
   if (path === GEOMETRY_PATH)
     return [
@@ -219,6 +240,8 @@ const servers: Record<Mode, Server> = {
   badmime: serve("badmime"),
   geometrycache: serve("geometrycache"),
   geometrybytes: serve("geometrybytes"),
+  pwacache: serve("pwacache"),
+  pwamime: serve("pwamime"),
 };
 const baseOf = (mode: Mode) => `http://127.0.0.1:${(servers[mode].address() as AddressInfo).port}`;
 
@@ -250,6 +273,7 @@ describe("scripts/smoke.mjs end to end", () => {
       "/sr22t",
       "/sr22t/electrical",
       ...VIEW_ASSETS,
+      ...Object.keys(PWA_ASSETS),
       "/sr22t/",
       "/nope",
       "/sr22t/bogus",
@@ -347,6 +371,16 @@ describe("scripts/smoke.mjs end to end", () => {
         .checks.filter((check: { ok: boolean }) => !check.ok)
         .map((check: { url: string }) => new URL(check.url).pathname),
     ).toEqual(["/release-manifest.json"]);
+  });
+
+  it.each(["pwacache", "pwamime"] as const)("rejects incorrect PWA delivery metadata: %s", async (mode) => {
+    const { code, stdout } = await smoke(baseOf(mode));
+    expect(code).toBe(1);
+    expect(
+      JSON.parse(stdout)
+        .checks.filter((check: { ok: boolean }) => !check.ok)
+        .map((check: { url: string }) => new URL(check.url).pathname),
+    ).toEqual(Object.keys(PWA_ASSETS));
   });
 
   it("exits 2 without a base URL", async () => {

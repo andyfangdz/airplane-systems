@@ -104,6 +104,12 @@ button {
   padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
     env(safe-area-inset-left, 0px);
 }
+/* The installed app's status-bar area uses the same opaque surface as its adjacent header. */
+@media (display-mode: standalone) {
+  body {
+    background: var(--panel);
+  }
+}
 .app {
   display: grid;
   grid-template-columns: var(--rail-width, 228px) minmax(0, 1fr) var(--details-width, 392px);

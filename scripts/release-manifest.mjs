@@ -9,7 +9,16 @@ export const MANIFEST = "release-manifest.json";
 export const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const immutable = (path) =>
   path.startsWith("_next/static/") || /^geometry\/[a-z0-9-]+-[a-f0-9]{20}\.(?:bin\.gz|scene\.json|js)$/.test(path);
-export const cacheControl = (path) => (immutable(path) ? "public, max-age=31536000, immutable" : "public, max-age=60");
+const cacheClass = (path) =>
+  immutable(path)
+    ? "immutable"
+    : ["sw.js", "manifest.webmanifest", "offline-manifest.json"].includes(path)
+      ? "revalidate"
+      : "short";
+export const cacheControl = (path) =>
+  ({ immutable: "public, max-age=31536000, immutable", revalidate: "no-cache", short: "public, max-age=60" })[
+    cacheClass(path)
+  ];
 export const contentType = (path) =>
   ({
     ".html": "text/html; charset=utf-8",
@@ -17,6 +26,7 @@ export const contentType = (path) =>
     ".css": "text/css",
     ".json": "application/json",
     ".txt": "text/plain; charset=utf-8",
+    ".rsc": "text/x-component",
     ".woff2": "font/woff2",
     ".svg": "image/svg+xml",
     ".png": "image/png",
@@ -125,7 +135,7 @@ export async function seal(directory, repository = resolve(import.meta.dirname, 
           path,
           bytes: bytes.length,
           sha256: digest(bytes),
-          cache: immutable(path) ? "immutable" : "short",
+          cache: cacheClass(path),
           contentType: contentType(path),
         };
       }),
@@ -162,7 +172,7 @@ export async function verify(
     const data = await readFile(join(root, file.path));
     if (data.length !== file.bytes || digest(data) !== file.sha256)
       throw new Error(`Release checksum mismatch: ${file.path}`);
-    if (file.cache !== (immutable(file.path) ? "immutable" : "short") || file.contentType !== contentType(file.path))
+    if (file.cache !== cacheClass(file.path) || file.contentType !== contentType(file.path))
       throw new Error(`Release delivery policy mismatch: ${file.path}`);
     const geometryHash = /^geometry\/[a-z0-9-]+-([a-f0-9]{20})\.(?:bin\.gz|scene\.json)$/.exec(file.path)?.[1];
     if (geometryHash && geometryHash !== file.sha256.slice(0, 20))

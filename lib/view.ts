@@ -11,6 +11,7 @@ import type { CameraPreset } from "./camera";
 import type { Spot } from "./spot";
 import type { Vec3 } from "./math";
 import { DEFAULT_AIRCRAFT, type AircraftId, type Chan, type SysId, type Theme } from "./systems";
+import { THEME_COLORS } from "./theme";
 
 export interface HoverInfo {
   name: string;
@@ -137,6 +138,10 @@ export const useView = create<ViewStore>((set) => ({
   setTheme: (theme, save = true) => {
     set({ theme });
     document.documentElement.setAttribute("data-theme", theme);
+    // Keep Next's metadata contents stable for hydration; the app choice overrides the OS-media condition.
+    document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+      meta.media = meta.content === THEME_COLORS[theme] ? "all" : "not all";
+    });
     if (save)
       try {
         localStorage.setItem("sr20theme", theme);

@@ -101,6 +101,8 @@ jobs:
             .next/
             !.next/cache/**
             public/geometry/
+            public/sw.js
+            public/offline-manifest.json
             .geometry-runtime/
             .ci/browser-shards/
 

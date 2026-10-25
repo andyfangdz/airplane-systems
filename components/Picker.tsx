@@ -3,6 +3,7 @@ import { useLayoutEffect, useId, useRef, useState } from "react";
 import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/react";
 import Link from "next/link";
 import { useTouchClick } from "@/lib/useTouchClick";
+import { OfflineStatus } from "./OfflineSupport";
 
 /** One choice: a button that acts on this page, or a link to another page (an engine or component from an airplane, or back). */
 export interface PickerEntry {
@@ -41,7 +42,10 @@ export function Picker({
       button = trigger.current;
     if (!open || !panel || !button) return;
     let active = true;
+    let revision = 0;
     const stop = autoUpdate(button, panel, () => {
+      const current = ++revision;
+      const isCurrent = () => active && revision === current;
       // The popover escapes the padded app shell; keep its floating bounds inside the same safe area.
       const shell = getComputedStyle(button.closest(".app, .eng-app") ?? document.body);
       const padding = {
@@ -50,6 +54,10 @@ export function Picker({
         bottom: 12 + (parseFloat(shell.paddingBottom) || 0),
         left: 12 + (parseFloat(shell.paddingLeft) || 0),
       };
+      // The top layer is clipped by the visual viewport, not by the app shell. Measure before positioning so
+      // horizontal shift can retain a full-width menu beside a narrow inner-display header column.
+      const viewportWidth = window.visualViewport?.width ?? document.documentElement.clientWidth;
+      panel.style.maxWidth = `${Math.max(0, viewportWidth - padding.left - padding.right)}px`;
       void computePosition(button, panel, {
         strategy: "fixed",
         placement: "bottom-start",
@@ -60,13 +68,13 @@ export function Picker({
           size({
             padding,
             apply: ({ availableHeight, elements }) => {
-              elements.floating.style.maxHeight = `${Math.max(0, Math.min(700, availableHeight))}px`;
+              if (isCurrent()) elements.floating.style.maxHeight = `${Math.max(0, Math.min(700, availableHeight))}px`;
             },
           }),
           shift({ padding, crossAxis: true }),
         ],
       }).then(({ x, y }) => {
-        if (active) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
+        if (isCurrent()) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
       });
     });
     return () => {
@@ -176,7 +184,7 @@ export function Picker({
                   </>
                 );
                 return a.href && !a.current ? (
-                  <Link key={a.id} className="fleet-option" href={a.href} onClick={close}>
+                  <Link key={a.id} className="fleet-option" href={a.href} onNavigate={close}>
                     {body}
                   </Link>
                 ) : (
@@ -197,6 +205,7 @@ export function Picker({
               })}
             </div>
           ))}
+        <OfflineStatus />
       </div>
     </div>
   );

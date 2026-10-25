@@ -17,7 +17,7 @@ npm ci
 npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run geometry:build # compile geometry without rebuilding the site
-npm run build:site # build the site and verify its runtime dependency boundary, using compiled geometry
+npm run build:site # build the site, verify its runtime boundary and prepare the offline pack, using compiled geometry
 npm run fleet:generate # regenerate fleet registries/routes after changing aircraft/fleet.json or metadata
 npm run test:ui:fleet # airplane picker: desktop, phone, keyboard and switching (after build)
 npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
@@ -37,6 +37,28 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 (`npx playwright install chromium`); with `--compare <dir>` it reports which views changed against an earlier set.
 `npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright install chromium webkit`); it tests desktop input
 and touch taps with Android and iPhone device profiles.
+
+### Home Screen and offline use
+
+In Safari, use **Share → Add to Home Screen** to install **Airplane Systems**. Open the installed app online and
+wait for **Available offline** in **Choose a model** before disconnecting. The complete study library downloads in
+the background (about 28 MB), including every airplane, engine, component, local font and 3D asset. The picker shows
+download progress and a retry button if storage or connectivity interrupts it. External reference documents still
+require a connection. Browser storage can be cleared or evicted; reconnect and retry if the saved library is lost.
+
+If you installed an older shortcut, remove that shortcut and add it again to pick up the name, icon and app-wide
+navigation scope. The manifest explicitly sets `id`, `start_url` and `scope` to `/` so all study routes stay in the
+installed app, following [Apple's Home Screen web-app guidance](https://developer.apple.com/videos/play/wwdc2023/10120/).
+The safe-area background and status-bar color follow the selected theme. The app uses the default iOS status-bar
+style; it does not rely on the deprecated `black-translucent` setting or attempt to control system blur.
+
+Production builds generate a versioned, verified offline pack and `/sw.js` for both Next hosting and static export.
+Installation completes only after every file is saved and verified. Updates download in the background and wait
+until all app windows close, so an open simulation keeps its matching page, navigation payloads and scripts.
+`scripts/test-pwa-ui.mjs` exercises a complete download, offline reopening, model switching and deep-link reloads.
+Development mode does not register a worker. Native Home Screen chrome still needs a physical iOS device check.
+
+### Adaptive layouts
 
 iPhone layouts respect display safe areas and stack the scene and controls below 640 CSS pixels of available width.
 Wider viewports keep the details on the right, including both inner-display orientations; reducing viewport height
@@ -70,6 +92,8 @@ one suite. The runner starts and stops the production server after `npm run buil
 already-running server. With `STATIC_EXPORT=1` (after `STATIC_EXPORT=1 npm run build`) it serves the static export in
 `out/` instead, through the CloudFront view rewrite (`scripts/serve-export.mjs`); `scripts/test-static-export-ui.mjs`
 switches airplanes there. Use standard runner options such as `-- --project=phone` or `-- --grep=c172s` to narrow a run.
+The PWA suite explicitly enables service workers; other cases block them so cached files cannot mask injected
+network failures or add background download work to rendering measurements.
 The projects retain the fleet picker's Chromium/WebKit, viewport, theme and touch combinations; each worker runs one
 test at a time because software WebGL and camera timing need an uncontended renderer. Failures retain traces and
 screenshots under `test-results/` (`npx playwright show-trace <trace.zip>`). Camera timing suites disable tracing.
@@ -101,7 +125,8 @@ quantize coordinates. Hashed `.bin.gz`, `.scene.json` and recovery-worker assets
 The compiler caches each aircraft by its transitive source inputs, encoder/compiler version, lockfile and Node version,
 so an unchanged definition skips construction and encoding. No Rust toolchain is required.
 
-The browser downloads only the selected aircraft's buffers and scene manifest. A short-lived worker decodes the buffers;
+The initial scene loads the selected aircraft's buffers and scene manifest; the offline worker saves the remaining
+models in the background. A short-lived worker decodes the buffers;
 when workers are unavailable, a demand-loaded decoder can run on the main thread. The runtime validates the complete
 manifest and binds authored animation, equipment and material callbacks without serializing executable code.
 Production compilation uses TypeScript's resolved Catalogue signatures to remove static geometry factories from route

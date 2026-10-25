@@ -2,7 +2,7 @@ export interface ReleaseFile {
   path: string;
   bytes: number;
   sha256: string;
-  cache: "immutable" | "short";
+  cache: "immutable" | "revalidate" | "short";
   contentType: string;
 }
 export interface ReleaseManifest {

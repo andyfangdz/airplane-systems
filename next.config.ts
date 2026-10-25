@@ -54,5 +54,26 @@ export default function nextConfig(phase: string): NextConfig {
     // NEXT_PUBLIC_STATIC_EXPORT drops Vercel Analytics from the export (lib/staticExport.ts)
     return { ...sharedConfig, ...compiler, output: "export", env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" } };
   }
-  return { ...sharedConfig, ...compiler, env };
+  return {
+    ...sharedConfig,
+    ...compiler,
+    env,
+    async headers() {
+      return [
+        {
+          source: "/sw.js",
+          headers: [
+            { key: "Content-Type", value: "text/javascript; charset=utf-8" },
+            { key: "Cache-Control", value: "no-cache" },
+            { key: "Service-Worker-Allowed", value: "/" },
+            { key: "X-Content-Type-Options", value: "nosniff" },
+          ],
+        },
+        ...["/manifest.webmanifest", "/offline-manifest.json"].map((source) => ({
+          source,
+          headers: [{ key: "Cache-Control", value: "no-cache" }],
+        })),
+      ];
+    },
+  };
 }

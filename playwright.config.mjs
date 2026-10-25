@@ -23,6 +23,8 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL,
+    // Fault-injection and scene suites need real network behavior, without a background full-pack download.
+    serviceWorkers: "block",
     reducedMotion: "reduce",
     actionTimeout: 30_000,
     navigationTimeout: 90_000,
@@ -63,7 +65,7 @@ export default defineConfig({
     },
     {
       name: "iphone-webkit",
-      testMatch: iphoneTests,
+      testMatch: [iphoneTests, /test-pwa-ui\.mjs/],
       use: { ...devices["iPhone 13"], browserName: "webkit" },
     },
     ...[

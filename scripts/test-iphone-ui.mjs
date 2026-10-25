@@ -540,3 +540,91 @@ for (const { id, control, checkbox } of componentControls) {
     expect(errors).toEqual([]);
   });
 }
+
+test("iPhone safe-area picker survives unfolding and keeps internal navigation in one document", async ({
+  page,
+  context,
+}, info) => {
+  // WebKit can exercise viewport bounds and SPA navigation; it cannot emulate the installed iOS app container.
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (["warning", "error"].includes(message.type()) && /hydrat/i.test(message.text())) errors.push(message.text());
+  });
+  await page.setViewportSize({ width: 382, height: 580 });
+  await page.goto("/components/piston-cylinder");
+  await page.locator(".eng-view canvas").waitFor();
+  await boundedCanvas(page);
+  await page.locator("#piston-ignition-top").tap();
+  await page.evaluate(() => {
+    scrollTo(0, 0);
+    window.__navigationDocument = "preserved";
+  });
+  // Emulation reports zero hardware safe insets. Apply the same padding that the shell receives on a device.
+  await page.addStyleTag({
+    content: ".app, .eng-app { padding: 47px 47px 34px !important; } nextjs-portal { display: none !important; }",
+  });
+  const picker = page.getByRole("button", { name: /^Choose a model/ });
+  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  await picker.tap();
+  for (const viewport of [
+    { width: 382, height: 580 },
+    { width: 669, height: 867 },
+    { width: 951, height: 585 },
+    { width: 382, height: 580 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(menu).toBeVisible();
+    await expect
+      .poll(() =>
+        menu.evaluate((panel) => {
+          const box = panel.getBoundingClientRect();
+          return (
+            box.width > 100 &&
+            box.height > 44 &&
+            box.left >= 59 &&
+            box.right <= innerWidth - 59 + 1 &&
+            box.top >= 59 &&
+            box.bottom <= innerHeight - 46 + 1
+          );
+        }),
+      )
+      .toBe(true);
+    await expect(picker).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator("#piston-ignition-top")).toHaveAttribute("aria-pressed", "true");
+    if (viewport.width === 669) await page.screenshot({ path: info.outputPath("inner-safe-area-picker.png") });
+  }
+  await menu.getByRole("link", { name: /Propeller governor/ }).tap();
+  await page.waitForURL("**/components/governor");
+  await page.locator(".eng-view canvas").waitFor();
+  expect(await page.evaluate(() => window.__navigationDocument)).toBe("preserved");
+  await page.getByRole("button", { name: "Switch to dark mode" }).tap();
+  await expect
+    .poll(() =>
+      page
+        .locator('meta[name="theme-color"]')
+        .evaluateAll(
+          (metas) =>
+            metas.length === 2 &&
+            metas.every((meta) => meta.media === (meta.content === "#111a21" ? "all" : "not all")) &&
+            metas.some((meta) => meta.content === "#111a21"),
+        ),
+    )
+    .toBe(true);
+
+  await page.evaluate(() => localStorage.setItem("sys:c172s", "fuel"));
+  await page.getByRole("button", { name: /^Choose a model/ }).tap();
+  await menu.getByRole("group", { name: "Airplanes", exact: true }).getByRole("link", { name: /172S/ }).tap();
+  await page.waitForURL("**/c172s/fuel");
+  await page.locator(".stage canvas").waitFor();
+  expect(await page.evaluate(() => window.__navigationDocument)).toBe("preserved");
+  const canvas = await page.locator(".stage canvas").elementHandle();
+  await page.locator(".syslist button").filter({ hasText: "Electrical" }).tap();
+  await page.waitForURL("**/c172s/electrical");
+  expect(await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".stage canvas"))).toBe(
+    true,
+  );
+  expect(await page.evaluate(() => window.__navigationDocument)).toBe("preserved");
+  expect(context.pages()).toHaveLength(1);
+  expect(errors).toEqual([]);
+});
