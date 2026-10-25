@@ -30,7 +30,7 @@ for (const { v, camera } of views.flatMap((v) => cameras.map((camera) => ({ v, c
     });
     const query = shotQuery("", camera);
     await page.goto(`${base}/${v}${query ? "?" + query : ""}`, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("canvas", { timeout: 60000 });
+    await page.waitForSelector("canvas, [data-pitot-static]", { timeout: 60000 });
     // A progressive scene can show its cabin while hundreds of other parts are still absent.
     // Finish the build through the same control available to the user before taking review evidence.
     await page.waitForFunction(
