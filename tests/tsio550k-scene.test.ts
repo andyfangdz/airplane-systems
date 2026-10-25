@@ -531,7 +531,7 @@ describe("TSIO-550-K accessories as the SR22T installs them (AMM, POH, M-18)", (
     const f = oilFilterPose(d, L);
     expect(at[1]).toBeGreaterThan(f.centre[1] + f.len / 2);
     expect(Math.hypot(at[0] - f.centre[0], at[2] - f.centre[2])).toBeLessThan(f.r);
-    expect(opts).toEqual({ occlude: true });
+    expect(opts).toEqual({ occlude: true, group: "oil" });
   });
 });
 
@@ -638,7 +638,7 @@ describe("TSIO-550-K oil filter label, seen from each side", () => {
   test("shows on the canister from the side, top and rear; the magnetos hide it from the default and iso views, the exhaust crossover from below", async () => {
     const { scene, unmount } = await model();
     const [, at, opts] = L.labels(d, S).find(([t]) => t === "Oil filter")!;
-    expect(opts).toEqual({ occlude: true });
+    expect(opts).toEqual({ occlude: true, group: "oil" });
     const anchor = new THREE.Vector3(...at);
     // every mesh but the propeller, framed from each side as lib/camera.ts frames the airplanes' views; the rear is the
     // front view mirrored through the box centre it aims at
