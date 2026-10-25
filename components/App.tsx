@@ -23,7 +23,7 @@ import { revealPanelStart, revealStage, useAircraftHover, useNarrowLayout, useVi
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
-import { Icon, PREFLIGHT_ICON, ResetViewButton, ThemeButton } from "./ui/chrome";
+import { Icon, ModelSizeToggle, PREFLIGHT_ICON, ResetViewButton, ThemeButton } from "./ui/chrome";
 import { useScenarioMarks } from "./ui/controls";
 import { useCollapsed } from "@/lib/panels";
 
@@ -45,26 +45,41 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
   const def = useAircraft();
   const sys = useShownSys(),
     theme = useView((x) => x.theme);
-  // keep the selected entry visible (the list scrolls: vertically on desktop, a chip strip on phones) without scrolling the page
+  // Keep the selected entry visible after navigation or a resize, without scrolling the page.
   useEffect(() => {
     if (collapsed) return;
     const b = document.querySelector<HTMLElement>('.syslist button[aria-current="true"]'),
       ul = b?.closest("ul");
     if (!b || !ul) return;
-    const r = b.getBoundingClientRect(),
-      u = ul.getBoundingClientRect();
-    if (r.left < u.left) ul.scrollLeft -= u.left - r.left + 10;
-    else if (r.right > u.right) ul.scrollLeft += r.right - u.right + 10;
-    if (r.top < u.top) ul.scrollTop -= u.top - r.top + 8;
-    else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
+    const reveal = () => {
+      const r = b.getBoundingClientRect(),
+        u = ul.getBoundingClientRect();
+      if (r.left < u.left) ul.scrollLeft -= u.left - r.left + 10;
+      else if (r.right > u.right) ul.scrollLeft += r.right - u.right + 10;
+      if (r.top < u.top) ul.scrollTop -= u.top - r.top + 8;
+      else if (r.bottom > u.bottom) ul.scrollTop += r.bottom - u.bottom + 8;
+    };
+    reveal();
+    const resize = new ResizeObserver(reveal);
+    resize.observe(ul);
+    return () => resize.disconnect();
   }, [sys, def, collapsed]);
   return (
     <nav className="rail" aria-label="Systems">
-      <PanelToggle side="systems" collapsed={collapsed} toggle={toggle} />
+      <PanelToggle
+        side="systems"
+        collapsed={collapsed}
+        toggle={() => {
+          toggle();
+          // The fixed toggle remains reachable while scrolling. Reopening also brings the header into view.
+          if (collapsed && window.matchMedia("(max-width: 1100px)").matches)
+            window.scrollTo({ top: 0, behavior: "instant" });
+        }}
+      />
+      <div className="brand">
+        <Fleet />
+      </div>
       <div id="systems-panel" className="rail-content" hidden={collapsed}>
-        <div className="brand">
-          <Fleet />
-        </div>
         <ul className="syslist">
           {def.systems.map((s) => (
             <li key={s.id}>
@@ -202,27 +217,63 @@ function Toolbar() {
     flyTo = useView((v) => v.flyTo);
   const walk = def.walk;
   return (
-    <div className="toolbar">
+    <div className="toolbar scene-toolbar">
       {walk && (
         <button
           className="tb tb-mode"
+          aria-label="Preflight"
           aria-pressed={walking}
           title={walking ? "Leave the preflight walk-around" : "Guided preflight walk-around"}
           onClick={() => (walking ? walk.close() : walk.open())}
         >
           <Icon>{PREFLIGHT_ICON}</Icon>
-          Preflight
+          <span className="tb-word">Preflight</span>
         </button>
       )}
       <div className="tb-group" role="group" aria-label="View">
-        <button className="tb" aria-pressed={xray} onClick={() => set({ xray: !xray })}>
-          X-ray
+        <button
+          className="tb"
+          aria-label="X-ray"
+          title="X-ray"
+          aria-pressed={xray}
+          onClick={() => set({ xray: !xray })}
+        >
+          <span className="tb-symbol">
+            <Icon>
+              <rect x="2" y="2" width="9" height="9" rx="1.5" />
+              <rect x="5" y="5" width="9" height="9" rx="1.5" strokeDasharray="2 2" />
+            </Icon>
+          </span>
+          <span className="tb-word">X-ray</span>
         </button>
-        <button className="tb" aria-pressed={labels} onClick={() => set({ labels: !labels })}>
-          Labels
+        <button
+          className="tb"
+          aria-label="Labels"
+          title="Labels"
+          aria-pressed={labels}
+          onClick={() => set({ labels: !labels })}
+        >
+          <span className="tb-symbol">
+            <Icon>
+              <path d="M2 2h6l6 6-6 6-6-6z" />
+              <circle cx="5.5" cy="5.5" r="1" />
+            </Icon>
+          </span>
+          <span className="tb-word">Labels</span>
         </button>
-        <button className="tb" aria-pressed={spin} onClick={() => set({ spin: !spin })}>
-          Auto-rotate
+        <button
+          className="tb"
+          aria-label="Auto-rotate"
+          title="Auto-rotate"
+          aria-pressed={spin}
+          onClick={() => set({ spin: !spin })}
+        >
+          <span className="tb-symbol">
+            <Icon>
+              <path d="M13 6a5.2 5.2 0 0 0-9-2L2 6m0-4v4h4M3 10a5.2 5.2 0 0 0 9 2l2-2m0 4v-4h-4" />
+            </Icon>
+          </span>
+          <span className="tb-word">Auto-rotate</span>
         </button>
       </div>
       <ResetViewButton
@@ -423,7 +474,7 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
             Skip to system controls
           </a>
           <Rail collapsed={systemsCollapsed} toggle={toggleSystems} />
-          <main className="stage">
+          <main className="stage" id="model-view">
             {/* the canvas mounts once the view state shows this airplane: its first camera comes from it */}
             {session ? <Scene owner={session.owner} /> : <div />}
             <Loader />
@@ -434,14 +485,12 @@ export default function App({ def, sys }: { def: AircraftDef; sys?: SysId }) {
               <div id="walk-scene" className="walk-scene" />
             </div>
             <Tooltip />
+            {narrow && !walking && !detailsCollapsed && (
+              <ModelSizeToggle collapsed={reading} controls="model-view" onClick={() => setReading(!reading)} />
+            )}
           </main>
           {/* phones: the alert window and the HUD show here, under the 3D view, instead (see globals.css) */}
           <div className="stage-under">
-            {narrow && !walking && !detailsCollapsed && (
-              <button className="tb tb-reading" aria-pressed={reading} onClick={() => setReading(!reading)}>
-                {reading ? "Expand model" : "More reading space"}
-              </button>
-            )}
             {narrow && <Alerts />}
             <Hud />
           </div>

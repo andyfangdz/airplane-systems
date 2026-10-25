@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 /**
  * The carburetor page's panel: start-from scenarios and the engine controls (the engine page's), what each of the
  * carburetor's systems is doing, conditions, the failures that reach the carburetor, the documented numbers, how the
@@ -173,13 +174,14 @@ function Sources() {
 export function CarburetorPanel({ sim }: { sim: EngineSim }) {
   return (
     <div className="panel-inner">
-      <div className="ref">Component simulation · Marvel-Schebler MA-4-5</div>
-      <p className="lead">
-        The float carburetor of a Lycoming O-360-A1D, cut away and running. A float keeps fuel at a set level in its
-        chamber; air speeding through the venturi draws it from the nozzle in proportion to the air flow; the throttle
-        valve sets the air flow; an idle system feeds the engine at low throttle, an accelerating pump covers sudden
-        openings, and the mixture valve leans it or cuts it off.
-      </p>
+      <ComponentIntro source="Marvel-Schebler MA-4-5">
+        <p className="lead">
+          The float carburetor of a Lycoming O-360-A1D, cut away and running. A float keeps fuel at a set level in its
+          chamber; air speeding through the venturi draws it from the nozzle in proportion to the air flow; the throttle
+          valve sets the air flow; an idle system feeds the engine at low throttle, an accelerating pump covers sudden
+          openings, and the mixture valve leans it or cuts it off.
+        </p>
+      </ComponentIntro>
       <StartFrom sim={sim} />
       <Controls sim={sim} onPrime={primeStroke} />
       <Systems />

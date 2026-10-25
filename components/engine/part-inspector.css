@@ -93,7 +93,28 @@
   .part-inspector {
     margin-inline: 16px;
   }
+}
+@media (max-width: 639px) {
+  .component-app .part-inspector {
+    margin-top: 0;
+    padding-bottom: 0;
+  }
+  .component-app .part-inspector:has(details[open], .part-explanation > *) {
+    padding-bottom: 8px;
+  }
   .part-explanation {
-    scroll-margin-top: calc(max(42vh, 260px) + 12px);
+    scroll-margin-top: calc(max(42svh, 260px) + env(safe-area-inset-top, 0px) + 12px);
+  }
+}
+
+@media (pointer: coarse) {
+  /* Prevent Safari from zooming the page when focusing the search field. */
+  .part-inspector input {
+    font-size: 16px;
+  }
+}
+@media (max-width: 639px) and (max-height: 560px) and (pointer: coarse) {
+  .part-explanation {
+    scroll-margin-top: 12px;
   }
 }

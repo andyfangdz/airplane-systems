@@ -5,14 +5,9 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import {
-  componentBounds,
-  fitComponentCamera,
-  intersects,
-  visibleStageLabels,
-  type StageRect,
-} from "@/lib/component-stage";
+import { fitComponentCamera, intersects, visibleStageLabels, type StageRect } from "@/lib/component-stage";
 import { clamp, ease, type Vec3 } from "@/lib/math";
+import { useSceneRendering } from "@/lib/useSceneRendering";
 import { useStageReset } from "./chrome";
 import { usePartInspectionStore } from "./PartInspector";
 import { HoverTip, useHover } from "./scene/parts";
@@ -82,7 +77,7 @@ function CameraRig({
       const view = gl.domElement.getBoundingClientRect();
       const safe = safeFrame(view, obstaclesFor(gl.domElement));
       const fit = fitComponentCamera(
-        componentBounds(model.current),
+        model.current,
         new THREE.Vector3(...position).sub(new THREE.Vector3(...target)),
         camera.fov,
         view.width,
@@ -133,14 +128,7 @@ function CameraRig({
       const explicit = request !== previous.current.request;
       if (explicit || overlays !== previous.current.overlays) {
         const direction = new THREE.Vector3(...position).sub(new THREE.Vector3(...target));
-        const fit = fitComponentCamera(
-          componentBounds(model.current),
-          direction,
-          camera.fov,
-          view.width,
-          view.height,
-          safe,
-        );
+        const fit = fitComponentCamera(model.current, direction, camera.fov, view.width, view.height, safe);
         if (fit) {
           previous.current = { request, overlays };
           if (explicit || !exploring.current) {
@@ -196,7 +184,13 @@ function LabelClear({ every = 0.2 }: { every?: number }) {
     const shown = visibleStageLabels(
       labels.filter(({ rect }) => rect.width && rect.height),
       viewport,
-      obstaclesFor(gl.domElement),
+      [
+        ...obstaclesFor(gl.domElement),
+        // A corner control blocks labels, but does not need a full-width band reserved by the camera fit.
+        ...[...view.querySelectorAll<HTMLElement>(".model-size-toggle")].map((button) =>
+          button.getBoundingClientRect(),
+        ),
+      ],
       viewport.width < 600 ? 6 : Infinity,
     );
     for (const { el, id } of labels) {
@@ -229,10 +223,11 @@ export function ComponentStage({
   children: ReactNode;
 }) {
   const model = useRef<THREE.Group>(null);
+  const rendering = useSceneRendering();
   useEffect(() => clearHover, []);
   return (
     <>
-      <Canvas camera={camera} dpr={[1, 2]} gl={{ antialias: true, alpha: true }} onPointerMissed={clearHover}>
+      <Canvas camera={camera} {...rendering} gl={{ antialias: true, alpha: true }} onPointerMissed={clearHover}>
         <ambientLight intensity={ambient} />
         <directionalLight position={keyLight.position} intensity={keyLight.intensity} />
         <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />

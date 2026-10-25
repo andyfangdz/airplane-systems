@@ -1,4 +1,5 @@
 "use client";
+import { PowerFlow } from "@/components/ui/PowerFlow";
 import { StudySection, BreakerState } from "@/components/ui/StudySection";
 import {
   BtnRow,
@@ -285,27 +286,26 @@ export function Electrical() {
           switch ON.
         </Caution>
       )}
-      <StudySection title="How power flows">
-        <H3>Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)</H3>
+      <PowerFlow title="Power distribution (GFC 700 airplane, AMM-E 190-00545-01 Fig. 2-3)">
         <PowerDiagram s={s} E={E} />
-        <Small>
-          Laid out after the AFM&apos;s simplified wiring diagram for serial numbers with Essential Bus (AFM 7.11, Rev.
-          8 p. 7-41). That figure is drawn for conventional instruments: it adds an ESSENTIAL AVIONIC BUS behind a
-          second avionics relay, which the G1000 airplane doesn&apos;t have (those loads are on ESSENTIAL), and leaves
-          out the tie relay bypass diode, an optional modification (OAM 40-126).
-        </Small>
-        <Notes
-          items={[
-            "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
-            "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
-            "ESSENTIAL → ESS TIE 25 A → tie relay ‖ diode (MAIN → ESS only) → MAIN TIE 25 A → MAIN. ESS. BUS ON opens the relay.",
-            "MAIN → AV BUSS 25 A → avionics-master relay → MAIN AVIONICS. Both relay coils get power through MSTR CNTRL 2 A on ESSENTIAL.",
-            "Sources disagree: the AFMS (p. 30) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
-            "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 29). Once online it keeps itself excited.",
-            "HORIZON 3 A (ESSENTIAL) or the emergency battery → standby attitude indicator + flood light, chosen by the sealed HORIZON EMERGENCY switch.",
-          ]}
-        />
-      </StudySection>
+      </PowerFlow>
+      <Small>
+        Laid out after the AFM&apos;s simplified wiring diagram for serial numbers with Essential Bus (AFM 7.11, Rev. 8
+        p. 7-41). That figure is drawn for conventional instruments: it adds an ESSENTIAL AVIONIC BUS behind a second
+        avionics relay, which the G1000 airplane doesn&apos;t have (those loads are on ESSENTIAL), and leaves out the
+        tie relay bypass diode, an optional modification (OAM 40-126).
+      </Small>
+      <Notes
+        items={[
+          "Battery → battery relay (BAT switch) → BATT 70 A → ESSENTIAL. External power and the starter share the relay-box bus bar.",
+          "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
+          "ESSENTIAL → ESS TIE 25 A → tie relay ‖ diode (MAIN → ESS only) → MAIN TIE 25 A → MAIN. ESS. BUS ON opens the relay.",
+          "MAIN → AV BUSS 25 A → avionics-master relay → MAIN AVIONICS. Both relay coils get power through MSTR CNTRL 2 A on ESSENTIAL.",
+          "Sources disagree: the AFMS (p. 30) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
+          "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 29). Once online it keeps itself excited.",
+          "HORIZON 3 A (ESSENTIAL) or the emergency battery → standby attitude indicator + flood light, chosen by the sealed HORIZON EMERGENCY switch.",
+        ]}
+      />
       <H3>Circuit-breaker panel (right of the MFD)</H3>
       <Small>
         Tap a breaker to pull it (white collar) or reset it. Pulled breakers remove that load everywhere: try PFD (MFD

@@ -13,6 +13,8 @@ next-env.d.ts
 !.claude/skills/
 .shots/
 public/geometry/
+public/sw.js
+public/offline-manifest.json
 .geometry-runtime/
 .ci/browser-shards/
 test-results/

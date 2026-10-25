@@ -11,6 +11,7 @@ import type { CameraPreset } from "./camera";
 import type { Spot } from "./spot";
 import type { Vec3 } from "./math";
 import { DEFAULT_AIRCRAFT, type AircraftId, type Chan, type SysId, type Theme } from "./systems";
+import { THEME_COLORS } from "./theme";
 
 export interface HoverInfo {
   name: string;
@@ -72,9 +73,10 @@ export const useAircraftHover = create<{ hover: HoverInfo | null; setHover: (hov
 );
 
 /** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */
-export const NARROW_PX = 860;
+export const NARROW_PX = 639;
+export const NARROW_QUERY = `(max-width: ${NARROW_PX}px)`;
 export const narrowLayout = () =>
-  typeof window !== "undefined" && (layoutQuery ?? window.matchMedia(`(max-width:${NARROW_PX}px)`)).matches;
+  typeof window !== "undefined" && (layoutQuery ?? window.matchMedia(NARROW_QUERY)).matches;
 
 // Parts and screens share one media-query listener, including when there are hundreds of label candidates.
 const layoutListeners = new Set<() => void>();
@@ -82,7 +84,7 @@ let layoutQuery: MediaQueryList | undefined;
 const notifyLayout = () => layoutListeners.forEach((notify) => notify());
 const subscribeLayout = (notify: () => void) => {
   if (!layoutQuery) {
-    layoutQuery = window.matchMedia(`(max-width:${NARROW_PX}px)`);
+    layoutQuery = window.matchMedia(NARROW_QUERY);
     layoutQuery.addEventListener("change", notifyLayout);
   }
   layoutListeners.add(notify);
@@ -136,6 +138,10 @@ export const useView = create<ViewStore>((set) => ({
   setTheme: (theme, save = true) => {
     set({ theme });
     document.documentElement.setAttribute("data-theme", theme);
+    // Keep Next's metadata contents stable for hydration; the app choice overrides the OS-media condition.
+    document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+      meta.media = meta.content === THEME_COLORS[theme] ? "all" : "not all";
+    });
     if (save)
       try {
         localStorage.setItem("sr20theme", theme);

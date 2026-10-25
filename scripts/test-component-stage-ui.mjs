@@ -8,8 +8,8 @@ const labelLayout = (page) =>
     const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     const overlays =
       getComputedStyle(document.querySelector(".eng-app")).display === "grid"
-        ? ".eng-app .toolbar, .eng-app .eng-foot, .inj-legend"
-        : ".eng-app .toolbar, .inj-legend";
+        ? ".eng-app .toolbar, .eng-app .eng-foot, .inj-legend, .eng-app .model-size-toggle"
+        : ".eng-app .toolbar, .inj-legend, .eng-app .model-size-toggle";
     const obstacles = [...document.querySelectorAll(overlays)].map((el) => el.getBoundingClientRect());
     const labels = [...document.querySelectorAll(".eng-label")]
       .filter((el) => getComputedStyle(el).visibility !== "hidden" && el.getBoundingClientRect().width)

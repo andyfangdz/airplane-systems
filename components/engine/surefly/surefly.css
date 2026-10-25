@@ -66,7 +66,7 @@
   background: #3dff6a;
   box-shadow: 0 0 10px #3dff6a;
 }
-.eng-mon .mon-big i {
+.sf-mon .mon-big i {
   white-space: nowrap;
 }
 .sf-why {
@@ -141,8 +141,32 @@
   color: var(--ink);
 }
 @media (max-width: 860px) {
+  .sf-dip {
+    flex-wrap: wrap;
+  }
   .sf-dial {
     width: 92px;
     height: 92px;
+  }
+}
+@media (pointer: coarse) {
+  .sf-sw {
+    min-width: 44px;
+  }
+}
+@media (max-width: 639px) {
+  .eng-mon.sf-mon {
+    gap: 6px;
+    padding: 6px;
+  }
+  .sf-mon .mon-big {
+    row-gap: 0;
+  }
+  .sf-mon .mon-big b {
+    line-height: 1.2;
+  }
+  .sf-why {
+    padding-top: 4px;
+    line-height: 1.3;
   }
 }

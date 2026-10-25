@@ -25,6 +25,14 @@ beforeEach(() => {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   }));
+  // jsdom has no layout observer; responsive navigation is exercised in the browser suite.
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   localStorage.clear();
   useView.setState(initialView, true);
   history.replaceState(null, "", "/c172s/fuel?walk=3");

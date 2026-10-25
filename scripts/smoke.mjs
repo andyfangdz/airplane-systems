@@ -12,7 +12,7 @@
  * any fails, 2 on bad usage. No redirect is followed. Node built-ins only.
  */
 import { createHash } from "node:crypto";
-import { immutable } from "./release-manifest.mjs";
+import { cacheControl, immutable } from "./release-manifest.mjs";
 
 /** Views that must serve their own page (the airplane's route, not the root's HTML): path → its tab title. */
 export const VIEW_PAGES = { "/sr22t": "SR22T G6 Systems", "/sr22t/electrical": "SR22T G6 Systems" };
@@ -174,12 +174,14 @@ async function run(base, manifestSha256) {
         problems: ["invalid release manifest"],
       });
     } else {
-      // These include every aircraft's production geometry, which HTML script/link discovery cannot see.
-      for (const file of manifest.files.filter((file) => typeof file.path === "string" && immutable(file.path)))
-        await record(`${base}/${file.path}`, "200 immutable asset with release checksum", {
+      // Include geometry/offline snapshots and mutable install metadata that HTML asset discovery cannot see.
+      for (const file of manifest.files.filter(
+        (file) => typeof file.path === "string" && (immutable(file.path) || cacheControl(file.path) === "no-cache"),
+      ))
+        await record(`${base}/${file.path}`, "200 asset with release checksum and delivery policy", {
           status: 200,
           contentType: file.contentType,
-          cacheIncludes: "immutable",
+          ...(immutable(file.path) ? { cacheIncludes: "immutable" } : { cacheControl: ["no-cache"] }),
           sha256: file.sha256,
         });
     }

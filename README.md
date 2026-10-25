@@ -17,7 +17,7 @@ npm ci
 npm run dev        # http://localhost:3000
 npm run build      # production build
 npm run geometry:build # compile geometry without rebuilding the site
-npm run build:site # build the site and verify its runtime dependency boundary, using compiled geometry
+npm run build:site # build the site, verify its runtime boundary and prepare the offline pack, using compiled geometry
 npm run fleet:generate # regenerate fleet registries/routes after changing aircraft/fleet.json or metadata
 npm run test:ui:fleet # airplane picker: desktop, phone, keyboard and switching (after build)
 npm run test:ui:m20c # desktop and phone browser regressions (after build; also run in CI)
@@ -38,11 +38,64 @@ npm run shot -- c172s/electrical   # screenshot a view (or an airplane, or "all"
 `npm run test:ui:fleet` needs Chromium and WebKit (`npx playwright install chromium webkit`); it tests desktop input
 and touch taps with Android and iPhone device profiles.
 
+### Home Screen and offline use
+
+In Safari, use **Share → Add to Home Screen** to install **Airplane Systems**. Open the installed app online and
+wait for **Available offline** in **Choose a model** before disconnecting. The complete study library downloads in
+the background (about 28 MB), including every airplane, engine, component, local font and 3D asset. The picker shows
+download progress and a retry button if storage or connectivity interrupts it. External reference documents still
+require a connection. Browser storage can be cleared or evicted; reconnect and retry if the saved library is lost.
+
+If you installed an older shortcut, remove that shortcut and add it again to pick up the name, icon and app-wide
+navigation scope. The manifest explicitly sets `id`, `start_url` and `scope` to `/` so all study routes stay in the
+installed app, following [Apple's Home Screen web-app guidance](https://developer.apple.com/videos/play/wwdc2023/10120/).
+The safe-area background and status-bar color follow the selected theme. The app uses the default iOS status-bar
+style; it does not rely on the deprecated `black-translucent` setting or attempt to control system blur.
+
+Production builds generate a versioned, verified offline pack and `/sw.js` for both Next hosting and static export.
+On hosting platforms such as Vercel, the deployment adapter receives these files through Next's `onBuildComplete`
+hook before it packages the app. The post-build step then verifies the sealed package instead of replacing it.
+Installation completes only after every file is saved and verified. Updates download in the background and wait
+until all app windows close, so an open simulation keeps its matching page, navigation payloads and scripts.
+`scripts/test-pwa-ui.mjs` exercises a complete download, offline reopening, model switching and deep-link reloads.
+Development mode does not register a worker. Native Home Screen chrome still needs a physical iOS device check.
+
+### Adaptive layouts
+
+iPhone layouts respect display safe areas and stack the scene and controls below 640 CSS pixels of available width.
+Wider viewports keep the details on the right, including both inner-display orientations; reducing viewport height
+does not switch them to a stacked layout. Engine views scroll away on narrow, short screens so controls remain accessible. Aircraft, engine and component
+canvases cap touch-only rendering at 1.5 DPR (44% fewer drawing-buffer pixels than 2 DPR); text and controls stay at
+native screen resolution. Run `npx playwright test --project=iphone-webkit` for iPhone rotation, touch controls,
+picker bounds and scene-resolution regressions.
+
+Electrical power-flow diagrams stay expanded and stick while the following notes and breakers scroll. Their scroll
+area preserves diagram text size and leaves room for controls. On narrow electrical pages, the 3D model scrolls away
+so the diagram can serve as the sticky reference without covering the breakers.
+
+For iPhone Duo, follow [Apple's adaptive-layout guidance](https://developer.apple.com/videos/play/tech-talks/111466/):
+keep the same controls and study state as the available space changes. The outer display and Split View stack the
+scene and details; both inner-display orientations show them side by side. The horizontal header's toggle stays in
+the same screen position when the header expands or collapses. Canvas sizing follows its container, without remounting the model.
+The browser tests also exercise the [Duo viewport sizes published by WebKit](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/):
+382×580–618 and 594×368–406 for the outer display, 669×867–902 and 951×585–620 for the inner display, and
+385×571–609 for a Split View window. These are CSS viewports, not physical display resolutions or device detection rules.
+[Safari 27.1 reserves the right-edge strip for browser controls](https://webkit.org/blog/18486/webkit-features-for-safari-27-1/#web-content-under-the-controls)
+and extends the page background behind it; webpage content and the app's controls stay inside the supplied viewport.
+Using `viewport-fit=cover` to extend web content into that strip is a future proposal, not a supported opt-in.
+[Native SwiftUI/UIKit container bars](https://developer.apple.com/videos/play/tech-talks/111462/) can move into side
+regions through native layout behavior; that capability does not give a webpage control of Safari's reserved strip.
+Posture/segment APIs are behind feature flags, so the app works without them and does not infer a hinge from screen
+dimensions. Playwright checks WebKit viewport resizing, not Safari's system controls or fold posture. Safari 27.1 on
+iPhone Duo or Apple's Xcode 27.1 Device Hub simulator still needs testing, especially for partial folds.
+
 Browser regressions use **Playwright Test**. `npm run test:ui` runs all suites; the existing `test:ui:*` commands select
 one suite. The runner starts and stops the production server after `npm run build`. Set `UI_BASE_URL` to test an
 already-running server. With `STATIC_EXPORT=1` (after `STATIC_EXPORT=1 npm run build`) it serves the static export in
 `out/` instead, through the CloudFront view rewrite (`scripts/serve-export.mjs`); `scripts/test-static-export-ui.mjs`
 switches airplanes there. Use standard runner options such as `-- --project=phone` or `-- --grep=c172s` to narrow a run.
+The PWA suite explicitly enables service workers; other cases block them so cached files cannot mask injected
+network failures or add background download work to rendering measurements.
 The projects retain the fleet picker's Chromium/WebKit, viewport, theme and touch combinations; each worker runs one
 test at a time because software WebGL and camera timing need an uncontended renderer. Failures retain traces and
 screenshots under `test-results/` (`npx playwright show-trace <trace.zip>`). Camera timing suites disable tracing.
@@ -74,7 +127,8 @@ quantize coordinates. Hashed `.bin.gz`, `.scene.json` and recovery-worker assets
 The compiler caches each aircraft by its transitive source inputs, encoder/compiler version, lockfile and Node version,
 so an unchanged definition skips construction and encoding. No Rust toolchain is required.
 
-The browser downloads only the selected aircraft's buffers and scene manifest. A short-lived worker decodes the buffers;
+The initial scene loads the selected aircraft's buffers and scene manifest; the offline worker saves the remaining
+models in the background. A short-lived worker decodes the buffers;
 when workers are unavailable, a demand-loaded decoder can run on the main thread. The runtime validates the complete
 manifest and binds authored animation, equipment and material callbacks without serializing executable code.
 Production compilation uses TypeScript's resolved Catalogue signatures to remove static geometry factories from route

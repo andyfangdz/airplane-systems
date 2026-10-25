@@ -44,17 +44,19 @@
 .ps-gauge small.bad {
   color: var(--warn);
 }
-@media (max-width: 860px) {
+@media (max-width: 639px) {
   /* the instruments are the point: they stay in sight under the view while the panel scrolls */
   .eng-foot:has(> .ps-mon) {
     position: sticky;
-    top: max(42vh, 260px);
+    top: calc(var(--component-stage-height, max(42svh, 260px)) + env(safe-area-inset-top, 0px));
     z-index: 3;
     align-self: stretch;
     padding: 6px 10px;
     background: var(--panel);
     border-bottom: 1px solid var(--rule);
   }
+}
+@media (max-width: 860px) {
   .ps-mon {
     justify-content: space-around;
     padding: 6px 8px;
@@ -203,4 +205,11 @@
 .ps-read small {
   color: var(--muted);
   margin-left: 4px;
+}
+
+@media (max-width: 639px) and (max-height: 560px) and (pointer: coarse) {
+  .eng-foot:has(> .ps-mon) {
+    position: relative;
+    top: auto;
+  }
 }

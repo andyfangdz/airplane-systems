@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { contentType } from "../scripts/release-manifest.mjs";
+import { cacheControl, contentType, immutable } from "../scripts/release-manifest.mjs";
 
 import.meta.glob("../scripts/deploy-aws.sh");
 
@@ -79,7 +79,7 @@ if (cmd === "sts get-caller-identity") {
   else console.log(JSON.stringify({ ETag: "etag-current", DistributionConfig: {
     Origins: { Quantity: 2, Items: [{ Id: "site-bucket", DomainName: "test-bucket.s3.amazonaws.com" }, { Id: "site-assets", DomainName: "test-bucket.s3.amazonaws.com" }] },
     DefaultCacheBehavior: { TargetOriginId: "site-bucket", FunctionAssociations: { Items: [{ EventType: "viewer-request", FunctionARN: env.STUB_ASSOC_ARN }] } },
-    CacheBehaviors: { Quantity: 2, Items: [{ PathPattern: "/_next/static/*", TargetOriginId: "site-assets", CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6" }, { PathPattern: "/geometry/*-????????????????????.*", TargetOriginId: "site-assets", CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6" }] }
+    CacheBehaviors: { Quantity: 2, Items: ["/_next/static/*", "/geometry/*-????????????????????.*"].map(PathPattern => ({ PathPattern, TargetOriginId: "site-assets", CachePolicyId: "658327ea-f89d-4fab-a63d-7e88639e58f6" })) }
   }}));
 } else if (cmd === "cloudfront update-distribution") {
   if (env.STUB_ACTIVATE_FAIL) process.exit(1);
@@ -91,7 +91,7 @@ if (cmd === "sts get-caller-identity") {
   fs.copyFileSync(src, a[a.length - 1]);
   console.log("{}");
 } else if (cmd === "s3 sync" || cmd === "s3 cp") {
-  if (env.STUB_SYNC_FAIL || (cmd === "s3 cp" && env.STUB_CP_FAIL) || (cmd === "s3 sync" && env.STUB_TYPED_SYNC_FAIL && a[a.indexOf("--include") + 1] === "*." + env.STUB_TYPED_SYNC_FAIL)) process.exit(1);
+  if (env.STUB_SYNC_FAIL || (cmd === "s3 cp" && env.STUB_CP_FAIL) || a[2] === env.STUB_UPLOAD_PATH_FAIL || (cmd === "s3 sync" && env.STUB_TYPED_SYNC_FAIL && a[a.indexOf("--include") + 1] === "*." + env.STUB_TYPED_SYNC_FAIL)) process.exit(1);
 } else if (cmd === "cloudfront create-invalidation") {
   if (env.STUB_INVALIDATION_FAIL) { console.error("TooManyInvalidationsInProgress"); process.exit(254); }
   console.log("STUB_INVALIDATION_ID" in env ? env.STUB_INVALIDATION_ID : "ITESTINVALIDATION");
@@ -201,6 +201,11 @@ function artifact(commit: string) {
     "404.html": "<html>404</html>",
     "_next/static/chunks/a.js": "",
     "_next/static/media/f.woff2": "",
+    "sw.js": "self.addEventListener('fetch', () => {});",
+    "manifest.webmanifest": JSON.stringify({ name: "Airplane Systems", scope: "/", start_url: "/" }),
+    "offline-manifest.json": "{}",
+    [`_next/static/offline/${"a".repeat(64)}/index.html`]: "<html>offline</html>",
+    [`_next/static/offline/${"a".repeat(64)}/sr20.rsc`]: "RSC fixture",
     "geometry/manifest.json": JSON.stringify({ sr20: `/geometry/${geometry}` }),
     [`geometry/${geometry}`]: "gzip fixture",
   };
@@ -210,22 +215,12 @@ function artifact(commit: string) {
     .map(([path, bytes]) => {
       mkdirSync(dirname(join(directory, path)), { recursive: true });
       writeFileSync(join(directory, path), bytes);
-      const hashed = path.startsWith("_next/") || path.endsWith(".gz");
-      const contentType = path.endsWith(".html")
-        ? "text/html; charset=utf-8"
-        : path.endsWith(".json")
-          ? "application/json"
-          : path.endsWith(".woff2")
-            ? "font/woff2"
-            : path.endsWith(".js")
-              ? "text/javascript"
-              : "application/octet-stream";
       return {
         path,
         bytes: Buffer.byteLength(bytes),
         sha256: sha(bytes),
-        cache: hashed ? "immutable" : "short",
-        contentType,
+        cache: immutable(path) ? "immutable" : cacheControl(path) === "no-cache" ? "revalidate" : "short",
+        contentType: contentType(path),
       };
     })
     .sort((a, b) => (a.path < b.path ? -1 : 1));
@@ -283,12 +278,12 @@ const flag = (call: string[], name: string) => call[call.indexOf(name) + 1];
 const flags = (call: string[], name: string) => call.flatMap((a, i) => (a === name ? [call[i + 1]] : []));
 
 describe("a normal deploy", () => {
-  it("uploads hashed assets as immutable and everything else with a short cache, never deleting", () => {
+  it("uploads immutable assets before the release and revalidates PWA entry points, never deleting", () => {
     const { calls } = deploy();
-    const [assets, ...remaining] = awsCalls(calls, "s3 sync");
-    const geometry = remaining.splice(-3);
-    const typedAndRest = remaining;
-    const [rest] = awsCalls(calls, "s3 cp");
+    const syncs = awsCalls(calls, "s3 sync");
+    const [assets, ...typedAndRest] = syncs.filter((call) => call[3] === "out/_next/static");
+    const geometry = syncs.filter((call) => call[3] === "out/geometry");
+    const [rest, ...metadata] = awsCalls(calls, "s3 cp");
     expect(rest).toContain("--recursive");
     expect(assets.slice(3, 5)).toEqual(["out/_next/static", "s3://test-bucket/_next/static"]);
     expect(flag(assets, "--cache-control")).toBe("public, max-age=31536000, immutable");
@@ -297,7 +292,7 @@ describe("a normal deploy", () => {
       `*.${ext}`,
       type,
     ]);
-    expect(expectedTypes).toHaveLength(11);
+    expect(expectedTypes).toHaveLength(12);
     expect(typedAndRest.map((c) => [flag(c, "--include"), flag(c, "--content-type")]).sort()).toEqual(
       expectedTypes.sort(),
     );
@@ -314,6 +309,19 @@ describe("a normal deploy", () => {
     expect(flag(geometry[0], "--cache-control")).toBe("public, max-age=31536000, immutable");
     expect(flag(rest, "--exclude")).toBe("_next/static/*");
     expect(flag(rest, "--cache-control")).toBe("public, max-age=60");
+    expect(flags(rest, "--exclude")).toEqual(
+      expect.arrayContaining(["sw.js", "manifest.webmanifest", "offline-manifest.json"]),
+    );
+    expect(metadata).toHaveLength(3);
+    for (const call of metadata) {
+      const path = call[3].slice(4);
+      expect(call[4]).toBe(`${rest[4]}/${path}`);
+      expect(flag(call, "--cache-control")).toBe("no-cache");
+      expect(flag(call, "--content-type")).toBe(contentType(path));
+      expect(calls.indexOf(call)).toBeLessThan(
+        calls.findIndex((c) => c[1] === "cloudfront" && c[2] === "update-distribution"),
+      );
+    }
     expect(calls.flat()).not.toContain("--delete");
     expect(calls.some((c) => c.join(" ").includes("delete"))).toBe(false);
   });
@@ -559,6 +567,18 @@ describe("failures after the guards", () => {
     expect(awsCalls(calls, "cloudfront update-distribution")).toEqual([]);
   });
 
+  it.each(["out/sw.js", "out/manifest.webmanifest", "out/offline-manifest.json"])(
+    "cannot activate a release when uploading %s fails",
+    (path) => {
+      env.STUB_UPLOAD_PATH_FAIL = path;
+      const { code, summary, calls } = deploy();
+      expect(code).toBe(8);
+      expect(summary.step).toBe("upload");
+      expect(awsCalls(calls, "cloudfront update-distribution")).toEqual([]);
+      expect(awsCalls(calls, "cloudfront create-invalidation")).toEqual([]);
+    },
+  );
+
   it("does not invalidate or smoke when conditional activation is rejected", () => {
     env.STUB_ACTIVATE_FAIL = "1";
     const { code, summary, calls } = deploy();
@@ -573,8 +593,8 @@ describe("failures after the guards", () => {
     const { code, summary, calls } = deploy();
     expect(code).toBe(9);
     expect(summary).toMatchObject({ step: "invalidate", invalidation_id: null, smoke: null });
-    expect(awsCalls(calls, "s3 sync")).toHaveLength(15);
-    expect(awsCalls(calls, "s3 cp")).toHaveLength(1);
+    expect(awsCalls(calls, "s3 sync")).toHaveLength(16);
+    expect(awsCalls(calls, "s3 cp")).toHaveLength(4);
     expect(awsCalls(calls, "cloudfront wait").map((call) => call[3])).toEqual(["distribution-deployed"]);
     expect(calls.some((c) => c[0] === "smoke")).toBe(false);
   });
@@ -618,7 +638,7 @@ describe("--rollback-to", () => {
     expect(origins[0].OriginPath).toBe(`/releases/${previous}-${env.DEPLOY_RELEASE_SHA256}`);
     expect(origins[1]).not.toHaveProperty("OriginPath");
     expect(awsCalls(calls, "s3 sync").map((call) => call[4])).toEqual([
-      ...Array(12).fill("s3://test-bucket/_next/static"),
+      ...Array(13).fill("s3://test-bucket/_next/static"),
       ...Array(3).fill("s3://test-bucket/geometry"),
     ]);
     expect(calls.flat()).not.toContain("--delete");

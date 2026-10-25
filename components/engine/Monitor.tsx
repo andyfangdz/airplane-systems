@@ -69,7 +69,7 @@ function TitBars({ sim, tit, scale }: { sim: EngineSim; tit: readonly number[] |
   });
 }
 
-export function Monitor({ sim }: { sim: EngineSim }) {
+export function Monitor({ sim, className = "" }: { sim: EngineSim; className?: string }) {
   const s = useLiveSnapshot(sim.s, 150);
   const spec = sim.spec,
     L = spec.limits,
@@ -119,7 +119,7 @@ export function Monitor({ sim }: { sim: EngineSim }) {
       : []),
   ];
   return (
-    <div className={turbo ? "eng-mon turbo" : "eng-mon"} aria-label="Engine monitor">
+    <div className={`eng-mon${turbo ? " turbo" : ""}${className ? ` ${className}` : ""}`} aria-label="Engine monitor">
       <div className="mon-big">
         {big.map(([l, v, u, c, title]) => (
           <div key={l}>

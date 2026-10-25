@@ -1,4 +1,5 @@
 "use client";
+import { PowerFlow } from "@/components/ui/PowerFlow";
 import { StudySection, BreakerState } from "@/components/ui/StudySection";
 import { DepthDetail } from "./depth";
 import {
@@ -286,19 +287,18 @@ export function Electrical() {
           battery is all that is left.
         </Caution>
       )}
-      <StudySection title="How power flows">
-        <H3>Power distribution</H3>
+      <PowerFlow title="Power distribution">
         <PowerDiagram s={s} E={E} />
-        <Notes
-          items={[
-            "Battery → master relay at the battery (master switch, left of the flight panel) → bus (OM p. 3).",
-            "Alternator → ALT 60 A → bus; bus → ALT FIELD → regulator → field. A dead battery and an alternator that has dropped off line cannot restart each other (field needs the bus).",
-            "Bus → five switch-breakers (fuel pump, pitot heat, beacon, nav lights, landing light) and the push-to-reset panel (gear warn, stall warn, ignition/vibrator, instruments, turn & bank, vacuum warn, instrument lights, radios).",
-            "Starter: battery relay → heavy cable → starter; the vibrator shares the IGN breaker. The magnetos need none of this.",
-            "Over-voltage: radios off, master off and on to reset the regulator; if the light or discharge returns, pull ALT FIELD (Ranger 2-15).",
-          ]}
-        />
-      </StudySection>
+      </PowerFlow>
+      <Notes
+        items={[
+          "Battery → master relay at the battery (master switch, left of the flight panel) → bus (OM p. 3).",
+          "Alternator → ALT 60 A → bus; bus → ALT FIELD → regulator → field. A dead battery and an alternator that has dropped off line cannot restart each other (field needs the bus).",
+          "Bus → five switch-breakers (fuel pump, pitot heat, beacon, nav lights, landing light) and the push-to-reset panel (gear warn, stall warn, ignition/vibrator, instruments, turn & bank, vacuum warn, instrument lights, radios).",
+          "Starter: battery relay → heavy cable → starter; the vibrator shares the IGN breaker. The magnetos need none of this.",
+          "Over-voltage: radios off, master off and on to reset the regulator; if the light or discharge returns, pull ALT FIELD (Ranger 2-15).",
+        ]}
+      />
       <H3>Breakers — tap to trip or reset</H3>
       <div className="buses">
         <Chips items={SWITCH_CB} kind="switch" />

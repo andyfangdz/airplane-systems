@@ -1,4 +1,5 @@
 "use client";
+import { PowerFlow } from "@/components/ui/PowerFlow";
 import { StudySection } from "@/components/ui/StudySection";
 import { BUSES, fuelAvail } from "../model";
 import { DISTRIBUTION_DIAGRAM, ELECTRICAL_FACTS } from "../electrical-installation";
@@ -34,8 +35,7 @@ export function Electrical() {
         27.7 V, M2 28.7 V). Battery times use the Costanzo training deck&apos;s rule of thumb — actual endurance depends
         on load shedding.
       </Small>
-      <StudySection title="How power flows">
-        <H3>Power distribution (Figure 7-10)</H3>
+      <PowerFlow title="Power distribution (Figure 7-10)">
         <PowerDiagram
           distribution={DISTRIBUTION_DIAGRAM}
           s={s}
@@ -44,22 +44,22 @@ export function Electrical() {
           label="SR20 power distribution single-line diagram after POH Figure 7-10"
           desc="Main distribution 1 can supply main distribution 2 through an 80 amp fuse and diode. ALT 2 cannot supply main distribution 1. BAT 2 supplies the essential buses through its breaker and ESSENTIAL POWER. The master alternator switches control field circuits; the symbols here summarize that control. External power and the starter contactor are represented in the 3D hardware."
         />
-        <Small>
-          Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them
-          are on the circuit-breaker panel, the main and A/C buses grouped by the distribution bus that feeds them. With
-          both alternators failed BAT 1 feeds the Ess Dist Bus directly; with BAT 1 gone too, BAT 2 feeds ESS BUS 1, and
-          ESS BUS 2 back through ESSENTIAL POWER (POH 7-52–7-55). Pull ESSENTIAL POWER, BAT 2 or AVIONICS below, or flip
-          a switch, to watch it change.
-        </Small>
-        <H3>Battery endurance (rule of thumb)</H3>
-        <Facts
-          rows={[
-            ["ALT 2 fails", "ALT 1 powers Main Dist Bus 2 through the diode — no time limit"],
-            ["ALT 1 fails", "BAT 1 carries Main Dist Bus 1 ≈ 30 min, then it drops off"],
-            ["Both fail", "BAT 1 carries both main buses ≈ 15 min, then BAT 2 carries the essential buses ≈ 45 min"],
-          ]}
-        />
-      </StudySection>
+      </PowerFlow>
+      <Small>
+        Main Dist Bus 1, Main Dist Bus 2 and the Ess Dist Bus are inside the Master Control Unit; the buses below them
+        are on the circuit-breaker panel, the main and A/C buses grouped by the distribution bus that feeds them. With
+        both alternators failed BAT 1 feeds the Ess Dist Bus directly; with BAT 1 gone too, BAT 2 feeds ESS BUS 1, and
+        ESS BUS 2 back through ESSENTIAL POWER (POH 7-52–7-55). Pull ESSENTIAL POWER, BAT 2 or AVIONICS below, or flip a
+        switch, to watch it change.
+      </Small>
+      <H3>Battery endurance (rule of thumb)</H3>
+      <Facts
+        rows={[
+          ["ALT 2 fails", "ALT 1 powers Main Dist Bus 2 through the diode — no time limit"],
+          ["ALT 1 fails", "BAT 1 carries Main Dist Bus 1 ≈ 30 min, then it drops off"],
+          ["Both fail", "BAT 1 carries both main buses ≈ 15 min, then BAT 2 carries the essential buses ≈ 45 min"],
+        ]}
+      />
       <H3>Circuit-breaker buses</H3>
       <Small>
         Tap a breaker to pull it (white collar showing) or reset it. Pulled breakers remove that load everywhere in the

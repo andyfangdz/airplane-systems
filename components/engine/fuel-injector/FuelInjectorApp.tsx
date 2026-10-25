@@ -64,7 +64,7 @@ export default function FuelInjectorApp() {
       toolbar={<Toggles sim={sim} />}
       foot={
         <>
-          <Monitor sim={sim} />
+          <Monitor sim={sim} className="inj-mon" />
           <Flags sim={sim} />
         </>
       }

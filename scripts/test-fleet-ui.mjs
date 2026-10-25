@@ -191,6 +191,14 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   await activate(trigger);
   await page.keyboard.press("End");
   await page.keyboard.press("Tab");
+  // Production scene tests block workers, so the offline footer offers Retry. Development has no footer.
+  if (await dialog.locator(".offline-status").count()) {
+    const retry = dialog.getByRole("button", { name: "Retry", exact: true });
+    await retry.waitFor();
+    assert.ok(await retry.evaluate((el) => el === document.activeElement), "Tab reaches the offline Retry action");
+    assert.equal(await trigger.getAttribute("aria-expanded"), "true", "The footer remains inside the picker");
+    await page.keyboard.press("Tab");
+  }
   await waitForClosed();
   if (touch) {
     // Linux WebKit focuses tapped buttons; Safari may instead blur the old option with relatedTarget=null.

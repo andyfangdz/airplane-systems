@@ -5,15 +5,16 @@
  * The theme switch sits in the picker's corner.
  * The layout is the engine page's (engine.css).
  */
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ENGINES } from "@/engines";
 import { COMPONENTS, componentById } from "@/engines/components";
+import { useNarrowLayout } from "@/lib/view";
 import { Picker } from "../Picker";
 import { airplaneLinks, componentEntries, engineEntries } from "../pickerEntries";
-import { ThemeButton } from "../ui/chrome";
+import { ModelSizeToggle, ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
 import { StageResetButton, useTheme } from "./chrome";
-import { PartInspectionProvider, PartInspector } from "./PartInspector";
+import { PartInspectionProvider } from "./PartInspector";
 import "./engine.css";
 
 export function ComponentShell({
@@ -33,11 +34,13 @@ export function ComponentShell({
   panel: ReactNode;
 }) {
   const c = componentById(id)!;
+  const narrow = useNarrowLayout();
+  const [reading, setReading] = useState(false);
   useTheme();
   useScenarioMarks();
   return (
     <PartInspectionProvider key={id}>
-      <div className="eng-app">
+      <div className={`eng-app component-app${reading ? " reading-space" : ""}`}>
         <title>{`${c.name} · Airplane Systems`}</title>
         <div className="brand eng-brand">
           <Picker
@@ -51,7 +54,7 @@ export function ComponentShell({
           />
           <ThemeButton />
         </div>
-        <main className="stage eng-stage">
+        <main className="stage eng-stage" id="component-model-view">
           <div className="eng-view">
             {scene}
             <div className="toolbar">
@@ -62,13 +65,17 @@ export function ComponentShell({
               )}
               <StageResetButton />
             </div>
+            {narrow && (
+              <ModelSizeToggle
+                collapsed={reading}
+                controls="component-model-view"
+                onClick={() => setReading(!reading)}
+              />
+            )}
           </div>
         </main>
         {foot && <div className="eng-foot">{foot}</div>}
-        <aside className="panel">
-          <PartInspector />
-          {panel}
-        </aside>
+        <aside className="panel">{panel}</aside>
       </div>
     </PartInspectionProvider>
   );

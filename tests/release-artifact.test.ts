@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { seal, verify, cacheControl } from "../scripts/release-manifest.mjs";
+import { seal, verify, cacheControl, contentType } from "../scripts/release-manifest.mjs";
 import { activation } from "../scripts/activate-release.mjs";
 import type { ReleaseManifest } from "../scripts/release-manifest.mjs";
 
@@ -72,6 +72,27 @@ it("refuses changed bytes, added files, altered manifests and mismatched source 
   await writeFile(join(out, "index.html"), "index");
   await writeFile(join(out, "surprise.js"), "extra");
   await expect(verify(out)).rejects.toThrow("inventory mismatch");
+});
+
+it("seals mutable PWA entry points and retained offline snapshots with their exact delivery policy", async () => {
+  const snapshot = `_next/static/offline/${"a".repeat(64)}/sr20.rsc`;
+  await mkdir(join(out, "_next/static/offline", "a".repeat(64)), { recursive: true });
+  for (const path of ["sw.js", "manifest.webmanifest", "offline-manifest.json", snapshot])
+    await writeFile(join(out, path), "fixture");
+  const sealed = await seal(out, root);
+  expect(await verify(out)).toEqual(sealed);
+  for (const path of ["sw.js", "manifest.webmanifest", "offline-manifest.json"]) {
+    expect(cacheControl(path)).toBe("no-cache");
+    expect(sealed.manifest.files.find((file) => file.path === path)?.cache).toBe("revalidate");
+  }
+  expect(contentType("sw.js")).toBe("text/javascript");
+  expect(contentType("manifest.webmanifest")).toBe("application/manifest+json");
+  expect(contentType(snapshot)).toBe("text/x-component");
+  expect(cacheControl(snapshot)).toBe("public, max-age=31536000, immutable");
+  await alterManifest((manifest) => {
+    manifest.files.find((file) => file.path === "sw.js")!.cache = "short";
+  });
+  await expect(verify(out)).rejects.toThrow("delivery policy mismatch: sw.js");
 });
 
 it.each([

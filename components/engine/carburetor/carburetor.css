@@ -1,0 +1,44 @@
+/* On narrow screens every carburetor reading keeps its label and units in a compact cell. */
+@media (max-width: 639px) {
+  .eng-mon.carb-mon {
+    gap: 6px;
+    padding: 6px 8px;
+    line-height: 1.2;
+  }
+  .carb-mon .mon-big,
+  .carb-mon .mon-small {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px 8px;
+  }
+  .carb-mon .mon-big > div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 3px;
+    min-width: 0;
+    align-items: baseline;
+  }
+  .carb-mon .mon-big span {
+    grid-column: 1 / -1;
+  }
+  .carb-mon .mon-big b {
+    font-size: 16px;
+    text-align: left;
+  }
+  .carb-mon .mon-big i {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .carb-mon .mon-small {
+    padding-top: 4px;
+  }
+  .carb-mon .mon-small > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .carb-mon .mon-small b {
+    margin: 0;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+}

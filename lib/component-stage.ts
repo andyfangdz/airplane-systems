@@ -1,4 +1,4 @@
-import { Box3, InstancedMesh, Mesh, Vector3, type Object3D } from "three";
+import { Box3, InstancedMesh, Mesh, Vector3, type Matrix4, type Object3D } from "three";
 
 export type StageRect = { left: number; top: number; right: number; bottom: number };
 export type StageLabel = { id: string; rect: StageRect; priority: number; selected?: boolean };
@@ -38,9 +38,11 @@ export function visibleStageLabels(
   return shown;
 }
 
-/** Visible physical meshes only. A decoration or selection outline may opt out at any ancestor. */
-export function componentBounds(model: Object3D): Box3 {
-  const bounds = new Box3();
+type PhysicalExtent = { matrix: Matrix4 } & ({ box: Box3 } | { envelope: XRotationEnvelope });
+
+/** Support of the physical assembly in any world direction, without inventing corners between separate parts. */
+function componentSupport(model: Object3D): ((direction: Vector3) => number) | null {
+  const extents: PhysicalExtent[] = [];
   model.updateWorldMatrix(true, true);
   model.traverseVisible((object) => {
     for (let parent: Object3D | null = object; parent; parent = parent.parent) {
@@ -50,53 +52,91 @@ export function componentBounds(model: Object3D): Box3 {
     }
     const envelope = object.userData.cameraRotationEnvelope as XRotationEnvelope | undefined;
     if (envelope) {
-      const { minX, maxX, radius } = envelope;
-      const centre = new Vector3((minX + maxX) / 2, 0, 0).applyMatrix4(object.matrixWorld);
-      const half = (maxX - minX) / 2;
-      const m = object.matrixWorld.elements;
-      // Exact axis-aligned bounds of the transformed cylinder. Unlike transforming its enclosing box, this stays
-      // constant as the owner spins about x, including when a static ancestor rotates or scales the assembly.
-      const extent = new Vector3(
-        Math.abs(m[0]) * half + Math.hypot(m[4], m[8]) * radius,
-        Math.abs(m[1]) * half + Math.hypot(m[5], m[9]) * radius,
-        Math.abs(m[2]) * half + Math.hypot(m[6], m[10]) * radius,
-      );
-      bounds.union(new Box3(centre.clone().sub(extent), centre.clone().add(extent)));
+      extents.push({ matrix: object.matrixWorld, envelope });
       return;
     }
     if (!(object instanceof Mesh)) return;
     if (object instanceof InstancedMesh) {
       object.computeBoundingBox();
-      if (object.boundingBox) bounds.union(object.boundingBox.clone().applyMatrix4(object.matrixWorld));
+      if (object.boundingBox && !object.boundingBox.isEmpty())
+        extents.push({ matrix: object.matrixWorld, box: object.boundingBox });
       return;
     }
     const geometry = object.geometry;
     if (!geometry.boundingBox) geometry.computeBoundingBox();
-    if (geometry.boundingBox) bounds.union(geometry.boundingBox.clone().applyMatrix4(object.matrixWorld));
+    if (geometry.boundingBox && !geometry.boundingBox.isEmpty())
+      extents.push({ matrix: object.matrixWorld, box: geometry.boundingBox });
   });
-  return bounds;
+  if (!extents.length) return null;
+  return (direction) => {
+    const { x, y, z } = direction;
+    let farthest = -Infinity;
+    for (const extent of extents) {
+      const m = extent.matrix.elements;
+      // Transpose the linear transform: dot(world point, direction) = dot(local point, local direction) + offset.
+      const dx = m[0] * x + m[1] * y + m[2] * z,
+        dy = m[4] * x + m[5] * y + m[6] * z,
+        dz = m[8] * x + m[9] * y + m[10] * z;
+      const offset = m[12] * x + m[13] * y + m[14] * z;
+      let support: number;
+      if ("envelope" in extent) {
+        const { minX, maxX, radius } = extent.envelope;
+        // The complete rotating cylinder, rather than the square corners of its enclosing box. This remains
+        // phase-independent under translated, rotated and nonuniformly scaled ancestors.
+        support = dx * (dx >= 0 ? maxX : minX) + radius * Math.hypot(dy, dz);
+      } else {
+        const { min, max } = extent.box;
+        support = dx * (dx >= 0 ? max.x : min.x) + dy * (dy >= 0 ? max.y : min.y) + dz * (dz >= 0 ? max.z : min.z);
+      }
+      farthest = Math.max(farthest, offset + support);
+    }
+    return farthest;
+  };
+}
+
+/** Visible physical meshes only. A decoration or selection outline may opt out at any ancestor. */
+export function componentBounds(model: Object3D): Box3 {
+  const support = componentSupport(model);
+  if (!support) return new Box3();
+  return new Box3(
+    new Vector3(-support(new Vector3(-1, 0, 0)), -support(new Vector3(0, -1, 0)), -support(new Vector3(0, 0, -1))),
+    new Vector3(support(new Vector3(1, 0, 0)), support(new Vector3(0, 1, 0)), support(new Vector3(0, 0, 1))),
+  );
 }
 
 /**
- * Fit every corner inside a safe screen rectangle, preserving the authored viewing direction. Moving both camera
- * and target across the view plane puts the assembly above a monitor or below a toolbar without tilting the model.
+ * Fit the physical assembly inside a safe screen rectangle, preserving the authored viewing direction. Each mesh
+ * and rotational envelope meets all four camera edges directly; a single world box would add empty corner space.
+ * Moving camera and target across the view plane clears the monitor and toolbar without tilting the model.
  */
 export function fitComponentCamera(
-  bounds: Box3,
+  model: Box3 | Object3D,
   direction: Vector3,
   fov: number,
   width: number,
   height: number,
   safe: StageRect,
 ): { position: Vector3; target: Vector3 } | null {
-  if (bounds.isEmpty() || width <= 0 || height <= 0 || safe.right <= safe.left || safe.bottom <= safe.top) return null;
+  if (width <= 0 || height <= 0 || safe.right <= safe.left || safe.bottom <= safe.top) return null;
   const back = direction.clone().normalize();
   if (back.lengthSq() < 0.5) return null;
   const right = new Vector3().crossVectors(new Vector3(0, 1, 0), back);
   if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
   right.normalize();
   const up = new Vector3().crossVectors(back, right).normalize();
-  const centre = bounds.getCenter(new Vector3());
+  const support =
+    model instanceof Box3
+      ? model.isEmpty()
+        ? null
+        : (n: Vector3) =>
+            n.x * (n.x >= 0 ? model.max.x : model.min.x) +
+            n.y * (n.y >= 0 ? model.max.y : model.min.y) +
+            n.z * (n.z >= 0 ? model.max.z : model.min.z)
+      : componentSupport(model);
+  if (!support) return null;
+  const centre = new Vector3();
+  for (const axis of [right, up, back])
+    centre.addScaledVector(axis, (support(axis) - support(axis.clone().negate())) / 2);
   const tanY = Math.tan((fov * Math.PI) / 360),
     tanX = tanY * (width / height);
   const left = (safe.left / width) * 2 - 1,
@@ -105,23 +145,17 @@ export function fitComponentCamera(
     top = 1 - (safe.top / height) * 2;
   const cx = (left + rightEdge) / 2,
     cy = (bottom + top) / 2;
-  let distance = 0.01;
-  for (const x of [bounds.min.x, bounds.max.x])
-    for (const y of [bounds.min.y, bounds.max.y])
-      for (const z of [bounds.min.z, bounds.max.z]) {
-        const corner = new Vector3(x, y, z).sub(centre);
-        const depth = corner.dot(back),
-          horizontal = corner.dot(right) / tanX,
-          vertical = corner.dot(up) / tanY;
-        distance = Math.max(
-          distance,
-          depth + 0.01,
-          (-horizontal - left * depth) / (cx - left),
-          (horizontal + rightEdge * depth) / (rightEdge - cx),
-          (-vertical - bottom * depth) / (cy - bottom),
-          (vertical + top * depth) / (top - cy),
-        );
-      }
+  const relativeSupport = (normal: Vector3) => support(normal) - centre.dot(normal);
+  const edgeDistance = (axis: Vector3, scale: number, depth: number, span: number) =>
+    relativeSupport(axis.clone().multiplyScalar(scale).addScaledVector(back, depth)) / span;
+  const distance = Math.max(
+    0.01,
+    relativeSupport(back) + 0.01,
+    edgeDistance(right, -1 / tanX, -left, cx - left),
+    edgeDistance(right, 1 / tanX, rightEdge, rightEdge - cx),
+    edgeDistance(up, -1 / tanY, -bottom, cy - bottom),
+    edgeDistance(up, 1 / tanY, top, top - cy),
+  );
   const target = centre.addScaledVector(right, -cx * distance * tanX).addScaledVector(up, -cy * distance * tanY);
   return { position: target.clone().addScaledVector(back, distance), target };
 }

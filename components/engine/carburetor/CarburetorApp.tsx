@@ -12,6 +12,7 @@ import { ComponentShell } from "../ComponentShell";
 import { ViewToggles } from "../chrome";
 import { carbSim, live, useCarbLoop, useCarbView } from "./live";
 import { CarburetorPanel } from "./CarburetorPanel";
+import "./carburetor.css";
 
 const Scene = dynamic(() => import("./CarburetorScene"), { ssr: false, loading: () => <div /> });
 

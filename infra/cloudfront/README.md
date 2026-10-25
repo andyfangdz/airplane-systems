@@ -11,7 +11,7 @@ HTTPS redirects, security headers and the route rewrite function. It creates no 
 Deploy with your own AWS CLI credentials.
 
 The distribution has two origins to the same bucket. `site-assets` always addresses the bucket root and serves
-`/_next/static/*` and hashed `/geometry/*-????????????????????.*` assets. The default `site-bucket` origin addresses one complete release
+`/_next/static/*` (including `/offline/<sha256>/` snapshots beneath that prefix) and hashed `/geometry/*-????????????????????.*` assets. The default `site-bucket` origin addresses one complete release
 beneath `releases/<source-commit>-<manifest-sha256>/`. The edge function maps view URLs to exported HTML and preserves
 real 404s. Its LIVE bytes must equal the selected source commit before promotion proceeds.
 
@@ -51,7 +51,7 @@ warn; they are not deployed. The deploy script emits one JSON outcome and cleans
 
 ## Publication and rollback
 
-The upload order is shared immutable JavaScript/fonts/styles, shared immutable geometry, then all short-cache files
+The upload order is shared immutable JavaScript/fonts/styles, shared immutable geometry and offline snapshots, then all short-cache files
 under the new release prefix. All uploads must finish before activation. The tool captures the distribution's ETag and
 checks its immutable origin/cache rules before uploading. A conditional CloudFront update switches only the default
 origin path, refusing if another promotion or distribution update completed during these uploads. The tool waits for
@@ -64,9 +64,19 @@ to edges, and existing browser caches can retain prior pages. Shared immutable p
 If activation or smoke fails, inspect the JSON step and distribution; do not assume it rolled itself back. Re-promote
 an earlier successful artifact with the earlier commit's `--rollback-to` and manifest digest. No rebuild occurs.
 
-Hashed assets carry `public, max-age=31536000, immutable`; JSON scene assets are served as JSON and explicit gzip
+Hashed assets and versioned offline snapshots carry `public, max-age=31536000, immutable`; JSON scene assets are served as JSON and explicit gzip
 geometry as binary bytes (without `Content-Encoding`, because the decoder owns decompression). Mutable manifests,
-HTML and RSC files carry `public, max-age=60`, with the default CDN policy bounded to 0–300 seconds.
+HTML and RSC files carry `public, max-age=60`, with the default CDN policy bounded to 0–300 seconds. The PWA entry
+points `/sw.js`, `/manifest.webmanifest` and `/offline-manifest.json` instead carry `no-cache` with explicit JavaScript,
+web app manifest and JSON MIME types. The default policy's zero minimum TTL respects this revalidation requirement.
+Offline HTML/RSC snapshots download as `.bin` bytes; the worker restores their HTML or `text/x-component` response
+type when serving a study route. Exported `.txt` navigation payloads keep their plain-text MIME type on the network.
+
+The worker is served directly at `/sw.js`, so registration with scope `/` needs no `Service-Worker-Allowed` override.
+PWA files and icons pass through the route function unchanged. Static hosting does not execute Next.js `headers()`;
+these upload metadata and CloudFront rules provide the deployed headers. Offline snapshots reuse the existing
+`/_next/static/*` immutable behavior, so no new infrastructure behavior is required. The smoke verifies the served
+worker and manifest MIME types, cache policy and checksums as well as all immutable snapshots.
 
 ## Retention
 
@@ -78,7 +88,8 @@ Before introducing cleanup, inventory release manifests, identify the active rel
 releases, and compute their referenced immutable assets. Add a grace period for cached/open pages, produce a dry-run
 candidate list, and review it before deleting anything. A release directory is collectible only when it is inactive,
 not retained for rollback and older than the grace period; an immutable asset is collectible only when no retained
-manifest references it. No automated remote cleanup is included.
+manifest references it. Retain the complete `/_next/static/offline/<sha256>/` inventory with its corresponding build; an installed
+worker may still need that version after a newer release activates. No automated remote cleanup is included.
 
 ## Local verification
 

@@ -2,6 +2,7 @@
 /** Page chrome shared by the airplane, engine and component pages: the toolbar's icons and the theme switch. */
 import type { ReactNode } from "react";
 import { useView } from "@/lib/view";
+import { useTouchClick } from "@/lib/useTouchClick";
 
 const SUN = (
   <>
@@ -37,14 +38,51 @@ export function Icon({ children }: { children: ReactNode }) {
 
 /** The light/dark switch. Its word is hidden where space is short (phones, the collapsed rail); the label names it. */
 export function ThemeButton() {
+  const touchClick = useTouchClick();
   const theme = useView((x) => x.theme),
     setTheme = useView((x) => x.setTheme);
   const dark = theme === "dark",
     label = dark ? "Switch to light mode" : "Switch to dark mode";
   return (
-    <button className="tb tb-theme" title={label} aria-label={label} onClick={() => setTheme(dark ? "light" : "dark")}>
+    <button
+      {...touchClick}
+      className="tb tb-theme"
+      title={label}
+      aria-label={label}
+      onClick={() => setTheme(dark ? "light" : "dark")}
+    >
       <Icon>{dark ? SUN : MOON}</Icon>
       <span className="tb-word">{dark ? "Light" : "Dark"}</span>
+    </button>
+  );
+}
+
+/** Standalone scene-size control, separate from instruments and alerts. */
+export function ModelSizeToggle({
+  collapsed,
+  controls,
+  onClick,
+}: {
+  collapsed: boolean;
+  controls: string;
+  onClick: () => void;
+}) {
+  const touchClick = useTouchClick();
+  const label = collapsed ? "Expand model" : "Collapse model";
+  return (
+    <button
+      {...touchClick}
+      type="button"
+      className="tb model-size-toggle"
+      title={label}
+      aria-label={label}
+      aria-expanded={!collapsed}
+      aria-controls={controls}
+      onClick={onClick}
+    >
+      <Icon>
+        <path d={collapsed ? "m4 6 4 4 4-4" : "m4 10 4-4 4 4"} />
+      </Icon>
     </button>
   );
 }

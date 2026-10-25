@@ -41,11 +41,12 @@ readonly HASHED_CACHE="public, max-age=31536000, immutable"
 # Keep this table in agreement with release-manifest.mjs contentType(); deploy-aws.test.ts checks every entry.
 readonly TYPED_ASSETS=(
   "woff2:font/woff2" "js:text/javascript" "css:text/css"
-  "html:text/html; charset=utf-8" "json:application/json" "txt:text/plain; charset=utf-8"
+  "html:text/html; charset=utf-8" "json:application/json" "txt:text/plain; charset=utf-8" "rsc:text/x-component"
   "svg:image/svg+xml" "png:image/png" "ico:image/x-icon"
   "webmanifest:application/manifest+json" "glb:model/gltf-binary"
 )
 readonly SHORT_CACHE="public, max-age=60"
+readonly REVALIDATE_CACHE="no-cache"
 readonly FUNCTION_FILE="infra/cloudfront/view-rewrite.js"
 readonly SMOKE_SCRIPT="scripts/smoke.mjs"
 readonly PLACEHOLDER_MARKER="PLACEHOLDER"
@@ -508,9 +509,20 @@ upload() {
   fi
   log "pass 3: short-cache release -> $dest/releases/$RELEASE_ID"
   if ! aws s3 cp out "$dest/releases/$RELEASE_ID" --recursive --region "$REGION" --no-progress \
-    --exclude "_next/static/*" --exclude "geometry/*-????????????????????.bin.gz" --exclude "geometry/*-????????????????????.scene.json" --exclude "geometry/*-????????????????????.js" --cache-control "$SHORT_CACHE" >&2; then
+    --exclude "_next/static/*" --exclude "geometry/*-????????????????????.bin.gz" --exclude "geometry/*-????????????????????.scene.json" --exclude "geometry/*-????????????????????.js" \
+    --exclude "sw.js" --exclude "manifest.webmanifest" --exclude "offline-manifest.json" --cache-control "$SHORT_CACHE" >&2; then
     fail 8 "uploading the release failed; the active release is unchanged"
   fi
+  # These mutable entry points must revalidate on every request. Root /sw.js already permits root scope;
+  # do not move it below /offline/ or rely on Next's headers() (not implemented by a static host).
+  local metadata path
+  for metadata in "sw.js:text/javascript" "manifest.webmanifest:application/manifest+json" "offline-manifest.json:application/json"; do
+    path=${metadata%%:*}
+    if [[ -f "out/$path" ]] && ! aws s3 cp "out/$path" "$dest/releases/$RELEASE_ID/$path" --region "$REGION" --no-progress \
+      --content-type "${metadata#*:}" --cache-control "$REVALIDATE_CACHE" >&2; then
+      fail 8 "uploading $path failed; the active release is unchanged"
+    fi
+  done
 }
 
 prepare_activation() {

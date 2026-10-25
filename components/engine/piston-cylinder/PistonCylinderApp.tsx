@@ -1,4 +1,5 @@
 "use client";
+import { ComponentIntro } from "../ComponentIntro";
 import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { Readouts, Slider, Seg } from "@/components/ui/controls";
@@ -84,23 +85,32 @@ export default function PistonCylinderApp() {
       }
       foot={
         <div className="eng-mon piston-monitor">
-          <strong>{x.stroke}</strong>
-          <span>{x.phase.toFixed(0)}° / 720°</span>
-          <span className={snapshot.cht > IO390.limits.chtMax.value ? "piston-hot" : ""}>
-            CHT <b>{snapshot.cht.toFixed(0)}°F</b>
+          <span className="piston-cycle">
+            <strong>{x.stroke}</strong>
+            <small>{x.phase.toFixed(0)}° / 720°</small>
           </span>
-          <span>
-            EGT <b>{snapshot.egt.toFixed(0)}°F</b>
+          <span className={`piston-reading${snapshot.cht > IO390.limits.chtMax.value ? " piston-hot" : ""}`}>
+            <small>CHT</small>
+            <b>{snapshot.cht.toFixed(0)}°F</b>
           </span>
-          {snapshot.abnormal !== "none" && <span className="piston-hot">{COMBUSTION_NAMES[snapshot.abnormal]}</span>}
+          <span className="piston-reading">
+            <small>EGT</small>
+            <b>{snapshot.egt.toFixed(0)}°F</b>
+          </span>
+          {snapshot.abnormal !== "none" && (
+            <span className="piston-alert piston-hot">{COMBUSTION_NAMES[snapshot.abnormal]}</span>
+          )}
         </div>
       }
       panel={
         <div className="panel-inner piston-panel">
-          <div className="ref">Component simulation · Lycoming IO-390-C cylinder</div>
-          <p className="lead">Follow one cylinder through two crankshaft revolutions. Drag to orbit; scroll to zoom.</p>
+          <ComponentIntro source="Lycoming IO-390-C cylinder">
+            <p className="lead">
+              Follow one cylinder through two crankshaft revolutions. Drag to orbit; scroll to zoom.
+            </p>
+            <p>A driven single-cylinder bench: shaft speed and charge are held externally so faults remain visible.</p>
+          </ComponentIntro>
           <h3>Operating conditions</h3>
-          <p>A driven single-cylinder bench: shaft speed and charge are held externally so faults remain visible.</p>
           <Slider
             id="piston-engine-rpm"
             label="Shaft speed"

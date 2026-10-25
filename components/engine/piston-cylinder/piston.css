@@ -17,15 +17,48 @@
 .piston-monitor strong {
   text-transform: capitalize;
 }
-.piston-monitor {
-  display: flex;
-  flex-wrap: wrap;
+.eng-mon.piston-monitor {
+  display: grid;
+  width: 300px;
+  max-width: 100%;
+  grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(0, 1fr));
+  grid-template-areas: none;
   align-items: center;
-  gap: 18px;
-  padding: 14px;
+  gap: 4px 12px;
+  padding: 6px 10px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.piston-cycle,
+.piston-reading {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 .piston-monitor strong {
-  font-size: 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.piston-monitor small {
+  color: #8fa1ae;
+  font-size: 11px;
+}
+.piston-reading b {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.piston-alert {
+  grid-column: 1 / -1;
+  border-top: 1px solid #23313b;
+  padding-top: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+@media (max-width: 639px) {
+  .eng-mon.piston-monitor {
+    width: 100%;
+  }
 }
 .piston-scenarios {
   display: grid;
@@ -49,9 +82,6 @@
 .piston-panel .piston-hot,
 .piston-hot {
   color: var(--hot);
-}
-.piston-monitor {
-  gap: 8px 16px;
 }
 .piston-fault-select {
   display: grid;

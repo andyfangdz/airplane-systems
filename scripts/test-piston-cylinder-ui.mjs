@@ -25,7 +25,17 @@ for (const [name, viewport] of Object.entries({
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${baseURL}/components/piston-cylinder`);
-    await expect(page.getByText("Follow one cylinder through two crankshaft revolutions")).toBeVisible();
+    const introduction = page.getByText("Follow one cylinder through two crankshaft revolutions");
+    const about = page.getByRole("button", { name: "About this model" });
+    if (name === "phone") {
+      await expect(introduction).toBeHidden();
+      await about.click();
+    }
+    await expect(introduction).toBeVisible();
+    if (name === "phone") {
+      await about.click();
+      await expect(introduction).toBeHidden();
+    }
     await expect(page.locator("canvas")).toBeVisible();
     const angle = page.locator("#piston-angle");
     await page.getByRole("button", { name: "Reset to firing TDC" }).click();

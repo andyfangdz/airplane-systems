@@ -2,6 +2,8 @@
 import { useLayoutEffect, useId, useRef, useState } from "react";
 import { autoUpdate, computePosition, flip, offset, shift, size } from "@floating-ui/react";
 import Link from "next/link";
+import { useTouchClick } from "@/lib/useTouchClick";
+import { OfflineStatus } from "./OfflineSupport";
 
 /** One choice: a button that acts on this page, or a link to another page (an engine or component from an airplane, or back). */
 export interface PickerEntry {
@@ -31,6 +33,7 @@ export function Picker({
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
   const [open, setOpen] = useState(false);
+  const touchClick = useTouchClick();
   // the menu offers airplanes, engines and components; the label names what this page shows
   const label = "Choose a model";
 
@@ -39,24 +42,39 @@ export function Picker({
       button = trigger.current;
     if (!open || !panel || !button) return;
     let active = true;
+    let revision = 0;
     const stop = autoUpdate(button, panel, () => {
+      const current = ++revision;
+      const isCurrent = () => active && revision === current;
+      // The popover escapes the padded app shell; keep its floating bounds inside the same safe area.
+      const shell = getComputedStyle(button.closest(".app, .eng-app") ?? document.body);
+      const padding = {
+        top: 12 + (parseFloat(shell.paddingTop) || 0),
+        right: 12 + (parseFloat(shell.paddingRight) || 0),
+        bottom: 12 + (parseFloat(shell.paddingBottom) || 0),
+        left: 12 + (parseFloat(shell.paddingLeft) || 0),
+      };
+      // The top layer is clipped by the visual viewport, not by the app shell. Measure before positioning so
+      // horizontal shift can retain a full-width menu beside a narrow inner-display header column.
+      const viewportWidth = window.visualViewport?.width ?? document.documentElement.clientWidth;
+      panel.style.maxWidth = `${Math.max(0, viewportWidth - padding.left - padding.right)}px`;
       void computePosition(button, panel, {
         strategy: "fixed",
         placement: "bottom-start",
         middleware: [
           offset(8),
-          flip({ padding: 12, crossAxis: false }),
+          flip({ padding, crossAxis: false }),
           // a list taller than the room below the trigger scrolls rather than sliding up over the trigger
           size({
-            padding: 12,
+            padding,
             apply: ({ availableHeight, elements }) => {
-              elements.floating.style.maxHeight = `${Math.min(700, Math.max(240, availableHeight))}px`;
+              if (isCurrent()) elements.floating.style.maxHeight = `${Math.max(0, Math.min(700, availableHeight))}px`;
             },
           }),
-          shift({ padding: 12, crossAxis: true }),
+          shift({ padding, crossAxis: true }),
         ],
       }).then(({ x, y }) => {
-        if (active) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
+        if (isCurrent()) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
       });
     });
     return () => {
@@ -75,6 +93,7 @@ export function Picker({
     <div className="fleet">
       <h1>
         <button
+          {...touchClick}
           ref={trigger}
           type="button"
           className="fleet-trigger"
@@ -165,7 +184,7 @@ export function Picker({
                   </>
                 );
                 return a.href && !a.current ? (
-                  <Link key={a.id} className="fleet-option" href={a.href} onClick={close}>
+                  <Link key={a.id} className="fleet-option" href={a.href} onNavigate={close}>
                     {body}
                   </Link>
                 ) : (
@@ -186,6 +205,7 @@ export function Picker({
               })}
             </div>
           ))}
+        <OfflineStatus />
       </div>
     </div>
   );

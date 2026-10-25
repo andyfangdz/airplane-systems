@@ -37,7 +37,7 @@
     "test:react": "vitest run --config vitest.react.config.mts",
     "test:ui": "playwright test",
     "test:ui:tour": "playwright test scripts/test-tour-ui.mjs",
-    "build:site": "next build --experimental-analyze && node scripts/check-runtime-boundary.mjs",
+    "build:site": "next build --experimental-analyze && node scripts/check-runtime-boundary.mjs && node scripts/build-offline.mjs",
     "release:seal": "node scripts/release-manifest.mjs seal out",
     "release:verify": "node scripts/release-manifest.mjs verify out",
     "fleet:generate": "node scripts/generate-fleet.mjs",

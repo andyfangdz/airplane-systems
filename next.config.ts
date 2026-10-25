@@ -50,9 +50,41 @@ export default function nextConfig(phase: string): NextConfig {
         },
       }
     : {};
+  // Hosting platforms supply NEXT_ADAPTER_PATH. Prepare offline files before that adapter seals its asset list;
+  // self-hosting and ordinary static exports keep the post-build generator.
+  const adapter =
+    compiled && process.env.NEXT_ADAPTER_PATH ? { adapterPath: resolve("scripts/offline-adapter.mjs") } : {};
   if (phase !== PHASE_DEVELOPMENT_SERVER && process.env.STATIC_EXPORT === "1") {
     // NEXT_PUBLIC_STATIC_EXPORT drops Vercel Analytics from the export (lib/staticExport.ts)
-    return { ...sharedConfig, ...compiler, output: "export", env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" } };
+    return {
+      ...sharedConfig,
+      ...compiler,
+      ...adapter,
+      output: "export",
+      env: { ...env, NEXT_PUBLIC_STATIC_EXPORT: "1" },
+    };
   }
-  return { ...sharedConfig, ...compiler, env };
+  return {
+    ...sharedConfig,
+    ...compiler,
+    ...adapter,
+    env,
+    async headers() {
+      return [
+        {
+          source: "/sw.js",
+          headers: [
+            { key: "Content-Type", value: "text/javascript; charset=utf-8" },
+            { key: "Cache-Control", value: "no-cache" },
+            { key: "Service-Worker-Allowed", value: "/" },
+            { key: "X-Content-Type-Options", value: "nosniff" },
+          ],
+        },
+        ...["/manifest.webmanifest", "/offline-manifest.json"].map((source) => ({
+          source,
+          headers: [{ key: "Cache-Control", value: "no-cache" }],
+        })),
+      ];
+    },
+  };
 }
