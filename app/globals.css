@@ -1,5 +1,6 @@
 /* Airplane Systems — design tokens and layout. */
 :root {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --paper: #e6ebee;
   --panel: #f5f7f8;
   --panel2: #edf1f3;
@@ -101,7 +102,7 @@ button {
 /* Keep all app controls inside the iPhone's notch and home-indicator bounds in either orientation. */
 .app,
 .eng-app {
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) var(--safe-area-bottom)
     env(safe-area-inset-left, 0px);
 }
 .app-top-edge {
@@ -480,6 +481,17 @@ button {
 .stage canvas {
   display: block;
   touch-action: none;
+}
+/* Viewport-filling scenes paint through the bottom safe area; controls stay inside the padded shell.
+   Narrow scenes have readouts below them, so extending those would overlap the next row instead. */
+@media (min-width: 640px) {
+  .app > .stage,
+  .eng-app > .eng-stage {
+    margin-bottom: calc(-1 * var(--safe-area-bottom));
+  }
+  .app > .stage > .stage-foot {
+    bottom: calc(12px + var(--safe-area-bottom));
+  }
 }
 /* loading overlay (components/Loader.tsx): centred while the scene is built, a bar at the top while systems are added */
 .loader {

@@ -275,6 +275,65 @@ test("iPhone standalone top edge stays opaque without moving or blocking study c
   await pinnedEdge();
 });
 
+test("iPhone expanded scenes fill the bottom safe area while readouts stay clear", async ({ page }, info) => {
+  const screens = [
+    { width: 669, height: 867 },
+    { width: 951, height: 585 },
+  ];
+  for (const model of [
+    { route: "/c172s/electrical", shell: ".app", readout: ".stage-foot .cas", name: "aircraft" },
+    { route: "/components/piston-cylinder", shell: ".eng-app", readout: ".eng-mon", name: "cylinder" },
+  ]) {
+    await page.setViewportSize(screens[0]);
+    await page.goto(model.route);
+    await page.locator(".stage canvas").waitFor();
+    // WebKit emulation has zero hardware insets. Use the app's actual safe-area token, not replacement layout CSS.
+    await page.evaluate(() => document.documentElement.style.setProperty("--safe-area-bottom", "34px"));
+    await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+    await expect(page.locator(model.shell)).toHaveCSS("padding-bottom", "34px");
+    const canvas = await page.locator(".stage canvas").elementHandle();
+    const preserved = async () =>
+      expect(
+        await canvas.evaluate((node) => node.isConnected && node === document.querySelector(".stage canvas")),
+      ).toBe(true);
+    for (const viewport of screens) {
+      await page.setViewportSize(viewport);
+      await page.evaluate(() => scrollTo(0, 0));
+      await expectStudyLayout(page, viewport, model.shell);
+      const filled = async () => {
+        await boundedCanvas(page);
+        await expect
+          .poll(() => canvas.evaluate((node) => Math.abs(node.getBoundingClientRect().bottom - innerHeight)))
+          .toBeLessThanOrEqual(1);
+        const readout = await page.locator(model.readout).boundingBox();
+        expect(readout.height).toBeGreaterThan(0);
+        expect(readout.y + readout.height).toBeLessThanOrEqual(viewport.height - 34);
+        await preserved();
+      };
+      await filled();
+      if (model.name === "aircraft") {
+        await page.getByRole("button", { name: "Hide details panel", exact: true }).tap();
+        await filled();
+        if (viewport.width === 669)
+          await page.screenshot({ path: info.outputPath("bottom-safe-aircraft-expanded.png") });
+        await page.getByRole("button", { name: "Show details panel", exact: true }).tap();
+      } else if (viewport.width === 669)
+        await page.screenshot({ path: info.outputPath("bottom-safe-cylinder-expanded.png") });
+    }
+    const narrow = { width: 382, height: 580 };
+    await page.setViewportSize(narrow);
+    await page.evaluate(() => scrollTo(0, 0));
+    await expectStudyLayout(page, narrow, model.shell);
+    await boundedCanvas(page);
+    await preserved();
+    const scene = await page.locator(".stage canvas").boundingBox();
+    const readout = await page.locator(model.name === "aircraft" ? ".stage-under .cas" : model.readout).boundingBox();
+    const panel = await page.locator(".panel").boundingBox();
+    expect(readout.y).toBeGreaterThanOrEqual(scene.y + scene.height - 1);
+    expect(panel.y).toBeGreaterThanOrEqual(readout.y + readout.height - 1);
+  }
+});
+
 test("iPhone aircraft rotation preserves a usable scene and reachable collapsed controls", async ({ page }, info) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

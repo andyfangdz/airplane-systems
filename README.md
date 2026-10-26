@@ -66,6 +66,8 @@ Development mode does not register a worker. Native Home Screen chrome still nee
 ### Adaptive layouts
 
 iPhone layouts respect display safe areas and stack the scene and controls below 640 CSS pixels of available width.
+In wider layouts, the scene extends through the bottom safe area to the window edge while alerts, instruments and
+panel controls remain inset, following [WebKit's safe-area guidance](https://webkit.org/blog/7929/designing-websites-for-iphone-x/).
 Wider viewports keep the details on the right, including both inner-display orientations; reducing viewport height
 does not switch them to a stacked layout. Engine views scroll away on narrow, short screens so controls remain accessible. Aircraft, engine and component
 canvases cap touch-only rendering at 1.5 DPR (44% fewer drawing-buffer pixels than 2 DPR); text and controls stay at
