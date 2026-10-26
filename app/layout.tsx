@@ -57,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: loadFailedScript }} />
       </head>
       <body>
+        <div className="app-top-edge" aria-hidden="true" />
         {children}
         <OfflineSupport />
         {vercelAnalytics(process.env.NEXT_PUBLIC_STATIC_EXPORT) && <Analytics />}

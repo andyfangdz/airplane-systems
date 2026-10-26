@@ -172,6 +172,109 @@ async function expectStudyLayout(page, viewport, shell = ".app") {
   }
 }
 
+test("iPhone standalone top edge stays opaque without moving or blocking study controls", async ({ page }, info) => {
+  const outer = { width: 382, height: 580 };
+  await page.setViewportSize(outer);
+  await page.goto("/c172s/electrical");
+  await boundedCanvas(page);
+  await page.evaluate(() => document.fonts.ready);
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  const edge = page.locator(".app-top-edge");
+  await expect(edge).toBeHidden();
+  const geometry = () =>
+    page
+      .locator(".rail, .stage canvas")
+      .evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON()));
+  const before = await geometry();
+  // Activate the actual application rule. Playwright cannot reproduce the native iOS status-bar blur or
+  // standalone container; this checks only our DOM/CSS response to the standalone media condition.
+  const activateStandalone = () =>
+    page.evaluate(() => {
+      let count = 0;
+      const visit = (rules) => {
+        for (const rule of rules) {
+          if (rule instanceof CSSMediaRule && rule.conditionText.includes("display-mode: standalone")) {
+            rule.media.mediaText = "all";
+            count++;
+          }
+          if (rule.cssRules) visit(rule.cssRules);
+        }
+      };
+      for (const sheet of document.styleSheets) visit(sheet.cssRules);
+      return count;
+    });
+  expect(await activateStandalone()).toBeGreaterThan(0);
+  await expect(edge).toBeVisible();
+  expect(await geometry()).toEqual(before);
+  const pinnedEdge = () =>
+    expect
+      .poll(() =>
+        edge.evaluate((node) => {
+          const box = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return (
+            box.top === 0 &&
+            box.left === 0 &&
+            box.width === innerWidth &&
+            box.height >= 12 &&
+            style.position === "fixed" &&
+            style.pointerEvents === "none" &&
+            style.opacity === "1" &&
+            style.backgroundColor.startsWith("rgb(") &&
+            style.backgroundColor === getComputedStyle(document.querySelector(".panel")).backgroundColor
+          );
+        }),
+      )
+      .toBe(true);
+  await pinnedEdge();
+  const light = await edge.evaluate((node) => getComputedStyle(node).backgroundColor);
+  await page.getByRole("button", { name: "Switch to dark mode" }).tap();
+  await pinnedEdge();
+  await expect(edge).not.toHaveCSS("background-color", light);
+  await page.getByRole("button", { name: "Hide systems panel", exact: true }).tap();
+  await expect(page.locator(".app")).toHaveClass(/systems-collapsed/);
+  await page.evaluate(() => scrollTo(0, 300));
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  await pinnedEdge();
+  await page.screenshot({ path: info.outputPath("standalone-aircraft-collapsed-outer.png") });
+
+  await page.setViewportSize({ width: 669, height: 867 });
+  await pinnedEdge();
+  await page.getByRole("button", { name: "Show systems panel", exact: true }).tap();
+  await page.getByRole("button", { name: "Switch to light mode" }).tap();
+  await expect(edge).toHaveCSS("background-color", light);
+  await pinnedEdge();
+  await page.getByRole("button", { name: /^Choose a model/ }).tap();
+  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  await menu.getByRole("link", { name: /Piston cylinder/ }).tap();
+  await page.waitForURL("**/components/piston-cylinder");
+  await page.locator(".eng-view canvas").waitFor();
+  await activateStandalone(); // The component route can load its own stylesheet after the aircraft rule was activated.
+  for (const viewport of [{ width: 669, height: 867 }, { width: 951, height: 585 }, outer]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => scrollTo(0, 0));
+    await expectStudyLayout(page, viewport, ".eng-app");
+    await boundedCanvas(page);
+    await pinnedEdge();
+    expect(
+      await page.locator(".eng-brand .fleet-trigger, .eng-brand .tb-theme").evaluateAll((buttons) => {
+        const bottom = document.querySelector(".app-top-edge").getBoundingClientRect().bottom;
+        return buttons.length === 2 && buttons.every((button) => button.getBoundingClientRect().top >= bottom);
+      }),
+    ).toBe(true);
+    if (viewport.width === 669) await page.screenshot({ path: info.outputPath("standalone-cylinder-inner.png") });
+  }
+  await page.getByRole("button", { name: "Switch to dark mode" }).tap();
+  await pinnedEdge();
+  await page.getByRole("button", { name: /^Choose a model/ }).tap();
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await page.evaluate(() => scrollTo(0, 300));
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  await pinnedEdge();
+});
+
 test("iPhone aircraft rotation preserves a usable scene and reachable collapsed controls", async ({ page }, info) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

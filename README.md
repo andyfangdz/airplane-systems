@@ -49,8 +49,11 @@ require a connection. Browser storage can be cleared or evicted; reconnect and r
 If you installed an older shortcut, remove that shortcut and add it again to pick up the name, icon and app-wide
 navigation scope. The manifest explicitly sets `id`, `start_url` and `scope` to `/` so all study routes stay in the
 installed app, following [Apple's Home Screen web-app guidance](https://developer.apple.com/videos/play/wwdc2023/10120/).
-The safe-area background and status-bar color follow the selected theme. The app uses the default iOS status-bar
-style; it does not rely on the deprecated `black-translucent` setting or attempt to control system blur.
+The safe-area background and status-bar color follow the selected theme. The installed app keeps a fixed, opaque
+top edge in the existing header margin so WebKit can extend that color behind the system controls, following
+[WebKit's background-extension guidance](https://bugs.webkit.org/show_bug.cgi?id=301756#c2). It adds no layout space
+and does not intercept touches. The app uses the default iOS status-bar style; native blur still requires a device
+check because browser emulation cannot render the system effect.
 
 Production builds generate a versioned, verified offline pack and `/sw.js` for both Next hosting and static export.
 On hosting platforms such as Vercel, the deployment adapter receives these files through Next's `onBuildComplete`
