@@ -1,5 +1,6 @@
 /* Airplane Systems — design tokens and layout. */
 :root {
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --paper: #e6ebee;
   --panel: #f5f7f8;
   --panel2: #edf1f3;
@@ -101,13 +102,29 @@ button {
 /* Keep all app controls inside the iPhone's notch and home-indicator bounds in either orientation. */
 .app,
 .eng-app {
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) var(--safe-area-bottom)
     env(safe-area-inset-left, 0px);
 }
-/* The installed app's status-bar area uses the same opaque surface as its adjacent header. */
+.app-top-edge {
+  display: none;
+}
+/* Give the installed app a persistent opaque edge for WebKit's native background-color extension.
+   A scrolling body background alone leaves content visible through the system's soft top-edge blur.
+   https://bugs.webkit.org/show_bug.cgi?id=301756#c2 */
 @media (display-mode: standalone) {
   body {
     background: var(--panel);
+  }
+  .app-top-edge {
+    display: block;
+    position: fixed;
+    inset: 0 0 auto;
+    /* WebKit samples 4px inside the edge and skips background boxes <=10px high. Keep this real element
+       in the existing 12px header margin even on displays whose top safe-area inset is zero. */
+    height: max(12px, env(safe-area-inset-top, 0px));
+    z-index: 80; /* above scene labels and scrolled content, below the picker and welcome tour */
+    background: var(--panel);
+    pointer-events: none;
   }
 }
 .app {
@@ -464,6 +481,17 @@ button {
 .stage canvas {
   display: block;
   touch-action: none;
+}
+/* Viewport-filling scenes paint through the bottom safe area; controls stay inside the padded shell.
+   Narrow scenes have readouts below them, so extending those would overlap the next row instead. */
+@media (min-width: 640px) {
+  .app > .stage,
+  .eng-app > .eng-stage {
+    margin-bottom: calc(-1 * var(--safe-area-bottom));
+  }
+  .app > .stage > .stage-foot {
+    bottom: calc(12px + var(--safe-area-bottom));
+  }
 }
 /* loading overlay (components/Loader.tsx): centred while the scene is built, a bar at the top while systems are added */
 .loader {

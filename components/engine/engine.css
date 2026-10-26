@@ -578,6 +578,15 @@
     justify-content: center;
     padding: 8px;
   }
+  @media (display-mode: standalone) {
+    /* Clear the fixed top-edge surface without increasing the header's total height. */
+    .eng-app .eng-brand {
+      padding-block: 12px 4px;
+    }
+    .eng-brand > .tb-theme {
+      top: 12px;
+    }
+  }
   .eng-fail {
     display: block;
     overflow-x: auto;
