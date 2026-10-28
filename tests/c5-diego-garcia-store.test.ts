@@ -2,7 +2,7 @@
  * The Diego Garcia replay's clock: the page's own while there's no video, and the YouTube player's once it has played,
  * so the cockpit audio and the airplane stay in step however the reader plays, pauses or seeks.
  */
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   advance,
   attachPlayer,
@@ -19,6 +19,13 @@ import { PLAYING, type YTPlayer } from "@/components/fdr/c5-diego-garcia/youtube
 import { DURATION } from "@/fdr/c5-diego-garcia/model";
 
 const PAUSED = 2;
+
+/** The page shows the replay through low-rate samples; a refresh publishes it at once. */
+const refreshed = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/useLiveSnapshot", async (actual) => ({
+  ...(await actual<typeof import("@/lib/useLiveSnapshot")>()),
+  refreshLiveSnapshot: refreshed,
+}));
 
 /** A player that does what it's told and remembers it; its time is whatever the test sets. */
 function fakePlayer() {
@@ -69,6 +76,15 @@ describe("without the video", () => {
     togglePlay();
     expect(replay.t).toBe(0);
     expect(useReplay.getState().playing).toBe(true);
+  });
+
+  test("paused, the page shows where it stopped at once, not at its next sample", () => {
+    play();
+    advance(1.96);
+    refreshed.mockClear();
+    pause();
+    expect(refreshed).toHaveBeenCalledWith(replay);
+    expect(replay.t).toBeCloseTo(1.96, 9);
   });
 
   test("seeking moves the airplane", () => {
@@ -124,6 +140,21 @@ describe("with the video", () => {
     advance(0.016);
     expect(replay.t).toBe(140);
     expect(replay.f.alt).toBeLessThan(1500);
+  });
+
+  test("paused in the player, the replay stops where the video did and shows it at once", () => {
+    const p = fakePlayer();
+    attachPlayer(p);
+    play();
+    playerState(PLAYING);
+    p.time = 60;
+    advance(0.016);
+    p.time = 60.2;
+    refreshed.mockClear();
+    playerState(PAUSED);
+    expect(replay.t).toBe(60.2);
+    expect(refreshed).toHaveBeenCalledWith(replay);
+    expect(useReplay.getState().playing).toBe(false);
   });
 
   test("a failed player hands back to the page's clock, stopped where the video was", () => {

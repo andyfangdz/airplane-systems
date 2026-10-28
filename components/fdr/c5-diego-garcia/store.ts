@@ -80,9 +80,15 @@ export function play() {
   player.playVideo();
 }
 
+/** The page samples the replay for its display: stopped, it shows where now, not at its next sample. */
+function showStopped() {
+  refreshLiveSnapshot(replay);
+}
+
 export function pause() {
-  if (player) player.pauseVideo();
-  else useReplay.setState({ playing: false });
+  if (player) return player.pauseVideo();
+  useReplay.setState({ playing: false });
+  showStopped();
 }
 
 export const togglePlay = () => (useReplay.getState().playing ? pause() : play());
@@ -104,6 +110,11 @@ export function attachPlayer(p: YTPlayer) {
 export function playerState(state: number) {
   if (!player) return;
   if (state === PLAYING) synced = true;
+  else if (synced) {
+    const t = player.getCurrentTime();
+    if (Number.isFinite(t)) moveTo(t);
+    showStopped();
+  }
   useReplay.setState({ playing: state === PLAYING });
 }
 

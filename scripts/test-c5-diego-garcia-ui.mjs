@@ -97,6 +97,7 @@ for (const [name, viewport] of Object.entries({
     await play.click();
     await expect(time).not.toHaveText("0:00", { timeout: 10_000 });
     await mon.getByRole("button", { name: "Pause" }).click();
+    await expect(play).toBeVisible();
     const held = await time.innerText();
     await page.waitForTimeout(1500);
     await expect(time).toHaveText(held);
