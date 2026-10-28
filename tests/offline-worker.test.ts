@@ -490,6 +490,41 @@ describe("offline service worker", () => {
     await expect(next.request(lazy)).rejects.toThrow("Network interrupted");
   });
 
+  it("never deletes a newer release's pack while it downloads", async () => {
+    const caches = new MemoryCaches();
+    const first = worker("server", caches, { version: "test-v1" });
+    await first.dispatch("install");
+    await first.dispatch("activate");
+    const active = worker("server", caches);
+    await active.dispatch("install");
+    await active.dispatch("activate");
+    // The page open during that update reloads, so the first release's pack can go.
+    active.pages.delete("page");
+    active.pages.add("reloaded page");
+    // A newer release starts downloading; its changed page is still on its way.
+    const next = worker("server", caches, {
+      version: "test-v3",
+      edit: (url, body) => (url.endsWith("/pages/foo.html") ? body.replace("Foo", "Newer foo") : body),
+    });
+    const changed = next.manifest.routes["/foo"].html;
+    next.stall(changed);
+    const installing = next.dispatch("install");
+    await vi.waitFor(() => expect(next.requests.map((request) => new URL(request.url).pathname)).toContain(changed));
+    // Meanwhile a page loads and asks the active worker for its status, which cleans up.
+    await active.message("GET_OFFLINE_STATUS");
+    expect(await caches.keys()).toEqual([`${PREFIX}test-v2`, `${PREFIX}test-v3`]);
+    next.answer(changed);
+    await installing;
+    expect(await next.message("GET_OFFLINE_STATUS")).toMatchObject({ state: "ready", bytes: next.manifest.totalBytes });
+    const cache = await caches.open(`${PREFIX}test-v3`);
+    for (const file of next.manifest.files)
+      expect(await (await cache.match(file.url))?.text(), file.url).toBe(next.bodies.get(file.url)!.body);
+    // Taking over with no page open, the newer release prunes the one it replaced.
+    next.pages.clear();
+    await next.dispatch("activate");
+    expect(await caches.keys()).toEqual([`${PREFIX}test-v3`]);
+  });
+
   it("waits for a stalled network until its deadline, then serves the saved copy", async () => {
     const w = worker();
     await w.dispatch("install");

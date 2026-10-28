@@ -3,6 +3,9 @@ const OFFLINE_MANIFEST = __OFFLINE_MANIFEST__;
 const CACHE_PREFIX = "airplane-systems-offline-";
 const CACHE_NAME = `${CACHE_PREFIX}${OFFLINE_MANIFEST.version}`;
 const READY_KEY = new URL(`/_offline-ready/${OFFLINE_MANIFEST.version}`, self.location.origin).href;
+// The packs already saved when this version began installing. Only these are earlier: a registration installs one
+// version at a time, so a newer version's pack, downloading later, is never among them.
+const EARLIER_PACKS_KEY = new URL(`/_offline-earlier-packs/${OFFLINE_MANIFEST.version}`, self.location.origin).href;
 // The pages open when this version took over. They run an earlier build, so its pack stays until they close.
 const EARLIER_PAGES_KEY = new URL(`/_offline-earlier-pages/${OFFLINE_MANIFEST.version}`, self.location.origin).href;
 const IMMUTABLE_PATH = __IMMUTABLE_PATH__;
@@ -186,19 +189,30 @@ self.addEventListener("install", (event) => {
   // Installation is atomic: a failed update leaves the previous active worker and its verified pack untouched.
   // Online pages already come from the network, so a complete pack takes over at once: the saved copy then
   // matches the site the reader has open, should the connection drop.
-  event.waitUntil(downloadPack().then(() => self.skipWaiting()));
+  event.waitUntil(
+    (async () => {
+      const packs = (await caches.keys()).filter(earlier);
+      await (await caches.open(CACHE_NAME)).put(EARLIER_PACKS_KEY, new Response(JSON.stringify(packs)));
+      await downloadPack();
+      await self.skipWaiting();
+    })(),
+  );
 });
 
-/** Earlier packs go once this version's is complete and no page that was open when it took over still is. */
+/**
+ * Earlier packs go once this version's is complete and no page that was open when it took over still is. A newer
+ * version's pack, perhaps still downloading, stays: that version prunes this one's once it takes over.
+ */
 async function pruneEarlier() {
-  const packs = (await caches.keys()).filter(earlier);
-  if (!packs.length) return;
+  const remaining = (await caches.keys()).filter(earlier);
+  if (!remaining.length) return;
   const cache = await caches.open(CACHE_NAME);
-  const recorded = await cache.match(EARLIER_PAGES_KEY);
-  if (!recorded || !(await completeCache(cache))) return;
-  const ids = new Set(await recorded.json());
+  const [packs, pages] = await Promise.all([cache.match(EARLIER_PACKS_KEY), cache.match(EARLIER_PAGES_KEY)]);
+  if (!packs || !pages || !(await completeCache(cache))) return;
+  const ids = new Set(await pages.json());
   if ((await openPages()).some((client) => ids.has(client.id))) return;
-  await Promise.all(packs.map((key) => caches.delete(key)));
+  const earlierPacks = new Set(await packs.json());
+  await Promise.all(remaining.filter((key) => earlierPacks.has(key)).map((key) => caches.delete(key)));
 }
 
 self.addEventListener("activate", (event) => {
