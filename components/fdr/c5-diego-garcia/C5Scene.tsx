@@ -14,7 +14,7 @@ import * as THREE from "three";
 import { af, cyl, finSurface, fuselage, liftingSurface, loft, mergeGeos, type Ring } from "@/lib/geometry";
 import { V, type Vec3 } from "@/lib/math";
 import { FDR_DT, FDR_T0 } from "@/fdr/c5-diego-garcia/fdr";
-import { GEAR_TRANSIT_S, HEADING_TURN_DEG, TRACK, trackAt } from "@/fdr/c5-diego-garcia/model";
+import { GEAR_TRANSIT_S, TRACK, VARIATION_DEG, trackAt } from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, C5_DIEGO_GARCIA, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
 import { ComponentStage } from "@/components/engine/ComponentStage";
 import { P } from "@/components/engine/scene/parts";
@@ -504,7 +504,7 @@ function World() {
   useFrame(() => {
     const [e, n, u] = trackAt(replay.t);
     // the track is in true axes: the airplane points along the heading window's heading, turned to true
-    turn.current?.rotation.set(0, (replay.f.hdg + HEADING_TURN_DEG) * D2R - Math.PI / 2, 0);
+    turn.current?.rotation.set(0, (replay.f.hdg + VARIATION_DEG) * D2R - Math.PI / 2, 0);
     shift.current?.position.set(-e, -u, n);
     under.current?.position.set(0, -u, 0);
     const i = Math.min(Math.max(Math.floor((replay.t - FDR_T0) / FDR_DT), 0), N - 1);

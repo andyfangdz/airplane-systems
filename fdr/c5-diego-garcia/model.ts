@@ -211,29 +211,27 @@ const tas = (kias: number, ft: number) => (kias * KT) / Math.sqrt(sigma(ft));
 const D2R = Math.PI / 180;
 
 /**
- * The wind the animation flies the airplane through, fitted with `HEADING_TURN_DEG` to how its top view moves over the
- * ground (SOURCES.md has the method). No source gives the night's wind: this is the animation's, to several knots.
+ * The magnetic variation at the runway 31 end in the summer of 1998, degrees (negative west): the IGRF-14 main field
+ * gives 7.96° W. The heading window reads magnetic. The animation flies that heading as if it were true, on runway 31
+ * drawn at about 309°, its magnetic heading (SOURCES.md). Adding this turns both to true.
  */
-export const WIND = { fromDeg: 287, kt: 41 } as const;
-/** The heading window's heading, turned by this many degrees (negative to the left), is the airplane's true heading
- * in the animation. */
-export const HEADING_TURN_DEG = -9.9;
+export const VARIATION_DEG = -7.96;
 
 /**
- * Where the animation's top view puts the airplane: metres east and north of the runway 31 end, true. Up to the first
- * fix, the track is held by the island's two arms, matched to the coastline from 0:07 to 1:10. From the second, it is
- * held by the runway, in view from 2:18 to the end. The dead reckoning between them misses the second by about 430 m.
- * The track is stretched evenly in time to meet both, across the slowdown, the stall and the spiral.
+ * Where the animation puts the airplane: metres along runway 31 from its end (negative short of it) and right of its
+ * extended centreline. At 2:21, from the runway, in view from 2:18 to the end. At 1:42, as the airspeed falls to its
+ * floor, from the same less how far the animation moves the airplane over its top view's 1 nm grid in between: about
+ * 380 m less than the airspeed and heading give, nearly all in the spiral. Elsewhere the grid moves as they do.
  */
 export const FIXES = [
-  { t: 70, east: 1870, north: -1640 },
-  { t: 138, east: 720, north: -740 },
+  { t: 102, along: -2330, right: -330 },
+  { t: 141, along: -1190, right: -150 },
 ] as const;
 
 /**
- * Where the airplane went: metres east and north of the runway 31 end, and its height (m). The true airspeed (the
- * indicated, corrected for ISA density) along the turned heading, through the wind, fitted to the `FIXES`. The speed
- * below the 50 kt floor isn't known, so between the fixes the path is approximate. It is the 3D view's trail.
+ * Where the airplane went: metres east and north of the runway 31 end, true, and its height (m). The true airspeed (the
+ * indicated, corrected for ISA density) along the true heading, in still air as the animation flies it, placed on
+ * the `FIXES` and stretched evenly in time between them, where the airspeed isn't known. It is the 3D view's trail.
  */
 export const TRACK = (() => {
   const n = FDR.ias.length;
@@ -242,18 +240,19 @@ export const TRACK = (() => {
     up = new Float32Array(n);
   const de = new Float64Array(n),
     dn = new Float64Array(n);
-  const we = -WIND.kt * KT * Math.sin(WIND.fromDeg * D2R),
-    wn = -WIND.kt * KT * Math.cos(WIND.fromDeg * D2R);
   for (let k = 1; k < n; k++) {
     const v = tas(FDR.ias[k], FDR.alt[k]),
-      h = (FDR.hdg[k] + HEADING_TURN_DEG) * D2R;
-    de[k] = de[k - 1] + (v * Math.sin(h) + we) * FDR_DT;
-    dn[k] = dn[k - 1] + (v * Math.cos(h) + wn) * FDR_DT;
+      h = (FDR.hdg[k] + VARIATION_DEG) * D2R;
+    de[k] = de[k - 1] + v * Math.sin(h) * FDR_DT;
+    dn[k] = dn[k - 1] + v * Math.cos(h) * FDR_DT;
   }
   // each fix's offset from the dead reckoning, held before the first and after the second, blended between
+  const rw = C5_DIEGO_GARCIA.airport.runway.heading31T * D2R;
   const [a, b] = FIXES.map((f) => {
-    const k = Math.round((f.t - FDR_T0) / FDR_DT);
-    return { k, e: f.east - de[k], n: f.north - dn[k] };
+    const k = Math.round((f.t - FDR_T0) / FDR_DT),
+      e = f.along * Math.sin(rw) + f.right * Math.cos(rw),
+      nn = f.along * Math.cos(rw) - f.right * Math.sin(rw);
+    return { k, e: e - de[k], n: nn - dn[k] };
   });
   for (let k = 0; k < n; k++) {
     const x = Math.min(Math.max((k - a.k) / (b.k - a.k), 0), 1);

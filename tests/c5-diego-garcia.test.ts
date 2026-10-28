@@ -14,6 +14,7 @@ import {
   T_END,
   T_START,
   TRACK,
+  VARIATION_DEG,
   channel,
   gearTravel,
   sample,
@@ -247,45 +248,76 @@ describe("the ground under the track", () => {
     expect(bearing).toBeCloseTo(runway.heading31T, 1);
   });
 
-  test("the track passes through the fixes the animation's top view gives", () => {
+  test("the track passes through the fixes the animation gives", () => {
     for (const f of FIXES) {
-      const [e, n] = trackAt(f.t);
-      expect(e).toBeCloseTo(f.east, 0);
-      expect(n).toBeCloseTo(f.north, 0);
+      const p = onRunway(f.t);
+      expect(p.along).toBeCloseTo(f.along, 0);
+      expect(p.right).toBeCloseTo(f.right, 0);
     }
   });
 
-  test("the animation's island view, 0:07 to 1:10: the track keeps to where the atoll's arms put the airplane", () => {
-    // the top view's frames, mapped together and matched to the coastline (SOURCES.md): metres east and north of the
-    // runway 31 end
+  test("the animation flies the magnetic heading as true: runway 31 is drawn on its magnetic heading", () => {
+    // the runway's direction across the top view's grid, from its edges in the frames, 2:26 to the end (SOURCES.md)
+    const drawn = 309.2;
+    expect(drawn + VARIATION_DEG).toBeCloseTo(runway.heading31T, 0);
+  });
+
+  test("the animation's top view: the track moves over the 1 nm grid as the animation moves the airplane", () => {
+    // the grid-tracked displacement from 0:15, metres east and north of the grid, the animation's frame (SOURCES.md)
     const seen: [t: number, east: number, north: number][] = [
-      [10, 5460, -4240],
-      [20, 4650, -3810],
-      [30, 3930, -3220],
-      [40, 3260, -2590],
-      [50, 2750, -2150],
-      [60, 2210, -1810],
-      [70, 1740, -1580],
+      [25, -736, 765],
+      [35, -1626, 1625],
+      [45, -2174, 2240],
+      [55, -2774, 2899],
+      [65, -3446, 3328],
+      [75, -4028, 3651],
+      [85, -4421, 4059],
+      [95, -4889, 4407],
+      [102, -5128, 4615],
+      [135, -5682, 4998],
+      [141, -5953, 5488],
     ];
+    const v = (-VARIATION_DEG * Math.PI) / 180,
+      [e0, n0] = trackAt(15);
     let ss = 0;
     for (const [t, east, north] of seen) {
-      const [e, n] = trackAt(t),
-        miss = Math.hypot(e - east, n - north);
-      expect(miss, `${t} s`).toBeLessThan(200);
+      // the track's displacement, turned back to the animation's magnetic frame
+      const [e1, n1] = trackAt(t),
+        [de, dn] = [e1 - e0, n1 - n0],
+        miss = Math.hypot(de * Math.cos(v) + dn * Math.sin(v) - east, -de * Math.sin(v) + dn * Math.cos(v) - north);
+      expect(miss, `${t} s`).toBeLessThan(150);
       ss += miss * miss;
     }
     expect(Math.sqrt(ss / seen.length)).toBeLessThan(100);
-    // at 4,600 ft at the start, about 7 km short of runway 31 and left of its centreline
-    expect(onRunway(T_START).along).toBeLessThan(-6500);
-    expect(onRunway(T_START).right).toBeLessThan(0);
   });
 
-  test("the animation's runway view: the lowest point short of runway 31 on its centreline, the data's end over it", () => {
+  test("the animation's runway view, 2:26 to the end: the track keeps to where the runway puts the airplane", () => {
+    // the airplane against the runway's edges and threshold in the frames (SOURCES.md): metres along runway 31 from its
+    // end, and right of its centreline
+    const seen: [t: number, along: number, right: number][] = [
+      [146, -851, 19],
+      [150, -527, 78],
+      [155, -106, 163],
+      [160, 314, 192],
+      [165, 720, 184],
+      [170, 1120, 153],
+    ];
+    for (const [t, along, right] of seen) {
+      const p = onRunway(t);
+      expect(Math.hypot(p.along - along, p.right - right), `${t} s`).toBeLessThan(40);
+    }
+  });
+
+  test("an approach to runway 31: left of its centreline from 5.4 nm, the lowest point short of it on it, the end over it", () => {
+    // at 4,600 ft at the start, about 10 km short of runway 31 and left of its centreline
+    const start = onRunway(T_START);
+    expect(start.along).toBeLessThan(-9500);
+    expect(start.right).toBeLessThan(0);
+    expect(start.right).toBeGreaterThan(-600);
     const low = onRunway(144.2);
     expect(low.along).toBeLessThan(-500);
     expect(low.along).toBeGreaterThan(-1500);
     expect(Math.abs(low.right)).toBeLessThan(100);
-    // the threshold passes under the view's foot at about 2:32, so the airplane crosses it soon after
     const end = onRunway(T_END);
     expect(end.along).toBeGreaterThan(0);
     expect(end.along).toBeLessThan(length);

@@ -19,7 +19,8 @@ report is public. Two records are used, and where they differ both are given:
 | Master Sgt. Steve Marciniak, [“C-5 mishap investigated”](https://www.dover.af.mil/News/Article/231053/c-5-mishap-investigated), 436th Airlift Wing Public Affairs, Dover AFB, 29 June 2006                                                                                                                           | About a different C-5 mishap (Dover, 3 April 2006); read only for what becomes public after an Air Force mishap                                                                                                                                                                                                     |
 | [_AFMAN 11-2C-5 Volume 3, C-5 Operations Procedures_](https://static.e-publishing.af.mil/production/1/af_a3/publication/afman11-2c-5v3/afman11-2c-5v3.pdf), 20 October 2022 (the C-5M's; the 1998 rules may have differed)                                                                                           | Table 3.5 items 5-5d to f (slats, slat position indicator; p. 38), Table 3.2 item 2-10 (angle-of-attack de-ice and its stallimiter; p. 24), Table 3.14 items 14-1 and 14-2 (Stallimiter System, GPWS; p. 60), 7.4.1 (manoeuvres crews may not practise in the airplane; p. 87). It does not say what TRT stands for |
 | [FJDG](https://ourairports.com/airports/FJDG/), OurAirports (airports.csv and runways.csv)                                                                                                                                                                                                                           | Diego Garcia's elevation (9 ft), and runway 13/31: its length and width (12,003 × 200 ft), the latitude and longitude of its two ends, and runway 31's true heading (301.7°)                                                                                                                                        |
-| [OpenStreetMap](https://www.openstreetmap.org/copyright) (© OpenStreetMap contributors, ODbL), read through the Overpass API                                                                                                                                                                                         | Diego Garcia's coastline, to match the animation's island to. Nothing of it is drawn                                                                                                                                                                                                                                |
+| [OpenStreetMap](https://www.openstreetmap.org/copyright) (© OpenStreetMap contributors, ODbL), read through the Overpass API                                                                                                                                                                                         | Diego Garcia's coastline, to compare the animation's island with and to say what is under the track. Nothing of it is drawn                                                                                                                                                                                         |
+| [IGRF-14](https://www.ncei.noaa.gov/products/international-geomagnetic-reference-field), the International Geomagnetic Reference Field, 14th generation (IAGA, November 2024): its coefficients file, igrf14coeffs.txt                                                                                               | The magnetic variation at the runway 31 end in the summer of 1998, 7.96° W: the definitive 1995 and 2000 fields, interpolated to mid-1998 and evaluated at sea level                                                                                                                                                |
 | [Photorealistic 3D Tiles](https://developers.google.com/maps/documentation/tile/3d-tiles), Google Maps Platform                                                                                                                                                                                                      | The island and the airfield the 3D view draws under the track, where the site has a Maps key. Their heights are above the WGS84 ellipsoid; the EGM96 geoid, 74.72 m below it at the runway 31 end (the egm96-universal package), is taken as sea level                                                              |
 | [APS Training's page on the event](https://blog.apstraining.com/resources/c5-galaxy-diego-garcia)                                                                                                                                                                                                                    | A summary of the same event, read for background; no number is taken from it                                                                                                                                                                                                                                        |
 
@@ -109,38 +110,49 @@ The speed below the 50 kt floor isn't known. In the spiral the animation's altit
 in a second. The vertical speed is therefore an average, not what a VSI would have shown.
 
 **Where the track lies.** No record gives the airplane's position, but the animation's top view shows it over its
-ground: a white island on a blue sea ruled with a fixed grid. The view's camera looks along one bearing from a fixed
-distance, whatever the airplane does. Each frame was projected onto sea level through that camera, from the altitude
-the animation reads.
+ground: a white island on a blue sea ruled with a square grid. The view's camera follows the airplane from a fixed
+distance and looks along one bearing, whatever the airplane does. So each frame can be projected onto sea level
+through that camera, from the altitude the animation reads.
 
-- **The runway** fixes the camera. It is in view from 2:18 to the end, and its frames were matched to OurAirports'
-  runway: its two edges, from the rows where both are clean, and where they meet on the horizon; its far end; its
-  threshold as it slides out of the bottom of the view, about 2:30 to 2:32; and the airplane's drawn size, which fixes
-  the camera's distance. The camera is about 57 m behind the airplane, looking down at about 28° towards 317° true.
-  The fit matches the frames to 2.6 pixels RMS. At 2:38 (158 s) the airplane is 280 m north of the runway 31 end.
-- **The ground's motion.** Each projected frame, matched to the next, shows how far the ground moved. The animation
-  stutters and repeats frames, so the motion is compared over 5 s. Against the airspeed and heading, it fits a wind of
-  41 kt from 287° true, with the airplane's true heading 9.9° left of what the heading window reads (67 m RMS per
-  5 s). No source gives the night's wind; this one is the animation's.
-- **The island.** From 0:07 to 1:10, the projected frames, laid where that motion puts them, make one map. Its grid
-  lines stay sharp, so the motion holds together. Its two strips are the atoll's arms: the east arm with its bend,
-  and the west arm where it turns south past the runway. Matched to OpenStreetMap's coastline, the map needs less than
-  1° of turn and a scale of 0.97. That holds the track over those 63 s to 72 m RMS.
+- **The camera.** The grid's two sets of lines meet at two points on the horizon. Fitted to the lines in frames from
+  0:07 to 2:51, they give a camera looking 17° down with about 88° across the view, on a bearing between 41° and 43°
+  to the grid's lines throughout. The airplane's drawn size puts the camera about 96 m from it.
+- **The grid** is 1 nm square, and north–south on the island: matched to OpenStreetMap's coastline, the projected
+  island needs no turn and a scale that makes the squares 1,852 m, and the airplane crosses them at its true airspeed.
+- **The animation's motion.** Where the grid's lines fall in each frame gives the airplane's position within its
+  square. Followed through the video, that gives how far the animation moves the airplane. From 0:15 to 1:54 it moves
+  it at the true airspeed (the indicated, corrected for ISA density) along the heading window's heading, with no
+  wind, to 120 m at most. In the spiral, 1:54 to 2:14, with the airspeed at or near its floor, it moves it about
+  380 m less. From about 2:25, too few lines are in view to follow.
+- **Magnetic as true.** The heading window reads magnetic, and the runway's edges cross the grid at 309.2°. That is
+  runway 31's magnetic heading in 1998: 301.7° true, with a variation of 7.96° W (IGRF-14), is 309.7°. The animation
+  flies the magnetic heading and draws the runway on it, as if both were true; its island is set to true north. The
+  track here turns the heading to true by the variation, so the airplane keeps its course to the runway.
+- **The runway** places the track. It is in view from 2:18 to the end. From 2:26, the airplane's offset from the
+  runway's centreline, from the rows where both edges are clean, agrees to 5 m across 197 frames. Its distance along
+  the runway, from the threshold as it slides out of the bottom of the view, agrees to 15 m across 11 frames.
+- **The island doesn't agree with the runway.** Its west arm, with the runway, lies where OpenStreetMap's coastline
+  has it from about 0:50, when it is in view. Its east arm is drawn about 2 km from the real one, relative to the
+  runway. Matched to the coastline on its own, the island would put the airplane about 1.7 km from where the runway
+  does, 2.2 km at 0:07. The runway is what the crew flew to, so the track keeps to the runway.
 
-The track flown from the island misses the runway's fix by about 430 m, nearly all of it north to south. Between 1:10
-and 2:18 the track is stretched evenly in time to meet both fixes. That stretch covers the slowdown, the stall and the
-spiral, with the airspeed at its floor. The animation's own motion from 1:10 to 1:42 agrees with the stretch to about
-60 m; after that, the spinning view can't be followed. The track is placed to about 100 m while the island or the
-runway is in view, and to a few hundred metres between. Placed so, the track:
+The track is the true airspeed along the true heading, in still air as the animation flies it. It is held where the
+runway puts it at 2:21, and where the animation's motion across the stall puts it at 1:42, and it is stretched evenly
+in time between the two, where the airspeed isn't known. It keeps to the animation's motion from 0:15 to 2:21 to
+80 m RMS, and to the runway from 2:26 to the end to 15 m. Placed so, the track:
 
-- is in a right turn over the east arm at 0:07, 7.1 km (3.8 nm) short of the runway 31 end and 660 m left of its
-  extended centreline, at 4,600 ft;
-- is 2.5 km (1.3 nm) short and 410 m left at 1:10, at 4,556 ft, when the copilot calls for the descent;
-- stalls and spirals between 1.0 and 1.4 km short;
-- is at its lowest, 771 ft at 2:24, 710 m short of the runway, on its extended centreline, over the lagoon;
+- is in a right turn at 0:07 at 4,601 ft, over the sea east of the east arm, 10.1 km (5.4 nm) short of the runway
+  31 end and 400 m left of its extended centreline;
+- crosses the east arm from 0:39 to 0:54, still at about 4,500 ft;
+- is 4.2 km (2.25 nm) short and 290 m left at 1:10, at 4,556 ft, when the copilot calls for the descent;
+- stalls and spirals over the lagoon, between 2.3 and 1.2 km short;
+- is at its lowest, 771 ft at 2:24, 980 m short of the runway, on its extended centreline, over the lagoon;
 - is still over the lagoon at 2:27, where Lacklen has the recovery at 733 ft “above the lagoon”, and crosses its shore
-  about 2:30;
-- ends over the runway, 930 m past the runway 31 end and 240 m right of its centreline.
+  at 2:31;
+- ends 1.2 km past the runway 31 end and 130 m right of its centreline.
+
+No source gives the night's wind. The animation flies none, so neither does the track. A wind would move the real
+airplane's path, by about 31 m a minute for each knot.
 
 **The cloud.** The page's cloud base is Lacklen's 1,500 ft. The tops are not known.
 
