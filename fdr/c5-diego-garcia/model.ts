@@ -218,13 +218,23 @@ const D2R = Math.PI / 180;
 export const VARIATION_DEG = -7.96;
 
 /**
- * Where the animation puts the airplane: metres along runway 31 from its end (negative short of it) and right of its
- * extended centreline. At 2:21, from the runway, in view from 2:18 to the end. At 1:42, as the airspeed falls to its
- * floor, from the same less how far the animation moves the airplane over its top view's 1 nm grid in between: about
- * 380 m less than the airspeed and heading give, nearly all in the spiral. Elsewhere the grid moves as they do.
+ * How far the track is moved right of where the animation's runway puts the airplane before the stall, m. Assumed,
+ * not shown: the crew held the final approach course past its fix. The animation draws its runway about 290 m right
+ * of the airplane from the copilot's call at 1:10 that they are past the fix to 1:42. It flies still air, and its
+ * motion through the stall, below the airspeed's 50 kt floor, isn't known, so its runway can't place the approach as
+ * well as it places the recovery (SOURCES.md).
+ */
+export const COURSE_SHIFT = 290;
+
+/**
+ * Where the track is held: metres along runway 31 from its end (negative short of it) and right of its extended
+ * centreline. At 2:21, where the animation's runway puts the airplane; it is in view from 2:18 to the end. At 1:42, as
+ * the airspeed falls to its floor: along, the same less how far the animation moves the airplane over its top view's
+ * 1 nm grid in between, about 380 m less than the airspeed and heading give, nearly all in the spiral; across, where
+ * the animation's runway puts it (330 m left), moved `COURSE_SHIFT` right. Elsewhere the grid moves as they do.
  */
 export const FIXES = [
-  { t: 102, along: -2330, right: -330 },
+  { t: 102, along: -2330, right: -330 + COURSE_SHIFT },
   { t: 141, along: -1190, right: -150 },
 ] as const;
 

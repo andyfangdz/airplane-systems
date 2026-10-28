@@ -103,8 +103,8 @@ Each change was then checked frame by frame:
 
 - the vertical speed, the altitude's least-squares slope over 4 s;
 - the flight path angle through the air, from that and the true airspeed;
-- the track the 3D view draws: the true airspeed along the heading, through a wind, held where the animation's top view
-  shows the island and the runway (below).
+- the track the 3D view draws: the true airspeed along the heading, in still air, held where the animation's top view
+  shows the runway, and moved onto the final approach course before the stall (below).
 
 The speed below the 50 kt floor isn't known. In the spiral the animation's altitude holds, then drops hundreds of feet
 in a second. The vertical speed is therefore an average, not what a VSI would have shown.
@@ -128,31 +128,53 @@ through that camera, from the altitude the animation reads.
   runway 31's magnetic heading in 1998: 301.7° true, with a variation of 7.96° W (IGRF-14), is 309.7°. The animation
   flies the magnetic heading and draws the runway on it, as if both were true; its island is set to true north. The
   track here turns the heading to true by the variation, so the airplane keeps its course to the runway.
-- **The runway** places the track. It is in view from 2:18 to the end. From 2:26, the airplane's offset from the
-  runway's centreline, from the rows where both edges are clean, agrees to 5 m across 197 frames. Its distance along
-  the runway, from the threshold as it slides out of the bottom of the view, agrees to 15 m across 11 frames.
+- **The runway** places the track after the stall. It fills the view from 2:18 to the end. From 2:26, the airplane's
+  offset from the runway's centreline, from the rows where both edges are clean, agrees to 5 m across 197 frames. Its
+  distance along the runway, from the threshold as it slides out of the bottom of the view, agrees to 15 m across 11
+  frames.
+- **Before the stall the runway is a dark line** along a white strip of the island, from about 0:45. Its pixels,
+  projected to sea level, run on runway 31's heading to within 1°. They put the airplane 180 to 250 m left of its
+  centreline from 0:45 to 1:00, 270 to 340 m left from 1:05 to 1:42, and 350 m left as the stall starts at 1:46.
+  The track as the animation places it keeps to that line to 25 m until 1:42.
 - **The island doesn't agree with the runway.** Its west arm, with the runway, lies where OpenStreetMap's coastline
   has it from about 0:50, when it is in view. Its east arm is drawn about 2 km from the real one, relative to the
   runway. Matched to the coastline on its own, the island would put the airplane about 1.7 km from where the runway
-  does, 2.2 km at 0:07. The runway is what the crew flew to, so the track keeps to the runway.
+  does, 2.2 km at 0:07. The runway is what the crew flew to, so it places the track, not the island.
+
+**Assumed, not shown: the crew held the final approach course.** The copilot's call at 1:10 says they were past the
+final approach fix. A crew there on a straight-in approach would be close to its course, not 300 m off it, and the
+animation can't place the approach as well as it places the recovery:
+
+- it flies still air, so a crosswind on the night, and the heading the crew held against it, would show as drift;
+- where its runway puts the approach rests on its motion across the stall, where the airspeed is below its 50 kt
+  floor, the airplane spirals with its wings past vertical, and the animation's motion already differs from the
+  airspeed and heading by about 380 m.
+
+So the track takes the final approach course to be runway 31's extended centreline, and moves the approach 290 m
+right of where the animation's runway puts it: from 1:10 to 1:42 it then averages on the centreline. The course isn't
+sourced for 1998.
 
 The track is the true airspeed along the true heading, in still air as the animation flies it. It is held where the
-runway puts it at 2:21, and where the animation's motion across the stall puts it at 1:42, and it is stretched evenly
-in time between the two, where the airspeed isn't known. It keeps to the animation's motion from 0:15 to 2:21 to
-80 m RMS, and to the runway from 2:26 to the end to 15 m. Placed so, the track:
+runway puts it at 2:21, and at 1:42 where the animation's motion across the stall puts it, moved 290 m right. It is
+stretched evenly in time between the two, where the airspeed isn't known. It keeps to the animation's motion from
+0:15 to 1:42 to 80 m RMS, and along the runway to 110 m at 2:15 and 2:21; it keeps to the runway from 2:26 to the
+end to 15 m. Placed so, the track:
 
 - is in a right turn at 0:07 at 4,601 ft, over the sea east of the east arm, 10.1 km (5.4 nm) short of the runway
-  31 end and 400 m left of its extended centreline;
-- crosses the east arm from 0:39 to 0:54, still at about 4,500 ft;
-- is 4.2 km (2.25 nm) short and 290 m left at 1:10, at 4,556 ft, when the copilot calls for the descent;
-- stalls and spirals over the lagoon, between 2.3 and 1.2 km short;
+  31 end and 100 m left of its extended centreline, joining it;
+- swings up to 290 m left of the centreline and 115 m right of it as it settles on the course, and crosses the east
+  arm from 0:43 to 0:54, still at about 4,500 ft;
+- is 4.2 km (2.25 nm) short at 1:10, on the centreline, at 4,556 ft, when the copilot calls for the descent, and
+  within 40 m of it until 1:42;
+- stalls and spirals over the lagoon, between 2.3 and 1.2 km short; across the stall, from 1:42 to 2:21, the 290 m
+  comes out, so it rejoins where the runway puts it;
 - is at its lowest, 771 ft at 2:24, 980 m short of the runway, on its extended centreline, over the lagoon;
 - is still over the lagoon at 2:27, where Lacklen has the recovery at 733 ft “above the lagoon”, and crosses its shore
   at 2:31;
 - ends 1.2 km past the runway 31 end and 130 m right of its centreline.
 
 No source gives the night's wind. The animation flies none, so neither does the track. A wind would move the real
-airplane's path, by about 31 m a minute for each knot.
+airplane's path, by about 31 m a minute for each knot; holding the course, the crew would have flown its correction.
 
 **The cloud.** The page's cloud base is Lacklen's 1,500 ft. The tops are not known.
 

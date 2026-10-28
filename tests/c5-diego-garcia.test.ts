@@ -4,6 +4,7 @@
  */
 import { describe, expect, test } from "vitest";
 import {
+  COURSE_SHIFT,
   DURATION,
   FIXES,
   GEAR_TRANSIT_S,
@@ -278,17 +279,55 @@ describe("the ground under the track", () => {
       [141, -5953, 5488],
     ];
     const v = (-VARIATION_DEG * Math.PI) / 180,
-      [e0, n0] = trackAt(15);
+      [e0, n0] = trackAt(15),
+      r = (runway.heading31T * Math.PI) / 180;
     let ss = 0;
     for (const [t, east, north] of seen) {
       // the track's displacement, turned back to the animation's magnetic frame
       const [e1, n1] = trackAt(t),
         [de, dn] = [e1 - e0, n1 - n0],
-        miss = Math.hypot(de * Math.cos(v) + dn * Math.sin(v) - east, -de * Math.sin(v) + dn * Math.cos(v) - north);
+        [me, mn] = [de * Math.cos(v) + dn * Math.sin(v) - east, -de * Math.sin(v) + dn * Math.cos(v) - north];
+      // across the stall the course shift is taken out: compare along the runway there, the miss turned back to true
+      const along =
+          (me * Math.cos(v) - mn * Math.sin(v)) * Math.sin(r) + (me * Math.sin(v) + mn * Math.cos(v)) * Math.cos(r),
+        miss = t <= FIXES[0].t ? Math.hypot(me, mn) : Math.abs(along);
       expect(miss, `${t} s`).toBeLessThan(150);
       ss += miss * miss;
     }
     expect(Math.sqrt(ss / seen.length)).toBeLessThan(100);
+  });
+
+  test("the animation's runway before the stall: the track is where it puts the airplane, moved right by the course shift", () => {
+    // the airplane right of the runway's centreline, from the runway's dark line along the island's white strip in
+    // the frames, each the median of the frames within 1 s (SOURCES.md)
+    const seen: [t: number, right: number][] = [
+      [45, -249],
+      [50, -207],
+      [55, -176],
+      [60, -227],
+      [65, -274],
+      [70, -296],
+      [75, -312],
+      [80, -304],
+      [85, -287],
+      [90, -295],
+      [95, -310],
+      [100, -330],
+    ];
+    for (const [t, right] of seen)
+      expect(Math.abs(onRunway(t).right - right - COURSE_SHIFT), `${t} s`).toBeLessThan(40);
+  });
+
+  test("assumed: from the copilot's call that they are past the final approach fix (1:10) to 1:42, on its course", () => {
+    let sum = 0,
+      n = 0;
+    for (let t = 70; t <= FIXES[0].t; t += 0.2) {
+      const { right } = onRunway(t);
+      expect(Math.abs(right), `${t.toFixed(1)} s`).toBeLessThan(50);
+      sum += right;
+      n++;
+    }
+    expect(Math.abs(sum / n)).toBeLessThan(10);
   });
 
   test("the animation's runway view, 2:26 to the end: the track keeps to where the runway puts the airplane", () => {
@@ -308,12 +347,12 @@ describe("the ground under the track", () => {
     }
   });
 
-  test("an approach to runway 31: left of its centreline from 5.4 nm, the lowest point short of it on it, the end over it", () => {
-    // at 4,600 ft at the start, about 10 km short of runway 31 and left of its centreline
+  test("an approach to runway 31: joining its course at 5.4 nm, the lowest point short of it on it, the end over it", () => {
+    // at 4,600 ft at the start, about 10 km short of runway 31, turning onto its course a little left of it
     const start = onRunway(T_START);
     expect(start.along).toBeLessThan(-9500);
     expect(start.right).toBeLessThan(0);
-    expect(start.right).toBeGreaterThan(-600);
+    expect(start.right).toBeGreaterThan(-200);
     const low = onRunway(144.2);
     expect(low.along).toBeLessThan(-500);
     expect(low.along).toBeGreaterThan(-1500);
