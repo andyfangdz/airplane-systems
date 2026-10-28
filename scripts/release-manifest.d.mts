@@ -22,6 +22,7 @@ export interface VerifyOptions {
 }
 export const MANIFEST: string;
 export function digest(bytes: string | Uint8Array): string;
+export const IMMUTABLE_PATH: RegExp;
 export function immutable(path: string): boolean;
 export function cacheControl(path: string): string;
 export function contentType(path: string): string;

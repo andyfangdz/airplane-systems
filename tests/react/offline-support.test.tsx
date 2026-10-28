@@ -81,7 +81,7 @@ test("Retry recovers failed installs, newer updates and evicted active packs wit
     registration.installing = failed;
     registration.dispatchEvent(new Event("updatefound"));
   });
-  await screen.findByText("Downloading an update…");
+  await screen.findByText("Saving the latest version for offline use…");
   await act(async () => {
     failed.status.state = "error";
     failed.state = "redundant";
@@ -111,7 +111,7 @@ test("Retry recovers failed installs, newer updates and evicted active packs wit
   expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
   expect(first.postMessage.mock.calls.some(([message]) => message.type === "DOWNLOAD_OFFLINE")).toBe(false);
 
-  // Retrying after connectivity returns starts a new update and leaves it waiting for existing windows to close.
+  // Retrying after connectivity returns starts a new update. Its complete pack takes over without a restart.
   const replacement = new Worker();
   registration.update.mockImplementationOnce(async () => {
     registration.installing = replacement;
@@ -119,7 +119,7 @@ test("Retry recovers failed installs, newer updates and evicted active packs wit
     return registration;
   });
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-  await screen.findByText("Downloading an update…");
+  await screen.findByText("Saving the latest version for offline use…");
   expect(registration.update).toHaveBeenCalledTimes(2);
   expect(registration.active).toBe(first);
   expect(screen.getByText("Available offline")).toBeTruthy();
@@ -130,8 +130,8 @@ test("Retry recovers failed installs, newer updates and evicted active packs wit
     registration.waiting = replacement;
     replacement.dispatchEvent(new Event("statechange"));
   });
-  await screen.findByText("Update ready. Close all Airplane Systems windows to apply.");
-  expect(registration.active).toBe(first);
+  await waitFor(() => expect(screen.queryByText("Saving the latest version for offline use…")).toBeNull());
+  expect(screen.queryByText(/close all/i)).toBeNull();
   expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
 
   // Retiring the old active worker after a successful activation is not an update failure.

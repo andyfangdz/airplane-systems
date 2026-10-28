@@ -58,8 +58,13 @@ check because browser emulation cannot render the system effect.
 Production builds generate a versioned, verified offline pack and `/sw.js` for both Next hosting and static export.
 On hosting platforms such as Vercel, the deployment adapter receives these files through Next's `onBuildComplete`
 hook before it packages the app. The post-build step then verifies the sealed package instead of replacing it.
-Installation completes only after every file is saved and verified. Updates download in the background and wait
-until all app windows close, so an open simulation keeps its matching page, navigation payloads and scripts.
+Installation completes only after every file is saved and verified. Online, pages, navigation payloads and other
+files without a content hash always come from the site, so every visit gets the latest version; the saved pack
+answers only when the network fails, the server returns an error or nothing arrives within 5 seconds. Content-hashed
+scripts, styles and geometry are served from the pack, since their bytes can't change. A new release downloads in the
+background, copies every unchanged file from the previous pack, fetches only what changed, and replaces the saved copy
+as soon as it is complete. Pages open at that moment still run the earlier build, so its pack stays until they have
+closed or reloaded.
 `scripts/test-pwa-ui.mjs` exercises a complete download, offline reopening, model switching and deep-link reloads.
 Development mode does not register a worker. Native Home Screen chrome still needs a physical iOS device check.
 

@@ -46,7 +46,7 @@ function isStatus(value: unknown): value is Download {
   );
 }
 
-/** Prepare a complete, versioned study pack without interrupting the current simulation or an older active worker. */
+/** Keep a complete, versioned study pack for offline use. Online, pages and data always come from the site itself. */
 export function OfflineSupport() {
   useEffect(() => {
     // Development chunks change on every edit; only production builds contain the verified offline inventory.
@@ -105,6 +105,8 @@ export function OfflineSupport() {
         if (disposed) return;
         if (worker.state === "activated" || worker.state === "installed") {
           installed = true;
+          // A complete update takes over at once and its pack becomes the saved copy.
+          if (worker.state === "activated") useOffline.setState({ update: null });
           query(worker);
         }
         if (worker.state === "redundant") {
@@ -214,8 +216,7 @@ export function OfflineStatus() {
       {!ready && !failed && offline.state !== "unsupported" && (
         <progress aria-label="Offline download progress" max={100} value={percent} />
       )}
-      {offline.update === "ready" && <small>Update ready. Close all Airplane Systems windows to apply.</small>}
-      {ready && offline.update === "downloading" && <small>Downloading an update…</small>}
+      {ready && offline.update === "downloading" && <small>Saving the latest version for offline use…</small>}
       {ready && offline.update === "error" && (
         <small>The saved version is still available. Retry the update online.</small>
       )}

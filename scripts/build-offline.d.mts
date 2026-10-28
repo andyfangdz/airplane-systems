@@ -3,6 +3,8 @@ export interface OfflineFile {
   bytes: number;
   sha256: string;
   contentType: string;
+  /** Content-addressed: the saved copy is served without asking the network. */
+  immutable: boolean;
 }
 export interface OfflineManifest {
   schema: 1;
@@ -44,6 +46,7 @@ export interface OfflineAdapterContext {
     }>;
   };
 }
+export function workerSource(template: string, manifest: OfflineManifest): string;
 export function buildOffline(
   root?: string,
   options?: { staticExport?: boolean; adapterContext?: OfflineAdapterContext },

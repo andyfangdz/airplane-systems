@@ -266,6 +266,10 @@ test("the installed study pack opens and renders unvisited models offline", asyn
   expect(font).toBeTruthy();
   await expect((await openPicker(page)).getByText("Available offline", { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
+  // Online, the controlling worker passes the site's own latest page through. A saved snapshot has no Date header.
+  const latest = await page.reload();
+  expect(latest.headers().date, "An online navigation must reach the site, not the saved pack").toBeTruthy();
+  await rendered(page, "/sr20/overview", "SR20 G6");
 
   await studyHost.disconnect(context);
   await page.close();

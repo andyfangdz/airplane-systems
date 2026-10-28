@@ -7,8 +7,9 @@ import { extname, join, resolve } from "node:path";
 
 export const MANIFEST = "release-manifest.json";
 export const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-export const immutable = (path) =>
-  path.startsWith("_next/static/") || /^geometry\/[a-z0-9-]+-[a-f0-9]{20}\.(?:bin\.gz|scene\.json|js)$/.test(path);
+/** Content-hashed paths, relative to the site root: a URL's bytes never change. The offline worker shares it. */
+export const IMMUTABLE_PATH = /^(?:_next\/static\/|geometry\/[a-z0-9-]+-[a-f0-9]{20}\.(?:bin\.gz|scene\.json|js)$)/;
+export const immutable = (path) => IMMUTABLE_PATH.test(path);
 const cacheClass = (path) =>
   immutable(path)
     ? "immutable"
