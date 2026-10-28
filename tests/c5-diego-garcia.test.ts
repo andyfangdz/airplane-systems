@@ -8,6 +8,7 @@ import {
   GEAR_TRANSIT_S,
   IAS_FLOOR,
   MOMENTS,
+  PLACEMENT,
   SLAT_SHORT,
   SLAT_TRANSIT_S,
   T_END,
@@ -15,8 +16,11 @@ import {
   TRACK,
   channel,
   gearTravel,
+  groundAt,
+  groundFrame,
   sample,
   slatTravel,
+  trackAt,
 } from "@/fdr/c5-diego-garcia/model";
 import { ALT_READINGS, HDG_READINGS, IAS_READINGS } from "@/fdr/c5-diego-garcia/readings";
 import { TRANSCRIPT, lastLineIndex, lineAt } from "@/fdr/c5-diego-garcia/transcript";
@@ -223,6 +227,56 @@ describe("the replay's data", () => {
     expect(TRACK.north[0]).toBe(0);
     expect(TRACK.east.length).toBe(Math.round((T_END - T_START) / 0.2) + 1);
     for (const a of [TRACK.east, TRACK.north, TRACK.up]) expect(a.every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe("the ground under the track", () => {
+  const { runway } = C5_DIEGO_GARCIA.airport;
+  // metres per degree on the WGS84 ellipsoid at the runway's latitude
+  const lat = (runway.end31.lat * Math.PI) / 180;
+  const mLat = 111132.92 - 559.82 * Math.cos(2 * lat) + 1.175 * Math.cos(4 * lat);
+  const mLon = 111412.84 * Math.cos(lat) - 93.5 * Math.cos(3 * lat);
+  const toEnd13 = [(runway.end13.lon - runway.end31.lon) * mLon, (runway.end13.lat - runway.end31.lat) * mLat];
+  const length = Math.hypot(toEnd13[0], toEnd13[1]);
+  /** Along runway 31 from its threshold, and right of its centreline, m. */
+  const onRunway = (t: number) => {
+    const [e, n] = groundAt(t),
+      [x, y] = [toEnd13[0] / length, toEnd13[1] / length];
+    return { along: e * x + n * y, right: e * y - n * x };
+  };
+
+  test("OurAirports: runway 13/31's ends are 12,003 ft apart, runway 31 on 301.7° true", () => {
+    expect(length / 0.3048).toBeCloseTo(runway.lengthFt, -1);
+    const bearing = ((Math.atan2(toEnd13[0], toEnd13[1]) * 180) / Math.PI + 360) % 360;
+    expect(bearing).toBeCloseTo(runway.heading31T, 1);
+  });
+
+  test("the placed track passes the fitted point, and the ground's frame is its inverse", () => {
+    const [e, n, u] = groundAt(PLACEMENT.t);
+    expect(e).toBeCloseTo(PLACEMENT.east, 6);
+    expect(n).toBeCloseTo(PLACEMENT.north, 6);
+    expect(u).toBeCloseTo(trackAt(PLACEMENT.t)[2], 6);
+    // the runway 31 end, put back on the track, is the ground's origin
+    const g = groundFrame(),
+      [e0, n0] = trackAt(PLACEMENT.t);
+    const c = Math.cos(g.turn),
+      s = Math.sin(g.turn);
+    const [de, dn] = [g.east - e0, g.north - n0];
+    expect(PLACEMENT.east + c * de + s * dn).toBeCloseTo(0, 6);
+    expect(PLACEMENT.north - s * de + c * dn).toBeCloseTo(0, 6);
+  });
+
+  test("the animation's runway view: the lowest point short of runway 31 near its centreline, the data's end over it", () => {
+    const low = onRunway(144.2);
+    expect(low.along).toBeLessThan(-500);
+    expect(low.along).toBeGreaterThan(-1500);
+    expect(Math.abs(low.right)).toBeLessThan(100);
+    // the threshold passes under the view's foot at about 2:32, so the airplane crosses it soon after
+    const end = onRunway(T_END);
+    expect(end.along).toBeGreaterThan(0);
+    expect(end.along).toBeLessThan(length);
+    expect(end.right).toBeGreaterThan(0);
+    expect(end.right).toBeLessThan(400);
   });
 });
 

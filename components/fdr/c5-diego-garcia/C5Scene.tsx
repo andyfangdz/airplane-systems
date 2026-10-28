@@ -2,7 +2,8 @@
 /**
  * The C-5 flying the replay. The airplane stays at the centre of the view, pitched and banked as the animation's
  * attitude indicator shows; the world turns about it with the heading, so the view keeps the airplane's nose ahead:
- * the sea below at its altitude, the cloud base at 1,500 ft and the path flown, dead-reckoned. The slats, the flaps,
+ * Diego Garcia below at its altitude (Google's 3D tiles, placed by the animation's view of the runway; the sea without
+ * them), the cloud base at 1,500 ft and the path flown, dead-reckoned. The slats, the flaps,
  * the gear and the engines' fans move with the data. Length, span, height, wing area, sweep and wing sections are the
  * C-5's (Wikipedia); the rest is schematic.
  */
@@ -17,7 +18,8 @@ import { GEAR_TRANSIT_S, TRACK, trackAt } from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, C5_DIEGO_GARCIA, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
 import { ComponentStage } from "@/components/engine/ComponentStage";
 import { P } from "@/components/engine/scene/parts";
-import { replay, spec, useC5View } from "./store";
+import { replay, spec, TILES_KEY, useC5View, useTerrain } from "./store";
+import { Terrain } from "./Terrain";
 
 const D2R = Math.PI / 180,
   FT = 0.3048;
@@ -459,6 +461,8 @@ const SEA = 60_000;
 
 function World() {
   const view = useC5View();
+  const terrain = view.terrain && TILES_KEY !== "";
+  const island = useTerrain((x) => x.state === "shown") && terrain;
   const turn = useRef<THREE.Group>(null),
     shift = useRef<THREE.Group>(null),
     under = useRef<THREE.Group>(null);
@@ -474,15 +478,18 @@ function World() {
     const dropGeo = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(drops, 3));
     const grid = new THREE.GridHelper(SEA, SEA / 500, "#4f86a8", "#2f6385");
     grid.position.set(CENTRE[0], 1, CENTRE[1]);
+    const faint = new THREE.LineBasicMaterial({ color: "#9fc3da", transparent: true, opacity: 0.45 });
+    // built here, not as <threeLine>: R3F checks the prefixed name on every prop update and throws
+    const line = (geo: THREE.BufferGeometry, mat: THREE.Material) => new THREE.Line(geo, mat);
     return {
       past,
       ahead,
-      shadow,
       dropGeo,
       grid,
-      pastMat: new THREE.LineBasicMaterial({ color: "#e8573f" }),
-      aheadMat: new THREE.LineBasicMaterial({ color: "#e8573f", transparent: true, opacity: 0.3 }),
-      faint: new THREE.LineBasicMaterial({ color: "#9fc3da", transparent: true, opacity: 0.45 }),
+      faint,
+      pastLine: line(past, new THREE.LineBasicMaterial({ color: "#e8573f" })),
+      aheadLine: line(ahead, new THREE.LineBasicMaterial({ color: "#e8573f", transparent: true, opacity: 0.3 })),
+      shadowLine: line(shadow, faint),
       sea: new THREE.MeshStandardMaterial({ color: "#174a6b", roughness: 1, metalness: 0 }),
       cloud: new THREE.MeshBasicMaterial({
         color: "#e9eef2",
@@ -503,18 +510,21 @@ function World() {
     w.past.setDrawRange(0, i + 1);
     w.ahead.setDrawRange(i, N - i);
   });
+  // the camera frames the airplane, not the world
   return (
-    <>
+    <group userData={{ cameraBounds: false }}>
       <group ref={turn}>
         <group ref={shift}>
-          <P name="Sea" note={NOTE.sea} geometry={w.plane} material={w.sea} />
-          <primitive object={w.grid} />
+          {terrain && <Terrain />}
+          {!island && <P name="Sea" note={NOTE.sea} geometry={w.plane} material={w.sea} />}
+          {!island && <primitive object={w.grid} />}
           {view.trail && (
             <>
               <lineSegments geometry={w.dropGeo} material={w.faint} />
-              <threeLine geometry={w.shadow} material={w.faint} />
-              <threeLine geometry={w.past} material={w.pastMat} />
-              <threeLine geometry={w.ahead} material={w.aheadMat} />
+              {/* the ground track would come and go through the island's surface as its tiles sharpen */}
+              {!island && <primitive object={w.shadowLine} />}
+              <primitive object={w.pastLine} />
+              <primitive object={w.aheadLine} />
             </>
           )}
           {view.cloud && (
@@ -533,7 +543,7 @@ function World() {
         {view.labels && view.cloud && <Label at={[160, CLOUD_M, 0]}>Cloud base, 1,500 ft</Label>}
       </group>
       {view.path && <PathArrow />}
-    </>
+    </group>
   );
 }
 
@@ -559,34 +569,19 @@ function PathArrow() {
 
 // ---------------------------------------------------------------- the view
 
-/** Behind and to the left, a little above; backed off until the span fits whatever the view's shape. */
+/** Behind and to the left, a little above; the stage backs off until the airplane fits the view. */
 const CAMERA: Vec3 = [-100, 78, -115];
-const FIT_R = 44;
-
-function FitCamera() {
-  const done = useRef(false);
-  useFrame(({ camera, size, controls }) => {
-    if (done.current || !size.width || !(camera instanceof THREE.PerspectiveCamera)) return;
-    done.current = true;
-    const v = (camera.fov * D2R) / 2,
-      h = Math.atan(Math.tan(v) * (size.width / size.height));
-    const d = FIT_R / Math.sin(Math.min(v, h));
-    camera.position.copy(new THREE.Vector3(...CAMERA).normalize().multiplyScalar(d));
-    (controls as unknown as { update?: () => void } | null)?.update?.();
-  });
-  return null;
-}
 
 export default function C5Scene() {
   return (
     <ComponentStage
       camera={{ position: CAMERA, fov: 40, near: 1, far: 90_000 }}
+      logarithmicDepth
       target={[0, 0, 0]}
       minDistance={25}
       maxDistance={12_000}
       keyLight={{ position: [40, 80, 30], intensity: 1.5 }}
     >
-      <FitCamera />
       <Airplane />
       <World />
     </ComponentStage>

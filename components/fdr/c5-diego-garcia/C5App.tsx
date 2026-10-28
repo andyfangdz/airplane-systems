@@ -34,10 +34,12 @@ import {
   replay,
   seek,
   spec,
+  TILES_KEY,
   togglePlay,
   useC5View,
   useReplay,
   useReplayLoop,
+  useTerrain,
   videoLoading,
   type Replay,
 } from "./store";
@@ -264,14 +266,17 @@ function Monitor() {
 
 const lineNow = (r: Replay) => lineAt(r.t);
 
-/** The words being spoken, as subtitles. */
+/** The words being spoken, as subtitles; their place is kept between lines. */
 function Caption() {
   const l = useLiveSelector(replay, lineNow, 100);
-  if (!l) return null;
   return (
     <div className="c5-caption">
-      {l.who && <b>{l.who}: </b>}
-      {l.text}
+      {l && (
+        <span>
+          {l.who && <b>{l.who}: </b>}
+          {l.text}
+        </span>
+      )}
     </div>
   );
 }
@@ -705,7 +710,20 @@ const TOGGLES = [
   ["trail", "Trail", "Draw the path flown (dead-reckoned, approximate)"],
   ["path", "Flight path", "Show which way the airplane is moving, against where its nose points"],
   ["cloud", "Cloud base", "Show the cloud base at 1,500 ft"],
+  ...(TILES_KEY
+    ? ([
+        ["terrain", "Terrain", "Show Diego Garcia in 3D (Google), placed by the animation's view of the runway"],
+      ] as const)
+    : []),
 ] as const;
+
+/** The data providers of the 3D tiles in view, which must be shown with them. */
+function TilesCredit() {
+  const on = useC5View((x) => x.terrain);
+  const credit = useTerrain((x) => (x.state === "shown" ? x.credit : ""));
+  if (!on || !TILES_KEY || !credit) return null;
+  return <div className="c5-credit">{credit}</div>;
+}
 
 export default function C5App() {
   useReplayLoop();
@@ -713,7 +731,12 @@ export default function C5App() {
   return (
     <FdrShell
       id={spec.id}
-      scene={<Scene />}
+      scene={
+        <>
+          <Scene />
+          <TilesCredit />
+        </>
+      }
       toolbar={<ViewToggles items={TOGGLES} view={view} set={view.set} />}
       foot={<Foot />}
       panel={<Panel />}

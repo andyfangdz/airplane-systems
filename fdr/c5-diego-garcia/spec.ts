@@ -92,6 +92,25 @@ export const C5_DIEGO_GARCIA = {
   },
   /** Cloud: "Passing through 1500-feet the crew regains visual conditions" (Lacklen). The tops aren't published. */
   cloudBaseFt: 1500,
+  /** The airfield, as OurAirports lists it (airports.csv and runways.csv). */
+  airport: {
+    ident: "FJDG",
+    name: "Naval Support Facility Diego Garcia",
+    url: "https://ourairports.com/airports/FJDG/",
+    elevationFt: 9,
+    runway: {
+      lengthFt: 12003,
+      widthFt: 200,
+      /** The runway's ends, degrees: 13 at the north-west end, 31 at the south-east; both at 9 ft. */
+      end13: { lat: -7.304570198059082, lon: 72.39700317382812 },
+      end31: { lat: -7.321959972381592, lon: 72.42520141601562 },
+      /** Runway 31's true heading, degrees. */
+      heading31T: 301.7,
+    },
+    /** The EGM96 geoid's height above the WGS84 ellipsoid at the runway 31 end, m: the 3D tiles' heights are
+     * ellipsoidal, so sea level is this far below their zero (egm96-universal's meanSeaLevel). */
+    geoidM: -74.72,
+  },
 } as const;
 
 export type C5Spec = typeof C5_DIEGO_GARCIA;

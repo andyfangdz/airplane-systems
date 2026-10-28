@@ -31,8 +31,19 @@ export type VideoState = "off" | "loading" | "ready" | "error";
 
 export const useReplay = create<{ playing: boolean; video: VideoState }>(() => ({ playing: false, video: "off" }));
 
-/** `trail` draws the path, `path` the direction of flight, `cloud` the cloud base and `labels` names the parts. */
-export const useC5View = createViewStore({ labels: true, trail: true, path: true, cloud: true });
+/** `trail` draws the path, `path` the direction of flight, `cloud` the cloud base, `terrain` the island and `labels`
+ * names the parts. */
+export const useC5View = createViewStore({ labels: true, trail: true, path: true, cloud: true, terrain: true });
+
+/** The Google Maps API key the 3D tiles need; without one the sea stands in for the island. */
+export const TILES_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+
+/** The island's 3D tiles: `loading` until the first arrives, `shown`, or `failed` when they won't load (offline, say);
+ * `credit` names the data providers of the tiles in view. */
+export const useTerrain = create<{ state: "loading" | "shown" | "failed"; credit: string }>(() => ({
+  state: "loading",
+  credit: "",
+}));
 
 let player: YTPlayer | null = null;
 /**

@@ -68,6 +68,8 @@ for (const [name, viewport] of Object.entries({
         ? route.fulfill({ contentType: "text/javascript", body: FAKE_API })
         : route.abort(),
     );
+    // nor Google's 3D tiles: without them the sea stands in for the island
+    await context.route(/tile\.googleapis\.com|gstatic\.com/, (route) => route.abort());
     const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -133,6 +135,16 @@ for (const [name, viewport] of Object.entries({
     await expect(time).toHaveText(/2:3[01]/);
     await mon.getByRole("button", { name: "Pause" }).click();
     await expect.poll(() => page.evaluate(() => window.__yt.calls.at(-1))).toBe("pause");
+
+    // where a Maps key was built in, the island can be turned off and on; refused, the sea stays
+    const terrain = page.getByRole("button", { name: "Terrain", exact: true });
+    if (await terrain.count()) {
+      await terrain.click();
+      await expect(terrain).toHaveAttribute("aria-pressed", "false");
+      await terrain.click();
+      await expect(terrain).toHaveAttribute("aria-pressed", "true");
+    }
+    await expect(page.locator(".c5-credit")).toHaveCount(0);
 
     // labels name the parts
     const labels = page.getByRole("button", { name: "Labels", exact: true });

@@ -18,6 +18,8 @@ report is public. Two records are used, and where they differ both are given:
 | Greg Smith, Chief, MAAF Facility, [“The USAF Mishap Analysis and Animation Facility”](https://www.safety.af.mil/Portals/71/documents/Magazines/FSM/fsmdec98.pdf?ver=2017-03-28-101008-997), _Flying Safety_, HQ Air Force Safety Center, December 1998, pp. 6–9                                                      | The facility's work and history, the tape recorders (p. 7), what an animation is built from (p. 8), and the recovery of this event's data (pp. 8–9). Its p. 9 plots of corrected recorder data aren't said to be this event's, so nothing is read from them                                                         |
 | Master Sgt. Steve Marciniak, [“C-5 mishap investigated”](https://www.dover.af.mil/News/Article/231053/c-5-mishap-investigated), 436th Airlift Wing Public Affairs, Dover AFB, 29 June 2006                                                                                                                           | About a different C-5 mishap (Dover, 3 April 2006); read only for what becomes public after an Air Force mishap                                                                                                                                                                                                     |
 | [_AFMAN 11-2C-5 Volume 3, C-5 Operations Procedures_](https://static.e-publishing.af.mil/production/1/af_a3/publication/afman11-2c-5v3/afman11-2c-5v3.pdf), 20 October 2022 (the C-5M's; the 1998 rules may have differed)                                                                                           | Table 3.5 items 5-5d to f (slats, slat position indicator; p. 38), Table 3.2 item 2-10 (angle-of-attack de-ice and its stallimiter; p. 24), Table 3.14 items 14-1 and 14-2 (Stallimiter System, GPWS; p. 60), 7.4.1 (manoeuvres crews may not practise in the airplane; p. 87). It does not say what TRT stands for |
+| [FJDG](https://ourairports.com/airports/FJDG/), OurAirports (airports.csv and runways.csv)                                                                                                                                                                                                                           | Diego Garcia's elevation (9 ft), and runway 13/31: its length and width (12,003 × 200 ft), the latitude and longitude of its two ends, and runway 31's true heading (301.7°)                                                                                                                                        |
+| [Photorealistic 3D Tiles](https://developers.google.com/maps/documentation/tile/3d-tiles), Google Maps Platform                                                                                                                                                                                                      | The island and the airfield the 3D view draws under the track, where the site has a Maps key. Their heights are above the WGS84 ellipsoid; the EGM96 geoid, 74.72 m below it at the runway 31 end (the egm96-universal package), is taken as sea level                                                              |
 | [APS Training's page on the event](https://blog.apstraining.com/resources/c5-galaxy-diego-garcia)                                                                                                                                                                                                                    | A summary of the same event, read for background; no number is taken from it                                                                                                                                                                                                                                        |
 
 ## Taken as stated
@@ -105,6 +107,26 @@ The wind and the heading's variation aren't known, and nor is the speed below th
 shape of the path. In the spiral the animation's altitude holds, then drops hundreds of feet in a second. The vertical
 speed is therefore an average, not what a VSI would have shown.
 
+**Where the track lies.** No record gives the airplane's position. The animation switches to a chase view behind the
+airplane at 2:18, and the runway is in it from then to the end. The view's camera looks along one bearing from a fixed distance,
+whatever the airplane does. Its frames were matched to OurAirports' runway, projected through a
+camera solved for at the same time as the track's place:
+
+- the runway's two edges, from the rows of the frame where both are clean, and where they meet on the horizon;
+- the runway's far end, and its threshold as it slides out of the bottom of the view, about 2:30 to 2:32;
+- the airplane's drawn size, which fixes the camera's distance from it.
+
+The fit puts the camera about 52 m behind the airplane, looking down at about 30°. It needs the dead-reckoned track
+turned 6.3° to the left. That turn takes up the wind, which isn't known, and whether the heading window reads true or
+magnetic. The fit matches the frames to 2.5 pixels RMS, but the animation is only 640 × 480, so the track is
+placed to a few hundred metres. At 2:38 (158 s) the airplane is 115 m west and 368 m
+north of the runway 31 end. Placed so, the track:
+
+- comes in from about 10 km south-east of the runway 31 end;
+- is at its lowest, 771 ft at 2:24, about 800 m short of the runway, near its extended centreline;
+- crosses the lagoon's shore about 2:27, where Lacklen has the recovery at 733 ft “above the lagoon”;
+- ends over the runway, about 1.3 km past the runway 31 end.
+
 **The cloud.** The page's cloud base is Lacklen's 1,500 ft. The tops are not known.
 
 ## The cockpit voice recording
@@ -154,5 +176,7 @@ These sources don't give the following, so the drawing chooses them:
 - **Transit times:** how long the gear and slats take to move. The drawing uses 8 s for the gear and 4 s for the slats.
 - **Unseated slats:** while neither lock shows LOCKED, they are drawn stopped at 80% of their travel, exaggerated so the
   shortfall can be seen.
+
+With a Maps key, Google's 3D tiles draw Diego Garcia, placed as above. Without one, a flat sea at 0 ft stands in.
 
 It was night; the view is lit to be seen.

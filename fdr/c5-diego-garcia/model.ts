@@ -237,6 +237,43 @@ export function trackAt(t: number): [east: number, north: number, up: number] {
   return [l(TRACK.east), l(TRACK.north), l(TRACK.up)];
 }
 
+/**
+ * Where the track lies over the ground. No source gives the position, but the animation's chase view shows the runway
+ * from 2:18 to the end. The fit matches the projected runway to that view. It uses the runway's edges, its far end and
+ * its threshold as they slide out of the bottom of the view. It solves for the chase camera and for this placement
+ * together. SOURCES.md has the method; the result is good to a few hundred metres.
+ */
+export const PLACEMENT = {
+  /** The video time whose track point is placed, s. */
+  t: 158,
+  /** Where the airplane was then: metres east and north of the runway 31 end. */
+  east: -115,
+  north: 368,
+  /** The track is turned by this many degrees, negative to the left. It absorbs the wind, which isn't known, and
+   * whether the heading window reads true or magnetic. */
+  turnDeg: -6.3,
+} as const;
+
+const D2R = Math.PI / 180;
+/** The track at `t` over the ground: metres east and north of the runway 31 end, and the height above sea level. */
+export function groundAt(t: number): [east: number, north: number, up: number] {
+  const [e, n, u] = trackAt(t),
+    [e0, n0] = trackAt(PLACEMENT.t);
+  const c = Math.cos(PLACEMENT.turnDeg * D2R),
+    s = Math.sin(PLACEMENT.turnDeg * D2R);
+  return [PLACEMENT.east + c * (e - e0) + s * (n - n0), PLACEMENT.north - s * (e - e0) + c * (n - n0), u];
+}
+
+/** The runway 31 end in the track's frame (metres east and north of where the data starts), and the turn from the
+ * track's axes to true ones, radians: what the 3D view needs to set the ground under the track. */
+export function groundFrame(): { east: number; north: number; turn: number } {
+  const [e0, n0] = trackAt(PLACEMENT.t);
+  const c = Math.cos(PLACEMENT.turnDeg * D2R),
+    s = Math.sin(PLACEMENT.turnDeg * D2R);
+  const { east: a, north: b } = PLACEMENT;
+  return { east: e0 - c * a + s * b, north: n0 - s * a - c * b, turn: PLACEMENT.turnDeg * D2R };
+}
+
 // ---------------------------------------------------------------- the timeline
 
 export interface Moment {

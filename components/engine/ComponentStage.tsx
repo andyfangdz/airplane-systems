@@ -209,6 +209,7 @@ export function ComponentStage({
   frameKey = "",
   ambient = 0.55,
   keyLight = { position: [3, 4, 2], intensity: 1.6 },
+  logarithmicDepth = false,
   children,
 }: {
   camera: { position: Vec3; fov: number; near: number; far: number };
@@ -220,6 +221,9 @@ export function ComponentStage({
   frameKey?: string;
   ambient?: number;
   keyLight?: { position: Vec3; intensity: number };
+  /** For a scene deeper than the depth buffer resolves (metres to tens of kilometres): surfaces a metre apart far
+   * away otherwise flicker through each other. */
+  logarithmicDepth?: boolean;
   children: ReactNode;
 }) {
   const model = useRef<THREE.Group>(null);
@@ -227,7 +231,12 @@ export function ComponentStage({
   useEffect(() => clearHover, []);
   return (
     <>
-      <Canvas camera={camera} {...rendering} gl={{ antialias: true, alpha: true }} onPointerMissed={clearHover}>
+      <Canvas
+        camera={camera}
+        {...rendering}
+        gl={{ antialias: true, alpha: true, logarithmicDepthBuffer: logarithmicDepth }}
+        onPointerMissed={clearHover}
+      >
         <ambientLight intensity={ambient} />
         <directionalLight position={keyLight.position} intensity={keyLight.intensity} />
         <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
