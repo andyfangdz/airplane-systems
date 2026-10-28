@@ -240,7 +240,8 @@ These sources don't give the following, so the drawing chooses them:
 - **Unseated slats:** while neither lock shows LOCKED, they are drawn stopped at 80% of their travel, exaggerated so the
   shortfall can be seen.
 
-The airplane flies the track traced above, nose 9.9° left of the heading window's heading as the animation flies it.
+The airplane flies the track traced above, nose 7.96° left of the heading window's heading: the magnetic heading
+turned to true by the variation.
 With a Maps key, Google's 3D tiles draw Diego Garcia under it. Without one, a flat sea at 0 ft stands in.
 
 It was night; the view is lit to be seen.
