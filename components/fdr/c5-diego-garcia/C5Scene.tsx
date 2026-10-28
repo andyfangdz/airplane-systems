@@ -3,8 +3,8 @@
  * The C-5 flying the replay. The airplane stays at the centre of the view, pitched and banked as the animation's
  * attitude indicator shows; the world turns about it with the heading, so the view keeps the airplane's nose ahead:
  * Diego Garcia below at its altitude (Google's 3D tiles; the sea without them), the cloud base at 1,500 ft and the path
- * flown, placed where the animation's top view shows the island and the runway. The slats, the flaps,
- * the gear and the engines' fans move with the data. Length, span, height, wing area, sweep and wing sections are the
+ * flown, traced off the animation's top view against its runway. The slats, the flaps, the gear and the engines' fans
+ * move with the data. Length, span, height, wing area, sweep and wing sections are the
  * C-5's (Wikipedia); the rest is schematic.
  */
 import { Html } from "@react-three/drei";

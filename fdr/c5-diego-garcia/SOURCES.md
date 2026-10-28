@@ -103,8 +103,8 @@ Each change was then checked frame by frame:
 
 - the vertical speed, the altitude's least-squares slope over 4 s;
 - the flight path angle through the air, from that and the true airspeed;
-- the track the 3D view draws: the true airspeed along the heading, in still air, held where the animation's top view
-  shows the runway, and moved onto the final approach course before the stall (below).
+- the track the 3D view draws: the animation's top view traced frame by frame against its runway and its 1 nm grid
+  (below).
 
 The speed below the 50 kt floor isn't known. In the spiral the animation's altitude holds, then drops hundreds of feet
 in a second. The vertical speed is therefore an average, not what a VSI would have shown.
@@ -119,62 +119,57 @@ through that camera, from the altitude the animation reads.
   to the grid's lines throughout. The airplane's drawn size puts the camera about 96 m from it.
 - **The grid** is 1 nm square, and north–south on the island: matched to OpenStreetMap's coastline, the projected
   island needs no turn and a scale that makes the squares 1,852 m, and the airplane crosses them at its true airspeed.
-- **The animation's motion.** Where the grid's lines fall in each frame gives the airplane's position within its
-  square. Followed through the video, that gives how far the animation moves the airplane. From 0:15 to 1:54 it moves
-  it at the true airspeed (the indicated, corrected for ISA density) along the heading window's heading, with no
-  wind, to 120 m at most. In the spiral, 1:54 to 2:14, with the airspeed at or near its floor, it moves it about
-  380 m less. From about 2:25, too few lines are in view to follow.
+- **The animation's motion.** Where the grid's lines fall in each frame, at the animation's 10 frames a second, gives
+  the airplane's position within its square; followed from frame to frame, how far the animation moves it. In the
+  first seconds the lines misread by up to 750 m; there the island's land, matched from frame to frame, gives the
+  motion instead. From 0:07 to 1:52 the animation moves the airplane at the true airspeed (the indicated, corrected for
+  ISA density) along the heading window's heading, with no wind: the grid keeps to that to 61 m RMS along the runway
+  and 41 m across, and the island to 80 m from 0:07 to 0:20. Through the stall it doesn't. From about 2:21 too few
+  lines are in view to follow: the grid drifts up to 480 m from where the runway, then in full view, puts the airplane.
 - **Magnetic as true.** The heading window reads magnetic, and the runway's edges cross the grid at 309.2°. That is
   runway 31's magnetic heading in 1998: 301.7° true, with a variation of 7.96° W (IGRF-14), is 309.7°. The animation
-  flies the magnetic heading and draws the runway on it, as if both were true; its island is set to true north. The
-  track here turns the heading to true by the variation, so the airplane keeps its course to the runway.
-- **The runway** places the track after the stall. It fills the view from 2:18 to the end. From 2:26, the airplane's
-  offset from the runway's centreline, from the rows where both edges are clean, agrees to 5 m across 197 frames. Its
-  distance along the runway, from the threshold as it slides out of the bottom of the view, agrees to 15 m across 11
-  frames.
-- **Before the stall the runway is a dark line** along a white strip of the island, from about 0:45. Its pixels,
-  projected to sea level, run on runway 31's heading to within 1°. They put the airplane 180 to 250 m left of its
-  centreline from 0:45 to 1:00, 270 to 340 m left from 1:05 to 1:42, and 350 m left as the stall starts at 1:46.
-  The track as the animation places it keeps to that line to 25 m until 1:42.
+  flies the magnetic heading and draws the runway on it, as if both were true; its island is set to true north. Here
+  the track is laid on runway 31 as it was traced against the animation's, and the heading is turned to true by the
+  variation, so the airplane points along it as it does in the animation.
+- **The runway, across.** The runway is a dark line along a white strip of the island from 0:46, and fills the view
+  from 2:18. In each frame its pixels, projected to sea level, run on its heading across the grid to within 1.5°;
+  frames where they don't (the wing seen edge-on) are left out. Fitted, they give the airplane's offset from the
+  centreline in 990 frames. From 0:46 to 1:52 that offset stays a constant distance from where the still air takes the
+  airplane, its 1 s medians within 35 m (SD), and from 2:21 to the end within 13 m. Through the stall it moves 270 m.
+- **The runway, along.** Where the dark line's near end holds still on the ground as the airplane flies on, it is the
+  threshold. It does in five stretches: 1:32 to 1:42 (101 frames), 1:53 to 1:55 (21), 2:01 to 2:04 (29), 2:10 to 2:12
+  (16) and 2:31 (9). Elsewhere the airplane hides it, and the line ends where the airplane does. Between the
+  stretches, the airplane's motion over the grid keeps to the threshold to 110 m, through the spiral too.
 - **The island doesn't agree with the runway.** Its west arm, with the runway, lies where OpenStreetMap's coastline
   has it from about 0:50, when it is in view. Its east arm is drawn about 2 km from the real one, relative to the
-  runway. Matched to the coastline on its own, the island would put the airplane about 1.7 km from where the runway
-  does, 2.2 km at 0:07. The runway is what the crew flew to, so it places the track, not the island.
+  runway. The runway is what the crew flew to, so it places the track, not the island.
 
-**Assumed, not shown: the crew held the final approach course.** The copilot's call at 1:10 says they were past the
-final approach fix. A crew there on a straight-in approach would be close to its course, not 300 m off it, and the
-animation can't place the approach as well as it places the recovery:
+**The traced track** is the runway, frame by frame. Across, it is the runway's offset in each frame, smoothed over 5 s.
+Along, it is pinned to the threshold in each of the five stretches, and moves as the grid moves the airplane between
+them and as the still air does beyond them. From 2:11 to 2:21 the grid can't be followed: the airplane rolls past
+vertical, with few lines in view. There the along offset is joined straight, from the threshold at 2:11 to the still
+air the runway shows resuming at 2:21, which the threshold at 2:31 confirms. Before 0:46 the runway isn't in view. The
+across offset is held from its first 15 s, and the track rests on the still air, which the grid follows there to about
+60 m.
 
-- it flies still air, so a crosswind on the night, and the heading the crew held against it, would show as drift;
-- where its runway puts the approach rests on its motion across the stall, where the airspeed is below its 50 kt
-  floor, the airplane spirals with its wings past vertical, and the animation's motion already differs from the
-  airspeed and heading by about 380 m.
+Drawn back into the frames, the traced runway falls on the dark line, and its threshold on the line's end from 1:32
+to 2:31. That includes 2:18 to 2:28, where the end wasn't read. The track keeps to the runway's offset to 24 m RMS
+across 990 frames, and to the threshold to 16 m RMS (52 m at most) across 176. Laid on runway 31, the track:
 
-So the track takes the final approach course to be runway 31's extended centreline, and moves the approach 290 m
-right of where the animation's runway puts it: from 1:10 to 1:42 it then averages on the centreline. The course isn't
-sourced for 1998.
-
-The track is the true airspeed along the true heading, in still air as the animation flies it. It is held where the
-runway puts it at 2:21, and at 1:42 where the animation's motion across the stall puts it, moved 290 m right. It is
-stretched evenly in time between the two, where the airspeed isn't known. It keeps to the animation's motion from
-0:15 to 1:42 to 80 m RMS, and along the runway to 110 m at 2:15 and 2:21; it keeps to the runway from 2:26 to the
-end to 15 m. Placed so, the track:
-
-- is in a right turn at 0:07 at 4,601 ft, over the sea east of the east arm, 10.1 km (5.4 nm) short of the runway
-  31 end and 100 m left of its extended centreline, joining it;
-- swings up to 290 m left of the centreline and 115 m right of it as it settles on the course, and crosses the east
-  arm from 0:43 to 0:54, still at about 4,500 ft;
-- is 4.2 km (2.25 nm) short at 1:10, on the centreline, at 4,556 ft, when the copilot calls for the descent, and
-  within 40 m of it until 1:42;
-- stalls and spirals over the lagoon, between 2.3 and 1.2 km short; across the stall, from 1:42 to 2:21, the 290 m
-  comes out, so it rejoins where the runway puts it;
-- is at its lowest, 771 ft at 2:24, 980 m short of the runway, on its extended centreline, over the lagoon;
+- is in a right turn at 0:07 at 4,601 ft, over the sea east of the east arm, 9.6 km (5.2 nm) short of the runway 31
+  end and 400 m left of its extended centreline, joining it;
+- swings out to 580 m left at 0:15 as it rolls out, crosses the east arm from 0:33 to 0:48 at about 4,400 to
+  4,560 ft, and closes to 120 m left at 0:55;
+- is 3.7 km (2.0 nm) short at 1:10, 280 m left of the centreline, at 4,556 ft, when the copilot calls for the descent,
+  and between 260 and 320 m left of it until 1:42;
+- stalls and spirals over the lagoon, between 1.9 and 1.2 km short, up to 410 m left;
+- is at its lowest, 771 ft at 2:24, 1.0 km short of the runway, 30 m left of its centreline, over the lagoon;
 - is still over the lagoon at 2:27, where Lacklen has the recovery at 733 ft “above the lagoon”, and crosses its shore
-  at 2:31;
-- ends 1.2 km past the runway 31 end and 130 m right of its centreline.
+  at 2:32;
+- ends 1.2 km past the runway 31 end and 150 m right of its centreline.
 
-No source gives the night's wind. The animation flies none, so neither does the track. A wind would move the real
-airplane's path, by about 31 m a minute for each knot; holding the course, the crew would have flown its correction.
+No source gives the night's wind. The animation flies none, so neither does the track. A wind would have moved the
+real airplane's path by about 31 m a minute for each knot.
 
 **The cloud.** The page's cloud base is Lacklen's 1,500 ft. The tops are not known.
 
@@ -226,7 +221,7 @@ These sources don't give the following, so the drawing chooses them:
 - **Unseated slats:** while neither lock shows LOCKED, they are drawn stopped at 80% of their travel, exaggerated so the
   shortfall can be seen.
 
-The airplane flies the track placed above, nose 9.9° left of the heading window's heading as the animation flies it.
+The airplane flies the track traced above, nose 9.9° left of the heading window's heading as the animation flies it.
 With a Maps key, Google's 3D tiles draw Diego Garcia under it. Without one, a flat sea at 0 ft stands in.
 
 It was night; the view is lit to be seen.

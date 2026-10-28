@@ -5,6 +5,7 @@
  */
 import { FDR, FDR_DT, FDR_T0 } from "./fdr";
 import { C5_DIEGO_GARCIA, LACKLEN, ANIMATION } from "./spec";
+import { TRACE } from "./trace";
 
 export const T_START = FDR_T0;
 export const T_END = FDR_T0 + (FDR.ias.length - 1) * FDR_DT;
@@ -218,56 +219,26 @@ const D2R = Math.PI / 180;
 export const VARIATION_DEG = -7.96;
 
 /**
- * How far the track is moved right of where the animation's runway puts the airplane before the stall, m. Assumed,
- * not shown: the crew held the final approach course past its fix. The animation draws its runway about 290 m right
- * of the airplane from the copilot's call at 1:10 that they are past the fix to 1:42. It flies still air, and its
- * motion through the stall, below the airspeed's 50 kt floor, isn't known, so its runway can't place the approach as
- * well as it places the recovery (SOURCES.md).
- */
-export const COURSE_SHIFT = 290;
-
-/**
- * Where the track is held: metres along runway 31 from its end (negative short of it) and right of its extended
- * centreline. At 2:21, where the animation's runway puts the airplane; it is in view from 2:18 to the end. At 1:42, as
- * the airspeed falls to its floor: along, the same less how far the animation moves the airplane over its top view's
- * 1 nm grid in between, about 380 m less than the airspeed and heading give, nearly all in the spiral; across, where
- * the animation's runway puts it (330 m left), moved `COURSE_SHIFT` right. Elsewhere the grid moves as they do.
- */
-export const FIXES = [
-  { t: 102, along: -2330, right: -330 + COURSE_SHIFT },
-  { t: 141, along: -1190, right: -150 },
-] as const;
-
-/**
- * Where the airplane went: metres east and north of the runway 31 end, true, and its height (m). The true airspeed (the
- * indicated, corrected for ISA density) along the true heading, in still air as the animation flies it, placed on
- * the `FIXES` and stretched evenly in time between them, where the airspeed isn't known. It is the 3D view's trail.
+ * Where the airplane went: metres east and north of the runway 31 end, true, and its height (m). The animation's top
+ * view, traced against its runway (`TRACE`), laid on runway 31; the height is the altitude. It is the 3D view's trail.
  */
 export const TRACK = (() => {
   const n = FDR.ias.length;
   const east = new Float32Array(n),
     north = new Float32Array(n),
     up = new Float32Array(n);
-  const de = new Float64Array(n),
-    dn = new Float64Array(n);
-  for (let k = 1; k < n; k++) {
-    const v = tas(FDR.ias[k], FDR.alt[k]),
-      h = (FDR.hdg[k] + VARIATION_DEG) * D2R;
-    de[k] = de[k - 1] + v * Math.sin(h) * FDR_DT;
-    dn[k] = dn[k - 1] + v * Math.cos(h) * FDR_DT;
-  }
-  // each fix's offset from the dead reckoning, held before the first and after the second, blended between
-  const rw = C5_DIEGO_GARCIA.airport.runway.heading31T * D2R;
-  const [a, b] = FIXES.map((f) => {
-    const k = Math.round((f.t - FDR_T0) / FDR_DT),
-      e = f.along * Math.sin(rw) + f.right * Math.cos(rw),
-      nn = f.along * Math.cos(rw) - f.right * Math.sin(rw);
-    return { k, e: e - de[k], n: nn - dn[k] };
-  });
-  for (let k = 0; k < n; k++) {
-    const x = Math.min(Math.max((k - a.k) / (b.k - a.k), 0), 1);
-    east[k] = de[k] + a.e + (b.e - a.e) * x;
-    north[k] = dn[k] + a.n + (b.n - a.n) * x;
+  const rw = C5_DIEGO_GARCIA.airport.runway.heading31T * D2R,
+    [s, c] = [Math.sin(rw), Math.cos(rw)];
+  for (let k = 0, j = 0; k < n; k++) {
+    const t = FDR_T0 + k * FDR_DT;
+    while (j < TRACE.length - 2 && TRACE[j + 1][0] <= t) j++;
+    const [t0, a0, r0] = TRACE[j],
+      [t1, a1, r1] = TRACE[j + 1],
+      x = Math.min(Math.max((t - t0) / (t1 - t0), 0), 1),
+      along = a0 + (a1 - a0) * x,
+      right = r0 + (r1 - r0) * x;
+    east[k] = along * s + right * c;
+    north[k] = along * c - right * s;
     up[k] = FDR.alt[k] * FT;
   }
   return { east, north, up };

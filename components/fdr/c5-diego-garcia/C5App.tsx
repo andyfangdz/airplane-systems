@@ -674,9 +674,9 @@ function About() {
             &apos;s, the number of slats the {AFMAN}&apos;s, the rest is drawn to look right. The flaps&apos; angle at
             each percent and how long the gear and slats take to move aren&apos;t in these sources: the gear is drawn
             moving over {GEAR_TRANSIT_S} s, and the slats&apos; shortfall while neither lock holds is exaggerated to be
-            seen. The trail is the airspeed along the heading turned from magnetic to true, in still air as the
-            animation flies it, held where its view of the runway (from 2:18) puts the airplane. Across the stall, where
-            the airspeed isn&apos;t known, it follows the animation&apos;s own motion and is approximate. The
+            seen. The trail is the animation&apos;s top view traced frame by frame: across, from its runway in each
+            frame from 0:46; along, from the runway&apos;s threshold where it shows, 1:32 to 2:31; between, as the
+            animation moves the airplane over its 1 nm grid. Before 0:46, with no runway in view, it is approximate. The
             animation&apos;s island is schematic and doesn&apos;t match its runway; the trail follows the runway. It was
             night; the view is lit to be seen.
           </>,
