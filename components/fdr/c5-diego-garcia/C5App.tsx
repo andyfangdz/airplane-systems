@@ -749,8 +749,11 @@ function About() {
             seen. The trail is the animation&apos;s top view traced frame by frame: across, from its runway in each
             frame from 0:46; along, from the runway&apos;s threshold where it shows, 1:32 to 2:31; between, as the
             animation moves the airplane over its 1 nm grid. Before 0:46, with no runway in view, it is approximate. The
-            animation&apos;s island is schematic and doesn&apos;t match its runway; the trail follows the runway. It was
-            night; the view is lit to be seen.
+            animation&apos;s island is drawn true north and matches the real coastline; its runway, drawn on the
+            magnetic heading, is 7.5° off it. Placed by the island, the airplane would start about 1.1 km nearer the
+            runway and 1.2 km further left (at 0:13, 7.9 km short and 1.7 km left, against the trail&apos;s 8.9 km and
+            565 m), and recover over the runway&apos;s end, not the lagoon. The trail follows the runway, which the crew
+            flew to; Lacklen has the recovery over the lagoon. It was night; the view is lit to be seen.
           </>,
           <>
             Not shown: the animation&apos;s normal acceleration (about 2 g in the pull-out, partly legible) and one

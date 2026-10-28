@@ -142,9 +142,19 @@ through that camera, from the altitude the animation reads.
   threshold. It does in five stretches: 1:32 to 1:42 (101 frames), 1:53 to 1:55 (21), 2:01 to 2:04 (29), 2:10 to 2:12
   (16) and 2:31 (9). Elsewhere the airplane hides it, and the line ends where the airplane does. Between the
   stretches, the airplane's motion over the grid keeps to the threshold to 110 m, through the spiral too.
-- **The island doesn't agree with the runway.** Its west arm, with the runway, lies where OpenStreetMap's coastline
-  has it from about 0:50, when it is in view. Its east arm is drawn about 2 km from the real one, relative to the
-  runway. The runway is what the crew flew to, so it places the track, not the island.
+- **The island doesn't agree with the runway.** The island is drawn to true north. Its land and sea, projected to sea
+  level in each frame from 0:07 to 0:35 and carried by the animation's motion, match OpenStreetMap's coastline (on
+  20 m cells) at a correlation of 0.72 with no turn, 0.62 to 0.66 turned 4° either way, and −0.07 as the track lies.
+  So fitted, the island puts the animation's runway end 940 m up the real runway, on its centreline, with the runway
+  turned 7.5° off the real one from there: the magnetic heading drawn as true. The island and the runway then place
+  the airplane differently. At 0:07 the island has it 8.5 km short of the runway 31 end and 1,640 m left; at 0:13,
+  7.9 km and 1,720 m; at 0:35, 5.5 km and 1,200 m. The track has 9.6 km and 400 m, 8.9 km and 565 m, and 6.5 km and
+  360 m: about 1.1 km further out and 1.2 km to the right at the start, 1.3 km apart by 0:35. Later the land in view
+  is the west arm, a long strip along the runway, which can't fix the along position: fitted over windows from 2:05
+  to 2:51, it would move the track anywhere from 1.3 to 3.1 km along the runway. Carried on by the animation's motion,
+  the island's placement has the airplane over land by 1:55, at its lowest at 2:24 63 m short of the runway 31 end,
+  and at 2:27, where Lacklen has the recovery "above the lagoon", 150 m past it. The track follows the runway: it is
+  what the crew flew to, on runway 31's localizer, and it keeps the recovery over the lagoon.
 
 **The traced track** is the runway, frame by frame. Across, it is the runway's offset in each frame, smoothed over 5 s.
 Along, it is pinned to the threshold in each of the five stretches, and moves as the grid moves the airplane between
