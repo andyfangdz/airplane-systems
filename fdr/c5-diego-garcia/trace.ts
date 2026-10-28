@@ -1,9 +1,10 @@
 /**
  * The animation's top view traced frame by frame (SOURCES.md): [seconds into the video, metres along the animation's
  * runway 31 from its threshold (negative short of it), metres right of its centreline], every half second. Across, the
- * runway's dark line, frame by frame from 0:46, smoothed over 5 s. Along, its threshold, in the five stretches of
- * frames where it shows between 1:32 and 2:31. Between and beyond them the airplane moves as the animation moves it
- * over its 1 nm grid: at the true airspeed along the heading, with no wind, except through the stall.
+ * runway's dark line, frame by frame from 0:46, smoothed over 5 s and eased in over those first 5 s from the offset
+ * held before it shows. Along, its threshold, in the five stretches of frames where it shows between 1:32 and 2:31.
+ * Between and beyond them the airplane moves as the animation moves it over its 1 nm grid: at the true airspeed along
+ * the heading, with no wind, except through the stall.
  */
 export const TRACE: readonly (readonly [t: number, along: number, right: number])[] = [
   [7, -9607, -404],
@@ -77,22 +78,22 @@ export const TRACE: readonly (readonly [t: number, along: number, right: number]
   [41, -5947, -273],
   [41.5, -5901, -265],
   [42, -5856, -257],
-  [42.5, -5810, -321],
-  [43, -5765, -293],
-  [43.5, -5720, -280],
-  [44, -5675, -270],
-  [44.5, -5631, -253],
-  [45, -5586, -239],
-  [45.5, -5542, -227],
-  [46, -5498, -209],
-  [46.5, -5454, -197],
-  [47, -5410, -194],
-  [47.5, -5366, -192],
-  [48, -5323, -194],
-  [48.5, -5280, -196],
-  [49, -5237, -193],
-  [49.5, -5195, -188],
-  [50, -5154, -185],
+  [42.5, -5810, -249],
+  [43, -5765, -242],
+  [43.5, -5720, -236],
+  [44, -5675, -229],
+  [44.5, -5631, -223],
+  [45, -5586, -217],
+  [45.5, -5542, -211],
+  [46, -5498, -205],
+  [46.5, -5454, -199],
+  [47, -5410, -193],
+  [47.5, -5366, -189],
+  [48, -5323, -187],
+  [48.5, -5280, -188],
+  [49, -5237, -187],
+  [49.5, -5195, -185],
+  [50, -5154, -184],
   [50.5, -5112, -181],
   [51, -5070, -178],
   [51.5, -5029, -174],

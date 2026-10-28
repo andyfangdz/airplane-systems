@@ -229,6 +229,17 @@
   transform: translateX(-1px);
 }
 
+@media (max-width: 639px) {
+  /* stacked: the instruments, the words and the transport stay in sight under the view while the panel scrolls */
+  .eng-foot:has(> .c5-mon) {
+    position: sticky;
+    top: max(42vh, 260px);
+    z-index: 3;
+    align-self: stretch;
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule);
+  }
+}
 @media (max-width: 860px) {
   /* the view's expand button holds the bottom right corner */
   .c5-credit {
@@ -236,16 +247,9 @@
     left: 8px;
     text-align: left;
   }
-  /* the instruments, the words and the transport stay in sight under the view while the panel scrolls */
   .eng-foot:has(> .c5-mon) {
-    position: sticky;
-    top: max(42vh, 260px);
-    z-index: 3;
-    align-self: stretch;
     padding: 6px 8px;
     gap: 6px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--rule);
   }
   .c5-caption {
     height: calc(2.7em + 8px);

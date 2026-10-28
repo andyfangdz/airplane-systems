@@ -283,6 +283,14 @@ describe("the ground under the track", () => {
     for (const [t, right] of seen) expect(Math.abs(onRunway(t).right - right), `${t} s`).toBeLessThan(45);
   });
 
+  test("the track eases onto the runway's first frames at 0:46 instead of stepping sideways", () => {
+    // from one half second to the next, the sideways motion changes by less than it does through the stall (SOURCES.md)
+    for (let t = T_START + 0.5; t <= T_END - 0.5; t += 0.5) {
+      const step = onRunway(t + 0.5).right - 2 * onRunway(t).right + onRunway(t - 0.5).right;
+      expect(Math.abs(step), `${t.toFixed(1)} s`).toBeLessThan(30);
+    }
+  });
+
   test("the animation's runway threshold, where it shows: the track is that far short of it", () => {
     // metres along runway 31 from its threshold, from the near end of the runway's dark line, the median of the frames
     // within a quarter second, in the five stretches where that end holds still on the ground (SOURCES.md)

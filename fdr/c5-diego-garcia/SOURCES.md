@@ -150,7 +150,8 @@ them and as the still air does beyond them. From 2:11 to 2:21 the grid can't be 
 vertical, with few lines in view. There the along offset is joined straight, from the threshold at 2:11 to the still
 air the runway shows resuming at 2:21, which the threshold at 2:31 confirms. Before 0:46 the runway isn't in view. The
 across offset is held from its first 15 s, and the track rests on the still air, which the grid follows there to about
-60 m.
+60 m. Over the first 5 s the runway is seen, the smoothing has frames on one side only, so the offset eases from the
+held value into the traced one rather than stepping onto that edge.
 
 Drawn back into the frames, the traced runway falls on the dark line, and its threshold on the line's end from 1:32
 to 2:31. That includes 2:18 to 2:28, where the end wasn't read. The track keeps to the runway's offset to 24 m RMS

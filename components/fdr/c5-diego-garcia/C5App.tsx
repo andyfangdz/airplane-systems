@@ -296,8 +296,10 @@ function Video() {
   const video = useReplay((x) => x.video);
   const host = useRef<HTMLDivElement>(null);
   const own = useRef<YTPlayer | null>(null);
+  const waiting = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(
     () => () => {
+      clearTimeout(waiting.current);
       own.current?.destroy();
       own.current = null;
       detachPlayer();
@@ -313,6 +315,13 @@ function Video() {
       // the player replaces this element with its iframe: one React doesn't own
       const el = document.createElement("div");
       host.current.appendChild(el);
+      const fail = () => {
+        clearTimeout(waiting.current);
+        if (own.current !== p) return;
+        p.destroy();
+        own.current = null;
+        detachPlayer(true);
+      };
       const p: YTPlayer = new YT.Player(el, {
         videoId: spec.video.id,
         host: HOST,
@@ -320,16 +329,17 @@ function Video() {
         height: "100%",
         playerVars: { start: Math.floor(replay.t), rel: 0, playsinline: 1 },
         events: {
-          onReady: () => attachPlayer(p),
-          onStateChange: (e) => playerState(e.data),
-          onError: () => {
-            p.destroy();
-            own.current = null;
-            detachPlayer(true);
+          onReady: () => {
+            clearTimeout(waiting.current);
+            attachPlayer(p);
           },
+          onStateChange: (e) => playerState(e.data),
+          onError: fail,
         },
       });
       own.current = p;
+      // a player whose frame is blocked or never loads reports nothing: give up after 20 s, so the button can retry
+      waiting.current = setTimeout(fail, 20_000);
     } catch {
       detachPlayer(true);
     }
