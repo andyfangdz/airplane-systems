@@ -5,10 +5,10 @@
 import { describe, expect, test } from "vitest";
 import {
   DURATION,
+  FIXES,
   GEAR_TRANSIT_S,
   IAS_FLOOR,
   MOMENTS,
-  PLACEMENT,
   SLAT_SHORT,
   SLAT_TRANSIT_S,
   T_END,
@@ -16,8 +16,6 @@ import {
   TRACK,
   channel,
   gearTravel,
-  groundAt,
-  groundFrame,
   sample,
   slatTravel,
   trackAt,
@@ -222,9 +220,7 @@ describe("the replay's data", () => {
     expect(f.path).toBeLessThan(f.pitch - 15);
   });
 
-  test("the dead-reckoned track starts at the origin and has a sample for every data point", () => {
-    expect(TRACK.east[0]).toBe(0);
-    expect(TRACK.north[0]).toBe(0);
+  test("the track has a sample for every data point", () => {
     expect(TRACK.east.length).toBe(Math.round((T_END - T_START) / 0.2) + 1);
     for (const a of [TRACK.east, TRACK.north, TRACK.up]) expect(a.every(Number.isFinite)).toBe(true);
   });
@@ -240,7 +236,7 @@ describe("the ground under the track", () => {
   const length = Math.hypot(toEnd13[0], toEnd13[1]);
   /** Along runway 31 from its threshold, and right of its centreline, m. */
   const onRunway = (t: number) => {
-    const [e, n] = groundAt(t),
+    const [e, n] = trackAt(t),
       [x, y] = [toEnd13[0] / length, toEnd13[1] / length];
     return { along: e * x + n * y, right: e * y - n * x };
   };
@@ -251,22 +247,40 @@ describe("the ground under the track", () => {
     expect(bearing).toBeCloseTo(runway.heading31T, 1);
   });
 
-  test("the placed track passes the fitted point, and the ground's frame is its inverse", () => {
-    const [e, n, u] = groundAt(PLACEMENT.t);
-    expect(e).toBeCloseTo(PLACEMENT.east, 6);
-    expect(n).toBeCloseTo(PLACEMENT.north, 6);
-    expect(u).toBeCloseTo(trackAt(PLACEMENT.t)[2], 6);
-    // the runway 31 end, put back on the track, is the ground's origin
-    const g = groundFrame(),
-      [e0, n0] = trackAt(PLACEMENT.t);
-    const c = Math.cos(g.turn),
-      s = Math.sin(g.turn);
-    const [de, dn] = [g.east - e0, g.north - n0];
-    expect(PLACEMENT.east + c * de + s * dn).toBeCloseTo(0, 6);
-    expect(PLACEMENT.north - s * de + c * dn).toBeCloseTo(0, 6);
+  test("the track passes through the fixes the animation's top view gives", () => {
+    for (const f of FIXES) {
+      const [e, n] = trackAt(f.t);
+      expect(e).toBeCloseTo(f.east, 0);
+      expect(n).toBeCloseTo(f.north, 0);
+    }
   });
 
-  test("the animation's runway view: the lowest point short of runway 31 near its centreline, the data's end over it", () => {
+  test("the animation's island view, 0:07 to 1:10: the track keeps to where the atoll's arms put the airplane", () => {
+    // the top view's frames, mapped together and matched to the coastline (SOURCES.md): metres east and north of the
+    // runway 31 end
+    const seen: [t: number, east: number, north: number][] = [
+      [10, 5460, -4240],
+      [20, 4650, -3810],
+      [30, 3930, -3220],
+      [40, 3260, -2590],
+      [50, 2750, -2150],
+      [60, 2210, -1810],
+      [70, 1740, -1580],
+    ];
+    let ss = 0;
+    for (const [t, east, north] of seen) {
+      const [e, n] = trackAt(t),
+        miss = Math.hypot(e - east, n - north);
+      expect(miss, `${t} s`).toBeLessThan(200);
+      ss += miss * miss;
+    }
+    expect(Math.sqrt(ss / seen.length)).toBeLessThan(100);
+    // at 4,600 ft at the start, about 7 km short of runway 31 and left of its centreline
+    expect(onRunway(T_START).along).toBeLessThan(-6500);
+    expect(onRunway(T_START).right).toBeLessThan(0);
+  });
+
+  test("the animation's runway view: the lowest point short of runway 31 on its centreline, the data's end over it", () => {
     const low = onRunway(144.2);
     expect(low.along).toBeLessThan(-500);
     expect(low.along).toBeGreaterThan(-1500);

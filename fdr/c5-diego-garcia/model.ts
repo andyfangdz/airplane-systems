@@ -1,6 +1,6 @@
 /**
  * The replay: the flight data at any moment of the video, the states the animation shows as words (gear handle, slat
- * locks), the stick shaker the slat fault disabled, a dead-reckoned track for the 3D view, and the moments the page's
+ * locks), the stick shaker the slat fault disabled, the track over the ground for the 3D view, and the moments the page's
  * timeline marks. Times are seconds into the video, so the cockpit audio, the data and the account share one clock.
  */
 import { FDR, FDR_DT, FDR_T0 } from "./fdr";
@@ -62,7 +62,7 @@ export interface Frame {
   gearTravel: number;
   /** The slats' travel as drawn: 0 retracted, SLAT_SHORT out but not seated, 1 seated and locked (schematic). */
   slats: number;
-  /** The angle of the flight path, degrees up, from the vertical speed and the true airspeed in still air. */
+  /** The angle of the flight path through the air, degrees up, from the vertical speed and the true airspeed. */
   path: number;
   /** In the cloud: above its base (the tops aren't published). Lacklen: visual again passing 1,500 ft. */
   inCloud: boolean;
@@ -202,30 +202,64 @@ export function sample(t: number, out: Frame = newFrame()): Frame {
   return out;
 }
 
-// ---------------------------------------------------------------- the track, dead-reckoned
+// ---------------------------------------------------------------- the track over the ground
 
 /** ISA density ratio at a pressure altitude, ft. */
 const sigma = (ft: number) => Math.pow(1 - 6.8756e-6 * ft, 4.2559);
 /** True airspeed, m/s, from the indicated (kt) at a pressure altitude (ft), in the ISA. */
 const tas = (kias: number, ft: number) => (kias * KT) / Math.sqrt(sigma(ft));
+const D2R = Math.PI / 180;
 
 /**
- * Where the airplane went, east and north of where the data starts (m), and its height (m): the true airspeed (the
- * indicated, corrected for ISA density) along the heading, in still air. The wind, the heading's variation and the
- * speed below the 50 kt floor aren't known, so this is only the shape of the path: the 3D view's trail.
+ * The wind the animation flies the airplane through, fitted with `HEADING_TURN_DEG` to how its top view moves over the
+ * ground (SOURCES.md has the method). No source gives the night's wind: this is the animation's, to several knots.
+ */
+export const WIND = { fromDeg: 287, kt: 41 } as const;
+/** The heading window's heading, turned by this many degrees (negative to the left), is the airplane's true heading
+ * in the animation. */
+export const HEADING_TURN_DEG = -9.9;
+
+/**
+ * Where the animation's top view puts the airplane: metres east and north of the runway 31 end, true. Up to the first
+ * fix, the track is held by the island's two arms, matched to the coastline from 0:07 to 1:10. From the second, it is
+ * held by the runway, in view from 2:18 to the end. The dead reckoning between them misses the second by about 430 m.
+ * The track is stretched evenly in time to meet both, across the slowdown, the stall and the spiral.
+ */
+export const FIXES = [
+  { t: 70, east: 1870, north: -1640 },
+  { t: 138, east: 720, north: -740 },
+] as const;
+
+/**
+ * Where the airplane went: metres east and north of the runway 31 end, and its height (m). The true airspeed (the
+ * indicated, corrected for ISA density) along the turned heading, through the wind, fitted to the `FIXES`. The speed
+ * below the 50 kt floor isn't known, so between the fixes the path is approximate. It is the 3D view's trail.
  */
 export const TRACK = (() => {
   const n = FDR.ias.length;
   const east = new Float32Array(n),
     north = new Float32Array(n),
     up = new Float32Array(n);
-  for (let k = 0; k < n; k++) {
-    up[k] = FDR.alt[k] * FT;
-    if (k === 0) continue;
+  const de = new Float64Array(n),
+    dn = new Float64Array(n);
+  const we = -WIND.kt * KT * Math.sin(WIND.fromDeg * D2R),
+    wn = -WIND.kt * KT * Math.cos(WIND.fromDeg * D2R);
+  for (let k = 1; k < n; k++) {
     const v = tas(FDR.ias[k], FDR.alt[k]),
-      h = (FDR.hdg[k] * Math.PI) / 180;
-    east[k] = east[k - 1] + v * Math.sin(h) * FDR_DT;
-    north[k] = north[k - 1] + v * Math.cos(h) * FDR_DT;
+      h = (FDR.hdg[k] + HEADING_TURN_DEG) * D2R;
+    de[k] = de[k - 1] + (v * Math.sin(h) + we) * FDR_DT;
+    dn[k] = dn[k - 1] + (v * Math.cos(h) + wn) * FDR_DT;
+  }
+  // each fix's offset from the dead reckoning, held before the first and after the second, blended between
+  const [a, b] = FIXES.map((f) => {
+    const k = Math.round((f.t - FDR_T0) / FDR_DT);
+    return { k, e: f.east - de[k], n: f.north - dn[k] };
+  });
+  for (let k = 0; k < n; k++) {
+    const x = Math.min(Math.max((k - a.k) / (b.k - a.k), 0), 1);
+    east[k] = de[k] + a.e + (b.e - a.e) * x;
+    north[k] = dn[k] + a.n + (b.n - a.n) * x;
+    up[k] = FDR.alt[k] * FT;
   }
   return { east, north, up };
 })();
@@ -235,43 +269,6 @@ export function trackAt(t: number): [east: number, north: number, up: number] {
   const [i, f] = at(t);
   const l = (a: Float32Array) => a[i] + (a[i + 1] - a[i]) * f;
   return [l(TRACK.east), l(TRACK.north), l(TRACK.up)];
-}
-
-/**
- * Where the track lies over the ground. No source gives the position, but the animation's chase view shows the runway
- * from 2:18 to the end. The fit matches the projected runway to that view. It uses the runway's edges, its far end and
- * its threshold as they slide out of the bottom of the view. It solves for the chase camera and for this placement
- * together. SOURCES.md has the method; the result is good to a few hundred metres.
- */
-export const PLACEMENT = {
-  /** The video time whose track point is placed, s. */
-  t: 158,
-  /** Where the airplane was then: metres east and north of the runway 31 end. */
-  east: -115,
-  north: 368,
-  /** The track is turned by this many degrees, negative to the left. It absorbs the wind, which isn't known, and
-   * whether the heading window reads true or magnetic. */
-  turnDeg: -6.3,
-} as const;
-
-const D2R = Math.PI / 180;
-/** The track at `t` over the ground: metres east and north of the runway 31 end, and the height above sea level. */
-export function groundAt(t: number): [east: number, north: number, up: number] {
-  const [e, n, u] = trackAt(t),
-    [e0, n0] = trackAt(PLACEMENT.t);
-  const c = Math.cos(PLACEMENT.turnDeg * D2R),
-    s = Math.sin(PLACEMENT.turnDeg * D2R);
-  return [PLACEMENT.east + c * (e - e0) + s * (n - n0), PLACEMENT.north - s * (e - e0) + c * (n - n0), u];
-}
-
-/** The runway 31 end in the track's frame (metres east and north of where the data starts), and the turn from the
- * track's axes to true ones, radians: what the 3D view needs to set the ground under the track. */
-export function groundFrame(): { east: number; north: number; turn: number } {
-  const [e0, n0] = trackAt(PLACEMENT.t);
-  const c = Math.cos(PLACEMENT.turnDeg * D2R),
-    s = Math.sin(PLACEMENT.turnDeg * D2R);
-  const { east: a, north: b } = PLACEMENT;
-  return { east: e0 - c * a + s * b, north: n0 - s * a - c * b, turn: PLACEMENT.turnDeg * D2R };
 }
 
 // ---------------------------------------------------------------- the timeline

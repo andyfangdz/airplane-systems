@@ -2,8 +2,8 @@
 /**
  * The C-5 flying the replay. The airplane stays at the centre of the view, pitched and banked as the animation's
  * attitude indicator shows; the world turns about it with the heading, so the view keeps the airplane's nose ahead:
- * Diego Garcia below at its altitude (Google's 3D tiles, placed by the animation's view of the runway; the sea without
- * them), the cloud base at 1,500 ft and the path flown, dead-reckoned. The slats, the flaps,
+ * Diego Garcia below at its altitude (Google's 3D tiles; the sea without them), the cloud base at 1,500 ft and the path
+ * flown, placed where the animation's top view shows the island and the runway. The slats, the flaps,
  * the gear and the engines' fans move with the data. Length, span, height, wing area, sweep and wing sections are the
  * C-5's (Wikipedia); the rest is schematic.
  */
@@ -14,7 +14,7 @@ import * as THREE from "three";
 import { af, cyl, finSurface, fuselage, liftingSurface, loft, mergeGeos, type Ring } from "@/lib/geometry";
 import { V, type Vec3 } from "@/lib/math";
 import { FDR_DT, FDR_T0 } from "@/fdr/c5-diego-garcia/fdr";
-import { GEAR_TRANSIT_S, TRACK, trackAt } from "@/fdr/c5-diego-garcia/model";
+import { GEAR_TRANSIT_S, HEADING_TURN_DEG, TRACK, trackAt } from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, C5_DIEGO_GARCIA, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
 import { ComponentStage } from "@/components/engine/ComponentStage";
 import { P } from "@/components/engine/scene/parts";
@@ -251,7 +251,7 @@ const NOTE = {
   main: `Main landing gear: “its high-flotation main landing gear provides ${A.wheels} wheels” (${WIKI}). Drawn schematically, following the gear handle over ${GEAR_TRANSIT_S} s (the travel time isn't in these sources). It was up as they recovered over the lagoon (${LACKLEN}).`,
   nose: `Nose landing gear (schematic), following the gear handle over ${GEAR_TRANSIT_S} s.`,
   lights: `Wingtip lights: the tower saw the two vertically aligned, like a weather balloon rising (${LACKLEN}).`,
-  path: `Which way the airplane is moving: the climb angle from the altitude's rate and the true airspeed, in still air (approximate). Wings level, its angle from the nose is about the angle of attack. Below the 50 kt floor the airplane was slower, so its path steeper than drawn.`,
+  path: `Which way the airplane is moving: the climb angle through the air, from the altitude's rate and the true airspeed (approximate). Wings level, its angle from the nose is about the angle of attack. Below the 50 kt floor the airplane was slower, so its path steeper than drawn.`,
   sea: `Sea level: the animation's altitude is above it. ${LACKLEN}: the recovery came at 733 ft above the lagoon.`,
   cloud: `Cloud base, 1,500 ft: passing it the crew regained visual conditions (${LACKLEN}). The tops aren't known.`,
 };
@@ -503,7 +503,8 @@ function World() {
   }, []);
   useFrame(() => {
     const [e, n, u] = trackAt(replay.t);
-    turn.current?.rotation.set(0, replay.f.hdg * D2R - Math.PI / 2, 0);
+    // the track is in true axes: the airplane points along the heading window's heading, turned to true
+    turn.current?.rotation.set(0, (replay.f.hdg + HEADING_TURN_DEG) * D2R - Math.PI / 2, 0);
     shift.current?.position.set(-e, -u, n);
     under.current?.position.set(0, -u, 0);
     const i = Math.min(Math.max(Math.floor((replay.t - FDR_T0) / FDR_DT), 0), N - 1);

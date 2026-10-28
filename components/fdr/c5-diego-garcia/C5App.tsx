@@ -674,8 +674,9 @@ function About() {
             &apos;s, the number of slats the {AFMAN}&apos;s, the rest is drawn to look right. The flaps&apos; angle at
             each percent and how long the gear and slats take to move aren&apos;t in these sources: the gear is drawn
             moving over {GEAR_TRANSIT_S} s, and the slats&apos; shortfall while neither lock holds is exaggerated to be
-            seen. The trail is dead-reckoned from the airspeed and heading in still air, so it is only the shape of the
-            path. It was night; the view is lit to be seen.
+            seen. The trail is the airspeed and heading through a wind fitted to the animation, held where its top view
+            shows the island (to 1:10) and the runway (from 2:18); between, it is approximate. It was night; the view is
+            lit to be seen.
           </>,
           <>
             Not shown: the animation&apos;s normal acceleration (about 2 g in the pull-out, partly legible) and one
@@ -707,7 +708,7 @@ function Panel() {
 
 const TOGGLES = [
   ["labels", "Labels", "Name the parts and the engines' N1"],
-  ["trail", "Trail", "Draw the path flown (dead-reckoned, approximate)"],
+  ["trail", "Trail", "Draw the path flown (fitted to the animation, approximate)"],
   ["path", "Flight path", "Show which way the airplane is moving, against where its nose points"],
   ["cloud", "Cloud base", "Show the cloud base at 1,500 ft"],
   ...(TILES_KEY

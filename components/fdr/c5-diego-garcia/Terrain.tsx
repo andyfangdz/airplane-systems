@@ -1,8 +1,8 @@
 "use client";
 /**
- * Diego Garcia under the replay: Google's photorealistic 3D tiles, set under the track by the placement fitted to the
- * animation's view of the runway (`PLACEMENT` in fdr/c5-diego-garcia/model.ts). The tiles' heights are above the
- * WGS84 ellipsoid, so the frame's origin sits at the runway 31 end on the EGM96 geoid: its zero is sea level, as the
+ * Diego Garcia under the replay: Google's photorealistic 3D tiles. The track is east and north of the runway 31 end
+ * (`TRACK` in fdr/c5-diego-garcia/model.ts), so the tiles are set in that frame. The tiles' heights are above the WGS84
+ * ellipsoid, so the frame's origin sits at the runway 31 end on the EGM96 geoid: its zero is sea level, as the
  * replay's altitude is.
  */
 import { useEffect, useRef } from "react";
@@ -16,7 +16,6 @@ import {
 } from "3d-tiles-renderer/plugins";
 import { TilesPlugin, TilesRenderer } from "3d-tiles-renderer/r3f";
 import { WGS84_ELLIPSOID, type TilesRenderer as Tiles } from "3d-tiles-renderer/three";
-import { groundFrame } from "@/fdr/c5-diego-garcia/model";
 import { spec, TILES_KEY, useTerrain } from "./store";
 
 const D2R = Math.PI / 180;
@@ -29,8 +28,6 @@ const ECEF_TO_LOCAL = (() => {
   const enu = WGS84_ELLIPSOID.getEastNorthUpFrame(lat * D2R, lon * D2R, spec.airport.geoidM, new THREE.Matrix4());
   return new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1).multiply(enu.invert());
 })();
-/** The runway 31 end in the track's frame, and the track's turn from true. */
-const GROUND = groundFrame();
 /** Tile errors in a row before the island is given up on: sporadic misses recover on their own. */
 const GIVE_UP = 16;
 
@@ -53,26 +50,24 @@ export function Terrain() {
     if (c != null && c !== useTerrain.getState().credit) useTerrain.setState({ credit: c });
   };
   return (
-    <group position={[GROUND.east, 0, -GROUND.north]} rotation={[0, GROUND.turn, 0]}>
-      <group matrixAutoUpdate={false} matrix={ECEF_TO_LOCAL}>
-        <TilesRenderer
-          ref={tiles}
-          onTileVisibilityChange={recredit}
-          onLoadModel={() => {
-            errors.current = 0;
-            if (useTerrain.getState().state !== "shown") useTerrain.setState({ state: "shown" });
-          }}
-          onLoadError={() => {
-            if (++errors.current >= GIVE_UP && useTerrain.getState().state !== "shown")
-              useTerrain.setState({ state: "failed" });
-          }}
-        >
-          <TilesPlugin plugin={GoogleCloudAuthPlugin} args={[{ apiToken: TILES_KEY, autoRefreshToken: true }]} />
-          <TilesPlugin plugin={GLTFExtensionsPlugin} dracoLoader={draco} />
-          <TilesPlugin plugin={TileCompressionPlugin} />
-          <TilesPlugin plugin={TilesFadePlugin} />
-        </TilesRenderer>
-      </group>
+    <group matrixAutoUpdate={false} matrix={ECEF_TO_LOCAL}>
+      <TilesRenderer
+        ref={tiles}
+        onTileVisibilityChange={recredit}
+        onLoadModel={() => {
+          errors.current = 0;
+          if (useTerrain.getState().state !== "shown") useTerrain.setState({ state: "shown" });
+        }}
+        onLoadError={() => {
+          if (++errors.current >= GIVE_UP && useTerrain.getState().state !== "shown")
+            useTerrain.setState({ state: "failed" });
+        }}
+      >
+        <TilesPlugin plugin={GoogleCloudAuthPlugin} args={[{ apiToken: TILES_KEY, autoRefreshToken: true }]} />
+        <TilesPlugin plugin={GLTFExtensionsPlugin} dracoLoader={draco} />
+        <TilesPlugin plugin={TileCompressionPlugin} />
+        <TilesPlugin plugin={TilesFadePlugin} />
+      </TilesRenderer>
     </group>
   );
 }
