@@ -722,7 +722,11 @@ const TOGGLES = [
   ["labels", "Labels", "Name the parts and the engines' N1"],
   ["trail", "Trail", "Draw the path flown (fitted to the animation, approximate)"],
   ["path", "Flight path", "Show which way the airplane is moving, against where its nose points"],
-  ["cloud", "Cloud base", "Show the cloud base at 1,500 ft"],
+  [
+    "cloud",
+    "Cloud",
+    "Show the cloud down to its base at 1,500 ft. In it, the view fades to white just past the airplane",
+  ],
   [
     "follow",
     "Follow heading",

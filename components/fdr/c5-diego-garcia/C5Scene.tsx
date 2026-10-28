@@ -3,17 +3,19 @@
  * The C-5 flying the replay. The airplane stays at the centre of the view, pitched and banked as the animation's
  * attitude indicator shows. Following the heading, the world turns about it, so the view keeps the airplane's nose
  * ahead; otherwise the world stays lined up with runway 31 and the airplane turns in it:
- * Diego Garcia below at its altitude (Google's 3D tiles; the sea without them), the cloud base at 1,500 ft and the path
- * flown, traced off the animation's top view against its runway. The slats, the flaps, the gear and the engines' fans
+ * Diego Garcia below at its altitude (Google's 3D tiles; the sea without them), the cloud down to its base at 1,500 ft
+ * and the path flown, traced off the animation's top view against its runway. Above the base the view fades into the
+ * cloud just past the airplane, and wisps stream by. The slats, the flaps, the gear and the engines' fans
  * move with the data. Length, span, height, wing area, sweep and wing sections are the
  * C-5's (Wikipedia); the rest is schematic.
  */
 import { Html } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { createPortal, useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { af, cyl, finSurface, fuselage, liftingSurface, loft, mergeGeos, type Ring } from "@/lib/geometry";
 import { V, type Vec3 } from "@/lib/math";
+import { dotTex } from "@/lib/materials";
 import { FDR_DT, FDR_T0 } from "@/fdr/c5-diego-garcia/fdr";
 import { GEAR_TRANSIT_S, TRACK, VARIATION_DEG, trackAt } from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, C5_DIEGO_GARCIA, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
@@ -493,7 +495,7 @@ function World() {
       shadowLine: line(shadow, faint),
       sea: new THREE.MeshStandardMaterial({ color: "#174a6b", roughness: 1, metalness: 0 }),
       cloud: new THREE.MeshBasicMaterial({
-        color: "#e9eef2",
+        color: CLOUD_COLOUR,
         transparent: true,
         opacity: 0.16,
         depthWrite: false,
@@ -516,6 +518,7 @@ function World() {
   return (
     <group userData={{ cameraBounds: false }}>
       <group ref={turn}>
+        {view.cloud && <InCloud />}
         <group ref={shift}>
           {terrain && <Terrain />}
           {!island && <P name="Sea" note={NOTE.sea} geometry={w.plane} material={w.sea} />}
@@ -550,6 +553,123 @@ function World() {
         </Yaw>
       )}
     </group>
+  );
+}
+
+const CLOUD_COLOUR = "#e9eef2";
+/** The cloud thickens over this much height above its base, so the view clears as the airplane comes out of it, ft. */
+const CLOUD_DEEP_FT = 300;
+/** How far past the airplane the view has faded into the cloud once it is deep in it, m: the sea is out of sight. */
+const CLOUD_SEEN_M = 400;
+const WISPS = 320;
+/** Half the size of the box of air around the airplane the wisps fill: east, up, south, m. */
+const WISP_BOX: Vec3 = [450, 160, 450];
+/** Most wisps are brighter than the cloud around them, every third darker: denser and thinner patches. */
+const WISP_COLOURS = ["#ffffff", "#ffffff", "#c9d3db"];
+/** An even spread of points in the unit cube (Roberts' R3 sequence), so the wisps are the same on every load. */
+const R3 = [0.8191725134, 0.6710436067, 0.5497004779];
+const smooth = (a: number, b: number, x: number) => {
+  const k = Math.min(Math.max((x - a) / (b - a), 0), 1);
+  return k * k * (3 - 2 * k);
+};
+/** Into [-half, half), wrapping round: the wisps the airplane leaves behind come back ahead of it. */
+const wrap = (x: number, half: number) => ((((x + half) % (2 * half)) + 2 * half) % (2 * half)) - half;
+
+/**
+ * In the cloud, above its base: past the airplane the view fades into it, its colour fills the sky and wisps, still in
+ * the air, stream past as the airplane flies through them. Below the base none of this shows.
+ */
+function InCloud() {
+  const scene = useThree((s) => s.scene);
+  const fog = useRef<THREE.Fog>(null),
+    sky = useRef<THREE.Mesh>(null),
+    wisps = useRef<THREE.Points>(null);
+  const c = useMemo(() => {
+    const colour = new THREE.Color(CLOUD_COLOUR);
+    const seeds = new Float32Array(WISPS * 3);
+    for (let k = 0; k < WISPS; k++)
+      for (let j = 0; j < 3; j++) seeds[k * 3 + j] = (((0.5 + R3[j] * (k + 1)) % 1) * 2 - 1) * WISP_BOX[j];
+    const tint = new THREE.BufferAttribute(new Float32Array(WISPS * 4), 4);
+    const shade = new THREE.Color();
+    for (let k = 0; k < WISPS; k++) {
+      shade.set(WISP_COLOURS[k % WISP_COLOURS.length]);
+      tint.setXYZW(k, shade.r, shade.g, shade.b, 0);
+    }
+    return {
+      seeds,
+      wisp: new THREE.BufferGeometry()
+        .setAttribute("position", new THREE.BufferAttribute(new Float32Array(WISPS * 3), 3))
+        .setAttribute("color", tint),
+      // not tone mapped, like the fog's colour, which is added after it: the cloud is one colour wherever it shows
+      wispMat: new THREE.PointsMaterial({
+        size: 110,
+        map: dotTex(),
+        vertexColors: true,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+      shell: new THREE.SphereGeometry(30_000, 32, 16),
+      skyMat: new THREE.MeshBasicMaterial({
+        color: colour,
+        side: THREE.BackSide,
+        transparent: true,
+        depthWrite: false,
+        fog: false,
+        toneMapped: false,
+      }),
+      eye: new THREE.Vector3(),
+    };
+  }, []);
+  useFrame(({ camera }) => {
+    const deep = smooth(0, 1, (replay.f.alt - spec.cloudBaseFt) / CLOUD_DEEP_FT);
+    // the airplane is at the centre: the fog starts just past it, so it stays clear however far the camera is
+    const away = camera.position.length();
+    if (fog.current) {
+      fog.current.near = away + 40;
+      fog.current.far = deep > 0.01 ? away + 40 + CLOUD_SEEN_M / deep : 1e9;
+    }
+    if (sky.current) {
+      sky.current.visible = deep > 0;
+      (sky.current.material as THREE.MeshBasicMaterial).opacity = deep;
+    }
+    const points = wisps.current;
+    if (!points) return;
+    points.visible = deep > 0;
+    if (!points.visible) return;
+    const [e, n, u] = trackAt(replay.t);
+    // the camera in the wisps' frame, which turns with the world
+    const eye = points.parent ? points.parent.worldToLocal(c.eye.copy(camera.position)) : c.eye.set(0, 0, 0);
+    const position = points.geometry.attributes.position as THREE.BufferAttribute,
+      tint = points.geometry.attributes.color as THREE.BufferAttribute;
+    for (let k = 0; k < WISPS; k++) {
+      const x = wrap(c.seeds[k * 3] - e, WISP_BOX[0]),
+        y = wrap(c.seeds[k * 3 + 1] - u, WISP_BOX[1]),
+        z = wrap(c.seeds[k * 3 + 2] + n, WISP_BOX[2]);
+      position.setXYZ(k, x, y, z);
+      const edge = Math.max(Math.abs(x) / WISP_BOX[0], Math.abs(y) / WISP_BOX[1], Math.abs(z) / WISP_BOX[2]);
+      // faded at the box's edges, where they wrap round, clear of the airplane and the camera, and only in the cloud
+      tint.setW(
+        k,
+        0.7 *
+          deep *
+          (1 - smooth(0.7, 1, edge)) *
+          smooth(60, 140, Math.hypot(x, y, z)) *
+          smooth(80, 220, Math.hypot(x - eye.x, y - eye.y, z - eye.z)) *
+          smooth(0, 40, u + y - CLOUD_M),
+      );
+    }
+    position.needsUpdate = true;
+    tint.needsUpdate = true;
+  });
+  return (
+    <>
+      {/* the scene's fog, while this is shown */}
+      {createPortal(<fog ref={fog} attach="fog" args={[CLOUD_COLOUR, 1e8, 1e9]} />, scene)}
+      {/* drawn first, behind everything: only the empty sky takes its colour */}
+      <mesh ref={sky} geometry={c.shell} material={c.skyMat} renderOrder={-1} raycast={() => null} />
+      <points ref={wisps} geometry={c.wisp} material={c.wispMat} frustumCulled={false} raycast={() => null} />
+    </>
   );
 }
 
