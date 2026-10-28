@@ -2,6 +2,7 @@ import { createHash, webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
+import { immutable } from "../scripts/release-manifest.mjs";
 
 // Keep this source-reading test in Vitest's changed-file dependency graph without evaluating the worker as a module.
 import.meta.glob("../scripts/offline-worker.js");
@@ -23,25 +24,31 @@ type Mode = "server" | "export";
 const absolute = (input: Request | string | URL) =>
   new URL(typeof input === "string" || input instanceof URL ? input.toString() : input.url, ORIGIN).href;
 
-function fixture(mode: Mode = "server", version = "test-v2") {
+type Release = { version?: string; edit?: (url: string, body: string) => string };
+
+function fixture(mode: Mode = "server", { version = "test-v2", edit = (_url, body) => body }: Release = {}) {
   const base = `/_next/static/offline/${version}`;
-  const assets: [string, string, string][] = [
-    [`${base}/pages/index.html`, "<html><body>Home HTML</body></html>", "text/html; charset=utf-8"],
-    [`${base}/pages/index.rsc`, '0:["Home flight"]', "text/x-component"],
-    [`${base}/pages/index-tree.rsc`, '0:["Home tree"]', "text/x-component"],
-    [`${base}/pages/foo.html`, "<html><body>Foo HTML</body></html>", "text/html; charset=utf-8"],
-    [`${base}/pages/foo.rsc`, '0:["Foo flight"]', "text/x-component"],
-    [`${base}/pages/foo-tree.rsc`, '0:["Foo tree"]', "text/x-component"],
-    [`${base}/meta/icon.svg`, '<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml"],
-    ["/_next/static/test/chunk.js", "globalThis.offlineChunk = true;", "application/javascript"],
-    ["/_next/static/test/style.css", "body { color: navy; }", "text/css"],
-  ];
+  const assets: [string, string, string][] = (
+    [
+      [`${base}/pages/index.html`, "<html><body>Home HTML</body></html>", "text/html; charset=utf-8"],
+      [`${base}/pages/index.rsc`, '0:["Home flight"]', "text/x-component"],
+      [`${base}/pages/index-tree.rsc`, '0:["Home tree"]', "text/x-component"],
+      [`${base}/pages/foo.html`, "<html><body>Foo HTML</body></html>", "text/html; charset=utf-8"],
+      [`${base}/pages/foo.rsc`, '0:["Foo flight"]', "text/x-component"],
+      [`${base}/pages/foo-tree.rsc`, '0:["Foo tree"]', "text/x-component"],
+      [`${base}/meta/icon.svg`, '<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml"],
+      ["/_next/static/test/chunk.js", "globalThis.offlineChunk = true;", "application/javascript"],
+      ["/_next/static/test/style.css", "body { color: navy; }", "text/css"],
+      ["/geometry/runtime.json", '{"recovery":"/geometry/recovery.bin.gz"}', "application/json"],
+    ] as [string, string, string][]
+  ).map(([url, body, contentType]) => [url, edit(url, body), contentType]);
   const bodies = new Map(assets.map(([url, body, contentType]) => [url, { body, contentType }]));
   const files = assets.map(([url, body, contentType]) => ({
     url,
     bytes: Buffer.byteLength(body),
     sha256: createHash("sha256").update(body).digest("hex"),
     contentType,
+    immutable: immutable(url.slice(1)),
   }));
   const manifest = {
     schema: 1,
@@ -135,21 +142,27 @@ type WorkerEvent = {
   respondWith?: (response: Response | Promise<Response>) => void;
 };
 
-function worker(mode: Mode = "server", caches = new MemoryCaches()) {
-  const { manifest, bodies } = fixture(mode);
+function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Release = {}) {
+  const { manifest, bodies } = fixture(mode, release);
+  // The deployed site: the pack's files, and the live answers to the routes its snapshots stand in for.
+  const site = new Map(bodies);
+  for (const path of [...Object.keys(manifest.routes), ...Object.keys(manifest.aliases)])
+    site.set(path, { body: `Live ${path}`, contentType: "text/plain; charset=utf-8" });
   const listeners = new Map<string, ((event: WorkerEvent) => void)[]>();
   const broadcasts: Status[] = [];
   const requests: Request[] = [];
   const failedPaths = new Set<string>();
   const corruptedPaths = new Set<string>();
+  const serverErrorPaths = new Set<string>();
   const lifecycle = { skipped: 0, claimed: 0 };
   const network = async (input: Request | string | URL, init?: RequestInit) => {
     const request = new Request(typeof input === "string" || input instanceof URL ? absolute(input) : input, init);
     requests.push(request);
     const path = new URL(request.url).pathname;
     if (failedPaths.has(path)) throw new TypeError("Network interrupted");
-    const asset = bodies.get(path);
-    if (!asset) return new Response("Network-only response", { status: 404 });
+    if (serverErrorPaths.has(path)) return new Response("Bad gateway", { status: 502 });
+    const asset = site.get(path);
+    if (!asset) return new Response("Not found", { status: 404 });
     // Keep the same byte count: a length check alone must not accept a corrupted response.
     return new Response(corruptedPaths.has(path) ? `!${asset.body.slice(1)}` : asset.body, {
       headers: { "content-type": asset.contentType, "content-length": String(Buffer.byteLength(asset.body)) },
@@ -229,11 +242,13 @@ function worker(mode: Mode = "server", caches = new MemoryCaches()) {
   return {
     manifest,
     bodies,
+    site,
     caches,
     broadcasts,
     requests,
     failedPaths,
     corruptedPaths,
+    serverErrorPaths,
     lifecycle,
     dispatch,
     message,
@@ -242,7 +257,7 @@ function worker(mode: Mode = "server", caches = new MemoryCaches()) {
 }
 
 describe("offline service worker", () => {
-  it("reports ready only after installing every verified file, and never forces an update into an open page", async () => {
+  it("reports ready only after installing every verified file, then takes over at once", async () => {
     const w = worker();
     expect((await w.message("GET_OFFLINE_STATUS")).state).not.toBe("ready");
     expect(w.requests).toHaveLength(0);
@@ -261,16 +276,18 @@ describe("offline service worker", () => {
     const cache = await w.caches.open(`${PREFIX}${w.manifest.version}`);
     for (const file of w.manifest.files)
       expect(await (await cache.match(file.url))?.text()).toBe(w.bodies.get(file.url)!.body);
-    expect(w.lifecycle).toEqual({ skipped: 0, claimed: 0 });
+    // Open pages load from the network, so the complete pack need not wait for them to close.
+    expect(w.lifecycle).toEqual({ skipped: 1, claimed: 0 });
     await w.dispatch("activate");
-    expect(w.lifecycle).toEqual({ skipped: 0, claimed: 1 });
+    expect(w.lifecycle).toEqual({ skipped: 1, claimed: 1 });
     const restarted = worker("server", w.caches);
     expect((await restarted.message("GET_OFFLINE_STATUS")).state).toBe("ready");
+    restarted.failedPaths.add("/");
     const tree = await restarted.request("/?_rsc=restart", {
       headers: { RSC: "1", "Next-Router-Segment-Prefetch": "/_tree" },
     });
     expect(tree?.headers.get("x-nextjs-postponed")).toBe("2");
-    expect(restarted.requests).toHaveLength(0);
+    expect(await tree?.text()).toBe(w.bodies.get(w.manifest.routes["/"].segments["/_tree"])!.body);
   });
 
   it.each(["interrupted", "wrong hash", "quota"] as const)(
@@ -314,11 +331,15 @@ describe("offline service worker", () => {
   );
 
   it.each(["server", "export"] as const)(
-    "serves distinct HTML, RSC, segment, HEAD and static responses in %s mode",
+    "serves the live site online, and distinct saved HTML, RSC, segment, HEAD and static responses offline in %s mode",
     async (mode) => {
       const w = worker(mode);
       await w.dispatch("install");
-      w.requests.length = 0;
+      // A newer deployment changed a file whose URL carries no content hash.
+      w.site.set("/geometry/runtime.json", {
+        body: '{"recovery":"/geometry/newer.bin.gz"}',
+        contentType: "application/json",
+      });
       const segmentFiles = new Set(Object.values(w.manifest.routes).flatMap((route) => Object.values(route.segments)));
       const cases: { path: string; headers: HeadersInit; file: string; navigation?: boolean }[] = [
         {
@@ -341,6 +362,7 @@ describe("offline service worker", () => {
         },
         { path: "/_next/static/test/chunk.js", headers: {}, file: "/_next/static/test/chunk.js" },
         { path: "/icon.svg", headers: {}, file: w.manifest.aliases["/icon.svg"] },
+        { path: "/geometry/runtime.json", headers: {}, file: "/geometry/runtime.json" },
         ...(mode === "export"
           ? [
               { path: "/foo.txt?_rsc=third", headers: {}, file: w.manifest.aliases["/foo.txt"] },
@@ -349,7 +371,16 @@ describe("offline service worker", () => {
           : []),
       ];
       for (const route of cases) {
+        const path = new URL(route.path, ORIGIN).pathname;
         const expected = w.bodies.get(route.file)!;
+        // Online, only content-addressed files skip the network: their saved bytes are already the latest.
+        const hashed = path === route.file && w.manifest.files.some((file) => file.url === path && file.immutable);
+        w.requests.length = 0;
+        const online = await w.request(route.path, { headers: route.headers }, route.navigation);
+        expect(await online?.text(), `online ${route.path}`).toBe(hashed ? expected.body : w.site.get(path)!.body);
+        expect(w.requests, `online ${route.path}`).toHaveLength(hashed ? 0 : 1);
+        // Offline, the saved pack answers every known request.
+        w.failedPaths.add(path);
         for (const method of ["GET", "HEAD"]) {
           const response = await w.request(route.path, { method, headers: route.headers }, route.navigation);
           expect(response, `${method} ${route.path}`).toBeDefined();
@@ -358,10 +389,49 @@ describe("offline service worker", () => {
           expect(response!.headers.get("x-nextjs-postponed")).toBe(segmentFiles.has(route.file) ? "2" : null);
           expect(await response!.text()).toBe(method === "HEAD" ? "" : expected.body);
         }
+        w.failedPaths.delete(path);
       }
-      expect(w.requests, "known cached requests must work without a network fetch").toHaveLength(0);
     },
   );
+
+  it("falls back to the saved copy when the server fails, but never hides a live answer", async () => {
+    const w = worker();
+    await w.dispatch("install");
+    const page = w.manifest.routes["/foo"].html;
+    w.serverErrorPaths.add("/foo");
+    expect(await (await w.request("/foo", {}, true))?.text()).toBe(w.bodies.get(page)!.body);
+    w.serverErrorPaths.clear();
+    // A page the latest release removed stays removed while the site can be reached.
+    w.site.delete("/foo");
+    expect((await w.request("/foo", {}, true))?.status).toBe(404);
+    // Without a saved copy, the server's own error reaches the page.
+    w.serverErrorPaths.add("/foo");
+    await (await w.caches.open(`${PREFIX}${w.manifest.version}`)).delete(page);
+    expect((await w.request("/foo", {}, true))?.status).toBe(502);
+  });
+
+  it("downloads only the files a new release changed, copying the rest from the previous pack", async () => {
+    const caches = new MemoryCaches();
+    const previous = worker("server", caches, { version: "test-v1" });
+    await previous.dispatch("install");
+    await previous.dispatch("activate");
+    const next = worker("server", caches, {
+      edit: (url, body) => (url.endsWith("/pages/foo.html") ? body.replace("Foo", "Updated foo") : body),
+    });
+    await next.dispatch("install");
+    expect(next.requests.map((request) => new URL(request.url).pathname)).toEqual([next.manifest.routes["/foo"].html]);
+    expect(await next.message("GET_OFFLINE_STATUS")).toMatchObject({ state: "ready", bytes: next.manifest.totalBytes });
+    expect(next.lifecycle.skipped).toBe(1);
+    const cache = await caches.open(`${PREFIX}${next.manifest.version}`);
+    for (const file of next.manifest.files)
+      expect(await (await cache.match(file.url))?.text(), file.url).toBe(next.bodies.get(file.url)!.body);
+    // Copied snapshots keep the response headers the worker restores for this release's routes.
+    next.failedPaths.add("/");
+    const tree = await next.request("/", { headers: { RSC: "1", "Next-Router-Segment-Prefetch": "/_tree" } });
+    expect(tree?.headers.get("x-nextjs-postponed")).toBe("2");
+    await next.dispatch("activate");
+    expect(await caches.keys()).toEqual([`${PREFIX}${next.manifest.version}`]);
+  });
 
   it("does not intercept unknown routes, analytics, third-party traffic, unsupported RSC segments or POST", async () => {
     const w = worker();

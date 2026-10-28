@@ -4,6 +4,8 @@ const CACHE_PREFIX = "airplane-systems-offline-";
 const CACHE_NAME = `${CACHE_PREFIX}${OFFLINE_MANIFEST.version}`;
 const READY_KEY = new URL(`/_offline-ready/${OFFLINE_MANIFEST.version}`, self.location.origin).href;
 const FILES = new Map(OFFLINE_MANIFEST.files.map((file) => [file.url, file]));
+// Content-hashed URLs never change their bytes, so a saved copy is already the latest one.
+const IMMUTABLE = new Set(OFFLINE_MANIFEST.files.filter((file) => file.immutable).map((file) => file.url));
 const SEGMENTS = new Set(Object.values(OFFLINE_MANIFEST.routes).flatMap((route) => Object.values(route.segments)));
 let download = null;
 let status = {
@@ -81,6 +83,21 @@ function responseFor(bytes, file) {
   });
 }
 
+/** A saved copy of `file` whose bytes still match this release, from an earlier version's pack. */
+async function previousBytes(previous, file) {
+  for (const name of previous) {
+    const cache = await caches.open(name);
+    // Shared files keep their URL across releases; route snapshots sit under each version's own path.
+    const urls = new Set([file.url, file.url.replaceAll(OFFLINE_MANIFEST.version, name.slice(CACHE_PREFIX.length))]);
+    for (const url of urls) {
+      const cached = await cache.match(url);
+      const bytes = cached ? await checkedBytes(cached, file).catch(() => null) : null;
+      if (bytes) return bytes;
+    }
+  }
+  return null;
+}
+
 async function downloadPack() {
   if (download) return download;
   download = (async () => {
@@ -88,6 +105,7 @@ async function downloadPack() {
     await broadcast();
     const cache = await caches.open(CACHE_NAME);
     await cache.delete(READY_KEY);
+    const previous = (await caches.keys()).filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME);
     let cursor = 0;
     let failure;
     const worker = async () => {
@@ -97,6 +115,11 @@ async function downloadPack() {
           // A terminated download can reuse only files that still pass this release's content digest.
           const cached = await cache.match(file.url);
           let bytes = cached ? await checkedBytes(cached, file).catch(() => null) : null;
+          if (!bytes) {
+            // An update downloads only what changed: unchanged files are copied from the previous pack.
+            bytes = await previousBytes(previous, file);
+            if (bytes) await cache.put(file.url, responseFor(bytes, file));
+          }
           if (!bytes) {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 120_000);
@@ -154,8 +177,9 @@ async function downloadPack() {
 
 self.addEventListener("install", (event) => {
   // Installation is atomic: a failed update leaves the previous active worker and its verified pack untouched.
-  // Never skipWaiting: already-open study sessions keep their matching HTML, RSC and chunks until they close.
-  event.waitUntil(downloadPack());
+  // Online pages already come from the network, so a complete pack takes over at once: the saved copy then
+  // matches the site the reader has open, should the connection drop.
+  event.waitUntil(downloadPack().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
@@ -211,16 +235,29 @@ self.addEventListener("fetch", (event) => {
   if (!key || !FILES.has(key)) return; // No third-party, analytics, API or unknown-document caching.
   event.respondWith(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(key);
-      if (cached) {
+      const saved = async () => {
+        const cached = await (await caches.open(CACHE_NAME)).match(key);
+        if (!cached) {
+          // A missing script never receives HTML. Only a complete verified download can restore the ready
+          // status after browser storage eviction.
+          event.waitUntil(currentStatus().then(broadcast));
+          return undefined;
+        }
         if (request.method === "HEAD") return new Response(null, { status: cached.status, headers: cached.headers });
         return cached;
+      };
+      if (key === url.pathname && IMMUTABLE.has(key)) return (await saved()) ?? fetch(request);
+      // Everything else is the site's latest version whenever it can be reached. The saved copy stands in
+      // only when the network fails or the server can't answer.
+      let response;
+      try {
+        response = await fetch(request);
+      } catch (error) {
+        const fallback = await saved();
+        if (fallback) return fallback;
+        throw error;
       }
-      // A missing script never receives HTML. Known resources may recover online, but only a complete verified
-      // download can restore the ready status after browser storage eviction.
-      event.waitUntil(currentStatus().then(broadcast));
-      return fetch(request);
+      return response.status < 500 ? response : ((await saved()) ?? response);
     })(),
   );
 });

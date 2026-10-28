@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { immutable } from "./release-manifest.mjs";
 
 const repository = resolve(import.meta.dirname, "..");
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -128,7 +129,14 @@ export async function buildOffline(
     if (!safePath(url)) throw new Error(`Invalid offline URL: ${url}`);
     if (inventory.has(url)) throw new Error(`Duplicate offline URL: ${url}`);
     const bytes = await readFile(path);
-    inventory.set(url, { url, bytes: bytes.length, sha256: digest(bytes), contentType: type });
+    // The worker serves content-addressed files from the pack and asks the network for everything else first.
+    inventory.set(url, {
+      url,
+      bytes: bytes.length,
+      sha256: digest(bytes),
+      contentType: type,
+      immutable: immutable(url.slice(1)),
+    });
     inventoryPaths.set(url, path);
     return url;
   }
