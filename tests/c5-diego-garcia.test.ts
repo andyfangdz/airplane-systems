@@ -389,15 +389,24 @@ describe("runway 31's ILS (Flight Plan Database, FJDG)", () => {
     expect(r.nm).toBeCloseTo(2.0, 1);
     expect(channel("alt", call.t)).toBeCloseTo(4556, 0);
     expect(glideslopeFt(onRunway31(call.t)[0])).toBeCloseTo(650, -1);
-    expect(Math.round(r.aboveFt / 100) * 100).toBe(3900);
+    expect(Math.round(r.aboveFt! / 100) * 100).toBe(3900);
     for (const said of ["310 both sides, 109.3", "2.0 nm", "about 650 ft", "4,556 ft", "about 3,900 ft"])
       expect(moment.text).toContain(said);
   });
 
   test("from 0:07 to the top of the climb at 1:44, 2,800 to 4,600 ft above the glideslope", () => {
-    const above = times(T_START, 104).map((t) => ilsAt(t).aboveFt);
+    const above = times(T_START, 104).map((t) => ilsAt(t).aboveFt!);
     expect(Math.round(Math.min(...above) / 100) * 100).toBe(2800);
     expect(Math.round(Math.max(...above) / 100) * 100).toBe(4600);
+  });
+
+  test("past the threshold the glideslope has ended: no height above it", () => {
+    const all = times(T_START, T_END).map((t) => ilsAt(t));
+    expect(
+      all.some((r) => r.nm < 0),
+      "the track passes runway 31's threshold",
+    ).toBe(true);
+    for (const r of all) expect(r.aboveFt === null).toBe(r.nm <= 0);
   });
 });
 

@@ -113,7 +113,8 @@ export const C5_DIEGO_GARCIA = {
     /** Runway 31's ILS as Flight Plan Database lists it today: localizer and glideslope INKW on 109.30 MHz, the
      * localizer on 301.84° true (the runway's 301.86°), the glideslope at 3.00° with a range of 10 nm. It gives no
      * threshold crossing height and doesn't place the glideslope's antenna. The crew set it up: “310 both sides,
-     * 109.3”. The 1998 approach may have differed. */
+     * 109.3”. The 1998 approach may have differed. The view keeps OurAirports' 301.7° for the localizer's course,
+     * the runway the track is traced against: 0.14° from this, about 45 m at 10 nm. */
     ils: {
       source: "Flight Plan Database",
       url: "https://flightplandatabase.com/airport/FJDG",

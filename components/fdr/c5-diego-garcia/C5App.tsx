@@ -412,12 +412,13 @@ function Timeline() {
 }
 
 const ILS = spec.airport.ils;
-/** The airplane against the ILS now, rounded as shown: nm short of the threshold, ft above the glideslope, m right of
- * the localizer. Null before the data starts. */
-const ilsNow = (r: Replay): readonly [number, number, number] | null => {
+/** The airplane against the ILS now, rounded as shown: nm short of the threshold and ft above the glideslope (both
+ * null past the threshold), m right of the localizer. Null before the data starts. */
+const ilsNow = (r: Replay): readonly [number | null, number | null, number] | null => {
   if (r.t < T_START) return null;
   const { nm, aboveFt, right } = ilsAt(r.t);
-  return [Math.round(nm * 10) / 10, Math.round(aboveFt / 10) * 10, Math.round(right / 10) * 10];
+  const right10 = Math.round(right / 10) * 10;
+  return aboveFt === null ? [null, null, right10] : [Math.round(nm * 10) / 10, Math.round(aboveFt / 10) * 10, right10];
 };
 const sameIls = (a: ReturnType<typeof ilsNow>, b: ReturnType<typeof ilsNow>) =>
   a === b || (!!a && !!b && a.every((v, k) => v === b[k]));
@@ -440,8 +441,8 @@ function Approach() {
       />
       <Readouts
         items={[
-          ["From the threshold", nm === undefined ? "–" : nm > 0 ? `${nm.toFixed(1)} nm` : "past it"],
-          ["Above the glideslope", above === undefined ? "–" : `${signed(above)} ft`],
+          ["From the threshold", nm === undefined ? "–" : nm === null ? "past it" : `${nm.toFixed(1)} nm`],
+          ["Above the glideslope", above == null ? "–" : `${signed(above)} ft`],
           [
             "Off the localizer",
             right === undefined

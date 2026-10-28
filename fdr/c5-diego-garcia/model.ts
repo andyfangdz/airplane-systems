@@ -253,7 +253,8 @@ export function trackAt(t: number): [east: number, north: number, up: number] {
 
 // ---------------------------------------------------------------- runway 31's ILS
 
-const NM = 1852;
+/** A nautical mile, m. */
+export const NM = 1852;
 const { airport } = C5_DIEGO_GARCIA;
 
 /** Where the airplane is at `t` against runway 31: metres along it from its threshold (negative short of it) and right
@@ -273,11 +274,11 @@ export function onRunway31(t: number): [along: number, right: number] {
 export const glideslopeFt = (along: number) =>
   airport.elevationFt + (Math.max(-along, 0) / FT) * Math.tan(airport.ils.glideslopeDeg * D2R);
 
-/** The airplane against the ILS at `t`: nm short of the threshold, ft above the glideslope there, m right of the
- * localizer's course. */
+/** The airplane against the ILS at `t`: nm short of the threshold (negative past it), ft above the glideslope there
+ * (null past the threshold, where the glideslope has ended), m right of the localizer's course. */
 export function ilsAt(t: number) {
   const [along, right] = onRunway31(t);
-  return { nm: -along / NM, aboveFt: channel("alt", t) - glideslopeFt(along), right };
+  return { nm: -along / NM, aboveFt: along < 0 ? channel("alt", t) - glideslopeFt(along) : null, right };
 }
 
 // ---------------------------------------------------------------- the timeline

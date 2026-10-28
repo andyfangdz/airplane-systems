@@ -241,8 +241,12 @@ The crew set up runway 31's ILS (“310 both sides, 109.3”). 310° was the run
 with IGRF-14's 7.96° W. Flight Plan Database lists 109.30 MHz as the localizer's frequency today, with a 3.00°
 glideslope. No 1998 approach chart is public, so the glideslope is today's.
 
-The view draws the localizer's course along the runway's extended centreline, on the sea, and the glideslope rising
-3° from the threshold at the runway's 9 ft, both out to the glideslope's 10 nm. They show through the cloud. The real
+The view draws the localizer's course along the runway's extended centreline, on the sea (10 m up when the island's
+3D tiles are shown, so their runway and shore don't flicker through it), and the glideslope rising
+3° from the threshold at the runway's 9 ft, both out to the glideslope's 10 nm. The sources differ on the course:
+Flight Plan Database puts the localizer on 301.84° true and the runway on 301.86°, OurAirports the runway on 301.7°.
+The view keeps OurAirports' 301.7°, the runway the track is traced against; 0.14° apart, the two courses are about 45 m
+apart at 10 nm. Past the threshold the glideslope has ended, so the panel gives no height above it. They show through the cloud. The real
 glide path meets the runway beyond the threshold, abeam the glideslope's antenna, which these sources don't place, so it
 is a little higher than drawn.
 

@@ -11,13 +11,21 @@
  */
 import { Html } from "@react-three/drei";
 import { createPortal, useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { af, cyl, finSurface, fuselage, liftingSurface, loft, mergeGeos, type Ring } from "@/lib/geometry";
 import { V, type Vec3 } from "@/lib/math";
 import { dotTex } from "@/lib/materials";
 import { FDR_DT, FDR_T0 } from "@/fdr/c5-diego-garcia/fdr";
-import { GEAR_TRANSIT_S, TRACK, VARIATION_DEG, glideslopeFt, onRunway31, trackAt } from "@/fdr/c5-diego-garcia/model";
+import {
+  GEAR_TRANSIT_S,
+  NM,
+  TRACK,
+  VARIATION_DEG,
+  glideslopeFt,
+  onRunway31,
+  trackAt,
+} from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, C5_DIEGO_GARCIA, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
 import { ComponentStage } from "@/components/engine/ComponentStage";
 import { P } from "@/components/engine/scene/parts";
@@ -532,7 +540,7 @@ function World() {
               <primitive object={w.aheadLine} />
             </>
           )}
-          {view.ils && <Ils labels={view.labels} />}
+          {view.ils && <Ils labels={view.labels} ground={island ? ILS_OVER_ISLAND_M : 3} />}
           {view.cloud && (
             <mesh
               geometry={w.plane}
@@ -675,7 +683,6 @@ function InCloud() {
 }
 
 const ILS = spec.airport.ils;
-const NM_M = 1852;
 const ILS_COLOUR = "#d24fd2";
 /** On runway 31's extended centreline, `along` metres from its threshold (negative short of it), `y` up: the track's
  * frame, east x, up y, south z. */
@@ -684,17 +691,20 @@ const onCentreline = (along: number, y: number) => {
   return new THREE.Vector3(along * Math.sin(rw), y, -along * Math.cos(rw));
 };
 const glideslopeAt = (along: number) => onCentreline(along, glideslopeFt(along) * FT);
+/** Over the island's tiles the localizer runs this high, m: at the sea's 3 m their runway and shore, a few metres up,
+ * would come and go through it as they sharpen. */
+const ILS_OVER_ISLAND_M = 10;
 
 /**
- * Runway 31's ILS, out to the glideslope's range: the localizer's course along the extended centreline on the sea, the
- * glideslope dashed over it with a line down every nautical mile, and a line from the airplane to the glideslope abeam
- * it. They show through the cloud.
+ * Runway 31's ILS, out to the glideslope's range: the localizer's course along the extended centreline, `ground` metres
+ * up, the glideslope dashed over it with a line down every nautical mile, and a line from the airplane to the
+ * glideslope abeam it. They show through the cloud.
  */
-function Ils({ labels }: { labels: boolean }) {
+function Ils({ labels, ground }: { labels: boolean; ground: number }) {
   const abeam = useRef<THREE.Group>(null),
     sea = useRef<THREE.Group>(null);
   const g = useMemo(() => {
-    const far = -ILS.glideslopeRangeNm * NM_M;
+    const far = -ILS.glideslopeRangeNm * NM;
     const solid = new THREE.LineBasicMaterial({ color: ILS_COLOUR, fog: false });
     const faint = new THREE.LineBasicMaterial({ color: ILS_COLOUR, fog: false, transparent: true, opacity: 0.35 });
     const dashed = new THREE.LineDashedMaterial({ color: ILS_COLOUR, fog: false, dashSize: 150, gapSize: 90 });
@@ -702,7 +712,7 @@ function Ils({ labels }: { labels: boolean }) {
       new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
     const glideslope = line([glideslopeAt(0), glideslopeAt(far)], dashed).computeLineDistances();
     const drops: THREE.Vector3[] = [];
-    for (let k = 1; k <= ILS.glideslopeRangeNm; k++) drops.push(glideslopeAt(-k * NM_M), onCentreline(-k * NM_M, 3));
+    for (let k = 1; k <= ILS.glideslopeRangeNm; k++) drops.push(glideslopeAt(-k * NM), onCentreline(-k * NM, ground));
     const height = new THREE.BufferGeometry().setAttribute(
       "position",
       new THREE.BufferAttribute(new Float32Array(6), 3),
@@ -711,13 +721,21 @@ function Ils({ labels }: { labels: boolean }) {
     // its ends move every frame: never culled by the bounds of where they started
     heightLine.frustumCulled = false;
     return {
-      localizer: line([onCentreline(0, 3), onCentreline(far, 3)], solid),
+      localizer: line([onCentreline(0, ground), onCentreline(far, ground)], solid),
       glideslope,
       drops: new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(drops), faint),
       height: heightLine,
+      materials: [solid, faint, dashed],
       far,
     };
-  }, []);
+  }, [ground]);
+  useEffect(
+    () => () => {
+      for (const line of [g.localizer, g.glideslope, g.drops, g.height]) line.geometry.dispose();
+      for (const material of g.materials) material.dispose();
+    },
+    [g],
+  );
   useFrame(() => {
     const [e, n, u] = trackAt(replay.t);
     // abeam the airplane, while it is over the drawn part of the extended centreline
@@ -728,9 +746,10 @@ function Ils({ labels }: { labels: boolean }) {
     position.setXYZ(1, p.x, p.y, p.z);
     position.needsUpdate = true;
     g.height.visible = along < 0;
-    abeam.current?.position.copy(p);
-    // a mile on towards the runway, so the glideslope's label, straight above, doesn't hide it
-    sea.current?.position.copy(onCentreline(Math.min(along + NM_M, 0), 3));
+    // Each label keeps to its own stretch of line, so neither hides the other where the two meet at the threshold:
+    // the glideslope's abeam the airplane, or half a mile out at the closest; the localizer's a mile on from that.
+    abeam.current?.position.copy(glideslopeAt(Math.min(along, -NM / 2)));
+    sea.current?.position.copy(onCentreline(Math.min(along + NM, 0), ground));
   });
   return (
     <group>
