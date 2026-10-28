@@ -4,8 +4,8 @@
  * attitude indicator shows. Following the heading, the world turns about it, so the view keeps the airplane's nose
  * ahead; otherwise the world stays lined up with runway 31 and the airplane turns in it:
  * Diego Garcia below at its altitude (Google's 3D tiles; the sea without them), the cloud down to its base at 1,500 ft
- * and the path flown, traced off the animation's top view against its runway. Above the base the view fades into the
- * cloud just past the airplane, and wisps stream by. The slats, the flaps, the gear and the engines' fans
+ * and the path flown, traced off the animation's top view against its runway, with runway 31's localizer and 3°
+ * glideslope. Above the base the view fades into the cloud just past the airplane, and wisps stream by. The slats, the flaps, the gear and the engines' fans
  * move with the data. Length, span, height, wing area, sweep and wing sections are the
  * C-5's (Wikipedia); the rest is schematic.
  */
@@ -17,7 +17,7 @@ import { af, cyl, finSurface, fuselage, liftingSurface, loft, mergeGeos, type Ri
 import { V, type Vec3 } from "@/lib/math";
 import { dotTex } from "@/lib/materials";
 import { FDR_DT, FDR_T0 } from "@/fdr/c5-diego-garcia/fdr";
-import { GEAR_TRANSIT_S, TRACK, VARIATION_DEG, trackAt } from "@/fdr/c5-diego-garcia/model";
+import { GEAR_TRANSIT_S, TRACK, VARIATION_DEG, glideslopeFt, onRunway31, trackAt } from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, C5_DIEGO_GARCIA, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
 import { ComponentStage } from "@/components/engine/ComponentStage";
 import { P } from "@/components/engine/scene/parts";
@@ -532,6 +532,7 @@ function World() {
               <primitive object={w.aheadLine} />
             </>
           )}
+          {view.ils && <Ils labels={view.labels} />}
           {view.cloud && (
             <mesh
               geometry={w.plane}
@@ -670,6 +671,84 @@ function InCloud() {
       <mesh ref={sky} geometry={c.shell} material={c.skyMat} renderOrder={-1} raycast={() => null} />
       <points ref={wisps} geometry={c.wisp} material={c.wispMat} frustumCulled={false} raycast={() => null} />
     </>
+  );
+}
+
+const ILS = spec.airport.ils;
+const NM_M = 1852;
+const ILS_COLOUR = "#d24fd2";
+/** On runway 31's extended centreline, `along` metres from its threshold (negative short of it), `y` up: the track's
+ * frame, east x, up y, south z. */
+const onCentreline = (along: number, y: number) => {
+  const rw = C5_DIEGO_GARCIA.airport.runway.heading31T * D2R;
+  return new THREE.Vector3(along * Math.sin(rw), y, -along * Math.cos(rw));
+};
+const glideslopeAt = (along: number) => onCentreline(along, glideslopeFt(along) * FT);
+
+/**
+ * Runway 31's ILS, out to the glideslope's range: the localizer's course along the extended centreline on the sea, the
+ * glideslope dashed over it with a line down every nautical mile, and a line from the airplane to the glideslope abeam
+ * it. They show through the cloud.
+ */
+function Ils({ labels }: { labels: boolean }) {
+  const abeam = useRef<THREE.Group>(null),
+    sea = useRef<THREE.Group>(null);
+  const g = useMemo(() => {
+    const far = -ILS.glideslopeRangeNm * NM_M;
+    const solid = new THREE.LineBasicMaterial({ color: ILS_COLOUR, fog: false });
+    const faint = new THREE.LineBasicMaterial({ color: ILS_COLOUR, fog: false, transparent: true, opacity: 0.35 });
+    const dashed = new THREE.LineDashedMaterial({ color: ILS_COLOUR, fog: false, dashSize: 150, gapSize: 90 });
+    const line = (points: THREE.Vector3[], material: THREE.Material) =>
+      new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material);
+    const glideslope = line([glideslopeAt(0), glideslopeAt(far)], dashed).computeLineDistances();
+    const drops: THREE.Vector3[] = [];
+    for (let k = 1; k <= ILS.glideslopeRangeNm; k++) drops.push(glideslopeAt(-k * NM_M), onCentreline(-k * NM_M, 3));
+    const height = new THREE.BufferGeometry().setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(6), 3),
+    );
+    const heightLine = new THREE.Line(height, faint);
+    // its ends move every frame: never culled by the bounds of where they started
+    heightLine.frustumCulled = false;
+    return {
+      localizer: line([onCentreline(0, 3), onCentreline(far, 3)], solid),
+      glideslope,
+      drops: new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(drops), faint),
+      height: heightLine,
+      far,
+    };
+  }, []);
+  useFrame(() => {
+    const [e, n, u] = trackAt(replay.t);
+    // abeam the airplane, while it is over the drawn part of the extended centreline
+    const along = Math.min(Math.max(onRunway31(replay.t)[0], g.far), 0);
+    const p = glideslopeAt(along);
+    const position = g.height.geometry.attributes.position as THREE.BufferAttribute;
+    position.setXYZ(0, e, u, -n);
+    position.setXYZ(1, p.x, p.y, p.z);
+    position.needsUpdate = true;
+    g.height.visible = along < 0;
+    abeam.current?.position.copy(p);
+    // a mile on towards the runway, so the glideslope's label, straight above, doesn't hide it
+    sea.current?.position.copy(onCentreline(Math.min(along + NM_M, 0), 3));
+  });
+  return (
+    <group>
+      <primitive object={g.localizer} />
+      <primitive object={g.glideslope} />
+      <primitive object={g.drops} />
+      <primitive object={g.height} />
+      {labels && (
+        <>
+          <group ref={abeam}>
+            <Label at={[0, 0, 0]}>Glideslope, {ILS.glideslopeDeg}°</Label>
+          </group>
+          <group ref={sea}>
+            <Label at={[0, 0, 0]}>Localizer</Label>
+          </group>
+        </>
+      )}
+    </group>
   );
 }
 

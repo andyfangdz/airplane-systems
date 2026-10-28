@@ -7,7 +7,7 @@
  */
 import dynamic from "next/dynamic";
 import { useEffect, useRef, type ReactNode } from "react";
-import { Facts, H3, Notes, Small } from "@/components/ui/controls";
+import { Check, Facts, H3, Notes, Readouts, Small } from "@/components/ui/controls";
 import { f0 } from "@/lib/format";
 import { clamp } from "@/lib/math";
 import { useLiveSelector, useLiveSnapshot } from "@/lib/useLiveSnapshot";
@@ -19,7 +19,9 @@ import {
   MOMENTS,
   SLAT_RET_LOCKED_UNTIL,
   T_START,
+  VARIATION_DEG,
   VS_WINDOW_S,
+  ilsAt,
 } from "@/fdr/c5-diego-garcia/model";
 import { AFMAN, ANIMATION, FSM, LACKLEN, WIKI } from "@/fdr/c5-diego-garcia/spec";
 import { TRANSCRIPT, lastLineIndex, lineAt } from "@/fdr/c5-diego-garcia/transcript";
@@ -409,6 +411,64 @@ function Timeline() {
   );
 }
 
+const ILS = spec.airport.ils;
+/** The airplane against the ILS now, rounded as shown: nm short of the threshold, ft above the glideslope, m right of
+ * the localizer. Null before the data starts. */
+const ilsNow = (r: Replay): readonly [number, number, number] | null => {
+  if (r.t < T_START) return null;
+  const { nm, aboveFt, right } = ilsAt(r.t);
+  return [Math.round(nm * 10) / 10, Math.round(aboveFt / 10) * 10, Math.round(right / 10) * 10];
+};
+const sameIls = (a: ReturnType<typeof ilsNow>, b: ReturnType<typeof ilsNow>) =>
+  a === b || (!!a && !!b && a.every((v, k) => v === b[k]));
+
+function Approach() {
+  const on = useC5View((x) => x.ils);
+  const set = useC5View((x) => x.set);
+  const now = useLiveSelector(replay, ilsNow, 150, sameIls);
+  const magnetic = Math.round(spec.airport.runway.heading31T - VARIATION_DEG);
+  const [nm, above, right] = now ?? [];
+  return (
+    <>
+      <H3>The approach</H3>
+      <Check
+        id="c5-ils"
+        label="Show the glideslope and localizer"
+        checked={on}
+        onChange={(v) => set({ ils: v })}
+        title="Draw runway 31's ILS in the view: its localizer's course and its 3° glideslope"
+      />
+      <Readouts
+        items={[
+          ["From the threshold", nm === undefined ? "–" : nm > 0 ? `${nm.toFixed(1)} nm` : "past it"],
+          ["Above the glideslope", above === undefined ? "–" : `${signed(above)} ft`],
+          [
+            "Off the localizer",
+            right === undefined
+              ? "–"
+              : right === 0
+                ? "on it"
+                : `${f0(Math.abs(right))} m ${right < 0 ? "left" : "right"}`,
+          ],
+        ]}
+      />
+      <Small>
+        The crew set up runway 31&apos;s ILS: “310 both sides, 109.3” at 0:35 and “310 both sides, localizer set,
+        right?” at 0:47. {magnetic}° was the runway&apos;s magnetic heading in 1998, and {ILS.mhz.toFixed(2)} MHz is its
+        localizer&apos;s frequency today, with a {ILS.glideslopeDeg.toFixed(2)}° glideslope (
+        <a href={ILS.url} target="_blank" rel="noopener noreferrer">
+          {ILS.source}
+        </a>
+        ). The 1998 approach may have differed. From 0:07 to the top of the climb at 1:44 the airplane is 2,800 to 4,600
+        ft above the glideslope; neither record says why. The view draws the localizer&apos;s course along the
+        runway&apos;s centreline and the glideslope 3° up from its threshold, out to {ILS.glideslopeRangeNm} nm, through
+        the cloud. The sources don&apos;t place the glideslope&apos;s antenna, so the real glide path is a little higher
+        than drawn.
+      </Small>
+    </>
+  );
+}
+
 const lineIndexNow = (r: Replay) => lastLineIndex(r.t + 0.25);
 
 function Transcript() {
@@ -418,7 +478,8 @@ function Transcript() {
       <H3>Cockpit voice recording</H3>
       <Small>
         Machine transcription, timed to the video. Where {LACKLEN} quotes a line his words and the speaker he names are
-        used; [brackets] mark a word the recording doesn&apos;t make clear, … words that can&apos;t be made out.
+        used. One speaker is named from the voice on the recording instead, and its note says so. [Brackets] mark a word
+        the recording doesn&apos;t make clear, … words that can&apos;t be made out.
       </Small>
       <ol className="c5-list c5-lines">
         {TRANSCRIPT.map((l, k) => (
@@ -710,6 +771,7 @@ function Panel() {
       </ComponentIntro>
       <Video />
       <Timeline />
+      <Approach />
       <Transcript />
       <Charts />
       <Airplane />
