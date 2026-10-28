@@ -130,9 +130,9 @@ through that camera, from the altitude the animation reads.
   lines are in view to follow: the grid drifts up to 480 m from where the runway, then in full view, puts the airplane.
 - **Magnetic as true.** The heading window reads magnetic, and the runway's edges cross the grid at 309.2°. That is
   runway 31's magnetic heading in 1998: 301.7° true, with a variation of 7.96° W (IGRF-14), is 309.7°. The animation
-  flies the magnetic heading and draws the runway on it, as if both were true; its island is set to true north. Here
-  the track is laid on runway 31 as it was traced against the animation's, and the heading is turned to true by the
-  variation, so the airplane points along it as it does in the animation.
+  flies the magnetic heading and draws the runway on it; its island is set to true north. Here the track is laid on
+  runway 31 as it was traced against the animation's, and the heading is turned to true by the variation, so the
+  airplane points along it as it does in the animation.
 - **The runway, across.** The runway is a dark line along a white strip of the island from 0:46, and fills the view
   from 2:18. In each frame its pixels, projected to sea level, run on its heading across the grid to within 1.5°;
   frames where they don't (the wing seen edge-on) are left out. Fitted, they give the airplane's offset from the
@@ -142,9 +142,25 @@ through that camera, from the altitude the animation reads.
   threshold. It does in five stretches: 1:32 to 1:42 (101 frames), 1:53 to 1:55 (21), 2:01 to 2:04 (29), 2:10 to 2:12
   (16) and 2:31 (9). Elsewhere the airplane hides it, and the line ends where the airplane does. Between the
   stretches, the airplane's motion over the grid keeps to the threshold to 110 m, through the spiral too.
-- **The island doesn't agree with the runway.** Its west arm, with the runway, lies where OpenStreetMap's coastline
-  has it from about 0:50, when it is in view. Its east arm is drawn about 2 km from the real one, relative to the
-  runway. The runway is what the crew flew to, so it places the track, not the island.
+- **The island doesn't agree with the runway.** The island is drawn to true north. Its land and sea, projected to sea
+  level in each frame from 0:07 to 0:35 and carried by the animation's motion, match OpenStreetMap's coastline (on 20 m
+  cells) at a correlation of 0.72 with no turn, 0.62 to 0.66 turned 4° either way, and −0.07 as the track lies. So
+  fitted, the island puts the animation's runway end 940 m up the real runway, on its centreline, with the runway turned
+  7.5° off the real one from there. The runway and the airplane's path are on the magnetic heading, the island on true
+  north. Whether the animation meant its grid as true or as magnetic, the path agrees with the runway and the island is
+  the one turned against them. The island and the runway then place the airplane differently. At 0:07 the island has it
+  8.5 km short of the runway 31 end and 1,640 m left; at 0:13, 7.9 km and 1,720 m; at 0:35, 5.5 km and 1,200 m. The
+  track has 9.6 km and 400 m, 8.9 km and 565 m, and 6.5 km and 360 m: about 1.1 km further out and 1.2 km to the right
+  at the start, 1.3 km apart by 0:35. The 1.2 km is the 7.5° between them, about the runway: 9.5 km out, 1.2 km. Laying
+  the track on the real runway sets the path and the runway right and leaves the island turned. Turned back by the 7.5°
+  about the runway 31 end, the track starts 1,660 m left, as the island has it, but 940 m further out, and matches the
+  coastline no better (−0.04); its path would cross the runway at 7.5° while its nose, on the recorded heading, points
+  down it. The 940 m is where the animation puts its runway on its island. Later the land in view is the west arm, a
+  long strip along the runway, which can't fix the along position: fitted over windows from 2:05 to 2:51, it would move
+  the track anywhere from 1.3 to 3.1 km along the runway. Carried on by the animation's motion, the island's placement
+  has the airplane over land by 1:55, at its lowest at 2:24 63 m short of the runway 31 end, and at 2:27, where Lacklen
+  has the recovery "above the lagoon", 150 m past it. The track follows the runway: it is what the crew flew to, on
+  runway 31's localizer, and it keeps the recovery over the lagoon.
 
 **The traced track** is the runway, frame by frame. Across, it is the runway's offset in each frame, smoothed over 5 s.
 Along, it is pinned to the threshold in each of the five stretches, and moves as the grid moves the airplane between
@@ -230,7 +246,8 @@ These sources don't give the following, so the drawing chooses them:
 - **Unseated slats:** while neither lock shows LOCKED, they are drawn stopped at 80% of their travel, exaggerated so the
   shortfall can be seen.
 
-The airplane flies the track traced above, nose 9.9° left of the heading window's heading as the animation flies it.
+The airplane flies the track traced above, nose 7.96° left of the heading window's heading: the magnetic heading
+turned to true by the variation.
 With a Maps key, Google's 3D tiles draw Diego Garcia under it. Without one, a flat sea at 0 ft stands in.
 
 It was night; the view is lit to be seen.
