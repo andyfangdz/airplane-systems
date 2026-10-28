@@ -149,7 +149,12 @@ through that camera, from the altitude the animation reads.
   turned 7.5° off the real one from there: the magnetic heading drawn as true. The island and the runway then place
   the airplane differently. At 0:07 the island has it 8.5 km short of the runway 31 end and 1,640 m left; at 0:13,
   7.9 km and 1,720 m; at 0:35, 5.5 km and 1,200 m. The track has 9.6 km and 400 m, 8.9 km and 565 m, and 6.5 km and
-  360 m: about 1.1 km further out and 1.2 km to the right at the start, 1.3 km apart by 0:35. Later the land in view
+  360 m: about 1.1 km further out and 1.2 km to the right at the start, 1.3 km apart by 0:35. The 1.2 km is the
+  animation's mistake: flying the magnetic heading over a true-north island swings its path 7.5° clockwise about the
+  runway, which 9.5 km out is 1.2 km, and laying the track on the real runway undoes it. Turned back by the 7.5° about
+  the runway 31 end, the track starts 1,660 m left, as the island has it, but 940 m further out, and matches the
+  coastline no better (−0.04); its path would cross the runway at 7.5° while its nose, on the recorded heading, points
+  down it. The 940 m is where the animation puts its runway on its island. Later the land in view
   is the west arm, a long strip along the runway, which can't fix the along position: fitted over windows from 2:05
   to 2:51, it would move the track anywhere from 1.3 to 3.1 km along the runway. Carried on by the animation's motion,
   the island's placement has the airplane over land by 1:55, at its lowest at 2:24 63 m short of the runway 31 end,
