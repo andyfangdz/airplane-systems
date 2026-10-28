@@ -87,6 +87,10 @@ for (const [name, viewport] of Object.entries({
 
     const mon = page.locator(".c5-mon");
     const time = mon.locator(".c5-time").first();
+    const seconds = async () => {
+      const [m, s] = (await time.innerText()).split(":");
+      return Number(m) * 60 + Number(s);
+    };
     const big = (k) => mon.locator(".c5-big > div").nth(k).locator("b");
     const ann = (label) => mon.locator(".c5-ann > div").filter({ hasText: label }).locator("b");
     await expect(time).toHaveText("0:00");
@@ -128,7 +132,8 @@ for (const [name, viewport] of Object.entries({
     await mon.getByRole("button", { name: "Play" }).click();
     await expect.poll(() => page.evaluate(() => window.__yt.calls.slice(0, 2))).toEqual(["seek 104", "play"]);
     await expect(mon.getByRole("button", { name: "Pause" })).toBeVisible();
-    await expect(time).toHaveText("1:46", { timeout: 10_000 });
+    // a running clock: any reading from 1:46 on, since a slow software-GL frame can carry a check past one second
+    await expect.poll(seconds, { timeout: 10_000 }).toBeGreaterThanOrEqual(106);
     // seeking the page seeks the video, and the replay follows the player
     await page.getByRole("button", { name: /Out of the cloud/ }).click();
     await expect.poll(() => page.evaluate(() => window.__yt.calls.at(-1))).toMatch(/^seek 13[56]$/);
