@@ -1,7 +1,8 @@
 import { createHash, webcrypto } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { workerSource } from "../scripts/build-offline.mjs";
 import { immutable } from "../scripts/release-manifest.mjs";
 
 // Keep this source-reading test in Vitest's changed-file dependency graph without evaluating the worker as a module.
@@ -24,9 +25,13 @@ type Mode = "server" | "export";
 const absolute = (input: Request | string | URL) =>
   new URL(typeof input === "string" || input instanceof URL ? input.toString() : input.url, ORIGIN).href;
 
-type Release = { version?: string; edit?: (url: string, body: string) => string };
+type Asset = [url: string, body: string, contentType: string];
+type Release = { version?: string; edit?: (url: string, body: string) => string; extra?: Asset[] };
 
-function fixture(mode: Mode = "server", { version = "test-v2", edit = (_url, body) => body }: Release = {}) {
+function fixture(
+  mode: Mode = "server",
+  { version = "test-v2", edit = (_url, body) => body, extra = [] }: Release = {},
+) {
   const base = `/_next/static/offline/${version}`;
   const assets: [string, string, string][] = (
     [
@@ -40,7 +45,8 @@ function fixture(mode: Mode = "server", { version = "test-v2", edit = (_url, bod
       ["/_next/static/test/chunk.js", "globalThis.offlineChunk = true;", "application/javascript"],
       ["/_next/static/test/style.css", "body { color: navy; }", "text/css"],
       ["/geometry/runtime.json", '{"recovery":"/geometry/recovery.bin.gz"}', "application/json"],
-    ] as [string, string, string][]
+      ...extra,
+    ] as Asset[]
   ).map(([url, body, contentType]) => [url, edit(url, body), contentType]);
   const bodies = new Map(assets.map(([url, body, contentType]) => [url, { body, contentType }]));
   const files = assets.map(([url, body, contentType]) => ({
@@ -51,7 +57,7 @@ function fixture(mode: Mode = "server", { version = "test-v2", edit = (_url, bod
     immutable: immutable(url.slice(1)),
   }));
   const manifest = {
-    schema: 1,
+    schema: 1 as const,
     version,
     buildId: "test-build",
     mode,
@@ -154,11 +160,21 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
   const failedPaths = new Set<string>();
   const corruptedPaths = new Set<string>();
   const serverErrorPaths = new Set<string>();
+  // Requests to a stalled path wait, unanswered, until the network answers it.
+  const stalled = new Map<string, PromiseWithResolvers<void>>();
+  const stall = (path: string) => stalled.set(path, Promise.withResolvers());
+  const answer = (path: string) => {
+    stalled.get(path)?.resolve();
+    stalled.delete(path);
+  };
+  // The ids of the open pages. One page is open unless a test closes it.
+  const pages = new Set(["page"]);
   const lifecycle = { skipped: 0, claimed: 0 };
   const network = async (input: Request | string | URL, init?: RequestInit) => {
     const request = new Request(typeof input === "string" || input instanceof URL ? absolute(input) : input, init);
     requests.push(request);
     const path = new URL(request.url).pathname;
+    await stalled.get(path)?.promise;
     if (failedPaths.has(path)) throw new TypeError("Network interrupted");
     if (serverErrorPaths.has(path)) return new Response("Bad gateway", { status: 502 });
     const asset = site.get(path);
@@ -169,7 +185,8 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
     });
   };
   const clients = {
-    matchAll: async () => [{ postMessage: (message: Status) => broadcasts.push(structuredClone(message)) }],
+    matchAll: async () =>
+      [...pages].map((id) => ({ id, postMessage: (message: Status) => broadcasts.push(structuredClone(message)) })),
     claim: async () => void lifecycle.claimed++,
   };
   const scope = {
@@ -185,7 +202,7 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
     crypto: webcrypto,
   };
   const source = readFileSync(new URL("../scripts/offline-worker.js", import.meta.url), "utf8");
-  runInNewContext(source.replace("__OFFLINE_MANIFEST__", JSON.stringify(manifest)), {
+  runInNewContext(workerSource(source, manifest), {
     ...scope,
     self: scope,
     Request,
@@ -198,8 +215,9 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
     AbortController,
     DOMException,
     console,
-    setTimeout,
-    clearTimeout,
+    // Looked up on each call, so a test's fake timers also run the worker's.
+    setTimeout: (handler: () => void, delay?: number) => setTimeout(handler, delay),
+    clearTimeout: (timer?: ReturnType<typeof setTimeout>) => clearTimeout(timer),
   });
 
   async function dispatch(type: string, fields: Omit<WorkerEvent, "waitUntil"> = {}) {
@@ -249,6 +267,9 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
     failedPaths,
     corruptedPaths,
     serverErrorPaths,
+    stall,
+    answer,
+    pages,
     lifecycle,
     dispatch,
     message,
@@ -323,6 +344,11 @@ describe("offline service worker", () => {
         `${PREFIX}previous`,
       );
       await w.dispatch("activate");
+      // The page open during the update runs the earlier build: its pack stays until that page has gone.
+      expect(await caches.keys()).toContain(`${PREFIX}previous`);
+      w.pages.clear();
+      w.pages.add("reloaded page");
+      await w.message("GET_OFFLINE_STATUS");
       expect(await caches.keys()).not.toContain(`${PREFIX}previous`);
       expect(await caches.keys()).toContain("unrelated-app-cache");
       expect(await caches.keys()).toContain(`${PREFIX}${w.manifest.version}`);
@@ -429,27 +455,81 @@ describe("offline service worker", () => {
     next.failedPaths.add("/");
     const tree = await next.request("/", { headers: { RSC: "1", "Next-Router-Segment-Prefetch": "/_tree" } });
     expect(tree?.headers.get("x-nextjs-postponed")).toBe("2");
+    // With no page open, nothing runs the earlier build, so its pack goes as this one takes over.
+    next.pages.clear();
     await next.dispatch("activate");
     expect(await caches.keys()).toEqual([`${PREFIX}${next.manifest.version}`]);
   });
 
-  it("does not intercept unknown routes, analytics, third-party traffic, unsupported RSC segments or POST", async () => {
+  it("keeps an earlier build's content-hashed files for a page still running it, until that page has gone", async () => {
+    const caches = new MemoryCaches();
+    const lazy = "/_next/static/test/earlier-lazy.js";
+    const previous = worker("server", caches, {
+      version: "test-v1",
+      extra: [[lazy, "globalThis.earlierLazy = true;", "application/javascript"]],
+    });
+    await previous.dispatch("install");
+    await previous.dispatch("activate");
+    // The page loaded the earlier build. The next release, which dropped that chunk, takes over while it is open.
+    const next = worker("server", caches);
+    await next.dispatch("install");
+    await next.dispatch("activate");
+    expect(next.manifest.files.map((file) => file.url)).not.toContain(lazy);
+    expect(await caches.keys()).toContain(`${PREFIX}test-v1`);
+    // Offline, the page can still load the earlier build's lazy chunk.
+    next.failedPaths.add(lazy);
+    expect(await (await next.request(lazy))?.text()).toBe("globalThis.earlierLazy = true;");
+    expect((await next.request(lazy, { method: "HEAD" }))?.status).toBe(200);
+    await next.message("GET_OFFLINE_STATUS");
+    expect(await caches.keys(), "kept while the page is open").toContain(`${PREFIX}test-v1`);
+    // Reloaded, the page runs the new build and the earlier pack goes.
+    next.pages.delete("page");
+    next.pages.add("reloaded page");
+    await next.message("GET_OFFLINE_STATUS");
+    expect(await caches.keys()).toEqual([`${PREFIX}${next.manifest.version}`]);
+    await expect(next.request(lazy)).rejects.toThrow("Network interrupted");
+  });
+
+  it("waits for a stalled network until its deadline, then serves the saved copy", async () => {
+    const w = worker();
+    await w.dispatch("install");
+    const page = w.manifest.routes["/foo"].html;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      w.stall("/foo");
+      let saved: Response | undefined;
+      const fallback = w.request("/foo", {}, true).then((response) => (saved = response));
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(saved, "the network has five seconds to answer").toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await (await fallback)?.text()).toBe(w.bodies.get(page)!.body);
+      // Without a saved copy, the page waits for the network's answer however long it takes.
+      await (await w.caches.open(`${PREFIX}${w.manifest.version}`)).delete(page);
+      let live: Response | undefined;
+      const latest = w.request("/foo", {}, true).then((response) => (live = response));
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(live).toBeUndefined();
+      w.answer("/foo");
+      expect(await (await latest)?.text()).toBe("Live /foo");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not save unknown routes, analytics, third-party traffic, unsupported RSC segments or POST", async () => {
     const w = worker();
     await w.dispatch("install");
     w.requests.length = 0;
-    for (const path of [
-      "/missing",
-      "/missing.js",
-      "/_next/static/new-build.js",
-      "/_vercel/insights/script.js",
-      "https://analytics.example/collect",
-    ])
+    for (const path of ["/missing", "/missing.js", "/_vercel/insights/script.js", "https://analytics.example/collect"])
       expect(await w.request(path)).toBeUndefined();
     expect(await w.request("/foo", { method: "POST", body: "operation" })).toBeUndefined();
     expect(
       await w.request("/foo?_rsc=unknown", { headers: { RSC: "1", "Next-Router-Segment-Prefetch": "/missing" } }),
     ).toBeUndefined();
     expect(w.requests).toHaveLength(0);
+    // A content-hashed file in no saved pack goes to the network unchanged.
+    expect((await w.request("/_next/static/new-build.js"))?.status).toBe(404);
+    expect(w.requests.map((request) => request.url)).toEqual([`${ORIGIN}/_next/static/new-build.js`]);
   });
 
   it("answers status queries through the message port and falls back to the sending client", async () => {

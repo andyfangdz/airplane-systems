@@ -183,6 +183,7 @@ describe("production offline pack", () => {
     const worker = await readFile(join(root, "public/sw.js"), "utf8");
     expect(worker).toContain(manifest.version);
     expect(worker).not.toContain("__OFFLINE_MANIFEST__");
+    expect(worker).not.toContain("__IMMUTABLE_PATH__");
   });
 
   it("rebuilds deterministically without recursively packing old snapshots, and versions changed content", async () => {

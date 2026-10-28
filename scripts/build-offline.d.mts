@@ -46,6 +46,7 @@ export interface OfflineAdapterContext {
     }>;
   };
 }
+export function workerSource(template: string, manifest: OfflineManifest): string;
 export function buildOffline(
   root?: string,
   options?: { staticExport?: boolean; adapterContext?: OfflineAdapterContext },

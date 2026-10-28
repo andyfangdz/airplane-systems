@@ -3,6 +3,11 @@ const OFFLINE_MANIFEST = __OFFLINE_MANIFEST__;
 const CACHE_PREFIX = "airplane-systems-offline-";
 const CACHE_NAME = `${CACHE_PREFIX}${OFFLINE_MANIFEST.version}`;
 const READY_KEY = new URL(`/_offline-ready/${OFFLINE_MANIFEST.version}`, self.location.origin).href;
+// The pages open when this version took over. They run an earlier build, so its pack stays until they close.
+const EARLIER_PAGES_KEY = new URL(`/_offline-earlier-pages/${OFFLINE_MANIFEST.version}`, self.location.origin).href;
+const IMMUTABLE_PATH = __IMMUTABLE_PATH__;
+// How long a page waits for the network to answer before the saved copy stands in.
+const NETWORK_WAIT_MS = 5_000;
 const FILES = new Map(OFFLINE_MANIFEST.files.map((file) => [file.url, file]));
 // Content-hashed URLs never change their bytes, so a saved copy is already the latest one.
 const IMMUTABLE = new Set(OFFLINE_MANIFEST.files.filter((file) => file.immutable).map((file) => file.url));
@@ -18,9 +23,11 @@ let status = {
   totalBytes: OFFLINE_MANIFEST.totalBytes,
 };
 
+const openPages = () => self.clients.matchAll({ type: "window", includeUncontrolled: true });
+const earlier = (key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME;
+
 async function broadcast() {
-  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  for (const client of windows) client.postMessage(status);
+  for (const client of await openPages()) client.postMessage(status);
 }
 
 async function completeCache(cache) {
@@ -105,7 +112,7 @@ async function downloadPack() {
     await broadcast();
     const cache = await caches.open(CACHE_NAME);
     await cache.delete(READY_KEY);
-    const previous = (await caches.keys()).filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME);
+    const previous = (await caches.keys()).filter(earlier);
     let cursor = 0;
     let failure;
     const worker = async () => {
@@ -182,15 +189,26 @@ self.addEventListener("install", (event) => {
   event.waitUntil(downloadPack().then(() => self.skipWaiting()));
 });
 
+/** Earlier packs go once this version's is complete and no page that was open when it took over still is. */
+async function pruneEarlier() {
+  const packs = (await caches.keys()).filter(earlier);
+  if (!packs.length) return;
+  const cache = await caches.open(CACHE_NAME);
+  const recorded = await cache.match(EARLIER_PAGES_KEY);
+  if (!recorded || !(await completeCache(cache))) return;
+  const ids = new Set(await recorded.json());
+  if ((await openPages()).some((client) => ids.has(client.id))) return;
+  await Promise.all(packs.map((key) => caches.delete(key)));
+}
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       if (await completeCache(cache)) {
-        const keys = await caches.keys();
-        await Promise.all(
-          keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME).map((key) => caches.delete(key)),
-        );
+        const ids = (await openPages()).map((client) => client.id);
+        await cache.put(EARLIER_PAGES_KEY, new Response(JSON.stringify(ids)));
+        await pruneEarlier();
       }
       await self.clients.claim();
       await currentStatus();
@@ -207,6 +225,8 @@ self.addEventListener("message", (event) => {
         else event.source?.postMessage(message);
       }),
     );
+    // Every page asks once it has loaded, so a reloaded or closed earlier page has gone by the next query.
+    event.waitUntil(pruneEarlier().catch(() => {}));
   } else if (event.data?.type === "DOWNLOAD_OFFLINE") {
     // Repairs an evicted active pack. Initial failed installs are retried with registration.update().
     event.waitUntil(downloadPack().catch(() => {}));
@@ -226,13 +246,63 @@ function fileFor(request, url) {
   return OFFLINE_MANIFEST.aliases[url.pathname] ?? (FILES.has(url.pathname) ? url.pathname : undefined);
 }
 
+const answer = (request, cached) =>
+  request.method === "HEAD" ? new Response(null, { status: cached.status, headers: cached.headers }) : cached;
+
+/**
+ * The site's latest answer whenever it can be reached. The saved copy stands in when the network fails, the
+ * server can't answer, or nothing has arrived by the deadline. The stalled request isn't aborted: a signal
+ * would make it a new request, and a navigation would lose its mode. Its late answer is ignored.
+ */
+async function networkFirst(request, saved) {
+  const network = fetch(request);
+  let timer;
+  const deadline = new Promise((resolve) => {
+    timer = setTimeout(resolve, NETWORK_WAIT_MS);
+  });
+  let response;
+  try {
+    response = await Promise.race([network, deadline]);
+  } catch (error) {
+    const fallback = await saved();
+    if (fallback) return fallback;
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response) {
+    const fallback = await saved();
+    if (fallback) {
+      network.catch(() => {});
+      return fallback;
+    }
+    response = await network; // Without a saved copy, the network is still the only answer.
+  }
+  return response.status < 500 ? response : ((await saved()) ?? response);
+}
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" && request.method !== "HEAD") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   const key = fileFor(request, url);
-  if (!key || !FILES.has(key)) return; // No third-party, analytics, API or unknown-document caching.
+  if (!key || !FILES.has(key)) {
+    // A page that was open when this version took over still runs an earlier build. Its content-hashed files
+    // stay in that build's pack until it closes. Nothing else is cached: no third-party, analytics, API or
+    // unknown-document traffic.
+    if (!IMMUTABLE_PATH.test(url.pathname.slice(1))) return;
+    event.respondWith(
+      (async () => {
+        for (const name of (await caches.keys()).filter(earlier)) {
+          const cached = await (await caches.open(name)).match(url.pathname);
+          if (cached) return answer(request, cached);
+        }
+        return fetch(request);
+      })(),
+    );
+    return;
+  }
   event.respondWith(
     (async () => {
       const saved = async () => {
@@ -243,21 +313,10 @@ self.addEventListener("fetch", (event) => {
           event.waitUntil(currentStatus().then(broadcast));
           return undefined;
         }
-        if (request.method === "HEAD") return new Response(null, { status: cached.status, headers: cached.headers });
-        return cached;
+        return answer(request, cached);
       };
       if (key === url.pathname && IMMUTABLE.has(key)) return (await saved()) ?? fetch(request);
-      // Everything else is the site's latest version whenever it can be reached. The saved copy stands in
-      // only when the network fails or the server can't answer.
-      let response;
-      try {
-        response = await fetch(request);
-      } catch (error) {
-        const fallback = await saved();
-        if (fallback) return fallback;
-        throw error;
-      }
-      return response.status < 500 ? response : ((await saved()) ?? response);
+      return networkFirst(request, saved);
     })(),
   );
 });

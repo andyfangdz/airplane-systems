@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { immutable } from "./release-manifest.mjs";
+import { IMMUTABLE_PATH, immutable } from "./release-manifest.mjs";
 
 const repository = resolve(import.meta.dirname, "..");
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -63,6 +63,12 @@ async function readReceipt(path) {
     }),
   );
 }
+
+/** The deployed worker: its template with this release's inventory and the content-hashed path pattern. */
+export const workerSource = (template, manifest) =>
+  template
+    .replace("__OFFLINE_MANIFEST__", () => JSON.stringify(manifest))
+    .replace("__IMMUTABLE_PATH__", () => String(IMMUTABLE_PATH));
 
 export async function buildOffline(
   root = repository,
@@ -263,7 +269,7 @@ export async function buildOffline(
   for (const output of [publicRoot, ...(staticExport ? [join(root, "out")] : [])]) {
     await mkdir(output, { recursive: true });
     await writeFile(join(output, "offline-manifest.json"), JSON.stringify(manifest) + "\n");
-    await writeFile(join(output, "sw.js"), source.replace("__OFFLINE_MANIFEST__", JSON.stringify(manifest)));
+    await writeFile(join(output, "sw.js"), workerSource(source, manifest));
   }
   if (adapterContext) {
     const outputs = adapterContext.outputs.staticFiles;
