@@ -723,6 +723,11 @@ const TOGGLES = [
   ["trail", "Trail", "Draw the path flown (fitted to the animation, approximate)"],
   ["path", "Flight path", "Show which way the airplane is moving, against where its nose points"],
   ["cloud", "Cloud base", "Show the cloud base at 1,500 ft"],
+  [
+    "follow",
+    "Follow heading",
+    "Turn the view as the airplane turns. Off, the view stays lined up with runway 31 and only moves with the airplane",
+  ],
   ...(TILES_KEY
     ? ([
         ["terrain", "Terrain", "Show Diego Garcia in 3D (Google), placed by the animation's view of the runway"],

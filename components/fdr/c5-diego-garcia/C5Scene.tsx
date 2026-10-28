@@ -1,7 +1,8 @@
 "use client";
 /**
  * The C-5 flying the replay. The airplane stays at the centre of the view, pitched and banked as the animation's
- * attitude indicator shows; the world turns about it with the heading, so the view keeps the airplane's nose ahead:
+ * attitude indicator shows. Following the heading, the world turns about it, so the view keeps the airplane's nose
+ * ahead; otherwise the world stays lined up with runway 31 and the airplane turns in it:
  * Diego Garcia below at its altitude (Google's 3D tiles; the sea without them), the cloud base at 1,500 ft and the path
  * flown, traced off the animation's top view against its runway. The slats, the flaps, the gear and the engines' fans
  * move with the data. Length, span, height, wing area, sweep and wing sections are the
@@ -503,8 +504,8 @@ function World() {
   }, []);
   useFrame(() => {
     const [e, n, u] = trackAt(replay.t);
-    // the track is in true axes: the airplane points along the heading window's heading, turned to true
-    turn.current?.rotation.set(0, (replay.f.hdg + VARIATION_DEG) * D2R - Math.PI / 2, 0);
+    // the track is in true axes: the view looks along the heading, or along runway 31 when it doesn't follow it
+    turn.current?.rotation.set(0, (view.follow ? trueHeading() : RUNWAY_31) * D2R - Math.PI / 2, 0);
     shift.current?.position.set(-e, -u, n);
     under.current?.position.set(0, -u, 0);
     const i = Math.min(Math.max(Math.floor((replay.t - FDR_T0) / FDR_DT), 0), N - 1);
@@ -543,9 +544,25 @@ function World() {
         {view.labels && <Label at={[160, 0, 0]}>Sea level</Label>}
         {view.labels && view.cloud && <Label at={[160, CLOUD_M, 0]}>Cloud base, 1,500 ft</Label>}
       </group>
-      {view.path && <PathArrow />}
+      {view.path && (
+        <Yaw>
+          <PathArrow />
+        </Yaw>
+      )}
     </group>
   );
+}
+
+/** The airplane's heading, true: the heading window's, turned by the variation. */
+const trueHeading = () => replay.f.hdg + VARIATION_DEG;
+const RUNWAY_31 = C5_DIEGO_GARCIA.airport.runway.heading31T;
+
+/** Not following the heading, the airplane turns from runway 31's direction by its own heading's difference. */
+function Yaw({ children }: { children: React.ReactNode }) {
+  const follow = useC5View((x) => x.follow);
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => ref.current?.rotation.set(0, follow ? 0 : (RUNWAY_31 - trueHeading()) * D2R, 0));
+  return <group ref={ref}>{children}</group>;
 }
 
 /** The flight path: from the airplane's centre, in the vertical plane of its heading. */
@@ -583,7 +600,9 @@ export default function C5Scene() {
       maxDistance={12_000}
       keyLight={{ position: [40, 80, 30], intensity: 1.5 }}
     >
-      <Airplane />
+      <Yaw>
+        <Airplane />
+      </Yaw>
       <World />
     </ComponentStage>
   );

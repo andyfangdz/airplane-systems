@@ -32,8 +32,16 @@ export type VideoState = "off" | "loading" | "ready" | "error";
 export const useReplay = create<{ playing: boolean; video: VideoState }>(() => ({ playing: false, video: "off" }));
 
 /** `trail` draws the path, `path` the direction of flight, `cloud` the cloud base, `terrain` the island and `labels`
- * names the parts. */
-export const useC5View = createViewStore({ labels: true, trail: true, path: true, cloud: true, terrain: true });
+ * names the parts. `follow` turns the view with the airplane's heading; off, the view stays lined up with runway 31
+ * and only moves with the airplane, which turns in it. */
+export const useC5View = createViewStore({
+  labels: true,
+  trail: true,
+  path: true,
+  cloud: true,
+  terrain: true,
+  follow: true,
+});
 
 /** The Google Maps API key the 3D tiles need; without one the sea stands in for the island. */
 export const TILES_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
