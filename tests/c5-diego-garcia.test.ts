@@ -16,6 +16,9 @@ import {
   VARIATION_DEG,
   channel,
   gearTravel,
+  glideslopeFt,
+  ilsAt,
+  onRunway31,
   sample,
   slatTravel,
   trackAt,
@@ -356,6 +359,57 @@ describe("the ground under the track", () => {
   });
 });
 
+describe("runway 31's ILS (Flight Plan Database, FJDG)", () => {
+  const { elevationFt, ils, runway } = C5_DIEGO_GARCIA.airport;
+
+  test("the crew set it up: “310 both sides, 109.3”, the runway's 1998 magnetic heading and its localizer", () => {
+    const setup = TRANSCRIPT.filter((l) => l.text.startsWith("310 both sides"));
+    expect(setup.map((l) => Math.floor(l.t))).toEqual([35, 47]);
+    expect(setup[0].text).toContain(String(ils.mhz));
+    expect(setup[1].text).toContain("localizer set");
+    expect(Math.round(runway.heading31T - VARIATION_DEG)).toBe(310);
+  });
+
+  test("the glideslope rises 3° from the threshold, about 318 ft a nautical mile", () => {
+    expect(glideslopeFt(0)).toBe(elevationFt);
+    expect(glideslopeFt(500)).toBe(elevationFt);
+    expect(glideslopeFt(-1852) - glideslopeFt(0)).toBeCloseTo(318.4, 0);
+  });
+
+  test("runway 31's frame is the track's: the lowest point is 1.0 km short and 30 m left (SOURCES.md)", () => {
+    const [along, right] = onRunway31(144.2);
+    expect(along / 1000).toBeCloseTo(-1.0, 1);
+    expect(right).toBeCloseTo(-30, -1);
+  });
+
+  test("“Descend”: 2.0 nm out at 4,556 ft, about 3,900 ft above the glideslope at about 650 ft", () => {
+    const call = TRANSCRIPT.find((l) => l.text === "Descend.")!;
+    const moment = MOMENTS.find((m) => m.t === call.t)!;
+    const r = ilsAt(call.t);
+    expect(r.nm).toBeCloseTo(2.0, 1);
+    expect(channel("alt", call.t)).toBeCloseTo(4556, 0);
+    expect(glideslopeFt(onRunway31(call.t)[0])).toBeCloseTo(650, -1);
+    expect(Math.round(r.aboveFt! / 100) * 100).toBe(3900);
+    for (const said of ["310 both sides, 109.3", "2.0 nm", "about 650 ft", "4,556 ft", "about 3,900 ft"])
+      expect(moment.text).toContain(said);
+  });
+
+  test("from 0:07 to the top of the climb at 1:44, 2,800 to 4,600 ft above the glideslope", () => {
+    const above = times(T_START, 104).map((t) => ilsAt(t).aboveFt!);
+    expect(Math.round(Math.min(...above) / 100) * 100).toBe(2800);
+    expect(Math.round(Math.max(...above) / 100) * 100).toBe(4600);
+  });
+
+  test("past the threshold the glideslope has ended: no height above it", () => {
+    const all = times(T_START, T_END).map((t) => ilsAt(t));
+    expect(
+      all.some((r) => r.nm < 0),
+      "the track passes runway 31's threshold",
+    ).toBe(true);
+    for (const r of all) expect(r.aboveFt === null).toBe(r.nm <= 0);
+  });
+});
+
 describe("the transcript and the timeline", () => {
   test("lines are in order, within the video, and don't overlap", () => {
     let end = 0;
@@ -374,6 +428,17 @@ describe("the transcript and the timeline", () => {
     expect(at(l.t).alt).toBeLessThan(1500);
     expect(TRANSCRIPT[lastLineIndex(139.5)]).toBe(l);
     expect(lastLineIndex(0)).toBe(-1);
+  });
+
+  test("“You got more power available to you” is the copilot's voice; Lacklen gives it to the flight engineer", () => {
+    const l = TRANSCRIPT.find((x) => x.text.includes("more power available"))!;
+    expect(l.who).toBe("Copilot");
+    expect(l.basis).toBe("asr");
+    expect(l.note).toMatch(/Lacklen gives the call to the flight engineer/);
+    // it runs straight on into “Put the nose down”
+    const next = TRANSCRIPT[TRANSCRIPT.indexOf(l) + 1];
+    expect(next.text).toBe("Put the nose down.");
+    expect(next.t - l.end).toBeLessThan(0.5);
   });
 
   test("the timeline's moments are in order within the data", () => {

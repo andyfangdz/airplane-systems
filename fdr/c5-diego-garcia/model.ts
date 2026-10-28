@@ -251,6 +251,36 @@ export function trackAt(t: number): [east: number, north: number, up: number] {
   return [l(TRACK.east), l(TRACK.north), l(TRACK.up)];
 }
 
+// ---------------------------------------------------------------- runway 31's ILS
+
+/** A nautical mile, m. */
+export const NM = 1852;
+const { airport } = C5_DIEGO_GARCIA;
+
+/** Where the airplane is at `t` against runway 31: metres along it from its threshold (negative short of it) and right
+ * of its centreline, the localizer's course. */
+export function onRunway31(t: number): [along: number, right: number] {
+  const [e, n] = trackAt(t);
+  const rw = airport.runway.heading31T * D2R,
+    [s, c] = [Math.sin(rw), Math.cos(rw)];
+  return [e * s + n * c, e * c - n * s];
+}
+
+/**
+ * The glideslope's height over runway 31's extended centreline, `along` metres from the threshold, ft: 3° up from the
+ * threshold at the runway's elevation. The real glide path meets the runway beyond the threshold, abeam the
+ * glideslope's antenna, which the sources don't place: it is a little higher than drawn.
+ */
+export const glideslopeFt = (along: number) =>
+  airport.elevationFt + (Math.max(-along, 0) / FT) * Math.tan(airport.ils.glideslopeDeg * D2R);
+
+/** The airplane against the ILS at `t`: nm short of the threshold (negative past it), ft above the glideslope there
+ * (null past the threshold, where the glideslope has ended), m right of the localizer's course. */
+export function ilsAt(t: number) {
+  const [along, right] = onRunway31(t);
+  return { nm: -along / NM, aboveFt: along < 0 ? channel("alt", t) - glideslopeFt(along) : null, right };
+}
+
 // ---------------------------------------------------------------- the timeline
 
 export interface Moment {
@@ -292,7 +322,7 @@ export const MOMENTS: readonly Moment[] = [
   {
     t: 69.8,
     title: "“Descend”",
-    text: `The copilot calls for the descent: they are configured and past the final approach fix (${LACKLEN}).`,
+    text: `The copilot calls for the descent: they are configured and past the final approach fix (${LACKLEN}). The crew had set up runway 31's ILS (“310 both sides, 109.3”). Its 3° glideslope, 2.0 nm from the threshold, is at about 650 ft; the airplane, at 4,556 ft, is about 3,900 ft above it. Neither record says why it was this high.`,
   },
   {
     t: 78.8,

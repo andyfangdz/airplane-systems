@@ -110,6 +110,19 @@ export const C5_DIEGO_GARCIA = {
     /** The EGM96 geoid's height above the WGS84 ellipsoid at the runway 31 end, m: the 3D tiles' heights are
      * ellipsoidal, so sea level is this far below their zero (egm96-universal's meanSeaLevel). */
     geoidM: -74.72,
+    /** Runway 31's ILS as Flight Plan Database lists it today: localizer and glideslope INKW on 109.30 MHz, the
+     * localizer on 301.84° true (the runway's 301.86°), the glideslope at 3.00° with a range of 10 nm. It gives no
+     * threshold crossing height and doesn't place the glideslope's antenna. The crew set it up: “310 both sides,
+     * 109.3”. The 1998 approach may have differed. The view keeps OurAirports' 301.7° for the localizer's course,
+     * the runway the track is traced against: 0.14° from this, about 45 m at 10 nm. */
+    ils: {
+      source: "Flight Plan Database",
+      url: "https://flightplandatabase.com/airport/FJDG",
+      ident: "INKW",
+      mhz: 109.3,
+      glideslopeDeg: 3,
+      glideslopeRangeNm: 10,
+    },
   },
 } as const;
 

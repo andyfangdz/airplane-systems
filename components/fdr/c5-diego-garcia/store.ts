@@ -31,15 +31,16 @@ export type VideoState = "off" | "loading" | "ready" | "error";
 
 export const useReplay = create<{ playing: boolean; video: VideoState }>(() => ({ playing: false, video: "off" }));
 
-/** `trail` draws the path, `path` the direction of flight, `cloud` the cloud base, `terrain` the island and `labels`
- * names the parts. `follow` turns the view with the airplane's heading; off, the view stays lined up with runway 31
- * and only moves with the airplane, which turns in it. */
+/** `trail` draws the path, `path` the direction of flight, `cloud` the cloud base, `terrain` the island, `ils` runway
+ * 31's glideslope and localizer, and `labels` names the parts. `follow` turns the view with the airplane's heading;
+ * off, the view stays lined up with runway 31 and only moves with the airplane, which turns in it. */
 export const useC5View = createViewStore({
   labels: true,
   trail: true,
   path: true,
   cloud: true,
   terrain: true,
+  ils: true,
   follow: true,
 });
 

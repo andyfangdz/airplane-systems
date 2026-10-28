@@ -19,6 +19,7 @@ report is public. Two records are used, and where they differ both are given:
 | Master Sgt. Steve Marciniak, [“C-5 mishap investigated”](https://www.dover.af.mil/News/Article/231053/c-5-mishap-investigated), 436th Airlift Wing Public Affairs, Dover AFB, 29 June 2006                                                                                                                           | About a different C-5 mishap (Dover, 3 April 2006); read only for what becomes public after an Air Force mishap                                                                                                                                                                                                     |
 | [_AFMAN 11-2C-5 Volume 3, C-5 Operations Procedures_](https://static.e-publishing.af.mil/production/1/af_a3/publication/afman11-2c-5v3/afman11-2c-5v3.pdf), 20 October 2022 (the C-5M's; the 1998 rules may have differed)                                                                                           | Table 3.5 items 5-5d to f (slats, slat position indicator; p. 38), Table 3.2 item 2-10 (angle-of-attack de-ice and its stallimiter; p. 24), Table 3.14 items 14-1 and 14-2 (Stallimiter System, GPWS; p. 60), 7.4.1 (manoeuvres crews may not practise in the airplane; p. 87). It does not say what TRT stands for |
 | [FJDG](https://ourairports.com/airports/FJDG/), OurAirports (airports.csv and runways.csv)                                                                                                                                                                                                                           | Diego Garcia's elevation (9 ft), and runway 13/31: its length and width (12,003 × 200 ft), the latitude and longitude of its two ends, and runway 31's true heading (301.7°)                                                                                                                                        |
+| [FJDG](https://flightplandatabase.com/airport/FJDG), Flight Plan Database                                                                                                                                                                                                                                            | Runway 31's ILS as listed today: localizer and glideslope INKW on 109.30 MHz, the localizer on 301.84° true (the runway's 301.86°), a 3.00° glideslope with a range of 10 nm. It gives no threshold crossing height and doesn't place the glideslope's antenna, and says its data are not for real-world navigation |
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) (© OpenStreetMap contributors, ODbL), read through the Overpass API                                                                                                                                                                                         | Diego Garcia's coastline, to compare the animation's island with and to say what is under the track. Nothing of it is drawn                                                                                                                                                                                         |
 | [IGRF-14](https://www.ncei.noaa.gov/products/international-geomagnetic-reference-field), the International Geomagnetic Reference Field, 14th generation (IAGA, November 2024): its coefficients file, igrf14coeffs.txt                                                                                               | The magnetic variation at the runway 31 end in the summer of 1998, 7.96° W: the definitive 1995 and 2000 fields, interpolated to mid-1998 and evaluated at sea level                                                                                                                                                |
 | [Photorealistic 3D Tiles](https://developers.google.com/maps/documentation/tile/3d-tiles), Google Maps Platform                                                                                                                                                                                                      | The island and the airfield the 3D view draws under the track, where the site has a Maps key. Their heights are above the WGS84 ellipsoid; the EGM96 geoid, 74.72 m below it at the runway 31 end (the egm96-universal package), is taken as sea level                                                              |
@@ -47,6 +48,7 @@ report is public. Two records are used, and where they differ both are given:
 | 14 slats, all required for flight; a slat position indicator, and with it out the slats are scanned to verify their position                                                                                                                          | AFMAN                 |
 | Stallimiter System: 2 installed, “1 fully functioning system required for all departures”; with one angle-of-attack de-ice system out, the other's stallimiter must work                                                                              | AFMAN                 |
 | Practice of stalls and approaches to stalls, unusual attitudes and banks over 45° is prohibited in the airplane                                                                                                                                       | AFMAN                 |
+| Runway 31's ILS: localizer and glideslope on 109.30 MHz, a 3.00° glideslope (today's listing; the 1998 approach may have differed)                                                                                                                    | Flight Plan Database  |
 
 ## Records looked for and not found
 
@@ -176,7 +178,7 @@ real airplane's path by about 31 m a minute for each knot.
 
 ## The cockpit voice recording
 
-The words and their times are machine transcriptions, which nobody has checked by ear. Whisper large-v3 transcribed
+The words and their times are machine transcriptions, which nobody has checked by ear but for one speaker. Whisper large-v3 transcribed
 the whole sound track. Short stretches were transcribed again with large-v3 and medium.en, after filtering the audio
 to the voice band. Each line's basis is marked:
 
@@ -186,17 +188,23 @@ to the voice band. Each line's basis is marked:
 - **unclear**: they don't agree, or only some words can be made out.
 
 “…” stands for words that can't be made out. [Brackets] mark a word the recording doesn't make clear, read from the
-context the line's note gives. Speakers are named only where Lacklen names them, or for the GPWS's voice.
+context the line's note gives. Speakers are named where Lacklen names them, and for the GPWS's voice. One call was
+attributed by ear: “You got more power available to you” (113.3 s) is the copilot's voice, running straight on into the
+copilot's “Put the nose down.” Lacklen gives it to the female flight engineer.
+
+“310 both sides, 109.3” (35.1 s) and “310 both sides, localizer set, right?” (47.7 s): the transcriptions agree on these
+words. They set up runway 31's ILS: the course on both pilots' instruments and the localizer's frequency.
 
 ## Where the records differ
 
-|                     | Lacklen         | The animation                                         |
-| ------------------- | --------------- | ----------------------------------------------------- |
-| Bank at 2:14        | 110° right      | about 94° right                                       |
-| Airspeed at 2:14    | 105 kt          | 96 kt                                                 |
-| Height lost by 1:55 | almost 1,000 ft | about 860 ft                                          |
-| Bank at 1:58        | near 90° right  | 58° right at most                                     |
-| Recovery            | 733 ft at 2:27  | the altimeter bottoms out at 771 ft at 144.2 s (2:24) |
+|                        | Lacklen             | The animation                                         |
+| ---------------------- | ------------------- | ----------------------------------------------------- |
+| Bank at 2:14           | 110° right          | about 94° right                                       |
+| Airspeed at 2:14       | 105 kt              | 96 kt                                                 |
+| Height lost by 1:55    | almost 1,000 ft     | about 860 ft                                          |
+| Bank at 1:58           | near 90° right      | 58° right at most                                     |
+| Recovery               | 733 ft at 2:27      | the altimeter bottoms out at 771 ft at 144.2 s (2:24) |
+| “More power available” | the flight engineer | the copilot's voice on the sound track                |
 
 The animation shows the gear handle move 2.6 s before each gear call is heard: “Gear down” at 29.3 s and “Gear up” at
 98.3 s. It isn't known whether the animation's data lead its audio. The replay keeps the animation's timing.
@@ -226,3 +234,22 @@ The airplane flies the track traced above, nose 9.9° left of the heading window
 With a Maps key, Google's 3D tiles draw Diego Garcia under it. Without one, a flat sea at 0 ft stands in.
 
 It was night; the view is lit to be seen.
+
+## Runway 31's ILS
+
+The crew set up runway 31's ILS (“310 both sides, 109.3”). 310° was the runway's magnetic heading in 1998: 301.7° true
+with IGRF-14's 7.96° W. Flight Plan Database lists 109.30 MHz as the localizer's frequency today, with a 3.00°
+glideslope. No 1998 approach chart is public, so the glideslope is today's.
+
+The view draws the localizer's course along the runway's extended centreline, on the sea (10 m up when the island's
+3D tiles are shown, so their runway and shore don't flicker through it), and the glideslope rising
+3° from the threshold at the runway's 9 ft, both out to the glideslope's 10 nm. The sources differ on the course:
+Flight Plan Database puts the localizer on 301.84° true and the runway on 301.86°, OurAirports the runway on 301.7°.
+The view keeps OurAirports' 301.7°, the runway the track is traced against; 0.14° apart, the two courses are about 45 m
+apart at 10 nm. Past the threshold the glideslope has ended, so the panel gives no height above it. They show through the cloud. The real
+glide path meets the runway beyond the threshold, abeam the glideslope's antenna, which these sources don't place, so it
+is a little higher than drawn.
+
+Against it, from the track: the airplane is 2,814 ft above the glideslope at 0:18, its closest, and 4,588 ft above at
+the top of the climb (1:44). At “Descend” (1:10) it is 2.0 nm from the threshold at 4,556 ft, where the glideslope is at
+about 650 ft: about 3,900 ft above. Neither record says why it was this high.

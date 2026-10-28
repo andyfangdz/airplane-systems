@@ -1,8 +1,9 @@
 /**
  * What can be heard on the cockpit audio, in seconds into the video. Machine transcriptions (Whisper large-v3 over the
  * whole recording, and large-v3 and medium.en over short stretches of it) give the words and their times; nobody has
- * checked them by ear. Where Jay Lacklen's account quotes a line, his wording and the speaker he names are used and the
- * line is marked "account"; his times are this video's and agree with the transcription's to about a second.
+ * checked them by ear, except one line's speaker. Where Jay Lacklen's account quotes a line, his wording and the speaker
+ * he names are used and the line is marked "account"; his times are this video's and agree with the transcription's
+ * to about a second.
  *
  * In `text`, "…" stands for words that can't be made out and [brackets] for a word the recording doesn't make clear,
  * read from the context the note gives.
@@ -20,7 +21,7 @@ export interface Line {
   /** Seconds into the video the words start and end. */
   t: number;
   end: number;
-  /** Who speaks, only where Lacklen says so (or the GPWS's voice). */
+  /** Who speaks: where Lacklen says so, the GPWS's voice, or one voice heard on the recording (its note says so). */
   who?: Speaker;
   text: string;
   basis: Basis;
@@ -42,7 +43,13 @@ export const TRANSCRIPT: readonly Line[] = [
     basis: "account",
     note: "“Gear down” as Lacklen has it; the transcriptions differ on the words between.",
   },
-  { t: 35.1, end: 38.5, text: "… it's 109.3 …", basis: "unclear" },
+  {
+    t: 35.1,
+    end: 38.5,
+    text: "310 both sides, 109.3.",
+    basis: "asr",
+    note: "Setting up runway 31's ILS: the course, 310°, on both pilots' instruments, and the localizer's frequency, 109.3 MHz.",
+  },
   {
     t: 38.6,
     end: 40.4,
@@ -51,7 +58,7 @@ export const TRANSCRIPT: readonly Line[] = [
     note: "The transcription hears “slew” or “sleep”; Lacklen: the slat annunciator illuminated as the slats extended.",
   },
   { t: 40.5, end: 41.7, text: "Yep, we got [it] still on our [slats].", basis: "asr" },
-  { t: 47.7, end: 49.6, text: "… both sides, localizer set, right?", basis: "unclear" },
+  { t: 47.7, end: 49.6, text: "310 both sides, localizer set, right?", basis: "asr" },
   { t: 49.8, end: 51.7, text: "Yeah, set at… what is it, ten knots.", basis: "asr" },
   { t: 57.8, end: 59.6, text: "Okay, before landing… landing gear …", basis: "unclear" },
   { t: 62.1, end: 63.9, text: "Yeah, let's go … Yeah, go …", basis: "unclear" },
@@ -132,10 +139,10 @@ export const TRANSCRIPT: readonly Line[] = [
   {
     t: 113.3,
     end: 114.9,
-    who: "Flight engineer",
+    who: "Copilot",
     text: "You got more power available to you.",
-    basis: "account",
-    note: "Lacklen: the flight engineer adds that there is more power available, though N1 is at or near 100%.",
+    basis: "asr",
+    note: "The copilot's voice on the recording, running straight on into “Put the nose down.” Lacklen gives the call to the flight engineer: she “adds that there is more power available even though the N1 is at or near 100%.”",
   },
   {
     t: 115.3,
