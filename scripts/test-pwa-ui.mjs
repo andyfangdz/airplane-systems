@@ -69,7 +69,8 @@ const test = baseTest.extend({
 // Only this suite exercises the production worker; other suites must retain their network fault injection.
 test.use({ serviceWorkers: "allow" });
 
-const picker = (page) => page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+const picker = (page) =>
+  page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
 
 async function openPicker(page) {
   await page.getByRole("button", { name: /^Choose a model/ }).click();
@@ -252,7 +253,14 @@ test("the installed study pack opens and renders unvisited models offline", asyn
   expect(registration).toBe(new URL("/", baseURL).href);
   const inventory = await page.evaluate(async () => (await fetch("/offline-manifest.json")).json());
   expect(inventory.version).toBe(ready.version);
-  for (const route of ["/", "/c172s/overview", "/c172s/electrical", "/engines/o360", "/components/piston-cylinder"])
+  for (const route of [
+    "/",
+    "/c172s/overview",
+    "/c172s/electrical",
+    "/engines/o360",
+    "/components/piston-cylinder",
+    "/fdr/c5-diego-garcia",
+  ])
     expect(inventory.routes[route]).toBeTruthy();
   const font = inventory.files.find((file) => file.url.endsWith(".woff2"));
   expect(font).toBeTruthy();

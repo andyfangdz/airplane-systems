@@ -17,7 +17,7 @@ export interface PickerEntry {
 
 /**
  * The airplane picker: an explicit switch control and what is shown share one compact button, and its menu lists the
- * airplanes, then the engine simulations and the component simulations, so each is chosen the way an airplane is. A
+ * airplanes, then the engine, component and flight data simulations, so each is chosen the way an airplane is. A
  * `compact` group lays its entries out two to a row (with their short descriptions) to keep the menu short.
  */
 export function Picker({
@@ -26,7 +26,7 @@ export function Picker({
   groups,
 }: {
   current: { name: string; sub: string };
-  kind: "airplane" | "engine" | "component";
+  kind: "airplane" | "engine" | "component" | "replay";
   groups: { label: string; entries: PickerEntry[]; compact?: boolean }[];
 }) {
   const menu = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ export function Picker({
   const id = useId();
   const [open, setOpen] = useState(false);
   const touchClick = useTouchClick();
-  // the menu offers airplanes, engines and components; the label names what this page shows
+  // the menu offers airplanes, engines, components and flight data replays; the label names what this page shows
   const label = "Choose a model";
 
   useLayoutEffect(() => {
@@ -43,6 +43,7 @@ export function Picker({
     if (!open || !panel || !button) return;
     let active = true;
     let revision = 0;
+    let placed = false;
     const stop = autoUpdate(button, panel, () => {
       const current = ++revision;
       const isCurrent = () => active && revision === current;
@@ -74,7 +75,16 @@ export function Picker({
           shift({ padding, crossAxis: true }),
         ],
       }).then(({ x, y }) => {
-        if (isCurrent()) Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
+        if (!isCurrent()) return;
+        Object.assign(panel.style, { left: `${x}px`, top: `${y}px` });
+        if (placed) return;
+        placed = true;
+        // the entry shown can sit below a scrolling menu's fold (the flight data replays end it): scroll the menu,
+        // and only the menu, to it once its height is set
+        const shown = panel.querySelector('[aria-pressed="true"]');
+        if (!shown) return;
+        const below = shown.getBoundingClientRect().bottom - panel.getBoundingClientRect().bottom;
+        if (below > 0) panel.scrollTop += below + 8;
       });
     });
     return () => {
@@ -128,7 +138,7 @@ export function Picker({
         className="fleet-menu"
         popover="auto"
         role="dialog"
-        aria-label="Choose an airplane, engine or component"
+        aria-label="Choose an airplane, engine, component or flight data replay"
         onToggle={(event) => setOpen(event.newState === "open")}
         onBlur={(event) => {
           // Safari can blur a tapped option without focusing its replacement. Hiding now would swallow the click.

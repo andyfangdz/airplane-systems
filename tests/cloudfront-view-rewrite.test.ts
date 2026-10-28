@@ -5,6 +5,7 @@ import { AIRCRAFT_IDS } from "@/lib/systems";
 import { VIEW_PATHS } from "@/aircraft/metas";
 import { ENGINE_IDS } from "@/engines";
 import { COMPONENT_IDS } from "@/engines/components";
+import { FDR_IDS } from "@/fdr";
 
 // Read through fs below. Listing it to Vite (never loading it) makes it a dependency, so `vitest --changed` reruns this
 // file when it changes.
@@ -48,6 +49,17 @@ describe("CloudFront viewer-request view rule", () => {
     }
     expect(run("/components/nope").result.uri).toBe("/components/nope");
     expect(run("/components/io390").result.uri).toBe("/components/io390");
+  });
+
+  it("serves each flight data replay's exported .html and keeps the copied replay list current", () => {
+    expect(runInNewContext(source + "\nFDR_IDS;")).toEqual(FDR_IDS);
+    for (const id of FDR_IDS) {
+      expect(run(`/fdr/${id}`).result.uri).toBe(`/fdr/${id}.html`);
+      expect(run(`/fdr/${id}/`).result.headers.location.value).toBe(`/fdr/${id}`);
+    }
+    expect(run("/fdr/nope").result.uri).toBe("/fdr/nope");
+    expect(run(`/fdr/${COMPONENT_IDS[0]}`).result.uri).toBe(`/fdr/${COMPONENT_IDS[0]}`);
+    expect(run(`/components/${FDR_IDS[0]}`).result.uri).toBe(`/components/${FDR_IDS[0]}`);
   });
 
   it("maps an unknown system to a file the export doesn't have, so the origin answers 404", () => {

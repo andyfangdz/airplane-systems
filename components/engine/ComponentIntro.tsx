@@ -4,7 +4,16 @@ import { useNarrowLayout } from "@/lib/view";
 import { PartInspector } from "./PartInspector";
 
 /** Keep background reading available without placing a long introduction ahead of phone controls. */
-export function ComponentIntro({ source, children }: { source: ReactNode; children: ReactNode }) {
+export function ComponentIntro({
+  label = "Component simulation",
+  source,
+  children,
+}: {
+  /** What the page is, before its source. */
+  label?: string;
+  source: ReactNode;
+  children: ReactNode;
+}) {
   const narrow = useNarrowLayout();
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -17,7 +26,9 @@ export function ComponentIntro({ source, children }: { source: ReactNode; childr
         </button>
       )}
       <div id={id} hidden={narrow && !open}>
-        <div className="ref">Component simulation · {source}</div>
+        <div className="ref">
+          {label} · {source}
+        </div>
         {children}
       </div>
     </div>

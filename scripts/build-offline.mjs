@@ -111,7 +111,7 @@ export async function buildOffline(
   ];
   const study = new Set(expected);
   for (const route of Object.keys(prerender.routes))
-    if (/^\/(engines|components)\/[a-z0-9-]+$/.test(route)) study.add(route);
+    if (/^\/(engines|components|fdr)\/[a-z0-9-]+$/.test(route)) study.add(route);
   for (const route of study) {
     const entry = prerender.routes[route];
     if (!entry || entry.routeType !== "page" || entry.initialStatus >= 300 || entry.initialRevalidateSeconds !== false)

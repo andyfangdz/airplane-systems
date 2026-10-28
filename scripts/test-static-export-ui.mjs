@@ -27,7 +27,7 @@ async function shows(page, name, path) {
 async function pick(page, name) {
   await page.getByRole("button", { name: /^Choose a model/ }).click();
   await page
-    .getByRole("dialog", { name: "Choose an airplane, engine or component" })
+    .getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" })
     .getByRole("group", { name: "Airplanes" })
     .getByRole("button", { name: new RegExp(name) })
     .click();

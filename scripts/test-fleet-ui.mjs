@@ -69,7 +69,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     await trigger.getByText("Choose a model", { exact: true }).isVisible(),
     "The control explicitly names the switching action",
   );
-  const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
   const choices = dialog.getByRole("group", { name: "Airplanes" }).getByRole("button");
   const waitForClosed = async () => {
     await dialog.waitFor({ state: "hidden" });
@@ -102,15 +102,21 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     "/components/pitot-static",
   ]);
   for (const link of await components.all()) assert.ok((await link.boundingBox()).height >= 44);
+  const replays = dialog.getByRole("group", { name: "Flight data" }).getByRole("link");
+  assert.deepEqual(await replays.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
+    "/fdr/c5-diego-garcia",
+  ]);
+  for (const link of await replays.all()) assert.ok((await link.boundingBox()).height >= 44);
   assert.equal(await trigger.getAttribute("aria-expanded"), "true");
   assert.equal(await dialog.getByRole("button", { pressed: true }).count(), 1);
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  // six airplanes, three engines and six components: bounded by the compact picker height, scrolling as needed
+  // six airplanes, three engines, six components and a flight data replay: bounded by the compact picker height,
+  // scrolling as needed
   assert.ok(
     box.width <= 352 && box.height <= 700,
-    "The entire fleet, the engines and the components fit in a compact dropdown",
+    "The entire fleet, the engines, the components and the replays fit in a compact dropdown",
   );
   assert.ok(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth), "No horizontal scrolling");
   assert.ok((await trigger.boundingBox()).height >= 44, "Touch-sized trigger");
@@ -123,14 +129,19 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.ok(await choices.nth(1).evaluate((el) => el === document.activeElement));
   await page.keyboard.press("End");
   assert.ok(
+    await replays.last().evaluate((el) => el === document.activeElement),
+    "The engines, the components and then the replays follow the airplanes",
+  );
+  for (let i = 0; i < (await replays.count()); i++) await page.keyboard.press("ArrowUp");
+  assert.ok(
     await components.last().evaluate((el) => el === document.activeElement),
-    "The engines and then the components follow the airplanes",
+    "The replays follow the components",
   );
   for (let i = 0; i < (await components.count()); i++) await page.keyboard.press("ArrowUp");
   assert.ok(await engines.last().evaluate((el) => el === document.activeElement), "The components follow the engines");
   for (let i = 0; i < (await engines.count()); i++) await page.keyboard.press("ArrowUp");
   assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));
-  for (let i = 0; i < (await engines.count()) + (await components.count()) + 1; i++)
+  for (let i = 0; i < (await engines.count()) + (await components.count()) + (await replays.count()) + 1; i++)
     await page.keyboard.press("ArrowDown");
   assert.ok(await choices.nth(0).evaluate((el) => el === document.activeElement));
   await page.keyboard.press("Home");
