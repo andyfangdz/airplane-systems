@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildOffline, type OfflineAdapterContext } from "../scripts/build-offline.mjs";
+import { IMMUTABLE_PATH } from "../scripts/release-manifest.mjs";
 
 const { sourceOverrides } = vi.hoisted(() => ({ sourceOverrides: new Map<string, string>() }));
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -307,6 +308,7 @@ describe("Next adapter offline publication", () => {
     "snapshot",
     "worker output",
     "manifest build ID",
+    "content-hash rule",
   ] as const)("rejects same-build %s drift after adapter publication", async (changed) => {
     const { root, context } = await adapterFixture();
     const initial = await buildOffline(root, { adapterContext: context });
@@ -329,6 +331,14 @@ describe("Next adapter offline publication", () => {
     if (changed === "worker output") await put(root, "public/sw.js", "changed worker");
     if (changed === "manifest build ID")
       await put(root, "public/offline-manifest.json", JSON.stringify({ ...initial, buildId: "different-build" }));
+    if (changed === "content-hash rule") {
+      // The sealed pack was built under a different rule for which paths are content-hashed.
+      const path = join(root, ".next/offline-adapter.json");
+      const receipt = JSON.parse(await readFile(path, "utf8"));
+      expect(receipt.inputs.immutablePath).toBe(String(IMMUTABLE_PATH));
+      receipt.inputs.immutablePath = "/^_next\\/static\\//";
+      await writeFile(path, JSON.stringify(receipt));
+    }
     await expect(buildOffline(root)).rejects.toThrow(/Offline adapter pack (?:inputs )?changed after publication/);
   });
 

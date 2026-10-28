@@ -91,6 +91,8 @@ export async function buildOffline(
   const inputs = {
     generator: digest(await readFile(fileURLToPath(import.meta.url))),
     worker: digest(source),
+    // Built into the worker and each file's entry: which files it serves from the pack without asking the network.
+    immutablePath: String(IMMUTABLE_PATH),
     views: digest(viewBytes),
     prerender: digest(prerenderBytes),
     staticPaths,

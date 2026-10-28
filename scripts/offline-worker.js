@@ -96,11 +96,11 @@ function responseFor(bytes, file) {
 /** A saved copy of `file` whose bytes still match this release, from an earlier version's pack. */
 async function previousBytes(previous, file) {
   for (const name of previous) {
-    const cache = await caches.open(name);
     // Shared files keep their URL across releases; route snapshots sit under each version's own path.
     const urls = new Set([file.url, file.url.replaceAll(OFFLINE_MANIFEST.version, name.slice(CACHE_PREFIX.length))]);
     for (const url of urls) {
-      const cached = await cache.match(url);
+      // Matching by name, unlike opening, never re-creates a pack the active worker has just pruned.
+      const cached = await caches.match(url, { cacheName: name });
       const bytes = cached ? await checkedBytes(cached, file).catch(() => null) : null;
       if (bytes) return bytes;
     }
@@ -218,12 +218,10 @@ async function pruneEarlier() {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      if (await completeCache(cache)) {
-        const ids = (await openPages()).map((client) => client.id);
-        await cache.put(EARLIER_PAGES_KEY, new Response(JSON.stringify(ids)));
-        await pruneEarlier();
-      }
+      const ids = (await openPages()).map((client) => client.id);
+      await (await caches.open(CACHE_NAME)).put(EARLIER_PAGES_KEY, new Response(JSON.stringify(ids)));
+      // Earlier packs stay until this one is complete, perhaps after a repair, which copies unchanged files from them.
+      await pruneEarlier();
       await self.clients.claim();
       await currentStatus();
       await broadcast();
@@ -266,7 +264,8 @@ const answer = (request, cached) =>
 /**
  * The site's latest answer whenever it can be reached. The saved copy stands in when the network fails, the
  * server can't answer, or nothing has arrived by the deadline. The stalled request isn't aborted: a signal
- * would make it a new request, and a navigation would lose its mode. Its late answer is ignored.
+ * would make it a new request, and a navigation would lose its mode. Its late answer's body is cancelled instead,
+ * so it stops competing on a slow link with the requests the page still needs.
  */
 async function networkFirst(request, saved) {
   const network = fetch(request);
@@ -287,7 +286,7 @@ async function networkFirst(request, saved) {
   if (!response) {
     const fallback = await saved();
     if (fallback) {
-      network.catch(() => {});
+      network.then((late) => late.body?.cancel()).catch(() => {});
       return fallback;
     }
     response = await network; // Without a saved copy, the network is still the only answer.
@@ -309,7 +308,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         for (const name of (await caches.keys()).filter(earlier)) {
-          const cached = await (await caches.open(name)).match(url.pathname);
+          const cached = await caches.match(url.pathname, { cacheName: name });
           if (cached) return answer(request, cached);
         }
         return fetch(request);

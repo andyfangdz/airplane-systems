@@ -157,6 +157,8 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
   const listeners = new Map<string, ((event: WorkerEvent) => void)[]>();
   const broadcasts: Status[] = [];
   const requests: Request[] = [];
+  // Every answer the network gave, by path.
+  const responses: [string, Response][] = [];
   const failedPaths = new Set<string>();
   const corruptedPaths = new Set<string>();
   const serverErrorPaths = new Set<string>();
@@ -180,9 +182,11 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
     const asset = site.get(path);
     if (!asset) return new Response("Not found", { status: 404 });
     // Keep the same byte count: a length check alone must not accept a corrupted response.
-    return new Response(corruptedPaths.has(path) ? `!${asset.body.slice(1)}` : asset.body, {
+    const response = new Response(corruptedPaths.has(path) ? `!${asset.body.slice(1)}` : asset.body, {
       headers: { "content-type": asset.contentType, "content-length": String(Buffer.byteLength(asset.body)) },
     });
+    responses.push([path, response]);
+    return response;
   };
   const clients = {
     matchAll: async () =>
@@ -264,6 +268,7 @@ function worker(mode: Mode = "server", caches = new MemoryCaches(), release: Rel
     caches,
     broadcasts,
     requests,
+    responses,
     failedPaths,
     corruptedPaths,
     serverErrorPaths,
@@ -525,6 +530,26 @@ describe("offline service worker", () => {
     expect(await caches.keys()).toEqual([`${PREFIX}test-v3`]);
   });
 
+  it("records the pages open at takeover even when its pack needs repairing first", async () => {
+    const caches = new MemoryCaches();
+    const previous = worker("server", caches, { version: "test-v1" });
+    await previous.dispatch("install");
+    await previous.dispatch("activate");
+    const next = worker("server", caches);
+    await next.dispatch("install");
+    // Storage drops a file before the new version takes over.
+    await (await caches.open(`${PREFIX}test-v2`)).delete("/_next/static/test/chunk.js");
+    await next.dispatch("activate");
+    next.pages.delete("page");
+    next.pages.add("reloaded page");
+    await next.message("GET_OFFLINE_STATUS");
+    expect(await caches.keys(), "kept until this pack is complete").toContain(`${PREFIX}test-v1`);
+    // The repair copies the file from the earlier pack, and then that pack goes.
+    expect((await next.message("DOWNLOAD_OFFLINE")).state).toBe("ready");
+    expect(next.requests).toEqual([]);
+    expect(await caches.keys()).toEqual([`${PREFIX}test-v2`]);
+  });
+
   it("waits for a stalled network until its deadline, then serves the saved copy", async () => {
     const w = worker();
     await w.dispatch("install");
@@ -538,8 +563,13 @@ describe("offline service worker", () => {
       expect(saved, "the network has five seconds to answer").toBeUndefined();
       await vi.advanceTimersByTimeAsync(1);
       expect(await (await fallback)?.text()).toBe(w.bodies.get(page)!.body);
+      // The late answer is dropped without downloading its body.
+      w.answer("/foo");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(w.responses.find(([path]) => path === "/foo")?.[1].bodyUsed).toBe(true);
       // Without a saved copy, the page waits for the network's answer however long it takes.
       await (await w.caches.open(`${PREFIX}${w.manifest.version}`)).delete(page);
+      w.stall("/foo");
       let live: Response | undefined;
       const latest = w.request("/foo", {}, true).then((response) => (live = response));
       await vi.advanceTimersByTimeAsync(60_000);
