@@ -56,7 +56,8 @@ async function cameraPose(page) {
   throw new Error("Aircraft session camera did not settle");
 }
 
-const picker = (page) => page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+const picker = (page) =>
+  page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
 async function chooseAircraft(page, name) {
   await page.getByRole("button", { name: /^Choose a model/ }).click();
   await picker(page).getByRole("group", { name: "Airplanes" }).getByText(name, { exact: true }).click();

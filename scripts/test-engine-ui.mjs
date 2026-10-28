@@ -294,7 +294,7 @@ for (const engine of ENGINES)
       await page.locator(".eng-foot").screenshot({ path: shot("monitor") });
 
       // ---- picker round trip: to the other engine and back
-      const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+      const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
       const engines = dialog.getByRole("group", { name: "Engines" });
       await trigger.click();
       await engines.getByRole("link", { name: new RegExp(engine.other) }).click();

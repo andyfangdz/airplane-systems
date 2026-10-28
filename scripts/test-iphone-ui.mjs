@@ -45,7 +45,7 @@ test("iPhone cylinder header taps activate once even without a compatibility cli
   await page.locator(".eng-view canvas").waitFor();
   await boundedCanvas(page);
   const picker = page.getByRole("button", { name: /^Choose a model/ });
-  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
   const theme = page.locator(".tb-theme");
   const pause = page.getByRole("button", { name: "Pause", exact: true });
   await page.evaluate(() => {
@@ -245,7 +245,7 @@ test("iPhone standalone top edge stays opaque without moving or blocking study c
   await expect(edge).toHaveCSS("background-color", light);
   await pinnedEdge();
   await page.getByRole("button", { name: /^Choose a model/ }).tap();
-  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
   await menu.getByRole("link", { name: /Piston cylinder/ }).tap();
   await page.waitForURL("**/components/piston-cylinder");
   await page.locator(".eng-view canvas").waitFor();
@@ -361,7 +361,7 @@ test("iPhone aircraft rotation preserves a usable scene and reachable collapsed 
       // Device emulation reports zero safe-area env values. Supply the shell padding used by a notched iPhone.
       const safeArea = await page.addStyleTag({ content: ".app { padding: 0 47px 21px !important; }" });
       await page.getByRole("button", { name: /^Choose a model/ }).tap();
-      const picker = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+      const picker = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
       await expect(picker).toBeVisible();
       await expect
         .poll(() =>
@@ -727,7 +727,7 @@ test("iPhone safe-area picker survives unfolding and keeps internal navigation i
     content: ".app, .eng-app { padding: 47px 47px 34px !important; } nextjs-portal { display: none !important; }",
   });
   const picker = page.getByRole("button", { name: /^Choose a model/ });
-  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  const menu = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
   await picker.tap();
   for (const viewport of [
     { width: 382, height: 580 },

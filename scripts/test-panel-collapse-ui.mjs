@@ -100,7 +100,7 @@ test("Duo headers collapse without moving their button and give their height bac
   test.skip(!isMobile, "Header hit areas are checked with touch input");
   const rail = page.locator(".rail");
   const picker = rail.getByRole("button", { name: /^Choose a model/ });
-  const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine or component" });
+  const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
   const checkButtons = async (collapsed = false) => {
     const controls = await rail
       .locator(".fleet-trigger:visible, .rail-settings .tb:visible, .panel-toggle:visible")

@@ -1,4 +1,5 @@
 import type { ComponentEntry } from "@/engines/components";
+import type { FdrEntry } from "@/fdr";
 import type { EngineSpec } from "@/engines/types";
 import { FLEET_INDEX } from "@/lib/fleet-index";
 import type { PickerEntry } from "./Picker";
@@ -22,3 +23,7 @@ export const airplaneLinks = (): PickerEntry[] => FLEET_INDEX.map((a) => ({ ...a
 /** The component simulations as picker entries, each a link to its page. */
 export const componentEntries = (components: readonly ComponentEntry[], current?: string): PickerEntry[] =>
   components.map((c) => ({ ...c, current: c.id === current, href: `/components/${c.id}` }));
+
+/** The flight data replays as picker entries, each a link to its page. */
+export const replayEntries = (replays: readonly FdrEntry[], current?: string): PickerEntry[] =>
+  replays.map((r) => ({ ...r, current: r.id === current, href: `/fdr/${r.id}` }));

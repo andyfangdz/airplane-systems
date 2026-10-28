@@ -7,8 +7,9 @@
 import dynamic from "next/dynamic";
 import { ENGINES, engineById } from "@/engines";
 import { COMPONENTS } from "@/engines/components";
+import { FDR_REPLAYS } from "@/fdr";
 import { Picker } from "../Picker";
-import { airplaneLinks, componentEntries, engineEntries, engineSub } from "../pickerEntries";
+import { airplaneLinks, componentEntries, engineEntries, engineSub, replayEntries } from "../pickerEntries";
 import { ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
 import { StageResetButton, useTheme, ViewToggles } from "./chrome";
@@ -61,6 +62,7 @@ export default function EngineApp({ id }: { id: string }) {
               { label: "Airplanes", entries: airplaneLinks() },
               { label: "Engines", entries: engineEntries(ENGINES, spec.id) },
               { label: "Components", entries: componentEntries(COMPONENTS), compact: true },
+              { label: "Flight data", entries: replayEntries(FDR_REPLAYS), compact: true },
             ]}
           />
           <ThemeButton />

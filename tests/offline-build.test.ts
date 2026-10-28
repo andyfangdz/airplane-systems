@@ -32,7 +32,7 @@ async function fixture() {
   await put(root, "aircraft/views.json", JSON.stringify([{ id: "plane", systems: ["fuel"] }]));
   await put(root, ".next/BUILD_ID", "fixture-build");
   const routes: Record<string, object> = {};
-  for (const route of ["/", "/plane", "/plane/fuel", "/engines/demo", "/components/demo", "/login"]) {
+  for (const route of ["/", "/plane", "/plane/fuel", "/engines/demo", "/components/demo", "/fdr/demo", "/login"]) {
     const key = route === "/" ? "index" : route.slice(1);
     routes[route] = { routeType: "page", initialRevalidateSeconds: false };
     await put(root, `.next/server/app/${key}.html`, `<!doctype html><title>${route}</title>`);
@@ -95,7 +95,7 @@ async function adapterFixture() {
       fallback: { filePath: await relocate(pathname, source), initialRevalidate: false },
     });
   };
-  for (const route of ["/", "/plane", "/plane/fuel", "/engines/demo", "/components/demo", "/login"]) {
+  for (const route of ["/", "/plane", "/plane/fuel", "/engines/demo", "/components/demo", "/fdr/demo", "/login"]) {
     const key = route === "/" ? "index" : route.slice(1);
     await prerender(route, `.next/server/app/${key}.html`);
     await prerender(`/${key}.rsc`, `.next/server/app/${key}.rsc`);
@@ -148,6 +148,7 @@ describe("production offline pack", () => {
       "/",
       "/components/demo",
       "/engines/demo",
+      "/fdr/demo",
       "/plane",
       "/plane/fuel",
     ]);
@@ -243,7 +244,14 @@ describe("Next adapter offline publication", () => {
       });
     const manifest = await buildOffline(root, { adapterContext: context });
     expect(manifest.mode).toBe("server");
-    expect(Object.keys(manifest.routes)).toEqual(["/", "/components/demo", "/engines/demo", "/plane", "/plane/fuel"]);
+    expect(Object.keys(manifest.routes)).toEqual([
+      "/",
+      "/components/demo",
+      "/engines/demo",
+      "/fdr/demo",
+      "/plane",
+      "/plane/fuel",
+    ]);
     expect(manifest.files.some((file) => file.url.includes("login"))).toBe(false);
     const published = new Map(context.outputs.staticFiles.map((output) => [output.pathname, output]));
     expect(published.size).toBe(context.outputs.staticFiles.length);

@@ -42,9 +42,9 @@ and touch taps with Android and iPhone device profiles.
 
 In Safari, use **Share → Add to Home Screen** to install **Airplane Systems**. Open the installed app online and
 wait for **Available offline** in **Choose a model** before disconnecting. The complete study library downloads in
-the background (about 28 MB), including every airplane, engine, component, local font and 3D asset. The picker shows
-download progress and a retry button if storage or connectivity interrupts it. External reference documents still
-require a connection. Browser storage can be cleared or evicted; reconnect and retry if the saved library is lost.
+the background (about 28 MB), including every airplane, engine, component, flight data replay, local font and 3D
+asset. The picker shows download progress and a retry button if storage or connectivity interrupts it. External
+reference documents and a replay's YouTube video (its cockpit audio) still require a connection. Browser storage can be cleared or evicted; reconnect and retry if the saved library is lost.
 
 If you installed an older shortcut, remove that shortcut and add it again to pick up the name, icon and app-wide
 navigation scope. The manifest explicitly sets `id`, `start_url` and `scope` to `/` so all study routes stay in the
@@ -169,6 +169,8 @@ Standalone **engine simulations** sit beside the airplanes at `/engines/<id>`: t
 
 Standalone **component simulations** sit at `/components/<id>`: the Marvel-Schebler MA-4-5 float carburetor, cut away and fed by the running O-360 (float chamber and float valve, venturi and nozzle, idle system, accelerating pump, mixture valve, carburetor heat and ice); and the **propeller governor**: flyweights, speeder spring, pilot valve, gear pump and relief valve cut away on the IO-390, driving the SR20's Hartzell hub or a counterweighted one, after the FAA powerplant handbook's chapter 7 (see [engines/components/governor/SOURCES.md](engines/components/governor/SOURCES.md)). And the **pitot-static system** of a Cessna 172S: pitot head with its drain and heater, static port and sump, the ALT STATIC AIR selector, and either the six-pack (airspeed indicator, altimeter, VSI and encoder) or the NAV III's G1000 (air data computer feeding the PFD, with the standby airspeed indicator and altimeter), as lumped air volumes behind restrictions. Fly it and block the pitot inlet, its drain or the static port (ice, insects, tape, water that freezes), pull the alternate static source, break the VSI's glass, fail the G1000's air data computer, slip with one port or a pair, mis-set the altimeter, fly into cold air, or leak-test the static system on the ramp; a healthy system reads the POH's Figure 5-1 calibration for both sources, and every behaviour follows the FAA handbooks (see [engines/components/pitot-static/SOURCES.md](engines/components/pitot-static/SOURCES.md)).
 
+**Flight data** replays sit at `/fdr/<id>`: recorded flights played back on a 3D airplane with their systems and instruments. The first is the C-5 Galaxy's stall and fall on approach to Diego Garcia in 1998, flown from the USAF's flight data animation in step with its cockpit voice recording (loaded from YouTube on request), with the slats that wouldn't lock and the stick shaker their fault disabled, the flaps, gear handle, engines and flight instruments, a timeline, a timed transcript and charts of the whole event (see [fdr/README.md](fdr/README.md) and [fdr/c5-diego-garcia/SOURCES.md](fdr/c5-diego-garcia/SOURCES.md)).
+
 | SR20 system          | Interactive                                                                                                                                                                                                                 |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Flight controls      | Cable runs from POH Figs 7-1/7-2/7-3: torque tube, sectors, pulleys, push-pull tubes and bellcranks move with the yokes and pedals; per-channel focus (elevator / aileron / rudder); horn balances, trim tabs, static wicks |
@@ -205,6 +207,8 @@ aircraft/             One folder per airplane, plus cessna/ and cirrus/ shared m
                       routes and CloudFront aircraft IDs from aircraft metadata — see aircraft/README.md
 engines/              Standalone engine simulations: EngineSpec per engine, shared model/ — see engines/README.md
 components/engine/    The /engines/<id> page: 3D engine (scene/: one file per part group), engine monitor, controls, pressure chart
+fdr/                  Flight data replays (/fdr/<id>): the recorded data, transcript and sources — see fdr/README.md
+components/fdr/       Each replay's page (3D airplane, instruments, timeline, video sync) around the shared FdrShell
 lib/
   view.ts             Mounted route identity, navigation and scene selection, toggles, theme, camera; separate hover store
   aircraft-session.ts Route lifetime: clock lease, walk release and owned camera/part cleanup

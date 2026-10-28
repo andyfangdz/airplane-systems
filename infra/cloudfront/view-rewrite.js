@@ -4,6 +4,7 @@
 var AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
 var ENGINE_IDS = ["io390", "o360", "tsio550k"];
 var COMPONENT_IDS = ["piston-cylinder", "carburetor", "fuel-injector", "surefly", "governor", "pitot-static"];
+var FDR_IDS = ["c5-diego-garcia"];
 
 // AWS recommends percent encoding; UTF-8 request values are forwarded unchanged:
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/edge-function-restrictions-all.html
@@ -40,9 +41,10 @@ function redirect(request, uri) {
 function handler(event) {
   var request = event.request;
   // the static export writes each engine page as engines/<id>.html; the trailing-slash form redirects to it
-  // (and each component page as components/<id>.html)
-  var page = /^\/(engines|components)\/([^/]+)(\/)?$/.exec(request.uri);
-  if (page && (page[1] === "engines" ? ENGINE_IDS : COMPONENT_IDS).indexOf(page[2]) !== -1) {
+  // (and each component page as components/<id>.html, each flight data replay as fdr/<id>.html)
+  var page = /^\/(engines|components|fdr)\/([^/]+)(\/)?$/.exec(request.uri);
+  var pages = page && { engines: ENGINE_IDS, components: COMPONENT_IDS, fdr: FDR_IDS }[page[1]];
+  if (pages && pages.indexOf(page[2]) !== -1) {
     if (page[3]) return redirect(request, request.uri.slice(0, -1));
     request.uri = request.uri + ".html";
     return request;

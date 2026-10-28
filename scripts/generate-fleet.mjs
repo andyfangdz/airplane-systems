@@ -115,12 +115,14 @@ export const FLEET_INDEX: { id: AircraftId; name: string; sub: string }[] = ${JS
   );
   const { ENGINE_IDS } = await server.ssrLoadModule("/engines/index.ts");
   const { COMPONENT_IDS } = await server.ssrLoadModule("/engines/components/index.ts");
+  const { FDR_IDS } = await server.ssrLoadModule("/fdr/index.ts");
   const template = await readFile(resolve(root, "infra/cloudfront/view-rewrite.template.js"), "utf8");
   if (template.split("/* @ROUTE_IDS@ */").length !== 2) throw new Error("Expected one route registry placeholder");
   const routeIds = [
     `var AIRCRAFT_IDS = ${JSON.stringify(ids)};`,
     `var ENGINE_IDS = ${JSON.stringify(ENGINE_IDS)};`,
     `var COMPONENT_IDS = ${JSON.stringify(COMPONENT_IDS)};`,
+    `var FDR_IDS = ${JSON.stringify(FDR_IDS)};`,
   ].join("\n");
   const edge = await format(header + template.replace("/* @ROUTE_IDS@ */", routeIds), {
     ...(await resolveConfig(resolve(root, "infra/cloudfront/view-rewrite.js"))),

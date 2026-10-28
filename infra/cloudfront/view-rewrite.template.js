@@ -37,9 +37,10 @@ function redirect(request, uri) {
 function handler(event) {
   var request = event.request;
   // the static export writes each engine page as engines/<id>.html; the trailing-slash form redirects to it
-  // (and each component page as components/<id>.html)
-  var page = /^\/(engines|components)\/([^/]+)(\/)?$/.exec(request.uri);
-  if (page && (page[1] === "engines" ? ENGINE_IDS : COMPONENT_IDS).indexOf(page[2]) !== -1) {
+  // (and each component page as components/<id>.html, each flight data replay as fdr/<id>.html)
+  var page = /^\/(engines|components|fdr)\/([^/]+)(\/)?$/.exec(request.uri);
+  var pages = page && { engines: ENGINE_IDS, components: COMPONENT_IDS, fdr: FDR_IDS }[page[1]];
+  if (pages && pages.indexOf(page[2]) !== -1) {
     if (page[3]) return redirect(request, request.uri.slice(0, -1));
     request.uri = request.uri + ".html";
     return request;
