@@ -5,7 +5,10 @@ import { stepModel } from "./step";
 import { initialLive, initialSim, kapReady, solve, type Sim, type Elec, type ElectricalMemory } from "./model";
 
 export type C182Command =
-  { type: "scenario"; name: "coldDark" | "runUp" | "cruise" } | { type: "propCycle"; active: boolean };
+  | { type: "scenario"; name: "coldDark" | "runUp" | "cruise" }
+  | { type: "propCycle"; active: boolean }
+  /** Pull the optional BRS activation handle (`deployed` true, from T+0) or reset the deployment (false). */
+  | { type: "brs"; deployed: boolean };
 
 type Context = SimulationContext<Sim, Elec, ReturnType<typeof initialLive>>;
 
@@ -28,6 +31,16 @@ export function createC182Simulation() {
           });
         return;
       }
+      if (command.type === "brs") {
+        // nothing to pull without the installation
+        const on = command.deployed && context.store.getState().s.brs.installed;
+        context.live.brsT = on ? 0 : -1;
+        context.live.brsPlaying = on;
+        context.store.getState().update((s) => {
+          s.brs.deployed = on;
+        });
+        return;
+      }
       const handlers = commands(context);
       handlers.scenarios[command.name]();
     },
@@ -40,7 +53,8 @@ function commands(context: Context) {
   /* ---------- scenarios ---------- */
   /**
    * Every scenario starts from the initial state, so failures, pulled breakers and battery drain from before don't carry
-   * over; only the fuel on board, the time warp and the airplane's configuration (alternator, speed fairings) do. The
+   * over; only the fuel on board, the time warp and the airplane's configuration (alternator, speed fairings, BRS
+   * parachute installed; a deployed parachute is repacked) do. The
    * KAP 140's failures live outside the store and are cleared too.
    */
   function fresh(d: Sim) {
@@ -51,6 +65,7 @@ function commands(context: Context) {
       altAmps: d.altAmps,
       fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR },
       gear: { ...f.gear, fairings: d.gear.fairings },
+      brs: { ...f.brs, installed: d.brs.installed },
     });
   }
   /** Reset coupled sensors, engine transients and timers; retain the clock, KAP selections and accumulated counters. */

@@ -15,6 +15,7 @@
  * - pitot.ts — pitot-static, stall warning and vacuum
  * - lighting.ts — exterior and interior lights
  * - cabin.ts — cabin heat and ventilation, cabin and safety equipment
+ * - brs.ts — the optional BRS-182 parachute (STC), fitted only while its option is on; registered last
  *
  * Fore/aft positions are the POH Figure 6-9 equipment-list arms; butt lines and heights are placed from the descriptions in
  * Section 7 and Figure 7-2 (the POH gives no BL or WL).
@@ -43,5 +44,7 @@ import "./systems-depth";
 import "./walk-inspection";
 
 import "./hardware-detail";
+
+export { BRS_BOX, BRS_HARNESS, strapPeel as brsStrapPeel } from "./brs";
 
 export { DOOR_POSE, doorTarget } from "./door-motion";

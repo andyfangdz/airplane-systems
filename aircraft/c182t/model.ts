@@ -114,6 +114,11 @@ export interface Sim {
   /** Latched annunciation timers (set by tick.ts): LOW FUEL needs 60 s, STBY BATT 10 s. */
   ann: { lowFuelL: boolean; lowFuelR: boolean; stbyBatt: boolean };
   cabin: { windowL: boolean; windowR: boolean; doorL: boolean; doorR: boolean; bag: boolean; lock: boolean; elt: Elt };
+  /**
+   * Optional BRS whole-airplane parachute, an STC installation with its own AFM supplement (not in the POH; see SOURCES.md):
+   * `installed` fits it (off by default, like the club airplanes), `deployed` latches once the activation handle is pulled.
+   */
+  brs: { installed: boolean; deployed: boolean };
 }
 
 export const initialSim: Sim = {
@@ -166,6 +171,7 @@ export const initialSim: Sim = {
   },
   ann: { lowFuelL: false, lowFuelR: false, stbyBatt: false },
   cabin: { windowL: false, windowR: false, doorL: false, doorR: false, bag: false, lock: false, elt: "AUTO" },
+  brs: { installed: false, deployed: false },
 };
 
 /* ---------- flight model ---------- */
@@ -240,6 +246,9 @@ export const initialLive = () => ({
   discTone: -99,
   /** An EIS exceedance was present last frame (the SYSTEM page returns to ENGINE when one starts). */
   eisEx: false,
+  /** BRS deployment clock: seconds since the activation handle was pulled (−1 = not deployed), and whether it runs. */
+  brsT: -1,
+  brsPlaying: false,
 });
 export const live = initialLive();
 

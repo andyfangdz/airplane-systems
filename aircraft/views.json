@@ -82,7 +82,8 @@
       "pitot",
       "vacuum",
       "avionics",
-      "autopilot"
+      "autopilot",
+      "brs"
     ]
   },
   {

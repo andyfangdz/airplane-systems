@@ -11,6 +11,7 @@ const iphoneTests = /test-iphone-ui\.mjs/;
 export default defineConfig({
   testDir: "./scripts",
   testMatch: /test-.*-ui\.mjs/,
+  globalSetup: "./scripts/ui-global-setup.mjs",
   // Software WebGL and timing measurements need an uncontended renderer.
   workers: 1,
   // Shard individual cases while keeping software WebGL and camera measurements serial on each runner.

@@ -28,6 +28,7 @@ export function rampState(prior: Sim): Sim {
   s.lights = { ...s.lights, beacon: false, land: false, taxi: false, nav: false, strobe: false, dome: false };
   s.ctrl = { ...s.ctrl, pitch: 0, roll: 0, yaw: 0, rudTrim: 0 };
   s.gear.fairings = prior.gear.fairings;
+  s.brs.installed = prior.brs.installed;
   s.altAmps = prior.altAmps;
   s.eng.cowl = 0;
   return s;

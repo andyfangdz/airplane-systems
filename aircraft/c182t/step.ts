@@ -29,6 +29,7 @@ import {
   type Sim,
 } from "./model";
 import type { SimulationContext } from "@/lib/simulation";
+import { BRS_END } from "./brs";
 
 /** Flap transit rate (°/s). The POH gives no transit time; ≈ 12 s from UP to FULL (38°) is assumed. */
 export const FLAP_RATE = 3.2;
@@ -58,6 +59,11 @@ export function stepModel(context: SimulationContext<Sim, Elec, typeof presentat
         s.eng.prop = 1;
       });
     }
+  }
+  // BRS deployment clock (optional STC installation): runs from the handle pull to the end of the modelled timeline
+  if (live.brsPlaying) {
+    live.brsT = Math.min(BRS_END, live.brsT + dt);
+    if (live.brsT >= BRS_END) live.brsPlaying = false;
   }
   const store = sim.getState(),
     up = store.update;

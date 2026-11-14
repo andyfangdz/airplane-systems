@@ -286,7 +286,7 @@ Continental SR20 or SR22T engine systems.
 The other fleet expansions have separate applicability and source records:
 
 - [C172S](aircraft/c172s/SOURCES.md): NAV III with IO-360-L2A and GFC 700, including fuel return, standby-battery distribution, pneumatic stall warning and vacuum standby attitude.
-- [C182T](aircraft/c182t/SOURCES.md): naturally aspirated NAV III with IO-540, McCauley constant-speed propeller and KAP 140; its autopilot connections and propeller oil behavior differ from the C172S.
+- [C182T](aircraft/c182t/SOURCES.md): naturally aspirated NAV III with IO-540, McCauley constant-speed propeller and KAP 140; its autopilot connections and propeller oil behavior differ from the C172S. Its optional BRS-182 parachute view (off by default) follows the BRS-182 Installation Manual and FAA AD 2008-02-18; the STC's AFM supplement was not available.
 - [DA40 XLS](aircraft/da40/SOURCES.md): avgas IO-360, G1000 and GFC 700; aluminum fuel chambers, rotary alternate air, control rods and pressure-line traps follow the applicable installation.
 - [M20C Ranger](aircraft/m20c/SOURCES.md): the 1968 manual-gear configuration, hydraulic flaps, whole-tail trim and Brittain Positive Control. The selected alternator installation is distinguished from the generator variant; the geometry reference does not establish the aircraft's current equipment records.
 

@@ -167,4 +167,15 @@ export const SYS: SysDef[] = [
     ],
     blurb: "2-axis, altitude preselect, servos",
   },
+  {
+    id: "brs",
+    name: "BRS parachute (option)",
+    pg: "1-1",
+    ref: "BRS-182 Installation Manual 9005-IM Rev C · STC SA01999CH",
+    cam: [
+      [-4.4, 3.4, 5.4],
+      [0.2, 0.35, 0],
+    ],
+    blurb: "Optional STC: rocket-deployed canopy",
+  },
 ];
