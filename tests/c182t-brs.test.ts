@@ -133,7 +133,12 @@ describe("BRS-182 deployment (IM pp. 1-3 – 1-5)", () => {
 
   it("extracts the rear straps from inside the airplane at line stretch (IM p. 1-3)", () => {
     const rear = CAT.parts.filter((p) => p.name?.startsWith("Rear harness"));
-    expect(rear.map((p) => p.name).sort()).toEqual(["Rear harness — long section", "Rear harness — short section"]);
+    expect(rear.map((p) => p.name).sort()).toEqual([
+      "Rear harness leg",
+      "Rear harness leg",
+      "Rear harness — long section",
+      "Rear harness — short section",
+    ]);
     for (const [t, shown] of [
       [-1, true],
       [TAUT_T - 0.01, true],

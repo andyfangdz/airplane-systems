@@ -1,8 +1,9 @@
 /**
  * C182T catalogue: the optional BRS-182 whole-airplane parachute (Ballistic Recovery Systems STC SA01999CH), fitted only
  * while the BRS panel's "installed" option is on. Descriptions follow the BRS-182 Installation Manual 9005-IM Rev C
- * (12/2/2004) pp. 1-1 – 1-10 ("IM"); the manual's figures are undimensioned, so every position, size and route here is
- * illustrative. The AFM supplement was not available (see SOURCES.md).
+ * (12/2/2004) pp. 1-1 – 1-10 ("IM"). Its Figures 1–4 are undimensioned drawings; the layout here follows them and an
+ * installer's photographs (Tennessee Aircraft Services, see SOURCES.md), so every position, size and route is
+ * approximate. The AFM supplement was not available.
  */
 import type * as THREE from "three";
 import type { PartAnim } from "@/lib/catalogue";
@@ -19,38 +20,44 @@ const fitted = () => S().brs.installed;
 const KEVLAR = "#C9A227";
 const FIBERGLASS = "#D8D4C8";
 
-/* ---------- canister and rocket (IM p. 1-1) ---------- */
-/** Canister centre: in the baggage compartment toward the right side (installer's description; IM Fig. 1 is a photo). */
-export const BRS_BOX: Vec3 = P3(110, 8, 40);
-part(() => box(0.34, 0.26, 0.28), ["brs"], {
+/* ---------- canister and rocket (IM p. 1-1, Fig. 1) ---------- */
+/** Canister footprint and height (approximate): an upright column about three times as tall as it is wide (IM Fig. 1). */
+const BOX_W = 0.3;
+const BOX_H = 0.86;
+/**
+ * Canister centre: standing on the baggage floor toward the right side, its top just under the rear window (IM Fig. 1;
+ * installer's photographs). Fig. 1 draws it leaning slightly; the model keeps it vertical.
+ */
+export const BRS_BOX: Vec3 = P3(103, 8, 29 + BOX_H / 0.0254 / 2);
+/** Top of the canister, under its breakaway cover: where the straps leave and the parachute comes out. */
+export const BRS_TOP: Vec3 = [BRS_BOX[0], BRS_BOX[1] + BOX_H / 2, BRS_BOX[2]];
+part(() => box(BOX_W, BOX_H, BOX_W), ["brs"], {
   id: "parts.brs.parachute-canister.001",
   pos: BRS_BOX,
   fitted,
   fairing: true,
   name: "Parachute canister",
-  note: "Aluminum canister in the baggage compartment holding the 2,400 sq. ft. round parachute, pressure packed in its deployment bag, with the rocket lanyards and the rear attachment harness; a vacuum-formed ABS plastic cover breaks away when the system is activated. “The BRS-182 Parachute Canister must not be opened by anyone other than authorized factory personnel” (BRS-182 Installation Manual 9005-IM Rev C pp. 1-1, 1-8, 1-10). It takes roughly a third of the baggage area, toward the right side (installer's description); size and position approximate.",
+  note: "Aluminum canister standing upright in the baggage compartment (IM Fig. 1), its top just under the rear window. It holds the 2,400 sq. ft. round parachute, pressure packed in its deployment bag, with the rocket lanyards and the rear attachment harness; a vacuum-formed ABS plastic cover breaks away when the system is activated. “The BRS-182 Parachute Canister must not be opened by anyone other than authorized factory personnel” (BRS-182 Installation Manual 9005-IM Rev C pp. 1-1, 1-8, 1-10). It takes roughly a third of the baggage area, almost all the way to the right side (installer's description); size and position approximate.",
   pin: true,
 });
-/** Rocket motor base (igniter end) and nozzle direction: aft of the canister, aimed up and aft through the rear window. */
-const ROCKET: Vec3 = P3(121, 6, 48);
-const ROCKET_TILT = 0.9;
-part(() => cyl(0.045, 0.3), ["brs"], {
+/** Rocket motor centre: upright on a bracket just aft of the canister (installer's photographs), under the rear window. */
+const ROCKET: Vec3 = P3(113, 8, 52);
+const ROCKET_LEN = 0.3;
+part(() => cyl(0.045, ROCKET_LEN), ["brs"], {
   id: "parts.brs.rocket-motor.002",
   pos: ROCKET,
-  rot: [0, 0, ROCKET_TILT],
   fitted,
   anim: (m) => {
     // gone with the parachute once fired
     m.visible = live.brsT < ROCKET_T;
   },
   name: "Rocket motor (BRS-900)",
-  note: "Manually activated solid-propellant rocket mounted aft of the parachute canister. Composite propellant grains in a filament-wound liner inside the motor case; a dual-firing-train percussion igniter lights a black powder/magnesium booster. Fired, it “will penetrate the rear window and extract the parachute away from the airplane” (IM pp. 1-1, 1-3, 1-6 – 1-7). Mounting angle and size approximate.",
+  note: "Manually activated solid-propellant rocket mounted aft of the parachute canister, standing upright under the rear window. Composite propellant grains in a filament-wound liner inside the motor case; a dual-firing-train percussion igniter lights a black powder/magnesium booster. Fired, it “will penetrate the rear window and extract the parachute away from the airplane” (IM pp. 1-1, 1-3, 1-6 – 1-7). Position and size approximate.",
   pin: true,
 });
-part(() => box(0.2, 0.2, 0.16), ["brs"], {
+part(() => box(0.16, ROCKET_LEN + 0.1, 0.16), ["brs"], {
   id: "parts.brs.rocket-shield.003",
   pos: ROCKET,
-  rot: [0, 0, ROCKET_TILT],
   fitted,
   fairing: true,
   color: FIBERGLASS,
@@ -59,7 +66,7 @@ part(() => box(0.2, 0.2, 0.16), ["brs"], {
   pin: true,
 });
 /** Igniter at the rocket base, where the activation cable ends. */
-const IGNITER: Vec3 = P3(118.5, 6, 44);
+const IGNITER: Vec3 = [ROCKET[0], ROCKET[1] - ROCKET_LEN / 2 - 0.03, ROCKET[2]];
 part(() => sph(0.03), ["brs"], {
   id: "parts.brs.igniter.004",
   pos: IGNITER,
@@ -69,34 +76,49 @@ part(() => sph(0.03), ["brs"], {
   pin: true,
 });
 
-/* ---------- rear harness (IM pp. 1-2 – 1-4) ---------- */
-/** Rear attachment assembly on the aft cabin structure (FS 134 wall). */
-const REAR_ATTACH: Vec3 = P3(131, 0, 44);
-part(() => box(0.06, 0.1, 0.3), ["brs"], {
+/* ---------- rear harness (IM pp. 1-2 – 1-4, Figs. 3–4) ---------- */
+/** Rear attachment assembly: a crossbar between doubler plates on the aft cabin side walls, below the window sill. */
+const REAR_ATTACH: Vec3 = P3(120, 0, 58);
+/** Butt line of the side plates, just inside the skin (approximate). */
+const PLATE_BL = 12.5;
+part(() => cyl(0.016, Z(2 * PLATE_BL), "z"), ["brs"], {
   id: "parts.brs.rear-attachment-assembly.005",
   pos: REAR_ATTACH,
   fitted,
   name: "Rear attachment assembly",
-  note: "Custom assembly on the aft cabin primary structure that spreads the parachute inflation loads across the area; the rear harness straps attach to it (IM p. 1-2, Fig. 3). Position and size approximate.",
+  note: "Custom assembly on the aft cabin primary structure that spreads the parachute inflation loads across the area; the rear harness straps attach to it (IM p. 1-2). Fig. 3 draws a crossbar spanning the aft baggage area between a plate on each side wall. Position and size approximate.",
   pin: true,
 });
+[-1, 1].forEach((s) =>
+  part(() => box(0.2, 0.13, 0.008), ["brs"], {
+    instance: [s],
+    id: "parts.brs.rear-attachment-plate.013",
+    pos: [REAR_ATTACH[0], REAR_ATTACH[1], s * Z(PLATE_BL)],
+    fitted,
+    name: "Rear attachment side plate",
+    note: "Plate on the aft cabin side wall at each end of the rear attachment assembly's crossbar (IM Fig. 3). An installer's photographs show it riveted to the skin just below the window sill, with a Kevlar harness strap bolted to a lug on it. Shape and position approximate.",
+    pin: s > 0,
+  }),
+);
 const rearStowed: PartAnim = (m) => {
   // pulled out of the baggage area with the parachute
   m.visible = live.brsT < TAUT_T;
 };
+/** Where the stowed rear harness meets the legs to the two side plates (illustrative). */
+const REAR_JOIN: Vec3 = [REAR_ATTACH[0] - 0.08, REAR_ATTACH[1] + 0.05, BRS_BOX[2] / 2];
 (
   [
-    ["short", 0.05],
-    ["long", -0.05],
+    ["short", 0.03],
+    ["long", -0.03],
   ] as const
 ).forEach(([section, dz]) =>
   part(
     () =>
       tubeGeo(
         [
-          [BRS_BOX[0] - 0.1, BRS_BOX[1] + 0.1, BRS_BOX[2] + dz],
-          [REAR_ATTACH[0] + 0.15, REAR_ATTACH[1] + 0.02, dz],
-          [REAR_ATTACH[0] + 0.03, REAR_ATTACH[1], dz],
+          [BRS_TOP[0] + 0.1, BRS_TOP[1] - 0.02, BRS_TOP[2] + dz],
+          [ROCKET[0], BRS_TOP[1] + 0.02, BRS_TOP[2] - 0.14 + dz],
+          [REAR_JOIN[0], REAR_JOIN[1], REAR_JOIN[2] + dz],
         ],
         0.01,
       ),
@@ -116,9 +138,21 @@ const rearStowed: PartAnim = (m) => {
     },
   ),
 );
+[-1, 1].forEach((s) =>
+  part(() => tubeGeo([REAR_JOIN, [REAR_ATTACH[0], REAR_ATTACH[1] + 0.02, s * Z(PLATE_BL - 1.5)]], 0.01), ["brs"], {
+    instance: [s],
+    id: "parts.brs.rear-harness-leg.014",
+    fitted,
+    anim: rearStowed,
+    color: KEVLAR,
+    name: "Rear harness leg",
+    note: "The rear harness ends on both sides of the aft cabin: Fig. 4 draws a rear strap from each side after the parachute is extracted (IM pp. 1-2 – 1-3). How the short and long sections join the two legs is not described in the excerpt; this arrangement is illustrative.",
+    pin: s > 0,
+  }),
+);
 part(() => cyl(0.014, 0.06), ["brs"], {
   id: "parts.brs.line-cutter.007",
-  pos: [BRS_BOX[0] - 0.13, BRS_BOX[1] + 0.1, BRS_BOX[2] + 0.05],
+  pos: [BRS_TOP[0] + 0.12, BRS_TOP[1] + 0.02, BRS_TOP[2] + 0.03],
   rot: [Math.PI / 2, 0, 0],
   fitted,
   anim: (m) => {
@@ -131,20 +165,20 @@ part(() => cyl(0.014, 0.06), ["brs"], {
 /* ---------- front harness straps (IM p. 1-2) ---------- */
 /** Chord fraction of the front carry-through spar (structure.ts), where the wings attach at the cabin top. */
 const FSPAR = 0.25;
-/** Rear-window slot the straps leave the cabin through (approximate station). */
-const SLOT_FS = 106;
+/** Rear-window slot the straps leave the cabin through: on the centreline near the window's top edge (IM Fig. 2). */
+const SLOT_FS = 92;
 /**
- * Front strap centreline on side s (-1 left, +1 right): out of the canister, up through the rear-window slot, then forward
- * just above the top skin to the front wing attachment point. The IM gives the route, not its shape (Fig. 2 is a photo).
+ * Front strap centreline on side s (-1 left, +1 right): out of the canister top, up through the rear-window slot, then
+ * forward just above the top skin to the front wing attachment point (IM Fig. 2, undimensioned).
  */
 export const frontStrap = (s: number): Vec3[] => {
   const pts: Vec3[] = [
-    [BRS_BOX[0] + 0.05, BRS_BOX[1] + 0.13, BRS_BOX[2] + s * 0.05],
-    [X(SLOT_FS), topY(X(SLOT_FS)) - 0.06, s * 0.04],
+    [BRS_TOP[0] - 0.05, BRS_TOP[1], BRS_TOP[2] + s * 0.05],
+    [X(SLOT_FS + 4), topY(X(SLOT_FS + 4)) - 0.1, s * 0.04],
     [X(SLOT_FS), topY(X(SLOT_FS)) + 0.015, s * 0.05],
   ];
-  // forward over the rear window and cabin top, onto the wing centre section and its attach fitting
-  for (const fs of [104, 96, 90]) pts.push([X(fs), topY(X(fs)) + 0.015, s * 0.07]);
+  // forward over the cabin top, onto the wing centre section and its attach fitting
+  pts.push([X(SLOT_FS - 2), topY(X(SLOT_FS - 2)) + 0.015, s * 0.07]);
   for (const c of [0.95, 0.7, 0.45]) {
     const p = wingP(s * Z(10 + 12 * (1 - c)), c, 1);
     pts.push([p.x, p.y + 0.015, p.z]);
@@ -180,7 +214,7 @@ const peelOff: PartAnim = (m) => {
     color: KEVLAR,
     ext: true,
     name: "Front harness strap",
-    note: "Woven Kevlar strap “routed through a slot in the rear window and across the top skin to the front wing attachment points”, under a fiberglass fairing (not drawn). On deployment the rocket's pull peels both front straps away from the top skin (IM pp. 1-2 – 1-3). Installers cut holes in the cabin-top skin near the forward wing attach points. Route and slot position approximate.",
+    note: "Woven Kevlar strap “routed through a slot in the rear window and across the top skin to the front wing attachment points”, under a fiberglass fairing (not drawn). Fig. 2 draws the pair leaving at the top of the rear window on the centreline. On deployment the rocket's pull peels both front straps away from the top skin (IM pp. 1-2 – 1-3). Installers cut holes in the cabin-top skin near the forward wing attach points. Route and slot position approximate.",
     pin: s > 0,
   }),
 );
@@ -226,11 +260,11 @@ part(
     tubeGeo(
       [
         [HANDLE_BOX[0] - 0.05, HANDLE_BOX[1] - 0.02, HANDLE_BOX[2]],
-        P3(60, 3, 27),
-        P3(90, 5, 28),
-        P3(108, 6, 30),
-        P3(115, 6, 37),
-        [IGNITER[0], IGNITER[1], IGNITER[2]],
+        P3(60, 2, 27),
+        P3(95, 1, 28),
+        P3(110, 2, 31.5),
+        P3(113, 8, 33.5),
+        IGNITER,
       ],
       0.006,
     ),
@@ -245,9 +279,9 @@ part(
   },
 );
 
-/** The harness legs for the deployment overlay: the two front attachment points and the rear attachment assembly. */
+/** The harness legs for the deployment overlay: the two front attachment points and the middle of the rear crossbar. */
 export const BRS_HARNESS: Record<"fwdL" | "fwdR" | "aft", Vec3> = {
   fwdL: FRONT_ATTACH[0],
   fwdR: FRONT_ATTACH[1],
-  aft: [REAR_ATTACH[0] + 0.03, REAR_ATTACH[1], 0],
+  aft: REAR_ATTACH,
 };
