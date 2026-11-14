@@ -27,7 +27,8 @@ export type SysId =
   | "autopilot"
   | "cabin"
   | "oxygen"
-  | "caps";
+  | "caps"
+  | "brs";
 
 /** Flight-control channels (for the channel-focus view in Flight controls). */
 export type Chan = "elevator" | "aileron" | "rudder";
@@ -71,6 +72,7 @@ const SYS_COLOR: Record<SysId, ColorKey> = {
   cabin: "cabin",
   oxygen: "cabin",
   caps: "caps",
+  brs: "caps",
 };
 
 /** Crew-alerting level: red warning, amber caution, white advisory. */

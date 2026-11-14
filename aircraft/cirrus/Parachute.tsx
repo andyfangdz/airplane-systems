@@ -26,8 +26,8 @@ export function capsPhases(ROCKET_T: number, TAUT_T: number) {
   return { CAPS_PHASES, capsPhase };
 }
 
-/** Airplane pitch (deg, + nose up) during deployment. */
-function pitchAt(t: number) {
+/** Airplane pitch (deg, + nose up) during a CAPS deployment. */
+function capsPitch(t: number) {
   if (t < 2) return 0;
   if (t < 3) return lerp(0, 8, t - 2);
   if (t < 4.5) return lerp(8, -28, (t - 3) / 1.5);
@@ -35,6 +35,35 @@ function pitchAt(t: number) {
   if (t < 9.8) return lerp(-28, -3, ease((t - 8) / 1.8));
   return -3 + Math.sin((t - 9.8) * 1.1) * 2;
 }
+
+/**
+ * How a deployment plays out in the scene: the airplane's pitch (deg, + nose up) and roll sway (rad) at t seconds, when
+ * the canopy starts to inflate and how long it takes, how long the bag and rocket flame stay visible, and the canopy
+ * radius (m). The CAPS defaults follow the SR20/SR22T timeline above; another installation (C182T BRS option) passes its
+ * own.
+ */
+export interface ParachuteProfile {
+  pitch: (t: number) => number;
+  sway: (t: number) => number;
+  inflateT: number;
+  inflateDur: number;
+  packGone: number;
+  flameOut: number;
+  /** The ground stays visible until this time. */
+  groundGone: number;
+  canopyR: number;
+}
+
+export const CAPS_PROFILE: ParachuteProfile = {
+  pitch: capsPitch,
+  sway: (t) => (t > 9.8 ? Math.sin((t - 9.8) * 0.8) * 0.04 : 0),
+  inflateT: 2,
+  inflateDur: 1.8,
+  packGone: 2.4,
+  flameOut: 1.5,
+  groundGone: 1.5,
+  canopyR: 5.5,
+};
 
 /** Notify Three.js after the frame callback has rewritten suspension-line positions. */
 function updateLines(geometry: THREE.BufferGeometry) {
@@ -52,7 +81,10 @@ export interface CapsHarness {
   strapPeel: (s: number, out: number) => THREE.Vector3;
 }
 
-/** `deployed()`: CAPS activated and the timeline running; `time()`: seconds since the handle was pulled. */
+/**
+ * `deployed()`: the parachute activated and the timeline running; `time()`: seconds since the handle was pulled;
+ * `profile`: the installation's timeline and canopy (CAPS by default).
+ */
 export function Parachute({
   rootRef,
   modelRef,
@@ -60,8 +92,11 @@ export function Parachute({
   caps,
   deployed,
   time,
-}: ModelRefs & { caps: CapsHarness; deployed: () => boolean; time: () => number }) {
+  profile = CAPS_PROFILE,
+}: ModelRefs & { caps: CapsHarness; deployed: () => boolean; time: () => number; profile?: ParachuteProfile }) {
   const { CAPS_BOX, HARNESS, ROCKET_T, TAUT_T, strapOut, strapPeel } = caps;
+  const { pitch, sway, inflateT, inflateDur, packGone, flameOut, groundGone, canopyR } = profile;
+  const R = canopyR;
   const canopy = useRef<THREE.Mesh>(null!);
   const pack = useRef<THREE.Mesh>(null!);
   const flame = useRef<THREE.Sprite>(null!);
@@ -73,8 +108,8 @@ export function Parachute({
     return g;
   }, []);
   const goreGeo = useMemo(
-    () => new THREE.EdgesGeometry(new THREE.SphereGeometry(5.52, 16, 4, 0, Math.PI * 2, 0, Math.PI * 0.42)),
-    [],
+    () => new THREE.EdgesGeometry(new THREE.SphereGeometry(R + 0.02, 16, 4, 0, Math.PI * 2, 0, Math.PI * 0.42)),
+    [R],
   );
   const wasOn = useRef(false);
   useEffect(
@@ -109,9 +144,9 @@ export function Parachute({
     wasOn.current = true;
     group.current.visible = true;
     const t = time();
-    root.rotation.z = pitchAt(t) * D2R;
-    root.rotation.x = t > 9.8 ? Math.sin((t - 9.8) * 0.8) * 0.04 : 0;
-    if (groundRef.current) groundRef.current.visible = t < 1.5;
+    root.rotation.z = pitch(t) * D2R;
+    root.rotation.x = sway(t);
+    if (groundRef.current) groundRef.current.visible = t < groundGone;
     model.updateMatrixWorld(true);
     const can = model.localToWorld(V(...CAPS_BOX));
     const top = V(-0.3, 11.5, 0),
@@ -119,10 +154,10 @@ export function Parachute({
     const packPos =
       t < TAUT_T ? can.clone().lerp(mid, strapOut(t)) : mid.clone().lerp(top, clamp((t - TAUT_T) / 1.2, 0, 1));
     pack.current.position.copy(packPos);
-    pack.current.visible = t < 2.4;
-    flame.current.visible = t >= ROCKET_T && t < 1.5;
+    pack.current.visible = t < packGone;
+    flame.current.visible = t >= ROCKET_T && t < flameOut;
     flame.current.position.copy(packPos).add(V(0.3, -0.6, 0));
-    const inf = t < 2 ? 0 : clamp(ease((t - 2) / 1.8), 0, 1);
+    const inf = t < inflateT ? 0 : clamp(ease((t - inflateT) / inflateDur), 0, 1);
     canopy.current.visible = inf > 0.01;
     canopy.current.position.copy(packPos).add(V(0, -inf, 0));
     canopy.current.scale.set(0.15 + 0.85 * inf, 0.25 + 0.75 * inf, 0.15 + 0.85 * inf);
@@ -139,8 +174,8 @@ export function Parachute({
     const hp = [strapPeel(-1, out), strapPeel(1, out), V(...HARNESS.aft)].map((p) => model.localToWorld(p));
     const pos = lineGeo.attributes.position as THREE.BufferAttribute;
     let i = 0;
-    const rimR = 5.5 * Math.sin(Math.PI * 0.42) * (0.15 + 0.85 * inf),
-      rimY = canopy.current.position.y + 5.5 * Math.cos(Math.PI * 0.42) * (0.25 + 0.75 * inf);
+    const rimR = R * Math.sin(Math.PI * 0.42) * (0.15 + 0.85 * inf),
+      rimY = canopy.current.position.y + R * Math.cos(Math.PI * 0.42) * (0.25 + 0.75 * inf);
     const junction = V(canopy.current.position.x, lerp(packPos.y - 1, (hp[0].y + hp[1].y + hp[2].y) / 3 + 2, inf), 0),
       conf = junction.clone().add(V(0, 1.2 * inf, 0));
     for (let k = 0; k < 16; k++) {
@@ -166,9 +201,9 @@ export function Parachute({
     if (t < ROCKET_T) for (let k = 0; k < i; k++) pos.setXYZ(k, can.x, can.y, can.z);
     updateLines(lineGeo);
     // slider rides down the suspension lines from the skirt toward the confluence
-    slider.current.visible = t >= 2 && inf > 0.01;
+    slider.current.visible = t >= inflateT && inf > 0.01;
     if (slider.current.visible) {
-      const u = clamp((t - 2) / 2.2, 0, 1) * 0.75,
+      const u = clamp((t - inflateT) / (inflateDur + 0.4), 0, 1) * 0.75,
         rr = Math.max(0.15, rimR * (1 - u));
       slider.current.position.set(canopy.current.position.x, lerp(rimY, conf.y, u), 0);
       slider.current.scale.set(rr, rr, rr);
@@ -178,7 +213,7 @@ export function Parachute({
   return (
     <group ref={group} visible={false}>
       <mesh ref={canopy} raycast={() => {}}>
-        <sphereGeometry args={[5.5, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.42]} />
+        <sphereGeometry args={[R, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.42]} />
         <meshStandardMaterial color="#F2F2EE" side={THREE.DoubleSide} roughness={0.8} transparent opacity={0.95} />
         <lineSegments geometry={goreGeo}>
           <lineBasicMaterial color="#D32640" />

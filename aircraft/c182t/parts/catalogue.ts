@@ -224,6 +224,8 @@ export const CAT = new Catalogue(
 );
 CAT.trackVisibility(useView, (v) => `${v.sys}:${v.walking}`);
 CAT.trackVisibility(useEngineGroups, (s) => s.shown);
+// the optional BRS parachute's parts are fitted only while it is installed
+CAT.trackVisibility(useC182, (s) => s.s.brs.installed);
 export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 
 /* ---------- per-frame part animations ---------- */

@@ -53,7 +53,7 @@ To add one:
   `advance` from the runtime binding, so all route-driven integration uses its fixed-step clock.
 - `Airplane.tsx`: The scene: `<Shells>`, `<ControlSurfaces>`, `<Parts>`, moving groups, `<Tanks>`, `<Flows>`, `<Screens>`, `<LightFX>`, `<WindowOutlines>`.
 - `ControlRig.tsx`: Optional: draws the moving flight-control linkage from `rig.ts`, when it is big enough for its own file (DA40, M20C; the SR20 and SR22T render `cirrus/ControlRig.tsx` with their catalogue, rig and store; the Cessnas draw their `rig.ts` linkage in `Airplane.tsx`).
-- `Parachute.tsx` (SR20, SR22T): The airplane's optional `Overlay`: a scene-level effect that gets the model groups (CAPS deployment). Each binds `cirrus/Parachute.tsx` to its own harness geometry, store and `live` timeline.
+- `Parachute.tsx` (SR20, SR22T; C182T for the optional BRS-182): The airplane's optional `Overlay`: a scene-level effect that gets the model groups (parachute deployment). Each binds `cirrus/Parachute.tsx` to its own harness geometry, store and `live` timeline; the C182T passes a `ParachuteProfile` for its own pitch and inflation timing.
 - `displays.ts`: Canvas drawing for the cockpit displays. The G1000 airplanes call `lib/avionics/g1000/`; the SR20 and SR22T call it with `style: "perspective"` and draw their MD302 standby with `lib/avionics/md302.ts`.
 - `walkaround.ts`, `walk.ts`, `walk-store.ts`: The preflight study walk. `walkaround.ts` holds the data (`FleetWalkData`:
   stations, items and wording from the POH/AFM, and the panel copy where the airplane's walk differs from the default);
@@ -97,7 +97,7 @@ To add one:
   | File               | Role                                                                                                          |
   | ------------------ | ------------------------------------------------------------------------------------------------------------- |
   | `ControlRig.tsx`   | Moving flight-control linkage drawn from the airplane's `rig.ts` (Figures 7-1 – 7-3)                          |
-  | `Parachute.tsx`    | CAPS deployment overlay and the HUD phases                                                                    |
+  | `Parachute.tsx`    | Parachute deployment overlay (CAPS by default, or a `ParachuteProfile`) and the HUD phases                    |
   | `displays.ts`      | Perspective+ plumbing: fixed-cruise flight data, UTC clock, reversionary mode, PFD / MFD screens              |
   | `distribution.tsx` | Live Figure 7-10 power distribution diagram                                                                   |
   | `display-feeds.ts` | Matched redundant display/standby circuits; each installation supplies source references and rating overrides |
