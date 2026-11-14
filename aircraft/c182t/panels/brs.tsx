@@ -128,17 +128,18 @@ export function Brs() {
       <H3>Installation</H3>
       <Notes
         items={[
-          "Canister: aluminum, in the baggage compartment, with a vacuum-formed ABS plastic cover that breaks away on activation. Inside: the pressure-packed canopy in its deployment bag, the rocket lanyards and the rear attachment harness (IM p. 1-1).",
-          "Rocket: a BRS-900 solid-propellant motor aft of the canister under a fiberglass shield, fired by a mechanical percussion igniter that needs no electrical power and is unarmed normally (IM pp. 1-1, 1-5 – 1-7).",
-          "Harness: four woven Kevlar straps. The two front straps run through a slot in the rear window and across the top skin, under a fiberglass fairing, to the front wing attachment points; the two rear straps, stowed in the baggage area, attach to a custom rear attachment assembly on the aft cabin structure (IM p. 1-2).",
+          "Canister: aluminum, standing upright in the baggage compartment (IM Fig. 1), with a vacuum-formed ABS plastic cover that breaks away on activation. Inside: the pressure-packed canopy in its deployment bag, the rocket lanyards and the rear attachment harness (IM p. 1-1).",
+          "Rocket: a BRS-900 solid-propellant motor aft of the canister under a fiberglass shield (an installer's photographs show it standing upright), fired by a mechanical percussion igniter that needs no electrical power and is unarmed normally (IM pp. 1-1, 1-5 – 1-7).",
+          "Harness: four woven Kevlar straps. The two front straps run through a slot in the rear window and across the top skin, under a fiberglass fairing, to the front wing attachment points; the two rear straps, stowed in the baggage area, attach to a custom rear attachment assembly on the aft cabin structure, drawn as a crossbar between a plate on each side wall (IM p. 1-2, Fig. 3).",
           "Rear harness: the shorter section is held by a ring-and-link release cut by the line cutter; the longer section is folded and stitched so the stitching peels to absorb shock (IM pp. 1-3 – 1-4).",
           "Activation: the handle is in a protective fiberglass box on the floor between and slightly forward of the pilot and copilot, joined to the igniter by a stainless-steel cable in a Teflon-lined housing under the carpet (IM p. 1-5).",
           "Canopy: 2,400 sq. ft. round, non-steerable, with an annular slider that reefs it to limit inflation loads; all textiles Kevlar or nylon (IM pp. 1-1, 1-10).",
         ]}
       />
       <Small>
-        Model positions follow the descriptions; the manual&apos;s figures are photographs without dimensions, so sizes,
-        the canister&apos;s place in the baggage area, the rocket angle and the strap and cable routes are approximate.
+        Model positions follow the manual&apos;s drawings and an installer&apos;s photographs; nothing is dimensioned,
+        so sizes, the canister&apos;s place in the baggage area, the rocket and rear attachment positions and the strap
+        and cable routes are approximate.
       </Small>
       <H3>Applicability</H3>
       <Facts

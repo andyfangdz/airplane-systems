@@ -45,6 +45,6 @@ import "./walk-inspection";
 
 import "./hardware-detail";
 
-export { BRS_BOX, BRS_HARNESS, strapPeel as brsStrapPeel } from "./brs";
+export { BRS_TOP, BRS_HARNESS, strapPeel as brsStrapPeel } from "./brs";
 
 export { DOOR_POSE, doorTarget } from "./door-motion";

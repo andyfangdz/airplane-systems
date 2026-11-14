@@ -194,9 +194,18 @@ wording, preflight items such as a safety pin), a BRS-182 descent rate, and an a
 interval. The STC certificate itself was not retrieved from FAA DRS; an STC listing mirroring FAA data gives 08/08/2002
 with later revisions, while AOPA puts the 182 kit's approval in 2004.
 
-**Approximate in the model:** the manual's figures are undimensioned photographs, so the canister's size and place in the
-baggage area (right side, after the installer), the rocket angle, the rear-window slot station, the strap, fairing and
-cable routes, and the handle box's size are illustrative; the fiberglass strap fairing is not drawn. In the deployment,
+**Layout:** the manual's Figures 1–4 are undimensioned drawings. Fig. 1 draws the canister as an upright column standing
+in the baggage compartment, about three times as tall as it is wide and leaning slightly; Fig. 2 draws the two front
+straps leaving at the top of the rear window on the centreline and running forward under a fairing; Fig. 3 draws the
+rear attachment assembly as a crossbar between a plate on each side wall; Fig. 4 draws a rear strap from each side of the
+aft cabin. The Tennessee Aircraft Services photographs agree: a tall canister with its top just under the rear window,
+the rocket standing upright on a bracket just aft of it, a Kevlar strap bolted to a lug on a riveted side plate just
+below the window sill, the crossbar, and a slot cut in the rear window near its top edge.
+
+**Approximate in the model:** nothing is dimensioned, so the canister's size and place in the baggage area (right side,
+after the installer; drawn vertical), the rocket's position, the crossbar and side-plate station, the rear-window slot
+station, the strap, fairing and cable routes, how the two rear harness sections join the two side legs, and the handle
+box's size are illustrative; the fiberglass strap fairing is not drawn. In the deployment,
 only the order of events, the eight-second fuse (shown starting at line stretch) and the ≈ 10° nose-down touchdown
 attitude come from the manual. Rocket and line-stretch times, the inflation rate, the nose-low angle on the short rear
 section and the canopy's drawn size (the shared 2,400 ft² CAPS canopy) are illustrative.
