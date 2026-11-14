@@ -109,7 +109,7 @@ jobs:
   ui:
     name: ui (${{ matrix.shard }}/20)
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -156,7 +156,7 @@ jobs:
 
   static:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       manifest-sha256: ${{ steps.seal.outputs.sha256 }}
     env:
