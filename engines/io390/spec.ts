@@ -32,7 +32,7 @@ export const IO390: EngineSpec = {
     "Each cylinder's mixture sets its power, EGT and head heat: best power is about 150 °F rich of peak EGT (the IOM's leanest setting for maximum-power cruise, p. 39), power at peak EGT about 3.5 % lower, and the engine runs rough and quits far rich or lean. Fuel flow reproduces Figure C-3 and the Table A-1 cruise figures.",
     "Friction and pumping losses, starter torque, a constant-speed propeller with an oil-driven governor, and lumped thermal models for heads and oil (the thermostat and cooler from Table 2) complete the loop.",
     "The cylinder-pressure trace is drawn from the model's own work per cycle, with an assumed burn duration; it is illustrative, not measured data.",
-    "The 3D engine: bore, stroke and the overall envelope (Table A-1) set its scale, and where each part sits follows the IOM's System Description figures (Figures 1B–9). The shapes and sizes of individual parts, the cylinders' spacing along the crankshaft, and the valve lift are schematic; the valves are drawn parallel to the cylinder where the real guides are angled.",
+    "The 3D model follows the SR20 G6 installation. The bore, stroke and engine envelope use IOM Table A-1. Cylinder castings, angled valves, rocker gear, crankshaft and accessory drives follow the illustrated parts catalog. Casting contours, accessory internals, fitting locations and the spacing in Blow up mode are illustrative.",
     "Not published, so chosen to fit the documented points: valve timing, rod length, the propeller's pitch range and inertia, the cooling and thermal constants, and the per-cylinder spread. The propeller is the SR20's Hartzell, used only as the load.",
   ],
   sources: [
@@ -42,8 +42,18 @@ export const IO390: EngineSpec = {
       note: "Table A-1 (specifications, p. 51–52), Table A-2 (operating limits, p. 53), Tables A-3/A-4 (accessory drives, p. 54), Figures C-1 to C-3 (performance and fuel flow, p. 57–59), operating procedures (pp. 26–40).",
     },
     {
+      title: "Lycoming IO-390-C Series Illustrated Parts Catalog, Revision 1, June 2025",
+      href: "https://www.lycoming.com/sites/default/files/file/2025-06/PC-IO-390-C%20Series%20Rev%201%20%281%29.pdf",
+      note: "C3B6 applicability, dual alternator mounting, front governor, power section, cylinders, lubrication, fuel injection, ignition and starter. Part notes identify the figure and part number where available.",
+    },
+    {
+      title: "Lycoming IO-390-C Series Maintenance Manual, January 2017",
+      href: "https://www.lycoming.com/sites/default/files/attachments/MM-IO-390-C%2520Series%2520-%25201-31-2017.pdf",
+      note: "72-20 Figs. 22 and 93 (counterweights and accessory timing), 72-25 (oil pump), 72-50 (filter and thermostatic bypass).",
+    },
+    {
       title: "Cirrus SR20 POH 11934-005 (as cited in aircraft/sr20)",
-      note: "The propeller used as the load: Hartzell HC-E3YR-1RF/F7392S-1, three blades, 74 in nominal diameter (POH 2-8, 7-40).",
+      note: "The installed induction, lubrication and exhaust systems (7-35–7-39), dual alternators (7-49), and propeller load: Hartzell HC-E3YR-1RF/F7392S-1, three blades, 74 in nominal diameter (POH 2-8, 7-40).",
     },
   ],
 

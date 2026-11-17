@@ -20,6 +20,8 @@ import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
 import { useView } from "@/lib/view";
 import { usePartInspection, usePartInspectionStore } from "../PartInspector";
+import { Spread } from "./Separation";
+import type { V3 } from "./layout";
 import { layoutFor } from "./layout";
 
 export const GROUPS = [
@@ -107,6 +109,7 @@ export function P({
   rotation,
   scale,
   meshRef,
+  spread,
 }: {
   name: string;
   note?: string;
@@ -116,6 +119,7 @@ export function P({
   rotation?: [number, number, number];
   scale?: [number, number, number];
   meshRef?: Ref<THREE.Mesh>;
+  spread?: V3;
 }) {
   const parts = useContext(PartNotes);
   const own = parts?.[given] ?? parts?.[given.replace(/\d+/g, "#")];
@@ -132,9 +136,11 @@ export function P({
     () => inspection.getState().register({ id, name, note, available: () => isVisible(mesh.current) }),
     [id, name, note, inspection],
   );
-  return (
+  const part = (
     <mesh
       ref={mesh}
+      castShadow={!!material.userData.castsEngineShadow}
+      receiveShadow={!!material.userData.receivesEngineShadow}
       geometry={geometry}
       material={material}
       position={position}
@@ -170,6 +176,7 @@ export function P({
       )}
     </mesh>
   );
+  return spread ? <Spread by={spread}>{part}</Spread> : part;
 }
 
 /** A part group the panel can hide. */

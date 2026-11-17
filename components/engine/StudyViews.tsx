@@ -12,6 +12,7 @@ interface StudyPreset {
 }
 const PRESETS: readonly StudyPreset[] = [
   { id: "installed", name: "Installed engine", prop: true, xray: false },
+  { id: "exterior", name: "Engine exterior", prop: false, xray: false },
   { id: "internals", name: "Engine internals", prop: false, xray: true },
   {
     id: "cycle",

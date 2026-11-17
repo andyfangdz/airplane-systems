@@ -44,6 +44,7 @@ if (compare && canonicalPath(out) === canonicalPath(compare))
 const tolerance = Number(opt("--tolerance", "0.5"));
 const phone = flag("--phone");
 const solid = flag("--solid");
+const blowUp = flag("--blow-up");
 const noLabels = flag("--no-labels");
 if (!args.length) args.push("sr20/overview");
 
@@ -56,6 +57,9 @@ const views = [
   ...new Set(
     args.flatMap((a) => {
       const [ac, sys] = a.replace(/^\/+/, "").split("/");
+      if (ac === "engines" && /^[a-z0-9-]+$/.test(sys ?? "") && existsSync(join(ROOT, "engines", sys, "spec.ts"))) {
+        return [`engines/${sys}`];
+      }
       if (ac === "all") return ids.flatMap((id) => systemsOf(id).map((s) => `${id}/${s}`));
       if (!ids.includes(ac)) throw new Error(`Unknown airplane "${ac}" (one of ${ids.join(", ")}, or "all")`);
       if (sys) {
@@ -68,7 +72,7 @@ const views = [
   ),
 ];
 
-export const shot = { out, theme, wait, compare, tolerance, phone, solid, noLabels, views, cameras };
+export const shot = { out, theme, wait, compare, tolerance, phone, solid, noLabels, blowUp, views, cameras };
 export default defineConfig({
   testDir: "./scripts",
   testMatch: "shot.spec.mjs",

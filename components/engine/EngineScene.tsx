@@ -12,11 +12,14 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { EngineSim } from "./store";
+import { makeSolidFinishes } from "./scene/io390/finishes";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { Cylinders } from "./scene/Cylinders";
-import { dims, labelOccluder, makeMats, XRAY_MATS, type Dims } from "./scene/kit";
+import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
 import { layoutFor } from "./scene/layout";
+import { accessorySpread, Separation, Spread, cylinderSpread } from "./scene/Separation";
 import { Group, PartNotesProvider } from "./scene/parts";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
@@ -28,8 +31,32 @@ import { Camshaft, ValveTrain } from "./scene/Valvetrain";
 function EngineModel({ sim }: { sim: EngineSim }) {
   const reducedMotion = useReducedMotion();
   const d = useMemo(() => dims(sim.spec), [sim]);
-  const mats = useMemo(makeMats, []);
-  useEffect(() => () => Object.values(mats).forEach((m) => m.dispose()), [mats]);
+  const L = layoutFor(sim.spec);
+  const study = useMemo(() => makeMats(L), [L]);
+  const finishes = useMemo(() => (L.c3b6 ? makeSolidFinishes(L) : null), [L]);
+  const xray = sim.useUi((s) => s.view.xray);
+  const mats = !xray && finishes ? finishes.mats : study;
+  const gl = useThree((s) => s.gl),
+    scene = useThree((s) => s.scene);
+  useEffect(() => {
+    if (!L.c3b6) return;
+    const studio = new RoomEnvironment(),
+      generator = new THREE.PMREMGenerator(gl);
+    const reflection = generator.fromScene(studio, 0.04);
+    studio.dispose();
+    generator.dispose();
+    const previous = scene.environment,
+      intensity = scene.environmentIntensity;
+    scene.environment = reflection.texture;
+    scene.environmentIntensity = 0.65;
+    return () => {
+      scene.environment = previous;
+      scene.environmentIntensity = intensity;
+      reflection.dispose();
+    };
+  }, [L, gl, scene]);
+  useEffect(() => () => disposeMats(study), [study]);
+  useEffect(() => () => finishes?.dispose(), [finishes]);
   const body = useRef<THREE.Group>(null);
   useFrame((state) => {
     const s = sim.s,
@@ -45,16 +72,29 @@ function EngineModel({ sim }: { sim: EngineSim }) {
       body.current.position.set(0, Math.sin(t * 37) * a, Math.sin(t * 23 + 1) * a);
     }
   });
-  const p = { sim, d, mats };
+  return (
+    <group ref={body}>
+      <EngineAssemblies sim={sim} d={d} mats={mats} />
+      <Labels sim={sim} d={d} />
+    </group>
+  );
+}
+
+export function EngineAssemblies(p: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const { sim } = p;
+  const L = layoutFor(sim.spec);
+  const open = sim.useUi((x) => !!x.view.blowUp);
   return (
     <PartNotesProvider value={sim.spec.parts}>
-      <group ref={body}>
+      <Separation.Provider value={L.c3b6 ? open : null}>
         <Group sim={sim} id="rotating">
           <Crankshaft {...p} />
           <RodsAndPistons {...p} />
         </Group>
         <Group sim={sim} id="valvetrain">
-          <Camshaft {...p} />
+          <Spread by={[0, 0.28, 0]}>
+            <Camshaft {...p} />
+          </Spread>
           <ValveTrain {...p} />
         </Group>
         <Group sim={sim} id="cylinders">
@@ -75,12 +115,12 @@ function EngineModel({ sim }: { sim: EngineSim }) {
         <Group sim={sim} id="induction">
           <Induction {...p} />
         </Group>
-        {layoutFor(sim.spec).turbo && (
+        {L.turbo && (
           <Group sim={sim} id="turbo">
             <Turbo {...p} />
           </Group>
         )}
-        {layoutFor(sim.spec).exhaust && (
+        {L.exhaust && (
           <Group sim={sim} id="exhaust">
             <Exhaust {...p} />
           </Group>
@@ -88,9 +128,10 @@ function EngineModel({ sim }: { sim: EngineSim }) {
         <Group sim={sim} id="drives">
           <Drives {...p} />
         </Group>
-        <Propeller {...p} />
-        <Labels sim={sim} d={d} />
-      </group>
+        <Spread by={accessorySpread.Propeller}>
+          <Propeller {...p} />
+        </Spread>
+      </Separation.Provider>
     </PartNotesProvider>
   );
 }
@@ -99,7 +140,14 @@ function EngineModel({ sim }: { sim: EngineSim }) {
 export const shownLabels = <T extends [string, unknown, { group?: string }?]>(items: T[], hidden: readonly string[]) =>
   items.filter(([, , o]) => !(o?.group && hidden.includes(o.group)));
 
+function explodedLabel(name: string, p: [number, number, number], sim: EngineSim): [number, number, number] {
+  const c = sim.spec.geometry.cylinders.find((c) => name === `Cyl ${c.n}`);
+  const offset = c ? cylinderSpread(c, 0.44) : accessorySpread[name];
+  return offset ? [p[0] + offset[0], p[1] + offset[1], p[2] + offset[2]] : p;
+}
+
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
+  const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).c3b6);
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
   const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
@@ -127,7 +175,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       {items.map(([t, p, o]) => (
         <Html
           key={t}
-          position={p}
+          position={open ? explodedLabel(t, p, sim) : p}
           portal={portal}
           center
           occlude={o?.occlude && [labelOccluder(scene, t)]}
@@ -146,11 +194,16 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
   const cam = layoutFor(sim.spec).camera;
+  const solid = sim.useUi((s) => !!layoutFor(sim.spec).c3b6 && !s.view.xray);
+  const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).c3b6);
   const prop = sim.useUi((x) => x.view.prop),
     hidden = sim.useUi((x) => x.view.hidden);
   return (
     <ComponentStage
-      frameKey={`${prop}:${hidden.join(",")}`}
+      frameKey={`${open}:${prop}:${hidden.join(",")}`}
+      shadowExtent={solid ? (open ? 1.35 : prop ? 1.02 : 0.81) : undefined}
+      ambient={solid ? 0.28 : undefined}
+      keyLight={solid ? { position: [2.5, 3.8, 2], intensity: 2.05 } : undefined}
       camera={{ position: cam.position, fov: 38, near: 0.02, far: 40 }}
       target={cam.target}
       minDistance={0.5}

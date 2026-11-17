@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { observeStageCamera, waitForStageCamera } from "./stage-camera-probe.mjs";
 
 /** The actual projected labels must remain usable after initial framing, orbit, and responsive resize. */
 const labelLayout = (page) =>
@@ -84,26 +85,10 @@ test("a live monitor caption preserves an explored camera, while Reset view fits
   baseURL,
 }) => {
   await page.setViewportSize({ width: 900, height: 900 });
-  await context.addInitScript(() => {
-    window.__stageCameraProbe = { camera: null, stable: 0, previous: "" };
-    const devtools = new EventTarget();
-    devtools.addEventListener("observe", ({ detail: renderer }) => {
-      if (!renderer?.isWebGLRenderer) return;
-      const render = renderer.render.bind(renderer);
-      renderer.render = (scene, camera) => {
-        const probe = window.__stageCameraProbe;
-        probe.camera = camera;
-        const pose = [...camera.position.toArray(), ...camera.quaternion.toArray()].map((x) => x.toFixed(5)).join(",");
-        probe.stable = probe.previous === pose ? probe.stable + 1 : 0;
-        probe.previous = pose;
-        return render(scene, camera);
-      };
-    });
-    window.__THREE_DEVTOOLS__ = devtools;
-  });
+  await observeStageCamera(context);
   await page.route("**/_vercel/**", (request) => request.fulfill({ status: 204, body: "" }));
   await page.goto(`${baseURL}/engines/tsio550k`);
-  await page.waitForFunction(() => window.__stageCameraProbe.stable > 10);
+  await waitForStageCamera(page);
   const pose = () =>
     page.evaluate(() => {
       const camera = window.__stageCameraProbe.camera;
@@ -115,7 +100,7 @@ test("a live monitor caption preserves an explored camera, while Reset view fits
   await page.mouse.down();
   await page.mouse.move(canvas.x + canvas.width / 2 + 100, canvas.y + canvas.height / 2 + 30, { steps: 15 });
   await page.mouse.up();
-  await page.waitForFunction(() => window.__stageCameraProbe.stable > 10);
+  await waitForStageCamera(page);
   const explored = await pose();
   expect(Math.max(...home.map((v, i) => Math.abs(v - explored[i])))).toBeGreaterThan(0.05);
   const before = await page.locator(".eng-foot").boundingBox();
@@ -138,7 +123,7 @@ test("a live monitor caption preserves an explored camera, while Reset view fits
       return Math.max(...current.map((v, i) => Math.abs(v - explored[i])));
     })
     .toBeGreaterThan(0.05);
-  await page.waitForFunction(() => window.__stageCameraProbe.stable > 10);
+  await waitForStageCamera(page);
   const reset = await pose();
   expect(Math.max(...reset.map((v, i) => Math.abs(v - explored[i])))).toBeGreaterThan(0.05);
   // Reset uses the new caption height, not the original home frame.

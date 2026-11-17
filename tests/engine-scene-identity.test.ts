@@ -1,7 +1,6 @@
 /**
  * Identical-scene guard for the engine page's 3D model (components/engine/scene/): every mesh the IO-390 and O-360
- * scenes mount, stopped and at takeoff power at two crank angles, against a baseline recorded on main's scene code
- * before the per-engine scene layouts. Each mesh is summarised, in mount order, by its hover name and note, a
+ * scenes mount, stopped and at takeoff power at two crank angles, against their reviewed assembled poses. Each mesh is summarised, in mount order, by its hover name and note, a
  * fingerprint of its whole geometry, its world matrix and its material's colour, opacity and glow.
  *
  * The geometry fingerprint covers every vertex, normal and index in order: the attribute layout, the index buffer and
@@ -9,8 +8,7 @@
  * fixed per-item weights, so moving, swapping or reordering any vertex changes it. As in scene-snapshot.test.ts, the
  * last bit of Math.sin/cos differs between runtimes, so the float sums are compared within TOL rather than hashed;
  * text, counts and hashes must match exactly.
- * Running materials and governor poses were refreshed for the fuel-metering corrections documented in
- * engines/FUEL-METERING-RESEARCH.md; cold poses, geometry fingerprints and part identities remain unchanged.
+ * The IO-390 baseline includes the SR20 G6 installation and the hardware in engines/io390/SOURCES.md.
  *
  * Update only for an intended change to these engines' drawing:
  * UPDATE_ENGINE_SCENE_BASELINE=1 npx vitest run tests/engine-scene-identity.test.ts
@@ -27,6 +25,7 @@ import type { EngineSpec } from "@/engines/types";
 import { replaceState, simFor, type EngineSim } from "@/components/engine/store";
 import { Crankcase, Lubrication } from "@/components/engine/scene/Case";
 import { Cylinders } from "@/components/engine/scene/Cylinders";
+import { layoutFor } from "@/components/engine/scene/layout";
 import { dims, makeMats } from "@/components/engine/scene/kit";
 import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
@@ -135,7 +134,7 @@ function rowsOf(scene: THREE.Object3D): Row[] {
 
 /** The engine's parts as EngineScene mounts them (labels and the shake on the mounts left out). */
 const model = (sim: EngineSim) => {
-  const p = { sim, d: dims(sim.spec), mats: makeMats() };
+  const p = { sim, d: dims(sim.spec), mats: makeMats(layoutFor(sim.spec)) };
   return h(
     PartNotesProvider,
     { value: sim.spec.parts },

@@ -3,7 +3,7 @@ import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { shot } from "../playwright.shots.config.mjs";
 import { shotFilename, shotQuery } from "./shot-camera.mjs";
-const { out, theme, wait, compare, tolerance, phone, solid, noLabels, views, cameras } = shot;
+const { out, theme, wait, compare, tolerance, phone, solid, noLabels, blowUp, views, cameras } = shot;
 
 for (const { v, camera } of views.flatMap((v) => cameras.map((camera) => ({ v, camera })))) {
   test(camera ? `${v} (${camera})` : v, async ({ page, context, baseURL: base }, info) => {
@@ -65,9 +65,10 @@ for (const { v, camera } of views.flatMap((v) => cameras.map((camera) => ({ v, c
       },
       [solid, noLabels],
     );
+    if (blowUp) await page.getByRole("button", { name: "Blow up", exact: true }).click();
     await page.waitForTimeout(wait);
 
-    const name = shotFilename(v, phone, camera);
+    const name = shotFilename(v, phone, camera).replace(/\.png$/, blowUp ? "-blow-up.png" : ".png");
     const file = join(out, name);
     const png = await page.screenshot({ fullPage: phone, timeout: 120_000 });
     expect(pageErrors, "No application runtime errors").toEqual([]);

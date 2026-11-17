@@ -25,7 +25,7 @@ import {
   MAT_SENSOR,
   MUFFLER,
   OIL_CONTROL,
-  OIL_COOLER,
+  COOLER_MOUNT,
   OIL_FILTER,
   OIL_GALLERY,
   OIL_PRESSURE,
@@ -225,17 +225,17 @@ flow("oilPickup", [OIL_SUMP, OIL_SCREEN, OIL_PUMP], {
   name: "Oil pickup / pump",
   note: "Wet sump → suction screen → engine oil pumping circuit (POH7-38). Internal route schematic, particles only.",
 });
-flow("oilToControl", [OIL_PUMP, [2.93, -0.28, -0.18], [3.2, -0.28, -0.28], OIL_CONTROL], {
+flow("oilToControl", [OIL_PUMP, [2.82, -0.21, 0.068], [2.84, -0.15, 0.16], OIL_CONTROL], {
   ...oil,
   name: "Oil supply → cooler control",
   note: "Pumped oil reaches the remote cooler or its bypass (POH7-38). Routing schematic.",
 });
-flow("oilCoolerFeed", [OIL_CONTROL, [3.37, -0.19, -0.36], OIL_COOLER], {
+flow("oilCoolerFeed", [OIL_CONTROL, [2.695, -0.085, 0.13], [2.67, -0.092, -0.23], COOLER_MOUNT.feed], {
   ...oil,
   name: "Oil cooler feed",
   note: "Remote cooler feed hose (AMM79-20p2). Routing approximate.",
 });
-flow("oilCoolerReturn", [OIL_COOLER, [3.28, -0.08, -0.29], [3.05, 0.04, -0.24], [2.86, 0.065, 0.14], OIL_FILTER], {
+flow("oilCoolerReturn", [COOLER_MOUNT.outlet, [2.665, -0.032, -0.19], [2.69, -0.005, 0.11], OIL_FILTER], {
   ...oil,
   name: "Cooled oil → full-flow filter",
   note: "POH7-38 places the remote cooler before the full-flow filter; AMM79-20p2 identifies separate feed and return hoses. Routing approximate.",

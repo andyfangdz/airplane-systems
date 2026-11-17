@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { CAT } from "@/aircraft/sr20/parts";
+import { FW } from "@/aircraft/sr20/geometry";
 import { ENGINE_DEPTH_FLOWS, engineDepthFlowRates } from "@/aircraft/sr20/engine-depth-flow";
 import {
   CYLS,
@@ -12,7 +13,7 @@ import {
   GOVERNOR,
   INDUCTION_PLENUM,
   OIL_CONTROL,
-  OIL_COOLER,
+  COOLER_MOUNT,
   OIL_FILTER,
   OIL_PUMP,
   OIL_SCREEN,
@@ -115,14 +116,33 @@ describe("SR20 G6 engine depth", () => {
   it("oil pickup, cooler and bypass meet the filter before the gallery and governor circuit (POH7-38,7-40)", () => {
     expect(flow("oilPickup").pts).toEqual([OIL_SUMP, OIL_SCREEN, OIL_PUMP]);
     expect(endpoints("oilToControl")).toEqual([OIL_PUMP, OIL_CONTROL]);
-    expect(endpoints("oilCoolerFeed")).toEqual([OIL_CONTROL, OIL_COOLER]);
-    expect(endpoints("oilCoolerReturn")).toEqual([OIL_COOLER, OIL_FILTER]);
+    expect(endpoints("oilCoolerFeed")).toEqual([OIL_CONTROL, COOLER_MOUNT.feed]);
+    expect(endpoints("oilCoolerReturn")).toEqual([COOLER_MOUNT.outlet, OIL_FILTER]);
     expect(endpoints("oilBypass")).toEqual([OIL_CONTROL, OIL_FILTER]);
     expect(flow("oilRelief").pts[0]).toEqual(OIL_FILTER);
     expect(endpoints("propOil")).toEqual([GOVERNOR, PROP_OIL]);
     for (const c of CYLS) expect(flow("oilCyl" + c.n).tube).toBe(false);
     const stopped = rates({ eng: { running: false, key: "OFF" } }, 0);
     expect(ENGINE_DEPTH_FLOWS.filter((f) => f.groups?.includes("oil")).every((f) => stopped[f.key] === 0)).toBe(true);
+  });
+
+  it("the standard oil cooler bracket lands on the mount weldment behind cylinder four (AMM 79-20 Fig 79-20-1)", () => {
+    const [wall, foot] = MOUNT_RUNS.find(([a, b]) => a === MOUNT_ATTACH[0] && b === MOUNT_FEET[2])!;
+    for (const p of COOLER_MOUNT.pads) {
+      const t = (p[0] - wall[0]) / (foot[0] - wall[0]);
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+      for (const i of [1, 2]) expect(p[i]).toBeCloseTo(wall[i] + t * (foot[i] - wall[i]), 8);
+    }
+    expect(COOLER_MOUNT.center[0]).toBeLessThan(CYLS[3].x);
+    const duct = parts("Oil cooler air duct")[0].geo();
+    try {
+      duct.computeBoundingBox();
+      expect(duct.boundingBox!.min.x).toBeGreaterThan(FW);
+    } finally {
+      duct.dispose();
+    }
+    expect(COOLER_MOUNT.feed).not.toEqual(COOLER_MOUNT.outlet);
   });
 
   it("engine indication requires ENGINE INSTR power while magnetos keep firing independently (POH7-35,7-39)", () => {

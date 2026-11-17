@@ -3,11 +3,13 @@
  */
 import { box, cyl, loft, tubeGeo } from "@/lib/geometry";
 import { V, type Vec3 } from "@/lib/math";
+import { coolerBaffle } from "@/engines/io390/cooler";
+import { COOLER_BAFFLE_PORT, LEFT_UPPER_MOUNT_ATTACH, LEFT_LOWER_MOUNT_FOOT } from "../engine-anchors";
 import { FUSE, FW } from "../geometry";
 import { part } from "./catalogue";
 
 export const MOUNT_ATTACH: Vec3[] = [
-  [FW + 0.016, 0.065, -0.25],
+  LEFT_UPPER_MOUNT_ATTACH,
   [FW + 0.016, 0.065, 0.25],
   [FW + 0.016, -0.42, -0.25],
   [FW + 0.016, -0.42, 0.25],
@@ -15,7 +17,7 @@ export const MOUNT_ATTACH: Vec3[] = [
 const MOUNT_FOOT_ROWS: { key: string; point: Vec3 }[] = [
   { key: "upper-left", point: [2.83, -0.045, -0.175] },
   { key: "upper-right", point: [2.83, -0.045, 0.175] },
-  { key: "lower-left", point: [2.83, -0.29, -0.175] },
+  { key: "lower-left", point: LEFT_LOWER_MOUNT_FOOT },
   { key: "lower-right", point: [2.83, -0.29, 0.175] },
 ];
 export const MOUNT_FEET: Vec3[] = MOUNT_FOOT_ROWS.map((row) => row.point);
@@ -117,7 +119,7 @@ for (const side of [-1, 1]) {
     groups: [],
   });
 }
-part(() => box(0.006, 0.145, 0.84), ["engine"], {
+part(() => coolerBaffle(0.84, 0.145, COOLER_BAFFLE_PORT[1] + 0.015, COOLER_BAFFLE_PORT[2]), ["engine"], {
   id: "parts.engine-installation.aft-cooling-baffle.006",
   pos: [2.755, -0.015, 0],
   color: "#6D8994",
