@@ -1,5 +1,6 @@
 /** Persistent part notes: keyboard selection, hidden-group cleanup and model navigation. */
 import { test, expect } from "@playwright/test";
+import { observeStageCamera, waitForStageCamera } from "./stage-camera-probe.mjs";
 
 for (const width of [1440, 390])
   test(`part inspector supports keyboard selection at ${width}px`, async ({ page }) => {
@@ -48,6 +49,7 @@ for (const phone of [false, true])
       hasTouch: phone,
       reducedMotion: "reduce",
     });
+    await observeStageCamera(context);
     const page = await context.newPage();
     try {
       await page.goto(`${baseURL}/engines/io390`);
@@ -57,6 +59,7 @@ for (const phone of [false, true])
         await page.locator(".panel").evaluate((panel) => {
           panel.scrollTop = panel.scrollHeight;
         });
+      await waitForStageCamera(page);
       const canvas = await page.locator("canvas").boundingBox();
       let hit;
       for (const [fx, fy] of [
@@ -69,8 +72,9 @@ for (const phone of [false, true])
         [0.35, 0.35],
         [0.65, 0.35],
       ]) {
-        const x = canvas.x + canvas.width * fx;
-        const y = canvas.y + canvas.height * fy;
+        // Browser mouse and touch events can round a fractional CSS pixel differently at a fine mesh edge.
+        const x = Math.round(canvas.x + canvas.width * fx);
+        const y = Math.round(canvas.y + canvas.height * fy);
         await page.mouse.move(x, y);
         await page.waitForTimeout(100);
         const tip = page.locator(".eng-tip b");
