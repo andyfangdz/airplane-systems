@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import { bladeAngle, fuelAvail, live, mapInHg } from "../model";
 import { CAT } from "../parts";
@@ -37,7 +38,8 @@ export function Engine() {
       <p className="lead">
         The G6&apos;s normally aspirated Lycoming IO-390-C3B6 has four opposed cylinders, continuous-flow fuel
         injection, and two magnetos firing two plugs per cylinder. One power lever operates separate throttle and
-        governor cables; the red mixture lever meters fuel independently (POH 7-33–7-34).
+        governor cables; the red mixture lever meters fuel independently (POH 7-33–7-34).{" "}
+        <Link href="/engines/io390">Explore the IO-390 engine parts</Link>.
       </p>
       <Ctl>
         <H3>Show sub-systems</H3>

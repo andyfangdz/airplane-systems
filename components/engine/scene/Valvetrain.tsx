@@ -13,6 +13,7 @@ import type { CylinderDef } from "@/engines/types";
 import type { EngineSim } from "../store";
 import {
   bank,
+  camSpin,
   coil,
   D2R,
   GEAR_TEETH,
@@ -27,6 +28,10 @@ import {
   type Mats,
 } from "./kit";
 import { layoutFor, type ValveDef } from "./layout";
+import { Details } from "./io390/Details";
+import { valveHardware, shroudParts, tappetParts } from "./io390/cylinder";
+import { item, sleeve } from "./io390/shapes";
+import { cylinderSpread, Spread } from "./Separation";
 import { P } from "./parts";
 
 /** A cam lobe, nose along +z, axis along x: base circle plus a cos² nose as wide as the valve's open window. */
@@ -75,7 +80,7 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
   const cam = useRef<THREE.Group>(null);
   useFrame(() => {
     // geared to the crankshaft: half speed, the other way
-    if (cam.current) cam.current.rotation.x = (-(sim.anim.crank % 720) / 2) * D2R;
+    if (cam.current) cam.current.rotation.x = (sim.anim.crank % 720) * camSpin(L) * D2R;
   });
   return (
     <group ref={cam} position={[0, d.camY, 0]}>
@@ -90,6 +95,7 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       />
       <P
         name="Camshaft gear"
+        spread={[-0.1, 0, 0]}
         note="Twice the crankshaft gear's teeth, so the camshaft turns once every two crankshaft turns: one four-stroke cycle."
         geometry={geo.gear}
         material={mats.gear}
@@ -124,18 +130,60 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
 }
 
 /** One valve's train geometries; the rocker runs from its pushrod cup (+a from the pivot) to the valve pad (−b). */
-function valveGeometry(d: Dims, v: ValveDef) {
+function valveGeometry(d: Dims, v: ValveDef, detailed: boolean, intake: boolean) {
   const a = v.pushY - v.pivotY,
     b = v.pivotY - v.tipY;
   const springLen = 0.05;
   return {
-    tappet: merge([zrod(0.0085, 0, VT.tappetLen, 16), zrod(0.0095, 0, 0.004, 16)]),
+    detail: detailed
+      ? {
+          ...valveHardware(d, intake),
+          shroud: shroudParts(d),
+          tappet: tappetParts(),
+          spring: [
+            item(
+              "Inner valve spring",
+              "LW-11797",
+              "12–4",
+              "darkSteel",
+              coil(0.0073, 0.0011, 0, springLen, 7),
+              "The inner spring compresses with the outer spring as the valve opens.",
+              [0, 0, 0.055],
+            ),
+          ],
+          rocker: [
+            item(
+              "Valve rocker bushing",
+              "74389",
+              "12–23",
+              "bearing",
+              sleeve(0.0056, 0.007, -0.008, 0.008).rotateY(Math.PI / 2),
+              "The rocker pivots on this bushing.",
+              [intake ? 0.045 : -0.045, 0, 0.19],
+            ),
+            item(
+              "Rocker thrust washer",
+              "71549",
+              "12–24",
+              "steel",
+              sleeve(0.0056, 0.009, 0.008, 0.0095).rotateY(Math.PI / 2),
+              "The washer locates the rocker along its shaft.",
+              [intake ? 0.07 : -0.07, 0, 0.19],
+            ),
+          ],
+        }
+      : null,
+    tappet: detailed
+      ? sleeve(0.006, 0.0085, 0.007, VT.tappetLen - 0.008)
+      : merge([zrod(0.0085, 0, VT.tappetLen, 16), zrod(0.0095, 0, 0.004, 16)]),
     pushrod: merge([
       zrod(0.0042, 0, d.zPivot - VT.baseR - VT.tappetLen, 8),
       zrod(0.0055, 0, 0.006, 8),
       zrod(0.0055, d.zPivot - VT.baseR - VT.tappetLen - 0.006, d.zPivot - VT.baseR - VT.tappetLen, 8),
     ]),
-    shroud: zrod(0.011, d.caseHalf - 0.01, d.zPivot - 0.06, 14),
+    shroud: detailed
+      ? sleeve(0.008, 0.011, d.caseHalf - 0.01, d.zPivot - 0.06)
+      : zrod(0.011, d.caseHalf - 0.01, d.zPivot - 0.06, 14),
     shroudSeal: merge([
       zrod(0.014, d.caseHalf - 0.012, d.caseHalf + 0.006, 14),
       zrod(0.014, d.zPivot - 0.075, d.zPivot - 0.06, 14),
@@ -202,7 +250,8 @@ function CylinderValves({
       {shafts.map((g, k) => (
         <P
           key={k}
-          name="Rocker shaft"
+          name={geo[0].detail ? `Rocker shaft, cylinder ${c.n} ${k === 0 ? "intake" : "exhaust"}` : "Rocker shaft"}
+          spread={[k === 0 ? 0.11 : -0.11, 0, 0.19]}
           note="The rockers pivot on it inside the rocker box."
           geometry={g}
           material={mats.darkSteel}
@@ -210,12 +259,22 @@ function CylinderValves({
       ))}
       {valves.map((vd, v) => {
         const what = v === 0 ? "intake" : "exhaust";
+        const suffix = `, cylinder ${c.n} ${what}`;
         const g = geo[v];
         return (
           <group key={what} position={[vd.x, 0, 0]}>
+            {g.detail && (
+              <>
+                <group position={[0, vd.pushY, 0]}>
+                  <Details parts={g.detail.shroud} mats={mats} suffix={suffix} />
+                </group>
+              </>
+            )}
             <group ref={set(v * 5)} position={[0, vd.pushY, 0]}>
+              {g.detail && <Details parts={g.detail.tappet} mats={mats} suffix={suffix} />}
               <P
-                name="Tappet"
+                name={g.detail ? "Hydraulic roller tappet body" + suffix : "Tappet"}
+                spread={[0, 0, -0.065]}
                 note={`Rides on its cam lobe and lifts the pushrod (cylinder ${c.n} ${what}).`}
                 geometry={g.tappet}
                 material={mats.darkSteel}
@@ -223,53 +282,83 @@ function CylinderValves({
             </group>
             <group ref={set(v * 5 + 1)} position={[0, vd.pushY, 0]}>
               <P
-                name="Pushrod"
+                name={g.detail ? "Pushrod" + suffix : "Pushrod"}
+                spread={[0, 0, 0.06]}
                 note={`Carries the tappet's lift out to the rocker (cylinder ${c.n} ${what}).`}
                 geometry={g.pushrod}
                 material={mats.steel}
               />
             </group>
             <P
-              name="Pushrod shroud tube"
+              name={g.detail ? "Pushrod shroud tube" + suffix : "Pushrod shroud tube"}
+              spread={[0, -0.085, 0.05]}
               note="Encloses the pushrod between the crankcase and the rocker box."
               geometry={g.shroud}
-              material={mats.shroud}
+              material={mats.pushrodTube}
               position={[0, vd.pushY, 0]}
             />
-            <P name="Shroud tube seal" geometry={g.shroudSeal} material={mats.black} position={[0, vd.pushY, 0]} />
+            <P
+              name={g.detail ? "Shroud tube seal" + suffix : "Shroud tube seal"}
+              spread={[0, -0.085, -0.035]}
+              geometry={g.shroudSeal}
+              material={mats.black}
+              position={[0, vd.pushY, 0]}
+            />
             <group ref={set(v * 5 + 2)} position={[0, vd.pivotY, d.zPivot]}>
+              {g.detail && <Details parts={g.detail.rocker} mats={mats} suffix={suffix} />}
               <P
-                name={`Rocker, ${what}`}
+                name={g.detail ? "Rocker" + suffix : `Rocker, ${what}`}
+                spread={[0, 0, 0.19]}
                 note="Turns the pushrod's outward push into an inward push on the valve stem."
                 geometry={g.rocker}
                 material={mats.steel}
               />
             </group>
-            <group ref={set(v * 5 + 3)} position={[0, vd.tipY, 0]}>
-              <P
-                name={v === 0 ? "Intake valve" : "Exhaust valve"}
-                note={
-                  v === 0
-                    ? "Opens to let the fuel–air charge in on the intake stroke."
-                    : "Opens to let the burnt gas out on the exhaust stroke."
-                }
-                geometry={g.valve}
-                material={v === 0 ? mats.valveI : mats.valveE}
-              />
-              <P
-                name="Valve spring retainer"
-                geometry={g.retainer}
-                material={mats.darkSteel}
-                position={[0, 0, d.zPivot - 0.008]}
-              />
-            </group>
-            <group ref={set(v * 5 + 4)} position={[0, vd.tipY, seat]}>
-              <P
-                name="Valve spring"
-                note="Closes the valve and keeps the train in contact with the cam."
-                geometry={g.spring}
-                material={mats.spring}
-              />
+            <group position={[0, 0, d.zPivot]} rotation={[0, g.detail ? (v === 0 ? -0.15 : 0.15) : 0, 0]}>
+              <group position={[0, 0, -d.zPivot]}>
+                {g.detail && (
+                  <group position={[0, vd.tipY, 0]}>
+                    <Details parts={g.detail.fixed} mats={mats} suffix={suffix} />
+                  </group>
+                )}
+                <group ref={set(v * 5 + 3)} position={[0, vd.tipY, 0]}>
+                  {g.detail && <Details parts={g.detail.moving} mats={mats} suffix={suffix} />}
+                  <P
+                    name={
+                      g.detail
+                        ? (v === 0 ? "Intake" : "Exhaust") + " valve, cylinder " + c.n
+                        : v === 0
+                          ? "Intake valve"
+                          : "Exhaust valve"
+                    }
+                    spread={[0, 0, -0.18]}
+                    note={
+                      v === 0
+                        ? "Opens to let the fuel–air charge in on the intake stroke."
+                        : "Opens to let the burnt gas out on the exhaust stroke."
+                    }
+                    geometry={g.valve}
+                    material={v === 0 ? mats.valveI : mats.valveE}
+                  />
+                  <P
+                    name={g.detail ? "Valve spring retainer" + suffix : "Valve spring retainer"}
+                    spread={[0, 0, 0.15]}
+                    geometry={g.retainer}
+                    material={mats.darkSteel}
+                    position={[0, 0, d.zPivot - 0.008]}
+                  />
+                </group>
+                <group ref={set(v * 5 + 4)} position={[0, vd.tipY, seat]}>
+                  {g.detail && <Details parts={g.detail.spring} mats={mats} suffix={suffix} />}
+                  <P
+                    name={g.detail ? "Outer valve spring" + suffix : "Valve spring"}
+                    spread={[0, 0, 0.1]}
+                    note="Closes the valve and keeps the train in contact with the cam."
+                    geometry={g.spring}
+                    material={mats.spring}
+                  />
+                </group>
+              </group>
             </group>
           </group>
         );
@@ -285,10 +374,14 @@ export function ValveTrain({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
     const valves: [ValveDef, ValveDef] = [V.intake, V.exhaust];
     // one rocker shaft across both rockers when they pivot at one height, else a short one for each
     const shafts =
-      V.intake.pivotY === V.exhaust.pivotY
+      !L.c3b6 && V.intake.pivotY === V.exhaust.pivotY
         ? [rod(0.0055, 2 * VT.xOff + 0.03, 10).translate(0, V.intake.pivotY, d.zPivot)]
         : valves.map((v) => rod(0.0055, 0.03, 10).translate(v.x, v.pivotY, d.zPivot));
-    return { valves, geo: valves.map((v) => valveGeometry(d, v)) as [ValveGeo, ValveGeo], shafts };
+    return {
+      valves,
+      geo: valves.map((v, i) => valveGeometry(d, v, !!L.c3b6, i === 0)) as [ValveGeo, ValveGeo],
+      shafts,
+    };
   }, [d, L]);
   useEffect(
     () => () => {
@@ -297,6 +390,11 @@ export function ValveTrain({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
           if (g instanceof THREE.BufferGeometry) g.dispose();
         }),
       );
+      geo.forEach(({ detail }) =>
+        Object.values(detail ?? {})
+          .flat()
+          .forEach((p) => p.geometry.dispose()),
+      );
       shafts.forEach((g) => g.dispose());
     },
     [geo, shafts],
@@ -304,7 +402,11 @@ export function ValveTrain({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
   return (
     <>
       {sim.spec.geometry.cylinders.map((c) => (
-        <CylinderValves key={c.n} sim={sim} c={c} d={d} mats={mats} geo={geo} valves={valves} shafts={shafts} />
+        <Spread key={c.n} by={cylinderSpread(c, 0.26)}>
+          <Spread by={[0, 0.24, 0]}>
+            <CylinderValves sim={sim} c={c} d={d} mats={mats} geo={geo} valves={valves} shafts={shafts} />
+          </Spread>
+        </Spread>
       ))}
     </>
   );

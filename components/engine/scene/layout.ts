@@ -106,6 +106,8 @@ export type NoteKey =
   | "altBelt";
 
 export interface EngineLayout {
+  /** Use the C3B6 castings and illustrated-parts configuration. */
+  c3b6?: boolean;
   /**
    * Stations along the crankshaft, inches, in the scene's x (x = in × 0.0254, + forward): the accessory mounting face,
    * the rear face of the crankcase, the front of the crankcase and the propeller-flange face. null = derived from the
@@ -129,7 +131,7 @@ export interface EngineLayout {
   /** Half the width of one crank throw along the shaft (cheeks and crankpin), m. */
   throwHalf: number;
   /** Counterweights: on the front (+1) or rear (−1) cheek of the named cylinder's throw, hanging opposite its pin. */
-  counterweights: { cyl: number; cheek: 1 | -1 }[];
+  counterweights: { cyl: number; cheek: 1 | -1; opposed?: boolean }[];
   /** A main bearing at the front of the crankcase as well as one in each journal between the throws. */
   noseMainBearing: boolean;
   /** Crankcase top and bottom, sump bottom, and the accessory housing's height range, m (crankshaft axis at 0). */
@@ -248,7 +250,50 @@ export const IO390_DEFAULTS: EngineLayout = {
 
 /** Layouts by engine id; the fields an engine leaves out keep the IO-390 values. */
 const LAYOUTS: Record<string, EngineLayout> = {
-  io390: IO390_DEFAULTS,
+  io390: {
+    ...IO390_DEFAULTS,
+    c3b6: true,
+    camera: { position: [1.38, 0.74, 1.65], target: [0, -0.02, 0], maxDistance: 6 },
+    alternators: [
+      {
+        name: "ALT 1",
+        drive: "belt",
+        ratio: null,
+        angleDeg: 124,
+        r: 0.235,
+        pulleyBehindFlange: 0.072,
+        src: "SR20 POH 7-49, AMM 24-30 Fig. 2",
+      },
+      {
+        name: "ALT 2",
+        drive: "belt",
+        ratio: null,
+        angleDeg: 238,
+        r: 0.255,
+        pulleyBehindFlange: 0.048,
+        src: "SR20 POH 7-49, AMM 24-30 Fig. 3",
+      },
+    ],
+    labels: (d, spec) => [
+      ...IO390_DEFAULTS.labels(d, spec).filter(([name]) => name !== "Alternator" && name !== "Magnetos"),
+      ["Magnetos", [d.accRear - 0.11, 0.1, 0], { group: "ignition" }],
+      ["ALT 1", [d.flangeX - 0.1, -0.13, 0.23], { group: "drives" }],
+      ["ALT 2", [d.flangeX - 0.08, -0.13, -0.25], { group: "drives" }],
+    ],
+    notes: {
+      magGear:
+        "Each magneto gear is driven by a crankshaft idler (IPC Figs. 8 and 27). The magneto turns once per crankshaft revolution (IOM Table A-1).",
+      altBelt:
+        "One of two independent belt drives on the SR20 G6 (POH 7-49, AMM 24-30 Figs. 2–3). Pulley stations and diameters are illustrative.",
+      counterweight:
+        "Two weights straddle opposed lugs at the rear of the shaft. Each runs on its matched roller pair (MM 72-20 Fig. 22).",
+      govDriveGear: "Integral camshaft gear driving the front governor through an idler (IOM p. 2, IPC Fig. 3).",
+    },
+    counterweights: [
+      { cyl: 4, cheek: 1 },
+      { cyl: 4, cheek: 1, opposed: true },
+    ],
+  },
   tsio550k: { ...IO390_DEFAULTS, ...TSIO550K_LAYOUT },
 };
 

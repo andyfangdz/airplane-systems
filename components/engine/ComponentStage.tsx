@@ -207,6 +207,7 @@ export function ComponentStage({
   minDistance,
   maxDistance,
   frameKey = "",
+  shadowExtent,
   ambient = 0.55,
   keyLight = { position: [3, 4, 2], intensity: 1.6 },
   logarithmicDepth = false,
@@ -219,6 +220,8 @@ export function ComponentStage({
   maxDistance: number;
   /** Change only for an explicit study/preset change, not for live simulation values. */
   frameKey?: string;
+  /** Half-width of the directional shadow camera in model metres, for the solid engine finish. */
+  shadowExtent?: number;
   ambient?: number;
   keyLight?: { position: Vec3; intensity: number };
   /** For a scene deeper than the depth buffer resolves (metres to tens of kilometres): surfaces a metre apart far
@@ -234,11 +237,27 @@ export function ComponentStage({
       <Canvas
         camera={camera}
         {...rendering}
+        shadows={shadowExtent ? "percentage" : false}
         gl={{ antialias: true, alpha: true, logarithmicDepthBuffer: logarithmicDepth }}
         onPointerMissed={clearHover}
       >
         <ambientLight intensity={ambient} />
-        <directionalLight position={keyLight.position} intensity={keyLight.intensity} />
+        <directionalLight
+          position={keyLight.position}
+          intensity={keyLight.intensity}
+          castShadow={!!shadowExtent}
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-normalBias={0.0007}
+          shadow-bias={-0.00012}
+        >
+          {shadowExtent && (
+            <orthographicCamera
+              attach="shadow-camera"
+              args={[-shadowExtent, shadowExtent, shadowExtent, -shadowExtent, 2, 8]}
+            />
+          )}
+        </directionalLight>
         <directionalLight position={[-3, 1.5, -2]} intensity={0.5} />
         <hemisphereLight args={["#ffffff", "#445566", 0.4]} />
         <group ref={model}>{children}</group>

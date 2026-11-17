@@ -100,3 +100,56 @@ for (const phone of [false, true])
       await context.close();
     }
   });
+
+test("IO-390 catalog separation keeps a selected part and the study controls", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (/THREE\.WebGLProgram: Shader Error/.test(message.text())) errors.push(message.text());
+  });
+  await page.goto("/engines/io390");
+  const button = page.getByRole("button", { name: "Blow up", exact: true });
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  const inspector = page.getByRole("region", { name: "Part inspector" });
+  await inspector.locator("summary").click();
+  await inspector.getByRole("searchbox").fill("14G22050");
+  await inspector.getByRole("button", { name: "Top compression ring, cylinder 1", exact: true }).click();
+  const selected = inspector.getByRole("heading", { name: "Top compression ring, cylinder 1" });
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await expect(selected).toBeVisible();
+  await inspector.getByRole("searchbox").fill("STD-1925");
+  const screws = inspector.getByRole("button", { name: /^Rocker cover screw/ });
+  await expect(screws).toHaveCount(32);
+  const first = inspector.getByRole("button", { name: "Rocker cover screw (1), cylinder 1", exact: true });
+  const second = inspector.getByRole("button", { name: "Rocker cover screw (2), cylinder 1", exact: true });
+  await first.click();
+  await second.click();
+  await expect(first).toHaveAttribute("aria-pressed", "false");
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    inspector.getByRole("heading", { name: "Rocker cover screw (2), cylinder 1", exact: true }),
+  ).toBeVisible();
+  const xray = page.getByRole("button", { name: "X-ray", exact: true });
+  for (const pressed of ["true", "false"]) {
+    await xray.click();
+    await expect(xray).toHaveAttribute("aria-pressed", pressed);
+    // Allow the renderer to compile and draw the new palette before switching again.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(second).toHaveAttribute("aria-pressed", "true");
+  }
+  await button.click();
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+  await inspector.getByRole("searchbox").fill("14G22050");
+  await inspector.getByRole("button", { name: "Top compression ring, cylinder 1", exact: true }).click();
+  await button.click();
+  await page.getByRole("combobox", { name: "Study view" }).selectOption("cycle");
+  await expect(button).toHaveAttribute("aria-pressed", "true");
+  await button.click();
+  await expect(button).toHaveAttribute("aria-pressed", "false");
+  await expect(selected).toBeVisible();
+  await page.goto("/engines/o360");
+  await expect(page.getByRole("combobox", { name: "Study view" })).toBeVisible();
+  await expect(button).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

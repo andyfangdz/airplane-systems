@@ -37,6 +37,7 @@ export function dims(spec: EngineSpec, L: EngineLayout = layoutFor(spec)) {
     rear = st ? st.caseRear * IN : Math.min(...xs) - 0.13;
   const belt = L.alternators.find((a) => a.drive === "belt");
   return {
+    cylinders: g.cylinders,
     r,
     l,
     bore,
@@ -51,8 +52,8 @@ export function dims(spec: EngineSpec, L: EngineLayout = layoutFor(spec)) {
     headOut: halfWidth - 0.03,
     /** Camshaft axis height (gear centres: crank gear r + cam gear r, 2:1), above or below the crankshaft. */
     camY: L.camBelow ? -0.12 : 0.12,
-    crankGearR: 0.04,
-    camGearR: 0.08,
+    crankGearR: L.c3b6 ? 0.027 : 0.04,
+    camGearR: L.c3b6 ? 0.054 : 0.08,
     /** Rocker shaft, and the valve-stem tips at rest, along a cylinder's axis. */
     zPivot: halfWidth - 0.065,
     /** Rear face of the crankcase, accessory housing behind it. */
@@ -111,17 +112,17 @@ export function valveLayout(L: EngineLayout): { intake: ValveDef; exhaust: Valve
     : { intake: v(VT.xOff, k * VT.tipY), exhaust: v(-VT.xOff, k * VT.tipY) };
 }
 
-export function makeMats() {
-  const std = (color: string, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
-    new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.35, ...extra });
-  return {
+const studyMaterial = (color: string, extra: THREE.MeshStandardMaterialParameters = {}) =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.35, ...extra });
+export function makeMats(L?: EngineLayout, std = studyMaterial) {
+  const materials = {
     // X-ray: these turn translucent
-    case: std("#9aa4ab", { transparent: true, side: THREE.DoubleSide }),
+    case: std(L?.c3b6 ? "#737d85" : "#9aa4ab", { transparent: true, side: THREE.DoubleSide }),
     sump: std("#8e9aa2", { transparent: true, side: THREE.DoubleSide }),
     acc: std("#8a959c", { transparent: true }),
     barrel: std("#5b666e", { transparent: true }),
     head: std("#aab2b8", { transparent: true }),
-    cover: std("#c9ced2", { transparent: true, metalness: 0.5 }),
+    cover: std(L?.c3b6 ? "#949da4" : "#c9ced2", { transparent: true, metalness: 0.5 }),
     shroud: std("#b9c0c5", { transparent: true, metalness: 0.5 }),
     // internals
     steel: std("#a9b2ba", { metalness: 0.85, roughness: 0.3 }),
@@ -136,15 +137,21 @@ export function makeMats() {
     // accessories
     mag: std("#2b3138", { metalness: 0.3 }),
     magCap: std("#d9960f"),
-    lead: std("#cfd5da", { metalness: 0.6, roughness: 0.4 }),
+    lead: std(L?.c3b6 ? "#39434a" : "#cfd5da", { metalness: 0.6, roughness: 0.4 }),
     plug: std("#f2f2ee", { roughness: 0.3 }),
     spark: new THREE.MeshBasicMaterial({ color: "#9fd8ff", transparent: true, opacity: 0, depthWrite: false }),
     black: std("#22272c", { metalness: 0.3, roughness: 0.6 }),
     alt: std("#3d4650", { metalness: 0.4 }),
     belt: std("#1a1d20", { roughness: 0.9, metalness: 0 }),
-    filter: std("#2c62a6", { metalness: 0.3 }),
-    intake: std("#149c94", { metalness: 0.4 }),
-    fuel: std("#2f7fe6", { emissive: "#2f7fe6", emissiveIntensity: 0 }),
+    filter: std(L?.c3b6 ? "#deded6" : "#2c62a6", { metalness: 0.3 }),
+    // Separate surfaces even where the study palette uses the same tint.
+    paper: std("#deded6", { metalness: 0.3 }),
+    duct: std("#22272c", { metalness: 0.3, roughness: 0.6 }),
+    oilHose: std("#22272c", { metalness: 0.3, roughness: 0.6 }),
+    copper: std("#b85a2a", { metalness: 0.3 }),
+    exhaust: std("#555", { roughness: 0.55, metalness: 0.5, emissive: "#000" }),
+    intake: std(L?.c3b6 ? "#9ba3aa" : "#149c94", { metalness: 0.4 }),
+    fuel: std(L?.c3b6 ? "#a69a80" : "#2f7fe6", { emissive: L?.c3b6 ? "#5b90b5" : "#2f7fe6", emissiveIntensity: 0 }),
     fuelBody: std("#7a8a99", { metalness: 0.5 }),
     oil: std("#b85a2a", { metalness: 0.3 }),
     prop: std("#4a535c", { metalness: 0.5, roughness: 0.4 }),
@@ -152,8 +159,24 @@ export function makeMats() {
     disc: new THREE.MeshBasicMaterial({ color: "#7d8a94", transparent: true, opacity: 0.07, depthWrite: false }),
     spinner: std("#d8dde1", { metalness: 0.6, roughness: 0.25 }),
   };
+  return {
+    ...materials,
+    nozzle: materials.gear,
+    plugShield: materials.lead,
+    fuelHose: materials.fuel,
+    propFlange: materials.steel,
+    ringSupport: materials.acc,
+    pushrodTube: materials.shroud,
+    coverMark: materials.darkSteel,
+    baffleSheet: materials.shroud,
+    baffleSeal: materials.shroud,
+  };
 }
 export type Mats = ReturnType<typeof makeMats>;
+
+export function disposeMats(mats: Mats) {
+  for (const material of new Set(Object.values(mats))) material.dispose();
+}
 
 /** Materials that turn translucent in X-ray. */
 export const XRAY_MATS = ["case", "sump", "acc", "barrel", "head", "cover", "shroud"] as const;
@@ -204,7 +227,7 @@ export function finned(radius: number, fin: number, z0: number, z1: number, n: n
 }
 
 /** A spur gear in the y–z plane (axis along x), centred. */
-export function gear(radius: number, teeth: number, width: number, bore = 0) {
+export function gear(radius: number, teeth: number, width: number, bore = 0, boreSegments = 4) {
   const s = new THREE.Shape();
   const depth = Math.min(0.006, radius * 0.12);
   for (let i = 0; i < teeth; i++) {
@@ -229,7 +252,7 @@ export function gear(radius: number, teeth: number, width: number, bore = 0) {
     h.absarc(0, 0, bore, 0, Math.PI * 2, true);
     s.holes.push(h);
   }
-  const g = new THREE.ExtrudeGeometry(s, { depth: width, bevelEnabled: false, curveSegments: 4 });
+  const g = new THREE.ExtrudeGeometry(s, { depth: width, bevelEnabled: false, curveSegments: boreSegments });
   // shape in x–y, extruded along z → turn so the axis is x
   return g.translate(0, 0, -width / 2).rotateY(Math.PI / 2);
 }
@@ -352,7 +375,10 @@ export function peakCrank(spec: EngineSpec, c: CylinderDef, intake: boolean) {
  * points along the cylinder's axis, at its tappet, exactly at peak lift.
  */
 export const lobeAngle = (spec: EngineSpec, c: CylinderDef, intake: boolean) =>
-  sideAngle(c) - 90 + peakCrank(spec, c, intake) / 2;
+  sideAngle(c) - 90 - camSpin(layoutFor(spec)) * peakCrank(spec, c, intake);
+
+/** MM 72-20 Fig. 93: the C3B6 cam runs through the left idler. */
+export const camSpin = (L: EngineLayout) => (L.c3b6 ? 0.5 : -0.5);
 
 /**
  * The magnetos the switch's START position fires, as drawn: both where the spec says so (`ignition.startMags`),
@@ -401,11 +427,28 @@ export const MAG_PAIR_TEETH = 20;
  * the magneto gear's teeth, so the idler turns at the magneto drive ratio, small enough to stay inside the housing and
  * clear of the magnetos, and a rear gear behind the face driving each magneto gear tooth for tooth.
  */
-export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
+export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec), side: Side = "R") {
   const M = L.magnetos;
   const z = M.z;
   const ratio = spec.accessories.magnetoRatio;
   const x = d.caseRear - 0.018;
+  if (L.c3b6) {
+    // MM 72-20 Figs. 91–94: the left idler meshes with crank and cam; the right one sits lower.
+    const teeth = 40,
+      r = (d.crankGearR * teeth) / GEAR_TEETH.crank,
+      distance = d.crankGearR + r;
+    const y = side === "L" ? (d.camY ** 2 + distance ** 2 - (d.camGearR + r) ** 2) / (2 * d.camY) : -0.024;
+    const offset = Math.sqrt(distance ** 2 - y ** 2);
+    const magY = y + Math.sqrt(distance ** 2 - (z - offset) ** 2);
+    return {
+      r: d.crankGearR,
+      teeth: GEAR_TEETH.crank,
+      z,
+      y: magY,
+      x,
+      idler: { y, z: side === "L" ? -offset : offset, r, teeth, x, rearR: r, rearTeeth: teeth, rearX: x },
+    };
+  }
   if (L.magDrive === "idler") {
     const teeth = Math.round(GEAR_TEETH.crank / ratio),
       r = (d.crankGearR * teeth) / GEAR_TEETH.crank;
@@ -420,7 +463,7 @@ export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(
         z,
         y: M.y,
         x: rearX,
-        idler: { y: idlerY, r, teeth, x, rearR: pairR, rearTeeth: MAG_PAIR_TEETH, rearX },
+        idler: { z: 0, y: idlerY, r, teeth, x, rearR: pairR, rearTeeth: MAG_PAIR_TEETH, rearX },
       };
     }
     const idlerY = d.crankGearR + IDLER.r;
@@ -430,7 +473,7 @@ export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(
       z,
       y: idlerY + Math.sqrt((IDLER.r + r) ** 2 - z * z),
       x,
-      idler: { y: idlerY, ...IDLER, x, rearR: IDLER.r, rearTeeth: IDLER.teeth, rearX: x },
+      idler: { z: 0, y: idlerY, ...IDLER, x, rearR: IDLER.r, rearTeeth: IDLER.teeth, rearX: x },
     };
   }
   const r = (d.camGearR * 0.5) / ratio,
@@ -444,7 +487,7 @@ export function magDrive(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(
  */
 export function magnetoPose(spec: EngineSpec, d: Dims, side: "L" | "R", L: EngineLayout = layoutFor(spec)) {
   const M = L.magnetos;
-  const drive = magDrive(spec, d, L);
+  const drive = magDrive(spec, d, L, side);
   const y = drive.y,
     z = side === "R" ? drive.z : -drive.z;
   const k = M.mount === "forward" ? 1 : -1;
@@ -497,6 +540,18 @@ export function oilFiller(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
 export function oilPump(d: Dims, L: EngineLayout = IO390_DEFAULTS) {
   // on the camshaft: the gears just aft of the camshaft gear and the body short of the accessory housing's rear face, so
   // the pump stays inside the TSIO-550-K's 1.6 in housing, where the starter adapter bolts on behind it (approximate)
+  if (L.c3b6)
+    return {
+      driveR: 0,
+      driveTeeth: 0,
+      y: 0,
+      gearR: 0.018,
+      x0: -0.018,
+      x1: -0.042,
+      ratio: 1,
+      onCam: false,
+      body: [0.01, 0.01] as const,
+    };
   if (L.oilPumpDrive === "cam")
     return {
       driveR: 0.018,
@@ -556,7 +611,7 @@ export function crankLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutF
   const counterweights = L.counterweights.map((w) => {
     const c = cyls.find((k) => k.n === w.cyl);
     if (!c) throw new Error(`Counterweight on cylinder ${w.cyl}, which ${spec.id} doesn't have`);
-    return { c, at: w.cheek * cheek, x: c.x + w.cheek * cheek };
+    return { c, at: w.cheek * cheek, x: c.x + w.cheek * cheek, opposed: w.opposed ?? false };
   });
   return { journals, bearings, cheek, cheeks, counterweights };
 }
@@ -567,12 +622,13 @@ export function crankLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutF
  * gear on the camshaft's front, or a bevel gear there with the governor on the lower left), and the alternators (belt
  * from a crankshaft pulley, or gear from a drive gear on the crankshaft).
  */
+export const GOV_IDLER_R = 0.025;
 export function driveLayout(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
   const acc = spec.accessories;
   // governor: its gear meshes with the camshaft's, turning at the governor drive ratio
   const camGovR = 0.03,
     govR = (camGovR * 0.5) / acc.governorRatio;
-  const gd = camGovR + govR;
+  const gd = camGovR + govR + (L.c3b6 ? 2 * GOV_IDLER_R : 0);
   const governor =
     L.governor === "front-top"
       ? {
@@ -683,16 +739,18 @@ export function gearSpins(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor
   const D = driveLayout(spec, d, L);
   const mag = magDrive(spec, d, L);
   const pump = oilPump(d, L);
-  const spins: Record<string, number> = { crank: 1, cam: -0.5, magneto: acc.magnetoRatio };
-  const meshes: { a: string; b: string; kind: "gear" | "belt" | "bevel" }[] = [{ a: "crank", b: "cam", kind: "gear" }];
+  const spins: Record<string, number> = { crank: 1, cam: camSpin(L), magneto: acc.magnetoRatio };
+  const meshes: { a: string; b: string; kind: "gear" | "belt" | "bevel" }[] = [
+    { a: L.c3b6 ? "idler" : "crank", b: "cam", kind: "gear" },
+  ];
   if (mag.idler) {
     spins.idler = -GEAR_TEETH.crank / mag.idler.teeth;
     meshes.push({ a: "crank", b: "idler", kind: "gear" }, { a: "idler", b: "magneto", kind: "gear" });
   } else meshes.push({ a: "cam", b: "magneto", kind: "gear" });
   // the first pumping gear turns with its drive gear (on the camshaft or meshing the crankshaft gear); the second meshes
-  spins.oilPump = -pump.ratio;
-  spins.oilPumpIdler = pump.ratio;
-  if (!pump.onCam) {
+  spins.oilPump = L.c3b6 ? 1 : -pump.ratio;
+  spins.oilPumpIdler = -spins.oilPump;
+  if (!pump.onCam && !L.c3b6) {
     spins.oilPumpDrive = -pump.ratio;
     meshes.push({ a: "crank", b: "oilPumpDrive", kind: "gear" });
   }
@@ -706,7 +764,10 @@ export function gearSpins(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor
   }
   // a bevel governor gear stands across the camshaft, its axis turned to −z, so it turns the other way about its own axis
   spins.governor = D.governor.bevel ? -acc.governorRatio : acc.governorRatio;
-  meshes.push({ a: "cam", b: "governor", kind: D.governor.bevel ? "bevel" : "gear" });
+  if (L.c3b6) {
+    spins.governorIdler = (-0.5 * D.governor.camGovR) / GOV_IDLER_R;
+    meshes.push({ a: "cam", b: "governorIdler", kind: "gear" }, { a: "governorIdler", b: "governor", kind: "gear" });
+  } else meshes.push({ a: "cam", b: "governor", kind: D.governor.bevel ? "bevel" : "gear" });
   for (const a of D.alternators) {
     // a bevel pinion beside the drive gear's forward face turns about its own axis with the crankshaft (+ outboard)
     spins[a.def.name] = a.gear && !a.gear.bevel ? -a.ratio : a.ratio;

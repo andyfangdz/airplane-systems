@@ -3,6 +3,7 @@
  * POH 11934-005 Reissue A/Revision A1 7-33–7-40; AMM 12137-002 Reissue A/Revision A1 ATA 61, 71, 73, 74, 77–79.
  * Keep shared ports here so visible components, pipes and tests meet at the same point without registering parts.
  */
+import { coolerMount } from "@/engines/io390/cooler";
 import type { Vec3 } from "@/lib/math";
 
 export const CRANK_Y = -0.14;
@@ -48,7 +49,11 @@ export const TAILPIPE: Vec3[] = [
 export const OIL_SUMP: Vec3 = [3.08, -0.38, 0];
 export const OIL_SCREEN: Vec3 = [2.84, -0.405, 0];
 export const OIL_PUMP: Vec3 = [2.82, -0.255, -0.025];
-export const OIL_COOLER: Vec3 = [3.36, -0.1, -0.35];
+export const LEFT_UPPER_MOUNT_ATTACH: Vec3 = [2.626, 0.065, -0.25];
+export const LEFT_LOWER_MOUNT_FOOT: Vec3 = [2.83, -0.29, -0.175];
+export const COOLER_MOUNT = coolerMount(LEFT_UPPER_MOUNT_ATTACH, LEFT_LOWER_MOUNT_FOOT);
+export const OIL_COOLER = COOLER_MOUNT.center;
+export const COOLER_BAFFLE_PORT: Vec3 = [2.755, -0.038, OIL_COOLER[2]];
 export const OIL_FILTER: Vec3 = [2.83, -0.02, 0.21];
 export const OIL_CONTROL: Vec3 = [2.875, -0.072, 0.16];
 export const OIL_RELIEF: Vec3 = [2.85, -0.165, -0.12];

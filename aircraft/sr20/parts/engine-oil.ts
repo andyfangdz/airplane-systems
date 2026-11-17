@@ -1,6 +1,9 @@
 /** SR20 wet-sump lubrication and propeller oil. POH 11934-005 7-38, 7-40; AMM 12137-002 ATA 61, 79. */
-import { box, cyl, mergeGeos } from "@/lib/geometry";
+import { box, cyl, mergeGeos, tubeGeo } from "@/lib/geometry";
+import { coolerBracket, coolerCore, coolerDiffuser, coolerDuctPath, coolerElbow } from "@/engines/io390/cooler";
 import {
+  COOLER_BAFFLE_PORT,
+  COOLER_MOUNT,
   GOVERNOR,
   OIL_COOLER,
   OIL_CONTROL,
@@ -40,7 +43,7 @@ part(() => box(0.052, 0.045, 0.06), ["engine"], {
   pin: true,
   groups: ["oil"],
 });
-part(() => box(0.08, 0.16, 0.12), ["engine"], {
+part(() => mergeGeos([coolerCore(), coolerElbow(-1), coolerElbow(1)]), ["engine"], {
   id: "parts.engine-oil.oil-cooler.004",
   pos: OIL_COOLER,
   color: "#9A6A48",
@@ -49,13 +52,20 @@ part(() => box(0.08, 0.16, 0.12), ["engine"], {
   note: "Remote-mounted cooler with feed and return hoses, diffuser and mounting bracket (POH 7-38; AMM 79-20 pp. 2–7, Fig 79-20-1). The AMM distinguishes standard and hot-weather installations; this represents the standard system. Cooler and diffuser coordinates approximate.",
   groups: ["oil"],
 });
-part(() => box(0.12, 0.12, 0.018), ["engine"], {
+part(() => mergeGeos([coolerBracket(COOLER_MOUNT), coolerDiffuser()]), ["engine"], {
   id: "parts.engine-oil.oil-cooler-diffuser-bracket.005",
-  pos: [OIL_COOLER[0], OIL_COOLER[1] - 0.03, OIL_COOLER[2] - 0.07],
+  pos: OIL_COOLER,
   color: "#71808A",
   name: "Oil cooler diffuser / bracket",
-  note: "Directs cooling air through and supports the remote oil cooler (AMM 79-20 Fig 79-20-1). Simplified plate envelope; its shape is approximate.",
+  note: "Directs cooling air through and supports the remote oil cooler (AMM 79-20 Fig 79-20-1). Bracket bolted to the engine-mount weldment. Lateral position, angle and dimensions approximate.",
   groups: ["oil"],
+});
+part(() => tubeGeo(coolerDuctPath(COOLER_MOUNT, COOLER_BAFFLE_PORT), 0.029), ["engine"], {
+  id: "parts.engine-oil.oil-cooler-air-duct",
+  name: "Oil cooler air duct",
+  color: "#554740",
+  groups: ["oil"],
+  note: "A clamped duct delivers cooling air to the diffuser. Routing to the aft baffle is schematic (AMM 79-20 Fig 79-20-1).",
 });
 part(() => cyl(0.021, 0.035, "x"), ["engine"], {
   id: "parts.engine-oil.oil-cooler-bypass-valve.006",

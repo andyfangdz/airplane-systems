@@ -13,8 +13,10 @@ import type { XRotationEnvelope } from "@/lib/component-stage";
 import type { EngineSim } from "../store";
 import {
   bank,
+  GOV_IDLER_R,
   coil,
   D2R,
+  GEAR_TEETH,
   driveLayout,
   gearSpins,
   egtColor,
@@ -35,6 +37,28 @@ import {
   type Mats,
 } from "./kit";
 import { layoutFor, type EngineLayout } from "./layout";
+import {
+  alternatorBell,
+  fanPulley,
+  alternatorFan,
+  driveHardware,
+  ignitionHardware,
+  portHardware,
+  fuelHardware,
+} from "./io390/accessories";
+import {
+  diaphragmPump,
+  exhaustInstallation,
+  inductionInlet,
+  injectionServo,
+  servoInletOffset,
+  servoPosition,
+} from "./io390/installation";
+import { sleeve } from "./io390/shapes";
+import { nozzleLinePoints, plugLead, servoHoses } from "./io390/lines";
+import { AccessoryInternals } from "./io390/AccessoryInternals";
+import { accessorySpread, Spread } from "./Separation";
+import { Details, useDetailDisposal } from "./io390/Details";
 import { P } from "./parts";
 
 type V3 = [number, number, number];
@@ -120,9 +144,16 @@ export function ignitionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = la
     const k = bank(c);
     const topMag = spec.ignition.topPlugMag[c.n];
     const botMag = topMag === "L" ? "R" : "L";
-    const cap = (m: "L" | "R", dy: number): V3 => [d.accRear - M.len - 0.02, drive.y + dy, magZ(m)];
+    const cap = (m: "L" | "R", dy: number): V3 => [d.accRear - M.len - 0.02, magDrive(spec, d, L, m).y + dy, magZ(m)];
     const top = toWorld(c, hp.topLead),
       bot = toWorld(c, hp.botLead);
+    if (L.c3b6) {
+      leads.push(
+        plugLead(d, c, magnetoPose(spec, d, topMag, L).capEnd, top, true),
+        plugLead(d, c, magnetoPose(spec, d, botMag, L).capEnd, bot, false),
+      );
+      return;
+    }
     leads.push(
       tube(
         // up off the cap and forward over the magneto and the accessory housing
@@ -174,7 +205,8 @@ export function ignitionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = la
 export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
   const L = layoutFor(spec);
-  const drive = useMemo(() => magDrive(spec, d, L), [spec, d, L]);
+  const hardware = useMemo(() => (L.c3b6 ? ignitionHardware(spec, d) : []), [L, spec, d]);
+  useDetailDisposal(hardware);
   const geo = useMemo(() => ignitionGeometry(spec, d, L), [spec, d, L]);
   useEffect(
     () => () =>
@@ -184,29 +216,43 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
     [geo],
   );
   const gears = useRef<(THREE.Mesh | null)[]>([]);
-  const idler = useRef<THREE.Mesh>(null);
+  const idlers = useRef<(THREE.Mesh | null)[]>([]);
   const { spins } = useMemo(() => gearSpins(spec, d, L), [spec, d, L]);
   useFrame(() => {
     // geared to the camshaft gear (−crank/2) or the idler, so with the crankshaft at the magneto drive ratio
     const a = ((sim.anim.crank * spins.magneto) % 360) * D2R;
     gears.current.forEach((g) => {
       if (!g) return;
-      g.rotation.x = a + Math.PI / drive.teeth;
+      g.rotation.x = a + Math.PI / magDrive(spec, d, L).teeth;
     });
     // the idler turns against the crankshaft gear, slower by their tooth ratio
-    if (idler.current && drive.idler) idler.current.rotation.x = ((sim.anim.crank * spins.idler) % 360) * D2R;
+    for (const idler of idlers.current) if (idler) idler.rotation.x = ((sim.anim.crank * spins.idler) % 360) * D2R;
   });
   const mags = spec.accessories.magnetos;
   // a retard-breaker magneto fires alone at START; with START firing both, neither is one
   const startMags = magsAtStart(spec);
   return (
     <>
+      <Details parts={hardware} mats={mats} />
       {(["L", "R"] as const).map((m, k) => {
         const retard = startMags.length === 1 && m === startMags[0];
         return (
           <group key={m} position={[0, ...magnetoPose(spec, d, m, L).centre.slice(1)] as V3}>
+            {L.c3b6 && (
+              <AccessoryInternals
+                kind="magneto"
+                sim={sim}
+                mats={mats}
+                position={[magnetoPose(spec, d, m, L).centre[0], 0, 0]}
+                spread={accessorySpread.Magnetos}
+                suffix={m === "L" ? ", left magneto" : ", right magneto"}
+                retard={retard}
+                ratio={spins.magneto}
+              />
+            )}
             <P
               name={`${m === "L" ? "Left" : "Right"} magneto${retard ? " (retard breaker)" : ""}`}
+              spread={accessorySpread.Magnetos}
               note={
                 L.notes.magneto
                   ? `${L.notes.magneto} ${mags}.`
@@ -217,15 +263,17 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
               geometry={geo.body}
               material={mats.mag}
             />
-            <P name="Magneto mounting flange" geometry={geo.flange} material={mats.mag} />
+            <P name="Magneto mounting flange" spread={[-0.38, 0.1, 0]} geometry={geo.flange} material={mats.mag} />
             <P
               name="Magneto distributor cap"
+              spread={[-0.51, 0.1, 0]}
               note={L.notes.magCap ?? "Leads to four plugs leave here: one in every cylinder."}
               geometry={geo.cap}
               material={mats.magCap}
             />
             <P
               name="Magneto drive gear"
+              spread={[-0.22, 0.1, 0]}
               note={
                 L.notes.magGear ??
                 `Meshes with the camshaft gear: half as many teeth, so the magneto turns at crankshaft speed (magneto drive ratio ${spec.accessories.magnetoRatio}:1, Table A-1).`
@@ -239,16 +287,34 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
           </group>
         );
       })}
-      {geo.idler && (
-        <group position={[0, drive.idler?.y ?? 0, 0]}>
-          <P name="Idler gear" note={L.notes.idler} geometry={geo.idler} material={mats.gear} meshRef={idler} />
-        </group>
-      )}
+      {(L.c3b6 ? (["L", "R"] as const) : (["R"] as const)).map((side, i) => {
+        const axis = magDrive(spec, d, L, side).idler;
+        if (!geo.idler || !axis) return null;
+        return (
+          <group key={side} position={[0, axis.y, axis.z]}>
+            <P
+              name={L.c3b6 ? (side === "L" ? "Left" : "Right") + " crankshaft idler gear" : "Idler gear"}
+              spread={[-0.14, 0.09, 0]}
+              note={
+                L.c3b6
+                  ? "Between the crankshaft and magneto. The left idler also times the camshaft (MM 72-20, Figs. 91–94)."
+                  : L.notes.idler
+              }
+              geometry={geo.idler}
+              material={mats.gear}
+              meshRef={(m) => {
+                idlers.current[i] = m;
+              }}
+            />
+          </group>
+        );
+      })}
       {geo.cover && (
         <P name="Magneto drive housing" note={L.notes.magDriveHousing} geometry={geo.cover} material={mats.acc} />
       )}
       <P
         name="Ignition harness"
+        spread={[-0.11, 0.71, 0]}
         note={
           L.notes.harness ?? "All-weather shielded leads from each magneto to one plug in every cylinder (IOM p. 2)."
         }
@@ -260,7 +326,8 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
 }
 
 /** Fuel injector: under the front of the sump, with the throttle body facing forward. */
-const injectorAt = (d: Dims): V3 => [d.front - 0.03, d.sumpBottom - 0.035, 0];
+const injectorAt = (d: Dims, spec: EngineSpec): V3 =>
+  layoutFor(spec).c3b6 ? servoPosition(d) : [d.front - 0.03, d.sumpBottom - 0.035, 0];
 const manifoldAt = (sim: EngineSim, d: Dims): V3 => {
   const xs = sim.spec.geometry.cylinders.map((c) => c.x);
   return [(Math.max(...xs) + Math.min(...xs)) / 2, d.caseTop + 0.035, 0];
@@ -362,6 +429,57 @@ function ContinentalFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
   );
 }
 
+/** The rear idler eccentric bears on the long fuel-pump plunger (IPC Fig. 8, MM 72-25 Fig. 6). */
+function PumpPlunger({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
+  const axis = magDrive(sim.spec, d, layoutFor(sim.spec), "L").idler!;
+  const ratio = -GEAR_TEETH.crank / axis.teeth;
+  const radius = 0.014,
+    offset = 0.0025;
+  const eccentric = useMemo(() => rod(radius, 0.012, 28).translate(0, offset, 0), []);
+  const stem = useMemo(
+    () =>
+      merge([
+        new THREE.CylinderGeometry(0.0035, 0.0035, 0.087, 16).translate(0, -0.0435, 0),
+        new THREE.CylinderGeometry(0.008, 0.006, 0.004, 16).translate(0, -0.002, 0),
+      ]),
+    [],
+  );
+  useEffect(
+    () => () => {
+      eccentric.dispose();
+      stem.dispose();
+    },
+    [eccentric, stem],
+  );
+  const cam = useRef<THREE.Mesh>(null),
+    follower = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    const angle = sim.anim.crank * D2R * ratio;
+    if (cam.current) cam.current.rotation.x = angle;
+    if (follower.current) follower.current.position.y = offset * Math.cos(angle) - radius;
+  });
+  return (
+    <group position={[axis.x - 0.013, axis.y, axis.z]}>
+      <P
+        name="Fuel pump eccentric"
+        note="The eccentric on the crankshaft idler operates the mechanical fuel pump (IPC Fig. 8, item 3). Throw is illustrative."
+        meshRef={cam}
+        geometry={eccentric}
+        material={mats.steel}
+        spread={[-0.14, 0.09, 0]}
+      />
+      <P
+        name="Fuel pump plunger"
+        note="The long plunger transmits the idler eccentric's motion to the pump lever (IPC Fig. 8, item 1, 23D26777)."
+        meshRef={follower}
+        geometry={stem}
+        material={mats.darkSteel}
+        spread={[-0.14, -0.055, 0]}
+      />
+    </group>
+  );
+}
+
 /**
  * Fuel injection. A servo injector draws the pump on the accessory housing, the injector and throttle body under the
  * sump, and the lines up to the manifold; every injected engine draws the manifold on top and a line to each nozzle
@@ -370,49 +488,56 @@ function ContinentalFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
 function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
   const L = layoutFor(spec);
+  const hardware = useMemo(() => (L.c3b6 ? fuelHardware(d) : []), [L, d]);
+  useDetailDisposal(hardware);
   const unit = spec.fuelSystem.unit;
   const servo = spec.fuelSystem.kind === "injected";
   const geo = useMemo(() => {
     const hp = headPoints(d, L);
-    const [ix, iy] = injectorAt(d);
+    const [ix, iy] = injectorAt(d, spec);
+    const inlet = L.c3b6 ? servoInletOffset : 0.105;
     const m = manifoldAt(sim, d);
     const px = d.accRear - 0.03;
-    const feed = !servo
-      ? []
-      : [
-          // pump to injector
-          tube(
-            [
-              [px, PUMP[1] - 0.035, PUMP[2]],
-              [px + 0.005, -0.155, -0.11],
-              [d.caseRear - 0.01, -0.17, -0.125],
-              // under the intake runners
-              [d.caseRear + 0.06, iy - 0.035, -0.11],
-              [ix - 0.12, iy - 0.035, -0.09],
-              [ix - 0.04, iy, -0.055],
-            ],
-            0.005,
-          ),
-          // injector to manifold, up the front right of the crankcase
-          tube(
-            [
-              [ix, iy + 0.03, 0.04],
-              [d.front + 0.012, -0.05, 0.11],
-              [d.front + 0.006, 0.15, 0.07],
-              // over the top of the case to the manifold
-              [d.front - 0.03, 0.2, 0.03],
-              [m[0] + 0.03, m[1] + 0.005, 0.015],
-            ],
-            0.005,
-          ),
-        ];
+    const feed = L.c3b6
+      ? servoHoses(d, ix, iy, m)
+      : !servo
+        ? []
+        : [
+            // pump to injector
+            tube(
+              [
+                [px, PUMP[1] - 0.035, PUMP[2]],
+                [px + 0.005, -0.155, -0.11],
+                [d.caseRear - 0.01, -0.17, -0.125],
+                // under the intake runners
+                [d.caseRear + 0.06, iy - 0.035, -0.11],
+                [ix - 0.12, iy - 0.035, -0.09],
+                [ix - 0.04, iy, -0.055],
+              ],
+              0.005,
+            ),
+            // injector to manifold, up the front right of the crankcase
+            tube(
+              [
+                [ix, iy + 0.03, 0.04],
+                [d.front + 0.012, -0.05, 0.11],
+                [d.front + 0.006, 0.15, 0.07],
+                // over the top of the case to the manifold
+                [d.front - 0.03, 0.2, 0.03],
+                [m[0] + 0.03, m[1] + 0.005, 0.015],
+              ],
+              0.005,
+            ),
+          ];
     const lines = [
       ...feed,
       // manifold to each nozzle
       ...spec.geometry.cylinders.map((c) => {
         const n = toWorld(c, hp.nozzleTop);
         return tube(
-          [[m[0], m[1] + 0.01, 0], [n[0], m[1] + 0.005, bank(c) * 0.13], [n[0], n[1] + 0.03, n[2] * 0.92], n],
+          L.c3b6
+            ? nozzleLinePoints(c, d, m)
+            : [[m[0], m[1] + 0.01, 0], [n[0], m[1] + 0.005, bank(c) * 0.13], [n[0], n[1] + 0.03, n[2] * 0.92], n],
           0.0032,
           32,
           8,
@@ -420,25 +545,39 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
       }),
     ];
     return {
-      injector: new THREE.BoxGeometry(0.09, 0.06, 0.1).translate(...injectorAt(d)),
+      injector: L.c3b6 ? injectionServo(d) : new THREE.BoxGeometry(0.09, 0.06, 0.1).translate(...injectorAt(d, spec)),
       throttleBody: merge([
-        new THREE.CylinderGeometry(0.036, 0.036, 0.06, 24, 1, true).rotateZ(Math.PI / 2).translate(ix + 0.075, iy, 0),
-        rod(0.044, 0.006, 24).translate(ix + 0.105, iy, 0),
+        new THREE.CylinderGeometry(0.036, 0.036, inlet - 0.045, 24, 1, true)
+          .rotateZ(Math.PI / 2)
+          .translate(ix + (inlet + 0.045) / 2, iy, 0),
+        (L.c3b6 ? sleeve(0.034, 0.044, -0.003, 0.003).rotateY(Math.PI / 2) : rod(0.044, 0.006, 24)).translate(
+          ix + inlet,
+          iy,
+          0,
+        ),
       ]),
-      throttlePlate: rod(0.034, 0.003, 24),
+      throttlePlate: rod(L.c3b6 ? 0.0315 : 0.034, 0.003, 24),
       throttleArm: new THREE.BoxGeometry(0.008, 0.04, 0.006).translate(0, 0.02, 0.045),
-      pump: merge([
-        rod(0.036, 0.055, 24).translate(px, PUMP[1], PUMP[2]),
-        rod(0.02, 0.02, 12).translate(px - 0.035, PUMP[1], PUMP[2]),
-      ]),
+      pump: L.c3b6
+        ? diaphragmPump(d)
+        : merge([
+            rod(0.036, 0.055, 24).translate(px, PUMP[1], PUMP[2]),
+            rod(0.02, 0.02, 12).translate(px - 0.035, PUMP[1], PUMP[2]),
+          ]),
       manifold: merge([
         new THREE.CylinderGeometry(0.022, 0.022, 0.03, 20).translate(...m),
         new THREE.CylinderGeometry(0.008, 0.008, 0.04, 8).translate(m[0], m[1] - 0.03, m[2]),
       ]),
-      lines: merge(lines),
+      lines: L.c3b6 ? lines : merge(lines),
     };
   }, [spec, sim, d, L, servo]);
-  useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
+  useEffect(
+    () => () =>
+      Object.values(geo)
+        .flat()
+        .forEach((g) => g.dispose()),
+    [geo],
+  );
   const plate = useRef<THREE.Group>(null);
   useFrame(() => {
     const ui = sim.useUi.getState();
@@ -446,34 +585,67 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
     if (plate.current) plate.current.rotation.z = (8 + 77 * ui.controls.throttle) * D2R;
     mats.fuel.emissiveIntensity = Math.min(1, sim.s.fuel / 60);
   });
-  const [ix, iy] = injectorAt(d);
+  const [ix, iy] = injectorAt(d, spec);
   return (
     <>
+      {L.c3b6 && (
+        <>
+          <PumpPlunger sim={sim} d={d} mats={mats} />
+          <AccessoryInternals
+            kind="servo"
+            sim={sim}
+            mats={mats}
+            position={injectorAt(d, spec)}
+            spread={accessorySpread["Fuel injector"]}
+          />
+          <AccessoryInternals
+            kind="divider"
+            sim={sim}
+            mats={mats}
+            position={manifoldAt(sim, d)}
+            spread={accessorySpread["Fuel manifold"]}
+          />
+          <AccessoryInternals
+            kind="pump"
+            sim={sim}
+            mats={mats}
+            position={[d.accRear - 0.03, PUMP[1], PUMP[2]]}
+            spread={[-0.43, -0.14, 0]}
+            ratio={-GEAR_TEETH.crank / magDrive(spec, d, L, "L").idler!.teeth}
+          />
+        </>
+      )}
+      <Details parts={hardware} mats={mats} />
       {servo && (
         <>
           <P
             name="Fuel injector"
+            spread={accessorySpread["Fuel injector"]}
             note={`Meters fuel in proportion to the air through the throttle body: ${unit} (IOM p. 4, Table A-1).`}
             geometry={geo.injector}
             material={mats.fuelBody}
           />
           <P
             name="Throttle body"
+            spread={[0.32, -0.37, 0]}
             note="Air enters here; the throttle valve inside follows the throttle lever."
             geometry={geo.throttleBody}
             material={mats.fuelBody}
           />
-          <group ref={plate} position={[ix + 0.075, iy, 0]}>
-            <P
-              name="Throttle valve"
-              note="Butterfly valve: its angle follows the panel's throttle."
-              geometry={geo.throttlePlate}
-              material={mats.steel}
-            />
-            <P name="Throttle arm" geometry={geo.throttleArm} material={mats.darkSteel} />
-          </group>
+          <Spread by={[0.39, -0.37, 0]}>
+            <group ref={plate} position={[ix + (L.c3b6 ? 0.035 : 0.075), iy, 0]}>
+              <P
+                name="Throttle valve"
+                note="Butterfly valve: its angle follows the panel's throttle."
+                geometry={geo.throttlePlate}
+                material={mats.steel}
+              />
+              <P name="Throttle arm" geometry={geo.throttleArm} material={mats.darkSteel} />
+            </group>
+          </Spread>
           <P
             name="Engine-driven fuel pump"
+            spread={[-0.43, -0.14, 0]}
             note="Diaphragm-type pump on the accessory housing; feeds the fuel injector (IOM p. 4)."
             geometry={geo.pump}
             material={mats.fuelBody}
@@ -482,19 +654,48 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
       )}
       <P
         name="Fuel manifold"
+        spread={accessorySpread["Fuel manifold"]}
         note={L.notes.fuelManifold ?? "Divides the injector's metered fuel among the four nozzle lines (IOM p. 4)."}
         geometry={geo.manifold}
         material={mats.fuelBody}
       />
-      <P
-        name="Fuel lines"
-        note={
-          L.notes.fuelLines ??
-          "Pump to injector, injector to manifold, manifold to the four nozzles (IOM p. 4). They glow with fuel flow."
-        }
-        geometry={geo.lines}
-        material={mats.fuel}
-      />
+      {Array.isArray(geo.lines) ? (
+        geo.lines.map((g, i) => {
+          const c = spec.geometry.cylinders[i - 2];
+          const name = c ? `Injector line, cylinder ${c.n}` : i === 0 ? "Fuel pump outlet hose" : "Metered fuel hose";
+          return (
+            <P
+              key={name}
+              name={name}
+              note={
+                c
+                  ? "The flow divider feeds this nozzle through a formed fuel tube, LW-12098-0-180 (IPC Fig. 26B, items 1–2)."
+                  : "The pump supplies the servo, which meters fuel to the flow divider (IOM Fig. 7). Hose routing is approximate."
+              }
+              spread={
+                c
+                  ? [c.n <= 2 ? 0.14 : -0.14, 0.35, bank(c) * 0.12]
+                  : i === 0
+                    ? [-0.16, -0.25, -0.11]
+                    : [0.04, 0.08, 0.88]
+              }
+              material={c ? mats.fuel : mats.fuelHose}
+              geometry={g}
+            />
+          );
+        })
+      ) : (
+        <P
+          name="Fuel lines"
+          spread={[0, 0.32, 0]}
+          note={
+            L.notes.fuelLines ??
+            "Pump to injector, injector to manifold, manifold to the four nozzles (IOM p. 4). They glow with fuel flow."
+          }
+          geometry={geo.lines}
+          material={mats.fuel}
+        />
+      )}
     </>
   );
 }
@@ -507,7 +708,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
 function CarburetorSystem({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
   const carb = spec.fuelSystem.kind === "carburetor" ? spec.fuelSystem : null;
-  const [ix, iy] = injectorAt(d);
+  const [ix, iy] = injectorAt(d, spec);
   const bowlX = ix + 0.07;
   const geo = useMemo(() => {
     const px = d.accRear - 0.03;
@@ -800,18 +1001,61 @@ function TopInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
   );
 }
 
+function CirrusInlet({ d, mats, sim }: { d: Dims; mats: Mats; sim: EngineSim }) {
+  const inlet = useMemo(() => inductionInlet(d), [d]);
+  useDetailDisposal(inlet.parts);
+  useEffect(() => () => inlet.door.dispose(), [inlet]);
+  const door = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (door.current) door.current.rotation.y = altAirDoorAngle(sim.useUi.getState().controls.altAir);
+  });
+  return (
+    <>
+      <Details parts={inlet.parts} mats={mats} />
+      <Spread by={[0.14, 0.03, 0.22]}>
+        <group position={inlet.hinge} rotation={[0, 0, inlet.angle]}>
+          <group ref={door}>
+            <P
+              name="Alternate air door"
+              geometry={inlet.door}
+              material={mats.shroud}
+              note="The SR20 ALT AIR control manually opens this door to bypass the normal filter (POH 7-35, 7-39)."
+            />
+          </group>
+        </group>
+      </Spread>
+    </>
+  );
+}
+
 /** Tuned induction: a plenum under the sump from the throttle body, a runner up to each intake port; down exhaust. */
 function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const spec = sim.spec;
   const cyls = spec.geometry.cylinders;
+  const hardware = useMemo(() => (layoutFor(spec).c3b6 ? portHardware(d) : []), [spec, d]);
+  useDetailDisposal(hardware);
   const geo = useMemo(() => {
     const hp = headPoints(d);
-    const [ix, iy] = injectorAt(d);
+    const [ix, iy] = injectorAt(d, spec);
     const x0 = ix - 0.045,
       x1 = d.caseRear + 0.04;
     const runners = cyls.map((c) => {
       const k = bank(c);
       const p = toWorld(c, hp.intakePort);
+      if (layoutFor(spec).c3b6)
+        return tube(
+          [
+            [p[0], iy + 0.004, k * 0.077],
+            [p[0], iy + 0.004, k * 0.105],
+            [p[0], -0.207, k * 0.224],
+            [p[0], -0.178, p[2] - k * 0.031],
+            [p[0], -0.14, p[2]],
+            [p[0], p[1] - 0.006, p[2]],
+          ],
+          0.016,
+          40,
+          16,
+        );
       return tube(
         [
           [p[0], iy, 0],
@@ -825,6 +1069,12 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
         12,
       );
     });
+    if (layoutFor(spec).c3b6)
+      return {
+        runners,
+        plenum: slab(x1, x0, iy - 0.028, iy + 0.026, -0.079, 0.079, 0.012),
+        ...exhaustInstallation(d),
+      };
     const sideY = -0.3,
       sideZ = 0.24;
     const pipes = cyls.map((c) => {
@@ -861,38 +1111,43 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
       runners: merge(runners),
       pipes,
       collectors,
+      muffler: null,
+      heatMuff: null,
+      tail: null,
     };
-  }, [cyls, d]);
+  }, [cyls, d, spec]);
   const exMats = useMemo(
     () =>
-      cyls.map(
-        () => new THREE.MeshStandardMaterial({ color: "#555", roughness: 0.55, metalness: 0.5, emissive: "#000" }),
-      ),
-    [cyls],
+      cyls.map(() => {
+        const pipe = mats.exhaust.clone();
+        pipe.userData.header = true;
+        return pipe;
+      }),
+    [cyls, mats.exhaust],
   );
-  const colMats = useMemo(
-    () =>
-      [0, 1].map(
-        () => new THREE.MeshStandardMaterial({ color: "#555", roughness: 0.55, metalness: 0.5, emissive: "#000" }),
-      ),
-    [],
-  );
+  const colMats = useMemo(() => [mats.exhaust.clone(), mats.exhaust.clone()], [mats.exhaust]);
+  useEffect(() => () => [...exMats, ...colMats].forEach((m) => m.dispose()), [exMats, colMats]);
   useEffect(
     () => () => {
       geo.plenum.dispose();
-      geo.runners.dispose();
+      if (Array.isArray(geo.runners)) geo.runners.forEach((g) => g.dispose());
+      else geo.runners.dispose();
+      geo.muffler?.dispose();
+      geo.heatMuff?.dispose();
+      geo.tail?.dispose();
       [...geo.pipes, ...geo.collectors].forEach((g) => g.dispose());
-      [...exMats, ...colMats].forEach((m) => m.dispose());
     },
-    [geo, exMats, colMats],
+    [geo],
   );
   const tmp = useMemo(() => new THREE.Color(), []);
   useFrame(() => {
     const paint = (m: THREE.MeshStandardMaterial, egt: number) => {
       egtColor(egt, tmp);
-      m.color.copy(tmp);
+      m.color.copy(mats.exhaust.map ? mats.exhaust.color : tmp);
       m.emissive.copy(tmp);
-      m.emissiveIntensity = Math.max(0, (egt - 900) / 900);
+      // EGT measures gas temperature. Keep the heat cue faint on the solid metal pipe.
+      const glow = Math.max(0, (egt - 900) / 900);
+      m.emissiveIntensity = mats.exhaust.map ? 0.035 * glow : glow;
     };
     const egt = (i: number) => sim.s.cyl[i]?.egt ?? 60;
     cyls.forEach((_, i) => paint(exMats[i], egt(i)));
@@ -903,30 +1158,76 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
   });
   return (
     <>
+      <Details parts={hardware} mats={mats} />
       <P
         name="Induction plenum"
+        spread={[0, -0.47, 0]}
         note="Carries air from the throttle body to the runners."
         geometry={geo.plenum}
         material={mats.intake}
       />
-      <P
-        name="Tuned induction runners"
-        note="One runner to each cylinder's intake port (IOM p. 1: tuned induction)."
-        geometry={geo.runners}
-        material={mats.intake}
-      />
+      {Array.isArray(geo.runners) ? (
+        <>
+          <CirrusInlet d={d} mats={mats} sim={sim} />
+          {geo.runners.map((g, i) => (
+            <P
+              key={cyls[i].n}
+              name={`Intake pipe, cylinder ${cyls[i].n}`}
+              note={`Intake pipe between the plenum and cylinder head (IPC Fig. 15, item ${cyls[i].n + 1}).`}
+              geometry={g}
+              material={mats.intake}
+              spread={[cyls[i].n <= 2 ? 0.14 : -0.14, -0.31, bank(cyls[i]) * 0.36]}
+            />
+          ))}
+        </>
+      ) : (
+        <P
+          name="Tuned induction runners"
+          spread={[0, -0.34, 0]}
+          note="One runner to each cylinder's intake port (IOM p. 1: tuned induction)."
+          geometry={geo.runners}
+          material={mats.intake}
+        />
+      )}
       {geo.pipes.map((g, i) => (
         <P
           key={i}
           name={`Exhaust pipe, cylinder ${cyls[i].n}`}
+          spread={[cyls[i].n <= 2 ? 0.14 : -0.14, -0.39, bank(cyls[i]) * 0.35]}
           note="Down exhaust (IOM p. 1); the pipe glows with this cylinder's exhaust gas temperature."
           geometry={g}
           material={exMats[i]}
         />
       ))}
+      {geo.muffler && (
+        <>
+          <P
+            name="Exhaust muffler"
+            spread={[0, -0.58, 0.18]}
+            note="All four headers feed the collector and a single muffler on the right in the SR20 G6 installation (AMM 78-10 p. 1). POH 7-39 describes the opposite side."
+            geometry={geo.muffler}
+            material={colMats[0]}
+          />
+          <P
+            name="Cabin heat muff"
+            spread={[-0.22, -0.58, 0.18]}
+            note="Ram air flows around the muffler inside this shroud to pick up heat for the cabin (AMM 78-20)."
+            geometry={geo.heatMuff}
+            material={mats.shroud}
+          />
+          <P
+            name="Tailpipe"
+            spread={[-0.32, -0.58, 0.18]}
+            note="The muffler discharges through one tailpipe (SR20 AMM 78-10)."
+            geometry={geo.tail}
+            material={colMats[0]}
+          />
+        </>
+      )}
       {geo.collectors.map((g, j) => (
         <P
           key={j}
+          spread={[0, -0.49, 0.18]}
           name="Exhaust collector"
           note="Airframe exhaust: drawn to show where the gas goes."
           geometry={g}
@@ -1064,11 +1365,15 @@ export function drivesGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layo
           shaft: null,
         }
       : {
-          body: merge([
-            rod(0.06, len, 28).translate(-(len / 2 + 0.02), 0, 0),
-            rod(0.05, 0.012, 28).translate(-0.016, 0, 0),
-          ]),
-          wheel: merge([gear(d.altPulleyR, 16, 0.016, 0), rod(0.012, 0.03, 10).translate(-0.012, 0, 0)]),
+          body: L.c3b6
+            ? alternatorBell(len, false)
+            : merge([
+                rod(0.06, len, 28).translate(-(len / 2 + 0.02), 0, 0),
+                rod(0.05, 0.012, 28).translate(-0.016, 0, 0),
+              ]),
+          wheel: L.c3b6
+            ? fanPulley(d)
+            : merge([gear(d.altPulleyR, 16, 0.016, 0), rod(0.012, 0.03, 10).translate(-0.012, 0, 0)]),
           belt: beltGeometry(a.x, a.at[1], a.at[2]),
           pad: null,
           shaft: null,
@@ -1083,6 +1388,7 @@ export function drivesGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layo
       rod(0.04, 0.008, 22).translate(0.034, 0, 0),
       rod(0.012, 0.03, 10).translate(0.079, 0, 0),
     ]),
+    govIdler: L.c3b6 ? gear(GOV_IDLER_R, 15, 0.012, 0.006) : null,
     govGear: gear(gv.govR, gv.teeth, 0.012, 0.004),
     govShaft: gv.gearAt ? zrod(0.006, gv.at[2], gv.gearAt[2], 10).translate(gv.at[0], gv.at[1], 0) : null,
   };
@@ -1098,8 +1404,12 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
   const spec = sim.spec;
   const acc = spec.accessories;
   const L = layoutFor(spec);
+  const fan = useMemo(() => (L.c3b6 ? alternatorFan() : []), [L]);
+  useDetailDisposal(fan);
   const D = useMemo(() => driveLayout(spec, d, L), [spec, d, L]);
   const { spins } = useMemo(() => gearSpins(spec, d, L), [spec, d, L]);
+  const hardware = useMemo(() => (L.c3b6 ? driveHardware(spec, d) : []), [L, spec, d]);
+  useDetailDisposal(hardware);
   const geo = useMemo(() => drivesGeometry(spec, d, L), [spec, d, L]);
   useEffect(
     () => () => {
@@ -1108,6 +1418,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
         ...geo.alternators.flatMap((a) => [a.body, a.wheel, a.belt, a.pad, a.shaft]),
         geo.gov,
         geo.govGear,
+        geo.govIdler,
         geo.govShaft,
       ];
       all.forEach((g) => g?.dispose());
@@ -1126,10 +1437,12 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     worm = useRef<THREE.Mesh>(null),
     wheel = useRef<THREE.Mesh>(null),
     shaftGear = useRef<THREE.Mesh>(null),
-    altRot = useRef<(THREE.Mesh | null)[]>([]),
+    altRot = useRef<(THREE.Object3D | null)[]>([]),
+    govIdler = useRef<THREE.Mesh>(null),
     govRot = useRef<THREE.Mesh>(null);
   useFrame(() => {
     const crank = sim.anim.crank;
+    if (govIdler.current) govIdler.current.rotation.x = ((crank * spins.governorIdler) % 360) * D2R;
     const p = pinion.current;
     if (p) {
       // the solenoid slides the pinion forward into the ring gear while the starter is engaged, and back out of mesh
@@ -1160,19 +1473,31 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
   const sg = geo.starter;
   return (
     <>
+      <Details parts={hardware} mats={mats} />
       {st.kind === "front-ring" && sg.kind === "front-ring" ? (
         <group position={st.at}>
+          {L.c3b6 && (
+            <AccessoryInternals
+              kind="starter"
+              sim={sim}
+              mats={mats}
+              spread={accessorySpread.Starter}
+              ratio={spins.pinion}
+            />
+          )}
           <P
             name="Starter"
+            spread={accessorySpread.Starter}
             note={`12 V or 24 V starter (IOM p. 3); drive ratio ${acc.starterRatio}:1 (Table A-1). Engaged while the switch is held at START.`}
             geometry={sg.motor}
             material={mats.black}
           />
-          <P name="Starter solenoid" geometry={sg.solenoid} material={mats.black} />
-          <P name="Starter drive housing" geometry={sg.drive} material={mats.alt} />
+          <P name="Starter solenoid" spread={[0.11, -0.21, -0.24]} geometry={sg.solenoid} material={mats.black} />
+          <P name="Starter drive housing" spread={[0.17, -0.16, -0.18]} geometry={sg.drive} material={mats.alt} />
           <group ref={pinion} position={[-PINION_TRAVEL, 0, 0]}>
             <P
               name="Starter pinion"
+              spread={[0.23, -0.16, -0.18]}
               note="The solenoid slides it into mesh with the ring gear while the starter is engaged and withdraws it on release; out of mesh it stands still while the ring gear turns."
               geometry={sg.pinion}
               material={mats.gear}
@@ -1182,8 +1507,14 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       ) : st.kind === "rear-adapter" && sg.kind === "rear-adapter" ? (
         <>
           <group position={st.at}>
-            <P name="Starter" note={L.notes.starter} geometry={sg.motor} material={mats.black} />
-            <P name="Starter solenoid" geometry={sg.solenoid} material={mats.black} />
+            <P
+              name="Starter"
+              spread={accessorySpread.Starter}
+              note={L.notes.starter}
+              geometry={sg.motor}
+              material={mats.black}
+            />
+            <P name="Starter solenoid" spread={[0.11, -0.21, -0.24]} geometry={sg.solenoid} material={mats.black} />
           </group>
           <P name="Starter adapter" note={L.notes.starterAdapter} geometry={sg.adapter} material={mats.acc} />
           <P
@@ -1222,7 +1553,13 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
           // turned about the crankshaft so its +z runs out along the shaft; the pinion's frame turns +x onto it
           return (
             <group key={a.def.name} position={[a.x, 0, 0]} rotation={[a.def.angleDeg * D2R - Math.PI / 2, 0, 0]}>
-              <P name={a.def.name} note={a.def.note} geometry={g.body} material={mats.alt} />
+              <P
+                name={a.def.name}
+                spread={accessorySpread[a.def.name]}
+                note={a.def.note}
+                geometry={g.body}
+                material={mats.alt}
+              />
               {g.pad && (
                 <P
                   name={`${a.def.name} drive pad`}
@@ -1248,23 +1585,55 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
         return (
           <Fragment key={a.def.name}>
             <group position={a.at}>
+              {L.c3b6 && (
+                <AccessoryInternals
+                  kind="alternator"
+                  sim={sim}
+                  mats={mats}
+                  spread={accessorySpread[a.def.name]}
+                  suffix={", " + a.def.name}
+                  length={a.def.bodyLen}
+                  ratio={spins[a.def.name]}
+                />
+              )}
               <P
                 name={a.def.name}
+                spread={accessorySpread[a.def.name]}
                 note={a.def.note ?? "Belt-driven from the pulley behind the starter ring gear (IOM Table A-4)."}
                 geometry={g.body}
                 material={mats.alt}
               />
-              <mesh
-                ref={(m) => {
-                  altRot.current[k] = m;
-                }}
-                geometry={g.wheel}
-                material={a.gear ? mats.gear : mats.darkSteel}
-              />
+              {L.c3b6 ? (
+                <Spread by={[0.12, -0.1, Math.sign(a.at[2]) * 0.23]}>
+                  <group
+                    ref={(group) => {
+                      altRot.current[k] = group;
+                    }}
+                  >
+                    <P
+                      name={a.def.name + " pulley"}
+                      spread={[0.14, 0, 0]}
+                      note="The belt drives this pulley on the alternator shaft (IPC Fig. 2, SR20 AMM 24-30)."
+                      geometry={g.wheel}
+                      material={mats.steel}
+                    />
+                    <Details mats={mats} parts={fan} suffix={", " + a.def.name} />
+                  </group>
+                </Spread>
+              ) : (
+                <mesh
+                  ref={(m) => {
+                    altRot.current[k] = m;
+                  }}
+                  geometry={g.wheel}
+                  material={a.gear ? mats.gear : mats.darkSteel}
+                />
+              )}
             </group>
             {g.belt && (
               <P
                 name={`${a.def.name} belt`}
+                spread={[k === 0 ? 0.33 : 0.39, -0.05, Math.sign(a.at[2]) * 0.12]}
                 note={
                   L.notes.altBelt ??
                   `${acc.alternatorRatio}:1 drive ratio with a 3.10 in alternator pulley (IOM Table A-4).`
@@ -1276,24 +1645,44 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
           </Fragment>
         );
       })}
-      <group position={gv.at} rotation={gv.rotation}>
+      {geo.govIdler && (
         <P
-          name="Propeller governor"
-          note={
-            L.notes.governor ??
-            `On the front of the crankcase on C1B6 and C3B6 engines (IOM p. 1), driven from the camshaft's spur gear at ${acc.governorRatio}:1 (Table A-4). Sets propeller pitch to hold the selected rpm.`
-          }
-          geometry={geo.gov}
-          material={mats.black}
+          name="Governor idler gear"
+          spread={[0.11, 0.08, -0.04]}
+          note="The camshaft drives the governor output through idler 77874 (IPC Fig. 3)."
+          geometry={geo.govIdler}
+          meshRef={govIdler}
+          material={mats.gear}
+          position={[
+            d.front - 0.03,
+            d.camY - (gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
+            -(gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
+          ]}
         />
-        {!gv.gearAt && <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />}
-      </group>
+      )}
+      <Spread by={accessorySpread.Governor}>
+        <group position={gv.at} rotation={gv.rotation}>
+          {L.c3b6 && <AccessoryInternals kind="governor" sim={sim} mats={mats} ratio={spins.governor} />}
+          <P
+            name="Propeller governor"
+            note={
+              L.notes.governor ??
+              `On the front of the crankcase on C1B6 and C3B6 engines (IOM p. 1), driven from the camshaft's spur gear at ${acc.governorRatio}:1 (Table A-4). Sets propeller pitch to hold the selected rpm.`
+            }
+            geometry={geo.gov}
+            material={mats.black}
+          />
+          {!gv.gearAt && <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />}
+        </group>
+      </Spread>
       {gv.gearAt && (
         <>
           <group position={gv.gearAt} rotation={gv.rotation}>
             <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />
           </group>
-          {geo.govShaft && <P name="Governor drive shaft" geometry={geo.govShaft} material={mats.steel} />}
+          {geo.govShaft && (
+            <P name="Governor drive shaft" spread={[0.14, 0.11, -0.05]} geometry={geo.govShaft} material={mats.steel} />
+          )}
         </>
       )}
     </>

@@ -25,6 +25,8 @@ import {
   driveLayout,
   makeMats,
   GEAR_TEETH,
+  camSpin,
+  GOV_IDLER_R,
   gearSpins,
   headPoints,
   IN,
@@ -91,8 +93,8 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     for (const c of S.geometry.cylinders)
       for (const intake of [true, false]) {
         const crank = peakCrank(S, c, intake);
-        // nose direction (0 up, 90 right) of a lobe on a camshaft turned −crank/2
-        const nose = mod(90 + lobeAngle(S, c, intake) - crank / 2, 360);
+        // nose direction (0 up, 90 right) of a lobe on the engine’s geared camshaft
+        const nose = mod(90 + lobeAngle(S, c, intake) + crank * camSpin(L), 360);
         expect(nose).toBeCloseTo(sideAngle(c), 6);
         const lift = valveLift(S, phaseOf(S, c.n, crank));
         expect(intake ? lift.intake : lift.exhaust).toBeCloseTo(1, 6);
@@ -133,15 +135,15 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
   test("every gear meshes with the one that drives it, at the spec's drive ratio", () => {
     const acc = S.accessories;
     // camshaft gear on the crankshaft gear, twice the teeth: half speed
-    expect(Math.abs(d.camY)).toBeCloseTo(d.crankGearR + d.camGearR, 6);
+    if (!L.c3b6) expect(Math.abs(d.camY)).toBeCloseTo(d.crankGearR + d.camGearR, 6);
     expect(GEAR_TEETH.cam / GEAR_TEETH.crank).toBeCloseTo(d.camGearR / d.crankGearR, 6);
     // magneto gears on the camshaft gear, or on the idler the crankshaft gear drives
     const m = magDrive(S, d, L);
     if (m.idler) {
       // the idler's front gear on the crankshaft gear, its rear gear (the same gear, or one on its shaft) on the magnetos'
-      expect(m.idler.y).toBeCloseTo(d.crankGearR + m.idler.r, 6);
+      expect(Math.hypot(m.idler.y, m.idler.z)).toBeCloseTo(d.crankGearR + m.idler.r, 6);
       expect(m.idler.r / d.crankGearR).toBeCloseTo(m.idler.teeth / GEAR_TEETH.crank, 6);
-      expect(Math.hypot(m.y - m.idler.y, m.z)).toBeCloseTo(m.idler.rearR + m.r, 6);
+      expect(Math.hypot(m.y - m.idler.y, m.z - m.idler.z)).toBeCloseTo(m.idler.rearR + m.r, 6);
       expect(m.r / m.idler.rearR).toBeCloseTo(m.teeth / m.idler.rearTeeth, 6);
       expect((GEAR_TEETH.crank / m.idler.teeth) * (m.idler.rearTeeth / m.teeth)).toBeCloseTo(acc.magnetoRatio, 6);
     } else {
@@ -150,7 +152,10 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     }
     // oil pump drive: under the crankshaft gear, or turning with the camshaft gear
     const p = oilPump(d, L);
-    if (p.onCam) {
+    if (L.c3b6) {
+      expect(p.y).toBe(0);
+      expect(p.ratio).toBe(1);
+    } else if (p.onCam) {
       expect(p.y).toBeCloseTo(d.camY, 6);
       expect(p.ratio).toBe(0.5);
     } else {
@@ -214,13 +219,30 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
       const govAxis = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(...gv.rotation));
       const magnetoRim: Rim = { c: at(mag.x, mag.y, mag.z), axis: X, r: mag.r };
       switch (`${a}–${b}`) {
+        case "idler–cam": {
+          const left = magDrive(S, d, L, "L").idler!;
+          return [{ c: at(0, left.y, left.z), axis: X, r: left.r }, cam(d.camGearR)];
+        }
+        case "cam–governorIdler":
+        case "governorIdler–governor": {
+          const idler: Rim = {
+            c: at(
+              d.front - 0.03,
+              d.camY - (gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
+              -(gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
+            ),
+            axis: X,
+            r: GOV_IDLER_R,
+          };
+          return a === "cam" ? [cam(gv.camGovR, d.front - 0.03), idler] : [idler, { c: gv.at, axis: X, r: gv.govR }];
+        }
         case "crank–cam":
           return [crank(d.crankGearR), cam(d.camGearR)];
         case "crank–idler":
-          return [crank(d.crankGearR), { c: at(0, mag.idler!.y), axis: X, r: mag.idler!.r }];
+          return [crank(d.crankGearR), { c: at(0, mag.idler!.y, mag.idler!.z), axis: X, r: mag.idler!.r }];
         case "idler–magneto":
           // the idler's rear gear: the same gear as its front one, or (magnetos on their own axes) a second gear on its shaft
-          return [{ c: at(mag.idler!.rearX, mag.idler!.y), axis: X, r: mag.idler!.rearR }, magnetoRim];
+          return [{ c: at(mag.idler!.rearX, mag.idler!.y, mag.idler!.z), axis: X, r: mag.idler!.rearR }, magnetoRim];
         case "cam–magneto":
           return [cam(d.camGearR), magnetoRim];
         case "crank–oilPumpDrive":
@@ -359,7 +381,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
 
 describe("IO-390 scene layout defaults", () => {
   test("the IO-390 draws with today's constants", () => {
-    expect(layoutFor(IO390)).toBe(IO390_DEFAULTS);
+    expect(layoutFor(IO390).c3b6).toBe(true);
     const d = dims(IO390);
     expect({
       front: d.front,
@@ -397,12 +419,12 @@ describe("IO-390 scene layout defaults", () => {
       intake: { x: VT.xOff, pushY: VT.pushY, pivotY: VT.pivotY, tipY: VT.tipY },
       exhaust: { x: -VT.xOff, pushY: VT.pushY, pivotY: VT.pivotY, tipY: VT.tipY },
     });
-    // counterweights on the cheeks either side of the centre main journal: cylinder 2's rear, cylinder 3's front
+    // Opposed lugs at the rear throw (MM 72-20 Fig. 22).
     const cl = crankLayout(IO390, d);
     expect(cl.cheek).toBe(0.025);
-    expect(cl.counterweights.map((w) => [w.c.n, w.at])).toEqual([
-      [2, -0.025],
-      [3, 0.025],
+    expect(cl.counterweights.map((w) => [w.c.n, w.at, w.opposed])).toEqual([
+      [4, 0.025, false],
+      [4, 0.025, true],
     ]);
     expect(cl.bearings).toHaveLength(3);
     expect(IO390_DEFAULTS.camera).toEqual({ position: [0.3, 0.6, 1.8], target: [0, -0.02, 0], maxDistance: 6 });
@@ -415,7 +437,7 @@ describe("IO-390 scene layout defaults", () => {
     expect(IO390_DEFAULTS.oilFiller).toEqual({ side: "R" });
     expect(oilFiller(d).cap).toEqual([d.caseRear - 0.025, 0.209, 0.16]);
     expect(IO390_DEFAULTS.propSpacer).toBe(0);
-    expect(driveLayout(IO390, d).alternators.map((a) => a.transverse)).toEqual([null]);
+    expect(driveLayout(IO390, d).alternators.map((a) => a.def.name)).toEqual(["ALT 1", "ALT 2"]);
     // the label pins EngineScene placed before the layouts, none hidden by the parts in front of them
     expect(IO390_DEFAULTS.labels(d, IO390)).toEqual([
       ["Magnetos", [d.accRear - 0.08, 0.22, 0], { group: "ignition" }],

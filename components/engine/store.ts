@@ -31,6 +31,8 @@ export interface EngineView {
   /** Draw the crank turning slowly enough to follow the cycle (the simulation itself runs at full speed). */
   slow: boolean;
   xray: boolean;
+  /** Catalog separation on the C3B6. Older checkpoints load assembled. */
+  blowUp?: boolean;
   labels: boolean;
   prop: boolean;
   /** Cylinder index shown in the pressure chart. */
@@ -109,9 +111,9 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
       view: {
         thermal: 1,
         slow: false,
-        xray: true,
+        xray: spec.id !== "io390",
         labels: true,
-        // Start with the engine internals filling the study view; Installed engine restores the full propeller.
+        // The standalone motor fills the initial view. Installed engine restores the propeller.
         prop: false,
         cyl: 0,
         paused: false,

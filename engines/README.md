@@ -32,6 +32,8 @@ app/engines/[engine]/page.tsx  One static page per engine id
 
 ## Component simulations
 
+On the SR20 G6’s IO-390 page, **Blow up** separates the assemblies and their mounting hardware. Toggle it again to reassemble the engine. Select individual mounting screws, nuts, washers and accessory internals in the scene or in **Inspect a part**. The index accepts part names and catalog part numbers. See [IO-390 sources](io390/SOURCES.md) for the installation and geometric assumptions.
+
 The piston-cylinder cutaway (`/components/piston-cylinder`) follows one IO-390 cylinder through all four strokes.
 It shares the engine's slider-crank and valve-lift functions, with slow playback, pause, angle scrubbing and stroke
 selection, dual spark plugs, CHT/EGT response, mixture and ignition controls, and plug-fouling, stuck-valve, detonation, pre-ignition and intake-backfire scenarios.

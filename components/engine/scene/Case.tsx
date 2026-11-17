@@ -26,6 +26,12 @@ import {
   type Mats,
 } from "./kit";
 import { layoutFor, type EngineLayout } from "./layout";
+import { AccessoryInternals } from "./io390/AccessoryInternals";
+import { remoteCooler, accessoryPads, sumpCasting, suctionScreen } from "./io390/installation";
+import { rockerDrains } from "./io390/accessories";
+import { caseHalf, accessoryCasting, caseHardware, oilHardware } from "./io390/case";
+import { accessorySpread, Spread } from "./Separation";
+import { Details, useDetailDisposal } from "./io390/Details";
 import { P } from "./parts";
 
 /** The crankcase, accessory housing and sump geometries. */
@@ -39,26 +45,32 @@ export function caseGeometry(d: Dims, L: EngineLayout) {
   const M = L.mounts(d);
   const mounts = M.bosses.map(([x, y, z]) => rod(0.02, 0.045, 16).translate(x, y, z));
   return {
-    right: slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
-    left: slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
+    right: L.c3b6 ? caseHalf(d, 1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
+    left: L.c3b6 ? caseHalf(d, -1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
     flange: slab(d.caseRear, d.front, d.caseTop - 0.01, d.caseTop + 0.012, -0.01, 0.01, 0.004),
     bolts: merge(bolts),
     nose: rod(0.05, 0.034, 28).translate(d.front + 0.017, 0, 0),
     mounts: merge(mounts),
     ...(M.brackets.length ? { brackets: merge(M.brackets.map(([a, b]) => tube([a, b], 0.009, 4, 8))) } : {}),
-    acc: slab(d.accRear, d.caseRear, d.accBottom, d.accTop, -0.125, 0.125, 0.03),
-    sump: slab(d.caseRear + 0.005, d.front - 0.04, d.sumpBottom, d.caseBottom + 0.01, -0.12, 0.12, 0.03),
+    acc: L.c3b6 ? accessoryCasting(d) : slab(d.accRear, d.caseRear, d.accBottom, d.accTop, -0.125, 0.125, 0.03),
+    sump: L.c3b6
+      ? sumpCasting(d)
+      : slab(d.caseRear + 0.005, d.front - 0.04, d.sumpBottom, d.caseBottom + 0.01, -0.12, 0.12, 0.03),
   };
 }
 
 export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
+  const hardware = useMemo(() => (L.c3b6 ? [...caseHardware(d), ...accessoryPads(d)] : []), [L, d]);
+  useDetailDisposal(hardware);
   const geo = useMemo(() => caseGeometry(d, L), [d, L]);
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
   return (
     <>
+      <Details parts={hardware} mats={mats} />
       <P
         name="Crankcase, right half"
+        spread={[0, 0.26, 0.16]}
         note={
           L.notes.crankcaseRight ??
           "Two cast halves joined at the vertical centreline by thru-studs, bolts and nuts; the crankcase forms the camshaft bearings and holds the main bearing inserts (IOM p. 2)."
@@ -68,6 +80,7 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
       />
       <P
         name="Crankcase, left half"
+        spread={[0, 0.26, -0.16]}
         note={
           L.notes.crankcaseLeft ??
           "Two cast halves joined at the vertical centreline by thru-studs, bolts and nuts (IOM p. 2)."
@@ -75,21 +88,32 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
         geometry={geo.left}
         material={mats.case}
       />
-      <P name="Crankcase parting flange" note="Where the two halves meet." geometry={geo.flange} material={mats.case} />
       <P
-        name="Crankcase bolts"
-        note={L.notes.crankcaseBolts ?? "Bolts and nuts along the parting flange (IOM p. 2)."}
-        geometry={geo.bolts}
-        material={mats.darkSteel}
+        name="Crankcase parting flange"
+        spread={[0, 0.26, 0]}
+        note="Where the two halves meet."
+        geometry={geo.flange}
+        material={mats.case}
       />
+      {!L.c3b6 && (
+        <P
+          name="Crankcase bolts"
+          spread={[0, 0.38, 0.2]}
+          note={L.notes.crankcaseBolts ?? "Bolts and nuts along the parting flange (IOM p. 2)."}
+          geometry={geo.bolts}
+          material={mats.darkSteel}
+        />
+      )}
       <P
         name="Crankshaft nose housing"
+        spread={[0.08, 0.26, 0]}
         note="The front main bearing's housing; the crankshaft nose leaves the case here."
         geometry={geo.nose}
         material={mats.case}
       />
       <P
         name="Engine mount bosses"
+        spread={[-0.08, 0.26, 0]}
         note={L.notes.mounts ?? "Mounting points to the airframe's engine mount."}
         geometry={geo.mounts}
         material={mats.darkSteel}
@@ -104,6 +128,7 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
       )}
       <P
         name="Accessory housing"
+        spread={[-0.24, 0, 0]}
         note={
           L.notes.accessoryHousing ??
           "On the rear of the crankcase: carries the magnetos, fuel pump, oil pump and filter, and the gears that drive them (IOM Figures 1B, 5, 7, 8)."
@@ -113,6 +138,7 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
       />
       <P
         name="Oil sump"
+        spread={[0, -0.26, 0]}
         note={L.notes.sump ?? "Wet sump under the crankcase holding the engine's oil (IOM p. 5)."}
         geometry={geo.sump}
         material={mats.sump}
@@ -149,6 +175,11 @@ export function oilCoolerGeometry(L: EngineLayout) {
 export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
   const PUMP = useMemo(() => oilPump(d, L), [d, L]);
+  const hardware = useMemo(
+    () => (L.c3b6 ? [...oilHardware(d, PUMP), ...rockerDrains(d), ...remoteCooler(d)] : []),
+    [L, d, PUMP],
+  );
+  useDetailDisposal(hardware);
   const { spins } = useMemo(() => gearSpins(sim.spec, d, L), [sim, d, L]);
   const geo = useMemo(() => {
     const filler = oilFiller(d, L);
@@ -218,10 +249,15 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         ? slab(fx - 0.03, d.accRear, adapterY - 0.015, adapterY + 0.015, fz - 0.028, fz + 0.028, 0.006)
         : null,
       // driven off the crankshaft gear: a drive gear meshing below it, its shaft running aft to the pumping gears
-      pumpDrive: merge([
-        gear(PUMP.driveR, PUMP.driveTeeth, 0.014, 0.004),
-        rod(0.006, PUMP.x0 - PUMP.x1 + 0.012, 10).translate((PUMP.x1 - PUMP.x0) / 2, 0, 0),
-      ]),
+      pumpDrive: L.c3b6
+        ? merge([
+            rod(0.007, PUMP.x0 - PUMP.x1 + 0.006).translate((PUMP.x1 - PUMP.x0) / 2, 0, 0),
+            new THREE.BoxGeometry(0.007, 0.009, 0.023),
+          ])
+        : merge([
+            gear(PUMP.driveR, PUMP.driveTeeth, 0.014, 0.004),
+            rod(0.006, PUMP.x0 - PUMP.x1 + 0.012, 10).translate((PUMP.x1 - PUMP.x0) / 2, 0, 0),
+          ]),
       pumpGear: gear(PUMP.gearR, 10, 0.012, 0.004),
       pumpBody: slab(
         PUMP.x1 - PUMP.body[0],
@@ -232,15 +268,17 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         2 * PUMP.gearR + 0.024,
         0.012,
       ).translate(d.caseRear, 0, 0),
-      screen: rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
-      screenPlug: rod(0.012, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.025, 0),
+      screen: L.c3b6 ? suctionScreen(d) : rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
+      screenPlug: L.c3b6
+        ? rod(0.018, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.024, 0.064)
+        : rod(0.012, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.025, 0),
       drain: new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6).translate(-0.04, d.sumpBottom - 0.007, 0.06),
       dipTube: tube(filler.tube, 0.009, 24, 10),
       dipCap: new THREE.CylinderGeometry(0.014, 0.014, 0.018, 14).translate(...filler.cap),
       nozzle: zrod(0.0035, d.caseHalf - 0.04, d.caseHalf - 0.008, 8).translate(0, -0.05, 0),
       suction: tube(
         [
-          [d.caseRear + 0.012, d.sumpBottom + 0.025, 0],
+          L.c3b6 ? [d.caseRear + 0.07, d.sumpBottom + 0.024, 0.064] : [d.caseRear + 0.012, d.sumpBottom + 0.025, 0],
           [d.caseRear - 0.004, d.sumpBottom + 0.03, 0.01],
           [d.caseRear + PUMP.x1 - 0.004, PUMP.y - 0.05, PUMP.gearR],
           [d.caseRear + PUMP.x1, PUMP.y - 0.026, PUMP.gearR],
@@ -259,10 +297,10 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
   useEffect(
     () => () => {
       Object.values(geo).forEach((g) => g?.dispose());
-      oilMat.dispose();
     },
-    [geo, oilMat],
+    [geo],
   );
+  useEffect(() => () => oilMat.dispose(), [oilMat]);
   const cooler = useMemo(() => oilCoolerGeometry(L), [L]);
   useEffect(() => () => Object.values(cooler ?? {}).forEach((g) => g.dispose()), [cooler]);
   const level = useRef<THREE.Mesh>(null);
@@ -278,19 +316,22 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
     // the drive gear turns against the crankshaft gear (or with the camshaft), the second pumping gear against it
     const a = ((sim.anim.crank * spins.oilPump) % 360) * D2R;
     const [drive, pump, idler] = gears.current;
-    if (drive) drive.rotation.x = a + Math.PI / 12;
+    if (drive) drive.rotation.x = a + (L.c3b6 ? 0 : Math.PI / 12);
     if (pump) pump.rotation.x = a;
     if (idler) idler.rotation.x = ((sim.anim.crank * spins.oilPumpIdler) % 360) * D2R + Math.PI / 10;
   });
   return (
     <>
-      <mesh
-        ref={level}
-        geometry={geo.oil}
-        material={oilMat}
-        position={[0, d.sumpBottom + 0.005, 0]}
-        raycast={() => null}
-      />
+      <Details parts={hardware} mats={mats} />
+      <Spread by={[0, -0.26, 0]}>
+        <mesh
+          ref={level}
+          geometry={geo.oil}
+          material={oilMat}
+          position={[0, d.sumpBottom + 0.005, 0]}
+          raycast={() => null}
+        />
+      </Spread>
       {cooler && (
         <>
           <P name="Oil cooler" note={L.notes.oilCooler} geometry={cooler.core} material={mats.alt} />
@@ -304,8 +345,18 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       )}
       {/* named for its label, which the filter's own parts don't hide (kit.ts labelOccluder) */}
       <group name="Oil filter">
+        {L.c3b6 && (
+          <AccessoryInternals
+            kind="filter"
+            mats={mats}
+            sim={sim}
+            position={oilFilterPose(d, L).centre}
+            spread={accessorySpread["Oil filter"]}
+          />
+        )}
         <P
           name="Oil filter"
+          spread={accessorySpread["Oil filter"]}
           note={L.notes.oilFilter ?? "Full-flow oil filter on the accessory housing (IOM p. 5, Figure 8)."}
           geometry={geo.filter}
           material={mats.filter}
@@ -321,6 +372,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       </group>
       <P
         name="Oil pump"
+        spread={[-0.28, -0.06, 0]}
         note={
           L.notes.oilPump ??
           "Draws oil from the sump through the suction screen and sends it to the filter (IOM p. 5, Figure 8)."
@@ -330,8 +382,13 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       />
       {!PUMP.onCam && (
         <P
-          name="Oil pump drive gear"
-          note="Meshes with the crankshaft gear and turns the pump through its shaft. Drawn at twice crankshaft speed: the IOM doesn't give the oil pump's drive ratio."
+          name={L.c3b6 ? "Oil pump drive shaft" : "Oil pump drive gear"}
+          spread={[-0.12, -0.06, 0]}
+          note={
+            L.c3b6
+              ? "The tangs of shaft 61174 engage the slots in the crankshaft gear. The pump turns at crankshaft speed (MM 72-25, Fig. 5)."
+              : "Meshes with the crankshaft gear and turns the pump through its shaft. Drawn at twice crankshaft speed: the IOM doesn't give the oil pump's drive ratio."
+          }
           geometry={geo.pumpDrive}
           material={mats.gear}
           position={[d.caseRear - 0.018, PUMP.y, 0]}
@@ -344,6 +401,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         <P
           key={z}
           name="Oil pump gears"
+          spread={[k === 0 ? -0.19 : -0.21, -0.06, 0]}
           note={
             PUMP.onCam && k === 0
               ? L.notes.oilPumpDrive
@@ -359,43 +417,56 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       ))}
       <P
         name="Oil suction screen"
+        spread={[-0.13, -0.26, 0]}
         note={L.notes.screen ?? "Strains the oil on its way from the sump to the pump (IOM p. 5)."}
         geometry={geo.screen}
         material={mats.steel}
       />
       <P
         name="Suction screen plug"
+        spread={[-0.24, -0.26, 0]}
         note={L.notes.screenPlug ?? "Removed to take out the suction screen (IOM p. 5)."}
         geometry={geo.screenPlug}
         material={mats.darkSteel}
       />
       <P
         name="Oil sump drain plug"
+        spread={[0, -0.42, 0]}
         note={L.notes.drain ?? "Drain plug on the oil sump (IOM p. 5)."}
         geometry={geo.drain}
         material={mats.darkSteel}
       />
       <P
         name="Oil level gage tube"
+        spread={[0, 0.28, 0.16]}
         note={L.notes.dipTube ?? "Oil fill tube and oil level gage, the dipstick (IOM p. 21)."}
         geometry={geo.dipTube}
         material={mats.acc}
       />
       <P
         name="Oil filler cap and dipstick"
+        spread={[0, 0.46, 0.16]}
         note="Check the level here; the panel's oil quantity sets the level drawn in the sump."
         geometry={geo.dipCap}
         material={mats.magCap}
       />
       <P
         name="Oil suction line"
+        spread={[-0.1, -0.17, 0]}
         note="From the suction screen in the sump to the pump."
         geometry={geo.suction}
         material={mats.oil}
       />
-      <P name="Oil pressure line" note="From the pump to the oil filter." geometry={geo.pressure} material={mats.oil} />
+      <P
+        name="Oil pressure line"
+        spread={[-0.22, 0.04, 0]}
+        note="From the pump to the oil filter."
+        geometry={geo.pressure}
+        material={mats.oil}
+      />
       <P
         name="Filtered oil line"
+        spread={[-0.14, 0.16, 0]}
         note={
           L.notes.oilSupply ??
           "From the filter into the crankcase, where the oil feeds the engine and the four piston-cooling nozzles."
@@ -408,6 +479,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
           <group key={c.n} position={toWorld(c, [0, 0, 0])} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
             <P
               name="Piston cooling oil nozzle"
+              spread={[0, 0.12, 0]}
               note={L.notes.pistonOil ?? "Four oil nozzles supply oil for internal piston cooling (IOM p. 2)."}
               geometry={geo.nozzle}
               material={mats.oil}
