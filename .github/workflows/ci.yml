@@ -62,9 +62,10 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     outputs:
+      source-key: ${{ steps.inputs.outputs.source-key }}
       browser-image: ${{ steps.inputs.outputs.image }}
       browser-key: ${{ steps.inputs.outputs.key }}
-      browser-cache-hit: ${{ steps.passed.outputs.cache-hit }}
+      browser-cache-hit: ${{ steps.previous-run.outputs.found }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -83,6 +84,7 @@ jobs:
           echo "image=$image@$digest" >> "$GITHUB_OUTPUT"
           # Include paths, modes and Git object IDs. New files are inputs by default.
           inputs=$(git ls-files --stage -z -- . ':(top,exclude,glob)*.md' ':(top,exclude,glob)tests/**/*.test.ts' | sha256sum)
+          echo "source-key=${inputs%% *}" >> "$GITHUB_OUTPUT"
           echo "key=ui-pass-v1-${ImageOS}-${ImageVersion}-${digest#sha256:}-${inputs%% *}" >> "$GITHUB_OUTPUT"
       - name: Look up a passing browser suite for these inputs
         if: github.event_name == 'pull_request' && github.run_attempt == '1'
@@ -91,7 +93,15 @@ jobs:
         with:
           key: ${{ steps.inputs.outputs.key }}
           path: ${{ runner.temp }}/browser-suite-passed
-          lookup-only: true
+      - name: Link to the passing browser run
+        id: previous-run
+        if: steps.passed.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          if read -r run_id < "$RUNNER_TEMP/browser-suite-passed" && [[ "$run_id" =~ ^[0-9]+$ ]]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "All server browser shards passed for these inputs in [run $run_id]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$run_id)." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Plan browser shards from discovered tests
         run: node scripts/ci-browser-shards.mjs --shards 20 --output .ci/browser-shards
       - name: Restore compiled geometry
@@ -102,14 +112,14 @@ jobs:
             .geometry-runtime/
           # Keep fallback reuse within the same compiler, shared helpers and local vendor implementation.
           # The compiler's per-aircraft digests validate aircraft changes after restore.
-          key: ${{ runner.os }}-geometry-v1-${{ hashFiles('.node-version', 'package.json', 'package-lock.json', 'tsconfig.json', 'scripts/build-geometry.mjs', 'scripts/geometry/**', 'lib/**', 'authoring/**', 'vendor/**', 'aircraft/fleet.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-geometry-v1-${{ hashFiles('.node-version', 'package.json', 'package-lock.json', 'tsconfig.json', 'scripts/build-geometry.mjs', 'scripts/geometry/**', 'lib/**', 'authoring/**', 'vendor/**', 'aircraft/fleet.json') }}-${{ steps.inputs.outputs.source-key }}
           restore-keys: |
             ${{ runner.os }}-geometry-v1-${{ hashFiles('.node-version', 'package.json', 'package-lock.json', 'tsconfig.json', 'scripts/build-geometry.mjs', 'scripts/geometry/**', 'lib/**', 'authoring/**', 'vendor/**', 'aircraft/fleet.json') }}-
       - name: Restore server build cache
         uses: actions/cache@v4
         with:
           path: .next/cache/
-          key: ${{ runner.os }}-next-server-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-next-server-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-${{ steps.inputs.outputs.source-key }}
           restore-keys: |
             ${{ runner.os }}-next-server-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-
       # The compiler runs once. Both hosts and every browser shard consume these exact assets.
@@ -145,6 +155,8 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     steps:
       - uses: actions/checkout@v4
+      # The runner owns the mounted checkout; the Playwright container runs as root.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -190,6 +202,8 @@ jobs:
       STATIC_EXPORT: "1"
     steps:
       - uses: actions/checkout@v4
+      # The runner owns the mounted checkout; the Playwright container runs as root.
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -204,7 +218,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .next/cache/
-          key: ${{ runner.os }}-next-static-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-${{ github.sha }}
+          key: ${{ runner.os }}-next-static-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-${{ needs.build.outputs.source-key }}
           restore-keys: |
             ${{ runner.os }}-next-static-v1-${{ hashFiles('.node-version', 'package-lock.json') }}-
       - run: npm run build:site
