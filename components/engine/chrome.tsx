@@ -3,7 +3,33 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { useView } from "@/lib/view";
-import { ResetViewButton } from "../ui/chrome";
+import { useTouchClick } from "@/lib/useTouchClick";
+import { Icon, ResetViewButton } from "../ui/chrome";
+
+/** Keep the disclosure on the canvas edge so it is still reachable with the panel closed. */
+export function ModelPanelToggle({ collapsed, toggle }: { collapsed: boolean; toggle: () => void }) {
+  const touchClick = useTouchClick();
+  const label = collapsed ? "Show side panel" : "Hide side panel";
+  return (
+    <button
+      {...touchClick}
+      type="button"
+      className="tb eng-panel-toggle"
+      aria-controls="model-details"
+      aria-expanded={!collapsed}
+      aria-label={label}
+      title={label}
+      onClick={toggle}
+    >
+      <Icon>
+        <rect x="1.5" y="2" width="13" height="12" rx="1.5" />
+        <path d="M10.5 2v12" />
+        <path d={collapsed ? "m7.5 5.5-2.5 2.5 2.5 2.5" : "m5 5.5 2.5 2.5L5 10.5"} />
+      </Icon>
+      <span>Panel</span>
+    </button>
+  );
+}
 
 /** The 3D view's Reset view, registered by the page's ComponentStage while its canvas is mounted. */
 export const useStageReset = create<{ reset: (() => void) | null }>(() => ({ reset: null }));

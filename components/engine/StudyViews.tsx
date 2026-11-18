@@ -82,7 +82,7 @@ export function StudyViews({ sim }: { sim: EngineSim }) {
   const study = sim.useUi(({ view }) => currentStudy(sim, view));
   return (
     <label className="eng-study">
-      Study
+      <span>Study</span>
       <select aria-label="Study view" value={study} onChange={(event) => selectStudy(sim, event.target.value)}>
         {study === "custom" && (
           <option value="custom" disabled>

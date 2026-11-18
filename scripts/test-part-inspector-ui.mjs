@@ -35,6 +35,17 @@ for (const width of [1440, 390])
     const next = page.getByRole("region", { name: "Part inspector" });
     await next.locator("summary").click();
     await expect(next.getByRole("searchbox")).toHaveValue("");
+    // Replays share the inspector and keep 44px targets at both widths.
+    await page.goto("/fdr/c5-diego-garcia");
+    const summary = inspector.locator("summary");
+    const search = inspector.getByRole("searchbox");
+    const fuselage = inspector.getByRole("button", { name: "Fuselage", exact: true });
+    await summary.click();
+    await search.fill("Fuselage");
+    await fuselage.click();
+    for (const control of [summary, search, fuselage, inspector.getByRole("button", { name: "Clear selected part" })]) {
+      expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44);
+    }
     expect(errors).toEqual([]);
   });
 
@@ -104,9 +115,16 @@ for (const phone of [false, true])
       // A single tap above must have left the installed camera in place.
       await expect(page.getByRole("combobox", { name: "Study view" })).toHaveValue("exterior");
       if (phone) {
-        // Send one double-tap gesture. A software-rendered frame between two driver calls can outlast a double tap.
+        // Queue both taps on the same connection. Waiting for a rendered frame between releases can turn them
+        // into two single taps on the software renderer.
         const touch = await context.newCDPSession(page);
-        await touch.send("Input.synthesizeTapGesture", { x: hit.x, y: hit.y, tapCount: 2, gestureSourceType: "touch" });
+        const point = [{ x: hit.x, y: hit.y }];
+        await Promise.all(
+          ["touchStart", "touchEnd", "touchStart", "touchEnd"].map((type) =>
+            touch.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchStart" ? point : [] }),
+          ),
+        );
+        await touch.detach();
       } else await page.mouse.dblclick(hit.x, hit.y);
       await expect(page.getByRole("button", { name: "Part groups", exact: true })).toBeVisible();
       if (phone) await page.getByRole("button", { name: "Engine controls" }).tap();

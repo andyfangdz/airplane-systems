@@ -229,6 +229,19 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
     </button>
   );
   const study = <StudyViews sim={sim} />;
+  const explodeEngine = sim.spec.illustratedInstallation && (!open || linkage) && (
+    <button
+      type="button"
+      className="tb eng-explode-engine"
+      aria-label="Explode engine"
+      title="Separate the engine into part groups"
+      onClick={() => selectStudy(sim, "assemblies")}
+    >
+      <span>
+        Explode<span className="eng-explode-noun"> engine</span>
+      </span>
+    </button>
+  );
   const settings = (
     <>
       <div className="tb-group" role="group" aria-label="View">
@@ -243,8 +256,10 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
       <div className="toolbar eng-compact-toolbar">
         {backButton}
         {action || study}
+        {!action && explodeEngine}
         <EngineOptions>
           {action && study}
+          {action && explodeEngine}
           {linkage && cycleFocus}
           {focus && groupPicker}
           {memberPicker}
@@ -258,6 +273,7 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
   return (
     <div className="toolbar">
       {study}
+      {explodeEngine}
       {(open || cycle) && (
         <div
           className="eng-assembly-nav"
