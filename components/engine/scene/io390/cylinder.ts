@@ -232,7 +232,7 @@ export function lycomingHead(d: Dims, { detailed, parallelValve: parallel = !det
   const portPad = new THREE.Shape().absellipse(0, 0, 0.034, 0.025, 0, 2 * Math.PI, false, 0);
   hole(portPad, 0, 0, 0.018);
   for (const x of [-0.027, 0.027]) hole(portPad, x, 0, 0.0035);
-  const portBosses = [intakePort, exhaustPort].map((at) =>
+  const portBosses: THREE.BufferGeometry[] = [intakePort, exhaustPort].map((at) =>
     plate(portPad, 0, 0.057)
       .rotateX(-Math.PI / 2)
       .applyMatrix4(new THREE.Matrix4().makeShear(0, 0, 0, -0.4, 0, 0))
