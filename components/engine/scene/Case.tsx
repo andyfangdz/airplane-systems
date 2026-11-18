@@ -187,7 +187,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       L.detailed
         ? [
             ...oilHardware(d, PUMP),
-            ...rockerDrains(d),
+            ...rockerDrains(d, L.parallelValve),
             ...(L.parallelValve ? installedCooler(d, sim.spec.illustratedInstallation === "c172s") : remoteCooler(d)),
           ]
         : [],

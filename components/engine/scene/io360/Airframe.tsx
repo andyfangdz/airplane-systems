@@ -5,15 +5,56 @@ import { loft } from "@/lib/geometry";
 import { driveLayout, merge, rod, tube, type Dims, type Mats } from "../kit";
 import { layoutFor } from "../layout";
 import { bankBaffles } from "../io390/accessories";
+import { ignitionFeedthrough } from "../io390/lines";
 import { parallelOutline } from "../io390/cylinder";
 import { Details, useDetailDisposal } from "../io390/Details";
-import { plate, section, sleeve, type Detail, type Point } from "../io390/shapes";
-import { firewallX, installedBattery } from "./battery";
-import { coolerPosition, detail } from "./installation";
+import { hole, plate, section, sleeve, type Detail, type Point } from "../io390/shapes";
+import { installedBattery } from "./battery";
+import { coolerPosition, detail, firewallX } from "./installation";
 
-/** Open inlet at the nose, widening over the front cylinder. The Cessna upper cowl closes its ramps.
- * The Diamond left inlet has both an upper and a lower intake baffle (AMM 75-00 Fig. 1). */
-function inletRamp(d: Dims, side: number, upper: boolean, cessna: boolean) {
+/** Folded Cessna ramps. The left ramp's heater takeoff is open through the sheet (172 Series MM 78-10-00). */
+function cessnaRamp(d: Dims, side: number) {
+  const rear = d.front - 0.018,
+    front = d.flangeX - 0.031;
+  const angle = Math.atan2(-0.042, front - rear),
+    length = (front - rear) / Math.cos(angle);
+  const center = side * 0.275,
+    half = 0.036;
+  const sheet = section([
+    [0, -half],
+    [length, -half],
+    [length, half],
+    [0, half],
+  ]);
+  if (side < 0) hole(sheet, length * 0.5, 0, 0.021);
+  const pieces: THREE.BufferGeometry[] = [plate(sheet, -0.001, 0.001).rotateX(Math.PI / 2)];
+  for (const edge of [-1, 1]) {
+    const cheek = (x: number, width: number, height: number) => {
+      const skin = Array.from({ length: 9 }, (_, i) => {
+        const a = ((i / 8) * Math.PI) / 2;
+        return new THREE.Vector3(x, height * (1 - Math.cos(a)), edge * (half + width * Math.sin(a)));
+      });
+      return [...skin, ...skin.toReversed().map((p) => p.clone().add(new THREE.Vector3(0, -0.002, 0)))];
+    };
+    pieces.push(loft([cheek(0, 0.068, 0.049), cheek(length, 0.052, 0.038)]));
+  }
+  if (side < 0)
+    pieces.push(
+      sleeve(0.02, 0.023, -0.014, 0)
+        .rotateX(-Math.PI / 2)
+        .translate(length * 0.5, 0, 0),
+    );
+  return {
+    geometry: merge(pieces).rotateZ(angle).translate(rear, 0.101, center),
+    takeoff: new THREE.Vector3(length * 0.5, -0.011, 0)
+      .applyAxisAngle(new THREE.Vector3(0, 0, 1), angle)
+      .add(new THREE.Vector3(rear, 0.101, center))
+      .toArray() as Point,
+  };
+}
+
+/** The Diamond left inlet has upper and lower intake baffles (AMM 75-00 Fig. 1). */
+function diamondIntakeBaffle(d: Dims, side: number, upper: boolean) {
   const ring = (x: number, center: number, halfWidth: number, y: number, height: number) => {
     const points = Array.from({ length: 19 }, (_, i) => {
       const a = (Math.PI * i) / 18;
@@ -29,13 +70,13 @@ function inletRamp(d: Dims, side: number, upper: boolean, cessna: boolean) {
     ];
   };
   return loft([
-    ring(d.flangeX - 0.036, 0.234, cessna ? 0.119 : 0.072, 0.075, 0.047),
-    ring(d.front - 0.006, 0.237, 0.13, 0.103, 0.051),
-    ring(d.front - 0.078, 0.244, d.headOut - 0.258, 0.15, upper ? 0.044 : 0.061),
+    ring(d.flangeX - 0.031, 0.263, 0.071, 0.093, 0.043),
+    ring(d.front + 0.014, 0.269, 0.092, 0.113, 0.044),
+    ring(d.front - 0.018, 0.277, d.headOut - 0.294, 0.147, upper ? 0.043 : 0.049),
   ]);
 }
 
-function coolingPanels(d: Dims, cessna: boolean) {
+function coolingPanels(d: Dims, cessna: boolean, leftRamp: ReturnType<typeof cessnaRamp> | null) {
   const ref = cessna ? "C172S POH 7-37" : "DA40 AMM 75-00, Fig. 1";
   const note = `The baffles seal against the upper cowling and direct inlet air down through the cylinder fins (${ref}).`;
   const rear = d.caseRear + 0.005;
@@ -54,6 +95,10 @@ function coolingPanels(d: Dims, cessna: boolean) {
       [0.127, 0.196],
       [0.084, 0.18],
     ]);
+    for (const c of d.cylinders.filter((c) => c.side === (side < 0 ? "L" : "R"))) {
+      const [, y, z] = ignitionFeedthrough(d, c);
+      hole(sheet, Math.abs(z), y, 0.0065);
+    }
     if (cessna && side > 0)
       sheet.holes.push(
         section([
@@ -102,10 +147,12 @@ function coolingPanels(d: Dims, cessna: boolean) {
           "steel",
           tube(
             [
-              [rear, 0.009, side * (rim - 0.017)],
-              [rear + 0.038, -0.081, side * (rim - 0.017)],
-              [d.front - 0.064, -0.081, side * (rim - 0.017)],
-              [d.front - 0.036, 0.061, side * (rim - 0.017)],
+              [rear, 0.009, side * (rim - 0.018)],
+              [rear + 0.009, -0.11, side * (rim + 0.036)],
+              [rear + 0.057, -0.145, side * (rim + 0.023)],
+              [d.front - 0.066, -0.145, side * (rim + 0.023)],
+              [d.front - 0.02, -0.11, side * (rim + 0.036)],
+              [d.front - 0.018, 0.127, side * (rim - 0.006)],
             ],
             0.0025,
             24,
@@ -119,7 +166,7 @@ function coolingPanels(d: Dims, cessna: boolean) {
         detail(
           name + " cooling inlet ramp",
           "baffleSheet",
-          inletRamp(d, side, false, cessna),
+          cessna ? (side < 0 ? leftRamp! : cessnaRamp(d, side)).geometry : diamondIntakeBaffle(d, side, false),
           [0.32, 0.12, side * 0.25],
           note,
         ),
@@ -130,7 +177,7 @@ function coolingPanels(d: Dims, cessna: boolean) {
       detail(
         "Upper intake baffle",
         "baffleSheet",
-        inletRamp(d, -1, true, false),
+        diamondIntakeBaffle(d, -1, true),
         [0.34, 0.29, -0.3],
         "The upper and lower intake baffles form the front duct from the left cowling inlet to the space above the cylinders (DA40 AMM 71-10 and 75-00 Fig. 1).",
       ),
@@ -212,8 +259,8 @@ function engineMount(spec: EngineSpec, d: Dims, cessna: boolean) {
   return parts;
 }
 
-function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
-  if (cessna) {
+function accessoryAir(spec: EngineSpec, d: Dims, heaterTakeoff: Point | undefined): Detail[] {
+  if (heaterTakeoff) {
     const x = d.accRear,
       y = 0.139;
     return [
@@ -236,24 +283,27 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
         "duct",
         tube(
           [
-            [d.front - 0.025, 0.083, 0.319],
-            [d.front + 0.012, 0.004, 0.308],
-            [d.front - 0.023, -0.2, 0.287],
-            [-0.06, -0.289, 0.141],
+            heaterTakeoff,
+            [d.front + 0.018, 0.032, -0.269],
+            [d.front + 0.018, -0.148, -0.293],
+            [d.front - 0.01, -0.298, -0.289],
+            [0.11, -0.355, -0.197],
+            [0.005, -0.359, -0.104],
+            [-0.076, -0.343, -0.104],
           ],
           0.023,
           36,
           20,
         ),
-        [0.12, -0.14, 0.49],
+        [0.2, -0.5, -0.57],
         "Outside air enters the heater shroud around the muffler and picks up exhaust heat for the cabin (C172S POH 7-37, Fig. 7-8).",
       ),
     ];
   }
   const ref = "DA40 AMM 71-10, 75-00 and 79-00";
-  const inlet: Point = [d.flangeX - 0.036, 0.064, 0.264];
-  const bend: Point = [d.front + 0.012, 0.051, 0.3];
-  const junction: Point = [d.front - 0.012, 0.038, 0.329];
+  const inlet: Point = [d.flangeX - 0.018, 0.064, 0.264];
+  const bend: Point = [d.front + 0.059, 0.051, 0.3];
+  const junction: Point = [d.front + 0.031, 0.038, 0.329];
   const [x, y, z] = coolerPosition(d, false);
   // Sections of the moulded lower cowling passage. Its rectangular aft seal meets the cooler face.
   const ring = ([cx, cy, cz]: Point, h: number, w: number, rectangular = false) =>
@@ -266,15 +316,15 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
     });
   const throat = ring(junction, 0.038, 0.044);
   const outlet = ring([x + 0.033, y, z], 0.052, 0.063, true);
-  const [ax, ay, az] = driveLayout(spec, d).alternators[0].at;
+  const [, ay, az] = driveLayout(spec, d).alternators[0].at;
   return [
-    ...installedBattery(d, false, [bend[0], -0.011, 0.325]),
+    ...installedBattery(d, false, [bend[0] + 0.012, 0.001, 0.28]),
     detail(
       "Supplemental engine cooling outlet",
       "acc",
       loft(
         [
-          ring(bend, 0.019, 0.02),
+          ring([bend[0], bend[1] + 0.032, bend[2]], 0.016, 0.019),
           ring([junction[0], 0.085, 0.274], 0.017, 0.02),
           ring([junction[0] - 0.038, 0.11, 0.236], 0.019, 0.025),
         ],
@@ -296,10 +346,10 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
       loft(
         [
           throat,
-          ring([d.front - 0.055, -0.074, d.headOut + 0.013], 0.031, 0.05),
-          ring([d.caseRear + 0.045, -0.103, d.headOut + 0.003], 0.032, 0.052),
-          ring([d.caseRear - 0.024, -0.091, 0.324], 0.036, 0.054),
-          ring([x + 0.059, y - 0.011, z + 0.014], 0.048, 0.059, true),
+          ring([d.front + 0.009, -0.074, d.headOut + 0.106], 0.031, 0.05),
+          ring([d.caseRear + 0.045, -0.103, d.headOut + 0.102], 0.032, 0.052),
+          ring([d.caseRear - 0.032, -0.089, 0.433], 0.036, 0.054),
+          ring([x + 0.059, y - 0.015, z + 0.032], 0.048, 0.059, true),
           outlet,
         ],
         { caps: false },
@@ -318,6 +368,14 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
       "Accessory air Y connector",
       "shroud",
       merge([
+        tube(
+          [
+            [bend[0], 0.014, 0.3],
+            [bend[0] + 0.012, 0.001, 0.28],
+          ],
+          0.009,
+          1,
+        ),
         tube([bend, [bend[0], 0.014, 0.3], [bend[0] - 0.012, -0.004, 0.283]], 0.015, 12),
         tube(
           [
@@ -337,8 +395,11 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
       tube(
         [
           [bend[0] - 0.012, -0.004, 0.283],
-          [ax - 0.095, -0.054, az + 0.065],
-          [ax - 0.11, ay, az],
+          [d.front + 0.007, -0.071, 0.294],
+          [0.215, -0.206, az + 0.1],
+          [0.181, ay - 0.106, az + 0.038],
+          [0.172, ay - 0.1, az],
+          [0.172, ay - 0.057, az],
         ],
         0.014,
         22,
@@ -352,15 +413,18 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
       tube(
         [
           [bend[0], -0.011, 0.325],
-          [d.front - 0.025, -0.162, 0.351],
-          [d.caseRear - 0.078, -0.25, 0.188],
-          [d.caseRear - 0.155, -0.288, 0.099],
+          [d.front + 0.035, -0.134, 0.356],
+          [d.front - 0.015, -0.29, 0.352],
+          [0.065, -0.367, 0.278],
+          [d.caseRear - 0.052, -0.367, 0.162],
+          [d.caseRear - 0.155, -0.295, 0.142],
+          [d.caseRear - 0.155, -0.296, 0.099],
         ],
         0.019,
         36,
         20,
       ),
-      [-0.18, -0.3, 0.41],
+      [-0.18, -0.63, 0.55],
       "The heater air branch feeds the shroud around the Power Flow exhaust collector (DA40 AMM 71-10 and PFS-15250-00).",
     ),
   ];
@@ -369,7 +433,12 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
 export function IO360Airframe({ spec, d, mats }: { spec: EngineSpec; d: Dims; mats: Mats }) {
   const parts = useMemo(() => {
     const cessna = spec.illustratedInstallation === "c172s";
-    return [...coolingPanels(d, cessna), ...engineMount(spec, d, cessna), ...accessoryAir(spec, d, cessna)];
+    const leftRamp = cessna ? cessnaRamp(d, -1) : null;
+    return [
+      ...coolingPanels(d, cessna, leftRamp),
+      ...engineMount(spec, d, cessna),
+      ...accessoryAir(spec, d, leftRamp?.takeoff),
+    ];
   }, [d, spec]);
   useDetailDisposal(parts);
   return <Details parts={parts} mats={mats} />;

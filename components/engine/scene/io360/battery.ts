@@ -1,8 +1,6 @@
 import { merge, rod, slab, tube, type Dims } from "../kit";
 import { plate, section, type Detail, type Point } from "../io390/shapes";
-import { detail } from "./installation";
-
-export const firewallX = (d: Dims, cessna: boolean) => d.accRear - (cessna ? 0.19 : 0.23);
+import { detail, firewallX } from "./installation";
 
 /** Both batteries sit forward of the firewall, on opposite sides of the two installations. */
 export function installedBattery(d: Dims, cessna: boolean, coolingTap?: Point): Detail[] {
@@ -84,10 +82,14 @@ export function installedBattery(d: Dims, cessna: boolean, coolingTap?: Point): 
         tube(
           [
             coolingTap,
-            [d.front - 0.094, -0.139, d.headOut + 0.018],
-            [d.caseRear, -0.151, d.headOut - 0.002],
-            [x + 0.165, -0.043, z],
-            [x + 0.108, 0.04, z],
+            [d.front + 0.073, -0.045, 0.265],
+            [d.front + 0.073, -0.12, 0.282],
+            [d.front + 0.067, -0.145, 0.399],
+            [d.front - 0.012, -0.173, 0.454],
+            [d.caseRear, -0.17, 0.438],
+            [x + 0.121, -0.09, 0.445],
+            [x + 0.076, 0.035, z + 0.103],
+            [x + 0.074, 0.037, z + 0.075],
           ],
           0.009,
           40,

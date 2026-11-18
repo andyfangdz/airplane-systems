@@ -152,8 +152,8 @@ export function ignitionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = la
       bot = toWorld(c, hp.botLead);
     if (L.detailed) {
       leads.push(
-        plugLead(d, c, magnetoPose(spec, d, topMag, L).capEnd, top, true),
-        plugLead(d, c, magnetoPose(spec, d, botMag, L).capEnd, bot, false),
+        plugLead(d, c, magnetoPose(spec, d, topMag, L).capEnd, top, true, L.parallelValve),
+        plugLead(d, c, magnetoPose(spec, d, botMag, L).capEnd, bot, false, L.parallelValve),
       );
       return;
     }
@@ -506,7 +506,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
     () =>
       L.detailed
         ? [
-            ...fuelHardware(d, injectorAt(d, spec), updraft),
+            ...fuelHardware(d, injectorAt(d, spec), updraft, L.parallelValve),
             ...(L.parallelValve ? installedMetering(d, injectorAt(d, spec), updraft) : []),
           ]
         : [],
@@ -522,7 +522,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
     const m = manifoldAt(sim, d);
     const px = d.accRear - 0.03;
     const feed = L.detailed
-      ? servoHoses(d, ix, iy, m)
+      ? servoHoses(d, ix, iy, m, spec.illustratedInstallation)
       : !servo
         ? []
         : [
@@ -1071,7 +1071,7 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
   const geo = useMemo(() => {
     const hp = headPoints(d);
     const [ix, servoY] = injectorAt(d, spec);
-    const iy = cessna ? servoY + 0.063 : servoY;
+    const iy = cessna ? d.sumpBottom - 0.035 : servoY;
     const x0 = ix - 0.045,
       x1 = d.caseRear + 0.04;
     const runners = cyls.map((c) => {
@@ -1107,7 +1107,15 @@ function UnderInduction({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats 
     if (layoutFor(spec).detailed)
       return {
         runners,
-        plenum: slab(x1, cessna ? d.front - 0.065 : x0, iy - 0.028, iy + 0.026, -0.079, 0.079, 0.012),
+        plenum: slab(
+          x1,
+          cessna ? d.front - 0.065 : x0,
+          iy - (cessna ? 0.014 : 0.028),
+          iy + 0.026,
+          -0.079,
+          0.079,
+          0.012,
+        ),
         ...(io360 ? installedExhaust(d, cessna) : exhaustInstallation(d)),
       };
     const sideY = -0.3,

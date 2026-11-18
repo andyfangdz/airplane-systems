@@ -503,14 +503,14 @@ export function coolingBaffles(d: Dims, cirrusBaffles = true) {
   return parts;
 }
 
-export function rockerDrains(d: Dims) {
+export function rockerDrains(d: Dims, parallel = false) {
   const tubes = ["72702", "72703", "74808", "73027"];
   return d.cylinders.flatMap((c) => {
     const k = bank(c),
       out = d.headOut - 0.023;
     const place = (g: THREE.BufferGeometry) => g.rotateY(k === 1 ? 0 : Math.PI).translate(c.x, 0, 0);
     const points: Point[] = [
-      [0.032, -0.006, out],
+      [0.032, parallel ? 0.0005 : -0.006, out],
       [0.044, -0.054, out + 0.004],
       [0.073, -0.112, out + 0.003],
       [0.075, -0.121, out - 0.063],
@@ -746,7 +746,7 @@ export function ignitionHardware(spec: EngineSpec, d: Dims) {
   });
 }
 
-export function fuelHardware(d: Dims, [ix, iy]: Point = servoPosition(d), updraft = false) {
+export function fuelHardware(d: Dims, [ix, iy]: Point = servoPosition(d), updraft = false, parallel = false) {
   const mx = (Math.min(...d.cylinders.map((c) => c.x)) + Math.max(...d.cylinders.map((c) => c.x))) / 2,
     my = d.caseTop + 0.035;
 
@@ -830,7 +830,7 @@ export function fuelHardware(d: Dims, [ix, iy]: Point = servoPosition(d), updraf
         ),
       ),
       "Gaskets seal the servo's induction flanges.",
-      [0.13, -0.37, 0],
+      parallel ? [0.22, -0.56, -0.2] : [0.13, -0.37, 0],
     ),
     ...items(
       "Fuel injector mounting nut",
