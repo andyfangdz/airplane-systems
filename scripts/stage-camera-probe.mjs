@@ -9,7 +9,10 @@ export async function observeStageCamera(context) {
       renderer.render = (scene, camera) => {
         const probe = window.__stageCameraProbe;
         probe.camera = camera;
-        const pose = [...camera.position.toArray(), ...camera.quaternion.toArray()].map((x) => x.toFixed(5)).join(",");
+        const offset = camera.view?.enabled ? [camera.view.offsetX, camera.view.offsetY] : [0, 0];
+        const pose = [...camera.position.toArray(), ...camera.quaternion.toArray(), ...offset]
+          .map((x) => x.toFixed(5))
+          .join(",");
         probe.stable = probe.previous === pose ? probe.stable + 1 : 0;
         probe.previous = pose;
         return render(scene, camera);

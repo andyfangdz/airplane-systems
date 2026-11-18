@@ -118,6 +118,7 @@ export function P({
   rotation,
   scale,
   meshRef,
+  cameraSubject,
   spread,
   installationNote,
 }: {
@@ -129,6 +130,8 @@ export function P({
   rotation?: [number, number, number];
   scale?: [number, number, number];
   meshRef?: Ref<THREE.Mesh>;
+  /** Use this part to frame its focused assembly. */
+  cameraSubject?: boolean;
   spread?: V3;
   /** Functional description valid across the illustrated installations. */
   installationNote?: string;
@@ -153,6 +156,7 @@ export function P({
   const part = (
     <mesh
       ref={mesh}
+      userData={cameraSubject ? { cameraSubject } : undefined}
       castShadow={!!material.userData.castsEngineShadow}
       receiveShadow={!!material.userData.receivesEngineShadow}
       geometry={geometry}

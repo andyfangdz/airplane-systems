@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import type { AssemblyId } from "@/components/engine/assembly-study";
-import { componentBounds } from "@/lib/component-stage";
+import { componentBounds, fitComponentCamera } from "@/lib/component-stage";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
 import { dims, makeMats } from "@/components/engine/scene/kit";
@@ -101,6 +101,32 @@ test("PC-IO-390-C Figs. 10–13: the two banks and their hardware separate and r
       expect(out("Oil control ring")).toBeGreaterThan(out("Piston"));
       const spring = (type: string) => travel(type + " valve spring, cylinder " + c.n + " intake").z * sign;
       expect(spring("Outer")).toBeGreaterThan(spring("Inner"));
+    }
+    // The shielded leads reach every cylinder. Both the installed and separated ignition
+    // views should pivot near the two magnetos, including during the flight to the exploded pose.
+    const magCentre = (mesh: THREE.Mesh) =>
+      mesh.geometry.boundingBox!.getCenter(new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
+    const magnetos = [...named].filter(([name]) => /^(Left|Right) magneto(?:$| \()/.test(name)).map(([, mesh]) => mesh);
+    expect(magnetos).toHaveLength(2);
+    const fit = (focused: boolean) =>
+      fitComponentCamera(
+        mounted.scene,
+        new THREE.Vector3(...layoutFor(IO390).camera.position),
+        38,
+        1020,
+        900,
+        { left: 28, right: 992, top: 70, bottom: 660 },
+        focused,
+      )!;
+    for (const exploded of [false, true]) {
+      await act(async () => sim.useUi.getState().setView({ assembly: { id: "ignition", exploded } }));
+      const destination = fit(true);
+      mounted.frame(1);
+      const pose = fit(true);
+      expect(pose.target.distanceTo(destination.target)).toBeLessThan(1e-9);
+      const midpoint = magCentre(magnetos[0]).lerp(magCentre(magnetos[1]), 0.5);
+      expect(pose.target.distanceTo(midpoint)).toBeLessThan(0.07);
+      expect(pose.position.distanceTo(pose.target)).toBeLessThan(fit(false).position.distanceTo(fit(false).target));
     }
     await focus("case");
     expect(travel("Crankcase, left half").z).toBeLessThan(0);

@@ -100,7 +100,7 @@ export function AccessoryInternals({
     }
   });
   const group = (
-    <group position={position} rotation={[0, 0, rotationZ]}>
+    <group userData={{ cameraSubject: true }} position={position} rotation={[0, 0, rotationZ]}>
       {parts.map((p) => (
         <Spread key={p.name} by={p.spread!}>
           <group position={p.pivot}>

@@ -246,7 +246,11 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
             ? m === spec.ignition.retardMag
             : startMags.length === 1 && m === startMags[0];
         return (
-          <group key={m} position={[0, ...magnetoPose(spec, d, m, L).centre.slice(1)] as V3}>
+          <group
+            key={m}
+            userData={{ cameraSubject: true }}
+            position={[0, ...magnetoPose(spec, d, m, L).centre.slice(1)] as V3}
+          >
             {L.detailed && (
               <AccessoryInternals
                 kind="magneto"
@@ -651,6 +655,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
       {servo && (
         <>
           <P
+            cameraSubject
             name="Fuel injector"
             spread={accessorySpread["Fuel injector"]}
             note={`Meters fuel in proportion to the air through the throttle body: ${unit} (IOM p. 4, Table A-1).`}
@@ -658,6 +663,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
             material={mats.fuelBody}
           />
           <P
+            cameraSubject
             name="Throttle body"
             spread={[0.32, -0.37, 0]}
             note="Air enters here; the throttle valve inside follows the throttle lever."
@@ -665,7 +671,11 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
             material={mats.fuelBody}
           />
           <Spread by={[0.39, -0.37, 0]}>
-            <group ref={plate} position={updraft ? [ix, iy - 0.035, 0] : [ix + (L.detailed ? 0.035 : 0.075), iy, 0]}>
+            <group
+              userData={{ cameraSubject: true }}
+              ref={plate}
+              position={updraft ? [ix, iy - 0.035, 0] : [ix + (L.detailed ? 0.035 : 0.075), iy, 0]}
+            >
               <P
                 name="Throttle valve"
                 note="Butterfly valve: its angle follows the panel's throttle."
@@ -676,6 +686,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
             </group>
           </Spread>
           <P
+            cameraSubject
             name="Engine-driven fuel pump"
             spread={[-0.43, -0.14, 0]}
             note="Diaphragm-type pump on the accessory housing; feeds the fuel injector (IOM p. 4)."
@@ -685,6 +696,7 @@ function InjectedFuel({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats })
         </>
       )}
       <P
+        cameraSubject
         name="Fuel manifold"
         spread={accessorySpread["Fuel manifold"]}
         note={L.notes.fuelManifold ?? "Divides the injector's metered fuel among the four nozzle lines (IOM p. 4)."}
@@ -1522,7 +1534,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
     <>
       <Details parts={hardware} mats={mats} />
       {st.kind === "front-ring" && sg.kind === "front-ring" ? (
-        <group position={st.at}>
+        <group userData={{ cameraSubject: true }} position={st.at}>
           {L.detailed && (
             <AccessoryInternals
               kind="starter"
@@ -1553,7 +1565,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
         </group>
       ) : st.kind === "rear-adapter" && sg.kind === "rear-adapter" ? (
         <>
-          <group position={st.at}>
+          <group userData={{ cameraSubject: true }} position={st.at}>
             <P
               name="Starter"
               spread={accessorySpread.Starter}
@@ -1631,7 +1643,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
           );
         return (
           <Fragment key={a.def.name}>
-            <group position={a.at}>
+            <group userData={{ cameraSubject: true }} position={a.at}>
               {L.detailed && (
                 <AccessoryInternals
                   kind="alternator"
@@ -1709,7 +1721,7 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
       )}
       {acc.governorRatio > 0 && (
         <Spread by={accessorySpread.Governor}>
-          <group position={gv.at} rotation={gv.rotation}>
+          <group userData={{ cameraSubject: true }} position={gv.at} rotation={gv.rotation}>
             {L.detailed && <AccessoryInternals kind="governor" sim={sim} mats={mats} ratio={spins.governor} />}
             <P
               name="Propeller governor"

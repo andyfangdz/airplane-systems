@@ -122,6 +122,61 @@ describe("component study framing", () => {
       material.dispose();
     }
   });
+  it.each([
+    { width: 1020, height: 900, safe: rect(28, 70, 992, 660) },
+    { width: 390, height: 354, safe: rect(20, 82, 370, 334) },
+  ])("orbits the working hardware at the safe frame centre at $width × $height", ({ width, height, safe }) => {
+    const model = new Group(),
+      hardware = new Group();
+    hardware.userData.cameraSubject = true;
+    hardware.position.set(0.25, -0.1, 0.4);
+    hardware.rotation.set(0.2, 0.3, 0.1);
+    const geo = new BoxGeometry(0.4, 0.2, 0.3),
+      mat = new MeshBasicMaterial();
+    const body = new Mesh(geo, mat),
+      lead = new Mesh(geo, mat);
+    lead.scale.set(12, 0.02, 0.02);
+    lead.position.x = 2.5;
+    hardware.add(body);
+    model.add(hardware, lead);
+    const direction = new Vector3(1, 0.35, 0.8);
+    const fit = (focused: boolean) => fitComponentCamera(model, direction, 38, width, height, safe, focused)!;
+    try {
+      const overview = fit(false),
+        focus = fit(true);
+      expect(focus.target.distanceTo(hardware.position)).toBeLessThan(1e-9);
+      expect(overview.position.distanceTo(overview.target)).toBeGreaterThan(
+        focus.position.distanceTo(focus.target) * 2,
+      );
+      const camera = new PerspectiveCamera(38, width / height, 0.01, 40);
+      camera.setViewOffset(width, height, focus.viewOffset.x, focus.viewOffset.y, width, height);
+      camera.position.copy(focus.position);
+      camera.lookAt(focus.target);
+      camera.updateMatrixWorld();
+      const pixels = (p: Vector3) => {
+        p.project(camera);
+        return [((1 + p.x) * width) / 2, ((1 - p.y) * height) / 2];
+      };
+      const [x, y] = pixels(hardware.position.clone());
+      expect(x).toBeCloseTo((safe.left + safe.right) / 2);
+      expect(y).toBeCloseTo((safe.top + safe.bottom) / 2);
+      const vertices = geo.getAttribute("position");
+      for (let i = 0; i < vertices.count; i++) {
+        const [px, py] = pixels(new Vector3().fromBufferAttribute(vertices, i).applyMatrix4(body.matrixWorld));
+        expect(px).toBeGreaterThanOrEqual(safe.left - 0.001);
+        expect(px).toBeLessThanOrEqual(safe.right + 0.001);
+        expect(py).toBeGreaterThanOrEqual(safe.top - 0.001);
+        expect(py).toBeLessThanOrEqual(safe.bottom + 0.001);
+      }
+      // A study filter can hide all nominated hardware. Fit what is still visible.
+      hardware.visible = false;
+      expect(fit(true).target.distanceTo(lead.position)).toBeLessThan(1e-9);
+    } finally {
+      geo.dispose();
+      mat.dispose();
+    }
+  });
+
   it("waits for physical geometry and nonzero layout instead of generating a non-finite camera", () => {
     expect(fitComponentCamera(new Box3(), new Vector3(0, 0, 1), 38, 390, 400, rect(20, 50, 370, 380))).toBeNull();
     expect(fitComponentCamera(new Group(), new Vector3(0, 0, 1), 38, 390, 400, rect(20, 50, 370, 380))).toBeNull();

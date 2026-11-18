@@ -340,7 +340,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
     <>
       {cooler && (
         <>
-          <P name="Oil cooler" note={L.notes.oilCooler} geometry={cooler.core} material={mats.alt} />
+          <P cameraSubject name="Oil cooler" note={L.notes.oilCooler} geometry={cooler.core} material={mats.alt} />
           <P
             name="Oil temperature control valve"
             note={L.notes.vernatherm}
@@ -350,7 +350,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         </>
       )}
       {/* named for its label, which the filter's own parts don't hide (kit.ts labelOccluder) */}
-      <group name="Oil filter">
+      <group name="Oil filter" userData={{ cameraSubject: true }}>
         {L.detailed && (
           <AccessoryInternals
             kind="filter"
@@ -377,6 +377,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         )}
       </group>
       <P
+        cameraSubject
         name="Oil pump"
         spread={[-0.28, -0.06, 0]}
         note={

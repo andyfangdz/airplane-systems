@@ -1,4 +1,4 @@
-import { Box3, InstancedMesh, Mesh, Vector3, Matrix4, type Object3D } from "three";
+import { Box3, InstancedMesh, Mesh, Vector2, Vector3, Matrix4, type Object3D } from "three";
 
 export type StageRect = { left: number; top: number; right: number; bottom: number };
 export type StageLabel = { id: string; rect: StageRect; priority: number; selected?: boolean };
@@ -41,12 +41,15 @@ export function visibleStageLabels(
 type PhysicalExtent = { matrix: Matrix4 } & ({ box: Box3 } | { envelope: XRotationEnvelope });
 
 /** Support of the physical assembly in any world direction, without inventing corners between separate parts. */
-function componentSupport(model: Object3D): ((direction: Vector3) => number) | null {
-  const extents: PhysicalExtent[] = [];
+function componentSupport(model: Object3D, preferSubjects = false) {
+  const surrounding: PhysicalExtent[] = [],
+    subjects: PhysicalExtent[] = [];
   model.updateWorldMatrix(true, true);
   // During a study transition, fit the final assembly without moving its rendered meshes.
-  const visit = (object: Object3D, parentDestination?: Matrix4) => {
+  const visit = (object: Object3D, parentDestination?: Matrix4, parentSubject = false) => {
     if (!object.visible || object.userData.cameraBounds === false) return;
+    const subject = preferSubjects && (parentSubject || object.userData.cameraSubject === true);
+    const extents = subject ? subjects : surrounding;
     const local = object.userData.cameraDestination as Matrix4 | undefined;
     const destination =
       local || parentDestination
@@ -69,10 +72,18 @@ function componentSupport(model: Object3D): ((direction: Vector3) => number) | n
       if (!geometry.boundingBox) geometry.computeBoundingBox();
       if (geometry.boundingBox && !geometry.boundingBox.isEmpty()) extents.push({ matrix, box: geometry.boundingBox });
     }
-    for (const child of object.children) visit(child, destination);
+    for (const child of object.children) visit(child, destination, subject);
   };
   visit(model);
-  if (!extents.length) return null;
+  if (!subjects.length && !surrounding.length) return null;
+  return {
+    subject: extentSupport(subjects.length ? subjects : surrounding),
+    context: subjects.length && surrounding.length ? extentSupport(surrounding) : undefined,
+  };
+}
+
+type Support = (direction: Vector3) => number;
+function extentSupport(extents: PhysicalExtent[]): Support {
   return (direction) => {
     const { x, y, z } = direction;
     let farthest = -Infinity;
@@ -101,7 +112,7 @@ function componentSupport(model: Object3D): ((direction: Vector3) => number) | n
 
 /** Visible physical meshes only. A decoration or selection outline may opt out at any ancestor. */
 export function componentBounds(model: Object3D): Box3 {
-  const support = componentSupport(model);
+  const support = componentSupport(model)?.subject;
   if (!support) return new Box3();
   return new Box3(
     new Vector3(-support(new Vector3(-1, 0, 0)), -support(new Vector3(0, -1, 0)), -support(new Vector3(0, 0, -1))),
@@ -112,7 +123,8 @@ export function componentBounds(model: Object3D): Box3 {
 /**
  * Fit the physical assembly inside a safe screen rectangle, preserving the authored viewing direction. Each mesh
  * and rotational envelope meets all four camera edges directly; a single world box would add empty corner space.
- * Moving camera and target across the view plane clears the monitor and toolbar without tilting the model.
+ * In a focused study, prefer the marked hardware and move the optical centre into the safe rectangle.
+ * This keeps the physical orbit pivot on the hardware even when the monitor occupies the bottom of the stage.
  */
 export function fitComponentCamera(
   model: Box3 | Object3D,
@@ -121,7 +133,8 @@ export function fitComponentCamera(
   width: number,
   height: number,
   safe: StageRect,
-): { position: Vector3; target: Vector3 } | null {
+  focused = false,
+): { position: Vector3; target: Vector3; viewOffset: Vector2 } | null {
   if (width <= 0 || height <= 0 || safe.right <= safe.left || safe.bottom <= safe.top) return null;
   const back = direction.clone().normalize();
   if (back.lengthSq() < 0.5) return null;
@@ -129,19 +142,22 @@ export function fitComponentCamera(
   if (right.lengthSq() < 1e-8) right.set(1, 0, 0);
   right.normalize();
   const up = new Vector3().crossVectors(back, right).normalize();
-  const support =
+  const bounds: { subject: Support; context?: Support } | null =
     model instanceof Box3
       ? model.isEmpty()
         ? null
-        : (n: Vector3) =>
-            n.x * (n.x >= 0 ? model.max.x : model.min.x) +
-            n.y * (n.y >= 0 ? model.max.y : model.min.y) +
-            n.z * (n.z >= 0 ? model.max.z : model.min.z)
-      : componentSupport(model);
-  if (!support) return null;
+        : {
+            subject: (n: Vector3) =>
+              n.x * (n.x >= 0 ? model.max.x : model.min.x) +
+              n.y * (n.y >= 0 ? model.max.y : model.min.y) +
+              n.z * (n.z >= 0 ? model.max.z : model.min.z),
+          }
+      : componentSupport(model, focused);
+  if (!bounds) return null;
+  const { subject, context } = bounds;
   const centre = new Vector3();
   for (const axis of [right, up, back])
-    centre.addScaledVector(axis, (support(axis) - support(axis.clone().negate())) / 2);
+    centre.addScaledVector(axis, (subject(axis) - subject(axis.clone().negate())) / 2);
   const tanY = Math.tan((fov * Math.PI) / 360),
     tanX = tanY * (width / height);
   const left = (safe.left / width) * 2 - 1,
@@ -150,17 +166,35 @@ export function fitComponentCamera(
     top = 1 - (safe.top / height) * 2;
   const cx = (left + rightEdge) / 2,
     cy = (bottom + top) / 2;
-  const relativeSupport = (normal: Vector3) => support(normal) - centre.dot(normal);
-  const edgeDistance = (axis: Vector3, scale: number, depth: number, span: number) =>
-    relativeSupport(axis.clone().multiplyScalar(scale).addScaledVector(back, depth)) / span;
-  const distance = Math.max(
-    0.01,
-    relativeSupport(back) + 0.01,
-    edgeDistance(right, -1 / tanX, -left, cx - left),
-    edgeDistance(right, 1 / tanX, rightEdge, rightEdge - cx),
-    edgeDistance(up, -1 / tanY, -bottom, cy - bottom),
-    edgeDistance(up, 1 / tanY, top, top - cy),
-  );
-  const target = centre.addScaledVector(right, -cx * distance * tanX).addScaledVector(up, -cy * distance * tanY);
-  return { position: target.clone().addScaledVector(back, distance), target };
+  // setViewOffset shifts screen coordinates by (cx, cy). In that projection the safe
+  // frustum is symmetric about the target. Other stage views retain their centred lens.
+  const shiftX = focused ? cx : 0,
+    shiftY = focused ? cy : 0;
+  const fitDistance = (support: Support) => {
+    const relativeSupport = (normal: Vector3) => support(normal) - centre.dot(normal);
+    const edgeDistance = (axis: Vector3, scale: number, depth: number, span: number) =>
+      relativeSupport(axis.clone().multiplyScalar(scale).addScaledVector(back, depth)) / span;
+    return Math.max(
+      0.01,
+      relativeSupport(back) + 0.01,
+      edgeDistance(right, -1 / tanX, shiftX - left, cx - left),
+      edgeDistance(right, 1 / tanX, rightEdge - shiftX, rightEdge - cx),
+      edgeDistance(up, -1 / tanY, shiftY - bottom, cy - bottom),
+      edgeDistance(up, 1 / tanY, top - shiftY, top - cy),
+    );
+  };
+  const primaryDistance = fitDistance(subject);
+  // Let nearby fittings and leads share the frame, up to 30% more orbit distance.
+  // A long harness can extend past the viewport while its magnetos stay legible.
+  const distance = context
+    ? Math.max(primaryDistance, Math.min(fitDistance(context), primaryDistance * 1.3))
+    : primaryDistance;
+  const target = centre
+    .addScaledVector(right, (shiftX - cx) * distance * tanX)
+    .addScaledVector(up, (shiftY - cy) * distance * tanY);
+  return {
+    position: target.clone().addScaledVector(back, distance),
+    target,
+    viewOffset: new Vector2((-shiftX * width) / 2, (shiftY * height) / 2),
+  };
 }

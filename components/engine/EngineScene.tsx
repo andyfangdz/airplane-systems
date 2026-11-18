@@ -258,6 +258,9 @@ export default function EngineScene({ sim }: { sim: EngineSim }) {
     hidden = sim.useUi((x) => x.view.hidden);
   return (
     <ComponentStage
+      focused={!!assembly}
+      // Look from the accessory side so the spark-plug leads run behind the magnetos.
+      fitDirection={assembly?.id === "ignition" ? [-1.2, 0.7, 1.45] : undefined}
       motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}`}
       frameKey={`${prop}:${hidden.join(",")}`}
       shadowExtent={solid ? (open ? 1.35 : prop ? 1.02 : 0.81) : undefined}

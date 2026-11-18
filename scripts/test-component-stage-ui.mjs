@@ -137,3 +137,38 @@ test("a live monitor caption preserves an explored camera, while Reset view fits
   expect(Math.max(...reset.map((v, i) => Math.abs(v - home[i])))).toBeGreaterThan(0.01);
   await expect.poll(async () => (await labelLayout(page)).problems).toEqual([]);
 });
+
+test("ignition keeps its focused framing through orbit and reset, then clears it in the overview", async ({
+  page,
+  context,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await observeStageCamera(context);
+  await page.goto("/engines/io390");
+  await page.getByRole("button", { name: "Blow up", exact: true }).click();
+  await page.getByRole("combobox", { name: "Focus a part group" }).selectOption("ignition");
+  await page.waitForFunction(() => window.__stageCameraProbe.camera?.view?.enabled);
+  await waitForStageCamera(page);
+  const pose = () => page.evaluate(() => window.__stageCameraProbe.previous);
+  const home = await pose();
+  const canvas = await page.locator(".eng-view canvas").boundingBox();
+  const orbit = async () => {
+    const x = canvas.x + canvas.width / 2,
+      y = canvas.y + canvas.height / 2;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 80, y + 20, { steps: 5 });
+    await page.mouse.up();
+  };
+  await orbit();
+  await expect.poll(pose).not.toBe(home);
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
+  await expect.poll(pose).toBe(home);
+  await page.getByRole("button", { name: "Blow up group", exact: true }).click();
+  await expect.poll(pose).not.toBe(home);
+  await waitForStageCamera(page);
+  expect(await page.evaluate(() => window.__stageCameraProbe.camera.view.enabled)).toBe(true);
+  await page.getByRole("button", { name: "Part groups", exact: true }).click();
+  await orbit();
+  await page.waitForFunction(() => !window.__stageCameraProbe.camera.view.enabled);
+});

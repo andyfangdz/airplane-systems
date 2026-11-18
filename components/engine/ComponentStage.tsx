@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, type ReactNode, type RefObject } from "
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { fitComponentCamera, intersects, visibleStageLabels, type StageRect } from "@/lib/component-stage";
-import { clamp, ease, type Vec3 } from "@/lib/math";
+import { clamp, ease, toV, toVec3, type Vec3 } from "@/lib/math";
 import { prefersReducedMotion } from "@/lib/useReducedMotion";
 import { useSceneRendering } from "@/lib/useSceneRendering";
 import { useStageReset } from "./chrome";
@@ -14,7 +14,16 @@ import { usePartInspectionStore } from "./PartInspector";
 import { HoverTip, useHover } from "./scene/parts";
 
 const clearHover = () => useHover.setState({ hover: null });
-type Pose = { p: THREE.Vector3; t: THREE.Vector3 };
+type StageFit = NonNullable<ReturnType<typeof fitComponentCamera>>;
+
+function setStageOffset(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement, x: number, y: number) {
+  if (!x && !y) {
+    if (camera.view?.enabled) camera.clearViewOffset();
+  } else {
+    const { clientWidth: width, clientHeight: height } = canvas;
+    if (width && height) camera.setViewOffset(width, height, x, y, width, height);
+  }
+}
 
 const obstaclesFor = (canvas: HTMLCanvasElement) => {
   const app = canvas.closest(".eng-app");
@@ -47,54 +56,59 @@ function safeFrame(view: DOMRect, obstacles: StageRect[]): StageRect {
  */
 function CameraRig({
   model,
-  position,
-  target,
+  direction,
   frameKey,
   motionKey,
+  focused,
   maxDistance,
 }: {
   model: RefObject<THREE.Group | null>;
-  position: Vec3;
-  target: Vec3;
+  direction: Vec3;
   frameKey: string;
   motionKey: string;
+  focused: boolean;
   maxDistance: number;
 }) {
   const camera = useThree((s) => s.camera),
     gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
-  const flight = useRef<{ from: Pose; to: Pose; t0: number } | null>(null);
+  const flight = useRef<{ from: StageFit; to: StageFit; t0: number } | null>(null);
   const previous = useRef({ request: "", overlays: "", motionKey });
   const exploring = useRef(false);
   const elapsed = useRef(1);
   const frames = useRef(0);
   const applyFit = useCallback(
-    (fit: { position: THREE.Vector3; target: THREE.Vector3 }, animate: boolean) => {
-      if (!controls) return;
+    (fit: StageFit, animate: boolean) => {
+      if (!controls || !(camera instanceof THREE.PerspectiveCamera)) return;
       // A tall propeller on a phone can need more room than the authored desktop orbit limit.
       controls.maxDistance = Math.max(maxDistance, fit.position.distanceTo(fit.target) * 1.5);
-      const from = { p: camera.position.clone(), t: controls.target.clone() };
+      const view = camera.view;
+      const from = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        viewOffset: view?.enabled ? new THREE.Vector2(view.offsetX, view.offsetY) : new THREE.Vector2(),
+      };
       controls.enableDamping = false;
       controls.update();
       controls.enableDamping = true;
       if (animate && !prefersReducedMotion()) {
-        camera.position.copy(from.p);
-        controls.target.copy(from.t);
-        flight.current = { from, to: { p: fit.position, t: fit.target }, t0: performance.now() };
+        camera.position.copy(from.position);
+        controls.target.copy(from.target);
+        flight.current = { from, to: fit, t0: performance.now() };
       } else {
         flight.current = null;
         camera.position.copy(fit.position);
         controls.target.copy(fit.target);
+        setStageOffset(camera, gl.domElement, fit.viewOffset.x, fit.viewOffset.y);
         controls.update();
       }
     },
-    [camera, controls, maxDistance],
+    [camera, controls, gl, maxDistance],
   );
   useEffect(() => {
     if (!controls) return;
     const start = () => {
       exploring.current = true;
-      flight.current = null;
     };
     const reset = () => {
       if (!model.current || !(camera instanceof THREE.PerspectiveCamera)) return;
@@ -103,16 +117,17 @@ function CameraRig({
       const safe = safeFrame(view, obstaclesFor(gl.domElement));
       const fit = fitComponentCamera(
         model.current,
-        new THREE.Vector3(...position).sub(new THREE.Vector3(...target)),
+        new THREE.Vector3(...direction),
         camera.fov,
         view.width,
         view.height,
         safe,
+        focused,
       );
       if (!fit) return;
       previous.current = {
         motionKey,
-        request: [frameKey, ...position, ...target, view.width, view.height].join(","),
+        request: [frameKey, focused, ...direction, view.width, view.height].join(","),
         overlays: [safe.top, safe.bottom].join(","),
       };
       exploring.current = false;
@@ -124,7 +139,7 @@ function CameraRig({
       controls.removeEventListener("start", start);
       if (useStageReset.getState().reset === reset) useStageReset.setState({ reset: null });
     };
-  }, [applyFit, camera, controls, frameKey, motionKey, gl, model, position, target]);
+  }, [applyFit, camera, controls, frameKey, motionKey, focused, gl, model, direction]);
   useFrame((_, dt) => {
     if (!controls || !model.current || !(camera instanceof THREE.PerspectiveCamera)) return;
     // Animated assemblies get their initial pose before their bounds are measured.
@@ -135,12 +150,19 @@ function CameraRig({
       elapsed.current = 0;
       const view = gl.domElement.getBoundingClientRect();
       const safe = safeFrame(view, obstaclesFor(gl.domElement));
-      const request = [frameKey, ...position, ...target, view.width, view.height].join(",");
+      const request = [frameKey, focused, ...direction, view.width, view.height].join(",");
       const overlays = [safe.top, safe.bottom].join(",");
       const explicit = request !== previous.current.request;
       if (studyChanged || explicit || overlays !== previous.current.overlays) {
-        const direction = new THREE.Vector3(...position).sub(new THREE.Vector3(...target));
-        const fit = fitComponentCamera(model.current, direction, camera.fov, view.width, view.height, safe);
+        const fit = fitComponentCamera(
+          model.current,
+          new THREE.Vector3(...direction),
+          camera.fov,
+          view.width,
+          view.height,
+          safe,
+          focused,
+        );
         previous.current = { request, overlays, motionKey };
         if (fit && (studyChanged || explicit || !exploring.current)) {
           exploring.current = false;
@@ -152,8 +174,17 @@ function CameraRig({
     if (!f) return;
     const u = clamp((performance.now() - f.t0) / 1000, 0, 1),
       e = ease(u);
-    camera.position.lerpVectors(f.from.p, f.to.p, e);
-    controls.target.lerpVectors(f.from.t, f.to.t, e);
+    // Dragging takes over the orbit. Let the lens finish shifting into the current study layout.
+    if (!exploring.current) {
+      camera.position.lerpVectors(f.from.position, f.to.position, e);
+      controls.target.lerpVectors(f.from.target, f.to.target, e);
+    }
+    setStageOffset(
+      camera,
+      gl.domElement,
+      THREE.MathUtils.lerp(f.from.viewOffset.x, f.to.viewOffset.x, e),
+      THREE.MathUtils.lerp(f.from.viewOffset.y, f.to.viewOffset.y, e),
+    );
     if (u >= 1) flight.current = null;
   });
   return null;
@@ -210,6 +241,8 @@ export function ComponentStage({
   maxDistance,
   frameKey = "",
   motionKey = "",
+  focused = false,
+  fitDirection,
   shadowExtent,
   ambient = 0.55,
   keyLight = { position: [3, 4, 2], intensity: 1.6 },
@@ -225,6 +258,10 @@ export function ComponentStage({
   frameKey?: string;
   /** Animate the camera between explicit assembly study levels. */
   motionKey?: string;
+  /** Orbit a focused assembly’s working parts in the unobstructed portion of the canvas. */
+  focused?: boolean;
+  /** Optional view from a particular side of a focused assembly, in model axes. */
+  fitDirection?: Vec3;
   /** Half-width of the directional shadow camera in model metres, for the solid engine finish. */
   shadowExtent?: number;
   ambient?: number;
@@ -269,10 +306,10 @@ export function ComponentStage({
         <OrbitControls makeDefault target={target} enableDamping minDistance={minDistance} maxDistance={maxDistance} />
         <CameraRig
           model={model}
-          position={camera.position}
-          target={target}
+          direction={fitDirection ?? toVec3(toV(camera.position).sub(toV(target)))}
           frameKey={frameKey}
           motionKey={motionKey}
+          focused={focused}
           maxDistance={maxDistance}
         />
         <LabelClear />
