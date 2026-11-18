@@ -291,4 +291,23 @@ test("an isolated accessory separates on its own and a paired cylinder follows t
     parts.forEach((name, i) => expect(named.get(name)!.matrixWorld.equals(scrubbed[i]), name).toBe(true));
     sim.anim.crank = 137;
   }
+  await detail({ kind: "linkage", cylinder: "all", angle: 268 });
+  const parts = [
+    "Crankshaft",
+    ...IO390.geometry.cylinders.flatMap(({ n }) => [
+      `Piston, cylinder ${n}`,
+      `Connecting rod, cylinder ${n}`,
+      `Intake valve, cylinder ${n}`,
+    ]),
+  ];
+  const allPoses = parts.map((name) => {
+    expect(seen(name), name).toBe(true);
+    return named.get(name)!.matrixWorld.clone();
+  });
+  expect(seen("Starter")).toBe(false);
+  expect(sim.anim.crank).toBe(137);
+  sim.anim.crank = 268;
+  await toggle(false);
+  mounted.frame(1);
+  parts.forEach((name, i) => expect(named.get(name)!.matrixWorld.equals(allPoses[i]), name).toBe(true));
 });

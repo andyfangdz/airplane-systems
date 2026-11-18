@@ -24,7 +24,14 @@ import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type 
 import { layoutFor, type V3 } from "./scene/layout";
 import { Assembly, AssemblyStudy, accessorySpread, Spread, cylinderSpread } from "./scene/Separation";
 import { Group, PartNotesProvider } from "./scene/parts";
-import { assemblyAvailable, assemblyStations, studyCrank, studyXray, type AssemblyId } from "./assembly-study";
+import {
+  assemblyAvailable,
+  assemblyStations,
+  inCrankLinkage,
+  studyCrank,
+  studyXray,
+  type AssemblyId,
+} from "./assembly-study";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
@@ -270,9 +277,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
               </button>
             </Html>
           ) : (
-            (paired !== undefined
-              ? station.id === "shafts" || station.id === `cylinder-${paired}`
-              : !focus || focus === station.id) &&
+            (paired !== undefined ? inCrankLinkage(station.id, paired) : !focus || focus === station.id) &&
             items
               .filter((p) => p.station === station.id)
               .map((p) => (
@@ -292,8 +297,8 @@ export default function EngineScene({ sim }: { sim: EngineSim }) {
   const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
   const assembly = sim.useUi((x) => x.view.assembly);
   const detail = assembly?.detail;
-  const paired =
-    detail?.kind === "linkage" ? sim.spec.geometry.cylinders.find((c) => c.n === detail.cylinder) : undefined;
+  const paired = detail?.kind === "linkage" ? detail.cylinder : undefined;
+  const cylinder = sim.spec.geometry.cylinders.find((c) => c.n === paired);
   const prop = sim.useUi((x) => x.view.prop),
     hidden = sim.useUi((x) => x.view.hidden);
   return (
@@ -301,13 +306,15 @@ export default function EngineScene({ sim }: { sim: EngineSim }) {
       focused={!!assembly}
       // From below, the rod and crankpin are clear of the pushrods. Ignition opens from the accessory side.
       fitDirection={
-        paired
-          ? [0.38, -1.45, paired.side === "R" ? 0.12 : -0.12]
-          : assembly?.id === "ignition"
-            ? [-1.2, 0.7, 1.45]
-            : undefined
+        paired === "all"
+          ? [0.35, -1.6, 0.48]
+          : cylinder
+            ? [0.38, -1.45, cylinder.side === "R" ? 0.12 : -0.12]
+            : assembly?.id === "ignition"
+              ? [-1.2, 0.7, 1.45]
+              : undefined
       }
-      motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}:${detail?.kind === "component" ? detail.id + detail.exploded : (paired?.n ?? "")}`}
+      motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}:${detail?.kind === "component" ? detail.id + detail.exploded : (paired ?? "")}`}
       frameKey={`${prop}:${hidden.join(",")}`}
       shadowExtent={solid ? (open ? 1.35 : prop ? 1.02 : 0.81) : undefined}
       ambient={solid ? 0.28 : undefined}

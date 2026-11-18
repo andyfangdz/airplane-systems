@@ -53,9 +53,10 @@ export function assemblyAvailable(station: AssemblyStation, view: Pick<EngineVie
 }
 
 export type ComponentId = "alternator-1" | "alternator-2" | "starter" | "governor" | "left-magneto" | "right-magneto";
+export type LinkageCylinder = number | "all";
 export type StudyDetail =
   | { kind: "component"; id: ComponentId; exploded: boolean }
-  | { kind: "linkage"; cylinder: number; angle?: number; xray?: boolean };
+  | { kind: "linkage"; cylinder: LinkageCylinder; angle?: number; xray?: boolean };
 export type AssemblyFocus = { id: AssemblyId; exploded: boolean; detail?: StudyDetail };
 
 export function assemblyComponents(spec: EngineSpec, id: AssemblyId): { id: ComponentId; name: string }[] {
@@ -79,6 +80,10 @@ export function linkageCylinders(spec: EngineSpec, id: AssemblyId, hidden: reado
   return spec.geometry.cylinders.filter(
     (c) => !hidden.includes("rotating") && (id === "shafts" || id === `cylinder-${c.n}`),
   );
+}
+
+export function inCrankLinkage(id: AssemblyId, cylinder: LinkageCylinder) {
+  return id === "shafts" || (cylinder === "all" ? id.startsWith("cylinder-") : id === `cylinder-${cylinder}`);
 }
 
 /** The paired mechanism has its own hand-turned pose and cutaway, independent of engine operation. */

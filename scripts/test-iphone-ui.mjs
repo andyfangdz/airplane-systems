@@ -805,7 +805,12 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
   await expect(sheet).toBeHidden();
   const crank = page.getByRole("slider", { name: "Crankshaft angle" });
   await crank.fill("145");
+  await options.tap();
+  await sheet.getByRole("combobox", { name: "Pair crankshaft with cylinder" }).selectOption("all");
+  await expect(sheet).toBeHidden();
+  await expect(crank).toHaveValue("145");
   const canvas = await page.locator(".eng-view canvas").elementHandle();
+  const canvasHeight = async () => (await page.locator(".eng-view canvas").boundingBox()).height;
   for (const [width, height] of [
     [382, 580],
     [594, 368],
@@ -829,9 +834,16 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
     expect(panel.y + panel.height).toBeLessThanOrEqual(height + 1);
     await page.keyboard.press("Escape");
     await expect(sheet).toBeHidden();
+    const originalHeight = await canvasHeight();
+    await monitor.tap();
+    await expect.poll(canvasHeight).toBeGreaterThan(originalHeight + 20);
+    await boundedCanvas(page);
+    await monitor.tap();
+    await expect.poll(canvasHeight).toBeCloseTo(originalHeight, 0);
     await expect(crank).toHaveValue("145");
   }
   await page.setViewportSize({ width: 382, height: 618 });
+  const originalHeight = await canvasHeight();
   const expandedHeight = (await page.locator(".eng-foot").boundingBox()).height;
   await monitor.tap();
   await expect(monitor).toHaveAttribute("aria-expanded", "false");
@@ -848,7 +860,10 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
   await expect(monitor).toHaveAttribute("aria-expanded", "false");
   await page.reload();
   await expect(monitor).toHaveAttribute("aria-expanded", "false");
+  await page.setViewportSize({ width: 382, height: 618 });
+  await expect.poll(canvasHeight).toBeGreaterThan(originalHeight + 80);
   await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   await monitor.click();
   await expect(page.locator(".eng-mon")).toBeVisible();
+  await expect.poll(canvasHeight).toBeCloseTo(originalHeight, 0);
 });

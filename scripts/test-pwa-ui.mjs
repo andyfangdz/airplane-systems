@@ -331,8 +331,11 @@ test("the installed study pack opens and renders unvisited models offline", asyn
     .getByRole("link", { name: /^O-360/ })
     .click();
   await rendered(offline, "/engines/o360", "O-360");
+  const engineControls = offline.getByRole("button", { name: "Engine controls" });
+  if (await engineControls.isVisible()) await engineControls.click();
   const pause = offline.getByRole("button", { name: "Pause", exact: true });
   await expect(pause).toHaveAttribute("aria-pressed", "false");
+  if (await engineControls.isVisible()) await offline.getByRole("button", { name: "Done", exact: true }).click();
   await offline.locator("#throttle").fill("0.42");
   await (await openPicker(offline)).getByRole("button", { pressed: true }).click();
   await expect(offline.locator("#throttle")).toHaveValue("0.42");

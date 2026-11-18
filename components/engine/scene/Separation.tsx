@@ -5,7 +5,14 @@ import { Group, Matrix4, Vector3 } from "three";
 import { ease } from "@/lib/math";
 import { prefersReducedMotion } from "@/lib/useReducedMotion";
 import type { EngineSim } from "../store";
-import { assemblyStations, type AssemblyId, type AssemblyStation, type ComponentId } from "../assembly-study";
+import {
+  assemblyStations,
+  inCrankLinkage,
+  type AssemblyId,
+  type AssemblyStation,
+  type ComponentId,
+  type LinkageCylinder,
+} from "../assembly-study";
 import type { CylinderDef } from "@/engines/types";
 import type { V3 } from "./layout";
 
@@ -27,7 +34,7 @@ const Study = createContext<{
   focus: AssemblyId | undefined;
   exploded: boolean;
   component?: ComponentId;
-  pairedCylinder?: number;
+  pairedCylinder?: LinkageCylinder;
   tap: GroupTap;
   cancelTap: () => void;
 } | null>(null);
@@ -144,8 +151,8 @@ export function Assembly({ id, children }: { id: AssemblyId; children: ReactNode
   if (!study) return children;
   const { sim, open, focus, exploded, stations } = study;
   const station = stations.get(id)!;
-  const paired = study.pairedCylinder !== undefined;
-  const hidden = paired ? id !== "shafts" && id !== `cylinder-${study.pairedCylinder}` : !!focus && id !== focus;
+  const paired = study.pairedCylinder;
+  const hidden = paired !== undefined ? !inCrankLinkage(id, paired) : !!focus && id !== focus;
   return (
     <AssemblyPick
       value={{
@@ -160,7 +167,7 @@ export function Assembly({ id, children }: { id: AssemblyId; children: ReactNode
           : undefined,
       }}
     >
-      <MovingGroup at={open && !paired ? station.by : origin} show={!hidden}>
+      <MovingGroup at={open && paired === undefined ? station.by : origin} show={!hidden}>
         <Separation value={id === focus && exploded}>{children}</Separation>
       </MovingGroup>
     </AssemblyPick>

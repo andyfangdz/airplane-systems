@@ -559,6 +559,10 @@
     min-height: 260px;
     border-bottom: 1px solid var(--rule);
   }
+  /* Leave room below the taller model to reopen the instruments and scroll the controls. */
+  .eng-stage:has(+ .eng-foot .eng-monitor-toggle[aria-expanded="false"]) {
+    height: 75svh;
+  }
   .eng-app .panel {
     border-left: 0;
     border-top: 1px solid var(--rule);

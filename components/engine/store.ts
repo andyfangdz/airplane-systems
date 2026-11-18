@@ -157,7 +157,9 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
             const valid =
               detail.kind === "component"
                 ? assemblyComponents(spec, focus.id).some((c) => c.id === detail.id)
-                : linkageCylinders(spec, focus.id, view.hidden).some((c) => c.n === detail.cylinder);
+                : linkageCylinders(spec, focus.id, view.hidden).some(
+                    (c) => detail.cylinder === "all" || c.n === detail.cylinder,
+                  );
             if (!valid) view.assembly = { id: focus.id, exploded: focus.exploded };
             else if (detail.kind === "linkage" && p.xray !== undefined) {
               view.xray = x.view.xray;

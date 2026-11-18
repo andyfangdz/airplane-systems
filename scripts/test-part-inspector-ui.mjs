@@ -104,8 +104,9 @@ for (const phone of [false, true])
       // A single tap above must have left the installed camera in place.
       await expect(page.getByRole("button", { name: "Blow up", exact: true })).toBeVisible();
       if (phone) {
-        await page.touchscreen.tap(hit.x, hit.y);
-        await page.touchscreen.tap(hit.x, hit.y);
+        // Send one double-tap gesture. A software-rendered frame between two driver calls can outlast a double tap.
+        const touch = await context.newCDPSession(page);
+        await touch.send("Input.synthesizeTapGesture", { x: hit.x, y: hit.y, tapCount: 2, gestureSourceType: "touch" });
       } else await page.mouse.dblclick(hit.x, hit.y);
       await expect(page.getByRole("button", { name: "Part groups", exact: true })).toBeVisible();
       if (phone) await page.getByRole("button", { name: "Engine controls" }).tap();
@@ -245,6 +246,13 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
   await inspector.getByRole("searchbox").fill("Piston, cylinder");
   await expect(inspector.getByRole("button", { name: "Piston, cylinder 3", exact: true })).toBeVisible();
   await expect(inspector.getByRole("button", { name: "Piston, cylinder 2", exact: true })).toHaveCount(0);
+  await crank.fill("268");
+  await pair.selectOption("all");
+  await expect(crank).toHaveValue("268");
+  await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(4);
+  await pair.selectOption("1");
+  await expect(crank).toHaveValue("268");
+  await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(1);
   await button("Crankshaft and camshaft").click();
   await expect(button("Assemble group")).toBeVisible();
 });

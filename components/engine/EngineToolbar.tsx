@@ -9,6 +9,7 @@ import {
   assemblyStations,
   linkageCylinders,
   studyXray,
+  type LinkageCylinder,
   type StudyDetail,
 } from "./assembly-study";
 import type { EngineSim } from "./store";
@@ -112,7 +113,8 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
     else if (focus) set({ assembly: undefined });
     else set({ blowUp: false });
   };
-  const pair = (cylinder: number) => change({ kind: "linkage", cylinder });
+  const pair = (cylinder: LinkageCylinder) =>
+    change(detail?.kind === "linkage" ? { ...detail, cylinder } : { kind: "linkage", cylinder });
   const backLabel = (detail && parent?.name) || (focus ? "Part groups" : "Assemble engine");
   const backButton = open && (
     <button type="button" className="tb eng-study-back" aria-label={backLabel} title={backLabel} onClick={back}>
@@ -177,16 +179,17 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
   );
   const pairControl =
     cylinders.length > 0 &&
-    (focus?.id === "shafts" ? (
+    (focus?.id === "shafts" || detail?.kind === "linkage" ? (
       <label className="eng-study">
         <select
           aria-label="Pair crankshaft with cylinder"
           value={detail?.kind === "linkage" ? detail.cylinder : ""}
-          onChange={(e) => pair(Number(e.target.value))}
+          onChange={(e) => pair(e.target.value === "all" ? "all" : Number(e.target.value))}
         >
           <option value="" disabled>
             Pair with cylinder…
           </option>
+          <option value="all">Crankshaft + all cylinders</option>
           {cylinders.map((c) => (
             <option key={c.n} value={c.n}>
               Crankshaft + cylinder {c.n}
