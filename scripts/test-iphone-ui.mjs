@@ -794,11 +794,21 @@ test("iPhone safe-area picker survives unfolding and keeps internal navigation i
 test("Duo engine study keeps the crank in one row and remembers the folded monitor", async ({ page }) => {
   await page.setViewportSize({ width: 382, height: 580 });
   await page.goto("/engines/io390");
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
   const button = (name) => page.getByRole("button", { name, exact: true });
   const options = button("Engine controls");
   const sheet = page.getByRole("dialog", { name: "Engine controls" });
   const monitor = button("Engine monitor");
-  await button("Blow up").tap();
+  const study = page.getByRole("combobox", { name: "Study view" });
+  const cycleFocus = page.getByRole("combobox", { name: "Power cycle focus" });
+  await expect(options).toBeVisible();
+  await study.selectOption("cycle");
+  await cycleFocus.selectOption("2");
+  await button("Whole power cycle").tap();
+  await expect(cycleFocus).toHaveValue("system");
+  await options.tap();
+  await study.selectOption("assemblies");
+  await expect(sheet).toBeHidden();
   await page.getByRole("combobox", { name: "Focus a part group" }).selectOption("cylinder-1");
   await options.tap();
   await button("Show with crankshaft").tap();
@@ -806,7 +816,8 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
   const crank = page.getByRole("slider", { name: "Crankshaft angle" });
   await crank.fill("145");
   await options.tap();
-  await sheet.getByRole("combobox", { name: "Pair crankshaft with cylinder" }).selectOption("all");
+  await expect(study).toHaveValue("cycle");
+  await cycleFocus.selectOption("all");
   await expect(sheet).toBeHidden();
   await expect(crank).toHaveValue("145");
   const canvas = await page.locator(".eng-view canvas").elementHandle();

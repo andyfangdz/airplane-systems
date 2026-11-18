@@ -34,6 +34,32 @@ test.each([IO390, TSIO550K])("study presets change visibility without changing $
   sim.dispose();
 });
 
+test("the study menu follows assembly focus and replaces it when another study is chosen", () => {
+  const sim = createEngineSimulation(IO390);
+  const { setView } = sim.useUi.getState();
+  const before = sim.checkpoint();
+  render(<StudyViews sim={sim} />);
+  const select = screen.getByRole("combobox", { name: "Study view" }) as HTMLSelectElement;
+  const choose = (value: string) => act(() => fireEvent.change(select, { target: { value } }));
+  const view = () => sim.useUi.getState().view;
+  choose("fuel");
+  choose("assemblies");
+  expect(view().hidden).toEqual([]);
+  expect(view().blowUp).toBe(true);
+  act(() => setView({ assembly: { id: "cylinder-1", exploded: true } }));
+  expect(select.value).toBe("assemblies");
+  act(() => setView({ assembly: { id: "cylinder-1", exploded: true, detail: { kind: "linkage", cylinder: 3 } } }));
+  expect(select.value).toBe("cycle");
+  choose("oil");
+  expect(select.value).toBe("oil");
+  expect(view().assembly).toBeUndefined();
+  expect(view().blowUp).toBe(false);
+  expect(view().hidden).toContain("ignition");
+  expect(sim.s).toEqual(before.s);
+  expect(sim.clock.checkpoint()).toEqual(before.clock);
+  sim.dispose();
+});
+
 test("time caption distinguishes slowed motion, accelerated temperature and pause", () => {
   const sim = createEngineSimulation(IO390);
   render(<MotionState sim={sim} />);

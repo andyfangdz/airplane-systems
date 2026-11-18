@@ -76,10 +76,8 @@ export function assemblyComponents(spec: EngineSpec, id: AssemblyId): { id: Comp
 }
 
 /** A crank-and-cylinder pair needs the crankshaft and connecting rod layer. */
-export function linkageCylinders(spec: EngineSpec, id: AssemblyId, hidden: readonly string[]) {
-  return spec.geometry.cylinders.filter(
-    (c) => !hidden.includes("rotating") && (id === "shafts" || id === `cylinder-${c.n}`),
-  );
+export function canPairCrank(id: AssemblyId, hidden: readonly string[]) {
+  return !hidden.includes("rotating") && (id === "shafts" || id.startsWith("cylinder-"));
 }
 
 export function inCrankLinkage(id: AssemblyId, cylinder: LinkageCylinder) {

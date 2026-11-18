@@ -123,7 +123,8 @@ function surface(name: string, mesh: THREE.Mesh) {
 const identity = new THREE.Matrix4();
 
 for (const spec of [IO390, IO360_C172S, IO360_DA40]) {
-  test(spec.model + " external routes meet only their installed joints and separate in the exploded view", async () => {
+  const routeTest = spec.model + " external routes meet only their installed joints and separate in the exploded view";
+  test(routeTest, { timeout: 15_000 }, async () => {
     const installedJoints = routingJoints(spec);
     const sim = createEngineSimulation(spec),
       d = dims(spec),

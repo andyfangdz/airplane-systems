@@ -1,5 +1,4 @@
 "use client";
-import { studyXray } from "./assembly-study";
 import type { EngineView, EngineSim } from "./store";
 import { groupsFor, type GroupId } from "./scene/parts";
 
@@ -11,10 +10,12 @@ interface StudyPreset {
   xray: boolean;
   groups?: readonly GroupId[];
 }
-const PRESETS: readonly StudyPreset[] = [
+const ENGINE_VIEWS: readonly StudyPreset[] = [
   { id: "installed", name: "Installed engine", prop: true, xray: false },
   { id: "exterior", name: "Engine exterior", prop: false, xray: false },
   { id: "internals", name: "Engine internals", prop: false, xray: true },
+];
+const SYSTEM_VIEWS: readonly StudyPreset[] = [
   {
     id: "cycle",
     name: "Power cycle",
@@ -33,7 +34,9 @@ const PRESETS: readonly StudyPreset[] = [
   { id: "oil", name: "Lubrication", prop: false, xray: true, groups: ["oil", "case", "rotating", "drives"] },
 ];
 
-function presetView(sim: EngineSim, preset: (typeof PRESETS)[number]) {
+const PRESETS = [...ENGINE_VIEWS, ...SYSTEM_VIEWS];
+
+function presetView(sim: EngineSim, preset: StudyPreset) {
   return {
     prop: preset.prop,
     xray: preset.xray,
@@ -46,35 +49,53 @@ function presetView(sim: EngineSim, preset: (typeof PRESETS)[number]) {
 function matches(view: EngineView, next: ReturnType<typeof presetView>) {
   return (
     view.prop === next.prop &&
-    studyXray(view) === next.xray &&
+    view.xray === next.xray &&
     view.hidden.length === next.hidden.length &&
     next.hidden.every((id) => view.hidden.includes(id))
   );
 }
 
+/** The Study picker follows the scene, including focus entered by double-tapping a mesh. */
+export function currentStudy(sim: EngineSim, view: EngineView) {
+  if (view.assembly?.detail?.kind === "linkage") return "cycle";
+  if (view.blowUp && sim.spec.illustratedInstallation) return "assemblies";
+  return PRESETS.find((preset) => matches(view, presetView(sim, preset)))?.id ?? "custom";
+}
+
+export function selectStudy(sim: EngineSim, id: string) {
+  const { setView } = sim.useUi.getState();
+  if (id === "assemblies" && sim.spec.illustratedInstallation) {
+    setView({ blowUp: true, assembly: undefined, hidden: [], xray: false });
+  } else {
+    const preset = PRESETS.find((p) => p.id === id);
+    if (preset) setView({ ...presetView(sim, preset), blowUp: false, assembly: undefined });
+  }
+}
+
+const option = (preset: StudyPreset) => (
+  <option key={preset.id} value={preset.id}>
+    {preset.name}
+  </option>
+);
+
 export function StudyViews({ sim }: { sim: EngineSim }) {
-  const view = sim.useUi((x) => x.view),
-    setView = sim.useUi((x) => x.setView);
-  const current = PRESETS.find((preset) => matches(view, presetView(sim, preset)));
+  const study = sim.useUi(({ view }) => currentStudy(sim, view));
   return (
     <label className="eng-study">
       Study
-      <select
-        aria-label="Study view"
-        value={current?.id ?? "custom"}
-        onChange={(event) => {
-          const preset = PRESETS.find((p) => p.id === event.target.value);
-          if (preset) setView(presetView(sim, preset));
-        }}
-      >
-        <option value="custom" disabled>
-          Custom view
-        </option>
-        {PRESETS.map((preset) => (
-          <option key={preset.id} value={preset.id}>
-            {preset.name}
+      <select aria-label="Study view" value={study} onChange={(event) => selectStudy(sim, event.target.value)}>
+        {study === "custom" && (
+          <option value="custom" disabled>
+            Custom view
           </option>
-        ))}
+        )}
+        <optgroup label="Whole engine">{ENGINE_VIEWS.map(option)}</optgroup>
+        <optgroup label="Engine operation">{SYSTEM_VIEWS.map(option)}</optgroup>
+        {sim.spec.illustratedInstallation && (
+          <optgroup label="Disassembly">
+            <option value="assemblies">Exploded assemblies</option>
+          </optgroup>
+        )}
       </select>
     </label>
   );

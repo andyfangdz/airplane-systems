@@ -8,7 +8,7 @@ import {
   assemblyAvailable,
   assemblyStations,
   assemblyComponents,
-  linkageCylinders,
+  canPairCrank,
   type AssemblyFocus,
 } from "./assembly-study";
 import { useCallback } from "react";
@@ -40,6 +40,7 @@ export interface EngineView {
   xray: boolean;
   /** The illustrated engine is separated into assemblies. Older checkpoints can omit this. */
   blowUp?: boolean;
+  /** A crankshaft focus can also be opened directly from the assembled power-cycle study. */
   assembly?: AssemblyFocus;
   labels: boolean;
   prop: boolean;
@@ -146,10 +147,12 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
         if ("paused" in p) cancel();
         set((x) => {
           const view = { ...x.view, ...p };
+          if (p.blowUp === false && !("assembly" in p)) delete view.assembly;
           const focus = view.assembly;
           if (
             focus &&
-            (!view.blowUp || !assemblyStations(spec).some((s) => s.id === focus.id && assemblyAvailable(s, view)))
+            ((!view.blowUp && focus.detail?.kind !== "linkage") ||
+              !assemblyStations(spec).some((s) => s.id === focus.id && assemblyAvailable(s, view)))
           )
             delete view.assembly;
           else if (focus?.detail) {
@@ -157,11 +160,13 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
             const valid =
               detail.kind === "component"
                 ? assemblyComponents(spec, focus.id).some((c) => c.id === detail.id)
-                : linkageCylinders(spec, focus.id, view.hidden).some(
-                    (c) => detail.cylinder === "all" || c.n === detail.cylinder,
-                  );
-            if (!valid) view.assembly = { id: focus.id, exploded: focus.exploded };
-            else if (detail.kind === "linkage" && p.xray !== undefined) {
+                : !!spec.illustratedInstallation &&
+                  canPairCrank(focus.id, view.hidden) &&
+                  (detail.cylinder === "all" || spec.geometry.cylinders.some((c) => c.n === detail.cylinder));
+            if (!valid) {
+              if (view.blowUp) view.assembly = { id: focus.id, exploded: focus.exploded };
+              else delete view.assembly;
+            } else if (detail.kind === "linkage" && p.xray !== undefined) {
               view.xray = x.view.xray;
               view.assembly = { ...focus, detail: { ...detail, xray: p.xray } };
             }

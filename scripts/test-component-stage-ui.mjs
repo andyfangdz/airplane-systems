@@ -146,7 +146,7 @@ test("ignition keeps its focused framing through orbit and reset, then clears it
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await observeStageCamera(context);
   await page.goto("/engines/io390");
-  await page.getByRole("button", { name: "Blow up", exact: true }).click();
+  await page.getByRole("combobox", { name: "Study view" }).selectOption("assemblies");
   await page.getByRole("combobox", { name: "Focus a part group" }).selectOption("ignition");
   await page.waitForFunction(() => window.__stageCameraProbe.camera?.view?.enabled);
   await waitForStageCamera(page);

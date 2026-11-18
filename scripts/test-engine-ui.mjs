@@ -332,8 +332,8 @@ for (const [airplane, engine, installedPart] of [
     await page.goto(`/${airplane}/engine`);
     await page.getByRole("link", { name: /Explore the IO-360/ }).click();
     await page.waitForURL(`**/engines/${engine}`);
-    const exploded = page.getByRole("button", { name: "Blow up", exact: true });
-    await exploded.click();
+    const study = page.getByRole("combobox", { name: "Study view" });
+    await study.selectOption("assemblies");
     const assemble = page.getByRole("button", { name: "Assemble engine", exact: true });
     await assemble.waitFor();
     assert.equal(await page.locator("#prop").count(), airplane === "da40" ? 1 : 0);
@@ -353,7 +353,7 @@ for (const [airplane, engine, installedPart] of [
     await search.fill(installedPart);
     await page.getByRole("button", { name: installedPart, exact: true }).click();
     await assemble.click();
-    await exploded.waitFor();
+    assert.equal(await study.inputValue(), "exterior");
     assert.equal(await page.locator(".part-explanation h3").innerText(), installedPart);
     assert.deepEqual(errors, []);
   });

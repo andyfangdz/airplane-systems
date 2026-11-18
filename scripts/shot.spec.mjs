@@ -65,7 +65,7 @@ for (const { v, camera } of views.flatMap((v) => cameras.map((camera) => ({ v, c
       },
       [solid, noLabels],
     );
-    if (blowUp) await page.getByRole("button", { name: "Blow up", exact: true }).click();
+    if (blowUp) await page.getByRole("combobox", { name: "Study view" }).selectOption("assemblies");
     await page.waitForTimeout(wait);
 
     const name = shotFilename(v, phone, camera).replace(/\.png$/, blowUp ? "-blow-up.png" : ".png");

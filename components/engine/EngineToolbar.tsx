@@ -1,13 +1,13 @@
 import { useId, useRef, type ReactNode } from "react";
 import { useNarrowLayout } from "@/lib/view";
 import { StageResetButton, ViewToggles } from "./chrome";
-import { StudyViews } from "./StudyViews";
+import { currentStudy, selectStudy, StudyViews } from "./StudyViews";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   assemblyAvailable,
   assemblyComponents,
   assemblyStations,
-  linkageCylinders,
+  canPairCrank,
   studyXray,
   type LinkageCylinder,
   type StudyDetail,
@@ -104,19 +104,28 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
   const component = detail?.kind === "component" ? detail : undefined;
   const exploded = component?.exploded ?? focus?.exploded;
   const components = focus ? assemblyComponents(sim.spec, focus.id) : [];
-  const cylinders = focus ? linkageCylinders(sim.spec, focus.id, view.hidden) : [];
+  const linkage = detail?.kind === "linkage" ? detail : undefined;
+  const cycle = sim.spec.illustratedInstallation && currentStudy(sim, view) === "cycle";
   const change = (detail: StudyDetail) => {
     if (focus) set({ assembly: { ...focus, detail } });
   };
   const back = () => {
-    if (focus && detail) set({ assembly: { id: focus.id, exploded: focus.exploded } });
+    if (!open) set({ assembly: undefined });
+    else if (focus && detail) set({ assembly: { id: focus.id, exploded: focus.exploded } });
     else if (focus) set({ assembly: undefined });
     else set({ blowUp: false });
   };
   const pair = (cylinder: LinkageCylinder) =>
-    change(detail?.kind === "linkage" ? { ...detail, cylinder } : { kind: "linkage", cylinder });
-  const backLabel = (detail && parent?.name) || (focus ? "Part groups" : "Assemble engine");
-  const backButton = open && (
+    set({
+      assembly: {
+        ...(focus ?? { id: "shafts", exploded: false }),
+        detail: { ...linkage, kind: "linkage", cylinder },
+      },
+    });
+  const backLabel = !open
+    ? "Whole power cycle"
+    : (detail && parent?.name) || (focus ? "Part groups" : "Assemble engine");
+  const backButton = (open || linkage) && (
     <button type="button" className="tb eng-study-back" aria-label={backLabel} title={backLabel} onClick={back}>
       <span aria-hidden="true">‹</span> <span className="eng-back-name">{backLabel}</span>
     </button>
@@ -177,33 +186,37 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
       {exploded ? "Assemble" : "Blow up"} {component ? "component" : "group"}
     </button>
   );
-  const pairControl =
-    cylinders.length > 0 &&
-    (focus?.id === "shafts" || detail?.kind === "linkage" ? (
-      <label className="eng-study">
-        <select
-          aria-label="Pair crankshaft with cylinder"
-          value={detail?.kind === "linkage" ? detail.cylinder : ""}
-          onChange={(e) => pair(e.target.value === "all" ? "all" : Number(e.target.value))}
-        >
-          <option value="" disabled>
-            Pair with cylinder…
+  const cycleFocus = cycle && (
+    <label className="eng-study">
+      Focus
+      <select
+        aria-label="Power cycle focus"
+        value={linkage?.cylinder ?? "system"}
+        onChange={(event) => {
+          const value = event.target.value;
+          if (value === "system") selectStudy(sim, "cycle");
+          else pair(value === "all" ? "all" : Number(value));
+        }}
+      >
+        <option value="system">Whole power cycle</option>
+        <option value="all">Crankshaft + all cylinders</option>
+        {sim.spec.geometry.cylinders.map(({ n }) => (
+          <option key={n} value={n}>
+            Crankshaft + cylinder {n}
           </option>
-          <option value="all">Crankshaft + all cylinders</option>
-          {cylinders.map((c) => (
-            <option key={c.n} value={c.n}>
-              Crankshaft + cylinder {c.n}
-            </option>
-          ))}
-        </select>
-      </label>
-    ) : (
-      !detail && (
-        <button type="button" className="tb" onClick={() => pair(cylinders[0].n)}>
-          Show with crankshaft
-        </button>
-      )
-    ));
+        ))}
+      </select>
+    </label>
+  );
+  const crankShortcut = focus && !detail && canPairCrank(focus.id, view.hidden) && (
+    <button
+      type="button"
+      className="tb"
+      onClick={() => pair(focus.id === "shafts" ? "all" : Number(focus.id.slice("cylinder-".length)))}
+    >
+      {focus.id === "shafts" ? "Show with cylinders" : "Show with crankshaft"}
+    </button>
+  );
   const crank = detail?.kind === "linkage" && <CrankControl sim={sim} detail={detail} change={change} />;
   const follow = detail?.kind === "linkage" && (
     <button
@@ -215,49 +228,48 @@ export function EngineToolbar({ sim }: { sim: EngineSim }) {
       Follow engine
     </button>
   );
-  const start = sim.spec.illustratedInstallation && !open && (
-    <button
-      className="tb"
-      type="button"
-      title="Separate the engine into part groups. Double-tap a part to focus its group directly."
-      onClick={() => set({ blowUp: true })}
-    >
-      Blow up
-    </button>
-  );
+  const study = <StudyViews sim={sim} />;
   const settings = (
     <>
-      <StudyViews sim={sim} />
       <div className="tb-group" role="group" aria-label="View">
-        {!compact && start}
         <ViewToggles items={TOGGLES} view={{ ...view, xray: studyXray(view) }} set={set} />
       </div>
       <StageResetButton />
     </>
   );
-  if (compact)
+  if (compact) {
+    const action = crank || explodeButton || groupPicker || cycleFocus;
     return (
       <div className="toolbar eng-compact-toolbar">
         {backButton}
-        {start || crank || explodeButton || groupPicker}
+        {action || study}
         <EngineOptions>
+          {action && study}
+          {linkage && cycleFocus}
           {focus && groupPicker}
           {memberPicker}
-          {pairControl}
+          {crankShortcut}
           {follow}
           {settings}
         </EngineOptions>
       </div>
     );
+  }
   return (
     <div className="toolbar">
-      {open && (
-        <div className="eng-assembly-nav" role="group" aria-label="Engine assembly study">
+      {study}
+      {(open || cycle) && (
+        <div
+          className="eng-assembly-nav"
+          role="group"
+          aria-label={cycle ? "Power cycle controls" : "Assembly controls"}
+        >
           {backButton}
           {groupPicker}
           {memberPicker}
           {explodeButton}
-          {pairControl}
+          {crankShortcut}
+          {cycleFocus}
           {crank}
           {follow}
         </div>

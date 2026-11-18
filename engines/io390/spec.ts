@@ -34,7 +34,7 @@ export const IO390: EngineSpec = {
     "Each cylinder's mixture sets its power, EGT and head heat: best power is about 150 °F rich of peak EGT (the IOM's leanest setting for maximum-power cruise, p. 39), power at peak EGT about 3.5 % lower, and the engine runs rough and quits far rich or lean. Fuel flow reproduces Figure C-3 and the Table A-1 cruise figures.",
     "Friction and pumping losses, starter torque, a constant-speed propeller with an oil-driven governor, and lumped thermal models for heads and oil (the thermostat and cooler from Table 2) complete the loop.",
     "The cylinder-pressure trace is drawn from the model's own work per cycle, with an assumed burn duration; it is illustrative, not measured data.",
-    "The 3D model follows the SR20 G6 installation. The bore, stroke and engine envelope use IOM Table A-1. Cylinder castings, angled valves, rocker gear, crankshaft and accessory drives follow the illustrated parts catalog. Casting contours, accessory internals, fitting locations and the spacing in Blow up mode are illustrative.",
+    "The 3D model follows the SR20 G6 installation. The bore, stroke and engine envelope use IOM Table A-1. Cylinder castings, angled valves, rocker gear, crankshaft and accessory drives follow the illustrated parts catalog. Casting contours, accessory internals, fitting locations and the spacing in exploded assemblies are illustrative.",
     "Not published, so chosen to fit the documented points: valve timing, rod length, the propeller's pitch range and inertia, the cooling and thermal constants, and the per-cylinder spread. The propeller is the SR20's Hartzell, used only as the load.",
   ],
   sources: [
