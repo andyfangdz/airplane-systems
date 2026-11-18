@@ -330,6 +330,13 @@ for (const [airplane, engine, installedPart] of [
     await search.fill("61247");
     await page.getByRole("button", { name: "Rocker cover, cylinder 1", exact: true }).click();
     assert.match(await page.locator(".part-explanation p").innerText(), /61247/);
+    await search.fill("STD-8");
+    await page.getByRole("button", { name: "Sump flange plain washer (1)", exact: true }).click();
+    assert.match(await page.locator(".part-explanation p").innerText(), /\bSTD-8\b/);
+    const airframePart = airplane === "da40" ? "Oil cooler air duct" : "Right cooling inlet ramp";
+    await search.fill(airframePart);
+    await page.getByRole("button", { name: airframePart, exact: true }).click();
+    assert.equal(await page.locator(".part-explanation h3").innerText(), airframePart);
     await search.fill(installedPart);
     await page.getByRole("button", { name: installedPart, exact: true }).click();
     await exploded.click();

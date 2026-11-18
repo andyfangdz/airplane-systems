@@ -159,7 +159,7 @@ export interface EngineSpec {
     sensorFailure?: string;
   };
   /** Engine-specific names and notes for 3D parts, keyed by the part's default name (scene/parts.tsx). */
-  parts?: Record<string, { name?: string; note: string }>;
+  parts?: Record<string, { name?: string; note?: string; partNumber?: string }>;
   /** "How the model works" notes for the panel: what is charted, what is fitted, what is schematic. */
   modelNotes: string[];
   /** Where the data comes from, shown in the panel. */

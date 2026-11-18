@@ -32,6 +32,8 @@ for (const route of ["engines/tsio550k", "components/governor", "components/pito
     page.on("pageerror", (error) => errors.push(error.message));
     await context.addInitScript(() => localStorage.setItem("sr20theme", "light"));
     await page.route("**/_vercel/**", (request) => request.fulfill({ status: 204, body: "" }));
+    const checkScroll = route === "engines/tsio550k";
+    if (checkScroll) await observeStageCamera(context);
     await page.goto(`${baseURL}/${route}`);
     await page.locator(".eng-view canvas").waitFor();
     const check = async (phone) => {
@@ -43,9 +45,14 @@ for (const route of ["engines/tsio550k", "components/governor", "components/pito
         .toBe(true);
     };
     await check(false);
+    if (checkScroll) await waitForStageCamera(page);
+    const desktopPose = checkScroll ? await page.evaluate(() => window.__stageCameraProbe.previous) : null;
     await page.setViewportSize({ width: 390, height: 844 });
     await check(true);
-    if (route === "engines/tsio550k") {
+    if (checkScroll) {
+      // Phone labels can appear a frame before the resized camera is fitted. Measure scrolling from that new pose.
+      await page.waitForFunction((desktop) => window.__stageCameraProbe.previous !== desktop, desktopPose);
+      await waitForStageCamera(page);
       const anchor = await page.evaluate(() => {
         const label = [...document.querySelectorAll(".eng-label")].find(
           (el) => getComputedStyle(el).visibility !== "hidden" && el.getBoundingClientRect().width,

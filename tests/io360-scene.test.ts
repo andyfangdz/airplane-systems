@@ -5,6 +5,7 @@ import { expect, test } from "vitest";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
 import { dims, makeMats } from "@/components/engine/scene/kit";
+import { coolerPosition } from "@/components/engine/scene/io360/installation";
 import { layoutFor } from "@/components/engine/scene/layout";
 import { useHover } from "@/components/engine/scene/parts";
 import { IO360_C172S } from "@/engines/io360-l2a/spec";
@@ -33,6 +34,7 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
         if (!hover) return;
         expect(hover.note, hover.name).not.toMatch(/\b(?:SR20|C3B6|IO-390)\b/);
         parts.set(hover.name, object);
+        if (hover.name === "Right intercylinder baffle grommet") expect(hover.note).toContain("MS35489-20X");
         if (hover.name === "Rocker cover, cylinder 1") expect(hover.note).toContain("61247");
       });
       const count = (prefix: string) => [...parts.keys()].filter((name) => name.startsWith(prefix)).length;
@@ -57,6 +59,44 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
       expect(parts.has("SlickSTART ignition booster")).toBe(!cessna);
       expect(parts.has("Power Flow collector")).toBe(!cessna);
       expect(parts.has("Fuel-flow transducer")).toBe(true);
+      for (const side of ["Left", "Right"]) {
+        for (const piece of [
+          "cylinder bank baffle",
+          "cylinder baffle seal",
+          "rear cooling baffle",
+          "rear baffle seal",
+          "upper engine shock mount",
+          "lower engine shock mount",
+        ])
+          expect(parts.has(side + " " + piece)).toBe(true);
+      }
+      for (const name of [
+        "Engine mount weldment",
+        "Cabin heat inlet hose",
+        "Left cooling inlet ramp",
+        "Right intercylinder baffle grommet",
+      ])
+        expect(parts.has(name), name).toBe(true);
+      for (const name of ["Right cooling inlet ramp", "Engine-driven vacuum pump"])
+        expect(parts.has(name), name).toBe(cessna);
+      for (const name of [
+        "Upper intake baffle",
+        "Accessory air Y connector",
+        "Oil cooler air duct",
+        "Oil cooler duct seal",
+        "Alternator cooling hose",
+        "Oil cooler mounting brackets",
+        "Right baffle tie bar",
+      ])
+        expect(parts.has(name), name).toBe(!cessna);
+      // The Cessna cooler sees the upper plenum through the rear baffle. The Diamond cooler has its own duct.
+      const [, cy, cz] = coolerPosition(dims(spec), true);
+      const hitsBaffle = (y: number) =>
+        new THREE.Raycaster(new THREE.Vector3(1, y, cz), new THREE.Vector3(-1, 0, 0)).intersectObject(
+          parts.get("Right rear cooling baffle")!,
+        ).length > 0;
+      expect(hitsBaffle(cy)).toBe(!cessna);
+      expect(hitsBaffle(cy + 0.06)).toBe(true);
       expect(parts.has("ALT 2")).toBe(false);
       expect(parts.has("Dynamic counterweight")).toBe(false);
       const door = cessna ? "Automatic alternate air door" : "Rotary alternate air sleeve";
@@ -72,6 +112,9 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
           .getWorldPosition(new THREE.Vector3())
           .sub(new THREE.Vector3().setFromMatrixPosition(assembled.get(part!)!));
       };
+      expect(travel("Right cylinder bank baffle").z).toBeGreaterThan(0.2);
+      expect(travel("Left cylinder bank baffle").z).toBeLessThan(-0.2);
+      expect(travel("Engine mount weldment").x).toBeLessThan(-0.2);
       expect(travel(door).length()).toBeGreaterThan(0.2);
       expect(travel("Rocker cover screw (1), cylinder 1").z).toBeGreaterThan(travel("Cylinder 1 head").z);
       expect(travel("Rocker cover screw (1), cylinder 2").z).toBeLessThan(travel("Cylinder 2 head").z);

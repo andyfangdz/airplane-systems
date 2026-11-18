@@ -6,7 +6,7 @@ type Notes = NonNullable<EngineSpec["parts"]>;
 function parts(cessna: boolean): Notes {
   const catalog = cessna ? "PC-IO-360-L2A" : "PC-(L)IO-360-M1A";
   const ref = cessna ? "C172S POH §7" : "DA40 AFM §7";
-  const note = (text: string) => ({ note: text });
+  const note = (text: string, partNumber?: string) => ({ note: text, partNumber });
   const rocker = note(
     `Six screws fasten the pressed cover to its gasket. Both valve rockers pivot on a common shaft inside the head (${catalog}, ch. 72-30).`,
   );
@@ -31,8 +31,60 @@ function parts(cessna: boolean): Notes {
     "Long flange bushing (#)": note("Four 75656-S long bushings help locate the propeller on the crankshaft flange."),
     "Short flange bushing (#)": note("One 72155-S short bushing locates the propeller on the flange."),
     "Indexing flange bushing (#)": note("The 75657-S bushing indexes the propeller on the flange."),
-    "Sump flange nut (#)": note("Clamps the sump flange against the crankcase."),
-    "Accessory housing bolt (#)": note("Secures the accessory housing to the crankcase."),
+    // Installation catalogues, ch. 72-20 through 73-10. Index hardware by its role so shared
+    // meshes can keep their functional note while a different engine's illustrated number stays local.
+    "Oil sump gasket": { partNumber: "LW-13353" },
+    "Sump flange plain washer (#)": { partNumber: "STD-8" },
+    "Sump flange lock washer (#)": { partNumber: "STD-160" },
+    "Sump flange nut (#)": note("Clamps the sump flange against the crankcase.", "STD-1411"),
+    ...Object.fromEntries(
+      Array.from({ length: cessna ? 16 : 8 }, (_, i) => [
+        `Sump attaching bolt (${i + 1})`,
+        { partNumber: i < (cessna ? 13 : 6) ? "LW-25-0.94" : "LW-25-1.13" },
+      ]),
+    ),
+    "Accessory housing gasket": { partNumber: "73818" },
+    ...Object.fromEntries(
+      Array.from({ length: 12 }, (_, i) => [
+        `Accessory housing bolt (${i + 1})`,
+        note(
+          "Secures the accessory housing to the crankcase.",
+          i < 9 ? "LW-25-0.94" : i === 9 ? "LW-25-1.13" : "LW-25-1.44",
+        ),
+      ]),
+    ),
+    "Crankcase flange washer, right (#)": { partNumber: "STD-8" },
+    "Crankcase flange washer, left (#)": { partNumber: "STD-8" },
+    "Crankcase locking washer (#)": { partNumber: "STD-160" },
+    "Crankcase flange nut (#)": { partNumber: "STD-1411" },
+    "Filter base washer (#)": { partNumber: "STD-8" },
+    "Filter base lock washer (#)": { partNumber: "STD-160" },
+    "Filter base nut (#)": { partNumber: "STD-1411" },
+    "Oil filter base": { partNumber: "77852" },
+    "Oil filter base gasket": { partNumber: "06B23862" },
+    "Intake flange gasket, cylinder #": { partNumber: "71973" },
+    "Intake flange bolt, cylinder # (#)": { partNumber: "LW-25-1.25" },
+    "Intake flange plain washer, cylinder # (#)": { partNumber: "STD-8" },
+    "Intake flange lock washer, cylinder # (#)": { partNumber: "STD-160" },
+    "Exhaust flange gasket, cylinder #": { partNumber: "77611" },
+    "Exhaust flange stud, cylinder # (#)": { partNumber: "31C-13" },
+    "Exhaust flange nut, cylinder # (#)": { partNumber: "STD-1410" },
+    "Exhaust flange plain washer, cylinder # (#)": { partNumber: "STD-35" },
+    "Exhaust flange lock washer, cylinder # (#)": { partNumber: "STD-475" },
+    "Rocker box oil drain, cylinder 1": { partNumber: "68759" },
+    "Rocker box oil drain, cylinder 2": { partNumber: "68760" },
+    "Rocker box oil drain, cylinder 3": { partNumber: "68761" },
+    "Rocker box oil drain, cylinder 4": { partNumber: "68761" },
+    "Drain nipple, cylinder #": { partNumber: "STD-684" },
+    "Drain hose, cylinder #": { partNumber: "STD-1821" },
+    "Drain hose clamp, cylinder # (#)": { partNumber: "LW-15592-5-04" },
+    "L intercylinder cooling baffle": { partNumber: "75339" },
+    "R intercylinder cooling baffle": { partNumber: "LW-13389" },
+    "Right intercylinder baffle grommet": { partNumber: "MS35489-20X" },
+    "L baffle hook": { partNumber: "71610" },
+    "R baffle hook": { partNumber: "71610" },
+    "L baffle retainer": { partNumber: "71611" },
+    "R baffle retainer": { partNumber: "71611" },
     "Rocker shaft bushing (#), cylinder #": note(
       "Four 66610 bushings in the head support the LW-13790 shaft shared by both rockers.",
     ),
@@ -53,9 +105,9 @@ function parts(cessna: boolean): Notes {
     "Piston, cylinder #": note(
       "Expanding combustion gases drive the piston toward the crankcase. The wrist pin transfers the load to the connecting rod.",
     ),
-    "Rocker cover, cylinder #": note("61247 rocker cover. " + rocker.note),
-    "Rocker cover gasket, cylinder #": note("06B26669 silicone gasket. " + rocker.note),
-    "Rocker cover screw (#), cylinder #": note("STD-1925 self-locking pan-head screw. " + rocker.note),
+    "Rocker cover, cylinder #": note(rocker.note, "61247"),
+    "Rocker cover gasket, cylinder #": note("Silicone gasket. " + rocker.note, "06B26669"),
+    "Rocker cover screw (#), cylinder #": note("Self-locking pan-head screw. " + rocker.note, "STD-1925"),
     "Rocker shaft, cylinder #": note("LW-13790. This shaft carries the intake and exhaust rockers in the head."),
     "Cylinder base packing, cylinder #": note(
       "The 71481 packing seals the barrel spigot to its opening in the crankcase.",
@@ -85,7 +137,7 @@ function parts(cessna: boolean): Notes {
     "Oil filter": note("The spin-on filter removes contaminants before oil reaches the engine galleries."),
     "Oil cooler": note(
       cessna
-        ? "The thermostatic bypass routes hot oil through the remote cooler (C172S POH 7-35)."
+        ? "The thermostatic bypass routes hot oil through the cooler on the right rear engine baffle (C172S POH 7-35, 172 Series MM 79-20-00 Fig. 201)."
         : "The cooler attaches to the engine mounting frame. Cold oil bypasses the core (DA40 AMM 79-00).",
     ),
     "Filtered oil line": note("Filtered oil feeds the pressure galleries and bearings before draining to the sump."),

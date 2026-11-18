@@ -55,11 +55,16 @@ const TURBO_GROUPS = [
   { id: "drives", name: "Starter, alternators and governor" },
 ] as const;
 
-export type GroupId = (typeof GROUPS)[number]["id"] | (typeof TURBO_GROUPS)[number]["id"];
+const INSTALLATION = { id: "installation", name: "Airframe installation and cooling baffles" } as const;
+
+export type GroupId = typeof INSTALLATION.id | (typeof GROUPS)[number]["id"] | (typeof TURBO_GROUPS)[number]["id"];
 
 /** The part groups an engine's panel lists: the turbo and exhaust groups only for a layout with a turbo block. */
-export const groupsFor = (spec: EngineSpec, L = layoutFor(spec)): readonly { id: GroupId; name: string }[] =>
-  L.turbo ? TURBO_GROUPS : spec.propeller.control === "fixed-pitch" ? FIXED_PITCH_GROUPS : GROUPS;
+export function groupsFor(spec: EngineSpec, L = layoutFor(spec)): readonly { id: GroupId; name: string }[] {
+  if (L.turbo) return TURBO_GROUPS;
+  const groups = spec.propeller.control === "fixed-pitch" ? FIXED_PITCH_GROUPS : GROUPS;
+  return L.parallelValve ? [...groups, INSTALLATION] : groups;
+}
 
 export interface HoverInfo {
   name: string;
@@ -131,7 +136,8 @@ export function P({
   const parts = useContext(PartNotes);
   const own = parts?.[given] ?? parts?.[given.replace(/\d+/g, "#")];
   const name = own?.name ? own.name.replace(/#/g, () => given.match(/\d+/)?.[0] ?? "#") : given,
-    note = own?.note ?? (parts?.["*"] ? (installationNote ?? parts["*"].note) : givenNote);
+    description = own?.note ?? (parts?.["*"] ? (installationNote ?? parts["*"].note ?? "") : givenNote);
+  const note = own?.partNumber ? `${own.partNumber}. ${description}` : description;
   const mesh = useRef<THREE.Mesh>(null);
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const inspection = usePartInspectionStore();

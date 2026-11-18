@@ -324,19 +324,16 @@ export function driveHardware(spec: EngineSpec, d: Dims) {
   return parts;
 }
 
-// Airframe baffles and flexible edge seals visible in the 2017 SR20 photo set.
-// The cheek openings follow the actual modeled rocker outlines on each staggered bank.
-function cowlBaffles(d: Dims): Detail[] {
+// The side baffles and flexible edge seals follow each installation’s rocker outline and staggered cylinders.
+export function bankBaffles(d: Dims, coverOutline: XY[], note: string, ends?: [number, number]): Detail[] {
   const parts: Detail[] = [];
-  const note =
-    "Cooling baffles guide inlet air through the cylinder fins (SR20 POH 7-40). Panel outlines and seal attachment positions are illustrative.";
   const add = (name: string, material: Detail["material"], geometry: THREE.BufferGeometry, spread: Point) =>
-    parts.push({ name, material, geometry, spread, note });
+    parts.push({ name, material, geometry, spread, note, role: note });
   for (const k of [-1, 1]) {
     const label = k > 0 ? "Right" : "Left",
       cylinders = d.cylinders.filter((c) => bank(c) === k);
-    const x0 = Math.min(...cylinders.map((c) => c.x)) - 0.098,
-      x1 = Math.max(...cylinders.map((c) => c.x)) + 0.099;
+    const x0 = ends?.[0] ?? Math.min(...cylinders.map((c) => c.x)) - 0.098,
+      x1 = ends?.[1] ?? Math.max(...cylinders.map((c) => c.x)) + 0.099;
     const z = d.headOut - 0.014;
     const outline = section([
       [x0, -0.024],
@@ -348,7 +345,7 @@ function cowlBaffles(d: Dims): Detail[] {
       [x0, 0.143],
     ]);
     for (const c of cylinders)
-      outline.holes.push(section(rockerOutline.map(([x, y]) => [c.x + x * 1.043, (y - 0.064) * 1.045 + 0.064])));
+      outline.holes.push(section(coverOutline.map(([x, y]) => [c.x + x * 1.043, (y - 0.064) * 1.045 + 0.064])));
     const wall = plate(outline, k * z - 0.0009, k * z + 0.0009);
     add(label + " cylinder bank baffle", "baffleSheet", wall, [0, 0.038, k * 0.63]);
     const stations: XY[] = [
@@ -378,6 +375,15 @@ function cowlBaffles(d: Dims): Detail[] {
       );
     }
   }
+  return parts;
+}
+
+function cowlBaffles(d: Dims) {
+  const note =
+    "Cooling baffles guide inlet air through the cylinder fins (SR20 POH 7-40). Panel outlines and seal attachment positions are illustrative.";
+  const parts = bankBaffles(d, rockerOutline, note);
+  const add = (name: string, material: Detail["material"], geometry: THREE.BufferGeometry, spread: Point) =>
+    parts.push({ name, material, geometry, spread, note });
   const arch = (inner: number, outer: number, back: number, front: number) => {
     const s = new THREE.Shape().absarc(0, 0, outer, 0.06, Math.PI - 0.06, false);
     s.absarc(0, 0, inner, Math.PI - 0.06, 0.06, true);
@@ -418,13 +424,35 @@ export function coolingBaffles(d: Dims, cirrusBaffles = true) {
       [-0.03, -0.072],
       [-0.065, -0.059],
     ]);
+    let panel: THREE.BufferGeometry = plate(s, -0.052, 0.052);
+    if (!cirrusBaffles && side === "R") {
+      // The IO-360 right baffle has a grommet in its inboard flange (L2A Fig. 12, M1A Fig. 13).
+      const flange = section([
+        [-0.016, -0.051],
+        [0.016, -0.051],
+        [0.016, -0.075],
+        [-0.016, -0.075],
+      ]);
+      hole(flange, 0, -0.064, 0.0075);
+      const place = (g: THREE.BufferGeometry) => g.rotateX(Math.PI / 2).translate(0, -0.078, 0);
+      panel = merge([panel, place(plate(flange, -0.001, 0.001))]);
+      const note = "The rubber grommet lines the opening in the right intercylinder baffle.";
+      parts.push({
+        name: "Right intercylinder baffle grommet",
+        role: note,
+        note,
+        material: "black",
+        geometry: at(place(sleeve(0.0055, 0.0095, -0.002, 0.002).translate(0, -0.064, 0))),
+        spread: [0, -0.22, k * 0.34],
+      });
+    }
     parts.push(
       item(
         side + " intercylinder cooling baffle",
         k === 1 ? "75337" : "75338",
         "14–8",
         "shroud",
-        at(plate(s, -0.052, 0.052)),
+        at(panel),
         "Formed sheet metal between the barrels directs cooling air through the fins.",
         [0, -0.14, k * 0.3],
       ),
@@ -458,16 +486,19 @@ export function coolingBaffles(d: Dims, cirrusBaffles = true) {
         "The hook bears against the retainer.",
         [0, -0.14, k * 0.3],
       ),
-      item(
-        side + " ignition cable hole cover",
-        "72834",
-        "14–11",
-        "darkSteel",
-        at(new THREE.BoxGeometry(0.026, 0.002, 0.025).translate(0.025, -0.074, 0.022)),
-        "The small cover closes the ignition-lead opening.",
-        [0, -0.25, k * 0.3],
-      ),
     );
+    if (cirrusBaffles)
+      parts.push(
+        item(
+          side + " ignition cable hole cover",
+          "72834",
+          "14–11",
+          "darkSteel",
+          at(new THREE.BoxGeometry(0.026, 0.002, 0.025).translate(0.025, -0.074, 0.022)),
+          "The small cover closes the ignition-lead opening.",
+          [0, -0.25, k * 0.3],
+        ),
+      );
   }
   return parts;
 }

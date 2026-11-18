@@ -246,7 +246,7 @@ export function makeSolidFinishes(layout: EngineLayout) {
   mats.plugShield = mats.steel;
   mats.fuelHose = mats.oilHose;
   mats.baffleSeal = mats.black.clone();
-  finish(mats.baffleSeal, "#a74836", 0.015, 0.78);
+  finish(mats.baffleSeal, layout.parallelValve ? "#393c3c" : "#a74836", 0.015, 0.78);
   mats.baffleSheet = mats.shroud.clone();
   finish(mats.baffleSheet, "#b7ad94", 0.54, 0.44, "machining");
   mats.baffleSheet.transparent = false;

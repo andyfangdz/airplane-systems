@@ -16,6 +16,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import type { EngineSim } from "./store";
 import { makeSolidFinishes } from "./scene/io390/finishes";
 import { Crankcase, Lubrication } from "./scene/Case";
+import { IO360Airframe } from "./scene/io360/Airframe";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
 import { layoutFor } from "./scene/layout";
@@ -100,6 +101,11 @@ export function EngineAssemblies(p: { sim: EngineSim; d: Dims; mats: Mats }) {
         <Group sim={sim} id="cylinders">
           <Cylinders {...p} />
         </Group>
+        {L.parallelValve && (
+          <Group sim={sim} id="installation">
+            <IO360Airframe spec={sim.spec} d={p.d} mats={p.mats} />
+          </Group>
+        )}
         <Group sim={sim} id="case">
           <Crankcase {...p} />
         </Group>

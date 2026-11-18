@@ -30,7 +30,7 @@ const screws: XY[] = [
 ];
 
 // Lycoming 61247, L2A Fig. 12 and M1A Fig. 13. One shaft, six screws and a pressed cover.
-const parallelOutline: XY[] = [
+export const parallelOutline: XY[] = [
   [-0.064, 0.018],
   [-0.03, -0.003],
   [0.03, -0.003],

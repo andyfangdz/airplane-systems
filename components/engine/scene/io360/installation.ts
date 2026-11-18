@@ -6,7 +6,7 @@ import { sleeve, type Detail, type Point } from "../io390/shapes";
 import { servoInletOffset } from "../io390/installation";
 
 /** Hardware supplied by the airframe. Coordinates and bends are illustrative, in engine metres. */
-function detail(
+export function detail(
   name: string,
   material: Detail["material"],
   geometry: THREE.BufferGeometry,
@@ -16,10 +16,12 @@ function detail(
   return { name, material, geometry, spread, note, role: note };
 }
 
+export function coolerPosition(d: Dims, cessna: boolean): Point {
+  return [d.caseRear - (cessna ? 0.025 : 0.11), cessna ? 0.065 : -0.015, 0.215];
+}
+
 export function installedCooler(d: Dims, cessna: boolean) {
-  const x = d.caseRear - (cessna ? 0.025 : 0.11),
-    y = cessna ? 0.065 : -0.015,
-    z = 0.215;
+  const [x, y, z] = coolerPosition(d, cessna);
   const src = cessna ? "C172S POH 7-35" : "DA40 AMM 79-00";
   return [
     detail("Oil cooler", "shroud", coolerCore().translate(x, y, z), [-0.18, 0.06, 0.42], src),
