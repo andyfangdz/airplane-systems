@@ -75,11 +75,16 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
         "Cabin heat inlet hose",
         "Left cooling inlet ramp",
         "Right intercylinder baffle grommet",
+        "Battery mounting tray",
+        "Battery cover",
+        "Battery hold-down",
       ])
         expect(parts.has(name), name).toBe(true);
       for (const name of ["Right cooling inlet ramp", "Engine-driven vacuum pump"])
         expect(parts.has(name), name).toBe(cessna);
       for (const name of [
+        "Battery cooling hose",
+        "Supplemental engine cooling outlet",
         "Upper intake baffle",
         "Accessory air Y connector",
         "Oil cooler air duct",
@@ -89,6 +94,8 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
         "Right baffle tie bar",
       ])
         expect(parts.has(name), name).toBe(!cessna);
+      const battery = new THREE.Box3().setFromObject(parts.get("Main battery")!);
+      expect(cessna ? battery.max.z < 0 : battery.min.z > 0).toBe(true);
       // The Cessna cooler sees the upper plenum through the rear baffle. The Diamond cooler has its own duct.
       const [, cy, cz] = coolerPosition(dims(spec), true);
       const hitsBaffle = (y: number) =>

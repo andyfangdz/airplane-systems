@@ -8,6 +8,7 @@ import { bankBaffles } from "../io390/accessories";
 import { parallelOutline } from "../io390/cylinder";
 import { Details, useDetailDisposal } from "../io390/Details";
 import { plate, section, sleeve, type Detail, type Point } from "../io390/shapes";
+import { firewallX, installedBattery } from "./battery";
 import { coolerPosition, detail } from "./installation";
 
 /** Open inlet at the nose, widening over the front cylinder. The Cessna upper cowl closes its ramps.
@@ -139,7 +140,7 @@ function coolingPanels(d: Dims, cessna: boolean) {
 
 function engineMount(spec: EngineSpec, d: Dims, cessna: boolean) {
   const ref = cessna ? "Cessna 172 Series MM ch. 71" : "DA40 AMM 71-20 Fig. 1";
-  const wallX = d.accRear - (cessna ? 0.19 : 0.23);
+  const wallX = firewallX(d, cessna);
   const frame: THREE.BufferGeometry[] = [];
   const parts: Detail[] = [];
   const bosses = layoutFor(spec).mounts(d).bosses;
@@ -216,6 +217,7 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
     const x = d.accRear,
       y = 0.139;
     return [
+      ...installedBattery(d, true),
       detail(
         "Engine-driven vacuum pump",
         "acc",
@@ -266,6 +268,21 @@ function accessoryAir(spec: EngineSpec, d: Dims, cessna: boolean): Detail[] {
   const outlet = ring([x + 0.033, y, z], 0.052, 0.063, true);
   const [ax, ay, az] = driveLayout(spec, d).alternators[0].at;
   return [
+    ...installedBattery(d, false, [bend[0], -0.011, 0.325]),
+    detail(
+      "Supplemental engine cooling outlet",
+      "acc",
+      loft(
+        [
+          ring(bend, 0.019, 0.02),
+          ring([junction[0], 0.085, 0.274], 0.017, 0.02),
+          ring([junction[0] - 0.038, 0.11, 0.236], 0.019, 0.025),
+        ],
+        { caps: false },
+      ),
+      [0.24, 0.22, 0.32],
+      "A small outlet in the right intake admits additional cooling air to the engine (DA40 AMM 71-00).",
+    ),
     detail(
       "Right accessory air inlet",
       "acc",
