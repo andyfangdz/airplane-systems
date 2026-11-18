@@ -8,6 +8,7 @@ import {
   coolerMount,
 } from "@/engines/io390/cooler";
 import * as THREE from "three";
+import { loft } from "@/lib/geometry";
 import { bank, headPoints, merge, rod, toWorld, tube, zrod, type Dims } from "../kit";
 import {
   bolt,
@@ -253,11 +254,19 @@ export function accessoryPads(d: Dims): Detail[] {
   return parts;
 }
 
-// Cirrus AMM 79-20 Fig. 79-20-1. The standalone view includes the load-bearing diagonal of the airframe mount.
-export function remoteCooler(d: Dims): Detail[] {
+// Cirrus AMM 79-20 Fig. 79-20-1. Both the rear baffle aperture and the duct refer to the same mount.
+function installedCoolerMount(d: Dims) {
   const foot: Point = [d.caseRear + 0.012, -0.075, -(d.caseHalf - 0.025)];
   const wall: Point = [d.accRear - 0.21, 0.12, -0.28];
-  const m = coolerMount(wall, foot);
+  return { foot, wall, mount: coolerMount(wall, foot) };
+}
+
+export function coolerBafflePort(d: Dims): Point {
+  return [d.caseRear, 0.08, installedCoolerMount(d).mount.center[2]];
+}
+
+export function remoteCooler(d: Dims): Detail[] {
+  const { foot, wall, mount: m } = installedCoolerMount(d);
   const note =
     "Cirrus SR20 AMM 79-20 Fig. 79-20-1, standard installation. The bracket bolts to the engine mount weldment. Side, clocking, dimensions and hose paths are illustrative.";
   const local = (g: THREE.BufferGeometry) => g.translate(...m.center);
@@ -289,13 +298,16 @@ export function remoteCooler(d: Dims): Detail[] {
     { ...part("Oil cooler", "shroud", local(coolerCore()), [-0.07, -0.04, -0.34]), cameraSubject: true },
     part("Oil cooler diffuser", "acc", local(coolerDiffuser()), [-0.16, -0.04, -0.34]),
   ];
-  const bafflePort: Point = [d.caseRear + 0.011, 0.08, m.center[2]];
-  const duct: Point[] = coolerDuctPath(m, bafflePort);
+  const bafflePort = coolerBafflePort(d);
+  const duct: Point[] = coolerDuctPath(m, [bafflePort[0] - 0.012, bafflePort[1], bafflePort[2]]);
   parts.push(
     part(
       "Oil cooler baffle outlet",
       "shroud",
-      coolerBaffle(0.145, 0.116, 0, -0.017).translate(bafflePort[0], bafflePort[1], bafflePort[2] + 0.017),
+      merge([
+        coolerBaffle(0.099, 0.091, 0, 0).translate(0.0025, 0, 0),
+        sleeve(0.028, 0.031, -0.023, 0.002).rotateY(Math.PI / 2),
+      ]).translate(...bafflePort),
       [0.14, 0.11, -0.35],
     ),
     part("Oil cooler air duct", "duct", tube(duct, 0.029, 30, 24), [-0.25, 0.025, -0.34]),
@@ -409,14 +421,69 @@ export function remoteCooler(d: Dims): Detail[] {
   return parts;
 }
 
+const inletAngle = 0.82;
+const inletZ = 0.31;
+const inletY = 0.088;
+
+// Both inlet floors meet the side sheets and the arched partition around the ring
+// gear. Only the right floor is pierced for the induction filter (SR20 POH 7-35).
+export function inletRamp(d: Dims, right: boolean) {
+  const rim = d.headOut - 0.014;
+  const innerEdge = [-0.061, -0.03, 0, 0.04, 0.09].map((v) => {
+    const y = inletY + v * Math.cos(inletAngle);
+    return [inletZ - Math.sqrt(0.18 ** 2 - y ** 2), v] as [number, number];
+  });
+  const sheet = section([[inletZ - rim, -0.061], ...innerEdge, [inletZ - rim, 0.09]]);
+  if (right)
+    sheet.holes.push(
+      section([
+        [-0.052, -0.048],
+        [-0.052, 0.048],
+        [0.052, 0.048],
+        [0.052, -0.048],
+      ]),
+    );
+  const floor = plate(sheet, right ? 0.003 : -0.005, right ? 0.005 : -0.003)
+    .rotateY(right ? Math.PI / 2 : -Math.PI / 2)
+    .rotateZ(inletAngle)
+    .translate(d.front + 0.055, inletY, right ? inletZ : -inletZ);
+  // The return tucks down to the front cylinder. Its depth follows the bank stagger.
+  const side = right ? 1 : -1;
+  const cylinderX = Math.max(...d.cylinders.filter((c) => bank(c) === side).map((c) => c.x));
+  const foldX = d.front + 0.055 - 0.09 * Math.sin(inletAngle) + 0.004 * Math.cos(inletAngle);
+  const foldY = inletY + 0.09 * Math.cos(inletAngle) + 0.004 * Math.sin(inletAngle);
+  const inner = inletZ - innerEdge.at(-1)![0];
+  const skirt = loft(
+    [
+      [inner, d.front + 0.006, 0.133],
+      [d.caseHalf + 0.009, d.front - 0.013, 0.096],
+      [d.headIn - 0.02, cylinderX + 0.081, 0.037],
+      [d.headIn + 0.031, cylinderX + 0.086, 0.045],
+      [rim, cylinderX + 0.083, 0.037],
+    ].map(([span, rear, y]) => {
+      const mid = THREE.MathUtils.lerp(foldX, rear, 0.4);
+      const z = side * span;
+      return [
+        [foldX, foldY],
+        [mid, foldY - 0.014],
+        [rear, y],
+        [rear + 0.0015, y],
+        [mid + 0.001, foldY - 0.0155],
+        [foldX, foldY - 0.0015],
+      ].map(([x, h]) => new THREE.Vector3(x, h, z));
+    }),
+  );
+  return merge([floor, skirt]);
+}
+
 /** SR20 normal-air filter on the forward right baffle and manually selected alternate-air inlet. */
 export function inductionInlet(d: Dims) {
   const x = d.front + 0.055,
-    y = 0.088,
-    z = 0.31;
+    y = inletY,
+    z = inletZ;
   const src = "Cirrus SR20 POH 7-35, 7-39 and AMM 71-60 p. 1. Positions and duct contours are approximate.";
   // The paper filter faces the incoming air on the sloping right-hand inlet ramp.
-  const angle = 0.82;
+  const angle = inletAngle;
   const local = (dx: number, dy: number, dz: number): Point => [
     x + dx * Math.cos(angle) - dy * Math.sin(angle),
     y + dx * Math.sin(angle) + dy * Math.cos(angle),
@@ -444,21 +511,6 @@ export function inductionInlet(d: Dims) {
   for (let i = -6; i <= 6; i++) {
     guard.push(new THREE.BoxGeometry(0.0012, 0.001, 0.1).translate(0.035, i * 0.007, 0));
   }
-  const ramp = section([
-    [-0.083, -0.061],
-    [0.085, -0.061],
-    [0.145, 0.036],
-    [0.14, 0.077],
-    [-0.082, 0.09],
-  ]);
-  ramp.holes.push(
-    section([
-      [-0.052, -0.048],
-      [-0.052, 0.048],
-      [0.052, 0.048],
-      [0.052, -0.048],
-    ]),
-  );
   const normal: Point[] = [
     local(-0.06, 0, 0),
     local(-0.083, 0, 0),
@@ -476,8 +528,8 @@ export function inductionInlet(d: Dims) {
   const alternate: Point[] = [
     local(-0.0215, 0, -0.051),
     local(-0.0215, 0, -0.077),
-    [x + 0.002, 0.039, z - 0.107],
-    [x + 0.005, 0.006, z - 0.105],
+    [x - 0.004, 0.033, z - 0.084],
+    [x - 0.006, 0.003, z - 0.083],
   ];
   const back = section([
     [-0.05, -0.047],
@@ -503,8 +555,8 @@ export function inductionInlet(d: Dims) {
     },
     {
       name: "Right inlet baffle ramp",
-      material: "mag",
-      geometry: at(plate(ramp, 0.003, 0.005).rotateY(Math.PI / 2)),
+      material: "inletSheet",
+      geometry: inletRamp(d, true),
       note: src,
       spread: [0.2, 0.17, 0.43],
     },

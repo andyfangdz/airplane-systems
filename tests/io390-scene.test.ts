@@ -2,6 +2,9 @@
  * The IO-390's 3D model (components/engine/scene/): the moving parts keep time with the cycle model, and what the IOM
  * gives as a number (envelope, drive ratios) sets the drawing.
  */
+import * as THREE from "three";
+import { caseGeometry } from "@/components/engine/scene/Case";
+import { bearingStations } from "@/components/engine/scene/io390/rotating";
 import { layoutFor } from "@/components/engine/scene/layout";
 import { makeSolidFinishes } from "@/components/engine/scene/io390/finishes";
 import { describe, expect, test } from "vitest";
@@ -56,6 +59,39 @@ describe("IO-390 3D model", () => {
       solid.dispose();
     }
     expect(disposedTiles).toBe(tiles.length);
+  });
+
+  test("IPC Figs. 5B and 6: both cast halves seat the split main bearings and leave the tappet and nose bores open", () => {
+    const castings = caseGeometry(d, layoutFor(S));
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const ray = new THREE.Raycaster();
+    try {
+      for (const side of [-1, 1] as const) {
+        const half = new THREE.Mesh(side > 0 ? castings.right : castings.left, material);
+        ray.ray.direction.set(0, 0, side);
+        for (const [, x] of bearingStations(d)) {
+          ray.ray.origin.set(x, 0, 0);
+          expect(ray.intersectObject(half)[0]?.distance).toBeCloseTo(0.031, 4);
+        }
+        for (const c of d.cylinders.filter((c) => bank(c) === side)) {
+          for (const dx of [-VT.xOff, VT.xOff]) {
+            ray.ray.origin.set(c.x + dx, VT.pushY, 0);
+            expect(ray.intersectObject(half)).toHaveLength(0);
+            ray.ray.origin.x += 0.016;
+            expect(ray.intersectObject(half).length).toBeGreaterThan(0);
+          }
+        }
+      }
+      const nose = new THREE.Mesh(castings.nose, material);
+      ray.ray.origin.set(d.front + 0.1, 0, 0);
+      ray.ray.direction.set(-1, 0, 0);
+      expect(ray.intersectObject(nose)).toHaveLength(0);
+      ray.ray.origin.y = 0.048;
+      expect(ray.intersectObject(nose).length).toBeGreaterThan(0);
+    } finally {
+      Object.values(castings).forEach((g) => g.dispose());
+      material.dispose();
+    }
   });
 
   test("the camshaft turns at half crankshaft speed and each lobe faces its tappet at that valve's peak lift", () => {

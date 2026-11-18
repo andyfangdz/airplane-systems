@@ -250,6 +250,10 @@ export function makeSolidFinishes(layout: EngineLayout) {
   mats.baffleSheet = mats.shroud.clone();
   finish(mats.baffleSheet, "#b7ad94", 0.54, 0.44, "machining");
   mats.baffleSheet.transparent = false;
+  if (!layout.parallelValve) {
+    mats.inletSheet = mats.baffleSheet.clone();
+    finish(mats.inletSheet, "#363b3e", 0.28, 0.44, "machining");
+  }
   mats.coverMark = new THREE.MeshStandardMaterial({ color: mats.cover.color, roughness: 0.36, metalness: 0.17 });
   const label = layout.parallelValve ? undefined : coverPlacard();
   if (label) {
