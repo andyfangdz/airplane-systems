@@ -61,7 +61,7 @@ export function SimulationShell({
   return (
     <PartInspectionProvider key={id}>
       <div
-        className={`eng-app component-app${reading ? " reading-space" : ""}`}
+        className={`eng-app component-app${kind === "component" ? " model-study" : ""}${reading ? " reading-space" : ""}`}
         data-panel-collapsed={collapsed || undefined}
       >
         <title>{`${current.name} · Airplane Systems`}</title>

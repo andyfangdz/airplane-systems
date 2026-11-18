@@ -7,6 +7,36 @@
   height: 100dvh;
   min-height: 0;
 }
+.model-study {
+  --model-control-height: 36px;
+}
+@media (max-width: 1100px), (pointer: coarse) {
+  .model-study {
+    --model-control-height: 44px;
+  }
+}
+/* A second row of assembly controls must not stretch the controls beside it. */
+.model-study .toolbar,
+.eng-assembly-nav {
+  align-items: flex-start;
+}
+.model-study .toolbar .tb,
+.model-study .tb-theme,
+.model-study .btn,
+.model-study .seg button {
+  min-height: var(--model-control-height);
+}
+.model-study .seg {
+  border-block: 0;
+}
+.model-study .seg button {
+  border-block: 1px solid var(--rule);
+  padding-block: 2px;
+}
+.model-study .panel input[type="range"] {
+  height: var(--model-control-height);
+  margin-block: 0;
+}
 /* the picker heads the panel column, as it heads the rail on the airplane pages */
 .eng-app .eng-brand {
   position: relative;
@@ -98,18 +128,25 @@
   top: auto;
   bottom: 100%;
 }
-.eng-crank-control {
-  display: inline-flex;
+.eng-crank-control,
+.eng-study {
+  display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
+  min-height: var(--model-control-height);
   font-size: 13px;
   background: var(--panel);
-  border: 1px solid var(--rule);
+  outline: 1px solid var(--rule);
+  outline-offset: -1px;
   border-radius: 4px;
+}
+.eng-crank-control {
+  padding-inline: 9px;
 }
 .eng-crank-control input {
   width: 90px;
+  height: var(--model-control-height);
+  margin-block: 0;
   accent-color: var(--accent);
 }
 .eng-crank-control output {
@@ -126,23 +163,19 @@
   color: var(--accent);
 }
 .eng-study {
-  display: flex;
   flex: none;
-  align-items: center;
-  gap: 6px;
-  padding: 0 6px;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: 4px;
-  font-size: 13px;
+  padding-inline: 7px;
 }
 .eng-study select {
-  min-height: 28px;
+  min-height: var(--model-control-height);
   max-width: 170px;
   border: 0;
   color: var(--ink);
-  background: var(--panel);
+  background: transparent;
   font: inherit;
+}
+.eng-study option {
+  background: var(--panel);
 }
 .eng-motion-state {
   margin: 0;
@@ -156,7 +189,6 @@
 }
 @media (pointer: coarse) {
   .eng-study select {
-    min-height: 44px;
     font-size: 16px;
   }
 }
@@ -188,7 +220,7 @@
 .eng-monitor-toggle {
   display: flex;
   width: 100%;
-  min-height: 30px;
+  min-height: var(--model-control-height);
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -216,11 +248,6 @@
 }
 .eng-monitor-panel .eng-mon {
   box-shadow: none;
-}
-@media (pointer: coarse) {
-  .eng-monitor-toggle {
-    min-height: 44px;
-  }
 }
 .eng-mon {
   pointer-events: auto;
@@ -428,7 +455,7 @@
 }
 
 /* panel */
-/* the START button sits in line with the ignition switch positions, as tall as they are */
+/* Keep START beside the first row of ignition switch positions when they wrap. */
 .eng-mags {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -444,6 +471,7 @@
 .eng-start {
   grid-row: 2;
   grid-column: 2;
+  align-self: start;
   touch-action: none;
 }
 .eng-start.on,
@@ -578,7 +606,9 @@
   .eng-app[data-panel-collapsed] > .eng-stage {
     position: relative;
     top: auto;
-    flex: 1 0 auto;
+    flex: 1 1 0;
+    /* Leave the toolbar and Panel tab reachable even when a long list of engine alerts needs to scroll. */
+    min-height: 160px;
   }
   .eng-app[data-panel-collapsed] > .eng-foot {
     position: relative;
@@ -801,7 +831,6 @@
 .eng-app .eng-compact-toolbar > .eng-crank-control {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 44px;
   white-space: nowrap;
 }
 .eng-compact-toolbar .eng-crank-control input {
@@ -864,7 +893,6 @@
   max-width: 100%;
   flex: 1;
   min-width: 0;
-  min-height: 44px;
 }
 .eng-options-body .tb-group {
   display: flex;

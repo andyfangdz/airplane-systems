@@ -33,7 +33,7 @@ export default function EngineApp({ id }: { id: string }) {
   useScenarioMarks();
   return (
     <PartInspectionProvider key={id}>
-      <div className="eng-app" data-panel-collapsed={collapsed || undefined}>
+      <div className="eng-app model-study" data-panel-collapsed={collapsed || undefined}>
         <title>{`${spec.name} engine · Airplane Systems`}</title>
         <div className="brand eng-brand">
           <Picker

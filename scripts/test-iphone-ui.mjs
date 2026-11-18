@@ -802,6 +802,9 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
   const study = page.getByRole("combobox", { name: "Study view" });
   const cycleFocus = page.getByRole("combobox", { name: "Power cycle focus" });
   await expect(options).toBeVisible();
+  for (const control of [study, page.locator(".eng-study:visible"), button("Explode engine"), options]) {
+    await expect(control).toHaveCSS("height", "44px");
+  }
   const stage = page.locator(".eng-view canvas");
   const normal = (await stage.boundingBox()).height;
   await button("Hide side panel").tap();
@@ -841,14 +844,18 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
     const row = page.locator(".eng-compact-toolbar");
     await expect(row).toBeVisible();
     const box = await row.boundingBox();
-    expect(box.height).toBeLessThanOrEqual(46);
-    for (const control of [button("Cylinder 1 assembly"), crank, options]) {
+    expect(box.height).toBe(44);
+    for (const control of [button("Cylinder 1 assembly"), row.locator(".eng-crank-control"), crank, options]) {
       const bounds = await control.boundingBox();
+      expect(bounds.height).toBe(44);
       expect(bounds.x).toBeGreaterThanOrEqual(box.x);
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(box.x + box.width + 1);
     }
     expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await options.tap();
+    for (const control of [study, cycleFocus, sheet.getByRole("button", { name: "Done" })]) {
+      await expect(control).toHaveCSS("height", "44px");
+    }
     const panel = await sheet.boundingBox();
     expect(panel.x).toBeGreaterThanOrEqual(0);
     expect(panel.y).toBeGreaterThanOrEqual(0);

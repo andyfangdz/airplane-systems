@@ -89,7 +89,8 @@
   margin-top: 14px;
 }
 .piston-fault-select select {
-  padding: 8px;
+  min-height: var(--model-control-height);
+  padding: 4px 8px;
   color: var(--ink);
   background: var(--panel);
   border: 1px solid var(--rule);

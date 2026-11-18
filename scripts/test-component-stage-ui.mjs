@@ -26,6 +26,29 @@ const labelLayout = (page) =>
     return { count: labels.length, problems };
   });
 
+test("engine and component controls keep the same height when the toolbar wraps", async ({ page }) => {
+  const study = page.getByRole("combobox", { name: "Study view" });
+  await page.goto("/engines/io390");
+  await study.selectOption("cycle");
+  await page.getByRole("combobox", { name: "Power cycle focus" }).selectOption("all");
+  await expect(page.getByRole("slider", { name: "Crankshaft angle" })).toBeVisible();
+
+  const controls = page.locator(
+    ".toolbar :is(.tb, .eng-study, .eng-crank-control, select, input), #model-details :is(.btn, .seg button, input[type=range], select)",
+  );
+  const heights = () =>
+    controls.evaluateAll((elements) => [...new Set(elements.map((el) => el.getBoundingClientRect().height))]);
+  await expect.poll(heights).toEqual([36]);
+  await page.setViewportSize({ width: 760, height: 695 });
+  await expect.poll(heights).toEqual([44]);
+
+  await page.goto("/components/piston-cylinder");
+  await expect(page.locator(".piston-fault-select select")).toBeAttached();
+  await expect.poll(heights).toEqual([44]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect.poll(heights).toEqual([36]);
+});
+
 test("the side panel gives its space to the model and remembers the choice across engines and parts", async ({
   page,
   context,
@@ -74,6 +97,16 @@ test("the side panel gives its space to the model and remembers the choice acros
   await expect(page.locator(".ps-mon")).toBeVisible();
   const tall = (await page.locator(".eng-view").boundingBox()).height;
   await expect.poll(async () => (await canvas.boundingBox()).height).toBeCloseTo(tall, 0);
+  await page.setViewportSize({ width: 594, height: 368 });
+  const instruments = page.locator(".eng-foot");
+  await expect
+    .poll(async () => {
+      const box = await instruments.boundingBox();
+      return box.y + box.height;
+    })
+    .toBeCloseTo(368, 0);
+  await expect(show).toBeInViewport();
+  await page.setViewportSize({ width: 382, height: 580 });
   await show.click();
   await expect(page.locator("#model-details")).toBeVisible();
   await expect.poll(async () => (await canvas.boundingBox()).height).toBeLessThan(tall);
