@@ -5,6 +5,7 @@
  * in the head, which opens the valve against its spring. Lift follows the model's valve events (`valveLift`). The drawn
  * lift and lobe shapes are schematic, and the valves are drawn parallel to the cylinder axis.
  */
+import { studyCrank } from "../assembly-study";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -80,7 +81,7 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
   const cam = useRef<THREE.Group>(null);
   useFrame(() => {
     // geared to the crankshaft: half speed, the other way
-    if (cam.current) cam.current.rotation.x = (sim.anim.crank % 720) * camSpin(L) * D2R;
+    if (cam.current) cam.current.rotation.x = (studyCrank(sim) % 720) * camSpin(L) * D2R;
   });
   return (
     <group ref={cam} position={[0, d.camY, 0]}>
@@ -238,7 +239,7 @@ function CylinderValves({
   };
   const seat = d.zPivot - 0.008 - geo[0].springLen;
   useFrame(() => {
-    const lift = valveLift(sim.spec, phaseOf(sim.spec, c.n, sim.anim.crank));
+    const lift = valveLift(sim.spec, phaseOf(sim.spec, c.n, studyCrank(sim)));
     [lift.intake, lift.exhaust].forEach((l, v) => {
       const m = l * VT.maxLift;
       // the pushrod end swings out and the valve end in, whichever side of the pivot the pushrod is

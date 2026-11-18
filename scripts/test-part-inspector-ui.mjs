@@ -100,6 +100,15 @@ for (const phone of [false, true])
       expect(
         await page.locator(".part-inspector").evaluate((element) => element.contains(document.activeElement)),
       ).toBe(false);
+      // Two taps on the same physical group enter the study directly from the installed engine.
+      // A single tap above must have left the installed camera in place.
+      await expect(page.getByRole("button", { name: "Blow up", exact: true })).toBeVisible();
+      if (phone) {
+        await page.touchscreen.tap(hit.x, hit.y);
+        await page.touchscreen.tap(hit.x, hit.y);
+      } else await page.mouse.dblclick(hit.x, hit.y);
+      await expect(page.getByRole("button", { name: "Part groups", exact: true })).toBeVisible();
+      await expect(page.getByRole("combobox", { name: "Focus a part group" })).not.toHaveValue("");
     } finally {
       await context.close();
     }
@@ -166,4 +175,75 @@ test("IO-390 catalog separation keeps a selected part and the study controls", a
   await expect(page.getByRole("combobox", { name: "Study view" })).toBeVisible();
   await expect(button).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("isolated accessories reassemble independently and a crankshaft can be paired with either bank", async ({
+  page,
+  context,
+}) => {
+  await observeStageCamera(context);
+  await page.goto("/engines/io390");
+  const button = (name) => page.getByRole("button", { name, exact: true });
+  const select = (name) => page.getByRole("combobox", { name, exact: true });
+  const groups = select("Focus a part group"),
+    components = select("Focus a component");
+  await button("Blow up").click();
+  await groups.selectOption("drives");
+  await waitForStageCamera(page);
+  const label = await page
+    .locator(".eng-label")
+    .filter({ hasText: /^ALT 1$/ })
+    .boundingBox();
+  // Hit the model itself, just as a learner does. Its label is anchored beside the housing.
+  let hit;
+  for (const [dx, dy] of [
+    [0, 0],
+    [-9, 0],
+    [9, 0],
+    [0, -12],
+    [0, 12],
+    [-20, -12],
+    [20, -12],
+  ]) {
+    const x = Math.round(label.x + label.width / 2 + dx),
+      y = Math.round(label.y + label.height / 2 + dy);
+    await page.mouse.move(x, y);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    if (
+      await page
+        .locator(".eng-tip b")
+        .filter({ hasText: /^ALT 1(?: pulley)?$/ })
+        .isVisible()
+    ) {
+      hit = { x, y };
+      break;
+    }
+  }
+  expect(hit, "the ALT 1 housing or pulley can be picked").toBeTruthy();
+  await page.mouse.dblclick(hit.x, hit.y);
+  await expect(components).toHaveValue("alternator-1");
+  await button("Blow up component").click();
+  await button("Assemble component").click();
+  await components.selectOption("alternator-2");
+  const inspector = page.getByRole("region", { name: "Part inspector" });
+  await inspector.locator("summary").click();
+  await inspector.getByRole("searchbox").fill("Rotor field winding");
+  await expect(inspector.getByRole("button", { name: "Rotor field winding, ALT 2", exact: true })).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Rotor field winding, ALT 1", exact: true })).toHaveCount(0);
+  await button("Accessory drives").click();
+  await groups.selectOption("shafts");
+  await button("Blow up group").click();
+  const pair = select("Pair crankshaft with cylinder");
+  await pair.selectOption("2");
+  const crank = page.getByRole("slider", { name: "Crankshaft angle" });
+  await crank.fill("210");
+  await expect(crank).toHaveAttribute("aria-valuetext", "210 degrees");
+  await button("Follow engine").click();
+  await expect(crank).toHaveValue("0");
+  await pair.selectOption("3");
+  await inspector.getByRole("searchbox").fill("Piston, cylinder");
+  await expect(inspector.getByRole("button", { name: "Piston, cylinder 3", exact: true })).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Piston, cylinder 2", exact: true })).toHaveCount(0);
+  await button("Crankshaft and camshaft").click();
+  await expect(button("Assemble group")).toBeVisible();
 });

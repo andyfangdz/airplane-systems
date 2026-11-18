@@ -167,15 +167,30 @@ export function P({
       onPointerOver={assembly?.hidden ? undefined : over(name, note)}
       onPointerDown={(event) => {
         if (assembly?.hidden || !canPick(event.object as THREE.Mesh)) return;
+        if (event.nativeEvent.isPrimary === false || event.nativeEvent.button > 0) {
+          down.current = null;
+          assembly?.cancelTap();
+          return;
+        }
         event.stopPropagation();
         down.current = { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY, moved: false };
       }}
       onPointerMove={(event) => {
         const start = down.current;
         if (assembly?.hidden) return;
-        if (start && Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4)
+        if (
+          start &&
+          !start.moved &&
+          Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4
+        ) {
           start.moved = true;
+          assembly?.cancelTap();
+        }
         move(event);
+      }}
+      onPointerCancel={() => {
+        down.current = null;
+        assembly?.cancelTap();
       }}
       onPointerOut={out}
       onClick={(event) => {
@@ -184,8 +199,14 @@ export function P({
         if (assembly?.hidden || !start || start.moved || event.delta > 4 || !canPick(event.object as THREE.Mesh))
           return;
         event.stopPropagation();
-        if (assembly?.focus) assembly.focus();
-        else inspection.getState().select(name, true);
+        const inspect = () => {
+          if (isVisible(mesh.current)) inspection.getState().select(name, true);
+        };
+        if (assembly?.tap) assembly.tap(event.nativeEvent, inspect);
+        else {
+          assembly?.cancelTap();
+          inspect();
+        }
         out();
       }}
     >

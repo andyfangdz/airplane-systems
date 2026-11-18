@@ -1,6 +1,7 @@
 import type { EngineSpec } from "@/engines/types";
 import type { Vec3 } from "@/lib/math";
-import type { EngineView } from "./store";
+import type { EngineView, EngineSim } from "./store";
+import { layoutFor } from "./scene/layout";
 
 // Overview offsets are display spacing in model axes. Each cylinder occupies one station
 // across its three separately drawn systems (castings, reciprocating parts and valve train).
@@ -49,4 +50,44 @@ export function assemblyStations(spec: EngineSpec): AssemblyStation[] {
 
 export function assemblyAvailable(station: AssemblyStation, view: Pick<EngineView, "prop" | "hidden">) {
   return station.id === "propeller" ? view.prop : station.groups.some((group) => !view.hidden.includes(group));
+}
+
+export type ComponentId = "alternator-1" | "alternator-2" | "starter" | "governor" | "left-magneto" | "right-magneto";
+export type StudyDetail =
+  | { kind: "component"; id: ComponentId; exploded: boolean }
+  | { kind: "linkage"; cylinder: number; angle?: number; xray?: boolean };
+export type AssemblyFocus = { id: AssemblyId; exploded: boolean; detail?: StudyDetail };
+
+export function assemblyComponents(spec: EngineSpec, id: AssemblyId): { id: ComponentId; name: string }[] {
+  if (id === "ignition")
+    return [
+      { id: "left-magneto", name: "Left magneto" },
+      { id: "right-magneto", name: "Right magneto" },
+    ];
+  if (id !== "drives") return [];
+  const parts: { id: ComponentId; name: string }[] = layoutFor(spec).alternators.map((alt) => ({
+    id: alt.studyId ?? "alternator-1",
+    name: alt.name === "Alternator" ? alt.name : `Alternator (${alt.name})`,
+  }));
+  parts.push({ id: "starter", name: "Starter" });
+  if (spec.accessories.governorRatio) parts.push({ id: "governor", name: "Propeller governor" });
+  return parts;
+}
+
+/** A crank-and-cylinder pair needs the crankshaft and connecting rod layer. */
+export function linkageCylinders(spec: EngineSpec, id: AssemblyId, hidden: readonly string[]) {
+  return spec.geometry.cylinders.filter(
+    (c) => !hidden.includes("rotating") && (id === "shafts" || id === `cylinder-${c.n}`),
+  );
+}
+
+/** The paired mechanism has its own hand-turned pose and cutaway, independent of engine operation. */
+export function studyCrank(sim: EngineSim) {
+  const detail = sim.useUi.getState().view.assembly?.detail;
+  return detail?.kind === "linkage" ? (detail.angle ?? sim.anim.crank) : sim.anim.crank;
+}
+
+export function studyXray(view: EngineView) {
+  const detail = view.assembly?.detail;
+  return detail?.kind === "linkage" ? (detail.xray ?? true) : view.xray;
 }

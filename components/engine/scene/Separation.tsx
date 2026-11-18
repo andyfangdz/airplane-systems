@@ -1,11 +1,11 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
-import { createContext, useContext, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { Group, Matrix4, Vector3 } from "three";
 import { ease } from "@/lib/math";
 import { prefersReducedMotion } from "@/lib/useReducedMotion";
 import type { EngineSim } from "../store";
-import { assemblyStations, type AssemblyId, type AssemblyStation } from "../assembly-study";
+import { assemblyStations, type AssemblyId, type AssemblyStation, type ComponentId } from "../assembly-study";
 import type { CylinderDef } from "@/engines/types";
 import type { V3 } from "./layout";
 
@@ -15,19 +15,70 @@ export const usePartsExploded = () => useContext(Separation);
 
 type Motion = { from: Vector3; to: Vector3; scale: number; show: boolean; time: number };
 const Motions = createContext<Map<Group, Motion> | null>(null);
+const doubleTapMs = 380;
+type Tap = { clientX: number; clientY: number; timeStamp: number };
+type PartTap = (event: Tap, inspect: () => void) => void;
+type GroupTap = (key: string, event: Tap, inspect: () => void, focus: () => void) => void;
+
 const Study = createContext<{
   sim: EngineSim;
   stations: Map<AssemblyId, AssemblyStation>;
   open: boolean;
   focus: AssemblyId | undefined;
   exploded: boolean;
+  component?: ComponentId;
+  pairedCylinder?: number;
+  tap: GroupTap;
+  cancelTap: () => void;
 } | null>(null);
 
 export function AssemblyStudy({ sim, children }: { sim: EngineSim; children: ReactNode }) {
   const motions = useMemo(() => new Map<Group, Motion>(), []);
   const stations = useMemo(() => new Map(assemblyStations(sim.spec).map((s) => [s.id, s])), [sim]);
   const open = sim.useUi((s) => !!s.view.blowUp);
-  const assembly = sim.useUi((s) => s.view.assembly);
+  const focus = sim.useUi((s) => s.view.assembly?.id);
+  const component = sim.useUi(({ view }) =>
+    view.assembly?.detail?.kind === "component" ? view.assembly.detail.id : undefined,
+  );
+  const pairedCylinder = sim.useUi(({ view }) =>
+    view.assembly?.detail?.kind === "linkage" ? view.assembly.detail.cylinder : undefined,
+  );
+  const exploded = sim.useUi(({ view }) => {
+    const a = view.assembly;
+    if (a?.detail) return a.detail.kind === "component" && a.detail.exploded;
+    return !!a?.exploded;
+  });
+  // Share the first tap across meshes: a second tap may land on a neighbouring fastener in the same assembly.
+  const pending = useRef<{
+    key: string;
+    x: number;
+    y: number;
+    time: number;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const cancelTap = useCallback(() => {
+    if (pending.current) clearTimeout(pending.current.timer);
+    pending.current = null;
+  }, []);
+  useLayoutEffect(() => cancelTap, [cancelTap, open, focus, component, pairedCylinder]);
+  const tap: GroupTap = (key, event, inspect, enter) => {
+    const first = pending.current;
+    cancelTap();
+    if (
+      first?.key === key &&
+      event.timeStamp - first.time <= doubleTapMs &&
+      Math.hypot(event.clientX - first.x, event.clientY - first.y) <= 18
+    ) {
+      enter();
+    } else {
+      // Revealing a single-tap note can scroll the phone. Keep the target still for the second tap.
+      const timer = setTimeout(() => {
+        pending.current = null;
+        inspect();
+      }, doubleTapMs);
+      pending.current = { key, x: event.clientX, y: event.clientY, time: event.timeStamp, timer };
+    }
+  };
   useFrame((_, dt) => {
     for (const [g, motion] of motions) {
       motion.time = Math.min(1, prefersReducedMotion() ? 1 : motion.time + dt / 0.7);
@@ -44,7 +95,9 @@ export function AssemblyStudy({ sim, children }: { sim: EngineSim; children: Rea
   }, -2);
   return (
     <Motions value={motions}>
-      <Study value={{ sim, stations, open, focus: assembly?.id, exploded: !!assembly?.exploded }}>{children}</Study>
+      <Study value={{ sim, stations, open, focus, exploded, component, pairedCylinder, tap, cancelTap }}>
+        {children}
+      </Study>
     </Motions>
   );
 }
@@ -78,7 +131,12 @@ function MovingGroup({ at, show = true, children }: { at: V3; show?: boolean; ch
   return <group ref={group}>{children}</group>;
 }
 
-export const AssemblyPick = createContext<{ hidden: boolean; focus?: () => void } | null>(null);
+export const AssemblyPick = createContext<{
+  id: AssemblyId;
+  hidden: boolean;
+  tap?: PartTap;
+  cancelTap: () => void;
+} | null>(null);
 
 /** Independent members of one physical assembly share the same overview transform. */
 export function Assembly({ id, children }: { id: AssemblyId; children: ReactNode }) {
@@ -86,16 +144,54 @@ export function Assembly({ id, children }: { id: AssemblyId; children: ReactNode
   if (!study) return children;
   const { sim, open, focus, exploded, stations } = study;
   const station = stations.get(id)!;
-  const hidden = !!focus && id !== focus;
+  const paired = study.pairedCylinder !== undefined;
+  const hidden = paired ? id !== "shafts" && id !== `cylinder-${study.pairedCylinder}` : !!focus && id !== focus;
   return (
     <AssemblyPick
       value={{
+        id,
         hidden,
-        focus: open && !focus ? () => sim.useUi.getState().setView({ assembly: { id, exploded: false } }) : undefined,
+        cancelTap: study.cancelTap,
+        tap: !focus
+          ? (e, inspect) =>
+              study.tap(id, e, inspect, () =>
+                sim.useUi.getState().setView({ blowUp: true, assembly: { id, exploded: false } }),
+              )
+          : undefined,
       }}
     >
-      <MovingGroup at={open ? station.by : origin} show={!hidden}>
+      <MovingGroup at={open && !paired ? station.by : origin} show={!hidden}>
         <Separation value={id === focus && exploded}>{children}</Separation>
+      </MovingGroup>
+    </AssemblyPick>
+  );
+}
+
+/** An installed device can be studied alone. Unassigned fittings belong to the parent assembly. */
+export function AssemblyMember({ id, children }: { id?: ComponentId; children: ReactNode }) {
+  const parent = useContext(AssemblyPick);
+  const study = useContext(Study);
+  if (!study || !parent) return children;
+  const inParent = study.focus === parent.id;
+  const hidden = inParent && !!study.component && study.component !== id;
+  const enter = (event: Tap, inspect: () => void) => {
+    if (!id) return;
+    study.tap(id, event, inspect, () => {
+      const { view, setView } = study.sim.useUi.getState();
+      if (view.assembly?.id === parent.id)
+        setView({ assembly: { ...view.assembly, detail: { kind: "component", id, exploded: false } } });
+    });
+  };
+  return (
+    <AssemblyPick
+      value={{
+        ...parent,
+        hidden: hidden || parent.hidden,
+        tap: inParent && id && !study.component ? enter : parent.tap,
+      }}
+    >
+      <MovingGroup at={origin} show={!hidden}>
+        {children}
       </MovingGroup>
     </AssemblyPick>
   );

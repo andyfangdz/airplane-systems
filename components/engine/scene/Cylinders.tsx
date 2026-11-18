@@ -4,6 +4,7 @@
  * cover(s) on the outer end, two spark plugs that flash when they fire, the injection nozzle and the intake and exhaust
  * ports where the engine's layout puts them. The shapes are schematic.
  */
+import { studyCrank } from "../assembly-study";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -120,7 +121,7 @@ function Cylinder({
       if (L.detailed) head.color.multiplyScalar(0.74);
     }
     // the plugs flash from the spark through early combustion
-    const ph = phaseOf(spec, c.n, sim.anim.crank);
+    const ph = phaseOf(spec, c.n, studyCrank(sim));
     const since = (ph + sparkBTC(spec, ui.controls.mags) + 720) % 720;
     const lit = since < 40 && s.rpm > 30;
     const fl = lit ? (s.cyl[i]?.work > 0.02 ? 1 - since / 40 : 0.35) : 0;

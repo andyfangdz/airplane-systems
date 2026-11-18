@@ -43,6 +43,7 @@
 .eng-assembly-nav {
   max-width: 100%;
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 .eng-assembly-nav .eng-study {
@@ -55,6 +56,43 @@
 }
 .eng-assembly-nav .tb {
   white-space: nowrap;
+}
+.eng-link-pin {
+  transform: translateY(-18px);
+}
+.eng-link-pin.below {
+  transform: translateY(18px);
+}
+.eng-link-pin::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  height: 9px;
+  border-left: 1px solid var(--muted);
+}
+.eng-link-pin.below::after {
+  top: auto;
+  bottom: 100%;
+}
+.eng-crank-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+.eng-crank-control input {
+  width: 90px;
+  accent-color: var(--accent);
+}
+.eng-crank-control output {
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .eng-assembly-label {
   cursor: pointer;

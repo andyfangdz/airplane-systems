@@ -60,7 +60,7 @@ import { IO360Inlet } from "./io360/Inlet";
 import { sleeve } from "./io390/shapes";
 import { nozzleLinePoints, plugLead, servoHoses } from "./io390/lines";
 import { AccessoryInternals } from "./io390/AccessoryInternals";
-import { accessorySpread, Spread, usePartsExploded } from "./Separation";
+import { AssemblyMember, accessorySpread, Spread, usePartsExploded } from "./Separation";
 import { Details, useDetailDisposal } from "./io390/Details";
 import { P } from "./parts";
 
@@ -239,101 +239,106 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
   const startMags = magsAtStart(spec);
   return (
     <>
-      <Details parts={hardware} mats={mats} />
+      <AssemblyMember>
+        <Details parts={hardware} mats={mats} />
+      </AssemblyMember>
       {(["L", "R"] as const).map((m, k) => {
         const retard =
           spec.illustratedInstallation === "da40"
             ? m === spec.ignition.retardMag
             : startMags.length === 1 && m === startMags[0];
         return (
-          <group
-            key={m}
-            userData={{ cameraSubject: true }}
-            position={[0, ...magnetoPose(spec, d, m, L).centre.slice(1)] as V3}
-          >
-            {L.detailed && (
-              <AccessoryInternals
-                kind="magneto"
-                sim={sim}
-                mats={mats}
-                position={[magnetoPose(spec, d, m, L).centre[0], 0, 0]}
+          <AssemblyMember key={m} id={m === "L" ? "left-magneto" : "right-magneto"}>
+            <group
+              userData={{ cameraSubject: true }}
+              position={[0, ...magnetoPose(spec, d, m, L).centre.slice(1)] as V3}
+            >
+              {L.detailed && (
+                <AccessoryInternals
+                  kind="magneto"
+                  sim={sim}
+                  mats={mats}
+                  position={[magnetoPose(spec, d, m, L).centre[0], 0, 0]}
+                  spread={accessorySpread.Magnetos}
+                  suffix={m === "L" ? ", left magneto" : ", right magneto"}
+                  retard={retard}
+                  ratio={spins.magneto}
+                />
+              )}
+              <P
+                name={`${m === "L" ? "Left" : "Right"} magneto${retard ? " (retard breaker)" : ""}`}
                 spread={accessorySpread.Magnetos}
-                suffix={m === "L" ? ", left magneto" : ", right magneto"}
-                retard={retard}
-                ratio={spins.magneto}
+                note={
+                  L.notes.magneto
+                    ? `${L.notes.magneto} ${mags}.`
+                    : retard
+                      ? `The retard-breaker magneto fires alone, late, during the start cycle (IOM p. 2). ${mags} (Table A-1).`
+                      : `The plain magneto is grounded during the start cycle (IOM p. 2). ${mags} (Table A-1).`
+                }
+                geometry={geo.body}
+                material={mats.mag}
               />
-            )}
-            <P
-              name={`${m === "L" ? "Left" : "Right"} magneto${retard ? " (retard breaker)" : ""}`}
-              spread={accessorySpread.Magnetos}
-              note={
-                L.notes.magneto
-                  ? `${L.notes.magneto} ${mags}.`
-                  : retard
-                    ? `The retard-breaker magneto fires alone, late, during the start cycle (IOM p. 2). ${mags} (Table A-1).`
-                    : `The plain magneto is grounded during the start cycle (IOM p. 2). ${mags} (Table A-1).`
-              }
-              geometry={geo.body}
-              material={mats.mag}
-            />
-            <P name="Magneto mounting flange" spread={[-0.38, 0.1, 0]} geometry={geo.flange} material={mats.mag} />
-            <P
-              name="Magneto distributor cap"
-              spread={[-0.51, 0.1, 0]}
-              note={L.notes.magCap ?? "Leads to four plugs leave here: one in every cylinder."}
-              geometry={geo.cap}
-              material={mats.magCap}
-            />
-            <P
-              name="Magneto drive gear"
-              spread={[-0.22, 0.1, 0]}
-              note={
-                L.notes.magGear ??
-                `Meshes with the camshaft gear: half as many teeth, so the magneto turns at crankshaft speed (magneto drive ratio ${spec.accessories.magnetoRatio}:1, Table A-1).`
-              }
-              geometry={geo.gear}
-              material={mats.gear}
-              meshRef={(g) => {
-                gears.current[k] = g;
-              }}
-            />
-          </group>
+              <P name="Magneto mounting flange" spread={[-0.38, 0.1, 0]} geometry={geo.flange} material={mats.mag} />
+              <P
+                name="Magneto distributor cap"
+                spread={[-0.51, 0.1, 0]}
+                note={L.notes.magCap ?? "Leads to four plugs leave here: one in every cylinder."}
+                geometry={geo.cap}
+                material={mats.magCap}
+              />
+              <P
+                name="Magneto drive gear"
+                spread={[-0.22, 0.1, 0]}
+                note={
+                  L.notes.magGear ??
+                  `Meshes with the camshaft gear: half as many teeth, so the magneto turns at crankshaft speed (magneto drive ratio ${spec.accessories.magnetoRatio}:1, Table A-1).`
+                }
+                geometry={geo.gear}
+                material={mats.gear}
+                meshRef={(g) => {
+                  gears.current[k] = g;
+                }}
+              />
+            </group>
+          </AssemblyMember>
         );
       })}
-      {(L.detailed ? (["L", "R"] as const) : (["R"] as const)).map((side, i) => {
-        const axis = magDrive(spec, d, L, side).idler;
-        if (!geo.idler || !axis) return null;
-        return (
-          <group key={side} position={[0, axis.y, axis.z]}>
-            <P
-              name={L.detailed ? (side === "L" ? "Left" : "Right") + " crankshaft idler gear" : "Idler gear"}
-              spread={[-0.14, 0.09, 0]}
-              note={
-                L.detailed
-                  ? "Between the crankshaft and magneto. The left idler also times the camshaft (MM 72-20, Figs. 91–94)."
-                  : L.notes.idler
-              }
-              geometry={geo.idler}
-              material={mats.gear}
-              meshRef={(m) => {
-                idlers.current[i] = m;
-              }}
-            />
-          </group>
-        );
-      })}
-      {geo.cover && (
-        <P name="Magneto drive housing" note={L.notes.magDriveHousing} geometry={geo.cover} material={mats.acc} />
-      )}
-      <P
-        name="Ignition harness"
-        spread={[-0.11, 0.71, 0]}
-        note={
-          L.notes.harness ?? "All-weather shielded leads from each magneto to one plug in every cylinder (IOM p. 2)."
-        }
-        geometry={geo.leads}
-        material={mats.lead}
-      />
+      <AssemblyMember>
+        {(L.detailed ? (["L", "R"] as const) : (["R"] as const)).map((side, i) => {
+          const axis = magDrive(spec, d, L, side).idler;
+          if (!geo.idler || !axis) return null;
+          return (
+            <group key={side} position={[0, axis.y, axis.z]}>
+              <P
+                name={L.detailed ? (side === "L" ? "Left" : "Right") + " crankshaft idler gear" : "Idler gear"}
+                spread={[-0.14, 0.09, 0]}
+                note={
+                  L.detailed
+                    ? "Between the crankshaft and magneto. The left idler also times the camshaft (MM 72-20, Figs. 91–94)."
+                    : L.notes.idler
+                }
+                geometry={geo.idler}
+                material={mats.gear}
+                meshRef={(m) => {
+                  idlers.current[i] = m;
+                }}
+              />
+            </group>
+          );
+        })}
+        {geo.cover && (
+          <P name="Magneto drive housing" note={L.notes.magDriveHousing} geometry={geo.cover} material={mats.acc} />
+        )}
+        <P
+          name="Ignition harness"
+          spread={[-0.11, 0.71, 0]}
+          note={
+            L.notes.harness ?? "All-weather shielded leads from each magneto to one plug in every cylinder (IOM p. 2)."
+          }
+          geometry={geo.leads}
+          material={mats.lead}
+        />
+      </AssemblyMember>
     </>
   );
 }
@@ -1532,80 +1537,84 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
   const sg = geo.starter;
   return (
     <>
-      <Details parts={hardware} mats={mats} />
-      {st.kind === "front-ring" && sg.kind === "front-ring" ? (
-        <group userData={{ cameraSubject: true }} position={st.at}>
-          {L.detailed && (
-            <AccessoryInternals
-              kind="starter"
-              sim={sim}
-              mats={mats}
-              spread={accessorySpread.Starter}
-              ratio={spins.pinion}
-            />
-          )}
-          <P
-            name="Starter"
-            spread={accessorySpread.Starter}
-            note={`12 V or 24 V starter (IOM p. 3); drive ratio ${acc.starterRatio}:1 (Table A-1). Engaged while the switch is held at START.`}
-            geometry={sg.motor}
-            material={mats.black}
-          />
-          <P name="Starter solenoid" spread={[0.11, -0.21, -0.24]} geometry={sg.solenoid} material={mats.black} />
-          <P name="Starter drive housing" spread={[0.17, -0.16, -0.18]} geometry={sg.drive} material={mats.alt} />
-          <group ref={pinion} position={[-PINION_TRAVEL, 0, 0]}>
-            <P
-              name="Starter pinion"
-              spread={[0.23, -0.16, -0.18]}
-              note="The solenoid slides it into mesh with the ring gear while the starter is engaged and withdraws it on release; out of mesh it stands still while the ring gear turns."
-              geometry={sg.pinion}
-              material={mats.gear}
-            />
-          </group>
-        </group>
-      ) : st.kind === "rear-adapter" && sg.kind === "rear-adapter" ? (
-        <>
+      <AssemblyMember>
+        <Details parts={hardware} mats={mats} />
+      </AssemblyMember>
+      <AssemblyMember id="starter">
+        {st.kind === "front-ring" && sg.kind === "front-ring" ? (
           <group userData={{ cameraSubject: true }} position={st.at}>
+            {L.detailed && (
+              <AccessoryInternals
+                kind="starter"
+                sim={sim}
+                mats={mats}
+                spread={accessorySpread.Starter}
+                ratio={spins.pinion}
+              />
+            )}
             <P
               name="Starter"
               spread={accessorySpread.Starter}
-              note={L.notes.starter}
+              note={`12 V or 24 V starter (IOM p. 3); drive ratio ${acc.starterRatio}:1 (Table A-1). Engaged while the switch is held at START.`}
               geometry={sg.motor}
               material={mats.black}
             />
             <P name="Starter solenoid" spread={[0.11, -0.21, -0.24]} geometry={sg.solenoid} material={mats.black} />
+            <P name="Starter drive housing" spread={[0.17, -0.16, -0.18]} geometry={sg.drive} material={mats.alt} />
+            <group ref={pinion} position={[-PINION_TRAVEL, 0, 0]}>
+              <P
+                name="Starter pinion"
+                spread={[0.23, -0.16, -0.18]}
+                note="The solenoid slides it into mesh with the ring gear while the starter is engaged and withdraws it on release; out of mesh it stands still while the ring gear turns."
+                geometry={sg.pinion}
+                material={mats.gear}
+              />
+            </group>
           </group>
-          <P name="Starter adapter" note={L.notes.starterAdapter} geometry={sg.adapter} material={mats.acc} />
-          <P
-            name="Starter worm"
-            note={L.notes.starterWorm}
-            geometry={sg.worm}
-            material={mats.steel}
-            position={st.worm.at}
-            meshRef={worm}
-          />
-          <group position={[0, st.shaft.y, st.shaft.z]}>
+        ) : st.kind === "rear-adapter" && sg.kind === "rear-adapter" ? (
+          <>
+            <group userData={{ cameraSubject: true }} position={st.at}>
+              <P
+                name="Starter"
+                spread={accessorySpread.Starter}
+                note={L.notes.starter}
+                geometry={sg.motor}
+                material={mats.black}
+              />
+              <P name="Starter solenoid" spread={[0.11, -0.21, -0.24]} geometry={sg.solenoid} material={mats.black} />
+            </group>
+            <P name="Starter adapter" note={L.notes.starterAdapter} geometry={sg.adapter} material={mats.acc} />
             <P
-              name="Starter worm wheel"
+              name="Starter worm"
               note={L.notes.starterWorm}
-              geometry={sg.wheel}
-              material={mats.gear}
-              position={[st.wheel.x, 0, 0]}
-              meshRef={wheel}
+              geometry={sg.worm}
+              material={mats.steel}
+              position={st.worm.at}
+              meshRef={worm}
             />
-            <P name="Starter shaft" geometry={sg.shaft} material={mats.steel} />
-            <P name="Starter clutch spring" note={L.notes.clutchSpring} geometry={sg.clutch} material={clutchMat} />
-            <P
-              name="Starter shaft gear"
-              note={L.notes.starterShaftGear}
-              geometry={sg.shaftGear}
-              material={mats.gear}
-              position={[st.shaft.x, 0, 0]}
-              meshRef={shaftGear}
-            />
-          </group>
-        </>
-      ) : null}
+            <group position={[0, st.shaft.y, st.shaft.z]}>
+              <P
+                name="Starter worm wheel"
+                note={L.notes.starterWorm}
+                geometry={sg.wheel}
+                material={mats.gear}
+                position={[st.wheel.x, 0, 0]}
+                meshRef={wheel}
+              />
+              <P name="Starter shaft" geometry={sg.shaft} material={mats.steel} />
+              <P name="Starter clutch spring" note={L.notes.clutchSpring} geometry={sg.clutch} material={clutchMat} />
+              <P
+                name="Starter shaft gear"
+                note={L.notes.starterShaftGear}
+                geometry={sg.shaftGear}
+                material={mats.gear}
+                position={[st.shaft.x, 0, 0]}
+                meshRef={shaftGear}
+              />
+            </group>
+          </>
+        ) : null}
+      </AssemblyMember>
       {D.alternators.map((a, k) => {
         const g = geo.alternators[k];
         if (a.transverse)
@@ -1643,109 +1652,122 @@ export function Drives({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }
           );
         return (
           <Fragment key={a.def.name}>
-            <group userData={{ cameraSubject: true }} position={a.at}>
-              {L.detailed && (
-                <AccessoryInternals
-                  kind="alternator"
-                  sim={sim}
-                  mats={mats}
+            <AssemblyMember id={a.def.studyId ?? "alternator-1"}>
+              <group userData={{ cameraSubject: true }} position={a.at}>
+                {L.detailed && (
+                  <AccessoryInternals
+                    kind="alternator"
+                    sim={sim}
+                    mats={mats}
+                    spread={accessorySpread[a.def.name]}
+                    suffix={", " + a.def.name}
+                    length={a.def.bodyLen}
+                    ratio={spins[a.def.name]}
+                  />
+                )}
+                <P
+                  name={a.def.name}
                   spread={accessorySpread[a.def.name]}
-                  suffix={", " + a.def.name}
-                  length={a.def.bodyLen}
-                  ratio={spins[a.def.name]}
+                  note={a.def.note ?? "Belt-driven from the pulley behind the starter ring gear (IOM Table A-4)."}
+                  geometry={g.body}
+                  material={mats.alt}
                 />
-              )}
-              <P
-                name={a.def.name}
-                spread={accessorySpread[a.def.name]}
-                note={a.def.note ?? "Belt-driven from the pulley behind the starter ring gear (IOM Table A-4)."}
-                geometry={g.body}
-                material={mats.alt}
-              />
-              {L.detailed ? (
-                <Spread by={[0.12, -0.1, Math.sign(a.at[2]) * 0.23]}>
-                  <group
-                    ref={(group) => {
-                      altRot.current[k] = group;
+                {L.detailed ? (
+                  <Spread by={[0.12, -0.1, Math.sign(a.at[2]) * 0.23]}>
+                    <group
+                      ref={(group) => {
+                        altRot.current[k] = group;
+                      }}
+                    >
+                      <P
+                        name={a.def.name + " pulley"}
+                        spread={[0.14, 0, 0]}
+                        note="The belt drives this pulley on the alternator shaft (IPC Fig. 2, SR20 AMM 24-30)."
+                        geometry={g.wheel}
+                        material={mats.steel}
+                      />
+                      <Details mats={mats} parts={fan} suffix={", " + a.def.name} />
+                    </group>
+                  </Spread>
+                ) : (
+                  <mesh
+                    ref={(m) => {
+                      altRot.current[k] = m;
                     }}
-                  >
-                    <P
-                      name={a.def.name + " pulley"}
-                      spread={[0.14, 0, 0]}
-                      note="The belt drives this pulley on the alternator shaft (IPC Fig. 2, SR20 AMM 24-30)."
-                      geometry={g.wheel}
-                      material={mats.steel}
-                    />
-                    <Details mats={mats} parts={fan} suffix={", " + a.def.name} />
-                  </group>
-                </Spread>
-              ) : (
-                <mesh
-                  ref={(m) => {
-                    altRot.current[k] = m;
-                  }}
-                  geometry={g.wheel}
-                  material={a.gear ? mats.gear : mats.darkSteel}
-                />
-              )}
-            </group>
+                    geometry={g.wheel}
+                    material={a.gear ? mats.gear : mats.darkSteel}
+                  />
+                )}
+              </group>
+            </AssemblyMember>
             {g.belt && (
-              <P
-                name={`${a.def.name} belt`}
-                spread={[k === 0 ? 0.33 : 0.39, -0.05, Math.sign(a.at[2]) * 0.12]}
-                note={
-                  L.notes.altBelt ??
-                  `${acc.alternatorRatio}:1 drive ratio with a 3.10 in alternator pulley (IOM Table A-4).`
-                }
-                geometry={g.belt}
-                material={mats.belt}
-              />
+              <AssemblyMember>
+                <P
+                  name={`${a.def.name} belt`}
+                  spread={[k === 0 ? 0.33 : 0.39, -0.05, Math.sign(a.at[2]) * 0.12]}
+                  note={
+                    L.notes.altBelt ??
+                    `${acc.alternatorRatio}:1 drive ratio with a 3.10 in alternator pulley (IOM Table A-4).`
+                  }
+                  geometry={g.belt}
+                  material={mats.belt}
+                />
+              </AssemblyMember>
             )}
           </Fragment>
         );
       })}
-      {geo.govIdler && (
-        <P
-          name="Governor idler gear"
-          spread={[0.11, 0.08, -0.04]}
-          note="The camshaft drives the governor output through idler 77874 (IPC Fig. 3)."
-          geometry={geo.govIdler}
-          meshRef={govIdler}
-          material={mats.gear}
-          position={[
-            d.front - 0.03,
-            d.camY - (gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
-            -(gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
-          ]}
-        />
-      )}
-      {acc.governorRatio > 0 && (
-        <Spread by={accessorySpread.Governor}>
-          <group userData={{ cameraSubject: true }} position={gv.at} rotation={gv.rotation}>
-            {L.detailed && <AccessoryInternals kind="governor" sim={sim} mats={mats} ratio={spins.governor} />}
-            <P
-              name="Propeller governor"
-              note={
-                L.notes.governor ??
-                `On the front of the crankcase on C1B6 and C3B6 engines (IOM p. 1), driven from the camshaft's spur gear at ${acc.governorRatio}:1 (Table A-4). Sets propeller pitch to hold the selected rpm.`
-              }
-              geometry={geo.gov}
-              material={mats.black}
-            />
-            {!gv.gearAt && <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />}
-          </group>
-        </Spread>
-      )}
-      {gv.gearAt && (
-        <>
-          <group position={gv.gearAt} rotation={gv.rotation}>
-            <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />
-          </group>
-          {geo.govShaft && (
-            <P name="Governor drive shaft" spread={[0.14, 0.11, -0.05]} geometry={geo.govShaft} material={mats.steel} />
-          )}
-        </>
-      )}
+      <AssemblyMember>
+        {geo.govIdler && (
+          <P
+            name="Governor idler gear"
+            spread={[0.11, 0.08, -0.04]}
+            note="The camshaft drives the governor output through idler 77874 (IPC Fig. 3)."
+            geometry={geo.govIdler}
+            meshRef={govIdler}
+            material={mats.gear}
+            position={[
+              d.front - 0.03,
+              d.camY - (gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
+              -(gv.camGovR + GOV_IDLER_R) * Math.SQRT1_2,
+            ]}
+          />
+        )}
+      </AssemblyMember>
+      <AssemblyMember id="governor">
+        {acc.governorRatio > 0 && (
+          <Spread by={accessorySpread.Governor}>
+            <group userData={{ cameraSubject: true }} position={gv.at} rotation={gv.rotation}>
+              {L.detailed && <AccessoryInternals kind="governor" sim={sim} mats={mats} ratio={spins.governor} />}
+              <P
+                name="Propeller governor"
+                note={
+                  L.notes.governor ??
+                  `On the front of the crankcase on C1B6 and C3B6 engines (IOM p. 1), driven from the camshaft's spur gear at ${acc.governorRatio}:1 (Table A-4). Sets propeller pitch to hold the selected rpm.`
+                }
+                geometry={geo.gov}
+                material={mats.black}
+              />
+              {!gv.gearAt && <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />}
+            </group>
+          </Spread>
+        )}
+        {gv.gearAt && (
+          <>
+            <group position={gv.gearAt} rotation={gv.rotation}>
+              <mesh ref={govRot} geometry={geo.govGear} material={mats.gear} />
+            </group>
+            {geo.govShaft && (
+              <P
+                name="Governor drive shaft"
+                spread={[0.14, 0.11, -0.05]}
+                geometry={geo.govShaft}
+                material={mats.steel}
+              />
+            )}
+          </>
+        )}
+      </AssemblyMember>
     </>
   );
 }

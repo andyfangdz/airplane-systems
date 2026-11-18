@@ -4,6 +4,7 @@
  * crankshaft gear, nose, propeller flange with the starter ring gear and alternator drives the layout has) and, for each
  * cylinder, its connecting rod and piston.
  */
+import { studyCrank } from "../assembly-study";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -143,7 +144,7 @@ export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
   useDetailDisposal(bearings);
   const crank = useRef<THREE.Group>(null);
   useFrame(() => {
-    if (crank.current) crank.current.rotation.x = (sim.anim.crank % 360) * D2R;
+    if (crank.current) crank.current.rotation.x = (studyCrank(sim) % 360) * D2R;
   });
   const cyls = sim.spec.geometry.cylinders;
   const cl = useMemo(() => crankLayout(sim.spec, d, L), [sim, d, L]);
@@ -300,8 +301,9 @@ export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats
   const rods = useRef<(THREE.Object3D | null)[]>([]),
     pistons = useRef<(THREE.Group | null)[]>([]);
   useFrame(() => {
+    const crank = studyCrank(sim);
     sim.spec.geometry.cylinders.forEach((c, i) => {
-      const { pin, piston } = rodEnds(sim.spec, c, sim.anim.crank);
+      const { pin, piston } = rodEnds(sim.spec, c, crank);
       const k = c.side === "R" ? 1 : -1;
       const dist = piston.z * k,
         py = pin.y,

@@ -28,6 +28,8 @@ export interface ValveDef {
 }
 
 export interface AlternatorDef {
+  /** Second independently driven alternator on a dual installation. */
+  studyId?: "alternator-1" | "alternator-2";
   /** Part name in the scene and its label. */
   name: string;
   drive: "belt" | "gear";
@@ -304,6 +306,7 @@ const LAYOUTS: Record<string, EngineLayout> = {
       },
       {
         name: "ALT 2",
+        studyId: "alternator-2",
         drive: "belt",
         ratio: null,
         angleDeg: 238,

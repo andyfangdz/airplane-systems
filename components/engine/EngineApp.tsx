@@ -14,7 +14,8 @@ import { ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
 import { StageResetButton, useTheme, ViewToggles } from "./chrome";
 import { simFor, useEngineLoop, type EngineSim } from "./store";
-import { assemblyAvailable, assemblyStations } from "./assembly-study";
+import { studyXray } from "./assembly-study";
+import { AssemblyControls } from "./AssemblyControls";
 import { EnginePanel } from "./EnginePanel";
 import { Monitor, Flags } from "./Monitor";
 import { MotionState, StudyViews } from "./StudyViews";
@@ -34,62 +35,22 @@ const TOGGLES = [
 function Toolbar({ sim }: { sim: EngineSim }) {
   const view = sim.useUi((x) => x.view),
     setView = sim.useUi((x) => x.setView);
-  const { assembly } = view;
-  const stations = view.blowUp ? assemblyStations(sim.spec).filter((s) => assemblyAvailable(s, view)) : [];
   return (
     <div className="toolbar">
-      {sim.spec.illustratedInstallation && view.blowUp && (
-        <div className="eng-assembly-nav" role="group" aria-label="Engine assembly study">
-          <button
-            className="tb"
-            type="button"
-            onClick={() => (assembly ? setView({ assembly: undefined }) : setView({ blowUp: false }))}
-          >
-            <span aria-hidden="true">‹</span> {assembly ? "Part groups" : "Assemble engine"}
-          </button>
-          <label className="eng-study">
-            <select
-              aria-label="Focus a part group"
-              value={assembly?.id ?? ""}
-              onChange={(event) => {
-                const station = stations.find((s) => s.id === event.target.value);
-                if (station) setView({ assembly: { id: station.id, exploded: false } });
-              }}
-            >
-              <option value="" disabled>
-                Focus a group…
-              </option>
-              {stations.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {assembly && (
-            <button
-              className="tb"
-              type="button"
-              onClick={() => setView({ assembly: { id: assembly.id, exploded: !assembly.exploded } })}
-            >
-              {assembly.exploded ? "Assemble group" : "Blow up group"}
-            </button>
-          )}
-        </div>
-      )}
+      {sim.spec.illustratedInstallation && view.blowUp && <AssemblyControls sim={sim} />}
       <StudyViews sim={sim} />
       <div className="tb-group" role="group" aria-label="View">
         {sim.spec.illustratedInstallation && !view.blowUp && (
           <button
             className="tb"
             type="button"
-            title="Separate the engine into part groups"
+            title="Separate the engine into part groups. Double-tap a part to focus its group directly."
             onClick={() => setView({ blowUp: true })}
           >
             Blow up
           </button>
         )}
-        <ViewToggles items={TOGGLES} view={view} set={setView} />
+        <ViewToggles items={TOGGLES} view={{ ...view, xray: studyXray(view) }} set={setView} />
       </div>
       <StageResetButton />
     </div>

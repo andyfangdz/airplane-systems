@@ -4,7 +4,13 @@
  * them); the engine itself is a mutable `EngineState` per engine, advanced every animation frame by `useEngineLoop`
  * and read by the scene each frame and by panels through `useLiveSnapshot`.
  */
-import { assemblyAvailable, assemblyStations, type AssemblyId } from "./assembly-study";
+import {
+  assemblyAvailable,
+  assemblyStations,
+  assemblyComponents,
+  linkageCylinders,
+  type AssemblyFocus,
+} from "./assembly-study";
 import { useCallback } from "react";
 import { decodeCheckpoint, encodeCheckpoint } from "@/lib/checkpoint";
 import { assignLive } from "@/lib/simulation";
@@ -34,7 +40,7 @@ export interface EngineView {
   xray: boolean;
   /** The illustrated engine is separated into assemblies. Older checkpoints can omit this. */
   blowUp?: boolean;
-  assembly?: { id: AssemblyId; exploded: boolean };
+  assembly?: AssemblyFocus;
   labels: boolean;
   prop: boolean;
   /** Cylinder index shown in the pressure chart. */
@@ -140,12 +146,24 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
         if ("paused" in p) cancel();
         set((x) => {
           const view = { ...x.view, ...p };
+          const focus = view.assembly;
           if (
-            view.assembly &&
-            (!view.blowUp ||
-              !assemblyStations(spec).some((s) => s.id === view.assembly?.id && assemblyAvailable(s, view)))
+            focus &&
+            (!view.blowUp || !assemblyStations(spec).some((s) => s.id === focus.id && assemblyAvailable(s, view)))
           )
             delete view.assembly;
+          else if (focus?.detail) {
+            const detail = focus.detail;
+            const valid =
+              detail.kind === "component"
+                ? assemblyComponents(spec, focus.id).some((c) => c.id === detail.id)
+                : linkageCylinders(spec, focus.id, view.hidden).some((c) => c.n === detail.cylinder);
+            if (!valid) view.assembly = { id: focus.id, exploded: focus.exploded };
+            else if (detail.kind === "linkage" && p.xray !== undefined) {
+              view.xray = x.view.xray;
+              view.assembly = { ...focus, detail: { ...detail, xray: p.xray } };
+            }
+          }
           return { view };
         });
       },

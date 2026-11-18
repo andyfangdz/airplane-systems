@@ -1,4 +1,5 @@
 "use client";
+import { studyXray } from "./assembly-study";
 import type { EngineView, EngineSim } from "./store";
 import { groupsFor, type GroupId } from "./scene/parts";
 
@@ -45,7 +46,7 @@ function presetView(sim: EngineSim, preset: (typeof PRESETS)[number]) {
 function matches(view: EngineView, next: ReturnType<typeof presetView>) {
   return (
     view.prop === next.prop &&
-    view.xray === next.xray &&
+    studyXray(view) === next.xray &&
     view.hidden.length === next.hidden.length &&
     next.hidden.every((id) => view.hidden.includes(id))
   );

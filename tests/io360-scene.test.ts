@@ -2,7 +2,7 @@ import { act } from "@react-three/fiber";
 import { createElement } from "react";
 import * as THREE from "three";
 import { expect, test } from "vitest";
-import type { AssemblyId } from "@/components/engine/assembly-study";
+import { assemblyComponents, studyXray, type AssemblyId } from "@/components/engine/assembly-study";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
 import { dims, makeMats } from "@/components/engine/scene/kit";
@@ -148,3 +148,35 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
     }
   });
 }
+
+test("IO-360 studies offer the installed accessories and restore cylinder focus when the crankshaft is hidden", () => {
+  for (const spec of [IO360_C172S, IO360_DA40]) {
+    const ids = assemblyComponents(spec, "drives").map((c) => c.id);
+    expect(ids).toEqual(spec === IO360_C172S ? ["alternator-1", "starter"] : ["alternator-1", "starter", "governor"]);
+  }
+  const sim = createEngineSimulation(IO360_C172S);
+  try {
+    const { setView } = sim.useUi.getState();
+    const current = () => sim.useUi.getState().view;
+    setView({
+      blowUp: true,
+      assembly: { id: "drives", exploded: true, detail: { kind: "component", id: "alternator-2", exploded: false } },
+    });
+    expect(current().assembly).toEqual({ id: "drives", exploded: true });
+    setView({ assembly: { id: "cylinder-2", exploded: true, detail: { kind: "linkage", cylinder: 2, angle: 179 } } });
+    expect(studyXray(current())).toBe(true);
+    setView({ xray: false });
+    expect(studyXray(current())).toBe(false);
+    const copy = sim.fork();
+    try {
+      expect(copy.useUi.getState().view).toEqual(current());
+    } finally {
+      copy.dispose();
+    }
+    setView({ hidden: ["rotating"] });
+    expect(current().assembly).toEqual({ id: "cylinder-2", exploded: true });
+    expect(current().xray).toBe(false);
+  } finally {
+    sim.dispose();
+  }
+});
