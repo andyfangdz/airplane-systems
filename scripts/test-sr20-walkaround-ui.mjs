@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test } from "@playwright/test";
 
-const shots = resolve(process.env.UI_SHOTS || ".shots/sr20-preflight");
+const shots = process.env.UI_SHOTS ? resolve(process.env.UI_SHOTS) : null;
 
 test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }) => {
   const kind = phone ? "phone" : "desktop";
@@ -28,8 +28,9 @@ test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }
   await page.route("**/_vercel/**", (route) => route.abort());
   const item = async (id) =>
     page.waitForFunction((wanted) => document.querySelector(".walk-id")?.textContent === wanted, id);
-  const shot = async (name) => {
-    await page.waitForTimeout(1600);
+  const shot = async (name, settleMs = 1600) => {
+    if (!shots) return;
+    await page.waitForTimeout(settleMs);
     await page.screenshot({ path: join(shots, `${kind}-${name}.png`), fullPage: phone });
   };
   await page.goto(`${base}/sr20?walk=7`);
@@ -124,8 +125,7 @@ test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }
     );
   });
   // Give software-rendered WebGL time to upload the changed display texture before capturing it.
-  await page.waitForTimeout(6000);
-  await shot("bat2-pfd");
+  await shot("bat2-pfd", 7600);
   // A multi-part cockpit action must anchor probe verification to the probe, not the average of the switch and wing.
   for (let i = 0; i < 12; i++) await page.getByRole("button", { name: "Next item", exact: true }).click();
   await item("1p");
@@ -166,7 +166,6 @@ test("SR20 study walk", async ({ page, context, baseURL: base, isMobile: phone }
     .getByRole("button", { name: /^Cirrus SR22T|^SR22T G6/ })
     .click();
   await page.locator(".walk").waitFor({ state: "detached" });
-  assert.equal(await page.locator(".walk").count(), 0, "switching aircraft closes the SR20 walk");
   await page.locator(".toolbar").getByRole("button", { name: "Preflight", exact: true }).click();
   await page.getByRole("button", { name: "Begin walk-around", exact: true }).click();
   await item("1a");

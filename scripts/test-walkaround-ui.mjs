@@ -160,10 +160,13 @@ test.describe("camera restoration", () => {
     test(`SR22T camera restore (${motion})`, async ({ browser, baseURL, isMobile }) => {
       await checkCameraRestore(browser, baseURL, isMobile, motion);
     });
-    test(`SR22T camera restore at orbit limit (${motion})`, async ({ browser, baseURL, isMobile }) => {
-      test.skip(!isMobile, "The delayed stage-resize regression is specific to the phone layout");
-      await checkCameraRestore(browser, baseURL, isMobile, motion, true);
-    });
+    test(
+      `SR22T camera restore at orbit limit (${motion})`,
+      { tag: "@phone-only" },
+      async ({ browser, baseURL, isMobile }) => {
+        await checkCameraRestore(browser, baseURL, isMobile, motion, true);
+      },
+    );
   }
 });
 

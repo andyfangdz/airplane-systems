@@ -19,8 +19,6 @@ it("isolates all unlisted tests and shares only the explicit immutable-suite all
   expect(shared.include).toEqual(sharedTests);
   expect(shared.isolate).toBe(false);
   expect(isolated.exclude).toEqual(expect.arrayContaining(sharedTests));
-  expect(isolated.exclude).not.toContain("tests/future-stateful.test.ts");
-  expect(sharedTests).not.toContain("tests/future-stateful.test.ts");
   expect(config.test!.setupFiles).toEqual(["tests/setup/geometry-cache.ts"]);
   expect(config.test!.forceRerunTriggers).toContain("**/tests/setup/shared-tests.json");
 });

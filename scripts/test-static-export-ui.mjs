@@ -74,8 +74,7 @@ test("the static site switches between airplanes and back", async ({ page, conte
 });
 
 // This smoke exercises the downloaded, sealed artifact through the same local edge rewrite and cache classes.
-test("the static release serves its declared immutable assets", async ({ baseURL }) => {
-  test.skip(process.env.STATIC_EXPORT !== "1", "Release cache semantics belong to the static host");
+test("the static release serves its declared immutable assets", { tag: "@static-only" }, async ({ baseURL }) => {
   const { stdout } = await promisify(execFile)(process.execPath, ["scripts/smoke.mjs", baseURL]);
   assert.equal(JSON.parse(stdout).ok, true);
 });

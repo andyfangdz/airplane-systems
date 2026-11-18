@@ -4,7 +4,6 @@ export interface TestIdentity {
   titlePath: string[];
 }
 export interface BrowserTest extends TestIdentity {
-  browser: string;
   selector: string;
 }
 export interface Duration extends TestIdentity {
@@ -28,16 +27,11 @@ export interface ShardPlan {
     shard: number;
     estimatedDurationMs: number;
     testCount: number;
-    browsers: string[];
     tests: (BrowserTest & { estimatedDurationMs: number; recordedDuration: boolean })[];
   }[];
 }
 export function testKey(test: TestIdentity): string;
-export function discoverTests(
-  report: DiscoveryReport,
-  projectBrowsers: Record<string, string>,
-  cwd?: string,
-): BrowserTest[];
+export function discoverTests(report: DiscoveryReport, cwd?: string): BrowserTest[];
 export function planShards(
   tests: BrowserTest[],
   durations: Duration[],
