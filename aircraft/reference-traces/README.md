@@ -54,7 +54,7 @@ Black: manually digitized handbook outlines. Orange dashed: model at `3c6bd83dfa
 ![DA40 outline comparison](da40.svg)
 
 - The canopy, aft fuselage and wing planform are close to the drawing under the recorded calibration; retain their existing shape functions. The upper-fuselage sampled residual averages 0.023 m, with a 0.042 m maximum. That result is conditional on this registration, not a dimensional guarantee.
-- Add the clipped leading corners at the horizontal-tail ends. The former tail was a simple trapezoid; §1.7 shows a distinct corner ahead of each elevator horn. Keep the trailing edge straight and preserve the elevator split. The final end chord is approximately 0.25 m versus 0.16 m in the trace; source registration and the coarse tip approximation remain visible.
+- Add the clipped leading corners at the horizontal-tail ends. The former tail was a simple trapezoid; §1.7 shows a distinct corner ahead of each elevator horn. Keep the trailing edge straight and preserve the elevator split. The assembled end chord is 0.16 m on both sides. The corner follows the calibrated plan-view picks, with extra loft sections across the outer 0.08 m.
 - The resulting integrated horizontal-tail area is approximately 2.336 m², consistent with §1.4's 2.34 m². The front-view winglet height and aft fin/tailcone junction remain approximate.
 
 ## Method and reproducibility

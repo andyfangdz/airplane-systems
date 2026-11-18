@@ -3,7 +3,9 @@ import * as instruments from "@/lib/avionics/g1000";
 import { flightData, initFlight } from "@/lib/avionics/flight";
 import { drawPanel } from "@/aircraft/m20c/displays";
 import { initialSim as mooneySim, live as mooneyLive, solve as solveMooney } from "@/aircraft/m20c/model";
-import { drawStbyAlt, drawStbyAsi, eisGauges, pfdData } from "@/aircraft/da40/displays";
+import { recorder } from "./canvas-recorder";
+import { WHITE, RED, YEL } from "@/lib/avionics/g1000/draw";
+import { drawMfdScreen, drawStbyAlt, drawStbyAsi, eisGauges, pfdData } from "@/aircraft/da40/displays";
 import { initialSim as diamondSim, live as diamondLive, solve as solveDiamond } from "@/aircraft/da40/model";
 import { patched } from "./helpers";
 
@@ -102,6 +104,45 @@ describe("DA40 display inputs", () => {
     expect(alt.mock.calls[0][3]).toBe(f.alt);
     expect(diamondLive.fs).toMatchObject({ ias: 110, alt: 4500 });
   });
+
+  it.each([false, true])(
+    "draws the fuel scale and independent pointers above the softkeys (PFD failed=%s, AFMS pp. 19, 60)",
+    (pfdFail) => {
+      const s = patched(diamondSim, { avx: { pfdFail } });
+      for (const side of ["L", "R"]) {
+        for (const low of [0, 0.5, 3, 3.1]) {
+          diamondLive.gaugeL = side === "L" ? low : 20;
+          diamondLive.gaugeR = side === "R" ? low : 20;
+          for (const t of [0, 0.3]) {
+            diamondLive.fs.t = t;
+            const r = recorder();
+            drawMfdScreen(r.ctx, 640, 480, s, solveDiamond(s));
+            const title = r.texts.find(({ s }) => s === "FUEL QTY GAL")!;
+            const pointers = r.texts.filter((x) => x.y > title.y && x.x < 130 && ["L", "R"].includes(x.s));
+            expect(pointers.map((x) => x.s)).toEqual(["L", "R"]);
+            const scale = r.texts.filter((x) => x.y > pointers[1].y && x.y < 460 && x.x < 130);
+            expect(scale.map((x) => x.s)).toEqual(["0", "5", "10", "15", "20", "25"]);
+            const alertColor = low === 0 ? RED : low <= 3 ? YEL : WHITE;
+            // A warning title alternates red-on-black and white-on-red. The affected pointer stays red.
+            const inverse = low === 0 && t === 0;
+            expect(title.fill).toBe(inverse ? WHITE : alertColor);
+            expect(
+              r.boxes.some(
+                (b) => b.fill === RED && b.y < title.y && b.y + b.h > title.y && b.x < title.x && b.x + b.w > title.x,
+              ),
+            ).toBe(inverse);
+            for (const ptr of pointers) {
+              const triangle = r.paths.find((path) => path.x === ptr.x && path.y === ptr.y + (ptr.s === "L" ? 6 : -6));
+              expect(triangle?.fill).toBe(ptr.s === side ? alertColor : WHITE);
+              const min = scale[0].x,
+                max = scale[5].x;
+              expect(ptr.x).toBeCloseTo(min + ((max - min) * (ptr.s === side ? low : 20)) / 25);
+            }
+          }
+        }
+      }
+    },
+  );
 
   it.each([14, 35])("fuel pressure at the %s psi green limit has no red warning (AFMS §2.5)", (pressure) => {
     diamondLive.fuelP = pressure;

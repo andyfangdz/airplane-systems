@@ -18,10 +18,10 @@ export function rampState(prior: Sim): Sim {
   s.eng.throttle = s.eng.mix = 0;
   s.eng.rpmLever = 1;
   s.elec.bat = s.elec.alt = s.elec.avMaster = s.elec.essBus = s.elec.emerg = s.elec.ext = false;
-  s.elec.tBat = 0;
   s.fuel.pump = s.pitot.heat = false;
   s.flaps.cmd = 0;
   s.gear.park = true;
+  s.gear.held = { L: 1, R: 1 };
   s.lights = { ...s.lights, position: false, strobe: false, landing: false, taxi: false, instr: 0, flood: 0 };
   s.ctrl = { pitch: 0, roll: 0, yaw: 0 };
   return s;

@@ -199,6 +199,7 @@ const QUIET: Partial<Record<SysId, string[]>> = {
  * spread-out labels; everything stays in the panel's "tap to locate" list.
  */
 const NARROW: Partial<Record<SysId, string[]>> = {
+  overview: [],
   airframe: ["Wing strut", "Aft cabin wall — FS 134"],
   controls: ["Pilot's control wheel", "Elevator trim tab", "Aileron bellcrank"],
   gear: ["Main wheel and tire", "Nose wheel and tire", "Tow bar (stowed)"],

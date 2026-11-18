@@ -14,7 +14,26 @@ import { paintSkin } from "../geometry";
 import { live } from "../model";
 import { useDA40 } from "../store";
 
-export const CAT = new Catalogue("da40", {}, paintSkin);
+export const CAT = new Catalogue(
+  "da40",
+  {
+    quiet: {
+      avionics: [
+        "Manifold pressure sensor",
+        "HORIZON EMERGENCY switch",
+        "AVIONIC MASTER switch",
+        "Oil pressure sensor",
+        "GDC 74A air data computer",
+        "DISPLAY BACKUP button",
+        "GEA 71 engine/airframe unit",
+        "ELT remote switch",
+        "Magnetic compass",
+      ],
+    },
+    narrow: { avionics: [] },
+  },
+  paintSkin,
+);
 CAT.trackVisibility(useDA40, (s) => s.s.env.extraVents);
 export const { part, surfacePivot, shell, loftSurface: surface, onSurface: onSurf } = CAT;
 

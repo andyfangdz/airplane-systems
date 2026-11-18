@@ -18,6 +18,9 @@ import {
 import { clamp, lerp } from "@/lib/math";
 import {
   AFCS_CFG,
+  BAT_AH,
+  EMERG_MIN,
+  chargeUsed,
   DA40_FLIGHT,
   fuelAvail,
   fuelDeliveryAvailable,
@@ -27,6 +30,8 @@ import {
   govRpm,
   live as presentationLive,
 } from "./model";
+import { chartHp, lycomingChartFlow } from "@/engines/model/performance";
+import { M1A_CHARTS, M1A_RATED_HP } from "@/engines/io360-m1a/charts";
 import type { SimulationContext } from "@/lib/simulation";
 
 /** Ignition key START hold (s): released when the engine fires, or after this (AFM: crank at most 10 s). */
@@ -34,10 +39,45 @@ export const START_HOLD = 6;
 /** Trim that holds ~119 KIAS level with the stick centred (pilot command pitch = 1.5° + 4° × trim). */
 export const trimPitch = (trim: number) => 1.5 + trim * 4;
 
-/** Engine power fraction 0..1 from MAP and RPM (illustrative). */
-export const powerFrac = (map: number, rpm: number) => clamp(((map - 10) / 18.5) * (rpm / 2700), 0, 1);
+/** M1A curve 13549 (Fig. 3-2) within its RPM range. Below the first curve, scale by RPM for the idle transition. */
+export const powerFrac = (map: number, rpm: number, altFt: number, oat: number) => {
+  const chartRpm = clamp(rpm, 1800, 2700);
+  return clamp((chartHp(M1A_CHARTS, chartRpm, map, altFt, oat) / M1A_RATED_HP) * Math.min(1, rpm / chartRpm), 0, 1);
+};
 
-/** PFD lost (AFMS p. 10): the AP disconnects (red, continuous tone) and the AP and FD are inoperative; MET stays available. */
+/** M1A Fig. 3-1, converted from lb/h at 6 lb/US gal. The lever-to-mixture blend and sub-chart idle flow are illustrative. */
+export function runningFlow(power: number, rpm: number, mix: number) {
+  const hp = power * M1A_RATED_HP;
+  const at = (setting: "bestPower" | "bestEconomy") =>
+    lycomingChartFlow(M1A_CHARTS.fuelFlow, clamp(rpm, 1800, 2700), hp, setting) / 6;
+  return (
+    Math.max(0, lerp(at("bestEconomy"), at("bestPower"), clamp((mix - 0.55) / 0.25, 0, 1))) *
+    Math.min(1, rpm / 1800) *
+    Math.min(1, mix / 0.55)
+  );
+}
+
+/** Accumulate delivered gallons, amp-hours and standby-pack use between store publications.
+ * Publish at one-second intervals and exactly when the selected supply is depleted or fully recharged. */
+function accrueResources(s: Sim, E: Elec, live: typeof presentationLive, dt: number, deliveredGph: number) {
+  const p = live.pending;
+  let tankEmpty = false;
+  if (deliveredGph > 0 && s.fuel.sel !== "OFF") {
+    const tank = s.fuel.sel === "L" ? "qL" : "qR";
+    p[tank] = Math.min(s.fuel[tank], p[tank] + (deliveredGph * dt) / 3600);
+    tankEmpty = p[tank] >= s.fuel[tank];
+  }
+  p.ah += chargeUsed(E, dt);
+  if (s.elec.emerg && !E.emergDead) p.emergencyMinutes += dt / 60;
+  if (p.qL === 0 && p.qR === 0 && p.ah === 0 && p.emergencyMinutes === 0) return false;
+  p.seconds += dt;
+  const usedAh = s.elec.usedAh + p.ah;
+  const batteryLimit = (p.ah > 0 && usedAh >= BAT_AH) || (p.ah < 0 && usedAh <= 0);
+  const packEmpty = p.emergencyMinutes > 0 && s.elec.emergencyMinutes + p.emergencyMinutes >= EMERG_MIN;
+  return p.seconds >= 1 - 1e-9 || tankEmpty || batteryLimit || packEmpty;
+}
+
+/** PFD lost (AFMS p. 59): the AP disconnects (red, continuous tone) and the AP and FD are inoperative; MET stays available. */
 function pfdLost(st: Gfc700State): Gfc700State {
   if (!st.ap && !st.fd && !st.cws) return st;
   const off: Gfc700State = {
@@ -169,9 +209,15 @@ export function stepModel(context: SimulationContext<Sim, Elec, typeof presentat
       (s.eng.altAir ? 0.8 : 0)
     : ambient;
   live.map = lerp(live.map, mapT, clamp(dt * 3, 0, 1));
-  const pwr = run ? powerFrac(live.map, live.rpm) : 0;
-  const ffT = run ? (1.8 + 12.6 * pwr) * (0.75 + 0.35 * s.eng.mix) : pumping && s.eng.mix > 0.5 ? 4 : 0;
+  const pwr = run ? powerFrac(live.map, live.rpm, fs.alt, s.pitot.oat) : 0;
+  const delivering = fuelFed && s.eng.mix > 0.05 && (run || (pumping && s.eng.mix > 0.5));
+  const ffT = !delivering ? 0 : run ? runningFlow(pwr, live.rpm, s.eng.mix) : 4;
   live.ff = lerp(live.ff, ffT, clamp(dt * 2, 0, 1));
+
+  if (accrueResources(s, E, live, dt, delivering ? live.ff : 0)) {
+    up(() => {}); // settle this sample and solve the resulting bus and fuel state
+    ({ s, E } = sim.getState());
+  }
 
   // ---------- oil and temperatures ----------
   const oatF = s.pitot.oat * 1.8 + 32;
@@ -213,7 +259,7 @@ export function stepModel(context: SimulationContext<Sim, Elec, typeof presentat
     fail,
     navValid: navReceiverValid(fs.navSrc, E.gia1, E.gia2),
   };
-  // AFMS p. 10: GIA 1 lost → AP, FD and MET inoperative; GIA 2 lost → AP & MET lost, FD available (red AFCS);
+  // AFMS p. 59: GIA 1 lost → AP, FD and MET inoperative; GIA 2 lost → AP & MET lost, FD available (red AFCS);
   // PFD lost → AP disconnects, AP and FD inoperative, MET available
   live.afcs = gfc700Power(live.afcs, E.afcsPwr && E.gia1, live.fs.t, AFCS_CFG);
   const imb = s.fuel.qL - s.fuel.qR,
@@ -231,7 +277,7 @@ export function stepModel(context: SimulationContext<Sim, Elec, typeof presentat
   const engaged = gfc700Engaged(live.afcs);
   const ap = engaged ? gfc700Command(live.afcs, live.fs, AFCS_CFG) : null;
   const cmd: FlightCmd = ap ?? yokeCmd(s.ctrl.roll, s.ctrl.pitch, trimPitch(live.afcs.trim));
-  live.fs = stepFlight({ ...live.fs, power: run ? s.eng.throttle : 0 }, cmd, dt, DA40_FLIGHT);
+  live.fs = stepFlight({ ...live.fs, power: pwr }, cmd, dt, DA40_FLIGHT);
   live.afcs = gfc700Tick(live.afcs, live.fs, AFCS_CFG);
 
   // servos drive the stick and surfaces while engaged; autotrim offloads the pitch servo (CRG 6-21)

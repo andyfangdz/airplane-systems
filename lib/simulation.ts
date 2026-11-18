@@ -27,6 +27,10 @@ export interface SimulationDefinition<S, E, L extends object, M, C> {
   initialMemory: () => M;
   solve: (s: S, memory: M) => E;
   memoryFrom: (solution: E) => M;
+  /** Apply accrued quantities to the draft. Release them from live only after the edit and solve succeed. */
+  settle?: (draft: S, live: L) => () => void;
+  /** Upgrade an older, private copy of this aircraft's checkpoint before solving it. */
+  migrate?: (checkpoint: SimulationCheckpoint<S, L, M>) => void;
   step: (context: SimulationContext<S, E, L>, dt: number) => void;
   command?: (context: SimulationContext<S, E, L>, command: C) => void;
 }
@@ -84,10 +88,12 @@ export function createSimulation<S, E, L extends object, M, C = never>(
   const update = (fn: (draft: S) => void) => {
     assertActive();
     const s = structuredClone(current.s);
+    const settled = definition.settle?.(s, live);
     fn(s);
     const E = definition.solve(s, memory);
     memory = definition.memoryFrom(E);
     current = { s, E, update };
+    settled?.();
     publish();
   };
   let current: SimStore<S, E> = { s: initial, E: first, update };
@@ -181,6 +187,7 @@ export function createSimulation<S, E, L extends object, M, C = never>(
         throw new Error(`Checkpoint does not belong to ${definition.id}`);
       if (!Number.isFinite(checkpoint.time) || checkpoint.time < 0) throw new Error("Invalid simulation time");
       const next = structuredClone(checkpoint);
+      definition.migrate?.(next);
       clock.restore(next.clock);
       memory = next.memory;
       time = next.time;

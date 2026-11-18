@@ -150,9 +150,9 @@ export const WALK: FleetWalkStation<Sim>[] = [
       "fuel",
       {
         target: "PFD (GDU 1040) bezel",
-        ref: "AFM 4A-3–4A-4; G1000 AFMS 190-00492-10 Rev. 8, 4A-1–2",
+        ref: "AFM 4A-3–4A-4; G1000 AFMS 190-00492-10 Rev. 7, pp. 37–38",
         sourceUrl: "https://manualzilla.com/doc/7043953",
-        note: "On this G1000 installation, 3 US gal between 16 and 19 US gal per tank are ungauged. At an indication of 16 US gal, determine the actual quantity with the measuring device; without that measurement, use 16 US gal for flight planning. The base AFM’s AUX FUEL QTY switch and 2-minute procedure describe an older indication interface, not this G1000 installation. Physical quantity measurement is outside the scene (G1000 AFMS 190-00492-10 Rev. 8, 4A-1–2 and 7-6).",
+        note: "On this G1000 installation, 3 US gal between 16 and 19 US gal per tank are ungauged. At an indication of 16 US gal, determine the actual quantity with the measuring device; without that measurement, use 16 US gal for flight planning. The base AFM’s AUX FUEL QTY switch and 2-minute procedure describe an older indication interface, not this G1000 installation. Physical quantity measurement is outside the scene (G1000 AFMS 190-00492-10 Rev. 7, pp. 37–38 and 60).",
       },
     ],
     [

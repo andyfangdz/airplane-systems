@@ -14,7 +14,7 @@ import {
   Slider,
   Small,
 } from "@/components/ui/controls";
-import { STALL_KIAS, hornLevel, live, type FlapSel } from "../model";
+import { stallSpeed, hornLevel, live, type FlapSel } from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
 
@@ -106,8 +106,8 @@ export function Environment() {
         items={[
           "Engine fire (start, take-off or in flight): CABIN HEAT OFF (AFM 3-22 … 3-26).",
           "Suspected carbon monoxide: cabin heat OFF, ventilation open, emergency windows open, forward canopy open — the canopy may be unlatched in flight and stays partly open (AFM 3-39).",
-          "Unintentional icing: pitot heat ON, cabin heat ON, air distribution ▲ UP, RPM increase, alternate air OPEN (AFMS p. 31).",
-          "Electrical smoke: cabin heat OFF, emergency window(s) OPEN (AFMS p. 29).",
+          "Unintentional icing: pitot heat ON, cabin heat ON, air distribution ▲ UP, RPM increase, alternate air OPEN (AFMS p. 32).",
+          "Electrical smoke: cabin heat OFF, emergency window(s) OPEN (AFMS p. 30).",
           "With the alternate static valve open, the emergency window and cockpit vent must be closed (placard, AFM 2-29).",
         ]}
       />
@@ -136,7 +136,7 @@ export function Pitot() {
     E = useDA40((x) => x.E),
     up = useDA40((x) => x.update);
   const horn = hornLevel(s, snapshot),
-    vs = STALL_KIAS[s.flaps.cmd];
+    vs = stallSpeed(snapshot.flapAng);
   const heatState = !s.pitot.heat
     ? (["PITOT OFF", "warnc"] as [string, "warnc"])
     : !E.pitotPwr || s.pitot.heaterFail
@@ -249,7 +249,7 @@ export function Pitot() {
         />
         <Readouts
           items={[
-            ["Stall speed", `${vs} KIAS (1,200 kg)`],
+            ["Stall speed", `${+vs.toFixed(1)} KIAS (1,200 kg)`],
             ["Horn", horn > 0 ? [horn > 0.9 ? "LOUD" : "SOUNDING", "bad"] : "Quiet"],
             ["Margin", `${Math.round(Math.min(s.stall.ias, s.air ? snapshot.fs.ias : 999) - vs)} kt`],
           ]}
@@ -258,7 +258,8 @@ export function Pitot() {
       <Small>
         The horn sounds from about 10 kt down to at least 5 kt above the stall and gets louder as you slow (AFM 7-54).
         It needs no electrical power — and with no airflow on the ground it is silent. Stall speeds 0° bank (AFM 5-8):
-        1,200 kg UP 53 · T/O 52 · LDG 52; 1,150 kg 52 · 51 · 49 KIAS.
+        1,200 kg UP 53 · T/O 52 · LDG 52; 1,150 kg 52 · 51 · 49 KIAS. The model interpolates between detents using
+        actual flap travel.
       </Small>
       {s.pitot.altStatic && (
         <Caution title="Alternate static">
@@ -299,8 +300,8 @@ export function Pitot() {
       <H3>Notes</H3>
       <Notes
         items={[
-          "Icing with PITOT FAIL: alternate static OPEN and emergency windows closed (AFMS p. 31).",
-          "Economical use of pitot heat stretches battery time after an alternator failure (AFMS p. 32).",
+          "Icing with PITOT FAIL: alternate static OPEN and emergency windows closed (AFMS p. 32).",
+          "Economical use of pitot heat stretches battery time after an alternator failure (AFMS p. 33).",
           "The probe's span station and the stall orifice position are not in the documents; the model places them approximately.",
         ]}
       />

@@ -153,12 +153,14 @@ const TANKS: TankSpec[] = (
   note: "Aluminium tank in the wing, three chambers joined by flexible hose: 25.5 US gal total, 25 usable (AFM 2-23, 7-34). Two probes (inboard + outboard chambers) feed one G1000 gauge.",
 }));
 
-/* ---------- live cockpit displays (GDU 1040 PFD / GDU 1042 MFD — or the optional GDU 1044 — 10.4 in.) ---------- */
+/* ---------- live cockpit displays (GDU 1040 PFD / optional GDU 1044 MFD, 10.4 in.) ---------- */
 const sx = DISPLAY_X,
   st = STBY_X - 0.0095;
+const outsideAvionics: ScreenSpec["pin"] = (_, sys) => sys !== "avionics";
 const SCREENS: ScreenSpec[] = [
   {
     key: "pfd",
+    pin: outsideAvionics,
     px: [640, 480],
     size: [0.211, 0.158],
     pos: [sx, -0.03, -0.26],
@@ -172,12 +174,13 @@ const SCREENS: ScreenSpec[] = [
   },
   {
     key: "mfd",
+    pin: outsideAvionics,
     px: [640, 480],
     size: [0.211, 0.158],
     pos: [sx, -0.03, 0.13],
     sys: ["avionics", "autopilot"],
-    name: "MFD — GDU 1042 / 1044",
-    note: "Engine indication strip on the left, map on the right; AFCS keys on its bezel. GDU 1042, or the optional GDU 1044 that adds the VNV key (AFMS p. 57) — N949KC's fit is unconfirmed. MFD 5 A on MAIN — lost on ESS BUS. Takes over the PFD in reversionary mode.",
+    name: "MFD — GDU 1044",
+    note: "Engine indication strip on the left, map on the right; AFCS keys on its bezel. The modeled GDU 1044 adds the VNV key (AFMS p. 50) — N949KC's fit is unconfirmed. MFD 5 A on MAIN — lost on ESS BUS. Takes over the PFD in reversionary mode.",
     draw: (ctx, W, H) => {
       const { s, E } = useDA40.getState();
       drawMfdScreen(ctx, W, H, s, E);
@@ -185,6 +188,7 @@ const SCREENS: ScreenSpec[] = [
   },
   {
     key: "sasi",
+    pin: outsideAvionics,
     px: [200, 200],
     size: [0.08, 0.08],
     pos: [st, 0.15, -0.107],
@@ -195,6 +199,7 @@ const SCREENS: ScreenSpec[] = [
   },
   {
     key: "satt",
+    pin: outsideAvionics,
     px: [200, 200],
     size: [0.08, 0.08],
     pos: [st, 0.15, -0.008],
@@ -205,6 +210,7 @@ const SCREENS: ScreenSpec[] = [
   },
   {
     key: "salt",
+    pin: outsideAvionics,
     px: [200, 200],
     size: [0.08, 0.08],
     pos: [st, 0.15, 0.089],
@@ -226,6 +232,7 @@ const SCREENS: ScreenSpec[] = [
   },
   {
     key: "gma",
+    pin: outsideAvionics,
     px: [96, 320],
     size: [0.056, 0.19],
     pos: [PANEL_X - 0.051, -0.03, GMA_Z],

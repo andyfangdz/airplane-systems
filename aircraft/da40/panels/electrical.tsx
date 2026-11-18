@@ -13,11 +13,21 @@ import {
   Readouts,
   Rocker,
   ScenarioButton,
-  Slider,
   Small,
   type Reading,
 } from "@/components/ui/controls";
-import { BUSES, SPARE_CB, fuelAvail, initialSim, type BusId, type Sim } from "../model";
+import {
+  BAT_AH,
+  EMERG_MIN,
+  advanceElectricalTime,
+  solve,
+  BUSES,
+  SPARE_CB,
+  fuelAvail,
+  initialSim,
+  type BusId,
+  type Sim,
+} from "../model";
 import { CAT } from "../parts";
 import { useDA40 } from "../store";
 import { PowerDiagram } from "./distribution";
@@ -106,14 +116,14 @@ export function Electrical() {
         : E.essAlt
           ? "Open — alternator feeds ESS through the diode"
           : "Open — ESSENTIAL isolated";
-  const batt: Reading = E.batDead
-    ? ["DEPLETED", "bad"]
-    : !E.batOk
-      ? ["OFF / FAILED", "bad"]
-      : s.cb["BATT"]
-        ? ["Isolated (BATT out)", "warnc"]
-        : E.batCharging
-          ? "Charging"
+  const batt: Reading = E.batCharging
+    ? "Charging"
+    : E.batDead
+      ? ["DEPLETED", "bad"]
+      : !E.batOk
+        ? ["OFF / FAILED", "bad"]
+        : s.cb["BATT"]
+          ? ["Isolated (BATT out)", "warnc"]
           : E.batLoad > 0
             ? [`Discharging · ${Math.round((1 - E.batFrac) * 100)}%`, "warnc"]
             : "Idle";
@@ -224,14 +234,14 @@ export function Electrical() {
             })}
             {scen("…then ESS BUS ON (AFMS 3.7.2b)", (d) => {
               d.elec.fail.alt = true;
+              advanceElectricalTime(d, solve(d), 600);
               d.elec.essBus = true;
-              d.elec.tBat = 10;
             })}
             {scen("…battery exhausted → HORIZON EMERGENCY", (d) => {
               d.elec.fail.alt = true;
               d.elec.essBus = true;
               d.elec.emerg = true;
-              d.elec.tBat = 45;
+              d.elec.usedAh = BAT_AH;
             })}
             {scen("Smoke: master OFF, emergency ON", (d) => {
               d.elec.bat = false;
@@ -245,20 +255,19 @@ export function Electrical() {
             })}
           </BtnRow>
         </div>
-        <Slider
-          id="tBat"
-          label="Time on battery power"
-          min={0}
-          max={100}
-          step={1}
-          value={e.tBat}
-          onChange={(v) =>
-            up((d) => {
-              d.elec.tBat = v;
-            })
-          }
-          fmt={(v) => v + " min"}
-        />
+        <div className="row">
+          <div className="lbl">Advance electrical time at the current load</div>
+          <BtnRow>
+            {[1, 10, 30].map((minutes) => (
+              <ScenarioButton
+                key={minutes}
+                onClick={() => up((d) => advanceElectricalTime(d, solve(d, E), minutes * 60))}
+              >
+                +{minutes} min
+              </ScenarioButton>
+            ))}
+          </BtnRow>
+        </div>
         <Readouts
           items={[
             ["Engine", s.eng.running ? "RUNNING" : ["STOPPED", "bad"]],
@@ -268,7 +277,8 @@ export function Electrical() {
             ["AMPS (alternator)", [String(E.amps), E.altFeed ? "" : "bad"]],
             ["Load", E.load.toFixed(1) + " A"],
             ["Battery", batt],
-            ["Battery endurance", E.batLoad > 0 ? `≈ ${E.endurance} min at ${E.batLoad.toFixed(1)} A` : "—"],
+            ["Main battery remaining", E.batLoad > 0 ? `≈ ${E.endurance} min at ${E.batLoad.toFixed(1)} A` : "—"],
+            ["Emergency pack remaining", `≈ ${Math.ceil(EMERG_MIN - e.emergencyMinutes)} min`],
             ["Tie relay", tie],
             ["Standby attitude", E.stbyAtt ? (e.emerg ? "EMERG BATTERY" : "HORIZON (ESS)") : ["OFF flag", "bad"]],
           ]}
@@ -277,7 +287,8 @@ export function Electrical() {
       <Small>
         Battery endurance uses the Garmin load analysis: 11 Ah × 0.7 available = 7.7 Ah, so ≈ 37 min at the 12.4 A
         essential-bus load, ≈ 18 min with everything on. The AFMS promises at least 30 min on ESS BUS and 1 h 30 min
-        from the emergency battery (which the slider assumes was ON throughout). Currents are illustrative.
+        from the emergency battery with the floodlight on. The model counts emergency-pack time only while HORIZON EMERG
+        is on. Load and recharge currents are illustrative.
       </Small>
       {E.altFeed === false && s.eng.running && (
         <Caution title="ALTERNATOR (AFMS 3.7.2b)">
@@ -301,8 +312,8 @@ export function Electrical() {
           "Alternator → current sensor → ALT 70 A → MAIN. Field: MAIN → ALT CONT 5 A → ALT switch → regulator; over-voltage: ALT PROT 5 A.",
           "ESSENTIAL → ESS TIE 25 A → tie relay ‖ diode (MAIN → ESS only) → MAIN TIE 25 A → MAIN. ESS. BUS ON opens the relay.",
           "MAIN → AV BUSS 25 A → avionics-master relay → MAIN AVIONICS. Both relay coils get power through MSTR CNTRL 2 A on ESSENTIAL.",
-          "Sources disagree: the AFMS (p. 30) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
-          "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 29). Once online it keeps itself excited.",
+          "Sources disagree: the AFMS (p. 31) says pulling BATT and ESS TIE “restores power to the main and avionics busses”, but the AMM-E schematic feeds the avionics relay coil from ESSENTIAL, which is then dead. The model follows the AFMS.",
+          "Alternator field: MAIN feeds it, so a stopped or switched-off alternator can only come online while MAIN is live — not with ESS BUS ON on battery alone (AFMS p. 30). Once online it keeps itself excited.",
           "HORIZON 3 A (ESSENTIAL) or the emergency battery → standby attitude indicator + flood light, chosen by the sealed HORIZON EMERGENCY switch.",
         ]}
       />
@@ -340,7 +351,7 @@ export function Electrical() {
             ["VOLTS", "red < 24.1 · yellow 24.1–25 · green 25.1–30 · yellow 30.1–32 · red > 32"],
             ["ALTERNATOR (red)", "Alternator failed — battery is the only source"],
             ["LOW VOLTS (yellow)", "On-board voltage below 24 V"],
-            ["STARTER ENGD (red)", "Starter engaged"],
+            ["STARTER ENGD (red)", "Starter operates with the ignition key out of START"],
             ["PFD / MFD / GIA FAN FAIL (white)", "Cooling fan inoperative (CDU FAN / AV FAN)"],
           ]}
         />
@@ -349,9 +360,9 @@ export function Electrical() {
           items={[
             "LOW VOLTS on the ground: 1,200 RPM, electrical equipment off, check meters; if the ammeter flashes zero, discontinue the flight (AFMS p. 54).",
             "Over-voltage (> 32 V): ESS BUS ON, ALT OFF — leave BAT ON — shed loads, land (AFM 3-38).",
-            "Electrical smoke: emergency switch ON, master OFF, cabin heat OFF, windows open; then BAT ON + ESS BUS ON; if smoke persists ALT ON, ESS BUS OFF and pull BATT and ESS TIE (AFMS p. 29–30).",
+            "Electrical smoke: emergency switch ON, master OFF, cabin heat OFF, windows open; then BAT ON + ESS BUS ON; if smoke persists ALT ON, ESS BUS OFF and pull BATT and ESS TIE (AFMS pp. 30–31).",
             "Total failure: check and reset all breakers, emergency switch ON, use the flood light, land at the nearest suitable field (AFM 3-35).",
-            "Before start: avionics master OFF and ESS BUS OFF. 'Ess. Bus NOT for normal operation' — and the battery is not charged with it ON unless the bypass (OAM 40-126) is fitted (AFMS p. 38).",
+            "Before start: avionics master OFF and ESS BUS OFF. 'Ess. Bus NOT for normal operation' — and the battery is not charged with it ON unless the bypass (OAM 40-126) is fitted (AFMS p. 39).",
             "No external-power start with a flat battery if the flight will be IFR; IFR is not allowed with the emergency switch seal broken (AFM 2-32).",
           ]}
         />

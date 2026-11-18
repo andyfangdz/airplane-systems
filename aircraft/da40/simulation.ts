@@ -9,6 +9,8 @@ import {
   initialLive,
   initialSim,
   solve,
+  advanceElectricalTime,
+  settleResources,
   type Sim,
   type Elec,
   type ElectricalMemory,
@@ -26,6 +28,21 @@ export function createDA40Simulation() {
     initialLive,
     initialMemory: () => undefined,
     solve,
+    settle: settleResources,
+    migrate: ({ s, live, memory }) => {
+      // The former slider represented time under a single load and assumed simultaneous emergency use.
+      if (!("usedAh" in s.elec)) {
+        const e = s.elec as Sim["elec"] & { tBat?: number };
+        const seconds = (e.tBat ?? 0) * 60;
+        e.usedAh = e.emergencyMinutes = 0;
+        // Preserve a collapsed field when an old save was made after an unsuccessful ALT reset.
+        const loadState = memory?.altOn === false ? { ...s, elec: { ...e, alt: false } } : s;
+        advanceElectricalTime(s, solve(loadState, memory), seconds);
+        delete e.tBat;
+      }
+      s.gear.held ??= { L: s.gear.park ? 0.6 : 0, R: s.gear.park ? 0.6 : 0 };
+      live.pending ??= initialLive().pending;
+    },
     memoryFrom: (E) => ({ altOn: E.altOn }),
     step: stepModel,
     command: (context, command) => {
@@ -42,6 +59,10 @@ function commands(context: Context) {
 
   /** Normal cruise at 4,500 ft: everything on and working (the initial state). */
   function scenarioCruise() {
+    store.getState().update((d) => {
+      const f = fresh();
+      Object.assign(d, { ...f, fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR } });
+    });
     Object.assign(live, initialLive());
     live.fs = cruiseFlight();
     live.afcs = { ...gfc700Init(), trim: CRUISE_TRIM };
@@ -62,14 +83,10 @@ function commands(context: Context) {
       fireT: -1,
       oilLoss: 0,
     });
-    store.getState().update((d) => {
-      const f = fresh();
-      Object.assign(d, { ...f, fuel: { ...f.fuel, qL: d.fuel.qL, qR: d.fuel.qR } });
-    });
   }
 
   /**
-   * Cold and dark on the ramp, set up for "Before starting engine" (AFMS p. 37–38): parking brake set, rear door closed and
+   * Cold and dark on the ramp, set up for "Before starting engine" (AFMS pp. 38–39): parking brake set, rear door closed and
    * locked, front canopy in position 2 (cooling gap), throttle IDLE, mixture LEAN, RPM HIGH, avionics master and ESS BUS OFF.
    */
   function scenarioRamp() {
@@ -106,6 +123,7 @@ function commands(context: Context) {
       d.env = { heat: 0, dist: 0.5, window: false, extraVents: true };
       d.stall.ias = 0;
       d.gear.park = true;
+      d.gear.held = { L: 1, R: 1 };
       d.doors = { canopy: "GAP", rear: true };
     });
   }

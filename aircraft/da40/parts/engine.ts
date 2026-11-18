@@ -338,6 +338,6 @@ part(() => box(0.03, 0.03, 0.03), ["engine", "electrical"], {
     m.rotation.x = { OFF: -0.9, L: -0.45, R: 0, BOTH: 0.45, START: 0.9 }[k];
   },
   name: "Ignition key switch",
-  note: "OFF – L – R – BOTH – START, turning right (AFM 7-20). START engages the starter through the START relay; the G1000 shows red STARTER ENGD while it is engaged.",
+  note: "OFF – L – R – BOTH – START, turning right (AFM 7-20). START engages the starter through the START relay; the red STARTER ENGD warning indicates that the starter operates with the key out of START (AFMS p. 20).",
   pin: true,
 });

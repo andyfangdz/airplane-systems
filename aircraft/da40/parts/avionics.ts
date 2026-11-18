@@ -19,7 +19,7 @@ part(() => box(0.012, 0.022, 0.026), ["avionics"], {
   color: "#B53A3A",
   anim: glow("#6E2424", "#FF4A4A", () => sim().s.avx.backup, ["avionics"]),
   name: "DISPLAY BACKUP button",
-  note: "Red button at the bottom of the GMA 1347. OUT = reversionary (composite) mode on both displays; one attempt to return to normal is approved (CRG 11-1; AFMS p. 33).",
+  note: "Red button at the bottom of the GMA 1347. OUT = reversionary (composite) mode on both displays; one attempt to return to normal is approved (CRG 11-1; AFMS p. 34).",
   pin: true,
 });
 /* ---------- display bezels, standby instrument cases, compass, ELT remote (XLS panel photos) ---------- */
@@ -31,7 +31,7 @@ const BEZEL = "#1B1F23",
 (
   [
     ["member-1", [-0.26, "PFD (GDU 1040)"] as [number, string]],
-    ["member-2", [0.13, "MFD (GDU 1042 / 1044)"] as [number, string]],
+    ["member-2", [0.13, "MFD (GDU 1044)"] as [number, string]],
   ] as const
 ).forEach(([instance1, [z, which]], d) => {
   part(() => box(0.025, 0.21, 0.32), ["avionics", "autopilot"], {
@@ -41,7 +41,7 @@ const BEZEL = "#1B1F23",
     color: BEZEL,
     name: `${which} bezel`,
     note: d
-      ? "Knobs NAV, HDG, ALT (left) and COM, CRS/BARO, RANGE/PAN, FMS (right); the GFC 700 AFCS keys are on this bezel, and the VNV key only on the optional GDU 1044 (AFMS p. 57)."
+      ? "Knobs NAV, HDG, ALT (left) and COM, CRS/BARO, RANGE/PAN, FMS (right); the GFC 700 AFCS keys are on this bezel, and the VNV key only on the optional GDU 1044 (AFMS p. 50)."
       : "Knobs NAV, HDG, ALT (left) and COM, CRS/BARO, RANGE/PAN, FMS (right), 12 softkeys under the screen (CRG §1).",
   });
   // dual concentric knobs down each side of the screen
@@ -111,7 +111,7 @@ part(() => box(0.05, 0.05, 0.06), ["avionics"], {
   pos: [PANEL_X - 0.045, 0.15, 0.168],
   color: BEZEL,
   name: "Magnetic compass",
-  note: "Standby compass in the top row, right of the standby altimeter (XLS panel photos). Its loss has no effect on the autopilot (AFMS p. 10).",
+  note: "Standby compass in the top row, right of the standby altimeter (XLS panel photos). Its loss has no effect on the autopilot (AFMS p. 59).",
   pin: true,
   pinIn: [],
 });
@@ -196,7 +196,7 @@ part(() => box(0.32, 0.12, 0.34), ["avionics"], {
       [
         0.0,
         "GIA 63W #2",
-        "GPS 2, COM 2, NAV 2/GS 2. On the MAIN AVIONICS bus — its loss stops the autopilot and electric trim (AFMS p. 10).",
+        "GPS 2, COM 2, NAV 2/GS 2. On the MAIN AVIONICS bus — its loss stops the autopilot and electric trim (AFMS p. 59).",
       ] as [number, string, string],
     ],
     [

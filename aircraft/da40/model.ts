@@ -1,12 +1,12 @@
 /**
  * DA40 XLS simulation model: discrete state, the pure electrical solver, engine/fuel helpers and the
- * G1000 annunciations. Sources: DA 40 AFM Doc. 6.01.01-E Rev. 8 (§7), Garmin AFMS 190-00492-10
+ * G1000 annunciations. Sources: DA 40 AFM Doc. 6.01.01-E Rev. 8 (§7), Garmin AFMS 190-00492-10 Rev. 7
  * (G1000 + GFC 700, DA 40) §2.5–2.6 and §3, AMM-E 190-00545-01 Fig. 2-3 (GFC 700 power distribution),
  * G1000 SMM 190-00303-03 Fig. 2-1 (breaker panel) and the Garmin GFC 700 electrical load analysis.
  */
 import { initFlight, type FlightCfg, type FlightState } from "@/lib/avionics/flight";
 import { GFC700_BASE, gfc700Init, type Gfc700Cfg, type Gfc700Fail } from "@/lib/avionics/gfc700";
-import { solveBatteryExcitation } from "@/lib/electrical";
+import { clamp } from "@/lib/math";
 import type { CasLevel } from "../types";
 import { fuelPressureState } from "./limits";
 
@@ -50,8 +50,9 @@ export interface Sim {
     emerg: boolean;
     ext: boolean;
     fail: { alt: boolean; bat: boolean };
-    /** Minutes the airplane has been running on battery power (slider). */
-    tBat: number;
+    /** Available main-battery capacity already used (Ah), and minutes drawn from the independent standby pack. */
+    usedAh: number;
+    emergencyMinutes: number;
   };
   /** Pulled circuit breakers, keyed by label. */
   cb: Record<string, boolean>;
@@ -60,7 +61,7 @@ export interface Sim {
   /** Pilot stick and pedals −1..1 (pitch + = aft/nose up, roll + = right, yaw + = right pedal). */
   ctrl: { pitch: number; roll: number; yaw: number };
   /** Toe brakes −1 (left) … +1 (right) and the parking brake lever (down = set). */
-  gear: { diff: number; park: boolean };
+  gear: { diff: number; park: boolean; held: { L: number; R: number } };
   /** Cabin heat lever 0 (OFF) … 1 (ON); air distribution 0 (floor ▼) … 1 (canopy ▲); left canopy window open. */
   env: { heat: number; dist: number; window: boolean; extraVents: boolean };
   pitot: { heat: boolean; oat: number; heaterFail: boolean; altStatic: boolean };
@@ -100,13 +101,14 @@ export const initialSim: Sim = {
     emerg: false,
     ext: false,
     fail: { alt: false, bat: false },
-    tBat: 0,
+    usedAh: 0,
+    emergencyMinutes: 0,
   },
   cb: {},
   fuel: { sel: "L", pump: false, qL: 21, qR: 20 },
   flaps: { cmd: 0 },
   ctrl: { pitch: 0, roll: 0, yaw: 0 },
-  gear: { diff: 0, park: false },
+  gear: { diff: 0, park: false, held: { L: 0, R: 0 } },
   env: { heat: 0.4, dist: 0.3, window: false, extraVents: true },
   pitot: { heat: true, oat: 6, heaterFail: false, altStatic: false },
   stall: { ias: 90, blocked: false },
@@ -129,7 +131,7 @@ export const DA40_FLIGHT: FlightCfg = {
 
 /**
  * GFC 700 configuration (G1000/GFC 700 AFMS 190-00492-10): mode keys on the MFD bezel only and no BC key — NAV on a localizer
- * annunciates LOC until the course pointer is at least 105° from the heading, then BC (AFMS p. 51 back-course note; CRG
+ * annunciates LOC until the course pointer is at least 105° from the heading, then BC (AFMS p. 52 back-course note; CRG
  * 190-00324-07 p. 6-19 agrees). The stand-alone GFC 700 AFMS 190-00492-00 in the same AFM gives 115° for the same note; the
  * model follows the G1000/GFC 700 AFMS used throughout. No yaw damper; AP DISC, CWS and AP TRIM on the stick, GA on the
  * throttle; engage 70–165 KIAS (AFMS p. 16), MAXSPD above 165. FLC solves with the DA40 flight model.
@@ -182,6 +184,8 @@ export const initialLive = () => ({
   trimRate: 0,
   /** `afcs.trim` on the previous frame, for `trimRate`. */
   trimPrev: CRUISE_TRIM,
+  // Accumulate between one-second store publications. Checkpoints include even a fractional second of use.
+  pending: { seconds: 0, qL: 0, qR: 0, ah: 0, emergencyMinutes: 0 },
   /** Fuel gauge pointers (long-range tanks: full reads 24, holds 16 while the ungauged 3 gal is used). */
   gaugeL: 21,
   gaugeR: 20,
@@ -285,7 +289,8 @@ const LOAD = {
   field: 2.6,
 };
 /** Battery: 11 Ah lead-acid, 70 % available = 7.7 Ah (ELA). Emergency pack: 1 h 30 min (AFM 7.11). */
-const BAT_AH = 7.7,
+const RECHARGE_AMPS = 6; // illustrative recharge current used by the ammeter and charge integrator
+export const BAT_AH = 7.7,
   EMERG_MIN = 90;
 
 /**
@@ -294,12 +299,12 @@ const BAT_AH = 7.7,
  * ESSENTIAL ↔ ESS TIE 25 A ↔ tie relay (opened by ESS. BUS ON) ‖ bypass diode (MAIN → ESS only) ↔ MAIN TIE 25 A ↔ MAIN.
  * MAIN → AV BUSS 25 A → avionics master relay → MAIN AVIONICS. Both relay coils are fed through MSTR CNTRL 2 A on ESSENTIAL.
  * Sources disagree on one case: with BATT and ESS TIE pulled (AFMS smoke procedure) ESSENTIAL is dead, so by the schematic the
- * relay coils lose power, but the approved AFMS (p. 30) says this "restores power to the main and avionics busses". The model
+ * relay coils lose power, but the approved AFMS (p. 31) says this "restores power to the main and avionics busses". The model
  * follows the AFMS: the avionics relay needs the AVIONIC MASTER switch and the MSTR CNTRL breaker, not a live ESSENTIAL bus.
  * HORIZON 3 A (ESSENTIAL) or the emergency battery (HORIZON EMERGENCY switch) feeds the standby attitude and the flood light.
  *
  * Alternator excitation: the field is fed from MAIN (MAIN → ALT CONT → ALT switch → regulator), so a stopped or
- * switched-off alternator can only come online while MAIN is live from the battery; once online it keeps its own field
+ * switched-off alternator can only come online while MAIN is live from the battery or external power; once online it keeps its own field
  * alive through MAIN. `prev` is the last solution (the store passes it) and says whether it was online; without one
  * (the initial state, in cruise) it is.
  */
@@ -307,14 +312,9 @@ export type ElectricalMemory = Pick<Elec, "altOn">;
 
 export function solve(s: Sim, prev?: ElectricalMemory): Elec {
   const excited = prev ? prev.altOn : true;
-  return solveBatteryExcitation((batteryAvailable, allowBatteryExcitation) =>
-    solveWith(s, batteryAvailable, excited, allowBatteryExcitation),
-  );
-}
-
-function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExcitation: boolean): Elec {
   const e = s.elec,
     cb = (n: string) => !s.cb[n];
+  const batCharge = e.usedAh < BAT_AH;
   const batOk = e.bat && !e.fail.bat && batCharge;
   const bar = batOk || e.ext;
   const essBat = bar && cb("BATT");
@@ -323,7 +323,7 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExc
   // MAIN from the battery alone (tie relay closed unless ESS BUS ON has power to open it)
   const mainBat = essBat && tie && !(e.essBus && mstrCb);
   // field supply: MAIN live from the battery, or the alternator already online and feeding MAIN (self-excited)
-  const field = (allowBatteryExcitation && mainBat) || (excited && cb("ALT"));
+  const field = mainBat || (excited && cb("ALT"));
   const altOn = s.eng.running && e.alt && !e.fail.alt && cb("ALT CONT") && cb("ALT PROT") && field;
   const altFeed = altOn && cb("ALT");
   const essAlt = altFeed && tie; // through the tie relay or the bypass diode
@@ -399,24 +399,24 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExc
   // battery state while it carries ESSENTIAL (and MAIN through the closed tie) without the alternator or external power
   const onBattery = essBat && !essAlt && !e.ext;
   const batLoad = onBattery ? ld.ess + (mainFromBat ? ld.main + ld.av : 0) : 0;
-  const endurance = (BAT_AH / Math.max(batLoad, 1)) * 60;
-  const batFrac = onBattery ? e.tBat / endurance : 0;
+  const endurance = batLoad > 0 ? ((BAT_AH - e.usedAh) / batLoad) * 60 : 0;
+  const batFrac = e.usedAh / BAT_AH;
   const vBat = 24.8 - 2.6 * Math.min(batFrac, 1);
   const vAlt = 28.0;
   const r = (v: number) => Math.round(v * 10) / 10;
   const ess = !essOn ? 0 : essAlt ? (tieClosed ? vAlt : vAlt - 0.7) : e.ext ? 28.0 : vBat;
   const main = !mainOn ? 0 : altFeed ? vAlt : ess;
   const av = avOn ? main : 0;
-  const batCharging = batOk && cb("BATT") && (essAlt || e.ext);
+  const batCharging = e.bat && !e.fail.bat && cb("BATT") && (essAlt || e.ext);
   // AMPS: alternator output current (sensor on the ALT breaker cable) = the loads it carries + battery recharge
   const altLoad = altFeed ? ld.main + ld.av + (essAlt ? ld.ess : 0) : 0;
-  const amps = altFeed ? altLoad + (batCharging && essAlt ? (e.tBat > 0 ? 6 : 1.5) : 0) : 0;
+  const amps = altFeed ? altLoad + (batCharging && essAlt ? (e.usedAh > 0 ? RECHARGE_AMPS : 1.5) : 0) : 0;
 
   // starter: START 5 A (ESSENTIAL) → key START contact → START relay → starter fed straight from the relay-box bus bar
   const starterPwr = bar && essOn && cb("START");
   const starterOn = starterPwr && (s.eng.key === "START" || (s.eng.fail.starterStuck && s.eng.running));
 
-  const emergDead = e.tBat > EMERG_MIN;
+  const emergDead = e.emergencyMinutes >= EMERG_MIN;
   return {
     ess: r(ess),
     main: r(main),
@@ -471,6 +471,45 @@ function solveWith(s: Sim, batCharge: boolean, excited: boolean, allowBatteryExc
   };
 }
 
+/** Net main-battery use (Ah) over a period at the current load. */
+export const chargeUsed = (E: Elec, seconds: number) =>
+  ((E.batCharging && E.batFrac > 0 ? -RECHARGE_AMPS : E.batLoad) * seconds) / 3600;
+
+export function advanceElectricalTime(s: Sim, E: Elec, seconds: number) {
+  s.elec.usedAh = clamp(s.elec.usedAh + chargeUsed(E, seconds), 0, BAT_AH);
+  if (s.elec.emerg) s.elec.emergencyMinutes = Math.min(EMERG_MIN, s.elec.emergencyMinutes + seconds / 60);
+}
+
+export function settleResources(s: Sim, sample: typeof live) {
+  const p = sample.pending;
+  s.elec.usedAh = clamp(s.elec.usedAh + p.ah, 0, BAT_AH);
+  s.elec.emergencyMinutes = Math.min(EMERG_MIN, s.elec.emergencyMinutes + p.emergencyMinutes);
+  s.fuel.qL = Math.max(0, s.fuel.qL - p.qL);
+  s.fuel.qR = Math.max(0, s.fuel.qR - p.qR);
+  return () => {
+    p.seconds = p.ah = p.emergencyMinutes = p.qL = p.qR = 0;
+  };
+}
+
+/** AFM 7-13/14: with the valve closed, each positive toe-pedal stroke adds pressure on its own side.
+ * Pressure and pedal travel are normalized schematic quantities. */
+export function setBrakePedals(gear: Sim["gear"], diff: number) {
+  if (gear.park) {
+    for (const side of ["L", "R"] as const) {
+      const sign = side === "L" ? -1 : 1;
+      const stroke = Math.max(0, sign * diff) - Math.max(0, sign * gear.diff);
+      gear.held[side] = Math.min(1, gear.held[side] + Math.max(0, stroke));
+    }
+  }
+  gear.diff = diff;
+}
+
+export function setBrakeValve(gear: Sim["gear"], closed: boolean) {
+  if (closed === gear.park) return;
+  gear.park = closed;
+  gear.held = { L: closed ? Math.max(0, -gear.diff) : 0, R: closed ? Math.max(0, gear.diff) : 0 };
+}
+
 /* ---------- engine & fuel helpers ---------- */
 
 /** Fuel available at the engine from the selected tank. */
@@ -483,7 +522,7 @@ export const engineTurning = (s: Sim, E: Elec, sample: typeof live = live) =>
   s.eng.running || E.starterOn || sample.rpm > 100;
 export const inductionAvailable = (s: Sim) => !s.eng.fail.intakeBlocked || s.eng.altAir;
 
-export const fuelAvail = (s: Sim) => s.fuel.sel !== "OFF" && (s.fuel.sel === "L" ? s.fuel.qL : s.fuel.qR) > 0.05;
+export const fuelAvail = (s: Sim) => s.fuel.sel !== "OFF" && (s.fuel.sel === "L" ? s.fuel.qL : s.fuel.qR) > 0;
 /** Selected-tank fuel must also have an available driven mechanical pump or powered electric backup. */
 export const fuelDeliveryAvailable = (s: Sim, E: Elec, sample: typeof live = live) =>
   fuelAvail(s) && ((engineTurning(s, E, sample) && !s.eng.fail.mechPump) || (s.fuel.pump && E.pumpPwr));
@@ -502,10 +541,13 @@ export const gaugeTarget = (q: number) => (q > 19 ? Math.min(q, 24) : q >= 16 ? 
 
 /** Stall speeds (KIAS, 0° bank) at 1,200 kg / 2,646 lb (AFM 5.3.4, p. 5-8): UP 53, T/O 52, LDG 52. */
 export const STALL_KIAS: Record<FlapSel, number> = { 0: 53, 1: 52, 2: 52 };
+/** Linear interpolation between achieved detents is illustrative. T/O and LDG share the same tabulated speed. */
+export const stallSpeed = (flapAngle: number) =>
+  STALL_KIAS[0] + (STALL_KIAS[1] - STALL_KIAS[0]) * clamp(flapAngle / 20, 0, 1);
 /** Stall horn (AFM 7.13): pneumatic, sounds from about 10 kt down to at least 5 kt above the stall. 0 = quiet … 1 = loud. */
 export function hornLevel(s: Sim, sample: typeof live = live) {
   if (s.stall.blocked) return 0;
-  const vs = STALL_KIAS[s.flaps.cmd];
+  const vs = stallSpeed(sample.flapAng);
   const ias = s.air ? Math.min(sample.fs.ias, s.stall.ias) : s.stall.ias;
   if (ias < 30) return 0; // no airflow, no suction at the orifice
   const m = ias - vs;
@@ -535,7 +577,7 @@ export function extLit(s: Sim, E: Elec) {
   return litFor.r;
 }
 
-/* ---------- G1000 annunciations (AFMS 190-00492-10 §2.6, CRG 190-00324-07 §12) ---------- */
+/* ---------- G1000 annunciations (AFMS 190-00492-10 §2.6, CRG 190-00324-10 p. 61) ---------- */
 
 export type { CasLevel };
 /**
@@ -551,7 +593,7 @@ export function annunciations(s: Sim, E: Elec, sample: typeof live = live): [Cas
     if (fuelPressure === "low") m.push(["w", "FUEL PRES LO"]);
     if (fuelPressure === "high") m.push(["w", "FUEL PRES HI"]);
     if (s.eng.running && !E.altFeed) m.push(["w", "ALTERNATOR"]);
-    if (E.starterOn) m.push(["w", "STARTER ENGD"]);
+    if (E.starterOn && s.eng.key !== "START") m.push(["w", "STARTER ENGD"]);
     if (s.doors.canopy !== "CLOSED" || !s.doors.rear) m.push(["w", "DOOR OPEN"]);
     if (!s.pitot.heat) m.push(["c", "PITOT OFF"]);
     else if (!E.pitotPwr || s.pitot.heaterFail) m.push(["c", "PITOT FAIL"]);

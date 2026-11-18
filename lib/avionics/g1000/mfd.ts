@@ -166,7 +166,8 @@ function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): 
         bx = x + (pair ? 15 : 9),
         bw = w - (pair ? 30 : 18),
         by = y + (pair ? 26 : g.compact ? 21 : 25);
-      if (pair) txt(ctx, g.label, x + w / 2, y + 8, WHITE, 11, "center");
+      if (pair && g.pointerAlerts) readout(g.label, x + w / 2, y + 8, 11, "center");
+      else if (pair) txt(ctx, g.label, x + w / 2, y + 8, WHITE, 11, "center");
       else {
         txt(ctx, g.label + (g.unit ? " " + g.unit : ""), x + 6, y + 8, WHITE, 11);
         if (g.value != null && g.fmt) readout(fmt(g.value), x + w - 6, y + 8, 12, "right");
@@ -174,9 +175,19 @@ function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): 
       rect(ctx, bx, by, bw, 6, "#3B4147");
       for (const [b0, b1, c] of g.bands ?? [])
         rect(ctx, bx + frac(b0) * bw, by, (frac(b1) - frac(b0)) * bw, 6, BAND[c]);
+      if (g.scaleStep) {
+        for (let mark = g.min; mark <= g.max; mark += g.scaleStep) {
+          const px = bx + frac(mark) * bw;
+          line(ctx, px, by + 6, px, by + 9, WHITE);
+          txt(ctx, fmt(mark), px, by + 25, GRAY, 9, "center");
+        }
+        for (const [lo, hi, color] of g.bands ?? [])
+          if (lo === hi) rect(ctx, bx + frac(lo) * bw, by, 1.5, 6, BAND[color]);
+      }
       const ptr = (v: number, up: boolean, lab?: string) => {
         const px = bx + frac(v) * bw,
-          pc = warn ? RED : caut ? YEL : WHITE;
+          alert = g.pointerAlerts ? g.pointerAlerts[up ? 0 : 1] : g.alert,
+          pc = alert === "warning" ? RED : alert === "caution" ? YEL : WHITE;
         if (up) poly(ctx, [px, by - 1, px - 6, by - 11, px + 6, by - 11], pc, "#000", 1);
         else poly(ctx, [px, by + 7, px - 6, by + 17, px + 6, by + 17], pc, "#000", 1);
         if (lab) txt(ctx, lab, px, up ? by - 7 : by + 13, "#000", 8, "center");
@@ -186,6 +197,7 @@ function gauge(ctx: Ctx, g: Gauge, x: number, y: number, w: number, t: number): 
       if (pair) {
         if (g.value2 === null) redX(ctx, bx, by - 4, bw, 22);
         else if (g.value2 != null) ptr(g.value2, false, "R");
+        if (g.scaleStep) return H_OF.pair + 8;
         txt(ctx, fmt(g.min), x + 4, by + 3, GRAY, 9);
         txt(ctx, "F", x + w - 4, by + 3, GRAY, 9, "right");
         return H_OF.pair;
