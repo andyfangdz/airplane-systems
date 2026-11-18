@@ -12,50 +12,16 @@ import { Picker } from "../Picker";
 import { airplaneLinks, componentEntries, engineEntries, engineSub, replayEntries } from "../pickerEntries";
 import { ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
-import { StageResetButton, useTheme, ViewToggles } from "./chrome";
-import { simFor, useEngineLoop, type EngineSim } from "./store";
-import { studyXray } from "./assembly-study";
-import { AssemblyControls } from "./AssemblyControls";
+import { useTheme } from "./chrome";
+import { simFor, useEngineLoop } from "./store";
+import { EngineToolbar } from "./EngineToolbar";
 import { EnginePanel } from "./EnginePanel";
-import { Monitor, Flags } from "./Monitor";
-import { MotionState, StudyViews } from "./StudyViews";
+import { EngineMonitorPanel, Flags } from "./Monitor";
+import { MotionState } from "./StudyViews";
 import { PartInspectionProvider, PartInspector } from "./PartInspector";
 import "./engine.css";
 
 const Scene = dynamic(() => import("./EngineScene"), { ssr: false, loading: () => <div /> });
-
-const TOGGLES = [
-  ["xray", "X-ray", "See through the case and cylinders"],
-  ["labels", "Labels", "Name the main parts"],
-  ["prop", "Propeller", "Show the propeller"],
-  ["slow", "Slow motion", "Turn the drawn crankshaft slowly enough to follow the four strokes"],
-  ["paused", "Pause", "Freeze the simulation"],
-] as const;
-
-function Toolbar({ sim }: { sim: EngineSim }) {
-  const view = sim.useUi((x) => x.view),
-    setView = sim.useUi((x) => x.setView);
-  return (
-    <div className="toolbar">
-      {sim.spec.illustratedInstallation && view.blowUp && <AssemblyControls sim={sim} />}
-      <StudyViews sim={sim} />
-      <div className="tb-group" role="group" aria-label="View">
-        {sim.spec.illustratedInstallation && !view.blowUp && (
-          <button
-            className="tb"
-            type="button"
-            title="Separate the engine into part groups. Double-tap a part to focus its group directly."
-            onClick={() => setView({ blowUp: true })}
-          >
-            Blow up
-          </button>
-        )}
-        <ViewToggles items={TOGGLES} view={{ ...view, xray: studyXray(view) }} set={setView} />
-      </div>
-      <StageResetButton />
-    </div>
-  );
-}
 
 export default function EngineApp({ id }: { id: string }) {
   const spec = engineById(id)!;
@@ -83,11 +49,11 @@ export default function EngineApp({ id }: { id: string }) {
         <main className="stage eng-stage">
           <div className="eng-view">
             <Scene sim={sim} />
-            <Toolbar sim={sim} />
+            <EngineToolbar sim={sim} />
           </div>
         </main>
         <div className="eng-foot">
-          <Monitor sim={sim} />
+          <EngineMonitorPanel sim={sim} />
           <Flags sim={sim} />
           <MotionState sim={sim} />
         </div>

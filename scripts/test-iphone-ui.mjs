@@ -790,3 +790,65 @@ test("iPhone safe-area picker survives unfolding and keeps internal navigation i
   expect(context.pages()).toHaveLength(1);
   expect(errors).toEqual([]);
 });
+
+test("Duo engine study keeps the crank in one row and remembers the folded monitor", async ({ page }) => {
+  await page.setViewportSize({ width: 382, height: 580 });
+  await page.goto("/engines/io390");
+  const button = (name) => page.getByRole("button", { name, exact: true });
+  const options = button("Engine controls");
+  const sheet = page.getByRole("dialog", { name: "Engine controls" });
+  const monitor = button("Engine monitor");
+  await button("Blow up").tap();
+  await page.getByRole("combobox", { name: "Focus a part group" }).selectOption("cylinder-1");
+  await options.tap();
+  await button("Show with crankshaft").tap();
+  await expect(sheet).toBeHidden();
+  const crank = page.getByRole("slider", { name: "Crankshaft angle" });
+  await crank.fill("145");
+  const canvas = await page.locator(".eng-view canvas").elementHandle();
+  for (const [width, height] of [
+    [382, 580],
+    [594, 368],
+    [320, 640],
+  ]) {
+    await page.setViewportSize({ width, height });
+    const row = page.locator(".eng-compact-toolbar");
+    await expect(row).toBeVisible();
+    const box = await row.boundingBox();
+    expect(box.height).toBeLessThanOrEqual(46);
+    for (const control of [button("Cylinder 1 assembly"), crank, options]) {
+      const bounds = await control.boundingBox();
+      expect(bounds.x).toBeGreaterThanOrEqual(box.x);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(box.x + box.width + 1);
+    }
+    expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await options.tap();
+    const panel = await sheet.boundingBox();
+    expect(panel.x).toBeGreaterThanOrEqual(0);
+    expect(panel.y).toBeGreaterThanOrEqual(0);
+    expect(panel.y + panel.height).toBeLessThanOrEqual(height + 1);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await expect(crank).toHaveValue("145");
+  }
+  await page.setViewportSize({ width: 382, height: 618 });
+  const expandedHeight = (await page.locator(".eng-foot").boundingBox()).height;
+  await monitor.tap();
+  await expect(monitor).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".eng-mon")).toBeHidden();
+  expect((await page.locator(".eng-foot").boundingBox()).height).toBeLessThan(expandedHeight - 80);
+  await options.tap();
+  await button("Pause").tap();
+  await expect(page.getByText("Simulation paused", { exact: true })).toBeVisible();
+  await options.tap();
+  await page.setViewportSize({ width: 951, height: 585 });
+  await expect(sheet).toBeHidden();
+  await expect(crank).toHaveValue("145");
+  expect(await canvas.evaluate((el) => el === document.querySelector(".eng-view canvas"))).toBe(true);
+  await expect(monitor).toHaveAttribute("aria-expanded", "false");
+  await page.reload();
+  await expect(monitor).toHaveAttribute("aria-expanded", "false");
+  await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
+  await monitor.click();
+  await expect(page.locator(".eng-mon")).toBeVisible();
+});

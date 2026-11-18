@@ -39,6 +39,8 @@ On the SR20 G6’s IO-390 and both IO-360 pages, **Blow up** moves the intact pa
 
 From a cylinder, **Show with crankshaft** puts the cylinder and shafts in their installed positions. From **Crankshaft and camshaft**, **Pair with cylinder…** lets you choose the cylinder. The cutaway follows engine motion. Use **Turn crank** to move through the four strokes by hand, including when paused or stopped. **Follow engine** resumes the live pose.
 
+On a narrow screen, **Controls** opens the study, view and playback settings. The active assembly action or crank slider stays beside the model. Tap **Engine monitor** to fold or reopen the instruments. The engine pages remember this choice, and limit flags stay visible.
+
 The piston-cylinder cutaway (`/components/piston-cylinder`) follows one IO-390 cylinder through all four strokes.
 It shares the engine's slider-crank and valve-lift functions, with slow playback, pause, angle scrubbing and stroke
 selection, dual spark plugs, CHT/EGT response, mixture and ignition controls, and plug-fouling, stuck-valve, detonation, pre-ignition and intake-backfire scenarios.

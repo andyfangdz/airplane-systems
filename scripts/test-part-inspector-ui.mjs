@@ -108,6 +108,7 @@ for (const phone of [false, true])
         await page.touchscreen.tap(hit.x, hit.y);
       } else await page.mouse.dblclick(hit.x, hit.y);
       await expect(page.getByRole("button", { name: "Part groups", exact: true })).toBeVisible();
+      if (phone) await page.getByRole("button", { name: "Engine controls" }).tap();
       await expect(page.getByRole("combobox", { name: "Focus a part group" })).not.toHaveValue("");
     } finally {
       await context.close();

@@ -153,6 +153,52 @@
   pointer-events: none;
   min-width: 0;
 }
+.eng-monitor-panel {
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 8px;
+  background: var(--cas-bg);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+  color: #e6edf2;
+  pointer-events: auto;
+}
+.eng-monitor-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: 600 12px var(--f-body);
+  cursor: pointer;
+}
+.eng-monitor-toggle[aria-expanded="true"] {
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #38434c;
+}
+.eng-monitor-chevron {
+  width: 7px;
+  height: 7px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.eng-monitor-toggle[aria-expanded="false"] .eng-monitor-chevron {
+  transform: rotate(-45deg);
+}
+.eng-monitor-panel .eng-mon {
+  box-shadow: none;
+}
+@media (pointer: coarse) {
+  .eng-monitor-toggle {
+    min-height: 44px;
+  }
+}
 .eng-mon {
   pointer-events: auto;
   background: var(--cas-bg);
@@ -522,7 +568,7 @@
     border-left: 0;
   }
   /* These are ordinary full-width rows once the desktop overlay becomes a stacked page. */
-  .component-app .eng-foot {
+  .eng-app .eng-foot {
     align-self: stretch;
   }
   .component-app .panel-inner {
@@ -584,6 +630,7 @@
     padding: 8px;
     gap: 6px;
   }
+  .eng-monitor-panel,
   .eng-mon,
   .eng-flags {
     flex: 1 1 100%;
@@ -687,6 +734,102 @@
   }
 }
 
+/* The stacked engine layout keeps the active action beside its settings disclosure. */
+.eng-app .eng-compact-toolbar {
+  left: 8px;
+  right: 8px;
+  top: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+.eng-app .eng-compact-toolbar > :first-child {
+  margin-left: 0;
+}
+.eng-compact-toolbar .eng-options-trigger {
+  margin-left: auto;
+}
+.eng-compact-toolbar .eng-back-name {
+  display: none;
+}
+.eng-compact-toolbar .eng-study-back {
+  justify-content: center;
+  font-size: 24px;
+  line-height: 1;
+}
+.eng-app .eng-compact-toolbar > .eng-crank-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.eng-compact-toolbar .eng-crank-control input {
+  flex: 1;
+  width: 0;
+  min-width: 24px;
+}
+.eng-app .eng-compact-toolbar > .eng-study {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.eng-compact-toolbar > .eng-study select {
+  min-width: 0;
+  width: 100%;
+}
+.eng-options-sheet {
+  position: fixed;
+  inset: auto 0 max(8px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  width: min(400px, calc(100% - 16px));
+  max-height: calc(100dvh - 24px);
+  margin: 0 auto;
+  padding: 0 12px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px #0004;
+}
+.eng-options-sheet::backdrop {
+  background: #0004;
+}
+.eng-options-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-block: 8px;
+}
+.eng-options-body {
+  display: grid;
+  gap: 8px;
+}
+.eng-options-body .eng-study {
+  justify-content: space-between;
+}
+.eng-options-body .eng-study select {
+  max-width: 100%;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+}
+.eng-options-body .tb-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.eng-options-body .tb-group > .tb {
+  flex: 1 0 auto;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+}
+.eng-options-body .tb-word {
+  display: inline;
+}
 /* hovered part: name and note by the pointer */
 .eng-tip {
   position: fixed;

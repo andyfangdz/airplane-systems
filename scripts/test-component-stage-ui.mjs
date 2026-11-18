@@ -78,6 +78,7 @@ for (const route of ["engines/tsio550k", "components/governor", "components/pito
     await page.mouse.down();
     await page.mouse.move(canvas.x + canvas.width / 2 + 65, canvas.y + canvas.height / 2 + 20, { steps: 12 });
     await page.mouse.up();
+    if (route.startsWith("engines/")) await page.getByRole("button", { name: "Engine controls" }).click();
     await page.getByRole("button", { name: "Reset view", exact: true }).click();
     await check(true);
     await page.setViewportSize({ width: 1440, height: 900 });
