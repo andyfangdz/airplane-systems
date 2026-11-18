@@ -100,6 +100,17 @@ for (const phone of [false, true])
       expect(
         await page.locator(".part-inspector").evaluate((element) => element.contains(document.activeElement)),
       ).toBe(false);
+      // Two taps on the same physical group enter the study directly from the installed engine.
+      // A single tap above must have left the installed camera in place.
+      await expect(page.getByRole("combobox", { name: "Study view" })).toHaveValue("exterior");
+      if (phone) {
+        // Send one double-tap gesture. A software-rendered frame between two driver calls can outlast a double tap.
+        const touch = await context.newCDPSession(page);
+        await touch.send("Input.synthesizeTapGesture", { x: hit.x, y: hit.y, tapCount: 2, gestureSourceType: "touch" });
+      } else await page.mouse.dblclick(hit.x, hit.y);
+      await expect(page.getByRole("button", { name: "Part groups", exact: true })).toBeVisible();
+      if (phone) await page.getByRole("button", { name: "Engine controls" }).tap();
+      await expect(page.getByRole("combobox", { name: "Focus a part group" })).not.toHaveValue("");
     } finally {
       await context.close();
     }
@@ -112,14 +123,14 @@ test("IO-390 catalog separation keeps a selected part and the study controls", a
     if (/THREE\.WebGLProgram: Shader Error/.test(message.text())) errors.push(message.text());
   });
   await page.goto("/engines/io390");
-  const button = page.getByRole("button", { name: "Blow up", exact: true });
-  await expect(button).toBeVisible();
+  const study = page.getByRole("combobox", { name: "Study view" });
+  await expect(study).toHaveValue("exterior");
   const inspector = page.getByRole("region", { name: "Part inspector" });
   await inspector.locator("summary").click();
   await inspector.getByRole("searchbox").fill("14G22050");
   await inspector.getByRole("button", { name: "Top compression ring, cylinder 1", exact: true }).click();
   const selected = inspector.getByRole("heading", { name: "Top compression ring, cylinder 1" });
-  await button.click();
+  await study.selectOption("assemblies");
   const assemble = page.getByRole("button", { name: "Assemble engine", exact: true });
   await expect(assemble).toBeVisible();
   await expect(selected).toBeVisible();
@@ -156,14 +167,118 @@ test("IO-390 catalog separation keeps a selected part and the study controls", a
   await expect(second).toHaveAttribute("aria-pressed", "true");
   await inspector.getByRole("searchbox").fill("14G22050");
   await inspector.getByRole("button", { name: "Top compression ring, cylinder 1", exact: true }).click();
-  await button.click();
-  await page.getByRole("combobox", { name: "Study view" }).selectOption("cycle");
-  await expect(assemble).toBeVisible();
-  await assemble.click();
-  await expect(button).toBeVisible();
+  await study.selectOption("assemblies");
+  await study.selectOption("cycle");
+  await expect(assemble).toBeHidden();
+  await expect(page.getByRole("combobox", { name: "Power cycle focus" })).toHaveValue("system");
   await expect(selected).toBeVisible();
   await page.goto("/engines/o360");
   await expect(page.getByRole("combobox", { name: "Study view" })).toBeVisible();
-  await expect(button).toHaveCount(0);
+  await expect(study.locator('option[value="assemblies"]')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("isolated accessories reassemble independently and a crankshaft can be paired with either bank", async ({
+  page,
+  context,
+}) => {
+  await observeStageCamera(context);
+  await page.goto("/engines/io390");
+  const button = (name) => page.getByRole("button", { name, exact: true });
+  const select = (name) => page.getByRole("combobox", { name, exact: true });
+  const groups = select("Focus a part group"),
+    components = select("Focus a component");
+  await select("Study view").selectOption("assemblies");
+  await groups.selectOption("drives");
+  await waitForStageCamera(page);
+  const label = await page
+    .locator(".eng-label")
+    .filter({ hasText: /^ALT 1$/ })
+    .boundingBox();
+  // Hit the model itself, just as a learner does. Its label is anchored beside the housing.
+  let hit;
+  for (const [dx, dy] of [
+    [0, 0],
+    [-9, 0],
+    [9, 0],
+    [0, -12],
+    [0, 12],
+    [-20, -12],
+    [20, -12],
+  ]) {
+    const x = Math.round(label.x + label.width / 2 + dx),
+      y = Math.round(label.y + label.height / 2 + dy);
+    await page.mouse.move(x, y);
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    if (
+      await page
+        .locator(".eng-tip b")
+        .filter({ hasText: /^ALT 1(?: pulley)?$/ })
+        .isVisible()
+    ) {
+      hit = { x, y };
+      break;
+    }
+  }
+  expect(hit, "the ALT 1 housing or pulley can be picked").toBeTruthy();
+  await page.mouse.dblclick(hit.x, hit.y);
+  await expect(components).toHaveValue("alternator-1");
+  await button("Blow up component").click();
+  await button("Assemble component").click();
+  await components.selectOption("alternator-2");
+  const inspector = page.getByRole("region", { name: "Part inspector" });
+  await inspector.locator("summary").click();
+  await inspector.getByRole("searchbox").fill("Rotor field winding");
+  await expect(inspector.getByRole("button", { name: "Rotor field winding, ALT 2", exact: true })).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Rotor field winding, ALT 1", exact: true })).toHaveCount(0);
+  await button("Accessory drives").click();
+  await groups.selectOption("shafts");
+  const idlerPin = page.locator(".eng-label").filter({ hasText: /^Timing idler$/ });
+  const idler = inspector.getByRole("button", { name: "Left crankshaft idler gear", exact: true });
+  await inspector.getByRole("searchbox").fill("crankshaft idler");
+  await expect(idler).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Right crankshaft idler gear", exact: true })).toHaveCount(0);
+  await button("Blow up group").click();
+  await button("Show with cylinders").click();
+  await expect(select("Study view")).toHaveValue("cycle");
+  const pair = select("Power cycle focus");
+  await expect(pair).toHaveValue("all");
+  await expect(idler).toBeVisible();
+  await pair.selectOption("2");
+  await expect(idlerPin).toBeVisible();
+  await expect(idler).toBeVisible();
+  const crank = page.getByRole("slider", { name: "Crankshaft angle" });
+  await crank.fill("210");
+  await expect(crank).toHaveAttribute("aria-valuetext", "210 degrees");
+  await button("Follow engine").click();
+  await expect(crank).toHaveValue("0");
+  await pair.selectOption("3");
+  await inspector.getByRole("searchbox").fill("Piston, cylinder");
+  await expect(inspector.getByRole("button", { name: "Piston, cylinder 3", exact: true })).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Piston, cylinder 2", exact: true })).toHaveCount(0);
+  await crank.fill("268");
+  await pair.selectOption("all");
+  await expect(crank).toHaveValue("268");
+  await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(4);
+  await pair.selectOption("1");
+  await expect(crank).toHaveValue("268");
+  await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(1);
+  await button("Crankshaft and camshaft").click();
+  await expect(button("Assemble group")).toBeVisible();
+  const study = select("Study view");
+  await expect(study).toHaveValue("assemblies");
+  await study.selectOption("cycle");
+  await expect(pair).toHaveValue("system");
+  await pair.selectOption("all");
+  await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(4);
+  await button("Whole power cycle").click();
+  await expect(pair).toHaveValue("system");
+  await expect(crank).toBeHidden();
+  await pair.selectOption("4");
+  await study.selectOption("fuel");
+  await expect(study).toHaveValue("fuel");
+  await expect(idlerPin).toHaveCount(0);
+  await expect(crank).toBeHidden();
+  await expect(groups).toBeHidden();
+  await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(0);
 });

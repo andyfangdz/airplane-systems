@@ -1,7 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 
-type PanelSide = "systems" | "details";
+type PanelId = "systems" | "details" | "engine-monitor";
 const COLLAPSED_KEY = "panelsCollapsed";
 const listeners = new Set<() => void>();
 // Memory keeps the controls usable when storage is blocked; storage only remembers the preference.
@@ -21,7 +21,7 @@ function subscribe(notify: () => void) {
   return () => listeners.delete(notify);
 }
 
-export function setPanelCollapsed(side: PanelSide, collapsed: boolean) {
+export function setPanelCollapsed(side: PanelId, collapsed: boolean) {
   const next = new Set(readCollapsed().split(",").filter(Boolean));
   if (collapsed) next.add(side);
   else next.delete(side);
@@ -32,8 +32,8 @@ export function setPanelCollapsed(side: PanelSide, collapsed: boolean) {
   listeners.forEach((notify) => notify());
 }
 
-/** Both panels render open on the server, then restore the visitor's preference. */
-export function useCollapsed(side: PanelSide): [boolean, () => void] {
+/** Panels render open on the server, then restore the visitor's preference. */
+export function useCollapsed(side: PanelId): [boolean, () => void] {
   const sides = useSyncExternalStore(subscribe, readCollapsed, () => "");
   const collapsed = sides.split(",").includes(side);
   return [collapsed, () => setPanelCollapsed(side, !collapsed)];

@@ -59,7 +59,12 @@ async function until(what, read, ok, ms) {
 /** Freeze the simulation (the toolbar's Pause), run `fn`, then let it run again. */
 async function paused(page, fn) {
   const pause = page.getByRole("button", { name: "Pause", exact: true });
-  await pause.click();
+  const toggle = async () => {
+    const controls = page.getByRole("button", { name: "Engine controls" });
+    if (await controls.isVisible()) await controls.click();
+    await pause.click();
+  };
+  await toggle();
   await page.waitForFunction(
     () => document.querySelector('button[title="Freeze the simulation"]')?.getAttribute("aria-pressed") === "true",
   );
@@ -68,7 +73,7 @@ async function paused(page, fn) {
   try {
     return await fn();
   } finally {
-    await pause.click();
+    await toggle();
   }
 }
 
@@ -131,6 +136,8 @@ for (const engine of ENGINES)
 
       // ---- load: the page title, the picker names the engine, its description shows, no sideways scroll
       await page.goto(`${base}/engines/${engine.id}`);
+      // The development badge occupies the folded monitor's desktop position.
+      await page.addStyleTag({ content: "nextjs-portal { display: none !important; }" });
       const trigger = page.getByRole("button", { name: `Choose a model, current engine ${engine.name}` });
       await trigger.waitFor();
       await page.locator("canvas").first().waitFor();
@@ -253,6 +260,8 @@ for (const engine of ENGINES)
         );
 
         // ---- controller misadjusted: the MAN PRESSURE caution with warm oil, never the warning (POH 3-29, 3A-9)
+        const monitor = page.getByRole("button", { name: "Engine monitor", exact: true });
+        await monitor.click();
         await page.locator("#f-misadjust").check();
         await until(
           "MAN PRESSURE caution",
@@ -260,6 +269,9 @@ for (const engine of ENGINES)
           (x) => x.some((r) => isMan(r) && r[0] === "caut"),
           20_000,
         );
+        assert.equal(await page.locator(".eng-mon").isVisible(), false);
+        assert.ok(await page.locator(".eng-flags .caut").filter({ hasText: "MAN PRESSURE" }).isVisible());
+        await monitor.click();
         const end = Date.now() + 10_000;
         while (Date.now() < end) {
           const r = await flagRows(page);
@@ -320,8 +332,8 @@ for (const [airplane, engine, installedPart] of [
     await page.goto(`/${airplane}/engine`);
     await page.getByRole("link", { name: /Explore the IO-360/ }).click();
     await page.waitForURL(`**/engines/${engine}`);
-    const exploded = page.getByRole("button", { name: "Blow up", exact: true });
-    await exploded.click();
+    const study = page.getByRole("combobox", { name: "Study view" });
+    await study.selectOption("assemblies");
     const assemble = page.getByRole("button", { name: "Assemble engine", exact: true });
     await assemble.waitFor();
     assert.equal(await page.locator("#prop").count(), airplane === "da40" ? 1 : 0);
@@ -341,7 +353,7 @@ for (const [airplane, engine, installedPart] of [
     await search.fill(installedPart);
     await page.getByRole("button", { name: installedPart, exact: true }).click();
     await assemble.click();
-    await exploded.waitFor();
+    assert.equal(await study.inputValue(), "exterior");
     assert.equal(await page.locator(".part-explanation h3").innerText(), installedPart);
     assert.deepEqual(errors, []);
   });

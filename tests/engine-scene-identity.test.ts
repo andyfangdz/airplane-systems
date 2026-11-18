@@ -29,7 +29,7 @@ import { layoutFor } from "@/components/engine/scene/layout";
 import { dims, makeMats } from "@/components/engine/scene/kit";
 import { PartNotesProvider, useHover } from "@/components/engine/scene/parts";
 import { Crankshaft, RodsAndPistons } from "@/components/engine/scene/Rotating";
-import { Drives, FuelSystem, Ignition, Induction, Propeller } from "@/components/engine/scene/Systems";
+import { CrankshaftIdler, Drives, FuelSystem, Ignition, Induction, Propeller } from "@/components/engine/scene/Systems";
 import { Camshaft, ValveTrain } from "@/components/engine/scene/Valvetrain";
 import { mountScene } from "./engine-mount";
 
@@ -146,6 +146,9 @@ const model = (sim: EngineSim) => {
     h(Crankcase, p),
     h(Lubrication, p),
     h(Ignition, p),
+    ...(layoutFor(sim.spec).detailed
+      ? [h(CrankshaftIdler, { ...p, side: "L" }), h(CrankshaftIdler, { ...p, side: "R" })]
+      : []),
     h(FuelSystem, p),
     h(Induction, p),
     h(Drives, p),

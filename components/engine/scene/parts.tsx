@@ -143,7 +143,7 @@ export function P({
     description = own?.note ?? (parts?.["*"] ? (installationNote ?? parts["*"].note ?? "") : givenNote);
   const note = own?.partNumber ? `${own.partNumber}. ${description}` : description;
   const mesh = useRef<THREE.Mesh>(null);
-  const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const down = useRef<{ x: number; y: number; moved: boolean; touchId?: number } | null>(null);
   const inspection = usePartInspectionStore();
   const selected = usePartInspection((state) => state.selected === name);
   const theme = useView((state) => state.theme);
@@ -153,6 +153,22 @@ export function P({
     () => inspection.getState().register({ id, name, note, available: () => isVisible(mesh.current) }),
     [id, name, note, inspection],
   );
+  const finishPick = (event: ThreeEvent<MouseEvent>) => {
+    const start = down.current;
+    down.current = null;
+    if (assembly?.hidden || !start || start.moved || !canPick(event.object as THREE.Mesh)) return;
+    if (Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4) return;
+    event.stopPropagation();
+    const inspect = () => {
+      if (isVisible(mesh.current)) inspection.getState().select(name, true);
+    };
+    if (assembly?.tap) assembly.tap(event.nativeEvent, inspect);
+    else {
+      assembly?.cancelTap();
+      inspect();
+    }
+    out();
+  };
   const part = (
     <mesh
       ref={mesh}
@@ -167,26 +183,44 @@ export function P({
       onPointerOver={assembly?.hidden ? undefined : over(name, note)}
       onPointerDown={(event) => {
         if (assembly?.hidden || !canPick(event.object as THREE.Mesh)) return;
+        if (event.nativeEvent.isPrimary === false || event.nativeEvent.button > 0) {
+          down.current = null;
+          assembly?.cancelTap();
+          return;
+        }
         event.stopPropagation();
-        down.current = { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY, moved: false };
+        down.current = {
+          x: event.nativeEvent.clientX,
+          y: event.nativeEvent.clientY,
+          moved: false,
+          touchId: event.nativeEvent.pointerType === "touch" ? event.nativeEvent.pointerId : undefined,
+        };
       }}
       onPointerMove={(event) => {
         const start = down.current;
         if (assembly?.hidden) return;
-        if (start && Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4)
+        if (
+          start &&
+          !start.moved &&
+          Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4
+        ) {
           start.moved = true;
+          assembly?.cancelTap();
+        }
         move(event);
       }}
-      onPointerOut={out}
-      onClick={(event) => {
-        const start = down.current;
+      onPointerCancel={() => {
         down.current = null;
-        if (assembly?.hidden || !start || start.moved || event.delta > 4 || !canPick(event.object as THREE.Mesh))
-          return;
-        event.stopPropagation();
-        if (assembly?.focus) assembly.focus();
-        else inspection.getState().select(name, true);
-        out();
+        assembly?.cancelTap();
+      }}
+      onPointerOut={out}
+      onPointerUp={(event) => {
+        // A recognized double tap can produce two touch releases without any compatibility clicks.
+        if (event.nativeEvent.pointerType === "touch" && down.current?.touchId === event.nativeEvent.pointerId)
+          finishPick(event);
+      }}
+      onClick={(event) => {
+        if (down.current && down.current.touchId === undefined) finishPick(event);
       }}
     >
       {selected && (

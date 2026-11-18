@@ -5,6 +5,8 @@
  * turbocharger on a turbocharged engine. Colours follow the spec's instrument markings where it has them. Limit flags
  * beside it.
  */
+import { useId } from "react";
+import { useCollapsed } from "@/lib/panels";
 import { egtOffset } from "@/engines/model/mixture";
 import { limitFlags, markingBand, type LimitFlag } from "@/engines/model/alerts";
 import { titFromPeak } from "@/engines/model/tit";
@@ -67,6 +69,21 @@ function TitBars({ sim, tit, scale }: { sim: EngineSim; tit: readonly number[] |
       </div>
     );
   });
+}
+
+export function EngineMonitorPanel({ sim }: { sim: EngineSim }) {
+  const [folded, toggle] = useCollapsed("engine-monitor");
+  const id = useId();
+  return (
+    <section className="eng-monitor-panel">
+      <button type="button" className="eng-monitor-toggle" aria-controls={id} aria-expanded={!folded} onClick={toggle}>
+        Engine monitor <span aria-hidden="true" className="eng-monitor-chevron" />
+      </button>
+      <div id={id} hidden={folded}>
+        {!folded && <Monitor sim={sim} />}
+      </div>
+    </section>
+  );
 }
 
 export function Monitor({ sim, className = "" }: { sim: EngineSim; className?: string }) {

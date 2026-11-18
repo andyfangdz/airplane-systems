@@ -672,6 +672,18 @@ export function portHardware(d: Dims) {
   });
 }
 
+export function idlerShaft(side: "L" | "R", d: Dims, axis: { y: number; z: number }) {
+  return item(
+    side + " idler gear shaft",
+    "LW-13796",
+    "8–6",
+    "steel",
+    rod(0.009, 0.034).translate(d.caseRear - 0.009, axis.y, axis.z),
+    "A fixed shaft supports the idler.",
+    [-0.09, 0.09, 0],
+  );
+}
+
 export function ignitionHardware(spec: EngineSpec, d: Dims) {
   return (["L", "R"] as const).flatMap((side) => {
     const m = magDrive(spec, d, undefined, side);
@@ -732,15 +744,6 @@ export function ignitionHardware(spec: EngineSpec, d: Dims) {
         ).map(at),
         "Each magneto clamp is secured with a lock washer and nut.",
         [-0.485, 0.1, 0],
-      ),
-      item(
-        side + " idler gear shaft",
-        "LW-13796",
-        "8–6",
-        "steel",
-        rod(0.009, 0.034).translate(d.caseRear - 0.009, m.idler!.y, m.idler!.z),
-        "A fixed shaft supports the idler.",
-        [-0.09, 0.09, 0],
       ),
     ];
   });

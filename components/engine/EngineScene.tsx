@@ -7,6 +7,8 @@
  * `useFrame`. Published dimensions set the scale; placement, labels and the camera come from the engine's scene layout
  * (scene/layout.ts), and the shapes are schematic.
  */
+import { rodEnds } from "@/engines/model/cycle";
+import type { CylinderDef } from "@/engines/types";
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
@@ -18,14 +20,21 @@ import { makeSolidFinishes } from "./scene/io390/finishes";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { IO360Airframe } from "./scene/io360/Airframe";
 import { Cylinders } from "./scene/Cylinders";
-import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
+import { dims, disposeMats, labelOccluder, magDrive, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
 import { layoutFor, type V3 } from "./scene/layout";
 import { Assembly, AssemblyStudy, accessorySpread, Spread, cylinderSpread } from "./scene/Separation";
 import { Group, PartNotesProvider } from "./scene/parts";
-import { assemblyAvailable, assemblyStations, type AssemblyId } from "./assembly-study";
+import {
+  assemblyAvailable,
+  assemblyStations,
+  inCrankLinkage,
+  studyCrank,
+  studyXray,
+  type AssemblyId,
+} from "./assembly-study";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
-import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
+import { CrankshaftIdler, Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
 import { Exhaust } from "./scene/Exhaust";
 import { Turbo } from "./scene/Turbo";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
@@ -36,7 +45,8 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   const L = layoutFor(sim.spec);
   const study = useMemo(() => makeMats(L), [L]);
   const finishes = useMemo(() => (L.detailed ? makeSolidFinishes(L) : null), [L]);
-  const xray = sim.useUi((s) => s.view.xray);
+  const xray = sim.useUi((s) => studyXray(s.view));
+  const linkage = sim.useUi((s) => s.view.assembly?.detail?.kind === "linkage");
   const mats = !xray && finishes ? finishes.mats : study;
   const gl = useThree((s) => s.gl),
     scene = useThree((s) => s.scene);
@@ -61,10 +71,9 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   useEffect(() => () => finishes?.dispose(), [finishes]);
   const body = useRef<THREE.Group>(null);
   useFrame((state) => {
-    const s = sim.s,
-      xray = sim.useUi.getState().view.xray;
+    const s = sim.s;
     for (const k of XRAY_MATS) {
-      mats[k].opacity = xray ? (k === "barrel" || k === "head" ? 0.28 : 0.16) : 1;
+      mats[k].opacity = xray ? (linkage ? 0.065 : k === "barrel" || k === "head" ? 0.28 : 0.16) : 1;
       mats[k].depthWrite = !xray;
     }
     // a rough engine shakes on its mounts
@@ -125,6 +134,12 @@ export function EngineAssemblies({ children, ...p }: { sim: EngineSim; d: Dims; 
           <Ignition {...p} />
         </Assembly>
       </Group>
+      {L.detailed && (
+        <>
+          <CrankshaftIdler {...p} side="L" />
+          <CrankshaftIdler {...p} side="R" />
+        </>
+      )}
       <Group sim={sim} id="fuel">
         <Assembly id="fuel">
           <FuelSystem {...p} />
@@ -159,6 +174,31 @@ export function EngineAssemblies({ children, ...p }: { sim: EngineSim; d: Dims; 
   return L.detailed ? <AssemblyStudy sim={sim}>{model}</AssemblyStudy> : model;
 }
 
+/** Keep each label on its end of the linkage while the user turns the crank. */
+function LinkagePins({ sim, cylinder }: { sim: EngineSim; cylinder: CylinderDef }) {
+  const rod = useRef<THREE.Group>(null),
+    wrist = useRef<THREE.Group>(null);
+  useFrame(() => {
+    const { pin, piston } = rodEnds(sim.spec, cylinder, studyCrank(sim));
+    rod.current?.position.set(cylinder.x, (pin.y + piston.y) / 2, (pin.z + piston.z) / 2);
+    wrist.current?.position.set(cylinder.x, piston.y, piston.z);
+  });
+  return (
+    <>
+      <group ref={rod}>
+        <Html center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
+          <div className="eng-label eng-link-pin below">Connecting rod</div>
+        </Html>
+      </group>
+      <group ref={wrist}>
+        <Html center zIndexRange={[10, 0]} style={{ pointerEvents: "none" }}>
+          <div className="eng-label eng-link-pin">Piston</div>
+        </Html>
+      </group>
+    </>
+  );
+}
+
 /** The layout's labels left showing: a label tied to a part group hides while that group is hidden. */
 export const shownLabels = <T extends [string, unknown, { group?: string }?]>(items: T[], hidden: readonly string[]) =>
   items.filter(([, , o]) => !(o?.group && hidden.includes(o.group)));
@@ -166,6 +206,12 @@ export const shownLabels = <T extends [string, unknown, { group?: string }?]>(it
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
   const focus = sim.useUi((x) => x.view.assembly?.id);
+  const component = sim.useUi(({ view }) =>
+    view.assembly?.detail?.kind === "component" ? view.assembly.detail.id : undefined,
+  );
+  const paired = sim.useUi(({ view }) =>
+    view.assembly?.detail?.kind === "linkage" ? view.assembly.detail.cylinder : undefined,
+  );
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
   const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
@@ -174,11 +220,11 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const gl = useThree((s) => s.gl),
     scene = useThree((s) => s.scene);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
-  if (!show) return null;
+  if (!show || component) return null;
   const L = layoutFor(sim.spec);
   const stations = assemblyStations(sim.spec);
   const cylinders = sim.spec.geometry.cylinders;
-  type Pin = { name: string; at: V3; station?: AssemblyId; by?: V3; occlude?: boolean };
+  type Pin = { name: string; at: V3; station?: AssemblyId; by?: V3; occlude?: boolean; leader?: boolean };
   const items: Pin[] = [
     ...(hidden.includes("cylinders")
       ? []
@@ -199,8 +245,19 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       ([name, at]) => ({ name, at }),
     ),
   ];
+  if (paired !== undefined) items.push({ name: "Crankshaft", at: [d.rear + 0.12, 0, 0], station: "shafts" });
+  if (L.detailed && (focus === "shafts" || paired !== undefined) && !hidden.includes("rotating")) {
+    const idler = magDrive(sim.spec, d, L, "L").idler!;
+    items.push({
+      name: "Timing idler",
+      at: [idler.x, idler.y, idler.z],
+      station: "shafts",
+      by: accessorySpread["Timing idler"],
+      leader: true,
+    });
+  }
   if (propOn) items.push({ name: "Propeller", at: [d.flangeX + 0.1, 0.55, 0], station: "propeller", by: [0.23, 0, 0] });
-  const pin = ({ name, at, occlude }: Pin) => (
+  const pin = ({ name, at, occlude, leader }: Pin) => (
     <Html
       key={name}
       position={at}
@@ -212,7 +269,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       zIndexRange={[10, 0]}
       style={{ pointerEvents: "none" }}
     >
-      <div className="eng-label">{name}</div>
+      <div className={leader ? "eng-label eng-link-pin" : "eng-label"}>{name}</div>
     </Html>
   );
   if (!L.detailed) return items.map(pin);
@@ -224,6 +281,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       const at: V3 = cylinder ? [cylinder.x, 0.16, (cylinder.side === "R" ? 1 : -1) * d.halfWidth] : [0, d.caseTop, 0];
       return (
         <Assembly key={station.id} id={station.id}>
+          {paired !== undefined && cylinder?.n === paired && <LinkagePins sim={sim} cylinder={cylinder} />}
           {open && !focus ? (
             <Html position={at} portal={portal} center zIndexRange={[10, 0]}>
               <button
@@ -235,7 +293,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
               </button>
             </Html>
           ) : (
-            (!focus || focus === station.id) &&
+            (paired !== undefined ? inCrankLinkage(station.id, paired) : !focus || focus === station.id) &&
             items
               .filter((p) => p.station === station.id)
               .map((p) => (
@@ -251,17 +309,30 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
   const cam = layoutFor(sim.spec).camera;
-  const solid = sim.useUi((s) => !!layoutFor(sim.spec).detailed && !s.view.xray);
+  const solid = sim.useUi((s) => !!layoutFor(sim.spec).detailed && !studyXray(s.view));
   const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
   const assembly = sim.useUi((x) => x.view.assembly);
+  const detail = assembly?.detail;
+  const paired = detail?.kind === "linkage" ? detail.cylinder : undefined;
+  const cylinder = sim.spec.geometry.cylinders.find((c) => c.n === paired);
   const prop = sim.useUi((x) => x.view.prop),
     hidden = sim.useUi((x) => x.view.hidden);
   return (
     <ComponentStage
       focused={!!assembly}
-      // Look from the accessory side so the spark-plug leads run behind the magnetos.
-      fitDirection={assembly?.id === "ignition" ? [-1.2, 0.7, 1.45] : undefined}
-      motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}`}
+      // Look toward the timing gears at the rear. From below, the rods also clear the pushrods.
+      fitDirection={
+        paired === "all"
+          ? [-0.95, -1.6, -0.48]
+          : cylinder
+            ? [-0.85, -1.45, cylinder.side === "R" ? 0.23 : -0.23]
+            : assembly?.id === "shafts"
+              ? [-1.45, 0.65, -1.35]
+              : assembly?.id === "ignition"
+                ? [-1.2, 0.7, 1.45]
+                : undefined
+      }
+      motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}:${detail?.kind === "component" ? detail.id + detail.exploded : (paired ?? "")}`}
       frameKey={`${prop}:${hidden.join(",")}`}
       shadowExtent={solid ? (open ? 1.35 : prop ? 1.02 : 0.81) : undefined}
       ambient={solid ? 0.28 : undefined}
