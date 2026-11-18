@@ -6,7 +6,7 @@
 }
 .part-inspector summary {
   cursor: pointer;
-  min-height: var(--model-control-height);
+  min-height: var(--model-control-height, 44px);
   align-content: center;
   font-weight: 600;
 }
@@ -20,7 +20,7 @@
 }
 .part-inspector input {
   width: 100%;
-  min-height: var(--model-control-height);
+  min-height: var(--model-control-height, 44px);
   margin: 4px 0 8px;
   padding: 4px 10px;
   border: 1px solid var(--rule);
@@ -40,7 +40,7 @@
 }
 .part-index button {
   width: 100%;
-  min-height: var(--model-control-height);
+  min-height: var(--model-control-height, 44px);
   padding: 4px 8px;
   text-align: left;
   border: 0;
@@ -76,7 +76,7 @@
 }
 .part-explanation-head button {
   flex: none;
-  min-height: var(--model-control-height);
+  min-height: var(--model-control-height, 44px);
   padding: 6px 8px;
   border: 1px solid var(--rule);
   border-radius: 4px;
