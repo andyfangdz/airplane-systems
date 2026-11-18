@@ -14,6 +14,7 @@ export function Details({ parts, mats, suffix = "" }: { parts: Detail[]; mats: M
       key={p.name}
       name={p.name + suffix}
       spread={p.spread}
+      cameraSubject={p.cameraSubject}
       note={p.note}
       installationNote={p.role}
       material={mats[p.material]}

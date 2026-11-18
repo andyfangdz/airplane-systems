@@ -8,6 +8,7 @@ import { IO360_C172S } from "@/engines/io360-l2a/spec";
 import { IO360_DA40 } from "@/engines/io360-m1a/spec";
 import { firewallX } from "@/components/engine/scene/io360/installation";
 import { IO390 } from "@/engines/io390/spec";
+import { assemblyStations } from "@/components/engine/assembly-study";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
 import { dims, disposeMats, headPoints, magnetoPose, makeMats, toWorld } from "@/components/engine/scene/kit";
@@ -148,14 +149,22 @@ for (const spec of [IO390, IO360_C172S, IO360_DA40]) {
         const hover = useHover.getState().hover;
         if (hover) named.push({ name: hover.name, mesh: target });
       }
-      for (const blowUp of [false, true]) {
-        await act(async () => sim.useUi.getState().setView({ blowUp }));
-        mounted.frame();
-        const parts = named.map(({ name, mesh }) => surface(name, mesh));
+      const testedLines = new Set<string>();
+      for (const view of [undefined, "groups" as const, ...assemblyStations(spec).map((s) => s.id)]) {
+        const id = view !== "groups" ? view : undefined;
+        const exploded = !!id;
+        await act(async () =>
+          sim.useUi.getState().setView({ blowUp: !!view, assembly: id ? { id, exploded } : undefined }),
+        );
+        mounted.frame(1);
+        const visible = new Set<THREE.Object3D>();
+        mounted.scene.traverseVisible((obj) => visible.add(obj));
+        const parts = named.filter((p) => visible.has(p.mesh)).map(({ name, mesh }) => surface(name, mesh));
         try {
           const lines = parts.filter((p) => installedJoints.has(p.name));
-          expect(lines.map((p) => p.name).sort()).toEqual([...installedJoints.keys()].sort());
-          if (!blowUp) {
+          if (exploded) lines.forEach((p) => testedLines.add(p.name));
+          if (!exploded) {
+            expect(lines.map((p) => p.name).sort()).toEqual([...installedJoints.keys()].sort());
             // Rotation about x preserves the blades' aftmost station. Coarse pitch gives the
             // largest aft reach of the trailing edge throughout this propeller's pitch range.
             const bladePlane = Math.min(...parts.filter((p) => p.name === "Propeller blade").map((p) => p.box.min.x));
@@ -164,7 +173,7 @@ for (const spec of [IO390, IO360_C172S, IO360_DA40]) {
           }
           for (const line of lines) {
             // The aft ends of the exposed hoses stay forward of the mount's firewall attachments.
-            if (!blowUp)
+            if (!view)
               expect(line.box.min.x, line.name).toBeGreaterThan(
                 spec === IO390 ? d.accRear - 0.21 : firewallX(d, spec === IO360_C172S),
               );
@@ -177,10 +186,10 @@ for (const spec of [IO390, IO360_C172S, IO360_DA40]) {
               .map((p) => p.name);
             const joints = installedJoints.get(line.name)!;
             expect(
-              hits.filter((name) => blowUp || !joints.includes(name)),
+              hits.filter((name) => exploded || !joints.includes(name)),
               line.name,
             ).toEqual([]);
-            if (!blowUp) {
+            if (!view) {
               // A small clearance is allowed inside the nozzle tubes' cushioned clamps.
               for (const end of joints.filter((n) => !n.startsWith("Nozzle line clamp")))
                 expect(hits, line.name).toContain(end);
@@ -190,6 +199,7 @@ for (const spec of [IO390, IO360_C172S, IO360_DA40]) {
           parts.forEach((p) => p.g.dispose());
         }
       }
+      expect([...testedLines].sort()).toEqual([...installedJoints.keys()].sort());
     } finally {
       await mounted.unmount();
       disposeMats(mats);

@@ -4,6 +4,7 @@
  * them); the engine itself is a mutable `EngineState` per engine, advanced every animation frame by `useEngineLoop`
  * and read by the scene each frame and by panels through `useLiveSnapshot`.
  */
+import { assemblyAvailable, assemblyStations, type AssemblyId } from "./assembly-study";
 import { useCallback } from "react";
 import { decodeCheckpoint, encodeCheckpoint } from "@/lib/checkpoint";
 import { assignLive } from "@/lib/simulation";
@@ -31,8 +32,9 @@ export interface EngineView {
   /** Draw the crank turning slowly enough to follow the cycle (the simulation itself runs at full speed). */
   slow: boolean;
   xray: boolean;
-  /** Catalog separation on the C3B6. Older checkpoints load assembled. */
+  /** The illustrated engine is separated into assemblies. Older checkpoints can omit this. */
   blowUp?: boolean;
+  assembly?: { id: AssemblyId; exploded: boolean };
   labels: boolean;
   prop: boolean;
   /** Cylinder index shown in the pressure chart. */
@@ -136,7 +138,16 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
       },
       setView: (p) => {
         if ("paused" in p) cancel();
-        set((x) => ({ view: { ...x.view, ...p } }));
+        set((x) => {
+          const view = { ...x.view, ...p };
+          if (
+            view.assembly &&
+            (!view.blowUp ||
+              !assemblyStations(spec).some((s) => s.id === view.assembly?.id && assemblyAvailable(s, view)))
+          )
+            delete view.assembly;
+          return { view };
+        });
       },
     };
   });

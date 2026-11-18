@@ -36,7 +36,7 @@ import {
 } from "./io390/rotating";
 import { sleeve } from "./io390/shapes";
 import { Details, useDetailDisposal } from "./io390/Details";
-import { cylinderSpread, Spread } from "./Separation";
+import { Assembly, cylinderSpread, Spread } from "./Separation";
 import { P } from "./parts";
 
 /** The crankshaft's geometries, in the crankshaft's frame (axis along x; a throw's parts before its turn). */
@@ -318,62 +318,64 @@ export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats
   return (
     <>
       {sim.spec.geometry.cylinders.map((c, i) => (
-        <Spread key={c.n} by={cylinderSpread(c, 0.1)}>
-          <group position={[c.x, 0, 0]} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
-            {L.detailed ? (
+        <Assembly key={c.n} id={`cylinder-${c.n}`}>
+          <Spread by={cylinderSpread(c, -0.1)}>
+            <group position={[c.x, 0, 0]} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
+              {L.detailed ? (
+                <group
+                  ref={(g) => {
+                    rods.current[i] = g;
+                  }}
+                >
+                  <Details parts={rodParts} mats={mats} suffix={`, cylinder ${c.n}`} />
+                </group>
+              ) : (
+                <P
+                  name={`Connecting rod, cylinder ${c.n}`}
+                  note="H-section steel rod: big end with a bolted cap on the crankpin, small end on the piston pin."
+                  geometry={rodGeo}
+                  material={mats.darkSteel}
+                  meshRef={(m) => {
+                    rods.current[i] = m;
+                  }}
+                />
+              )}
               <group
                 ref={(g) => {
-                  rods.current[i] = g;
+                  pistons.current[i] = g;
                 }}
               >
-                <Details parts={rodParts} mats={mats} suffix={`, cylinder ${c.n}`} />
+                {L.detailed ? (
+                  <Details parts={pistonParts} mats={mats} suffix={`, cylinder ${c.n}`} />
+                ) : (
+                  <>
+                    <P
+                      name={`Piston, cylinder ${c.n}`}
+                      note={
+                        L.notes.pistonOil ??
+                        "Four oil nozzles in the crankcase supply oil to cool the pistons from inside (IOM p. 2)."
+                      }
+                      geometry={pg.body}
+                      material={mats.piston}
+                    />
+                    <P
+                      name="Piston rings"
+                      note="Compression and oil-control rings seal the piston in the barrel."
+                      geometry={pg.grooves}
+                      material={mats.ring}
+                    />
+                    <P
+                      name="Piston pin"
+                      note="Floating pin joining the piston to the rod's small end."
+                      geometry={pg.wrist}
+                      material={mats.steel}
+                    />
+                  </>
+                )}
               </group>
-            ) : (
-              <P
-                name={`Connecting rod, cylinder ${c.n}`}
-                note="H-section steel rod: big end with a bolted cap on the crankpin, small end on the piston pin."
-                geometry={rodGeo}
-                material={mats.darkSteel}
-                meshRef={(m) => {
-                  rods.current[i] = m;
-                }}
-              />
-            )}
-            <group
-              ref={(g) => {
-                pistons.current[i] = g;
-              }}
-            >
-              {L.detailed ? (
-                <Details parts={pistonParts} mats={mats} suffix={`, cylinder ${c.n}`} />
-              ) : (
-                <>
-                  <P
-                    name={`Piston, cylinder ${c.n}`}
-                    note={
-                      L.notes.pistonOil ??
-                      "Four oil nozzles in the crankcase supply oil to cool the pistons from inside (IOM p. 2)."
-                    }
-                    geometry={pg.body}
-                    material={mats.piston}
-                  />
-                  <P
-                    name="Piston rings"
-                    note="Compression and oil-control rings seal the piston in the barrel."
-                    geometry={pg.grooves}
-                    material={mats.ring}
-                  />
-                  <P
-                    name="Piston pin"
-                    note="Floating pin joining the piston to the rod's small end."
-                    geometry={pg.wrist}
-                    material={mats.steel}
-                  />
-                </>
-              )}
             </group>
-          </group>
-        </Spread>
+          </Spread>
+        </Assembly>
       ))}
     </>
   );

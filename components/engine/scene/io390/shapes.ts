@@ -11,6 +11,7 @@ export type Detail = {
   geometry: THREE.BufferGeometry;
   material: keyof Mats;
   spread?: Point;
+  cameraSubject?: boolean;
 };
 
 export function section(points: XY[]) {

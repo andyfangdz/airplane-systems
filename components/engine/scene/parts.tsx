@@ -20,7 +20,7 @@ import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
 import { useView } from "@/lib/view";
 import { usePartInspection, usePartInspectionStore } from "../PartInspector";
-import { Spread } from "./Separation";
+import { AssemblyPick, Spread } from "./Separation";
 import type { V3 } from "./layout";
 import { layoutFor } from "./layout";
 
@@ -96,7 +96,7 @@ const canPick = (mesh: THREE.Mesh) => {
 const isVisible = (mesh: THREE.Mesh | null) => {
   if (!mesh) return false;
   for (let object: THREE.Object3D | null = mesh; object; object = object.parent) {
-    if (!object.visible) return false;
+    if (!object.visible || object.userData.cameraBounds === false) return false;
   }
   return true;
 };
@@ -118,6 +118,7 @@ export function P({
   rotation,
   scale,
   meshRef,
+  cameraSubject,
   spread,
   installationNote,
 }: {
@@ -129,10 +130,13 @@ export function P({
   rotation?: [number, number, number];
   scale?: [number, number, number];
   meshRef?: Ref<THREE.Mesh>;
+  /** Use this part to frame its focused assembly. */
+  cameraSubject?: boolean;
   spread?: V3;
   /** Functional description valid across the illustrated installations. */
   installationNote?: string;
 }) {
+  const assembly = useContext(AssemblyPick);
   const parts = useContext(PartNotes);
   const own = parts?.[given] ?? parts?.[given.replace(/\d+/g, "#")];
   const name = own?.name ? own.name.replace(/#/g, () => given.match(/\d+/)?.[0] ?? "#") : given,
@@ -152,6 +156,7 @@ export function P({
   const part = (
     <mesh
       ref={mesh}
+      userData={cameraSubject ? { cameraSubject } : undefined}
       castShadow={!!material.userData.castsEngineShadow}
       receiveShadow={!!material.userData.receivesEngineShadow}
       geometry={geometry}
@@ -159,14 +164,15 @@ export function P({
       position={position}
       rotation={rotation}
       scale={scale}
-      onPointerOver={over(name, note)}
+      onPointerOver={assembly?.hidden ? undefined : over(name, note)}
       onPointerDown={(event) => {
-        if (!canPick(event.object as THREE.Mesh)) return;
+        if (assembly?.hidden || !canPick(event.object as THREE.Mesh)) return;
         event.stopPropagation();
         down.current = { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY, moved: false };
       }}
       onPointerMove={(event) => {
         const start = down.current;
+        if (assembly?.hidden) return;
         if (start && Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4)
           start.moved = true;
         move(event);
@@ -175,9 +181,11 @@ export function P({
       onClick={(event) => {
         const start = down.current;
         down.current = null;
-        if (!start || start.moved || event.delta > 4 || !canPick(event.object as THREE.Mesh)) return;
+        if (assembly?.hidden || !start || start.moved || event.delta > 4 || !canPick(event.object as THREE.Mesh))
+          return;
         event.stopPropagation();
-        inspection.getState().select(name, true);
+        if (assembly?.focus) assembly.focus();
+        else inspection.getState().select(name, true);
         out();
       }}
     >

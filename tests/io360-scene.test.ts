@@ -2,6 +2,7 @@ import { act } from "@react-three/fiber";
 import { createElement } from "react";
 import * as THREE from "three";
 import { expect, test } from "vitest";
+import type { AssemblyId } from "@/components/engine/assembly-study";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
 import { dims, makeMats } from "@/components/engine/scene/kit";
@@ -109,7 +110,7 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
       const door = cessna ? "Automatic alternate air door" : "Rotary alternate air sleeve";
       const toggle = async (on: boolean) => {
         await act(async () => sim.useUi.getState().setView({ blowUp: on }));
-        mounted.frame();
+        mounted.frame(1);
       };
       await toggle(true);
       const travel = (name: string) => {
@@ -119,11 +120,19 @@ for (const spec of [IO360_C172S, IO360_DA40]) {
           .getWorldPosition(new THREE.Vector3())
           .sub(new THREE.Vector3().setFromMatrixPosition(assembled.get(part!)!));
       };
+      const focus = async (id: AssemblyId) => {
+        await act(async () => sim.useUi.getState().setView({ assembly: { id, exploded: true } }));
+        mounted.frame(1);
+      };
+      await focus("installation");
       expect(travel("Right cylinder bank baffle").z).toBeGreaterThan(0.2);
       expect(travel("Left cylinder bank baffle").z).toBeLessThan(-0.2);
       expect(travel("Engine mount weldment").x).toBeLessThan(-0.2);
+      await focus("induction");
       expect(travel(door).length()).toBeGreaterThan(0.2);
+      await focus("cylinder-1");
       expect(travel("Rocker cover screw (1), cylinder 1").z).toBeGreaterThan(travel("Cylinder 1 head").z);
+      await focus("cylinder-2");
       expect(travel("Rocker cover screw (1), cylinder 2").z).toBeLessThan(travel("Cylinder 2 head").z);
       await toggle(false);
       for (const [mesh, pose] of assembled) expect(mesh.matrixWorld.equals(pose)).toBe(true);

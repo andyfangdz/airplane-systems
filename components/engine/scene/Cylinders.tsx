@@ -16,7 +16,7 @@ import { coolingBaffles } from "./io390/accessories";
 import { cylinderBarrel, cylinderHardware, lycomingHead } from "./io390/cylinder";
 import { Details, useDetailDisposal } from "./io390/Details";
 import type { Detail } from "./io390/shapes";
-import { cylinderSpread, Spread } from "./Separation";
+import { Assembly, cylinderSpread, Spread } from "./Separation";
 import { Group, P } from "./parts";
 
 /** One cylinder's geometries, in its own frame (+z out along the axis). */
@@ -235,11 +235,15 @@ export function Cylinders({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
   return (
     <>
-      <Details parts={baffles} mats={mats} />
+      <Assembly id="installation">
+        <Details parts={baffles} mats={mats} />
+      </Assembly>
       {sim.spec.geometry.cylinders.map((c, i) => (
-        <Spread key={c.n} by={cylinderSpread(c, 0.29)}>
-          <Cylinder sim={sim} c={c} i={i} d={d} mats={mats} geo={geo} hardware={hardware} />
-        </Spread>
+        <Assembly key={c.n} id={`cylinder-${c.n}`}>
+          <Spread by={cylinderSpread(c, 0.29)}>
+            <Cylinder sim={sim} c={c} i={i} d={d} mats={mats} geo={geo} hardware={hardware} />
+          </Spread>
+        </Assembly>
       ))}
     </>
   );

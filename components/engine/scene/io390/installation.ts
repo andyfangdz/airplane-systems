@@ -286,7 +286,7 @@ export function remoteCooler(d: Dims): Detail[] {
   const parts = [
     part("Engine mount weldment", "darkSteel", merge(weldment), [0, 0, 0]),
     part("Oil cooler mounting bracket", "steel", local(coolerBracket(m)), [-0.07, -0.04, -0.2]),
-    part("Oil cooler", "shroud", local(coolerCore()), [-0.07, -0.04, -0.34]),
+    { ...part("Oil cooler", "shroud", local(coolerCore()), [-0.07, -0.04, -0.34]), cameraSubject: true },
     part("Oil cooler diffuser", "acc", local(coolerDiffuser()), [-0.16, -0.04, -0.34]),
   ];
   const bafflePort: Point = [d.caseRear + 0.011, 0.08, m.center[2]];
