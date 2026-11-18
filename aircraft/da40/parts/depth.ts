@@ -1,3 +1,4 @@
+import { brakeAmount } from "@/lib/anims";
 import type { InstanceKey } from "@/lib/catalogue";
 import { sided } from "@/lib/geometry";
 /** Component detail for the avgas XLS. AMM 6.02.01 Rev 7 applicable -00 chapters,
@@ -609,7 +610,7 @@ for (const s of [-1, 1]) {
     ),
     ext: true,
     pin: s < 0,
-    anim: glow("#6E7A84", "#FF9C44", () => sim().s.gear.park || Math.sign(sim().s.gear.diff) === s, ["gear"]),
+    anim: glow("#6E7A84", "#FF9C44", () => brakeAmount(sim().s.gear, s < 0 ? "L" : "R") > 0.05, ["gear"]),
   });
   part(() => cyl(0.006, 0.02, "y"), ["gear"], {
     instance: [s],

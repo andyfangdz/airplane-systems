@@ -116,7 +116,7 @@ const tipSt = [AIL.z1, 5.6, 5.67, 5.75, 5.83, 5.9, 5.95, WTIP];
         sided(
           [
             ...[0, 0.5, 1.0, HZ - 0.002].map((z) => stabSec(s * z, 0, EF(z))),
-            ...[HZ, 1.56, SSPAN].map((z) => stabSec(s * z, 0, HF)),
+            ...[HZ, 1.55, 1.59, 1.61, SSPAN].map((z) => stabSec(s * z, 0, HF)),
           ],
           s,
         ),

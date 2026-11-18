@@ -1,5 +1,5 @@
 /**
- * Live G1000 displays for the DA40: PFD, MFD with the DA40 EIS strip (CRG 190-00324-07 Fig. 3-1, markings from
+ * Live G1000 displays for the DA40: PFD, MFD with the DA40 EIS strip (CRG 190-00324-10 p. 6, markings from
  * AFMS 190-00492-10 §2.4–2.5) and the standby airspeed / attitude / altimeter. Drawing is the shared lib/avionics.
  */
 import { flightData, type FlightState } from "@/lib/avionics/flight";
@@ -23,7 +23,7 @@ import { FUEL_PRESSURE, fuelPressureState } from "./limits";
 export { drawOff };
 
 /**
- * G1000 airspeed tape (AFMS p. 17): low-speed awareness red 20–53 and yellow 53–58, white 58–91, green 58–129, yellow
+ * G1000 airspeed tape (AFMS p. 18): low-speed awareness red 20–53 and yellow 53–58, white 58–91, green 58–129, yellow
  * 129–178, red 178; cyan references Vr 59, Vy 67 (T/O flaps), best glide 76 KIAS at 1,200 kg (AFM 4A-2, 3-4).
  */
 export const SPEEDS: SpeedBands = {
@@ -41,7 +41,7 @@ export const STBY_SPEEDS: SpeedBands = { white: [49, 91], green: [52, 129], yell
 
 type Band = GaugeBand;
 
-/** EIS strip items, top to bottom (CRG Fig. 3-1). Values are null (red X) when the GEA 71 or both GIAs are lost. */
+/** EIS strip items, top to bottom (CRG p. 6). Values are null (red X) when the GEA 71 or both GIAs are lost. */
 export function eisGauges(s: Sim, E: Elec): Gauge[] {
   const ok = E.gea && (E.gia1 || E.gia2);
   const v = (x: number) => (ok ? x : null);
@@ -61,6 +61,7 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
     key,
     label,
     style,
+    compact: true,
     min,
     max,
     bands,
@@ -71,15 +72,14 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
   });
   const rpmV = v(rpm);
   const fuelBands: Band[] = [
-    [0, 0.6, "red"],
-    [0.6, 3, "yellow"],
+    [0, 0, "red"],
+    [0, 3, "yellow"],
     [3, 16, "green"],
     [19, 24, "green"],
   ];
   const qL = ok ? live.gaugeL : null,
     qR = ok ? live.gaugeR : null;
-  const qAlert =
-    qL == null || qR == null ? null : Math.min(qL, qR) < 0.6 ? "warning" : Math.min(qL, qR) < 3 ? "caution" : null;
+  const qAlert = qL == null || qR == null ? null : bandAlert(Math.min(qL, qR), fuelBands);
   return [
     g("map", "MAN IN", "dial", 10, 31, [[13, 30, "green"]], v(live.map), f1),
     // RPM legend only turns red/flashes above 2,780 (AFMS Note 3)
@@ -216,6 +216,8 @@ export function eisGauges(s: Sim, E: Elec): Gauge[] {
       value2: qR,
       fmt: f0,
       alert: qAlert,
+      pointerAlerts: [bandAlert(qL, fuelBands), bandAlert(qR, fuelBands)],
+      scaleStep: 5,
     },
   ];
 }

@@ -27,6 +27,7 @@ import {
 import { drawPFD, type PfdData } from "@/lib/avionics/g1000";
 import type { PartSpec } from "@/lib/catalogue";
 import type { Vec3 } from "@/lib/math";
+import { recorder } from "./canvas-recorder";
 import { patched, type Patch } from "./helpers";
 
 const named = (name: string): PartSpec[] => CAT.parts.filter((p) => p.name === name);
@@ -184,28 +185,6 @@ describe("SR22T single ADAHRS / magnetometer loss reverts, not a total loss (POH
   });
 });
 
-/** A canvas stand-in that records every filled rectangle and every text drawn, each with its fill colour. */
-const recorder = () => {
-  const texts: { s: string; x: number; y: number; fill: unknown }[] = [],
-    boxes: { x: number; y: number; w: number; h: number; fill: unknown }[] = [];
-  const st: Record<string | symbol, unknown> = {};
-  const ctx: CanvasRenderingContext2D = new Proxy(st, {
-    get(t, k) {
-      if (k === "fillText") return (s: string, x: number, y: number) => texts.push({ s, x, y, fill: t.fillStyle });
-      if (k === "fillRect")
-        return (x: number, y: number, w: number, h: number) => boxes.push({ x, y, w, h, fill: t.fillStyle });
-      if (k === "measureText") return (s: string) => ({ width: s.length * 6 });
-      if (k in t) return t[k];
-      // every other drawing call (paths, transforms, gradients) is a no-op that returns the stand-in
-      return () => ctx;
-    },
-    set(t, k, v) {
-      t[k] = v;
-      return true;
-    },
-  }) as unknown as CanvasRenderingContext2D;
-  return { ctx, texts, boxes };
-};
 /** The PFD drawn on a 640 × 480 recorder (one design unit per pixel). */
 const drawn = (d: PfdData) => {
   const r = recorder();

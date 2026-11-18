@@ -17,12 +17,14 @@ import type { ContinentalLine, ContinentalPerformance, EngineSpec, SeaLevelLine 
 import { atmosphere, cToF, HP_W, INHG_PA, sigmaStd } from "./atmosphere";
 import { mixturePower } from "./mixture";
 
+type ChartSpec = Pick<EngineSpec, "id" | "performance">;
+
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 const SIGMA_20K = sigmaStd(20000);
 const P0 = 29.92126;
 
 /** The chart's sea-level rpm lines in Lycoming's form; a Continental chart is read by `seaLevelHpContinental`. */
-export function seaLevelLines(spec: EngineSpec): SeaLevelLine[] {
+export function seaLevelLines(spec: ChartSpec): SeaLevelLine[] {
   const p = spec.performance;
   if (p.kind !== "lycoming")
     throw new Error(`${spec.id}: a ${p.kind} performance chart has no Lycoming sea-level lines`);
@@ -30,7 +32,7 @@ export function seaLevelLines(spec: EngineSpec): SeaLevelLine[] {
 }
 
 /** The spec's Continental chart, or undefined for a Lycoming chart. */
-export const continentalChart = (spec: EngineSpec): ContinentalPerformance | undefined =>
+export const continentalChart = (spec: ChartSpec): ContinentalPerformance | undefined =>
   spec.performance.kind === "continental" ? spec.performance : undefined;
 
 /** Brake hp on one Continental rpm line: straight between the digitized points, extended past the ends. */
@@ -43,7 +45,7 @@ function onCurve(l: ContinentalLine, map: number) {
 }
 
 /** Sea-level brake hp on the Continental chart (M-18 Figure 2-37): linear in rpm between lines, extrapolated. */
-export function seaLevelHpContinental(spec: EngineSpec, rpm: number, map: number) {
+export function seaLevelHpContinental(spec: ChartSpec, rpm: number, map: number) {
   const L = continentalChart(spec)!.lines;
   let i = 0;
   while (i < L.length - 2 && rpm > L[i + 1].rpm) i++;
@@ -57,7 +59,7 @@ export function seaLevelHpContinental(spec: EngineSpec, rpm: number, map: number
  * Weight of the full-rich basis at a manifold pressure: 0 at or below `fullRichAboveInHg − blendInHg` (best power),
  * 1 at or above `fullRichAboveInHg + blendInHg` (full rich), linear between so the gross power has no step.
  */
-export function fullRichWeight(spec: EngineSpec, map: number) {
+export function fullRichWeight(spec: ChartSpec, map: number) {
   const k = continentalChart(spec);
   if (!k) return 0;
   if (k.blendInHg <= 0) return map > k.fullRichAboveInHg ? 1 : 0;
@@ -68,7 +70,7 @@ export function fullRichWeight(spec: EngineSpec, map: number) {
 const onLine = (l: SeaLevelLine, map: number) => l.a[1] + ((l.b[1] - l.a[1]) * (map - l.a[0])) / (l.b[0] - l.a[0]);
 
 /** The two chart lines bracketing `rpm` and the fraction between them (extrapolates past the ends). */
-function bracket(spec: EngineSpec, rpm: number) {
+function bracket(spec: ChartSpec, rpm: number) {
   const L = seaLevelLines(spec);
   let i = 0;
   while (i < L.length - 2 && rpm > L[i + 1].rpm) i++;
@@ -78,19 +80,19 @@ function bracket(spec: EngineSpec, rpm: number) {
 }
 
 /** Full-throttle manifold pressure at sea level on each chart line (the chart's own full-throttle curve). */
-export function chartFullThrottleMap(spec: EngineSpec, rpm: number) {
+export function chartFullThrottleMap(spec: ChartSpec, rpm: number) {
   const { lo, hi, f } = bracket(spec, rpm);
   return lo.ftMap + (hi.ftMap - lo.ftMap) * f;
 }
 
 /** Sea-level brake hp at best-power mixture, standard temperature (Figure C-1, sea-level panel). */
-export function seaLevelHp(spec: EngineSpec, rpm: number, map: number) {
+export function seaLevelHp(spec: ChartSpec, rpm: number, map: number) {
   const { lo, hi, f } = bracket(spec, rpm);
   return onLine(lo, map) * (1 - f) + onLine(hi, map) * f;
 }
 
 /** Full-throttle brake hp at a pressure altitude, standard temperature (Figure C-1, altitude panel). */
-export function fullThrottleHp(spec: EngineSpec, rpm: number, altFt: number) {
+export function fullThrottleHp(spec: ChartSpec, rpm: number, altFt: number) {
   const { lo, hi, f } = bracket(spec, rpm);
   const at = (l: SeaLevelLine) => {
     const sl = onLine(l, l.ftMap);
@@ -103,13 +105,13 @@ export function fullThrottleHp(spec: EngineSpec, rpm: number, altFt: number) {
  * Full-throttle manifold pressure at an altitude: ambient less the induction loss, which scales with density
  * (mass flow ∝ ρ, loss ∝ ṁ²/ρ). Matches the chart at sea level by construction.
  */
-export function fullThrottleMap(spec: EngineSpec, rpm: number, altFt: number) {
+export function fullThrottleMap(spec: ChartSpec, rpm: number, altFt: number) {
   const a = atmosphere(altFt);
   return a.p - (P0 - chartFullThrottleMap(spec, rpm)) * a.sigma;
 }
 
 /** The pressure altitude at which full throttle gives `map` at this rpm (point A of the chart's method). */
-export function fullThrottleAltitude(spec: EngineSpec, rpm: number, map: number) {
+export function fullThrottleAltitude(spec: ChartSpec, rpm: number, map: number) {
   let lo = -5000,
     hi = 40000;
   for (let i = 0; i < 40; i++) {
@@ -128,7 +130,7 @@ export function fullThrottleAltitude(spec: EngineSpec, rpm: number, map: number)
  * compressor-inlet air (`inletC`) is above standard at the pressure altitude (59 °F at sea level, M-18 Table 2-2
  * note 1). Above `fullRichAboveInHg` this is full-rich power, at or below it best power.
  */
-export function chartHp(spec: EngineSpec, rpm: number, map: number, altFt: number, inletC: number) {
+export function chartHp(spec: ChartSpec, rpm: number, map: number, altFt: number, inletC: number) {
   const k = continentalChart(spec);
   if (k) {
     const dF = cToF(inletC) - cToF(atmosphere(altFt).ts);
@@ -233,6 +235,16 @@ export function chartFuelFlow(spec: EngineSpec, rpm: number, hp: number, mixture
     const cal = spec.calibration;
     return mixture === "bestPower" ? bp : (bp * cal.lambdaBestPower) / cal.peakEgtPower;
   }
+  return lycomingChartFlow(ff, rpm, hp, mixture);
+}
+
+/** Part-throttle fuel-flow curve at the selected mixture, in lb/h. */
+export function lycomingChartFlow(
+  ff: Extract<EngineSpec["fuelFlow"], { kind: "chart" }>,
+  rpm: number,
+  hp: number,
+  mixture: "bestPower" | "bestEconomy",
+) {
   const pts = ff[mixture];
   let i = 0;
   while (i < pts.length - 2 && rpm > pts[i + 1].rpm) i++;

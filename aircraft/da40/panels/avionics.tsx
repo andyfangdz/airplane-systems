@@ -32,11 +32,12 @@ export function Avionics() {
   return (
     <>
       <p className="lead">
-        Garmin G1000: a GDU 1040 PFD and a GDU 1042 MFD (10.4 in.; the GDU 1044 with the VNV key is optional and
-        N949KC&apos;s fit is unconfirmed) with the GMA 1347 audio panel between them, two GIA 63W integrated avionics
-        units and the GTX 33 transponder in a remote enclosure under the baggage floor, a GRS 77 AHRS with GMU 44
-        magnetometer, a GDC 74A air-data computer and a GEA 71 engine/airframe unit. The displays in the model are live:
-        they lose power with their buses and revert automatically.
+        This model uses G1000 software 0321.22, a GDU 1040 PFD and the optional GDU 1044 MFD with VNV. Garmin AFMS
+        190-00492-10 Rev. 7 defines its warnings and white fan advisories. N949KC&apos;s software and MFD fit are
+        unconfirmed. The installation includes a GMA 1347 audio panel between the displays, two GIA 63W integrated
+        avionics units and the GTX 33 transponder in a remote enclosure under the baggage floor, a GRS 77 AHRS with GMU
+        44 magnetometer, a GDC 74A air-data computer and a GEA 71 engine/airframe unit. The displays in the model are
+        live: they lose power with their buses and revert automatically.
       </p>
       <H3>Try it</H3>
       <Ctl>
@@ -149,7 +150,7 @@ export function Avionics() {
           ],
         ]}
       />
-      <H3>Failure effects on the autopilot (AFMS p. 10)</H3>
+      <H3>Failure effects on the autopilot (AFMS p. 59)</H3>
       <Facts
         rows={[
           ["AHRS lost", "AP disconnects, AP and FD inoperative; MET available"],
@@ -166,7 +167,7 @@ export function Avionics() {
         items={[
           "Data paths: AHRS and ADC → PFD directly (ARINC 429) with backups to the MFD and both GIAs; engine data GEA → GIA 1 → PFD → MFD, backup GEA → GIA 2 → MFD (SMM 2-23 … 2-25).",
           "AHRS aligns in about a minute; 'AHRS ALIGN: Keep Wings Level' — it also aligns while moving (CRG 12-6).",
-          "Minimum equipment for IFR: PFD, MFD, audio panel, ADC, AHRS, 2 GPS and all 7 static dischargers (AFMS p. 20).",
+          "Minimum equipment for IFR: PFD, MFD, audio panel, ADC, AHRS, 2 GPS and all 7 static dischargers (AFMS p. 21).",
           "N949KC is reported to have been upgraded to a GTX 345R transponder; the model keeps the original GTX 33 in the enclosure.",
         ]}
       />
@@ -241,7 +242,7 @@ export function Autopilot() {
   const onKey = (k: Gfc700Key) => {
     const E2 = useDA40.getState().E;
     if (BEZEL.includes(k) && !E2.mfd) return; // the AFCS keys are on the MFD bezel
-    if (!E2.pfd && !PFD_LOST_KEYS.includes(k)) return; // PFD lost: AP and FD inoperative, MET still works (AFMS p. 10)
+    if (!E2.pfd && !PFD_LOST_KEYS.includes(k)) return; // PFD lost: AP and FD inoperative, MET still works (AFMS p. 59)
     live.afcs = gfc700Key(live.afcs, k, live.fs, AFCS_CFG);
     refreshLiveSnapshot(live);
   };
@@ -366,12 +367,12 @@ export function Autopilot() {
           4,500 ft in the Overview to fly the autopilot.
         </Caution>
       )}
-      <H3>Modes (CRG 190-00324-07 §6)</H3>
+      <H3>Modes (CRG 190-00324-10 pp. 15–17)</H3>
       <Facts
         rows={[
           [
             "PIT (default)",
-            "Holds pitch; NOSE UP/DN 0.5° steps, +20° nose up / −15° nose down (CRG 6-2; Table 6-1 prints −20…+15) (ALTS armed)",
+            "Holds pitch; NOSE UP/DN 0.5° steps, +20° nose up / −15° nose down (earlier CRG 190-00324-07 p. 6-2; its Table 6-1 prints −20…+15) (ALTS armed)",
           ],
           ["ROL (default)", "< 6° bank → wings level; 6–22° held; > 22° limited to 22°"],
           ["HDG", "Turns to and holds the heading bug (HDG knob, push = sync)"],
@@ -384,7 +385,7 @@ export function Autopilot() {
           ["FLC", "Holds airspeed 70–165 KIAS; NOSE UP = slower; never away from the selected altitude"],
           [
             "NAV: GPS / VOR / LOC / BC",
-            "Captures with the CDI within one dot, otherwise arms (white). On a localizer LOC shows until the course is at least 105° from the heading, then BC (AFMS p. 51, CRG 6-19; the GFC 700 AFMS 190-00492-00 says 115°)",
+            "Captures with the CDI within one dot, otherwise arms (white). On a localizer LOC shows until the course is at least 105° from the heading, then BC (AFMS p. 52; the GFC 700 AFMS 190-00492-00 says 115°)",
           ],
           ["APR: GPS / VAPP / LOC + GS / GP", "Approach; GS only after LOC capture; GP needs WAAS (GIA 63W)"],
           ["VPTH", "VNAV path (VNV key — optional GDU 1044, N949KC fit unconfirmed); ALTV target capture"],
@@ -408,7 +409,7 @@ export function Autopilot() {
           ["MAXSPD (yellow)", "Overspeed protection pitching up to stay ≤ 165 KIAS (not in ALT or GS)"],
         ]}
       />
-      <H3>Limitations (AFMS p. 16–17)</H3>
+      <H3>Limitations (AFMS p. 16)</H3>
       <Notes
         items={[
           "Preflight test must pass before using the AP, FD or manual electric trim.",
@@ -418,7 +419,7 @@ export function Autopilot() {
           "Disengage below 200 ft AGL on approaches and 800 ft AGL otherwise; ILS coupled to Category I only.",
         ]}
       />
-      <H3>Malfunction (AFMS p. 24)</H3>
+      <H3>Malfunction (AFMS p. 25)</H3>
       <ol className="notes">
         {[
           "AP DISC — press and hold while gripping the stick firmly.",

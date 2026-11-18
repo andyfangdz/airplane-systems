@@ -120,7 +120,7 @@ SW(
   -0.34,
   -0.17,
   ["electrical", "avionics", "autopilot"],
-  "Closes the main (avionics) relay to power the MAIN AVIONICS bus: GIA 2, COM 2, GFC 700, GDL 69A. Also a way to disable the autopilot and electric trim (AFMS p. 10).",
+  "Closes the main (avionics) relay to power the MAIN AVIONICS bus: GIA 2, COM 2, GFC 700, GDL 69A. Also a way to disable the autopilot and electric trim (AFMS p. 59).",
   () => sim().s.elec.avMaster,
   undefined,
   true,
@@ -132,7 +132,7 @@ SW(
   -0.37,
   -0.17,
   ["electrical"],
-  "Placard: 'Ess. Bus NOT for normal operation. See AFM.' ON opens the tie relay so the battery feeds only the ESSENTIAL bus (alternator failure, smoke) (AFM 2-28; AFMS p. 29–32).",
+  "Placard: 'Ess. Bus NOT for normal operation. See AFM.' ON opens the tie relay so the battery feeds only the ESSENTIAL bus (alternator failure, smoke) (AFM 2-28; AFMS pp. 30–34).",
   () => sim().s.elec.essBus,
 );
 SW(

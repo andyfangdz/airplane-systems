@@ -7,7 +7,7 @@
  * field) comes from the previous solution, as the store passes it; `E()` solves after the initial state, alternator on line.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { annunciations, initialSim, live, solve, type Sim } from "@/aircraft/da40/model";
+import { BAT_AH, annunciations, initialSim, live, solve, type Sim } from "@/aircraft/da40/model";
 import { patched, type Patch } from "./helpers";
 
 const sim = (p: Patch<Sim> = {}) => patched(initialSim, p);
@@ -41,14 +41,14 @@ describe("DA40 electrical solve", () => {
   });
 
   it("resetting ALT after battery exhaustion cannot excite it from a dead MAIN bus (AMM-E Fig. 2-3)", () => {
-    const s = sim({ elec: { tBat: 120, fail: { alt: true } } });
+    const s = sim({ elec: { usedAh: BAT_AH, fail: { alt: true } } });
     const exhausted = solve(s, E0);
     expect(exhausted).toMatchObject({ batDead: true, main: 0, altOn: false });
     s.elec.fail.alt = false;
     const reset = solve(s, exhausted);
     expect(reset).toMatchObject({ batDead: true, main: 0, altOn: false });
-    // External power can supply the field; resetting the time slider also restores a charged-battery scenario.
-    expect(solve(sim({ elec: { tBat: 120, ext: true } }), reset).altOn).toBe(true);
+    // External power can supply the field; a freshly charged battery can also excite the field.
+    expect(solve(sim({ elec: { usedAh: BAT_AH, ext: true } }), reset).altOn).toBe(true);
     expect(solve(sim(), reset).altOn).toBe(true);
   });
 
@@ -70,11 +70,10 @@ describe("DA40 electrical solve", () => {
   });
 
   it("on battery the voltage falls with time: LOW VOLTS below 24 V, then the flat battery drops every bus", () => {
-    const at = (tBat: number) => ({ ...ALT_FAIL, elec: { ...ALT_FAIL.elec, tBat } });
-    const endurance = E(ALT_FAIL).endurance;
-    expect(E(at(endurance * 0.2)).volts).toBeGreaterThan(24);
-    expect(ann(at(endurance * 0.6))).toContain("LOW VOLTS");
-    const flat = E(at(endurance + 1));
+    const at = (usedAh: number) => ({ ...ALT_FAIL, elec: { ...ALT_FAIL.elec, usedAh } });
+    expect(E(at(BAT_AH * 0.2)).volts).toBeGreaterThan(24);
+    expect(ann(at(BAT_AH * 0.6))).toContain("LOW VOLTS");
+    const flat = E(at(BAT_AH));
     expect(flat.batDead).toBe(true);
     expect([flat.ess, flat.main, flat.av]).toEqual([0, 0, 0]);
   });
@@ -126,7 +125,7 @@ describe("DA40 electrical solve", () => {
       floodPwr: true,
       ess: 0,
     });
-    expect(E({ ...dark, elec: { ...dark.elec, emerg: true, tBat: 91 } }).stbyAtt).toBe(false);
+    expect(E({ ...dark, elec: { ...dark.elec, emerg: true, emergencyMinutes: 90 } }).stbyAtt).toBe(false);
   });
 
   it("external power feeds the relay-box bus bar: buses live with the BAT switch off and the engine stopped", () => {
@@ -154,8 +153,12 @@ describe("DA40 annunciations", () => {
     expect(annunciations(sim({ fuel: { qL: 2 } }), E())).toContainEqual(["c", "L FUEL LOW"]);
   });
 
-  it("fan advisories when the CDU FAN / AV FAN breakers are out", () => {
-    expect(ann({ cb: { "CDU FAN": true } })).toEqual(expect.arrayContaining(["PFD FAN FAIL", "MFD FAN FAIL"]));
-    expect(ann({ cb: { "AV FAN": true } })).toContain("GIA FAN FAIL");
+  it("white fan advisories with the CDU FAN / AV FAN breakers out (AFMS Rev. 7 p. 21)", () => {
+    const s = sim({ cb: { "CDU FAN": true, "AV FAN": true } });
+    expect(annunciations(s, solve(s))).toEqual([
+      ["a", "PFD FAN FAIL"],
+      ["a", "MFD FAN FAIL"],
+      ["a", "GIA FAN FAIL"],
+    ]);
   });
 });

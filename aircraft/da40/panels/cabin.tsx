@@ -83,7 +83,7 @@ export function Cabin() {
       <H3>Procedures</H3>
       <Notes
         items={[
-          "Before start: rear door closed and locked, door/canopy locks unblocked with keys removed, front canopy position 1 or 2 (cooling gap) (AFM 4A-11; AFMS p. 37). Before take-off: canopy closed and locked and no DOOR OPEN message (AFMS p. 46).",
+          "Before start: rear door closed and locked, door/canopy locks unblocked with keys removed, front canopy position 1 or 2 (cooling gap) (AFM 4A-11; AFMS p. 38). Before take-off: canopy closed and locked and no DOOR OPEN message (AFMS p. 46).",
           "Cooling gap: canopy handle position 2 latches the bolts with a small gap — ground use only (AFM 7-17).",
           "Unlocked canopy in flight: reduce airspeed, check visually, keep below 140 KIAS and land at the next suitable airfield (AFM 3-40).",
           "Rear door unlocked in flight: below 140 KIAS, land at the next suitable airfield; do not try to lock it — the door may separate, and without it the airplane can be safely flown to the next suitable airfield (AFM 3-40).",

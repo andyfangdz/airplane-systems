@@ -2,6 +2,10 @@
 
 Research inspected October 12, 2026. The modeled configuration is the **avgas DA40 XLS**, Lycoming **IO-360-M1A**, non-feathering three-blade **MTV-12-B/183-59b** propeller, Power Flow exhaust, long-range tanks, legacy **G1000 with WAAS and GFC 700**. The aircraft geometry remains the existing N949KC/XLS reference. This is not the diesel DA40 TDI/NG, the carbureted DA40F, LASAR ignition, G1000 NXi or KAP 140 installation.
 
+The avionics study configuration uses system software **0321.22**, a GDU 1040 PFD and the optional GDU 1044 MFD with VNV. Garmin AFMS 190-00492-10 Rev. 7 pp. 19–21, 50 and 60 define the engine indications, starter warning, white fan advisories and display options. Rev. 8 p. 2-9 classifies those fan messages as yellow cautions. N949KC’s installed software, MFD option and controlling supplement are unconfirmed. [Garmin Rev. 7 supplement](https://static.garmin.com/pumac/G1000%3ADiamondDA40_40FSysSWVersion0321.22_AFMS-G1000-GFC700.pdf)
+
+AFMS Rev. 7 p. 13 pairs software 0321.22 with cockpit reference guide 190-00324-10 Rev. A. Its DA40 engine display is on p. 6, flight director modes on pp. 15–17, reversionary mode on p. 57 and fan alerts on p. 61. Chapter-numbered CRG citations refer to the earlier 190-00324-07 used for additional AFCS and installation detail. [Garmin cockpit reference guide for 0321.22](https://static.garmincdn.com/pumac/G1000%3ADiamondDA40_40FSysSWVersion0321.22_CockpitReferenceGuide.pdf)
+
 The model is a schematic study aid. In X-ray the enclosing engine case/sump, cylinder barrels/heads/fins and rocker covers are ghosted as cutaways to expose internal hardware; solid mode preserves their normal enclosed appearance. Undimensioned part shapes, brackets, sensors, tube bores and installation bends are approximate; the sources establish component roles and system topology, not surveyed installation coordinates. Animated pressure and sensor particles illustrate connections, not continuous pneumatic airflow or measured data throughput.
 
 ## Documents actually downloaded and read
@@ -40,6 +44,8 @@ Source PDFs are linked, not redistributed. Public mirrors were checked by the do
 5. The base AFM and generic AMM 61 drawing describe older MTV-12-B/180-17 variants. The actually inspected approved STC SA06-52 extract establishes the selected 183-59b configuration and removes the older 2,400 RPM continuous limit. General non-feathering governor principles apply; no obsolete RPM restriction is copied.
 6. Power Flow 41301/41303 serial applicability is documented; N949KC’s exhaust serial is unconfirmed. The model explicitly uses a schematic later 41303 collector and excludes the optional early header preheat sleeve. Collector/shroud shape and hose dimensions remain approximate.
 7. Sensor component identities and signal destinations are supported by Garmin SMM; stations without surveyed drawings are approximate. A low indicated fuel pressure is not universally diagnosed as an actual pump failure. The simulation models actual pump failures; it does not invent a new approved troubleshooting procedure.
+
+The electrical model integrates the main battery’s 7.7 available Ah against the active load. The independent standby pack uses the AFMS Rev. 7 p. 34 endurance of 90 minutes with the floodlight on. Recharge current and voltage decay are illustrative. Electrical time buttons advance only those supplies. The aircraft and standalone engine share the M1A power and fuel-flow charts. Idle flow and mixture-lever interpolation are approximate. Diamond AFM pp. 5-5–6 provide independent ISA cruise-power checks.
 
 ## Type-club context
 

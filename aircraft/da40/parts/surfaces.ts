@@ -74,12 +74,17 @@ const hp = (s: number, z: number, xc: number) => {
   );
 });
 {
-  const ez = [-SSPAN, -1.56, -HZ - 0.002],
+  // A schematic 8 mm slot behind the fixed leading corner clears the horn through its full travel.
+  const ez = [-SSPAN, -1.61, -1.59, -1.55, -HZ - 0.002],
     eh = [-HZ, -1.0, -0.5, 0, 0.5, 1.0, HZ],
-    eo = [HZ + 0.002, 1.56, SSPAN];
+    eo = [HZ + 0.002, 1.55, 1.59, 1.61, SSPAN];
   surface(
     "elev",
-    () => [...ez.map((z) => stabSec(z, HF, 1)), ...TAB.notch(eh, EF), ...eo.map((z) => stabSec(z, HF, 1))],
+    () => [
+      ...ez.map((z) => stabSec(z, HF + 0.008 / sC(z), 1)),
+      ...TAB.notch(eh, EF),
+      ...eo.map((z) => stabSec(z, HF + 0.008 / sC(z), 1)),
+    ],
     V(ELEV_HINGE_X, SY, -SSPAN),
     V(ELEV_HINGE_X, SY, SSPAN),
     ["controls"],
@@ -100,7 +105,7 @@ surface(
 
 /* ---------- control-surface details ---------- */
 const wickNote =
-  "Static discharger: bleeds static charge off the trailing edge. Seven are installed and all seven are required for IFR (AFMS p. 20). Exact placement not in the documents.";
+  "Static discharger: bleeds static charge off the trailing edge. Seven are installed and all seven are required for IFR (AFMS p. 21). Exact placement not in the documents.";
 const WICK = "#2A2F33";
 [1, -1].forEach((s) => {
   const side = s > 0 ? "R" : "L";
@@ -217,7 +222,7 @@ onSurf("rudder", V(fLE(0.3) - fC(0.3) - 0.04, 0.3, 0), () => cyl(0.004, 0.11, "x
   ext: true,
 });
 [1, -1].forEach((s) =>
-  onSurf("elev", V(sLE(1.58) - 0.3 * sC(1.58), SY, s * 1.58), () => box(0.05, 0.03, 0.08), {
+  onSurf("elev", V(sLE(1.53) - 0.36 * sC(1.53), SY, s * 1.53), () => box(0.05, 0.02, 0.06), {
     instance: [s],
     id: "parts.surfaces.elevator-horn-balance.010",
     color: "#6E7A84",

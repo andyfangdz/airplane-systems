@@ -70,7 +70,7 @@ export function Overview() {
           ["Flaps", "Electric: UP 0° · T/O 20° · LDG 42°"],
           [
             "Avionics",
-            "Garmin G1000 (GDU 1040 PFD, GDU 1042 MFD — GDU 1044 with VNV optional, N949KC fit unconfirmed — GIA 63W ×2)",
+            "Garmin G1000 (GDU 1040 PFD, optional GDU 1044 MFD with VNV shown, N949KC fit unconfirmed — GIA 63W ×2)",
           ],
           ["Autopilot", "Garmin GFC 700, two-axis with pitch trim"],
           ["Dimensions", "Span 11.94 m · length 8.01 m · height 1.97 m"],
@@ -97,12 +97,13 @@ export function Overview() {
       <p className="disc">
         Unofficial study aid. Built from the Diamond DA 40 Airplane Flight Manual Doc. No. 6.01.01-E Rev. 8 (Section 7,
         with Sections 2–6 where needed; the available copy is for s/n 40.698), the Garmin AFM Supplements 190-00492-10
-        Rev 2 (G1000 with GFC 700, DA 40) and 190-00303-02 Rev 9 (G1000), the GFC 700 AFMS 190-00492-00 Rev 2, the G1000
-        Cockpit Reference Guide for the DA40 190-00324-07 Rev A, the G1000/DA40 System Maintenance Manuals 190-00303-03
-        Rev 6 and 190-00545-01 Rev E, the Garmin GFC 700 electrical load analysis, the EASA TCDS for control-surface and
-        flap angles, and AOPA&apos;s 2008 XLS review for the XLS package. Where the AFM is silent (control routing,
-        servo and antenna locations, cabin-heat ducting) the model says so and is approximate. Geometry is approximate.
-        Always use the AFM, supplements and equipment list carried in N949KC.
+        Rev 7 (G1000 system software 0321.22 with GFC 700, DA 40) and 190-00303-02 Rev 9 (G1000), the GFC 700 AFMS
+        190-00492-00 Rev 2, the matching DA40 Cockpit Reference Guide 190-00324-10 Rev A (earlier guide 190-00324-07
+        supplies supplemental AFCS detail), the G1000/DA40 System Maintenance Manuals 190-00303-03 Rev 6 and
+        190-00545-01 Rev E, the Garmin GFC 700 electrical load analysis, the EASA TCDS for control-surface and flap
+        angles, and AOPA&apos;s 2008 XLS review for the XLS package. Where the AFM is silent (control routing, servo and
+        antenna locations, cabin-heat ducting) the model says so and is approximate. Geometry is approximate. Always use
+        the AFM, supplements and equipment list carried in N949KC.
       </p>
     </>
   );
@@ -140,7 +141,7 @@ export function Airframe() {
       <Notes
         items={[
           "Both wings and the horizontal stabilizer can be removed for road transport (AFM 8-8).",
-          "Seven static dischargers are fitted and all seven are required for IFR (AFMS p. 20).",
+          "Seven static dischargers are fitted and all seven are required for IFR (AFMS p. 21).",
           "Jack points are on the lower fuselage at the left and right root ribs and at the tail fin (AFM 8-7).",
           "Pushing the tail down at the fuselage/fin junction lifts the nose wheel to turn the airplane on its main gear (AFM 8-3, 8-7).",
           "The model's dimensions and stations follow AFM §1.7 and the G1000 SMM station marks (FS 1775 panel, FS 2410 jack point, FS 3832 avionics enclosure); shapes are traced from the three-view and photos.",
@@ -248,7 +249,7 @@ export function Lighting() {
       <Notes
         items={[
           "Strobes off when taxiing close to other aircraft or at night in cloud, fog or haze; position lights always on at night (AFMS p. 45).",
-          "With the alternator failed and ESS BUS ON, only the landing light and flood light remain (AFMS p. 30).",
+          "With the alternator failed and ESS BUS ON, only the landing light and flood light remain (AFMS p. 31).",
           "With HORIZON EMERGENCY ON the emergency battery runs the standby attitude indicator and the flood light for 1 h 30 min (AFM 7-42).",
           "A separate white tail light is not listed in the documents; the aft-facing white light is assumed to be in the wing-tip units. Strobe flash rate is not given — the model shows a double flash.",
         ]}

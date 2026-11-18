@@ -18,7 +18,7 @@ import {
   Small,
 } from "@/components/ui/controls";
 import { gfc700Engaged } from "@/lib/avionics/gfc700";
-import { TO_TRIM, live, type FlapSel } from "../model";
+import { TO_TRIM, live, setBrakePedals, setBrakeValve, type FlapSel } from "../model";
 import { CAT } from "../parts";
 import { deflections } from "../rig";
 import { useDA40 } from "../store";
@@ -250,7 +250,7 @@ export function Controls() {
           "Seats are removable so the control runs underneath can be inspected (AFM 7-15).",
           "Rod-end nuts carry locking varnish — a cracked varnish shows the adjustment was disturbed (AFM 7-4).",
           "The optional gust lock wraps around the stick and bears on the pedals (pedals fully aft). It must be removed before flight (AFM 8-5).",
-          "A trim-wheel movement you didn't command is a cue for an autopilot or trim malfunction: AP DISC — hold, fly, retrim with the wheel, pull the AFCS breaker (AFMS p. 24).",
+          "A trim-wheel movement you didn't command is a cue for an autopilot or trim malfunction: AP DISC — hold, fly, retrim with the wheel, pull the AFCS breaker (AFMS p. 25).",
         ]}
       />
     </>
@@ -376,7 +376,7 @@ export function Gear() {
           value={s.gear.diff}
           onChange={(v) =>
             up((d) => {
-              d.gear.diff = v;
+              setBrakePedals(d.gear, v);
             })
           }
           fmt={(v) => dir(v, "Right brake", "Left brake", "Released", 0.05)}
@@ -387,7 +387,7 @@ export function Gear() {
           checked={s.gear.park}
           onChange={(v) =>
             up((d) => {
-              d.gear.park = v;
+              setBrakeValve(d.gear, v);
             })
           }
         />
@@ -395,7 +395,8 @@ export function Gear() {
           items={[
             ["Nose wheel", "Free-castering"],
             ["Turning", dir(s.gear.diff, "Right", "Left", "Straight", 0.05)],
-            ["Parking brake", s.gear.park ? ["SET", "warnc"] : "Released"],
+            ["Parking valve", s.gear.park ? ["Closed", "warnc"] : "Open"],
+            ["Retained pressure (L / R)", `${Math.round(s.gear.held.L * 100)}% / ${Math.round(s.gear.held.R * 100)}%`],
           ]}
         />
       </Ctl>

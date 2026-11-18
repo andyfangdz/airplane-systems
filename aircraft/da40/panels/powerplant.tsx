@@ -297,7 +297,7 @@ export function Engine() {
           "Throttle 3 cm (1.2 in) forward of IDLE.",
           "Mixture RICH for 3–5 s (warm engine 1–3 s), then LEAN.",
           "Throttle 1 cm (0.4 in) forward of IDLE.",
-          "Ignition START (≤ 10 s; the G1000 shows STARTER ENGD while cranking).",
+          "Ignition START (≤ 10 s). Release the key when the engine fires.",
           "When the engine fires: mixture rapidly RICH. Oil pressure green within 15 s or shut down.",
           "Fuel pump OFF, ALT ON, check ammeter and fuel pressure, PFD annunciations.",
         ].map((t) => (
@@ -344,7 +344,10 @@ export function Engine() {
           ["OIL PRES LO (red)", "Oil pressure below 25 psi"],
           ["FUEL PRES LO (red)", "Fuel pressure below 14 psi"],
           ["FUEL PRES HI (red)", "Fuel pressure above 35 psi (no AFM/AFMS checklist; try the pump-regulation failure)"],
-          ["STARTER ENGD (red)", "Starter engaged — or not disengaged after start"],
+          [
+            "STARTER ENGD (red)",
+            "Starter operates with the key out of START, including failure to disengage after start",
+          ],
         ]}
       />
       {s.eng.fail.starterStuck && s.eng.running && (
@@ -577,13 +580,14 @@ export function Fuel() {
       </Ctl>
       <Small>
         Selecting OFF or an empty tank — or losing the engine-driven pump with the electric pump off — stops a running
-        engine after a few seconds. The gauge pointer shows 24 when full and parks at 16 while the 3 gal of ungauged
-        fuel (16–19) is used; it takes 30 s to migrate down.
+        engine after a few seconds. Priming and running draw fuel from the selected tank at the indicated flow. The
+        gauge pointer shows 24 when full and parks at 16 while the 3 gal of ungauged fuel (16–19) is used; it takes 30 s
+        to migrate down.
       </Small>
       {imb > 8 && (
         <Caution title="Fuel imbalance">
           Max difference between tanks is 8 US gal with long-range tanks — also with the autopilot engaged, where
-          imbalance shows up as a yellow ←AIL / AIL→ out-of-trim (AFM 2-23; AFMS p. 17, 27).
+          imbalance shows up as a yellow ←AIL / AIL→ out-of-trim (AFM 2-23; AFMS pp. 16, 28).
         </Caution>
       )}
       <H3>Fuel path (AFM 7.10 schematic)</H3>
@@ -629,7 +633,7 @@ export function Fuel() {
           "Before taxi, run the engine on each tank for at least 1 minute at 1,500 RPM (AFMS p. 45).",
           "Switch tanks with the electric fuel pump ON (AFM 4A-30).",
           "Engine fire: selector OFF — it is the only fuel shut-off (AFM 3-22, 3-26).",
-          "Electric pump is on the MAIN bus: after an alternator failure with ESS BUS ON it is gone (AFMS p. 30).",
+          "Electric pump is on the MAIN bus: after an alternator failure with ESS BUS ON it is gone (AFMS p. 31).",
           "High altitude with the pump OFF can give vapour bubbles: intermittent low fuel pressure, then high fuel-flow indications (AFM 4A-27).",
           "Each long-range tank has three aluminum chambers. Large flexible couplings carry fuel; smaller upper hoses connect vapor spaces. Independent capillary and check-valve vents balance pressure (AMM 28-10-00).",
           "Fuel pressure, measured quantity and flow-integrating totalizer are independent inputs. A pressure indication fault does not by itself establish an actual pump failure (Garmin SMM 5.5; SOURCES.md).",

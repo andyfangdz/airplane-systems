@@ -43,7 +43,9 @@ for (const { id, wingTip, tailTip } of cases) {
             }
             expect(xs.length).toBeGreaterThan(10);
             const actual = Math.max(...xs) - Math.min(...xs);
-            expect(Math.abs(actual - chord), `${id} ${component}: mesh ${actual}, drawing ${chord}`).toBeLessThan(0.15);
+            expect(Math.abs(actual - chord), `${id} ${component}: mesh ${actual}, drawing ${chord}`).toBeLessThan(
+              id === "da40" && component === "tail" ? 0.01 : 0.15,
+            );
           }
         } finally {
           geometry.forEach((g) => g.dispose());
@@ -68,6 +70,35 @@ it("DA40 horizontal tail retains the AFM §1.4 total area after clipping its lea
   let area = 0;
   for (let i = 0; i < n; i++) area += (da40.sC(i * dz) + da40.sC((i + 1) * dz)) * dz;
   expect(Math.abs(area - 2.34)).toBeLessThan(0.02);
+});
+
+it("DA40 elevator horns clear the fixed tip corners through 18° up and 16° down (TCDS)", () => {
+  const cat = FLEET.find((a) => a.id === "da40")!.labels!.cat;
+  const surface = cat.surfaces.find((s) => s.key === "elev")!;
+  const balances = cat.parts.filter((p) => p.name === "Elevator horn balance");
+  expect(balances).toHaveLength(2);
+  const meshes = [surface.geo(), ...balances.map((p) => p.geo().translate(...p.pos!))];
+  try {
+    let clearance = Infinity;
+    for (const geo of meshes) {
+      const p = geo.translate(...surface.pivot).getAttribute("position");
+      for (let i = 0; i < p.count; i++) {
+        const z = Math.abs(p.getZ(i));
+        if (z < da40.HZ + 0.001) continue;
+        const fixedEdge = da40.sLE(z) - da40.HF * da40.sC(z);
+        for (let deg = -18; deg <= 16; deg += 0.5) {
+          const a = (deg * Math.PI) / 180;
+          const x =
+            da40.ELEV_HINGE_X + Math.cos(a) * (p.getX(i) - da40.ELEV_HINGE_X) - Math.sin(a) * (p.getY(i) - da40.SY);
+          clearance = Math.min(clearance, fixedEdge - x);
+        }
+      }
+    }
+    expect(Number.isFinite(clearance)).toBe(true);
+    expect(clearance).toBeGreaterThan(0);
+  } finally {
+    meshes.forEach((g) => g.dispose());
+  }
 });
 
 it("C182 maintenance station drawing's dorsal fairing remains visible ahead of FS 185", () => {

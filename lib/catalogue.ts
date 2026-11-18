@@ -181,7 +181,7 @@ export interface LabelLists {
   priority?: Partial<Record<SysId, string[]>>;
   /** Pinned parts that stay in a view's "tap to locate" list but carry no label pin there. */
   quiet?: Partial<Record<SysId, string[]>>;
-  /** Phone layout (lib/view `narrowLayout`): the only parts labelled in a view; the list keeps them all. */
+  /** Phone layout: allow only the listed labels in configured views. Other views keep their normal policy. */
   narrow?: Partial<Record<SysId, string[]>>;
 }
 
@@ -379,7 +379,7 @@ export class Catalogue {
 
   /** Does this part carry the label pin in the given system view? (`pin`, `pinIn`, then the airplane's label lists.) */
   isPinned = (spec: PartSpec, sys: SysId, narrow = false) => {
-    const nar = !!this.labels.narrow && narrow,
+    const nar = narrow && this.labels.narrow?.[sys] !== undefined,
       key = nar ? sys + ":narrow" : sys;
     let s = this.pinIds.get(key);
     if (!s) {

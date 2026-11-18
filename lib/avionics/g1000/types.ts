@@ -172,6 +172,9 @@ export interface Gauge {
   fmt?: (v: number) => string;
   /** In a red range (flashing red readout) or yellow range (yellow readout). */
   alert?: "warning" | "caution" | null;
+  /** Independent pointer colors and labelled scale interval for a paired gauge. */
+  pointerAlerts?: [Gauge["alert"], Gauge["alert"]];
+  scaleStep?: number;
   /** Text-row content (overrides value/fmt), e.g. "1234.5". */
   text?: string;
   /** Shorter dial (60 px) or bar (30 px) so a long strip (e.g. two dials, MAN IN + RPM) fits the display. */
