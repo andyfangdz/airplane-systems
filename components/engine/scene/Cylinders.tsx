@@ -13,7 +13,7 @@ import type { EngineSim } from "../store";
 import { chtColor, drawnSparks, finned, headPoints, merge, slab, zrod, type Dims, type Mats } from "./kit";
 import { layoutFor, type EngineLayout } from "./layout";
 import { coolingBaffles } from "./io390/accessories";
-import { cylinderCastings, cylinderHardware } from "./io390/cylinder";
+import { cylinderBarrel, cylinderHardware, lycomingHead } from "./io390/cylinder";
 import { Details, useDetailDisposal } from "./io390/Details";
 import type { Detail } from "./io390/shapes";
 import { cylinderSpread, Spread } from "./Separation";
@@ -43,29 +43,25 @@ export function cylinderGeometry(d: Dims, L: EngineLayout) {
     ]);
   };
   const [y0, y1] = L.rockerBoxY;
-  // one cover across the head, or two side by side (fore and aft)
-  const halves: [number, number][] =
-    L.coversPerCylinder === 2
-      ? [
-          [-0.05, -0.002],
-          [0.002, 0.05],
-        ]
-      : [[-0.05, 0.05]];
-  const castings = L.detailed ? cylinderCastings(d, L.parallelValve) : undefined;
-  const covers = castings
-    ? [castings.cover]
-    : halves.map(([x0, x1]) => slab(x0, x1, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014));
+  const castings = L.detailed ? cylinderBarrel(d) : undefined;
+  const head =
+    L.coversPerCylinder === 1
+      ? lycomingHead(d, L)
+      : {
+          head: merge([
+            finned(R + 0.016, 0.1, d.headIn, d.zPivot + 0.02, 12, false),
+            zrod(R + 0.008, d.headIn - 0.004, d.deck + 0.004, 32),
+          ]),
+          rockerBox: slab(-0.048, 0.048, y0, y1, d.zPivot - 0.075, d.headOut - 0.012, 0.012),
+          cover: merge([
+            slab(-0.05, -0.002, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014),
+            slab(0.002, 0.05, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014),
+          ]),
+        };
   return {
     barrel: castings?.barrel ?? finned(R + 0.006, R + 0.028, d.caseHalf + 0.012, d.headIn, 11),
     flange: castings?.flange ?? merge([zrod(R + 0.03, d.caseHalf, d.caseHalf + 0.01, 32), ...nuts]),
-    head:
-      castings?.head ??
-      merge([
-        finned(R + 0.016, 0.1, d.headIn, d.zPivot + 0.02, 12, false),
-        zrod(R + 0.008, d.headIn - 0.004, d.deck + 0.004, 32), // the head's lower skirt over the barrel
-      ]),
-    rockerBox: castings?.rockerBox ?? slab(-0.048, 0.048, y0, y1, d.zPivot - 0.075, d.headOut - 0.012, 0.012),
-    cover: covers.length > 1 ? merge(covers) : covers[0],
+    ...head,
     plug,
     plugShield,
     spark: new THREE.SphereGeometry(0.024, 14, 10),
@@ -232,7 +228,7 @@ function Cylinder({
 export function Cylinders({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
   const geo = useMemo(() => cylinderGeometry(d, L), [d, L]);
-  const hardware = useMemo(() => (L.detailed ? cylinderHardware(d, L.parallelValve) : []), [L, d]);
+  const hardware = useMemo(() => cylinderHardware(d, L), [L, d]);
   useDetailDisposal(hardware);
   const baffles = useMemo(() => (L.detailed ? coolingBaffles(d, !L.parallelValve) : []), [L, d]);
   useDetailDisposal(baffles);
