@@ -7,7 +7,7 @@ import type { AssemblyId, StudyDetail } from "@/components/engine/assembly-study
 import { componentBounds, fitComponentCamera } from "@/lib/component-stage";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
-import { dims, makeMats } from "@/components/engine/scene/kit";
+import { D2R, dims, gearSpins, makeMats } from "@/components/engine/scene/kit";
 import { layoutFor } from "@/components/engine/scene/layout";
 import { useHover } from "@/components/engine/scene/parts";
 import { mountScene } from "./engine-mount";
@@ -240,8 +240,11 @@ test("an isolated accessory separates on its own and a paired cylinder follows t
   const seen = (name: string) => {
     const mesh = named.get(name);
     expect(mesh, name).toBeDefined();
-    for (let part: THREE.Object3D | null = mesh!; part; part = part.parent) if (!part.visible) return false;
-    return true;
+    for (let part: THREE.Object3D | null = mesh!; part; part = part.parent) {
+      if (!part.visible) return false;
+      if (part === mounted.scene) return true;
+    }
+    return false;
   };
   expect(seen("ALT 2")).toBe(true);
   expect(seen("ALT 1")).toBe(false);
@@ -262,19 +265,35 @@ test("an isolated accessory separates on its own and a paired cylinder follows t
   expect(seen("ALT 1")).toBe(true);
   expect(travel(field).distanceTo(travel("ALT 2"))).toBeGreaterThan(0.045);
   await focus("ignition");
+  const idler = "Left crankshaft idler gear";
+  const rightIdler = "Right crankshaft idler gear";
+  expect(seen(idler)).toBe(true);
+  expect(seen(rightIdler)).toBe(true);
   await detail({ kind: "component", id: "left-magneto", exploded: true });
   expect(seen("Ignition coil, left magneto")).toBe(true);
   expect(seen("Ignition coil, right magneto")).toBe(false);
   expect(seen("Ignition harness")).toBe(false);
+  expect(seen(idler)).toBe(false);
   // IOM Fig. 4: both banks share the installed crankshaft. At a hand-turned angle,
   // every visible part must match its pose in the complete engine at that angle.
-  await focus("shafts");
+  await focus("shafts", false);
+  // MM 72-20 Fig. 93: the left idler completes the timing train even with the magnetos hidden.
+  await act(async () => sim.useUi.getState().setView({ hidden: ["ignition"] }));
+  mounted.frame(1);
+  const timing = ["Crankshaft gear", idler, "Camshaft gear", "L idler gear shaft"];
+  for (const gear of timing) {
+    expect(seen(gear), gear).toBe(true);
+    expect(travel(gear).distanceTo(travel("Crankshaft"))).toBeLessThan(1e-9);
+  }
+  expect(seen(rightIdler)).toBe(false);
+  const spins = gearSpins(IO390, dims(IO390)).spins;
   for (const { n } of IO390.geometry.cylinders) {
     const parts = [
       "Crankshaft",
       `Piston, cylinder ${n}`,
       `Connecting rod, cylinder ${n}`,
       `Intake valve, cylinder ${n}`,
+      ...timing,
     ];
     await detail({ kind: "linkage", cylinder: n });
     expect(seen(`Piston, cylinder ${n === 1 ? 2 : 1}`)).toBe(false);
@@ -284,6 +303,7 @@ test("an isolated accessory separates on its own and a paired cylinder follows t
     }
     await detail({ kind: "linkage", cylinder: n, angle: 47 });
     expect(travel(parts[1]).length()).toBeGreaterThan(0.01);
+    expect(named.get(idler)!.rotation.x).toBeCloseTo(47 * spins.idler * D2R);
     const scrubbed = parts.map((name) => named.get(name)!.matrixWorld.clone());
     expect(sim.anim.crank).toBe(137);
     sim.anim.crank = 47;
@@ -294,6 +314,7 @@ test("an isolated accessory separates on its own and a paired cylinder follows t
   await detail({ kind: "linkage", cylinder: "all", angle: 268 });
   const parts = [
     "Crankshaft",
+    ...timing,
     ...IO390.geometry.cylinders.flatMap(({ n }) => [
       `Piston, cylinder ${n}`,
       `Connecting rod, cylinder ${n}`,
@@ -307,6 +328,7 @@ test("an isolated accessory separates on its own and a paired cylinder follows t
   expect(seen("Starter")).toBe(false);
   expect(sim.anim.crank).toBe(137);
   sim.anim.crank = 268;
+  await act(async () => sim.useUi.getState().setView({ hidden: [] }));
   await toggle(false);
   mounted.frame(1);
   parts.forEach((name, i) => expect(named.get(name)!.matrixWorld.equals(allPoses[i]), name).toBe(true));

@@ -233,12 +233,20 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
   await expect(inspector.getByRole("button", { name: "Rotor field winding, ALT 1", exact: true })).toHaveCount(0);
   await button("Accessory drives").click();
   await groups.selectOption("shafts");
+  const idlerPin = page.locator(".eng-label").filter({ hasText: /^Timing idler$/ });
+  const idler = inspector.getByRole("button", { name: "Left crankshaft idler gear", exact: true });
+  await inspector.getByRole("searchbox").fill("crankshaft idler");
+  await expect(idler).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Right crankshaft idler gear", exact: true })).toHaveCount(0);
   await button("Blow up group").click();
   await button("Show with cylinders").click();
   await expect(select("Study view")).toHaveValue("cycle");
   const pair = select("Power cycle focus");
   await expect(pair).toHaveValue("all");
+  await expect(idler).toBeVisible();
   await pair.selectOption("2");
+  await expect(idlerPin).toBeVisible();
+  await expect(idler).toBeVisible();
   const crank = page.getByRole("slider", { name: "Crankshaft angle" });
   await crank.fill("210");
   await expect(crank).toHaveAttribute("aria-valuetext", "210 degrees");
@@ -269,6 +277,7 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
   await pair.selectOption("4");
   await study.selectOption("fuel");
   await expect(study).toHaveValue("fuel");
+  await expect(idlerPin).toHaveCount(0);
   await expect(crank).toBeHidden();
   await expect(groups).toBeHidden();
   await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(0);

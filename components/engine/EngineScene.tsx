@@ -20,7 +20,7 @@ import { makeSolidFinishes } from "./scene/io390/finishes";
 import { Crankcase, Lubrication } from "./scene/Case";
 import { IO360Airframe } from "./scene/io360/Airframe";
 import { Cylinders } from "./scene/Cylinders";
-import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
+import { dims, disposeMats, labelOccluder, magDrive, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
 import { layoutFor, type V3 } from "./scene/layout";
 import { Assembly, AssemblyStudy, accessorySpread, Spread, cylinderSpread } from "./scene/Separation";
 import { Group, PartNotesProvider } from "./scene/parts";
@@ -34,7 +34,7 @@ import {
 } from "./assembly-study";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
-import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
+import { CrankshaftIdler, Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
 import { Exhaust } from "./scene/Exhaust";
 import { Turbo } from "./scene/Turbo";
 import { Camshaft, ValveTrain } from "./scene/Valvetrain";
@@ -134,6 +134,12 @@ export function EngineAssemblies({ children, ...p }: { sim: EngineSim; d: Dims; 
           <Ignition {...p} />
         </Assembly>
       </Group>
+      {L.detailed && (
+        <>
+          <CrankshaftIdler {...p} side="L" />
+          <CrankshaftIdler {...p} side="R" />
+        </>
+      )}
       <Group sim={sim} id="fuel">
         <Assembly id="fuel">
           <FuelSystem {...p} />
@@ -218,7 +224,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const L = layoutFor(sim.spec);
   const stations = assemblyStations(sim.spec);
   const cylinders = sim.spec.geometry.cylinders;
-  type Pin = { name: string; at: V3; station?: AssemblyId; by?: V3; occlude?: boolean };
+  type Pin = { name: string; at: V3; station?: AssemblyId; by?: V3; occlude?: boolean; leader?: boolean };
   const items: Pin[] = [
     ...(hidden.includes("cylinders")
       ? []
@@ -240,8 +246,18 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
     ),
   ];
   if (paired !== undefined) items.push({ name: "Crankshaft", at: [d.rear + 0.12, 0, 0], station: "shafts" });
+  if (L.detailed && (focus === "shafts" || paired !== undefined) && !hidden.includes("rotating")) {
+    const idler = magDrive(sim.spec, d, L, "L").idler!;
+    items.push({
+      name: "Timing idler",
+      at: [idler.x, idler.y, idler.z],
+      station: "shafts",
+      by: accessorySpread["Timing idler"],
+      leader: true,
+    });
+  }
   if (propOn) items.push({ name: "Propeller", at: [d.flangeX + 0.1, 0.55, 0], station: "propeller", by: [0.23, 0, 0] });
-  const pin = ({ name, at, occlude }: Pin) => (
+  const pin = ({ name, at, occlude, leader }: Pin) => (
     <Html
       key={name}
       position={at}
@@ -253,7 +269,7 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
       zIndexRange={[10, 0]}
       style={{ pointerEvents: "none" }}
     >
-      <div className="eng-label">{name}</div>
+      <div className={leader ? "eng-label eng-link-pin" : "eng-label"}>{name}</div>
     </Html>
   );
   if (!L.detailed) return items.map(pin);
@@ -304,15 +320,17 @@ export default function EngineScene({ sim }: { sim: EngineSim }) {
   return (
     <ComponentStage
       focused={!!assembly}
-      // From below, the rod and crankpin are clear of the pushrods. Ignition opens from the accessory side.
+      // Look toward the timing gears at the rear. From below, the rods also clear the pushrods.
       fitDirection={
         paired === "all"
-          ? [0.35, -1.6, 0.48]
+          ? [-0.95, -1.6, -0.48]
           : cylinder
-            ? [0.38, -1.45, cylinder.side === "R" ? 0.12 : -0.12]
-            : assembly?.id === "ignition"
-              ? [-1.2, 0.7, 1.45]
-              : undefined
+            ? [-0.85, -1.45, cylinder.side === "R" ? 0.23 : -0.23]
+            : assembly?.id === "shafts"
+              ? [-1.45, 0.65, -1.35]
+              : assembly?.id === "ignition"
+                ? [-1.2, 0.7, 1.45]
+                : undefined
       }
       motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}:${detail?.kind === "component" ? detail.id + detail.exploded : (paired ?? "")}`}
       frameKey={`${prop}:${hidden.join(",")}`}

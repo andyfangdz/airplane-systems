@@ -10,6 +10,7 @@ import { Fragment, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { CylinderDef, EngineSpec } from "@/engines/types";
 import type { XRotationEnvelope } from "@/lib/component-stage";
+import { studyCrank } from "../assembly-study";
 import type { EngineSim } from "../store";
 import {
   bank,
@@ -43,6 +44,7 @@ import {
   alternatorFan,
   driveHardware,
   ignitionHardware,
+  idlerShaft,
   portHardware,
   fuelHardware,
 } from "./io390/accessories";
@@ -60,11 +62,15 @@ import { IO360Inlet } from "./io360/Inlet";
 import { sleeve } from "./io390/shapes";
 import { nozzleLinePoints, plugLead, servoHoses } from "./io390/lines";
 import { AccessoryInternals } from "./io390/AccessoryInternals";
-import { AssemblyMember, accessorySpread, Spread, usePartsExploded } from "./Separation";
+import { Assembly, AssemblyMember, accessorySpread, Spread, usePartsExploded } from "./Separation";
 import { Details, useDetailDisposal } from "./io390/Details";
-import { P } from "./parts";
+import { Group, P } from "./parts";
 
 type V3 = [number, number, number];
+
+function idlerGear(axis: { x: number; r: number; teeth: number }) {
+  return gear(axis.r, axis.teeth, 0.012, 0.01).translate(axis.x, 0, 0);
+}
 
 /** The ignition's geometries: magneto bodies and drive gears in their magneto's frame, the harness in engine coordinates. */
 export function ignitionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = layoutFor(spec)) {
@@ -196,9 +202,50 @@ export function ignitionGeometry(spec: EngineSpec, d: Dims, L: EngineLayout = la
       rod(0.007, drive.x - d.accRear, 10).translate((drive.x + d.accRear) / 2, 0, 0),
     ]),
     leads: merge(leads),
-    idler: drive.idler ? gear(drive.idler.r, drive.idler.teeth, 0.012, 0.01).translate(drive.x, 0, 0) : null,
+    idler: !L.detailed && drive.idler ? idlerGear(drive.idler) : null,
     cover: null,
   };
+}
+
+/** The left idler drives both the cam and the left magneto (MM 72-20 Fig. 93).
+ * Keep one physical gear and its stationary shaft as focus moves between those assemblies. */
+export function CrankshaftIdler({ sim, d, mats, side }: { sim: EngineSim; d: Dims; mats: Mats; side: "L" | "R" }) {
+  const withShafts = sim.useUi(
+    ({ view }) => side === "L" && (view.assembly?.id === "shafts" || view.assembly?.detail?.kind === "linkage"),
+  );
+  const axis = useMemo(() => magDrive(sim.spec, d, undefined, side).idler!, [sim.spec, d, side]);
+  const wheel = useMemo(() => idlerGear(axis), [axis]);
+  const shaft = useMemo(() => [idlerShaft(side, d, axis)], [side, d, axis]);
+  useEffect(() => () => wheel.dispose(), [wheel]);
+  useDetailDisposal(shaft);
+  const mesh = useRef<THREE.Mesh>(null);
+  useFrame(() => {
+    if (mesh.current) mesh.current.rotation.x = ((studyCrank(sim) * (-GEAR_TEETH.crank / axis.teeth)) % 360) * D2R;
+  });
+  return (
+    <Group sim={sim} id={withShafts ? "rotating" : "ignition"}>
+      <Assembly id={withShafts ? "shafts" : "ignition"}>
+        <AssemblyMember>
+          <Details parts={shaft} mats={mats} />
+          <group position={[0, axis.y, axis.z]}>
+            <P
+              name={side === "L" ? "Left crankshaft idler gear" : "Right crankshaft idler gear"}
+              spread={accessorySpread["Timing idler"]}
+              note="Between the crankshaft and magneto. The left idler also times the camshaft (MM 72-20, Figs. 91–94)."
+              installationNote={
+                side === "L"
+                  ? "The crankshaft drives this idler, which turns the camshaft gear and the left magneto drive gear."
+                  : "The crankshaft drives the right magneto through this idler."
+              }
+              geometry={wheel}
+              material={mats.gear}
+              meshRef={mesh}
+            />
+          </group>
+        </AssemblyMember>
+      </Assembly>
+    </Group>
+  );
 }
 
 /**
@@ -222,7 +269,8 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
     [geo],
   );
   const gears = useRef<(THREE.Mesh | null)[]>([]);
-  const idlers = useRef<(THREE.Mesh | null)[]>([]);
+  const idler = useRef<THREE.Mesh>(null);
+  const idlerAxis = magDrive(spec, d, L).idler;
   const { spins } = useMemo(() => gearSpins(spec, d, L), [spec, d, L]);
   useFrame(() => {
     // geared to the camshaft gear (−crank/2) or the idler, so with the crankshaft at the magneto drive ratio
@@ -232,7 +280,7 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
       g.rotation.x = a + Math.PI / magDrive(spec, d, L).teeth;
     });
     // the idler turns against the crankshaft gear, slower by their tooth ratio
-    for (const idler of idlers.current) if (idler) idler.rotation.x = ((sim.anim.crank * spins.idler) % 360) * D2R;
+    if (idler.current) idler.current.rotation.x = ((sim.anim.crank * spins.idler) % 360) * D2R;
   });
   const mags = spec.accessories.magnetos;
   // a retard-breaker magneto fires alone at START; with START firing both, neither is one
@@ -304,28 +352,18 @@ export function Ignition({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         );
       })}
       <AssemblyMember>
-        {(L.detailed ? (["L", "R"] as const) : (["R"] as const)).map((side, i) => {
-          const axis = magDrive(spec, d, L, side).idler;
-          if (!geo.idler || !axis) return null;
-          return (
-            <group key={side} position={[0, axis.y, axis.z]}>
-              <P
-                name={L.detailed ? (side === "L" ? "Left" : "Right") + " crankshaft idler gear" : "Idler gear"}
-                spread={[-0.14, 0.09, 0]}
-                note={
-                  L.detailed
-                    ? "Between the crankshaft and magneto. The left idler also times the camshaft (MM 72-20, Figs. 91–94)."
-                    : L.notes.idler
-                }
-                geometry={geo.idler}
-                material={mats.gear}
-                meshRef={(m) => {
-                  idlers.current[i] = m;
-                }}
-              />
-            </group>
-          );
-        })}
+        {geo.idler && idlerAxis && (
+          <group position={[0, idlerAxis.y, idlerAxis.z]}>
+            <P
+              name="Idler gear"
+              spread={[-0.14, 0.09, 0]}
+              note={L.notes.idler}
+              geometry={geo.idler}
+              material={mats.gear}
+              meshRef={idler}
+            />
+          </group>
+        )}
         {geo.cover && (
           <P name="Magneto drive housing" note={L.notes.magDriveHousing} geometry={geo.cover} material={mats.acc} />
         )}

@@ -218,6 +218,7 @@ export function cylinderSpread(c: CylinderDef, distance: number): V3 {
 /** Shared between the installed accessory and its external label. */
 export const accessorySpread: Record<string, V3> = {
   Magnetos: [-0.42, 0.1, 0],
+  "Timing idler": [-0.14, 0.09, 0],
   "Oil filter": [-0.46, -0.04, 0],
   "Fuel injector": [0.18, -0.37, 0],
   "Fuel manifold": [0, 0.52, 0],
