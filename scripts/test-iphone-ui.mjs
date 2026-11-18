@@ -802,6 +802,16 @@ test("Duo engine study keeps the crank in one row and remembers the folded monit
   const study = page.getByRole("combobox", { name: "Study view" });
   const cycleFocus = page.getByRole("combobox", { name: "Power cycle focus" });
   await expect(options).toBeVisible();
+  const stage = page.locator(".eng-view canvas");
+  const normal = (await stage.boundingBox()).height;
+  await button("Hide side panel").tap();
+  await expect(page.locator("#model-details")).toBeHidden();
+  await expect.poll(async () => (await stage.boundingBox()).height).toBeGreaterThan(normal + 20);
+  await button("Explode engine").tap();
+  await expect(page.getByRole("combobox", { name: "Focus a part group" })).toBeVisible();
+  await button("Show side panel").tap();
+  await expect(page.locator("#model-details")).toBeVisible();
+  await button("Assemble engine").tap();
   await study.selectOption("cycle");
   await cycleFocus.selectOption("2");
   await button("Whole power cycle").tap();

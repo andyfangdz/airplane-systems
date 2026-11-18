@@ -9,8 +9,8 @@ const labelLayout = (page) =>
     const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     const overlays =
       getComputedStyle(document.querySelector(".eng-app")).display === "grid"
-        ? ".eng-app .toolbar, .eng-app .eng-foot, .inj-legend, .eng-app .model-size-toggle"
-        : ".eng-app .toolbar, .inj-legend, .eng-app .model-size-toggle";
+        ? ".eng-app .toolbar, .eng-app .eng-foot, .inj-legend, .eng-app .model-size-toggle, .eng-panel-toggle"
+        : ".eng-app .toolbar, .inj-legend, .eng-app .model-size-toggle, .eng-panel-toggle";
     const obstacles = [...document.querySelectorAll(overlays)].map((el) => el.getBoundingClientRect());
     const labels = [...document.querySelectorAll(".eng-label")]
       .filter((el) => getComputedStyle(el).visibility !== "hidden" && el.getBoundingClientRect().width)
@@ -25,6 +25,61 @@ const labelLayout = (page) =>
     });
     return { count: labels.length, problems };
   });
+
+test("the side panel gives its space to the model and remembers the choice across engines and parts", async ({
+  page,
+  context,
+}) => {
+  await observeStageCamera(context);
+  const button = (name) => page.getByRole("button", { name, exact: true });
+  const hide = button("Hide side panel"),
+    show = button("Show side panel");
+  const canvas = page.locator(".eng-view canvas");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/engines/io390");
+  await button("Explode engine").click();
+  await expect(page.getByRole("combobox", { name: "Study view" })).toHaveValue("assemblies");
+  const groups = page.getByRole("combobox", { name: "Focus a part group" });
+  await groups.selectOption("shafts");
+  await waitForStageCamera(page);
+  const before = await canvas.boundingBox(),
+    original = await canvas.elementHandle();
+  const x = before.x + before.width / 2,
+    y = before.y + before.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 120, y + 35, { steps: 8 });
+  await page.mouse.up();
+  await waitForStageCamera(page);
+  const orientation = () => page.evaluate(() => window.__stageCameraProbe.camera.quaternion.toArray());
+  const orbit = await orientation();
+  await hide.focus();
+  await page.keyboard.press("Enter");
+  await expect(show).toBeFocused();
+  await expect(page.locator("#model-details")).toBeHidden();
+  await expect(page.locator(".eng-brand")).toBeHidden();
+  await expect.poll(async () => (await canvas.boundingBox()).width).toBe(1440);
+  await waitForStageCamera(page);
+  (await orientation()).forEach((value, i) => expect(value).toBeCloseTo(orbit[i], 3));
+  await expect(groups).toHaveValue("shafts");
+  await show.click();
+  await expect.poll(async () => (await canvas.boundingBox()).width).toBe(before.width);
+  expect(await original.evaluate((node) => node === document.querySelector(".eng-view canvas"))).toBe(true);
+  await hide.click();
+
+  await page.setViewportSize({ width: 382, height: 580 });
+  await page.goto("/components/pitot-static");
+  await expect(show).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#model-details")).toBeHidden();
+  await expect(page.locator(".ps-mon")).toBeVisible();
+  const tall = (await page.locator(".eng-view").boundingBox()).height;
+  await expect.poll(async () => (await canvas.boundingBox()).height).toBeCloseTo(tall, 0);
+  await show.click();
+  await expect(page.locator("#model-details")).toBeVisible();
+  await expect.poll(async () => (await canvas.boundingBox()).height).toBeLessThan(tall);
+  await page.reload();
+  await expect(hide).toHaveAttribute("aria-expanded", "true");
+});
 
 for (const route of ["engines/tsio550k", "components/governor", "components/pitot-static"]) {
   test(`${route}: clear labels on desktop and phone after orbit and reset`, async ({ page, context, baseURL }) => {

@@ -31,6 +31,29 @@
   grid-row: 2;
   min-width: 0;
 }
+.eng-app[data-panel-collapsed] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.eng-app[data-panel-collapsed] > .eng-brand {
+  display: none;
+}
+.eng-panel-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 21;
+  transform: translateY(-50%);
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
 .eng-label {
   font: 600 11px/1.2 var(--f-body);
   color: var(--ink);
@@ -549,6 +572,19 @@
     flex-direction: column;
     height: auto;
   }
+  .eng-app[data-panel-collapsed] {
+    height: 100dvh;
+  }
+  .eng-app[data-panel-collapsed] > .eng-stage {
+    position: relative;
+    top: auto;
+    flex: 1 0 auto;
+  }
+  .eng-app[data-panel-collapsed] > .eng-foot {
+    position: relative;
+    top: auto;
+    flex: none;
+  }
   /* the 3D view stays at the top of the screen while the controls scroll under it, so the engine is in sight while
      you hold START or move a lever; the monitor goes under the view instead of over it */
   .eng-app .eng-stage {
@@ -780,6 +816,16 @@
 .eng-compact-toolbar > .eng-study select {
   min-width: 0;
   width: 100%;
+}
+@media (max-width: 389px) {
+  .eng-compact-toolbar > .eng-explode-engine .eng-explode-noun {
+    display: none;
+  }
+}
+@media (max-width: 359px) {
+  .eng-compact-toolbar > .eng-study:has(+ .eng-explode-engine) > span {
+    display: none;
+  }
 }
 .eng-options-sheet {
   position: fixed;

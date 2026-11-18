@@ -10,11 +10,12 @@ import { ENGINES } from "@/engines";
 import { COMPONENTS, componentById } from "@/engines/components";
 import { FDR_REPLAYS } from "@/fdr";
 import { useNarrowLayout } from "@/lib/view";
+import { useCollapsed } from "@/lib/panels";
 import { Picker, type PickerEntry } from "../Picker";
 import { airplaneLinks, componentEntries, engineEntries, replayEntries } from "../pickerEntries";
 import { ModelSizeToggle, ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
-import { StageResetButton, useTheme } from "./chrome";
+import { ModelPanelToggle, StageResetButton, useTheme } from "./chrome";
 import { PartInspectionProvider } from "./PartInspector";
 import "./engine.css";
 
@@ -53,11 +54,16 @@ export function SimulationShell({
 }) {
   const narrow = useNarrowLayout();
   const [reading, setReading] = useState(false);
+  const [panelPreference, togglePanel] = useCollapsed("model-details");
+  const collapsed = kind === "component" && panelPreference;
   useTheme();
   useScenarioMarks();
   return (
     <PartInspectionProvider key={id}>
-      <div className={`eng-app component-app${reading ? " reading-space" : ""}`}>
+      <div
+        className={`eng-app component-app${reading ? " reading-space" : ""}`}
+        data-panel-collapsed={collapsed || undefined}
+      >
         <title>{`${current.name} · Airplane Systems`}</title>
         <div className="brand eng-brand">
           <Picker current={{ name: current.name, sub: current.sub }} kind={kind} groups={groups} />
@@ -74,7 +80,8 @@ export function SimulationShell({
               )}
               <StageResetButton />
             </div>
-            {narrow && (
+            {kind === "component" && <ModelPanelToggle collapsed={collapsed} toggle={togglePanel} />}
+            {narrow && !collapsed && (
               <ModelSizeToggle
                 collapsed={reading}
                 controls="component-model-view"
@@ -84,7 +91,9 @@ export function SimulationShell({
           </div>
         </main>
         {foot && <div className="eng-foot">{foot}</div>}
-        <aside className="panel">{panel}</aside>
+        <aside id={kind === "component" ? "model-details" : undefined} className="panel" hidden={collapsed}>
+          {panel}
+        </aside>
       </div>
     </PartInspectionProvider>
   );

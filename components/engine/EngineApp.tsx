@@ -5,6 +5,7 @@
  * frames (store.ts); React reads it through low-rate snapshots.
  */
 import dynamic from "next/dynamic";
+import { useCollapsed } from "@/lib/panels";
 import { ENGINES, engineById } from "@/engines";
 import { COMPONENTS } from "@/engines/components";
 import { FDR_REPLAYS } from "@/fdr";
@@ -12,7 +13,7 @@ import { Picker } from "../Picker";
 import { airplaneLinks, componentEntries, engineEntries, engineSub, replayEntries } from "../pickerEntries";
 import { ThemeButton } from "../ui/chrome";
 import { useScenarioMarks } from "../ui/controls";
-import { useTheme } from "./chrome";
+import { ModelPanelToggle, useTheme } from "./chrome";
 import { simFor, useEngineLoop } from "./store";
 import { EngineToolbar } from "./EngineToolbar";
 import { EnginePanel } from "./EnginePanel";
@@ -26,12 +27,13 @@ const Scene = dynamic(() => import("./EngineScene"), { ssr: false, loading: () =
 export default function EngineApp({ id }: { id: string }) {
   const spec = engineById(id)!;
   const sim = simFor(spec);
+  const [collapsed, togglePanel] = useCollapsed("model-details");
   useEngineLoop(sim);
   useTheme();
   useScenarioMarks();
   return (
     <PartInspectionProvider key={id}>
-      <div className="eng-app">
+      <div className="eng-app" data-panel-collapsed={collapsed || undefined}>
         <title>{`${spec.name} engine · Airplane Systems`}</title>
         <div className="brand eng-brand">
           <Picker
@@ -50,6 +52,7 @@ export default function EngineApp({ id }: { id: string }) {
           <div className="eng-view">
             <Scene sim={sim} />
             <EngineToolbar sim={sim} />
+            <ModelPanelToggle collapsed={collapsed} toggle={togglePanel} />
           </div>
         </main>
         <div className="eng-foot">
@@ -57,7 +60,7 @@ export default function EngineApp({ id }: { id: string }) {
           <Flags sim={sim} />
           <MotionState sim={sim} />
         </div>
-        <aside className="panel">
+        <aside id="model-details" className="panel" hidden={collapsed}>
           <PartInspector />
           <EnginePanel sim={sim} />
         </aside>

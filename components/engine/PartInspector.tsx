@@ -40,7 +40,7 @@ export function PartInspector() {
     lastReveal.current = reveal;
     const target = explanation.current;
     const panel = target?.closest<HTMLElement>(".panel");
-    if (!target || !panel || !selected) return;
+    if (!target || !panel || panel.hidden || !selected) return;
     const targetRect = target.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
     if (getComputedStyle(panel).overflowY === "auto") {

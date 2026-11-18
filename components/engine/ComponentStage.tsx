@@ -73,7 +73,7 @@ function CameraRig({
     gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const flight = useRef<{ from: StageFit; to: StageFit; t0: number } | null>(null);
-  const previous = useRef({ request: "", overlays: "", motionKey });
+  const previous = useRef({ request: "", layout: "", motionKey });
   const exploring = useRef(false);
   const elapsed = useRef(1);
   const frames = useRef(0);
@@ -127,8 +127,8 @@ function CameraRig({
       if (!fit) return;
       previous.current = {
         motionKey,
-        request: [frameKey, focused, ...direction, view.width, view.height].join(","),
-        overlays: [safe.top, safe.bottom].join(","),
+        request: [frameKey, focused, ...direction, window.innerWidth, window.innerHeight].join(","),
+        layout: [view.width, view.height, safe.top, safe.bottom].join(","),
       };
       exploring.current = false;
       applyFit(fit, true);
@@ -150,10 +150,10 @@ function CameraRig({
       elapsed.current = 0;
       const view = gl.domElement.getBoundingClientRect();
       const safe = safeFrame(view, obstaclesFor(gl.domElement));
-      const request = [frameKey, focused, ...direction, view.width, view.height].join(",");
-      const overlays = [safe.top, safe.bottom].join(",");
+      const request = [frameKey, focused, ...direction, window.innerWidth, window.innerHeight].join(",");
+      const layout = [view.width, view.height, safe.top, safe.bottom].join(",");
       const explicit = request !== previous.current.request;
-      if (studyChanged || explicit || overlays !== previous.current.overlays) {
+      if (studyChanged || explicit || layout !== previous.current.layout) {
         const fit = fitComponentCamera(
           model.current,
           new THREE.Vector3(...direction),
@@ -163,10 +163,17 @@ function CameraRig({
           safe,
           focused,
         );
-        previous.current = { request, overlays, motionKey };
+        previous.current = { request, layout, motionKey };
         if (fit && (studyChanged || explicit || !exploring.current)) {
           exploring.current = false;
           applyFit(fit, studyChanged || !!flight.current);
+        } else if (
+          fit &&
+          camera.view?.enabled &&
+          (camera.view.fullWidth !== gl.domElement.clientWidth || camera.view.fullHeight !== gl.domElement.clientHeight)
+        ) {
+          // Folding a panel resizes the lens while keeping the user's orbit, pan and zoom.
+          setStageOffset(camera, gl.domElement, fit.viewOffset.x, fit.viewOffset.y);
         }
       }
     }
@@ -220,7 +227,7 @@ function LabelClear({ every = 0.2 }: { every?: number }) {
       [
         ...obstaclesFor(gl.domElement),
         // A corner control blocks labels, but does not need a full-width band reserved by the camera fit.
-        ...[...view.querySelectorAll<HTMLElement>(".model-size-toggle")].map((button) =>
+        ...[...view.querySelectorAll<HTMLElement>(".model-size-toggle, .eng-panel-toggle")].map((button) =>
           button.getBoundingClientRect(),
         ),
       ],

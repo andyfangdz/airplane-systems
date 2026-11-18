@@ -1,7 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 
-type PanelId = "systems" | "details" | "engine-monitor";
+type PanelId = "systems" | "details" | "engine-monitor" | "model-details";
 const COLLAPSED_KEY = "panelsCollapsed";
 const listeners = new Set<() => void>();
 // Memory keeps the controls usable when storage is blocked; storage only remembers the preference.
