@@ -14,7 +14,6 @@ import {
 // Discovery reads these files in another process; retain dependency tracking for test:changed.
 import.meta.glob(["../playwright.config.mjs", "../scripts/test-*-ui.mjs", "../scripts/ci-browser-durations.json"]);
 
-const browsers = { desktop: "chromium", phone: "webkit" };
 const report = (): DiscoveryReport => ({
   config: { rootDir: "/repo/scripts" },
   suites: [
@@ -36,17 +35,16 @@ const report = (): DiscoveryReport => ({
     },
   ],
 });
-const browserTest = (title: string, browser = "chromium"): BrowserTest => ({
+const browserTest = (title: string): BrowserTest => ({
   project: "desktop",
   file: "scripts/test-example-ui.mjs",
   titlePath: [title],
-  browser,
   selector: `[desktop] › test-example-ui.mjs › ${title}`,
 });
 
 describe("browser shard discovery and selection", () => {
   it("preserves project and nested describe identities without using source line numbers", () => {
-    const tests = discoverTests(report(), browsers, "/repo");
+    const tests = discoverTests(report(), "/repo");
     expect(tests.map((test) => test.selector)).toEqual([
       "[desktop] › test-example-ui.mjs › top-level",
       "[desktop] › test-example-ui.mjs › camera restoration › retains orbit",
@@ -56,15 +54,12 @@ describe("browser shard discovery and selection", () => {
     expect(new Set(tests.map(testKey)).size).toBe(3);
   });
 
-  it("fails discovery errors, empty suites, unknown browsers and duplicate identities", () => {
-    expect(() => discoverTests({ ...report(), errors: ["syntax error"] }, browsers, "/repo")).toThrow(
-      "discovery failed",
-    );
-    expect(() => discoverTests({ ...report(), suites: [] }, browsers, "/repo")).toThrow("no tests");
-    expect(() => discoverTests(report(), {}, "/repo")).toThrow("unsupported browser");
+  it("fails discovery errors, empty suites and duplicate identities", () => {
+    expect(() => discoverTests({ ...report(), errors: ["syntax error"] }, "/repo")).toThrow("discovery failed");
+    expect(() => discoverTests({ ...report(), suites: [] }, "/repo")).toThrow("no tests");
     const duplicate = report();
     duplicate.suites.push(duplicate.suites[0]);
-    expect(() => discoverTests(duplicate, browsers, "/repo")).toThrow("Duplicate discovered test");
+    expect(() => discoverTests(duplicate, "/repo")).toThrow("Duplicate discovered test");
   });
 
   it.each([" leading space", "trailing space ", "contains › delimiter", "two\nlines"])(
@@ -72,14 +67,14 @@ describe("browser shard discovery and selection", () => {
     (title) => {
       const invalid = report();
       invalid.suites[0].specs![0].title = title;
-      expect(() => discoverTests(invalid, browsers, "/repo")).toThrow("Cannot represent test identity");
+      expect(() => discoverTests(invalid, "/repo")).toThrow("Cannot represent test identity");
     },
   );
 });
 
 describe("duration-based browser sharding", () => {
   it("balances long cases first and includes unknown cases exactly once", () => {
-    const tests = [browserTest("long"), browserTest("medium"), browserTest("short"), browserTest("new", "webkit")];
+    const tests = [browserTest("long"), browserTest("medium"), browserTest("short"), browserTest("new")];
     const durations = [
       { ...tests[0], seconds: 100 },
       { ...tests[1], seconds: 70 },
@@ -89,7 +84,6 @@ describe("duration-based browser sharding", () => {
     const plan = planShards(tests, durations, 2);
     expect(plan.shards.map((shard) => shard.estimatedDurationMs)).toEqual([120_000, 130_000]);
     expect(plan.unknownTestCount).toBe(1);
-    expect(plan.shards[1].browsers).toEqual(["chromium", "webkit"]);
     expect(plan.shards.flatMap((shard) => shard.tests.map(testKey)).sort()).toEqual(tests.map(testKey).sort());
     expect(planShards([...tests].reverse(), durations, 2)).toEqual(plan);
   });
@@ -137,31 +131,21 @@ it("round-trips all real discovered cases through Playwright's exact test-list s
       ),
     );
   try {
-    const discovery = list();
-    // Browser choice is irrelevant to selector coverage; projects come from the real report.
-    const projects = new Set<string>();
-    const collect = (suite: DiscoveryReport["suites"][number]) => {
-      for (const spec of suite.specs ?? []) for (const test of spec.tests) projects.add(test.projectName);
-      for (const child of suite.suites ?? []) collect(child);
-    };
-    discovery.suites.forEach(collect);
-    const projectBrowsers = Object.fromEntries([...projects].map((project) => [project, "chromium"]));
-    const tests = discoverTests(discovery, projectBrowsers);
+    const tests = discoverTests(list());
     const durations = JSON.parse(
       readFileSync(new URL("../scripts/ci-browser-durations.json", import.meta.url), "utf8"),
     );
     const plan = planShards(tests, durations.tests, 20);
     const assigned = plan.shards.flatMap((shard) => shard.tests);
-    expect(assigned.map(testKey).sort()).toEqual(tests.map(testKey).sort());
     const path = join(directory, "all-tests.txt");
     writeFileSync(path, assigned.map((test) => test.selector).join("\n") + "\n");
-    const selected = discoverTests(list(["--test-list", path]), projectBrowsers);
+    const selected = discoverTests(list(["--test-list", path]));
     expect(selected.map(testKey).sort()).toEqual(tests.map(testKey).sort());
     // Also prove that selecting a single identity does not accidentally include other projects or siblings.
     const nested = tests.find((test) => test.titlePath.length > 1)!;
     expect(nested).toBeDefined();
     writeFileSync(path, nested.selector + "\n");
-    expect(discoverTests(list(["--test-list", path]), projectBrowsers).map(testKey)).toEqual([testKey(nested)]);
+    expect(discoverTests(list(["--test-list", path])).map(testKey)).toEqual([testKey(nested)]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

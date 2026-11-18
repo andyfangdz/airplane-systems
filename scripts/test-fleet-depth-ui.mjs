@@ -3,7 +3,7 @@ import { assertCurrentCheckSwipeStaysOnItem, assertCurrentCheckVisible } from ".
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test } from "@playwright/test";
-const out = resolve(process.env.UI_SHOTS || ".shots/fleet-depth-preflight");
+const out = process.env.UI_SHOTS ? resolve(process.env.UI_SHOTS) : null;
 const airplanes = [
   ["c172s", "C172S"],
   ["c182t", "C182T"],
@@ -13,7 +13,7 @@ const airplanes = [
 for (const [id, short] of airplanes) {
   test(`${id} source-specific study walk`, async ({ page, context, baseURL: base, isMobile: phone }) => {
     const layout = phone ? "phone" : "desktop";
-    mkdirSync(out, { recursive: true });
+    if (out) mkdirSync(out, { recursive: true });
     await context.addInitScript(() => {
       localStorage.setItem("tourDone", "1");
       // Observe actual rendered geometry; a toolbar and empty canvas are not a loaded airplane.
@@ -46,8 +46,8 @@ for (const [id, short] of airplanes) {
     const itemId = () => page.locator(".walk-id").innerText();
     const changed = (old) =>
       page.waitForFunction((old) => document.querySelector(".walk-id")?.textContent !== old, old);
-    const shot = async (name) => {
-      await page.waitForTimeout(1600);
+    const checkLayout = async (name) => {
+      if (out) await page.waitForTimeout(1600);
       const layoutFits = await page.evaluate((phone) => {
         const panel = document.querySelector(".panel");
         return phone
@@ -55,13 +55,13 @@ for (const [id, short] of airplanes) {
           : !panel || panel.scrollWidth <= panel.clientWidth + 1;
       }, phone);
       assert.ok(layoutFits, `${id}/${layout}/${name}: walk controls fit without horizontal clipping`);
-      await page.screenshot({ path: join(out, `${id}-${layout}-${name}.png`), fullPage: phone });
+      if (out) await page.screenshot({ path: join(out, `${id}-${layout}-${name}.png`), fullPage: phone });
     };
     await page.goto(`${base}/${id}/fuel?walk=1`);
     await ready();
     await page.getByRole("button", { name: "Begin study walk", exact: true }).waitFor();
     assert.ok(!page.url().includes("walk="), "inspection deep link is consumed");
-    await shot("intro");
+    await checkLayout("intro");
     await page.getByRole("checkbox", { name: "Larger text", exact: true }).focus();
     await page.keyboard.press("Escape");
     await page.locator(".walk").waitFor({ state: "detached" });
@@ -94,7 +94,7 @@ for (const [id, short] of airplanes) {
     await activate(page.getByRole("button", { name: "Resume", exact: true }));
     await ready();
     assert.equal(await itemId(), saved, "saved progress resumes at the same item");
-    await shot("resumed");
+    await checkLayout("resumed");
 
     // Station navigation and keyboard movement must preserve previously reviewed/skipped items.
     await activate(stations.last());
@@ -132,7 +132,7 @@ for (const [id, short] of airplanes) {
       const special = /pitot.*heat|leading edge|wing tip|wingtip|propeller|landing gear/i.test(text);
       if (special && captured.size < 5 && !captured.has(text)) {
         captured.add(text);
-        await shot(`target-${current}`);
+        await checkLayout(`target-${current}`);
       }
       if (phone) await page.locator(".walk-current").evaluate((row) => (row.scrollLeft = row.scrollWidth));
       await activate(page.getByRole("button", { name: "✓ Reviewed", exact: true }));
@@ -146,7 +146,7 @@ for (const [id, short] of airplanes) {
     assert.match(summary, new RegExp(`Reviewed\\s+${total - 1}\\b`));
     assert.match(summary, /Skipped\s+1\b/);
     assert.match(summary, /Unmarked\s+0\b/);
-    await shot("complete");
+    await checkLayout("complete");
     await activate(page.getByRole("button", { name: `Exit the ${short} study walk`, exact: true }));
     await page.locator(".walk").waitFor({ state: "detached" });
     assert.equal(await page.locator('.syslist button[aria-current="true"] .nm').innerText(), "Fuel");
@@ -157,7 +157,7 @@ for (const [id, short] of airplanes) {
         .getAttribute("aria-pressed"),
       "false",
     );
-    await shot("restored");
+    await checkLayout("restored");
 
     // The current compact fleet picker must be usable after a walk, including on phones.
     await activate(page.getByRole("button", { name: /^Choose a model, current airplane/ }));

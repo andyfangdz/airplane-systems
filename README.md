@@ -116,9 +116,16 @@ The static build runs alongside twenty browser jobs as soon as the server artifa
 build cache persist across runs; the geometry compiler still validates inputs before reusing cached assets.
 Discovered browser cases are assigned by measured duration, including independent loading and camera regressions,
 with one renderer per runner. New `test-*-ui.mjs` files join CI automatically with a conservative duration estimate;
-`playwright.config.mjs` selects the suites that also run on phones. Each shard installs only its required browsers and
-reuses cached browser binaries. Deployment promotes the tested static artifact with an independently recorded manifest
-checksum; it does not rebuild application source.
+`playwright.config.mjs` selects the suites that also run on phones. CI runs browser jobs in the Ubuntu Playwright image
+matching the installed package, with Chromium, WebKit and Mesa already installed.
+
+After all twenty server browser shards pass, CI records the result for the runner image, Playwright image digest and
+tracked source files. The key excludes root Markdown documents and Vitest `.test.ts` files under `tests/`. When a PR
+reuses an exact match, the build summary links to the run that passed. A GitHub runner image update triggers a fresh
+browser run, including during a gradual rollout when runners use different image revisions. To repeat the browser
+checks on the same commit, choose **Re-run all jobs** in GitHub Actions. Main pushes always execute the full browser
+suite. Every run builds, seals and smoke-tests the static export.
+Deployment promotes the tested static artifact with an independently recorded manifest checksum.
 See [CloudFront deployment](infra/cloudfront/README.md) for `--artifact` and `--manifest-sha256`.
 
 Set `UI_SHOTS=<directory>` for walk-around screenshot output, `DOOR_SHOTS=1` for door screenshots, and

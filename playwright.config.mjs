@@ -50,11 +50,13 @@ export default defineConfig({
     {
       name: "desktop",
       testIgnore: [fleetTests, iphoneTests],
+      grepInvert: process.env.STATIC_EXPORT === "1" ? /@phone-only/ : /@phone-only|@static-only/,
       use: { browserName: "chromium", viewport: { width: 1440, height: 900 }, launchOptions },
     },
     {
       name: "phone",
       testMatch: phoneTests,
+      grepInvert: /@desktop-only/,
       // Preserve the original study-walk contexts; only the picker used device emulation/DPR.
       use: {
         browserName: "chromium",

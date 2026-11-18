@@ -16,7 +16,7 @@ function selectorPart(value) {
   return value;
 }
 
-export function discoverTests(report, projectBrowsers, cwd = process.cwd()) {
+export function discoverTests(report, cwd = process.cwd()) {
   if (report.errors?.length) throw new Error(`Playwright discovery failed: ${JSON.stringify(report.errors)}`);
   if (!isAbsolute(report.config?.rootDir ?? "")) throw new Error("Missing Playwright discovery rootDir");
   const tests = [];
@@ -30,14 +30,10 @@ export function discoverTests(report, projectBrowsers, cwd = process.cwd()) {
       if (/:\d+(?::\d+)?$/.test(selectorFile)) throw new Error(`Ambiguous test-list file: ${selectorFile}`);
       for (const test of spec.tests ?? []) {
         const project = selectorPart(test.projectName);
-        const browser = projectBrowsers[project];
-        if (!["chromium", "firefox", "webkit"].includes(browser))
-          throw new Error(`Missing or unsupported browser for project ${project}`);
         const entry = {
           project,
           file,
           titlePath,
-          browser,
           selector: [`[${project}]`, selectorFile, ...titlePath].join(" › "),
         };
         const key = testKey(entry);
@@ -98,7 +94,6 @@ export function planShards(tests, durations, shardCount, fallbackSeconds = 60) {
     shards: shards.map((shard) => ({
       ...shard,
       testCount: shard.tests.length,
-      browsers: [...new Set(shard.tests.map((test) => test.browser))].sort(),
       tests: shard.tests.sort((a, b) => compare(testKey(a), testKey(b))),
     })),
   };
@@ -115,34 +110,24 @@ function main() {
       env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_FILE: "", PLAYWRIGHT_JSON_OUTPUT_NAME: "" },
     }),
   );
-  return import("../playwright.config.mjs").then(({ default: config }) => {
-    const projectBrowsers = Object.fromEntries(
-      config.projects.map((project) => [
-        project.name,
-        project.use?.browserName ?? config.use?.browserName ?? "chromium",
-      ]),
+  const durations = JSON.parse(readFileSync(new URL("./ci-browser-durations.json", import.meta.url), "utf8"));
+  const plan = planShards(discoverTests(report), durations.tests, Number(values.shards));
+  mkdirSync(values.output, { recursive: true });
+  writeFileSync(join(values.output, "plan.json"), JSON.stringify(plan, null, 2) + "\n");
+  for (const shard of plan.shards) {
+    writeFileSync(
+      join(values.output, `shard-${shard.shard}.txt`),
+      shard.tests.map((test) => test.selector).join("\n") + "\n",
     );
-    const durations = JSON.parse(readFileSync(new URL("./ci-browser-durations.json", import.meta.url), "utf8"));
-    const plan = planShards(discoverTests(report, projectBrowsers), durations.tests, Number(values.shards));
-    mkdirSync(values.output, { recursive: true });
-    writeFileSync(join(values.output, "plan.json"), JSON.stringify(plan, null, 2) + "\n");
-    for (const shard of plan.shards) {
-      writeFileSync(
-        join(values.output, `shard-${shard.shard}.txt`),
-        shard.tests.map((test) => test.selector).join("\n") + "\n",
-      );
-      const { tests, ...metadata } = shard;
-      writeFileSync(join(values.output, `shard-${shard.shard}.json`), JSON.stringify(metadata, null, 2) + "\n");
-      console.log(
-        `Shard ${shard.shard}: ${shard.testCount} tests, estimated ${(shard.estimatedDurationMs / 1000).toFixed(1)}s, ${shard.browsers.join("+")}`,
-      );
-    }
     console.log(
-      `${plan.testCount} discovered tests assigned exactly once; ${plan.unknownTestCount} use the ${plan.fallbackSeconds}s fallback.`,
+      `Shard ${shard.shard}: ${shard.testCount} tests, estimated ${(shard.estimatedDurationMs / 1000).toFixed(1)}s`,
     );
-  });
+  }
+  console.log(
+    `${plan.testCount} discovered tests assigned exactly once; ${plan.unknownTestCount} use the ${plan.fallbackSeconds}s fallback.`,
+  );
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main();
+  main();
 }

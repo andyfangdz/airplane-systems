@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 
+const phoneOnly = { tag: "@phone-only" };
+
 // Exercise taps and clipping in the real layout; hidden content alone does not prove a panel is usable.
 test.beforeEach(async ({ page, context, baseURL }) => {
   await context.addInitScript(() => localStorage.setItem("tourDone", "1"));
@@ -42,8 +44,7 @@ test("reopening systems reveals a system selected while the rail was hidden", as
   await page.screenshot({ path: `.shots/review-selected-system-${isMobile ? "phone" : "desktop"}.png` });
 });
 
-test("active phone preflight keeps the details opener and check navigation reachable", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "The sticky scene and bottom details panel are specific to phones");
+test("active phone preflight keeps the details opener and check navigation reachable", phoneOnly, async ({ page }) => {
   await page.getByRole("button", { name: "Hide systems panel", exact: true }).tap();
   await page.getByRole("button", { name: "Preflight", exact: true }).tap();
   await expect(page.locator(".rail")).toBeHidden();
@@ -77,27 +78,23 @@ test("active phone preflight keeps the details opener and check navigation reach
   await expect(page.locator(".syslist")).toBeVisible();
 });
 
-test("tablet navigation preserves model width and selecting a system keeps the controls available", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(isMobile, "Tablet layout is checked with a desktop browser viewport");
-  await page.setViewportSize({ width: 900, height: 800 });
-  const stage = await page.locator(".stage").boundingBox();
-  expect(stage.width).toBeGreaterThanOrEqual(550);
-  await page
-    .locator(".syslist")
-    .getByRole("button", { name: /Electrical/ })
-    .click();
-  await expect(page.locator(".panel h2")).toHaveText("Electrical");
-  await page.screenshot({ path: ".shots/tablet-study-navigation.png" });
-});
+test(
+  "tablet navigation preserves model width and selecting a system keeps the controls available",
+  { tag: "@desktop-only" },
+  async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 800 });
+    const stage = await page.locator(".stage").boundingBox();
+    expect(stage.width).toBeGreaterThanOrEqual(550);
+    await page
+      .locator(".syslist")
+      .getByRole("button", { name: /Electrical/ })
+      .click();
+    await expect(page.locator(".panel h2")).toHaveText("Electrical");
+    await page.screenshot({ path: ".shots/tablet-study-navigation.png" });
+  },
+);
 
-test("Duo headers collapse without moving their button and give their height back to the scene", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(!isMobile, "Header hit areas are checked with touch input");
+test("Duo headers collapse in place and give their height back to the scene", phoneOnly, async ({ page }) => {
   const rail = page.locator(".rail");
   const picker = rail.getByRole("button", { name: /^Choose a model/ });
   const dialog = page.getByRole("dialog", { name: "Choose an airplane, engine, component or flight data replay" });
@@ -229,11 +226,7 @@ test("Duo headers collapse without moving their button and give their height bac
   }
 });
 
-test("outer Duo view actions fit without scrolling and model size stays separate from alerts", async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(!isMobile, "Compact scene controls are checked with touch input");
+test("outer Duo view actions fit and model size stays separate from alerts", phoneOnly, async ({ page }) => {
   const toolbar = page.locator(".scene-toolbar");
   const cas = page.locator(".stage-under .cas");
   const reading = page.getByRole("button", { name: "Collapse model", exact: true });
@@ -345,8 +338,7 @@ test("outer Duo view actions fit without scrolling and model size stays separate
   await checkModelControl();
 });
 
-test("phone reading space keeps the model visible and restores its previous size", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "Reading space is a phone layout option");
+test("phone reading space keeps the model visible and restores its previous size", phoneOnly, async ({ page }) => {
   const height = (await page.locator(".stage").boundingBox()).height;
   const canvas = await page.locator("#model-view canvas").elementHandle();
   const reading = page.locator('.stage button[aria-controls="model-view"]');
@@ -496,8 +488,7 @@ test("skip to controls opens a collapsed panel and moves keyboard focus", async 
   await expect(page.locator("#details-panel")).toBeFocused();
 });
 
-test("phone circuit breakers keep touch-sized hit areas", async ({ page, isMobile }) => {
-  test.skip(!isMobile, "Touch sizes apply to coarse pointers");
+test("phone circuit breakers keep touch-sized hit areas", phoneOnly, async ({ page }) => {
   await page
     .locator(".syslist")
     .getByRole("button", { name: /Electrical/ })
