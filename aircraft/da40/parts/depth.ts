@@ -1,27 +1,12 @@
 import { brakeAmount } from "@/lib/anims";
 import type { InstanceKey } from "@/lib/catalogue";
-import { sided } from "@/lib/geometry";
+import { CHAMBER_JOINTS, FUEL_CHAMBERS, chamberGeometry, chamberBaffle, probePort } from "../wing-installation";
 /** Component detail for the avgas XLS. AMM 6.02.01 Rev 7 applicable -00 chapters,
  * Garmin 190-00545-01 Rev E, Lycoming PC-(L)IO-360-M1A Rev 1 and MT E-124.
  * All undimensioned envelopes, internal poses and stations are approximate. */
 import { V, toVec3, type Vec3 } from "@/lib/math";
 import type { SysId } from "@/lib/systems";
-import {
-  DOOR,
-  FW,
-  PANEL_X,
-  ROLLBAR_X,
-  SILL_Y,
-  box,
-  cyl,
-  fs,
-  loft,
-  onSkin,
-  sph,
-  tubeGeo,
-  wingP,
-  wingSec,
-} from "../geometry";
+import { DOOR, FW, PANEL_X, ROLLBAR_X, SILL_Y, box, cyl, fs, onSkin, sph, tubeGeo, wingP } from "../geometry";
 import * as A from "../depth-anchors";
 import { FLAP_ACT, SERVO } from "../rig";
 import { CANOPY_HINGE, DOOR_HINGE } from "./airframe";
@@ -401,73 +386,68 @@ part(() => cyl(0.03, 0.05, "x"), ["propeller"], {
 
 // Three connected aluminum chambers per wing; no collector or powered tank transfer.
 for (const s of [1, -1]) {
-  for (const chamber of A.FUEL_CHAMBERS) {
-    part(
-      () =>
-        loft(
-          sided(
-            [chamber.z0, (chamber.z0 + chamber.z1) / 2, chamber.z1].map((z) => wingSec(s * z, 0.15, 0.6, 0.7)),
-            s,
-          ),
-        ),
-      ["fuel"],
-      {
-        instance: [s, chamber.id],
-        id: "parts.depth.part.005",
-        name: chamber.name,
-        pos: [0, 0, 0],
-        note: note(
-          "Aluminum chamber in interconnected long-range wing tank; skins are not wet-wing storage. Flexible large couplings carry fuel, top hoses balance vent pressure",
-          "AMM 28-10-00 pp. 3–6",
-        ),
-        fairing: true,
-        pin: s < 0,
-      },
-    );
+  for (const chamber of FUEL_CHAMBERS) {
+    part(() => chamberGeometry(s, chamber.z0, chamber.z1), ["fuel"], {
+      instance: [s, chamber.id],
+      id: "parts.depth.part.005",
+      name: chamber.name,
+      pos: [0, 0, 0],
+      note: note(
+        "Aluminum chamber in interconnected long-range wing tank; skins are not wet-wing storage. Flexible large couplings carry fuel, top hoses balance vent pressure",
+        "AMM 28-10-00 pp. 3–6",
+      ),
+      fairing: true,
+      pin: s < 0,
+    });
     const z = (chamber.z0 + chamber.z1) / 2;
-    part(
-      () =>
-        loft(
-          sided(
-            [z - 0.004, z + 0.004].map((az) => wingSec(s * az, 0.15, 0.6, 0.65)),
-            s,
-          ),
-        ),
-      ["fuel"],
-      {
-        instance: [s, chamber.id],
-        id: "parts.depth.fuel-chamber-baffle.006",
-        name: "Fuel chamber baffle",
-        pos: [0, 0, 0],
-        plate: true,
-        note: note(
-          "Representative chamber baffle limits rapid slosh; number/station illustrative",
-          "AMM 28-10-00 p. 6",
-        ),
-      },
-    );
+    part(() => chamberBaffle(s * z), ["fuel"], {
+      instance: [s, chamber.id],
+      id: "parts.depth.fuel-chamber-baffle.006",
+      name: "Fuel chamber baffle",
+      pos: [0, 0, 0],
+      plate: true,
+      note: note("Representative chamber baffle limits rapid slosh; number/station illustrative", "AMM 28-10-00 p. 6"),
+    });
   }
-  for (const [instance3, z] of [
-    ["member-1", 2.1],
-    ["member-2", 2.975],
-  ] as const)
+  for (const { id, inner, outer } of CHAMBER_JOINTS) {
+    const middle = (inner.z1 + outer.z0) / 2;
     drum(
-      ["fuel-chamber-flexible-coupling", s, instance3],
+      ["fuel-chamber-flexible-coupling", s, id],
       "Fuel chamber flexible coupling",
       ["fuel"],
-      A.tankPort(s, z),
-      0.025,
-      0.075,
-      note(
-        "Large flexible coupling connects adjoining aluminum chambers, secured by worm-drive clamps",
-        "AMM 28-10-00 pp. 5–6",
-      ),
+      A.tankPort(s, middle),
+      0.026,
+      outer.z0 - inner.z1 + 0.018,
+      note("Flexible hose joins the two chamber bosses. A worm-drive clamp grips each end", "AMM 28-10-00 pp. 5–6"),
       s < 0,
       "z",
     );
+    for (const [end, span] of [
+      ["inner", inner.z1 + 0.003],
+      ["outer", outer.z0 - 0.003],
+    ] as const) {
+      part(() => cyl(0.028, 0.007, "z"), ["fuel"], {
+        id: "parts.fuel.coupling-clamp",
+        instance: [s, id, end],
+        pos: A.tankPort(s, span),
+        color: "#BFC6C6",
+        name: "Fuel coupling clamp",
+        note: "Worm-drive clamp at the chamber connection (AMM 28-10-00 p. 6).",
+      });
+    }
+  }
   for (const longRange of [false, true]) {
-    const point = A.FUEL_PROBE(s, longRange);
-    part(() => tubeGeo([point, A.tankPort(s, Math.abs(point[2]) + 0.35)], 0.006, 0.05), ["fuel", "avionics"], {
+    const point = probePort(s, longRange, "mount");
+    const guide = probePort(s, longRange, "guide");
+    part(() => cyl(0.012, 0.018, "z"), ["fuel", "avionics"], {
+      id: "parts.fuel.probe-guide",
+      instance: [s, longRange],
+      pos: guide,
+      color: "#D8D9C7",
+      name: "Fuel probe guide",
+      note: "The sleeved tip of the capacitive probe seats in a guide at the outboard end of its chamber (AMM 28-40-00 pp. 204, 206).",
+    });
+    part(() => tubeGeo([point, guide], 0.006, 0.05), ["fuel", "avionics"], {
       id: "parts.depth.part.007",
       instance: [longRange, s],
       name: longRange ? "Long-range capacitive fuel probe" : "Inboard capacitive fuel probe",

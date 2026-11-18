@@ -63,13 +63,13 @@ const LINKS: Record<string, LinkSpec> = {
   ailWR: {
     ...ail,
     name: "Aileron push rod (right wing)",
-    note: "Spanwise steel push rod behind the rear spar to the wing bellcrank (inferred).",
+    note: "Spanwise run from the rear main bulkhead to the wing bellcrank (AMM 27-10-00 Figs. 1–2).",
     r: 0.007,
   },
   ailWL: {
     ...ail,
     name: "Aileron push rod (left wing)",
-    note: "Spanwise steel push rod behind the rear spar to the wing bellcrank (inferred).",
+    note: "Spanwise run from the rear main bulkhead to the wing bellcrank (AMM 27-10-00 Figs. 1–2).",
     r: 0.007,
   },
   ailHR: {
@@ -101,25 +101,48 @@ const LINKS: Record<string, LinkSpec> = {
   flapRodR: {
     sys: ["flaps"],
     name: "Flap push rod",
-    note: "Steel push rod with rod-end from the torsion tube to the flap control horn (AFM 7-5).",
+    note: "Short push rod from the wing bellcrank to the flap control horn (AFM 7-5, AMM 27-50-00 Fig. 2).",
     r: 0.008,
     color: "#9F85E6",
   },
   flapRodL: {
     sys: ["flaps"],
     name: "Flap push rod",
-    note: "Steel push rod with rod-end from the torsion tube to the flap control horn (AFM 7-5).",
+    note: "Short push rod from the wing bellcrank to the flap control horn (AFM 7-5, AMM 27-50-00 Fig. 2).",
     r: 0.008,
     color: "#9F85E6",
   },
   flapAct: {
     sys: ["flaps"],
     name: "Flap actuator rod",
-    note: "The electric actuator turns the torsion tube.",
+    note: "The electric actuator spindle drives the idler on the rear main bulkhead (AMM 27-50-00 Fig. 1).",
     r: 0.01,
     color: "#7C57CF",
   },
+  flapIdler: {
+    sys: ["flaps"],
+    name: "Flap idler lever",
+    note: "The idler drives both center-section rods (AMM 27-50-00 Fig. 1).",
+    r: 0.009,
+  },
 };
+
+for (const side of ["L", "R"]) {
+  for (const [key, name] of [
+    ["flapCenter", "Center-section flap push rod"],
+    ["flapWing", "Wing flap push rod"],
+    ["flapInputArm", "Flap bellcrank input arm"],
+    ["flapOutputArm", "Flap bellcrank output arm"],
+  ] as const) {
+    LINKS[key + side] = {
+      sys: ["flaps"],
+      name,
+      note: "From the idler, the rods meet at the wing root and drive the wing bellcrank (AMM 27-50-00 Figs. 1–2).",
+      r: 0.006,
+      color: "#9F85E6",
+    };
+  }
+}
 
 const pose = () => rigPose(live.eff, live.flapAng);
 const points = () => linkPoints(pose());

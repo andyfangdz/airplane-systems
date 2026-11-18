@@ -275,9 +275,9 @@ export function Flaps() {
   return (
     <>
       <p className="lead">
-        Electric flaps with three positions — Cruise (UP), Take-off (T/O) and Landing (LDG). One actuator turns a
-        torsion tube in the fuselage that is connected to both flaps, so they always move together. Once selected, the
-        flaps keep running until they reach that position; UP and LDG also have limit switches.
+        Select Cruise (UP), Take-off (T/O) or Landing (LDG). The actuator under the left rear seat moves an idler on the
+        rear main bulkhead. Follow the rods to each wing bellcrank and the short rod that moves the flap horn. A
+        separate torsion tube links the flap roots to keep them synchronized (AFM 7-5, AMM 27-50-00 pp. 3–4).
       </p>
       <H3>Flap selector (below the MFD)</H3>
       <Ctl>

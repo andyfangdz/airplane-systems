@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { V, toVec3, type Vec3 } from "@/lib/math";
+import { V, toVec3 } from "@/lib/math";
+import { mergeGeos } from "@/lib/geometry";
 import {
   BAG_FRAME,
   FW,
@@ -14,8 +15,22 @@ import {
   sph,
   topY,
   tubeGeo,
-  wingP,
+  cyl,
 } from "../geometry";
+import {
+  FRONT_SPAR,
+  REAR_SPAR,
+  insideWing,
+  mainBulkhead,
+  rearWeb,
+  rootRibs,
+  controlRib,
+  wingEndRib,
+  sparMember,
+  sparStub,
+  tankRib,
+} from "../wing-installation";
+import { AILERON_HORN_Z, FLAP_HORN_Z, flapBellcrank, PIVOTS } from "../rig";
 import { part } from "./catalogue";
 
 /* ---------- structure ---------- */
@@ -45,52 +60,124 @@ part(
     pin: true,
   },
 );
-// stub wing spars crossing under the seats (AMM Fig. 2-6 top view: two carry-throughs under the seat pans)
-(
-  [
-    [
-      "member-1",
-      [
-        0.35,
-        "Front spar carry-through",
-        "Main spar of the stub wing crossing the cabin floor under the front seats (AMM Fig. 2-6).",
-      ],
-    ],
-    ["member-2", [0.68, "Rear spar carry-through", "Rear spar of the stub wing, under the rear seat pans."]],
-  ] as const
-).forEach(([instance1, [xc, name, note]]) => {
-  part(
-    () =>
-      tubeGeo(
-        [-1.1, -0.6, -0.3, 0, 0.3, 0.6, 1.1].map((z) => {
-          const p = wingP(z === 0 ? 0.001 : z, xc as number, 0);
-          return [p.x, p.y, z] as Vec3;
-        }),
-        0.03,
-      ),
-    ["airframe"],
-    {
-      id: "parts.structure.part.004",
-      instance: [instance1],
+// AMM 53-10 and 57-10. Composite colors distinguish the caps, webs and fittings in X-ray.
+for (const [token, position, chord] of [
+  ["member-1", "Front", FRONT_SPAR],
+  ["member-2", "Rear", REAR_SPAR],
+] as const) {
+  part(() => mainBulkhead(chord), ["airframe"], {
+    id: "parts.structure.part.004",
+    instance: [token],
+    name: position + " main bulkhead",
+    note: "The box-section bulkhead receives the wing spar stubs. Carbon reinforcement runs along the top and bottom of the glass-fiber box (AMM 53-10-00, Fig. 2).",
+    color: "#698278",
+    pin: true,
+  });
+  for (const side of [1, -1]) {
+    part(() => sparMember(side, chord, "web"), ["airframe"], {
+      id: "parts.structure.spar-web",
+      instance: [token, side],
+      name: position + " spar shear web",
+      note: "Glass-fiber skins enclose the foam shear web between the upper and lower carbon caps (AMM 57-10-00 p. 3).",
+      color: "#9B986E",
+      pin: side === (position === "Front" ? 1 : -1),
+    });
+    part(() => mergeGeos([sparMember(side, chord, "upper"), sparMember(side, chord, "lower")]), ["airframe"], {
+      id: "parts.structure.spar-caps",
+      instance: [token, side],
+      name: position + " spar caps",
+      note: "Unidirectional carbon layers form the two caps of the I-section. The number of layers decreases toward the tip (AMM 57-10-00 p. 3).",
+      color: "#374952",
+    });
+    part(() => sparStub(side, chord), ["airframe"], {
+      id: "parts.structure.spar-stub",
+      instance: [token, side],
+      name: position + " spar stub",
+      note: "The spar continues inboard past the root rib as a glass-wrapped box. Bushes and main bolts transfer wing bending loads into the center section (AMM 57-10-00 p. 3, Fig. 3).",
+      color: "#566865",
+    });
+    for (const [bolt, span] of [
+      ["inner", 0.68],
+      ["outer", 0.98],
+    ] as const) {
+      part(() => cyl(0.017, 0.115, "x"), ["airframe"], {
+        id: "parts.structure.wing-main-bolt",
+        instance: [token, side, bolt],
+        name: "Wing main bolt",
+        pos: toVec3(insideWing(side * span, chord, 0)),
+        color: "#CBD2D2",
+        note: "A main bolt passes through bushes in the bulkhead and spar stub (AMM 57-10-00 Fig. 3).",
+      });
+    }
+  }
+}
 
-      name: name as string,
-      note: note as string,
-      pin: true,
-      color: "#3D5A73",
-    },
-  );
-});
-[1, -1].forEach((s) =>
-  part(() => box(0.06, 0.13, 0.03), ["airframe"], {
-    instance: [s],
+for (const side of [1, -1]) {
+  part(() => rootRibs(side), ["airframe"], {
+    instance: [side],
     id: "parts.structure.root-rib-wing-joint.005",
-    pos: toVec3(wingP(s * WJ, 0.4, 0)),
-    color: "#E0522B",
+    color: "#8B947A",
     name: "Root rib / wing joint",
-    note: "The outer wing bolts to the stub wing here. The Datum Plane is 2.194 m (86.38 in) forward of the most forward point of this root rib (AFM 6-3).",
-    pin: s > 0,
-  }),
-);
+    note: "The front and rear root ribs carry the A- and B-bolts. The middle rib has an oval access opening through which the tank assembly can pass (AMM 57-10-00 p. 4).",
+    pin: side > 0,
+  });
+  for (const [bolt, chord] of [
+    ["A", 0.09],
+    ["B", 0.585],
+  ] as const) {
+    part(() => cyl(0.013, 0.08, "z"), ["airframe"], {
+      id: "parts.structure.root-rib-bolt",
+      instance: [side, bolt],
+      name: bolt + "-bolt",
+      pos: toVec3(insideWing(side * WJ, chord, 0)),
+      color: "#BBC4C7",
+      note: "This root-rib fitting transmits lift into the center section (AMM 57-10-00 p. 4).",
+    });
+  }
+  for (const [rib, span] of [
+    ["first", 1.35],
+    ["second", 1.95],
+    ["third", 2.28],
+    ["fourth", 2.83],
+    ["fifth", 3.37],
+  ] as const) {
+    part(() => tankRib(side * span), ["airframe", "fuel"], {
+      id: "parts.structure.tank-support-rib",
+      instance: [side, rib],
+      name: "Fuel tank support rib",
+      note: "An open glass-fiber rib supports the removable aluminum tank between the spars. The rib stays with the wing when the tank is withdrawn (AMM 57-10-00 p. 4, 05-25-00 pp. 3–4). Rib stations are illustrative.",
+      color: "#9F9E7A",
+      pin: side > 0 && rib === "fourth",
+      pinIn: ["airframe"],
+    });
+  }
+  for (const [system, control, pivot] of [
+    ["flaps", "Flap", flapBellcrank(side)],
+    ["controls", "Aileron", side > 0 ? PIVOTS.wbR() : PIVOTS.wbL()],
+  ] as const) {
+    part(() => controlRib(pivot), ["airframe", system], {
+      id: "parts.structure.control-rib",
+      instance: [side, system],
+      color: "#8D957C",
+      name: control + " control rib",
+      note: "This rib joins the rear spar to the trailing-edge web. Its reinforced bend supports the wing bellcrank (AMM 57-10-00 p. 4).",
+    });
+  }
+  part(() => wingEndRib(side), ["airframe"], {
+    id: "parts.structure.end-rib",
+    instance: [side],
+    name: "Wing end rib",
+    color: "#89947E",
+    note: "The end rib closes the wing and carries the attachments for the removable tip (AMM 57-10-00 p. 4).",
+  });
+  part(() => rearWeb(side, FLAP_HORN_Z, AILERON_HORN_Z), ["airframe"], {
+    id: "parts.structure.rear-web",
+    instance: [side],
+    name: "Trailing-edge web",
+    note: "The rear web closes the fixed wing aft of the rear spar and carries the flap and aileron hinge attachments (AMM 57-10-00 p. 4).",
+    color: "#808B80",
+  });
+}
 [1, -1].forEach((s) =>
   part(() => sph(0.03), ["airframe", "gear"], {
     instance: [s],

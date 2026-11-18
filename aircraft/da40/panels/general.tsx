@@ -113,15 +113,19 @@ export function Airframe() {
   return (
     <>
       <p className="lead">
-        A GFRP semi-monocoque fuselage — a teardrop cabin pod tapering into a slim tail boom — with a stub wing built
-        into the fuselage. The outer wings bolt to the stub wing at the root rib, and a T-tail sits on top of the fin.
-        No wing struts.
+        The DA40’s wing carries its fuel between two spars. Follow the carbon spar caps inboard to the root rib, where
+        each spar continues into a box-section bulkhead under the cabin. Open ribs support the removable aluminum tank.
+        Behind the rear spar, the trailing-edge web carries the flap and aileron hinges (AMM 57-10-00 pp. 3–4).
       </p>
       <Facts
         rows={[
           ["Fuselage", "GFRP semi-monocoque, GFRP/CFRP main bulkheads (AFM 7-3)"],
           ["Firewall", "Fire-resistant mat + stainless-steel cladding"],
-          ["Wings", "Front and rear spar, separate top and bottom shells (fail-safe); GFRP/CFRP sandwich"],
+          ["Wing shells", "Carbon outer skin, rigid foam core and glass-fiber inner skin (AMM 57-10-00 p. 3)"],
+          [
+            "Wing attachment",
+            "Main bolts carry bending loads at the spar stubs. A- and B-bolts carry lift at the front and rear root ribs (AMM 57-10-00 pp. 3–4).",
+          ],
           ["Airfoil", "Wortmann FX 63-137/20 - W4 · dihedral 5° · LE sweep 1°"],
           ["Wing area", "13.54 m² (145.7 ft²) · MAC 1.121 m · AR 10.53"],
           ["Empennage", "GFRP T-tail, twin-spar stabilizers; rudder and elevator sandwich"],

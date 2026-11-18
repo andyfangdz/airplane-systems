@@ -15,8 +15,8 @@ import { useView } from "@/lib/view";
 import { ControlRig } from "./ControlRig";
 import { drawBreakers, drawGma, drawMfdScreen, drawPfdScreen, drawStbyAlt, drawStbyAsi, drawStbyAtt } from "./displays";
 import { flowsFor, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { PANEL_X, canopyOutlines, doorOutlines, loft, windowOutlines, wingSec } from "./geometry";
-import { sided } from "@/lib/geometry";
+import { PANEL_X, canopyOutlines, doorOutlines, windowOutlines } from "./geometry";
+import { wingFuelVolume } from "./wing-installation";
 import { bladeAngle, extLit, live } from "./model";
 import {
   DOOR_POSE,
@@ -141,16 +141,13 @@ const TANKS: TankSpec[] = (
   ] as const
 ).map(([k, s]) => ({
   key: k,
-  geo: () => {
-    const secs = [1.18, 1.6, 2.2, 2.8, 3.3, 3.55].map((z) => wingSec(s * z, 0.12, 0.62, 0.8));
-    return loft(sided(secs, s));
-  },
+  geo: () => wingFuelVolume(s),
   level: () => {
     const f = useDA40.getState().s.fuel;
     return (k === "L" ? f.qL : f.qR) / 25;
   },
   name: (s > 0 ? "Right" : "Left") + " fuel tank (long range)",
-  note: "Aluminium tank in the wing, three chambers joined by flexible hose: 25.5 US gal total, 25 usable (AFM 2-23, 7-34). Two probes (inboard + outboard chambers) feed one G1000 gauge.",
+  note: "Aluminium tank in the wing, three chambers joined by flexible hose: 25.5 US gal total, 25 usable (AFM 2-23, 7-34). Two probes (inboard + long-range chambers) feed one G1000 gauge.",
 }));
 
 /* ---------- live cockpit displays (GDU 1040 PFD / optional GDU 1044 MFD, 10.4 in.) ---------- */

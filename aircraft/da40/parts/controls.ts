@@ -1,8 +1,22 @@
 import * as THREE from "three";
 import { V, type Vec3 } from "@/lib/math";
-import { AIL, FLAP, PANEL_X, box, cyl, sph, wingP } from "../geometry";
+import { AIL, FLAP, PANEL_X, box, cyl, sph, tubeGeo, wingP } from "../geometry";
 import { live } from "../model";
-import { ARMS, ELEV_HORN, FLAP_ACT, FLAP_HORN, FLAP_TUBE, RUD_HORN, SERVO, TRIM_WHEEL, rudHornPivot } from "../rig";
+import {
+  AILERON_HORN_Z,
+  ARMS,
+  ELEV_HORN,
+  FLAP_ACT,
+  FLAP_IDLER,
+  FLAP_HORN,
+  FLAP_HORN_Z,
+  flapBellcrank,
+  FLAP_TUBE,
+  RUD_HORN,
+  SERVO,
+  TRIM_WHEEL,
+  rudHornPivot,
+} from "../rig";
 import { part, surfacePivot, sim, glow, trimWheelAnim, flapLight } from "./catalogue";
 
 /* ---------- flight-control mechanisms (AFM 7.3; intermediate positions inferred) ---------- */
@@ -95,7 +109,7 @@ crank(
   "rig:aAft",
   "aileron",
   "Aileron bellcrank (aft)",
-  "Splits the aileron run into the two spanwise push rods behind the rear spar (inferred).",
+  "The bellcrank on the rear main bulkhead drives the center-section and wing push rods (AMM 27-10-00 pp. 1–4).",
   [
     ["arm-1", [0, 0, ARMS.a]],
     ["arm-2", [-ARMS.a, 0, 0]],
@@ -117,7 +131,7 @@ crank(
 [1, -1].forEach((s) => {
   const key = "ail" + (s > 0 ? "R" : "L"),
     pv = surfacePivot(key),
-    hz = wingP(s * 4.04, AIL.hinge, -1);
+    hz = wingP(s * AILERON_HORN_Z, AIL.hinge, -1);
   part(() => box(0.012, 0.05, 0.03), ["controls"], {
     instance: [s],
     id: "parts.controls.aileron-control-horn.004",
@@ -210,32 +224,71 @@ part(() => box(0.12, 0.08, 0.08), ["autopilot", "controls"], {
 });
 
 /* ---------- flaps ---------- */
-part(() => cyl(0.018, FLAP_TUBE.half * 2, "z"), ["flaps"], {
-  id: "parts.controls.flap-torsion-tube.011",
-  parent: "rig:flapTube",
-  color: "#9F85E6",
-  name: "Flap torsion tube",
-  note: "In the fuselage, joining the left and right flaps through aluminium fittings — both flaps always move together (AFM 7-5).",
+part(
+  () =>
+    tubeGeo(
+      [
+        [0, 0, -FLAP_TUBE.half],
+        [0, -0.01, -0.7],
+        [-0.035, -0.075, -0.46],
+        [-0.035, -0.075, 0.46],
+        [0, -0.01, 0.7],
+        [0, 0, FLAP_TUBE.half],
+      ],
+      0.013,
+      0.035,
+    ),
+  ["flaps"],
+  {
+    id: "parts.controls.flap-torsion-tube.011",
+    parent: "rig:flapTube",
+    color: "#9F85E6",
+    name: "Flap torsion tube",
+    note: "A cranked tube connects the flap roots through transfer levers and paired pins. It keeps the flaps synchronized if a drive linkage fails (AFM 7-5, AMM 27-50-00 p. 3).",
+    pin: true,
+  },
+);
+part(() => cyl(0.012, 0.04), ["flaps"], {
+  id: "parts.controls.flap-idler-pivot",
+  name: "Flap idler pivot",
+  pos: [FLAP_IDLER.x, FLAP_IDLER.y, FLAP_IDLER.z],
+  note: "The actuator spindle moves an idler on the rear main bulkhead. The idler drives the rods to both wings (AMM 27-50-00 Fig. 1).",
   pin: true,
 });
-[1, -1].forEach((s) =>
-  part(
-    () => {
-      const g = box(0.014, FLAP_TUBE.arm, 0.014);
-      g.translate(0, -FLAP_TUBE.arm / 2, 0);
-      return g;
-    },
-    ["flaps"],
-    {
-      instance: [s],
-      id: "parts.controls.part.012",
+for (const side of [1, -1]) {
+  const pivot = flapBellcrank(side);
+  part(() => cyl(0.011, 0.032), ["flaps"], {
+    id: "parts.controls.flap-bellcrank-pivot",
+    instance: [side],
+    name: "Flap bellcrank pivot",
+    pos: [pivot.x, pivot.y, pivot.z],
+    pin: side > 0,
+    note: "The wing bellcrank turns spanwise rod travel into a push on the flap horn (AMM 27-50-00 Fig. 2).",
+  });
+  part(() => box(0.063, 0.015, 0.012), ["flaps"], {
+    id: "parts.controls.part.012",
+    instance: [side],
+    parent: "rig:flapTube",
+    pos: [-0.025, 0, side * FLAP_TUBE.half],
+    color: "#9F85E6",
+    name: "Flap transfer lever",
+    note: "Two transfer pins engage bushes in the flap root rib (AMM 27-50-00 p. 3, Fig. 1).",
+  });
+  for (const [pin, x] of [
+    ["front", -0.015],
+    ["aft", -0.046],
+  ] as const) {
+    part(() => cyl(0.005, 0.034, "z"), ["flaps"], {
+      id: "parts.controls.flap-transfer-pin",
+      instance: [side, pin],
       parent: "rig:flapTube",
-      pos: [0, 0, s * FLAP_TUBE.half],
-      color: "#9F85E6",
-    },
-  ),
-);
-part(() => box(0.24, 0.07, 0.08), ["flaps", "electrical"], {
+      pos: [x, 0, side * (FLAP.z0 - 0.007)],
+      color: "#B3BBC0",
+      name: "Flap transfer pin",
+    });
+  }
+}
+part(() => box(0.08, 0.07, 0.24), ["flaps", "electrical"], {
   id: "parts.controls.flap-actuator.013",
   pos: FLAP_ACT,
   color: "#7C57CF",
@@ -249,13 +302,13 @@ part(() => box(0.24, 0.07, 0.08), ["flaps", "electrical"], {
     ["flaps"],
   ),
   name: "Flap actuator",
-  note: "Electric motor drive (P/N 430555); keeps running until the selected position is reached; UP and LDG have limit switches (AFM 7-5, 7-6). Location not in the documents.",
+  note: "Electric motor drive (P/N 430555); keeps running until the selected position is reached; UP and LDG have limit switches (AFM 7-5, 7-6). Under the left rear seat (AMM 27-50-00 Fig. 1).",
   pin: true,
 });
 [1, -1].forEach((s) => {
   const key = "flap" + (s > 0 ? "R" : "L"),
     pv = surfacePivot(key),
-    hz = wingP(s * 1.28, FLAP.hinge, 0);
+    hz = wingP(s * FLAP_HORN_Z, FLAP.hinge, 0);
   part(() => box(0.012, FLAP_HORN, 0.03), ["flaps"], {
     instance: [s],
     id: "parts.controls.flap-control-horn.014",

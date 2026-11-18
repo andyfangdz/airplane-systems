@@ -1,5 +1,6 @@
-import { toVec3, type Vec3 } from "@/lib/math";
-import { PANEL_X, box, botY, cyl, fs, topY, tubeGeo, wingP } from "../geometry";
+import { GMU } from "../depth-anchors";
+import type { Vec3 } from "@/lib/math";
+import { PANEL_X, box, botY, cyl, fs, topY, tubeGeo } from "../geometry";
 import { part, sim, glow } from "./catalogue";
 import { GMA_Z } from "./cabin";
 
@@ -239,7 +240,7 @@ part(() => box(0.12, 0.07, 0.1), ["avionics"], {
 });
 part(() => box(0.07, 0.04, 0.07), ["avionics"], {
   id: "parts.avionics.gmu-44-magnetometer.018",
-  pos: toVec3(wingP(2.6, 0.45, 0)),
+  pos: GMU,
   color: "#C8399F",
   name: "GMU 44 magnetometer",
   note: "Under the right wing at the old flux-valve location, behind an access plate (SMM 2-7). Span station approximate.",

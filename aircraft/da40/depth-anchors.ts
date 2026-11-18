@@ -26,6 +26,8 @@ export const GOVERNOR: Vec3 = [fs(0.75), 0.12, 0.06];
 export const SLICKSTART: Vec3 = [FW + 0.035, 0.035, -0.2];
 export const GEA: Vec3 = [PANEL_X + 0.1, -0.05, -0.3];
 export const GDC: Vec3 = [PANEL_X + 0.1, 0.06, 0.12];
+// Garmin SMM §2.2.9 and the GMU 44 removal figure establish the RH lower-wing access plate. Bay station is approximate.
+export const GMU = toVec3(wingP(4.48, 0.33, 0).lerp(wingP(4.48, 0.33, -1), 0.45));
 export const GRS: Vec3 = [fs(3.83), -0.39, 0.174];
 export const GIA1: Vec3 = [fs(3.83), -0.54, -0.11];
 export const GIA2: Vec3 = [fs(3.83), -0.54, 0];
@@ -54,17 +56,11 @@ export const STATIC_JOIN: Vec3 = [fs(2.45), -0.55, -0.27];
 export const PITOT_FILTER: Vec3 = [fs(2.3), -0.5, -0.5];
 export const STATIC_FILTER: Vec3 = [fs(2.3) - 0.018, -0.5, -0.477];
 export const ALTERNATE_STATIC: Vec3 = [fs(1.86), -0.3, -0.42];
-export const FUEL_CHAMBERS = [
-  { id: "inboard", name: "Inboard fuel chamber", z0: 1.18, z1: 2.08 },
-  { id: "outboard", name: "Outboard fuel chamber", z0: 2.13, z1: 2.95 },
-  { id: "long-range", name: "Long-range fuel chamber", z0: 3.0, z1: 3.55 },
-] as const;
-export const FUEL_PROBE = (s: number, longRange: boolean) => toVec3(wingP(s * (longRange ? 3.04 : 1.22), 0.5, 0));
 export const VENT = (s: number, check: boolean) =>
   toVec3(wingP(s * (check ? 4.04 : 3.9), 0.45, -1).add(V(0, -0.02, 0)));
-export const tankPort = (s: number, z: number, upper = false) => {
-  const mean = wingP(s * z, 0.45, 0);
-  return upper ? toVec3(mean.lerp(wingP(s * z, 0.45, 1), 0.65)) : toVec3(mean);
+export const tankPort = (s: number, z: number, upper = false, chord = 0.405) => {
+  const mean = wingP(s * z, chord, 0);
+  return upper ? toVec3(mean.lerp(wingP(s * z, chord, 1), 0.52)) : toVec3(mean);
 };
 
 /** AMM32-40: reservoirs on both copilot masters; each wheel circuit continues through its pilot master. */
