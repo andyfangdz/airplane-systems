@@ -406,16 +406,18 @@ function ringSupport(d: Dims) {
     .translate(d.flangeX, 0, 0);
 }
 
-/** Each bored shell stays aligned with the crank journal when the crank turns. */
-export function mainBearingShells(d: Dims) {
+/** The case saddles and their split bearing inserts use the same crank journals. */
+export function bearingStations(d: Dims) {
   const front = (d.front + Math.max(...d.cylinders.map((c) => c.x)) + 0.032) / 2;
-  return (
-    [
-      ["front", front, 0.05],
-      ["center", (d.cylinders[1].x + d.cylinders[2].x) / 2, 0.028],
-      ["rear", (d.caseRear + d.cylinders[3].x - 0.032) / 2, 0.028],
-    ] as const
-  ).flatMap(([station, x, len]) =>
+  return [
+    ["front", front, 0.05],
+    ["center", (d.cylinders[1].x + d.cylinders[2].x) / 2, 0.028],
+    ["rear", (d.caseRear + d.cylinders[3].x - 0.032) / 2, 0.028],
+  ] as const;
+}
+
+export function mainBearingShells(d: Dims) {
+  return bearingStations(d).flatMap(([station, x, len]) =>
     ([-1, 1] as const).map((side) =>
       item(
         (side === 1 ? "Right" : "Left") + " " + station + " main bearing shell",

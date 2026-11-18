@@ -30,7 +30,7 @@ import { installedCooler } from "./io360/installation";
 import { AccessoryInternals } from "./io390/AccessoryInternals";
 import { remoteCooler, accessoryPads, sumpCasting, suctionScreen } from "./io390/installation";
 import { rockerDrains } from "./io390/accessories";
-import { caseHalf, accessoryCasting, caseHardware, oilHardware } from "./io390/case";
+import { noseCasting, caseHalf, accessoryCasting, caseHardware, oilHardware } from "./io390/case";
 import { Assembly, accessorySpread, Spread } from "./Separation";
 import { Details, useDetailDisposal } from "./io390/Details";
 import { P } from "./parts";
@@ -46,11 +46,15 @@ export function caseGeometry(d: Dims, L: EngineLayout) {
   const M = L.mounts(d);
   const mounts = M.bosses.map(([x, y, z]) => rod(0.02, 0.045, 16).translate(x, y, z));
   return {
-    right: L.detailed ? caseHalf(d, 1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
-    left: L.detailed ? caseHalf(d, -1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
+    right: L.detailed
+      ? caseHalf(d, 1, !L.parallelValve)
+      : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
+    left: L.detailed
+      ? caseHalf(d, -1, !L.parallelValve)
+      : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
     flange: slab(d.caseRear, d.front, d.caseTop - 0.01, d.caseTop + 0.012, -0.01, 0.01, 0.004),
     bolts: merge(bolts),
-    nose: rod(0.05, 0.034, 28).translate(d.front + 0.017, 0, 0),
+    nose: L.detailed && !L.parallelValve ? noseCasting(d) : rod(0.05, 0.034, 28).translate(d.front + 0.017, 0, 0),
     mounts: merge(mounts),
     ...(M.brackets.length ? { brackets: merge(M.brackets.map(([a, b]) => tube([a, b], 0.009, 4, 8))) } : {}),
     acc: L.detailed ? accessoryCasting(d) : slab(d.accRear, d.caseRear, d.accBottom, d.accTop, -0.125, 0.125, 0.03),

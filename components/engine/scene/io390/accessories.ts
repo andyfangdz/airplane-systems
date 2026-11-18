@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { loft } from "@/lib/geometry";
 import { rockerOutline } from "./cylinder";
-import { servoPosition } from "./installation";
-import { nozzleLinePoints } from "./lines";
+import { coolerBafflePort, inletRamp, servoPosition } from "./installation";
+import { cirrusIgnitionFeedthrough, nozzleLinePoints, sideLeadClamps } from "./lines";
 import { bank, driveLayout, headPoints, magDrive, merge, rod, toWorld, tube, zrod, type Dims } from "../kit";
 import type { EngineSpec } from "@/engines/types";
 import {
@@ -325,41 +325,59 @@ export function driveHardware(spec: EngineSpec, d: Dims) {
 }
 
 // The side baffles and flexible edge seals follow each installation’s rocker outline and staggered cylinders.
-export function bankBaffles(d: Dims, coverOutline: XY[], note: string, ends?: [number, number]): Detail[] {
+export function bankBaffles(d: Dims, coverOutline: XY[], note: string, io360Ends?: [number, number]): Detail[] {
   const parts: Detail[] = [];
   const add = (name: string, material: Detail["material"], geometry: THREE.BufferGeometry, spread: Point) =>
     parts.push({ name, material, geometry, spread, note, role: note });
   for (const k of [-1, 1]) {
     const label = k > 0 ? "Right" : "Left",
       cylinders = d.cylinders.filter((c) => bank(c) === k);
-    const x0 = ends?.[0] ?? Math.min(...cylinders.map((c) => c.x)) - 0.098,
-      x1 = ends?.[1] ?? Math.max(...cylinders.map((c) => c.x)) + 0.099;
+    const x0 = io360Ends?.[0] ?? d.caseRear,
+      x1 = io360Ends?.[1] ?? d.front + 0.102;
     const z = d.headOut - 0.014;
-    const outline = section([
-      [x0, -0.024],
-      [x1 - 0.015, -0.024],
-      [x1, 0.015],
-      [x1, 0.144],
-      [x1 - 0.033, 0.171],
-      [x0 + 0.034, 0.171],
-      [x0, 0.143],
-    ]);
-    for (const c of cylinders)
-      outline.holes.push(section(coverOutline.map(([x, y]) => [c.x + x * 1.043, (y - 0.064) * 1.045 + 0.064])));
+    // The SR20 side sheet reaches the back wall and slopes down to the forward inlet lip.
+    const stations: XY[] = io360Ends
+      ? [
+          [x0, 0.141],
+          [x0 + 0.034, 0.169],
+          [x1 - 0.033, 0.169],
+          [x1, 0.142],
+        ]
+      : [
+          [x0, 0.17],
+          [x0 + 0.044, 0.18],
+          [d.front - 0.068, 0.17],
+          [d.front - 0.012, 0.16],
+          [d.front + 0.055, 0.116],
+          [x1, 0.061],
+        ];
+    const ordered = io360Ends ? cylinders : cylinders.toSorted((a, b) => a.x - b.x);
+    const openings = ordered.map((c) =>
+      coverOutline.map(([x, y]): XY => [c.x + x * 1.043, (y - 0.064) * 1.045 + 0.064]),
+    );
+    const bottom: XY[] = io360Ends
+      ? [
+          [x0, -0.024],
+          [x1 - 0.015, -0.024],
+          [x1, 0.015],
+        ]
+      : [
+          [x0, 0.026],
+          ...openings.flatMap((outline) => outline.filter(([, y]) => y > 0.01)),
+          [d.front + 0.018, 0.021],
+          [x1, 0.044],
+        ];
+    const outline = section([...bottom, ...stations.toReversed().map(([x, y]): XY => [x, y + 0.002])]);
+    if (io360Ends) for (const opening of openings) outline.holes.push(section(opening));
     const wall = plate(outline, k * z - 0.0009, k * z + 0.0009);
     add(label + " cylinder bank baffle", "baffleSheet", wall, [0, 0.038, k * 0.63]);
-    const stations: XY[] = [
-      [x0, 0.141],
-      [x0 + 0.034, 0.169],
-      [x1 - 0.033, 0.169],
-      [x1, 0.142],
-    ];
+    const turnIn = io360Ends ? 0.006 : 0.021;
     const lip = loft(
       stations.map(([x, y]) => [
         new THREE.Vector3(x, y - 0.011, k * (z + 0.001)),
         new THREE.Vector3(x, y + 0.009, k * (z + 0.002)),
-        new THREE.Vector3(x, y + 0.026, k * (z - 0.006)),
-        new THREE.Vector3(x, y + 0.026, k * (z - 0.008)),
+        new THREE.Vector3(x, y + 0.026, k * (z - turnIn)),
+        new THREE.Vector3(x, y + 0.026, k * (z - turnIn - 0.002)),
         new THREE.Vector3(x, y + 0.008, k * z),
         new THREE.Vector3(x, y - 0.011, k * (z - 0.001)),
       ]),
@@ -367,10 +385,14 @@ export function bankBaffles(d: Dims, coverOutline: XY[], note: string, ends?: [n
     add(label + " cylinder baffle seal", "baffleSeal", lip, [0, 0.12, k * 0.7]);
     for (let i = 0; i < 6; i++) {
       const x = x0 + 0.037 + (i * (x1 - x0 - 0.074)) / 5;
+      const edge = stations.findIndex(([next]) => next >= x);
+      const [xa, ya] = stations[edge - 1],
+        [xb, yb] = stations[edge];
+      const y = io360Ends ? 0.163 : THREE.MathUtils.lerp(ya, yb, (x - xa) / (xb - xa)) - 0.005;
       add(
         label + " baffle seal rivet (" + (i + 1) + ")",
         "steel",
-        zrod(0.003, -0.0015, 0.0015, 12).translate(x, 0.163, k * (z + 0.0024)),
+        zrod(0.003, -0.0015, 0.0015, 12).translate(x, y, k * (z + 0.0024)),
         [0, 0.17, k * 0.75],
       );
     }
@@ -384,24 +406,148 @@ function cowlBaffles(d: Dims) {
   const parts = bankBaffles(d, rockerOutline, note);
   const add = (name: string, material: Detail["material"], geometry: THREE.BufferGeometry, spread: Point) =>
     parts.push({ name, material, geometry, spread, note });
-  const arch = (inner: number, outer: number, back: number, front: number) => {
-    const s = new THREE.Shape().absarc(0, 0, outer, 0.06, Math.PI - 0.06, false);
-    s.absarc(0, 0, inner, Math.PI - 0.06, 0.06, true);
-    s.closePath();
-    return plate(s, back, front).rotateY(Math.PI / 2);
-  };
+  // The forward partition follows the ring gear and folds forward to meet both inlet floors.
+  // A separate flexible lip flares out from the sheet, as in the overhead installed-engine photo.
+  const arch = (profile: XY[]) =>
+    loft(
+      Array.from({ length: 49 }, (_, i) => {
+        const a = 0.045 + (i / 48) * (Math.PI - 0.09);
+        return profile.map(
+          ([offset, radius]) => new THREE.Vector3(d.front + offset, radius * Math.sin(a), radius * Math.cos(a)),
+        );
+      }),
+    );
   add(
     "Forward cooling baffle arch",
-    "baffleSheet",
-    arch(0.146, 0.187, d.front + 0.007, d.front + 0.009),
+    "inletSheet",
+    arch([
+      [0.007, 0.146],
+      [0.007, 0.179],
+      [0.013, 0.183],
+      [0.082, 0.181],
+      [0.082, 0.179],
+      [0.014, 0.181],
+      [0.009, 0.178],
+      [0.009, 0.146],
+    ]),
     [0.4, 0.19, 0],
   );
   add(
     "Forward cooling baffle seal",
     "baffleSeal",
-    arch(0.175, 0.211, d.front + 0.01, d.front + 0.012),
+    arch([
+      [0.054, 0.182],
+      [0.076, 0.182],
+      [0.086, 0.187],
+      [0.098, 0.208],
+      [0.095, 0.209],
+      [0.084, 0.19],
+      [0.075, 0.185],
+      [0.054, 0.185],
+    ]),
     [0.46, 0.24, 0],
   );
+  // The fasteners sit normal to the arched flange, embedded through the retaining lip.
+  for (let i = 0; i < 11; i++) {
+    const a = 0.12 + (i * (Math.PI - 0.24)) / 10;
+    add(
+      `Forward baffle seal rivet (${i + 1})`,
+      "steel",
+      zrod(0.0032, -0.005, 0.0012, 12)
+        .rotateX(-a)
+        .translate(d.front + 0.066, 0.185 * Math.sin(a), 0.185 * Math.cos(a)),
+      [0.52, 0.25, 0],
+    );
+  }
+  add("Left inlet baffle ramp", "inletSheet", inletRamp(d, false), [0.2, 0.17, -0.43]);
+
+  const rim = d.headOut - 0.014;
+  const [, coolerY, coolerZ] = coolerBafflePort(d);
+  for (const k of [-1, 1]) {
+    const label = k > 0 ? "Right" : "Left";
+    for (const [i, [x, y, z]] of sideLeadClamps(d, k).entries()) {
+      const name = `${label} ignition lead clamp (${i + 1})`;
+      const ring = (ri: number, ro: number, width: number) =>
+        sleeve(ri, ro, -width / 2, width / 2)
+          .rotateY(Math.PI / 2)
+          .translate(x, y, z);
+      const lug = section([
+        [-0.004, 0.001],
+        [0.004, 0.001],
+        [0.004, -0.012],
+        [0.0025, -0.015],
+        [-0.0025, -0.015],
+        [-0.004, -0.012],
+      ]);
+      hole(lug, 0, -0.01, 0.002);
+      add(
+        name,
+        "steel",
+        merge([
+          ring(0.0057, 0.0066, 0.006),
+          plate(lug, -0.001, 0.001).translate(x, y, k * (rim + 0.0025)),
+          new THREE.BoxGeometry(0.007, 0.002, 0.004).translate(x, y, k * (rim + 0.0035)),
+        ]),
+        [0, 0.12, k * 0.72],
+      );
+      add(name + " cushion", "black", ring(0.0043, 0.0058, 0.009), [0, 0.15, k * 0.75]);
+      add(
+        name + " screw",
+        "steel",
+        bolt(0.0018, 0.006)
+          .rotateY(k < 0 ? Math.PI : 0)
+          .translate(x, y - 0.01, k * (rim + 0.0035)),
+        [0, 0.19, k * 0.79],
+      );
+    }
+    // The rear panel clears the crankcase and carries the harness and cooler openings.
+    const edge: XY[] = [
+      [0, 0.211],
+      [0.15, 0.208],
+      [0.31, 0.195],
+      [rim, 0.17],
+    ];
+    const panel = section([
+      [0, 0.176],
+      [0.053, 0.163],
+      [0.13, 0.119],
+      [0.17, 0.016],
+      [rim, 0.016],
+      ...edge.toReversed(),
+    ]);
+    if (k < 0) hole(panel, -coolerZ, coolerY, 0.0315);
+    for (const c of d.cylinders.filter((c) => bank(c) === k)) {
+      const [, y, z] = cirrusIgnitionFeedthrough(d, c);
+      hole(panel, Math.abs(z), y, 0.0075);
+      add(
+        `Ignition lead grommet, cylinder ${c.n}`,
+        "black",
+        sleeve(0.007, 0.0102, -0.0025, 0.0025)
+          .rotateY(Math.PI / 2)
+          .translate(d.caseRear, y, z),
+        [-0.43, 0.22, k * 0.46],
+      );
+    }
+    add(
+      label + " rear cooling baffle",
+      "baffleSheet",
+      plate(panel, -0.001, 0.001)
+        .rotateY((-k * Math.PI) / 2)
+        .translate(d.caseRear, 0, 0),
+      [-0.32, 0.17, k * 0.39],
+    );
+    const lip = loft(
+      edge.map(([span, y]) => [
+        new THREE.Vector3(d.caseRear - 0.001, y - 0.009, k * span),
+        new THREE.Vector3(d.caseRear - 0.001, y + 0.005, k * span),
+        new THREE.Vector3(d.caseRear + 0.011, y + 0.024, k * span),
+        new THREE.Vector3(d.caseRear + 0.014, y + 0.024, k * span),
+        new THREE.Vector3(d.caseRear + 0.002, y + 0.004, k * span),
+        new THREE.Vector3(d.caseRear + 0.002, y - 0.009, k * span),
+      ]),
+    );
+    add(label + " rear baffle seal", "baffleSeal", lip, [-0.37, 0.26, k * 0.43]);
+  }
   return parts;
 }
 

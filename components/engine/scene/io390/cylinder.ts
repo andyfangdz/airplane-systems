@@ -1,23 +1,30 @@
 import * as THREE from "three";
+import { loft } from "@/lib/geometry";
 import type { EngineLayout } from "../layout";
 import { headPoints, merge, rod, VT, zrod, type Dims } from "../kit";
 import { hole, item, items, atStations, nut, plate, section, sleeve, stations, type Detail, type XY } from "./shapes";
 
 // IPC Figs. 11–13. The cover has a wide lower skirt and a narrow crown over the rocker arms.
-export const rockerOutline: XY[] = [
-  [-0.068, -0.002],
-  [-0.077, 0.016],
-  [-0.075, 0.051],
-  [-0.053, 0.126],
-  [-0.04, 0.143],
-  [0.04, 0.143],
-  [0.053, 0.126],
-  [0.075, 0.051],
-  [0.077, 0.016],
-  [0.068, -0.002],
-  [0.048, -0.011],
-  [-0.048, -0.011],
-];
+// Rounded casting and gasket follow the screw lobes. Start at the lower left so
+// the upper edge can also be used for the cutouts in the side baffles.
+const rimShape = new THREE.Shape()
+  .moveTo(-0.058, -0.012)
+  .quadraticCurveTo(-0.081, -0.011, -0.08, 0.021)
+  .quadraticCurveTo(-0.082, 0.044, -0.077, 0.055)
+  .lineTo(-0.054, 0.132)
+  .quadraticCurveTo(-0.052, 0.145, -0.04, 0.145)
+  .lineTo(-0.009, 0.145)
+  .quadraticCurveTo(0, 0.15, 0.009, 0.145)
+  .lineTo(0.04, 0.145)
+  .quadraticCurveTo(0.052, 0.145, 0.054, 0.132)
+  .lineTo(0.077, 0.055)
+  .quadraticCurveTo(0.082, 0.044, 0.08, 0.021)
+  .quadraticCurveTo(0.081, -0.011, 0.058, -0.012)
+  .quadraticCurveTo(0, -0.017, -0.058, -0.012);
+export const rockerOutline: XY[] = rimShape
+  .getPoints(6)
+  .slice(0, -1)
+  .map((p) => [p.x, p.y]);
 const screws: XY[] = [
   [-0.058, -0.006],
   [0, -0.008],
@@ -62,14 +69,37 @@ const coverFlangeZ = (d: Dims) => d.headOut - 0.012;
 const gasketThickness = 0.002;
 
 function cover(d: Dims, parallel: boolean) {
-  const outline = parallel ? parallelOutline : rockerOutline;
-  const face = section(outline.map(([x, y]) => [x * 0.84, (y - 0.06) * 0.84 + 0.06]));
-  if (parallel)
+  if (parallel) {
+    const face = section(parallelOutline.map(([x, y]) => [x * 0.84, (y - 0.06) * 0.84 + 0.06]));
     return merge([
       rockerRim(0.003, coverFlangeZ(d), true),
       plate(face, d.headOut - 0.011, d.headOut - 0.005, 0.006),
       new THREE.BoxGeometry(0.08, 0.009, 0.003).translate(0, 0.063, d.headOut + 0.001),
     ]);
+  }
+  // IPC Fig. 13 and the installed G6 cover. A drawn shell returns to a flat screw
+  // flange. The shoulder dips around each screw and rolls into the face carrying the mark.
+  const perimeter = rimShape.getSpacedPoints(120).slice(0, -1);
+  const shellRing = (scale: number, depth: number) =>
+    perimeter.map(({ x, y }) => {
+      const distance = Math.min(...screws.map(([sx, sy]) => Math.hypot(x - sx, y - sy)));
+      const relief = 0.095 * (1 - THREE.MathUtils.smoothstep(distance, 0.006, 0.019));
+      return new THREE.Vector3(x * (scale - relief), 0.06 + (y - 0.06) * (scale - relief), d.headOut + depth);
+    });
+  // Trace both skins so the underside remains hollow when the cover is lifted.
+  const pressing = loft([
+    shellRing(0.74, -0.0012),
+    shellRing(0.81, -0.0012),
+    shellRing(0.85, -0.0025),
+    shellRing(0.89, -0.0055),
+    shellRing(0.92, -0.01),
+    shellRing(0.95, -0.01),
+    shellRing(0.92, -0.005),
+    shellRing(0.88, -0.0018),
+    shellRing(0.83, -0.00035),
+    shellRing(0.78, 0),
+    shellRing(0.73, 0),
+  ]);
   // Raised numerals on the IO-390 cover.
   const three = new THREE.Shape()
     .moveTo(-9, 13)
@@ -98,14 +128,10 @@ function cover(d: Dims, parallel: boolean) {
   zero.holes.push(new THREE.Path().absellipse(0, 0, 4.5, 11, 0, 2 * Math.PI, true, 0));
   const digits = [three, nine, zero].map((shape, i) =>
     plate(shape, 0, 0.85, 0.42)
-      .scale(0.001, 0.001, 0.001)
-      .translate((i - 1) * 0.026, 0.063, d.headOut),
+      .scale(0.00114, 0.00114, 0.001)
+      .translate((i - 1) * 0.0295, 0.063, d.headOut),
   );
-  return merge([
-    rockerRim(0.003, coverFlangeZ(d)),
-    plate(face, d.headOut - 0.011, d.headOut - 0.006, 0.006),
-    ...digits,
-  ]);
+  return merge([rockerRim(0.003, coverFlangeZ(d)), pressing, ...digits]);
 }
 
 export function cylinderBarrel(d: Dims) {
@@ -161,11 +187,64 @@ function lowerHead(lip: XY[], width: number, bottom: number, shoulder: number) {
     .closePath();
 }
 
+// The square head fins in IPC Figs. 11–13 have rounded ends and recesses for the
+// plug and injector. Feather each recess out axially into the neighbouring fins.
+function angleValveHeadFin(w: number, z: number, d: Dims) {
+  const { topPlug, nozzle } = headPoints(d);
+  const fin = new THREE.Shape()
+    .moveTo(-w, -0.059)
+    .quadraticCurveTo(-w, -0.088, -w + 0.023, -0.088)
+    .lineTo(w - 0.023, -0.088)
+    .quadraticCurveTo(w, -0.088, w, -0.059)
+    .lineTo(w, 0.058)
+    .quadraticCurveTo(w, 0.087, w - 0.005, 0.087);
+  for (const [x, , seatZ] of [nozzle, topPlug]) {
+    const depth = 0.02 * (1 - THREE.MathUtils.smoothstep(Math.abs(z - seatZ), 0.007, 0.028));
+    fin
+      .lineTo(x + 0.013, 0.087)
+      .bezierCurveTo(x + 0.009, 0.087, x + 0.012, 0.087 - depth, x, 0.087 - depth)
+      .bezierCurveTo(x - 0.012, 0.087 - depth, x - 0.009, 0.087, x - 0.013, 0.087);
+  }
+  return fin.quadraticCurveTo(-w, 0.087, -w, 0.058).closePath();
+}
+
+// IPC Fig. 13. A machined pad stands proud of each drafted rocker-box side wall.
+const shaftPadX = 0.075;
+const shaftCoverStuds: XY[] = [
+  [-0.012, -0.004],
+  [0.012, 0.004],
+];
+function shaftCoverFace() {
+  const face = new THREE.Shape()
+    .moveTo(-0.012, -0.013)
+    .quadraticCurveTo(-0.025, -0.013, -0.021, 0.001)
+    .quadraticCurveTo(-0.019, 0.008, -0.011, 0.009)
+    .lineTo(0.011, 0.014)
+    .quadraticCurveTo(0.023, 0.016, 0.023, 0.004)
+    .quadraticCurveTo(0.023, -0.006, 0.014, -0.007)
+    .closePath();
+  for (const [x, y] of shaftCoverStuds) hole(face, x, y, 0.0033);
+  return face;
+}
+
 const springSeatZ = (d: Dims) => d.zPivot - 0.058;
 
 function coverScrews(d: Dims, parallel: boolean) {
+  if (!parallel) {
+    // Two cheeks above a continuous seat leave a recessed screwdriver slot.
+    const radius = 0.0048,
+      halfSlot = 0.0006;
+    const angle = Math.asin(halfSlot / radius);
+    const cheek = new THREE.Shape().absarc(0, 0, radius, angle, Math.PI - angle, false).closePath();
+    return screws.map(([x, y], i) => {
+      const top = plate(cheek, 0.0011, 0.0025, 0.00035);
+      return merge([zrod(0.0025, -0.013, 0, 12), zrod(0.0052, 0, 0.0012, 24), top.clone().rotateZ(Math.PI), top])
+        .rotateZ(i * 1.3)
+        .translate(x, y, coverFlangeZ(d) + 0.003);
+    });
+  }
   return atStations(
-    parallel ? parallelScrews : screws,
+    parallelScrews,
     () => merge([zrod(0.003, -0.013, 0, 10), zrod(0.005, 0, 0.003, 14, 0.004)]),
     d.headOut - 0.008,
   );
@@ -187,20 +266,22 @@ export function lycomingHead(d: Dims, { detailed, parallelValve: parallel = !det
     const fin =
       z >= floor
         ? lowerHead(lip, w + (rootWidth - w) * t * t, -0.089 + 0.031 * t * t, 0.054 - 0.019 * t)
-        : section([
-            [-w, -0.068],
-            [-w + 0.012, -0.089],
-            [w - 0.012, -0.089],
-            [w, -0.068],
-            [w, 0.065],
-            [w - 0.009, 0.084],
-            [0.032, 0.084],
-            [0.019, r + 0.003],
-            [-0.019, r + 0.003],
-            [-0.032, 0.084],
-            [-w + 0.009, 0.084],
-            [-w, 0.065],
-          ]);
+        : !parallel
+          ? angleValveHeadFin(w, z, d)
+          : section([
+              [-w, -0.068],
+              [-w + 0.012, -0.089],
+              [w - 0.012, -0.089],
+              [w, -0.068],
+              [w, 0.065],
+              [w - 0.009, 0.084],
+              [0.032, 0.084],
+              [0.019, r + 0.003],
+              [-0.019, r + 0.003],
+              [-0.032, 0.084],
+              [-w + 0.009, 0.084],
+              [-w, 0.065],
+            ]);
     if (z < floor) hole(fin, 0, 0, r);
     fins.push(plate(fin, z, z + 0.0017));
   }
@@ -250,7 +331,19 @@ export function lycomingHead(d: Dims, { detailed, parallelValve: parallel = !det
       ...fins,
       ...portBosses,
     ]),
-    rockerBox: merge([plate(wellFloor, floor - 0.004, floor), wall]),
+    rockerBox: merge([
+      plate(wellFloor, floor - 0.004, floor),
+      wall,
+      ...(parallel
+        ? []
+        : [-1, 1].map((side) => {
+            const pad = shaftCoverFace();
+            hole(pad, 0, 0, 0.006);
+            return plate(pad, 0.054, shaftPadX, 0.0005)
+              .rotateY((side * Math.PI) / 2)
+              .translate(0, VT.pivotY, d.zPivot);
+          })),
+    ]),
     cover: detailed ? cover(d, parallel) : merge([cover(d, parallel), ...coverScrews(d, parallel)]),
   };
 }
@@ -416,19 +509,9 @@ export function cylinderHardware(
   // Each rocker shaft exits through its own oval cover on the side wall.
   for (const k of [-1, 1]) {
     const which = k > 0 ? "Intake" : "Exhaust";
-    const face = section([
-      [-0.018, -0.009],
-      [-0.012, -0.013],
-      [0.014, -0.011],
-      [0.019, 0.004],
-      [0.01, 0.012],
-      [-0.013, 0.012],
-    ]);
-    const pts: XY[] = [
-      [-0.012, -0.004],
-      [0.012, 0.004],
-    ];
-    const at = (g: THREE.BufferGeometry) => g.rotateY((k * Math.PI) / 2).translate(k * 0.062, VT.pivotY, d.zPivot);
+    const face = shaftCoverFace();
+    const at = (g: THREE.BufferGeometry) =>
+      g.rotateY((k * Math.PI) / 2).translate(k * (shaftPadX + 0.0015), VT.pivotY, d.zPivot);
     details.push(
       item(
         which + " rocker shaft cover",
@@ -453,7 +536,7 @@ export function cylinderHardware(
         "25C-8",
         "11–8",
         "steel",
-        atStations(pts, () => zrod(0.003, -0.016, 0.011, 10)).map((piece) => at(piece)),
+        atStations(shaftCoverStuds, () => zrod(0.003, -0.016, 0.011, 10)).map((piece) => at(piece)),
         "Two studs pass through the shaft cover.",
         [k * 0.025, 0, 0.15],
       ),
@@ -462,7 +545,7 @@ export function cylinderHardware(
         "STD-160",
         "13–3",
         "darkSteel",
-        atStations(pts, () => sleeve(0.003, 0.0058, 0.003, 0.0044)).map((piece) => at(piece)),
+        atStations(shaftCoverStuds, () => sleeve(0.003, 0.0058, 0.003, 0.0044)).map((piece) => at(piece)),
         "Lock washers sit beneath the shaft-cover nuts.",
         [k * 0.11, 0, 0.15],
       ),
@@ -471,7 +554,7 @@ export function cylinderHardware(
         "STD-1411",
         "13–4",
         "steel",
-        atStations(pts, () => nut(0.003), 0.0044).map((piece) => at(piece)),
+        atStations(shaftCoverStuds, () => nut(0.003), 0.0044).map((piece) => at(piece)),
         "Two nuts retain this shaft cover.",
         [k * 0.14, 0, 0.15],
       ),

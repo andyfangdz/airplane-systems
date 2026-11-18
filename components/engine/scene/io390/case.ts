@@ -1,6 +1,7 @@
 import type { EngineSpec } from "@/engines/types";
 import * as THREE from "three";
-import { coil, merge, oilFiller, type oilPump, tube, zrod, type Dims } from "../kit";
+import { bearingStations } from "./rotating";
+import { VT, coil, merge, oilFiller, type oilPump, tube, zrod, type Dims } from "../kit";
 import {
   bolt,
   hole,
@@ -16,8 +17,93 @@ import {
   type XY,
 } from "./shapes";
 
+// C3B6, IPC Fig. 5B. Bored bosses follow the pushrod axes through the sloping deck.
+function tappetDeck(d: Dims, cylinderXs: number[]) {
+  const edgeY = 0.096,
+    ridge = 0.044;
+  const slope = (d.caseHalf - ridge) / (d.caseTop - edgeY);
+  const deck = section([
+    [d.caseRear, edgeY],
+    [d.front, edgeY],
+    [d.front, d.caseTop],
+    [d.caseRear, d.caseTop],
+  ]);
+  const guides = cylinderXs.flatMap((x) => [x - VT.xOff, x + VT.xOff]);
+  for (const x of guides) hole(deck, x, VT.pushY, 0.014);
+  const skin = plate(deck, -0.01, 0)
+    .applyMatrix4(new THREE.Matrix4().makeShear(0, 0, 0, -slope, 0, 0))
+    .translate(0, 0, ridge + slope * d.caseTop);
+  const boss = [
+    [0.014, ridge],
+    [0.021, ridge],
+    [0.021, d.caseHalf - 0.023],
+    [0.019, d.caseHalf - 0.008],
+    [0.018, d.caseHalf + 0.002],
+    [0.014, d.caseHalf + 0.002],
+    [0.014, ridge],
+  ].map(([r, z]) => new THREE.Vector2(r, z));
+  const crest = section([
+    [0.002, d.caseTop],
+    [ridge, d.caseTop],
+    [ridge, d.caseTop - 0.009],
+    [0.002, d.caseTop - 0.009],
+  ]);
+  return merge([
+    skin,
+    plate(crest, -d.front, -d.caseRear).rotateY(-Math.PI / 2),
+    ...guides.map((x) => new THREE.LatheGeometry(boss, 28).rotateX(Math.PI / 2).translate(x, VT.pushY, 0)),
+  ]);
+}
+
+function bearingSaddle(x: number, length: number, width: number, footX: number) {
+  // In the joint plane the insert sits in a half-round seat. The web fans out to the cheek.
+  const web = new THREE.Shape()
+    .moveTo(0, -0.052)
+    .quadraticCurveTo(0.042, -0.052, width, -0.071)
+    .lineTo(width, 0.069)
+    .quadraticCurveTo(0.046, 0.047, 0, 0.053)
+    .lineTo(0, 0.031)
+    .absarc(0, 0, 0.031, Math.PI / 2, -Math.PI / 2, true)
+    .closePath();
+  const casting = plate(web, -x - length / 2, -x + length / 2).rotateY(-Math.PI / 2);
+  // Keep the seat coaxial. Beyond the insert the casting narrows into the gap between
+  // the staggered barrel spigots on this bank.
+  const vertices = casting.getAttribute("position");
+  for (let i = 0; i < vertices.count; i++) {
+    const t = THREE.MathUtils.smoothstep(vertices.getZ(i), 0.032, width);
+    const dx = vertices.getX(i) - x;
+    vertices.setX(i, THREE.MathUtils.lerp(x + dx, footX + (dx * 0.016) / length, t));
+  }
+  casting.computeVertexNormals();
+  return casting;
+}
+
+export function noseCasting(d: Dims) {
+  // Annular seal recess at the open end of the tapered nose (IPC Figs. 5B, 6).
+  const profile = [
+    [0.036, -0.006],
+    [0.07, -0.006],
+    [0.07, -0.001],
+    [0.066, 0.003],
+    [0.055, 0.012],
+    [0.051, 0.018],
+    [0.051, 0.033],
+    [0.049, 0.036],
+    [0.046, 0.036],
+    [0.046, 0.028],
+    [0.036, 0.028],
+    [0.036, -0.006],
+  ];
+  return new THREE.LatheGeometry(
+    profile.map(([r, x]) => new THREE.Vector2(r, x)),
+    48,
+  )
+    .rotateZ(-Math.PI / 2)
+    .translate(d.front, 0, 0);
+}
+
 /** Crankcase cheeks with real cylinder openings, sloping crown, and bored front/rear bearing webs (IPC Fig. 5B). */
-export function caseHalf(d: Dims, side: 1 | -1) {
+export function caseHalf(d: Dims, side: 1 | -1, angleValve: boolean) {
   const { caseRear: x0, front: x1, caseHalf: w, caseTop: h, caseBottom: b } = d;
   const cylinders = d.cylinders.filter((c) => c.side === (side === 1 ? "R" : "L"));
   const face = section([
@@ -79,13 +165,24 @@ export function caseHalf(d: Dims, side: 1 | -1) {
       ),
     ),
   );
+  const cylinderXs = cylinders.map((c) => c.x);
+  const fore = Math.max(...cylinderXs),
+    aft = Math.min(...cylinderXs);
+  const saddleFoot = {
+    front: Math.min(x1 - 0.01, fore + 0.098),
+    center: (fore + aft) / 2,
+    rear: Math.max(x0 + 0.01, aft - 0.098),
+  };
   const half = merge([
     plate(face, w - 0.008, w),
-    longitudinal(crown),
+    angleValve ? tappetDeck(d, cylinderXs) : longitudinal(crown),
     longitudinal(floor),
     web(x0 + 0.004),
     web(x1 - 0.004),
     ...ribs,
+    ...(angleValve
+      ? bearingStations(d).map(([station, x, len]) => bearingSaddle(x, len, w - 0.003, saddleFoot[station]))
+      : []),
   ]);
   if (side === -1) {
     // Reflect the side plate in the joint plane and reverse triangle winding to match its reflected normals.

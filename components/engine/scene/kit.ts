@@ -171,6 +171,7 @@ export function makeMats(L?: EngineLayout, std = studyMaterial) {
     ringSupport: materials.acc,
     pushrodTube: materials.shroud,
     coverMark: materials.darkSteel,
+    inletSheet: materials.shroud,
     baffleSheet: materials.shroud,
     baffleSeal: materials.shroud,
   };
