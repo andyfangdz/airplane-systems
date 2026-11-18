@@ -6,6 +6,8 @@
 import { createElement as h } from "react";
 import * as THREE from "three";
 import { describe, expect, test } from "vitest";
+import { IO360_C172S } from "@/engines/io360-l2a/spec";
+import { IO360_DA40 } from "@/engines/io360-m1a/spec";
 import { IO390 } from "@/engines/io390/spec";
 import { mod, phaseOf, rodEnds, sideAngle, valveLift } from "@/engines/model/cycle";
 import { noFailures, sparks, type MagSwitch } from "@/engines/model/engine";
@@ -43,6 +45,7 @@ import {
   valveLayout,
   VT,
 } from "@/components/engine/scene/kit";
+import { cylinderHardware } from "@/components/engine/scene/io390/cylinder";
 import { IO390_DEFAULTS, layoutFor, type V3 } from "@/components/engine/scene/layout";
 import { GROUPS, groupsFor } from "@/components/engine/scene/parts";
 import { crankGeometry } from "@/components/engine/scene/Rotating";
@@ -84,6 +87,43 @@ function coreBounds(spec: EngineSpec) {
   Object.values(cyl).forEach((g) => g.dispose());
   return box;
 }
+
+test.each([IO360_C172S, IO360_DA40, IO390, O360])(
+  "$model seats its cover and gasket on the cast head around an open rocker pocket (M1A IPC Figs. 10, 13)",
+  (spec) => {
+    const layout = layoutFor(spec);
+    const d = dims(spec, layout);
+    const cyl = cylinderGeometry(d, layout);
+    const hardware = cylinderHardware(d, layout);
+    const gasket = hardware.find((part) => part.name === "Rocker cover gasket")!.geometry;
+    const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+    const faceZ = (geo: THREE.BufferGeometry, x: number, y: number, fromOutside = true) => {
+      const ray = new THREE.Raycaster(
+        new THREE.Vector3(x, y, fromOutside ? d.headOut + 0.05 : d.headIn - 0.05),
+        new THREE.Vector3(0, 0, fromOutside ? -1 : 1),
+      );
+      return ray.intersectObject(new THREE.Mesh(geo, material))[0]?.point.z;
+    };
+    try {
+      // Looking past the bottom of an installed cover should hit the cast fin root, not a bore-deep recess.
+      for (const x of [-0.023, 0, 0.023]) {
+        expect(faceZ(cyl.head, x, -0.032)).toBeGreaterThan(d.zPivot);
+      }
+      // With the cover removed the pocket is open to the spring seats, with a passage for each pushrod.
+      expect(faceZ(cyl.rockerBox, 0, VT.pivotY)).toBeCloseTo(d.zPivot - 0.06, 5);
+      for (const x of [-VT.xOff, VT.xOff]) expect(faceZ(cyl.rockerBox, x, VT.pushY)).toBeUndefined();
+      for (const y of spec === IO390 ? [-0.008, 0.14] : [0, 0.134]) {
+        const x = 0.012;
+        expect(faceZ(cyl.rockerBox, x, y)).toBeCloseTo(faceZ(gasket, x, y, false)!, 6);
+        expect(faceZ(gasket, x, y)).toBeCloseTo(faceZ(cyl.cover, x, y, false)!, 6);
+      }
+    } finally {
+      Object.values(cyl).forEach((geo) => geo.dispose());
+      hardware.forEach((part) => part.geometry.dispose());
+      material.dispose();
+    }
+  },
+);
 
 describe.each(ENGINES)("%s 3D model", (_, S) => {
   const L = layoutFor(S);
@@ -135,7 +175,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
   test("every gear meshes with the one that drives it, at the spec's drive ratio", () => {
     const acc = S.accessories;
     // camshaft gear on the crankshaft gear, twice the teeth: half speed
-    if (!L.c3b6) expect(Math.abs(d.camY)).toBeCloseTo(d.crankGearR + d.camGearR, 6);
+    if (!L.detailed) expect(Math.abs(d.camY)).toBeCloseTo(d.crankGearR + d.camGearR, 6);
     expect(GEAR_TEETH.cam / GEAR_TEETH.crank).toBeCloseTo(d.camGearR / d.crankGearR, 6);
     // magneto gears on the camshaft gear, or on the idler the crankshaft gear drives
     const m = magDrive(S, d, L);
@@ -152,7 +192,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     }
     // oil pump drive: under the crankshaft gear, or turning with the camshaft gear
     const p = oilPump(d, L);
-    if (L.c3b6) {
+    if (L.detailed) {
       expect(p.y).toBe(0);
       expect(p.ratio).toBe(1);
     } else if (p.onCam) {
@@ -381,7 +421,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
 
 describe("IO-390 scene layout defaults", () => {
   test("the IO-390 draws with today's constants", () => {
-    expect(layoutFor(IO390).c3b6).toBe(true);
+    expect(layoutFor(IO390).detailed).toBe(true);
     const d = dims(IO390);
     expect({
       front: d.front,

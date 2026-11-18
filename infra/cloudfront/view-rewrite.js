@@ -2,7 +2,7 @@
 // Viewer request, cloudfront-js-2.0. Maps static export paths to files.
 // Edit this template; npm run fleet:generate writes the deployed function and CloudFormation copy.
 var AIRCRAFT_IDS = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
-var ENGINE_IDS = ["io390", "o360", "tsio550k"];
+var ENGINE_IDS = ["io390", "o360", "tsio550k", "io360-l2a", "io360-m1a"];
 var COMPONENT_IDS = ["piston-cylinder", "carburetor", "fuel-injector", "surefly", "governor", "pitot-static"];
 var FDR_IDS = ["c5-diego-garcia"];
 

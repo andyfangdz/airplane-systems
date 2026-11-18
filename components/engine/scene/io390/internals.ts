@@ -42,6 +42,7 @@ function builder(source: string) {
     geometry,
     spread,
     note: role + " " + source,
+    role,
     motion,
     pivot,
   });

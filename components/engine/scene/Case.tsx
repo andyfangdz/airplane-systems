@@ -26,6 +26,7 @@ import {
   type Mats,
 } from "./kit";
 import { layoutFor, type EngineLayout } from "./layout";
+import { installedCooler } from "./io360/installation";
 import { AccessoryInternals } from "./io390/AccessoryInternals";
 import { remoteCooler, accessoryPads, sumpCasting, suctionScreen } from "./io390/installation";
 import { rockerDrains } from "./io390/accessories";
@@ -45,15 +46,15 @@ export function caseGeometry(d: Dims, L: EngineLayout) {
   const M = L.mounts(d);
   const mounts = M.bosses.map(([x, y, z]) => rod(0.02, 0.045, 16).translate(x, y, z));
   return {
-    right: L.c3b6 ? caseHalf(d, 1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
-    left: L.c3b6 ? caseHalf(d, -1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
+    right: L.detailed ? caseHalf(d, 1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, 0.002, d.caseHalf, 0.035),
+    left: L.detailed ? caseHalf(d, -1) : slab(d.caseRear, d.front, d.caseBottom, d.caseTop, -d.caseHalf, -0.002, 0.035),
     flange: slab(d.caseRear, d.front, d.caseTop - 0.01, d.caseTop + 0.012, -0.01, 0.01, 0.004),
     bolts: merge(bolts),
     nose: rod(0.05, 0.034, 28).translate(d.front + 0.017, 0, 0),
     mounts: merge(mounts),
     ...(M.brackets.length ? { brackets: merge(M.brackets.map(([a, b]) => tube([a, b], 0.009, 4, 8))) } : {}),
-    acc: L.c3b6 ? accessoryCasting(d) : slab(d.accRear, d.caseRear, d.accBottom, d.accTop, -0.125, 0.125, 0.03),
-    sump: L.c3b6
+    acc: L.detailed ? accessoryCasting(d) : slab(d.accRear, d.caseRear, d.accBottom, d.accTop, -0.125, 0.125, 0.03),
+    sump: L.detailed
       ? sumpCasting(d)
       : slab(d.caseRear + 0.005, d.front - 0.04, d.sumpBottom, d.caseBottom + 0.01, -0.12, 0.12, 0.03),
   };
@@ -61,7 +62,13 @@ export function caseGeometry(d: Dims, L: EngineLayout) {
 
 export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
-  const hardware = useMemo(() => (L.c3b6 ? [...caseHardware(d), ...accessoryPads(d)] : []), [L, d]);
+  const hardware = useMemo(
+    () =>
+      L.detailed
+        ? [...caseHardware(d, sim.spec.illustratedInstallation), ...(L.parallelValve ? [] : accessoryPads(d))]
+        : [],
+    [L, d, sim.spec.illustratedInstallation],
+  );
   useDetailDisposal(hardware);
   const geo = useMemo(() => caseGeometry(d, L), [d, L]);
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
@@ -95,7 +102,7 @@ export function Crankcase({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
         geometry={geo.flange}
         material={mats.case}
       />
-      {!L.c3b6 && (
+      {!L.detailed && (
         <P
           name="Crankcase bolts"
           spread={[0, 0.38, 0.2]}
@@ -176,8 +183,15 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
   const L = layoutFor(sim.spec);
   const PUMP = useMemo(() => oilPump(d, L), [d, L]);
   const hardware = useMemo(
-    () => (L.c3b6 ? [...oilHardware(d, PUMP), ...rockerDrains(d), ...remoteCooler(d)] : []),
-    [L, d, PUMP],
+    () =>
+      L.detailed
+        ? [
+            ...oilHardware(d, PUMP),
+            ...rockerDrains(d, L.parallelValve),
+            ...(L.parallelValve ? installedCooler(d, sim.spec.illustratedInstallation === "c172s") : remoteCooler(d)),
+          ]
+        : [],
+    [L, d, PUMP, sim],
   );
   useDetailDisposal(hardware);
   const { spins } = useMemo(() => gearSpins(sim.spec, d, L), [sim, d, L]);
@@ -249,7 +263,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         ? slab(fx - 0.03, d.accRear, adapterY - 0.015, adapterY + 0.015, fz - 0.028, fz + 0.028, 0.006)
         : null,
       // driven off the crankshaft gear: a drive gear meshing below it, its shaft running aft to the pumping gears
-      pumpDrive: L.c3b6
+      pumpDrive: L.detailed
         ? merge([
             rod(0.007, PUMP.x0 - PUMP.x1 + 0.006).translate((PUMP.x1 - PUMP.x0) / 2, 0, 0),
             new THREE.BoxGeometry(0.007, 0.009, 0.023),
@@ -268,8 +282,10 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
         2 * PUMP.gearR + 0.024,
         0.012,
       ).translate(d.caseRear, 0, 0),
-      screen: L.c3b6 ? suctionScreen(d) : rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
-      screenPlug: L.c3b6
+      screen: L.detailed
+        ? suctionScreen(d)
+        : rod(0.014, 0.075, 14).translate(d.caseRear + 0.05, d.sumpBottom + 0.025, 0),
+      screenPlug: L.detailed
         ? rod(0.018, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.024, 0.064)
         : rod(0.012, 0.01, 6).translate(d.caseRear, d.sumpBottom + 0.025, 0),
       drain: new THREE.CylinderGeometry(0.009, 0.009, 0.014, 6).translate(-0.04, d.sumpBottom - 0.007, 0.06),
@@ -278,7 +294,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       nozzle: zrod(0.0035, d.caseHalf - 0.04, d.caseHalf - 0.008, 8).translate(0, -0.05, 0),
       suction: tube(
         [
-          L.c3b6 ? [d.caseRear + 0.07, d.sumpBottom + 0.024, 0.064] : [d.caseRear + 0.012, d.sumpBottom + 0.025, 0],
+          L.detailed ? [d.caseRear + 0.07, d.sumpBottom + 0.024, 0.064] : [d.caseRear + 0.012, d.sumpBottom + 0.025, 0],
           [d.caseRear - 0.004, d.sumpBottom + 0.03, 0.01],
           [d.caseRear + PUMP.x1 - 0.004, PUMP.y - 0.05, PUMP.gearR],
           [d.caseRear + PUMP.x1, PUMP.y - 0.026, PUMP.gearR],
@@ -316,7 +332,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
     // the drive gear turns against the crankshaft gear (or with the camshaft), the second pumping gear against it
     const a = ((sim.anim.crank * spins.oilPump) % 360) * D2R;
     const [drive, pump, idler] = gears.current;
-    if (drive) drive.rotation.x = a + (L.c3b6 ? 0 : Math.PI / 12);
+    if (drive) drive.rotation.x = a + (L.detailed ? 0 : Math.PI / 12);
     if (pump) pump.rotation.x = a;
     if (idler) idler.rotation.x = ((sim.anim.crank * spins.oilPumpIdler) % 360) * D2R + Math.PI / 10;
   });
@@ -345,7 +361,7 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       )}
       {/* named for its label, which the filter's own parts don't hide (kit.ts labelOccluder) */}
       <group name="Oil filter">
-        {L.c3b6 && (
+        {L.detailed && (
           <AccessoryInternals
             kind="filter"
             mats={mats}
@@ -382,10 +398,10 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
       />
       {!PUMP.onCam && (
         <P
-          name={L.c3b6 ? "Oil pump drive shaft" : "Oil pump drive gear"}
+          name={L.detailed ? "Oil pump drive shaft" : "Oil pump drive gear"}
           spread={[-0.12, -0.06, 0]}
           note={
-            L.c3b6
+            L.detailed
               ? "The tangs of shaft 61174 engage the slots in the crankshaft gear. The pump turns at crankshaft speed (MM 72-25, Fig. 5)."
               : "Meshes with the crankshaft gear and turns the pump through its shaft. Drawn at twice crankshaft speed: the IOM doesn't give the oil pump's drive ratio."
           }

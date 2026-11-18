@@ -52,7 +52,7 @@ const general = (spec: EngineSpec) => !forTsio550k(spec);
 /** Propeller-control position that sets the governor to `rpm`. */
 export const propFor = (spec: EngineSpec, rpm: number) =>
   // a governor with no pilot control (the -K) has one setting: full range would be 0/0
-  spec.propeller.control === "fixed"
+  spec.propeller.control === "fixed" || spec.propeller.control === "fixed-pitch"
     ? 1
     : (rpm - spec.propeller.governorMinRpm) / (governedRpm(spec, 1) - spec.propeller.governorMinRpm);
 
@@ -91,7 +91,12 @@ function holdHp(spec: EngineSpec, x: Setup, f: Failures, hp: number, lambda?: nu
 /** Cruise at a published point: hold its rpm with the propeller, its hp with the throttle, its mixture. */
 function cruise(spec: EngineSpec, k: number, altFt: number, tasKt: number, f: Failures) {
   const p = spec.rating.cruise[k];
-  const x = warmStart(spec, { tasKt, altFt }, f);
+  const x = warmStart(spec, { tasKt: p.tasKt ?? tasKt, altFt }, f);
+  if (spec.propeller.control === "fixed-pitch") {
+    // Cessna publishes RPM, TAS and recommended lean mixture together (Fig. 5-8).
+    settle(spec, x.s, x.c, x.env, f, 60, { rpm: p.rpm, lambda: 0.93 }, 30);
+    return x;
+  }
   x.c.prop = propFor(spec, p.rpm);
   const lambda = p.mixture === "best power" ? spec.calibration.lambdaBestPower : 1;
   const map = Math.min(fullThrottleMap(spec, p.rpm, altFt) - 0.5, 23);
@@ -102,6 +107,8 @@ function cruise(spec: EngineSpec, k: number, altFt: number, tasKt: number, f: Fa
 
 const cruiseNote = (spec: EngineSpec, k: number, altFt: number) => {
   const p = spec.rating.cruise[k];
+  if (p.mixture === "recommended lean")
+    return `${f0(p.rpm)} rpm at ${f0(altFt)} ft and ${p.tasKt} KTAS with recommended lean mixture. The POH gives ${p.pct}% power and ${p.gph} gph (${spec.refs.cruise}).`;
   const how = p.mixture === "best power" ? "leaned to best power" : "leaned to peak EGT (best economy)";
   return `${p.hp} hp at ${f0(p.rpm)} rpm, ${how}, at ${f0(altFt)} ft (${spec.refs.cruise}). The manual gives ${p.gph} gph.`;
 };
@@ -126,6 +133,8 @@ export const SCENARIOS: Scenario[] = [
     only: general,
     note: (spec) => {
       const L = spec.limits.idleRpm;
+      if (L.min === L.max)
+        return `Started and warmed up, throttle closed. The ${spec.doc} gives approximately ${L.min} rpm at the idle stop (${spec.refs.idle}).`;
       return L.assumed
         ? `Started and warmed up, throttle closed. The manual leaves idle speed to the airframe maker; the model idles at about ${L.min} to ${L.max} rpm (${spec.refs.idle}).`
         : `Started and warmed up, throttle closed. The ${spec.doc} gives ${L.min} to ${L.max} rpm as the usual idle speed (${spec.refs.idle}).`;
@@ -143,7 +152,7 @@ export const SCENARIOS: Scenario[] = [
     only: general,
     note: (spec) => {
       const L = spec.limits;
-      return `Warm, at ${f0(magRpm(spec))} rpm with the propeller full increase. Switch to L or R and watch the drop: at most ${L.magDropMax.value} rpm, within ${L.magDiffMax.value} rpm of each other (${spec.refs.magCheck}).`;
+      return `Warm, at ${f0(magRpm(spec))} rpm${spec.propeller.control === "fixed-pitch" ? "" : " with the propeller full increase"}. Switch to L or R and watch the drop: at most ${L.magDropMax.value} rpm, within ${L.magDiffMax.value} rpm of each other (${spec.refs.magCheck}).`;
     },
     run: (spec, f = noFailures(spec)) => {
       const x = warmStart(spec, {}, f);
@@ -156,7 +165,7 @@ export const SCENARIOS: Scenario[] = [
     label: "Takeoff",
     only: general,
     note: (spec) =>
-      `Full throttle, full rich, propeller full increase${carbureted(spec) ? ", carburetor heat off" : ""}, sea level, 70 kt.`,
+      `Full throttle, full rich${spec.propeller.control === "fixed-pitch" ? "" : ", propeller full increase"}${carbureted(spec) ? ", carburetor heat off" : ""}, sea level, 70 kt.`,
     run: (spec, f = noFailures(spec)) => {
       const x = warmStart(spec, { tasKt: 70 }, f);
       x.c.prop = 1;
@@ -168,7 +177,8 @@ export const SCENARIOS: Scenario[] = [
     id: "climb",
     label: "Full-power climb",
     only: general,
-    note: (spec) => `Full throttle, full rich, ${f0(spec.rating.rpm)} rpm at 100 kt, temperatures settled at 3,000 ft.`,
+    note: (spec) =>
+      `Full throttle, full rich${spec.propeller.control === "fixed-pitch" ? "" : `, ${f0(spec.rating.rpm)} rpm`} at 100 kt, temperatures settled at 3,000 ft.`,
     run: (spec, f = noFailures(spec)) => {
       const x = warmStart(spec, { tasKt: 100, altFt: 3000 }, f);
       x.c.prop = 1;

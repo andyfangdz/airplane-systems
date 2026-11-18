@@ -15,6 +15,7 @@ export function AccessoryInternals({
   sim,
   mats,
   position,
+  rotationZ = 0,
   spread,
   suffix = "",
   retard = false,
@@ -25,6 +26,7 @@ export function AccessoryInternals({
   sim: EngineSim;
   mats: Mats;
   position?: Point;
+  rotationZ?: number;
   spread?: Point;
   suffix?: string;
   retard?: boolean;
@@ -98,7 +100,7 @@ export function AccessoryInternals({
     }
   });
   const group = (
-    <group position={position}>
+    <group position={position} rotation={[0, 0, rotationZ]}>
       {parts.map((p) => (
         <Spread key={p.name} by={p.spread!}>
           <group position={p.pivot}>
@@ -112,7 +114,13 @@ export function AccessoryInternals({
                   : undefined
               }
             >
-              <P name={p.name + suffix} note={p.note} material={mats[p.material]} geometry={p.geometry} />
+              <P
+                name={p.name + suffix}
+                note={p.note}
+                installationNote={p.role}
+                material={mats[p.material]}
+                geometry={p.geometry}
+              />
             </group>
           </group>
         </Spread>

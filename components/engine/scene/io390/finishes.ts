@@ -212,7 +212,7 @@ export function makeSolidFinishes(layout: EngineLayout) {
   finish(mats.acc, "#687071", 0.2, 0.46, "casting");
   finish(mats.barrel, "#33393a", 0.58, 0.54, "machining");
   finish(mats.head, "#898c89", 0.52, 0.51, "casting");
-  finish(mats.cover, "#555a61", 0.19, 0.29);
+  finish(mats.cover, layout.parallelValve ? "#909699" : "#555a61", 0.19, 0.29);
   finish(mats.shroud, "#a1a8a7", 0.82, 0.3, "machining");
   finish(mats.steel, "#bbc1c1", 0.91, 0.24, "machining");
   finish(mats.darkSteel, "#5a6163", 0.83, 0.39, "machining");
@@ -246,12 +246,12 @@ export function makeSolidFinishes(layout: EngineLayout) {
   mats.plugShield = mats.steel;
   mats.fuelHose = mats.oilHose;
   mats.baffleSeal = mats.black.clone();
-  finish(mats.baffleSeal, "#a74836", 0.015, 0.78);
+  finish(mats.baffleSeal, layout.parallelValve ? "#393c3c" : "#a74836", 0.015, 0.78);
   mats.baffleSheet = mats.shroud.clone();
   finish(mats.baffleSheet, "#b7ad94", 0.54, 0.44, "machining");
   mats.baffleSheet.transparent = false;
   mats.coverMark = new THREE.MeshStandardMaterial({ color: mats.cover.color, roughness: 0.36, metalness: 0.17 });
-  const label = coverPlacard();
+  const label = layout.parallelValve ? undefined : coverPlacard();
   if (label) {
     mats.coverMark.color.set(0xffffff);
     mats.coverMark.map = label;

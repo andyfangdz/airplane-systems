@@ -3,7 +3,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { CylinderDef } from "@/engines/types";
 import type { V3 } from "./layout";
 
-/** Only the IO-390 supplies a catalog layout. Offsets are in the parent assembly's frame, in model metres. */
+/** Detailed installations supply a catalog layout. Offsets are in the parent assembly's frame, in model metres. */
 export const Separation = createContext<boolean | null>(null);
 const origin: V3 = [0, 0, 0];
 
@@ -26,6 +26,7 @@ export const accessorySpread: Record<string, V3> = {
   "Fuel manifold": [0, 0.52, 0],
   Starter: [0.11, -0.16, -0.18],
   Governor: [0.24, 0.16, -0.07],
+  Alternator: [0.12, -0.1, 0.23],
   "ALT 1": [0.12, -0.1, 0.23],
   "ALT 2": [0.12, -0.1, -0.23],
   Propeller: [0.55, 0, 0],

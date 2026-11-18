@@ -123,7 +123,7 @@ export function Controls({ sim, onPrime }: { sim: EngineSim; onPrime?: () => voi
         onChange={(v) => set({ throttle: v })}
         fmt={pct}
       />
-      {!single && (
+      {!single && spec.propeller.control !== "fixed-pitch" && (
         <Slider
           id="prop"
           label="Propeller"
@@ -272,7 +272,9 @@ function Readings({ sim }: { sim: EngineSim }) {
           ["Fuel", `${(s.fuel / AVGAS_LB_GAL).toFixed(1)} gph`],
           ...fuel,
           ["Blade", `${s.beta.toFixed(1)}°`],
-          ["Governor", s.governing ? "governing" : "not governing"],
+          ...(spec.propeller.control === "fixed-pitch"
+            ? [["Propeller", "Fixed pitch"] as [string, string]]
+            : [["Governor", s.governing ? "governing" : "not governing"] as [string, string]]),
           ...cooler,
           ["Inlet", `${s.inletInHg.toFixed(1)} inHg`],
           ...(carb ? ([["Inlet air", `${f0((s.inletC * 9) / 5 + 32)} °F`]] as [string, string][]) : []),
@@ -704,16 +706,23 @@ function Specs({ sim }: { sim: EngineSim }) {
     ["Maximum rpm", `${f0(L.rpmMax.value)}`],
     [
       "Idle",
-      `${L.idleRpm.min}–${L.idleRpm.max} rpm${L.idleRpm.assumed ? " (assumed: the airframe maker sets it)" : ""}`,
+      L.idleRpm.min === L.idleRpm.max
+        ? `About ${L.idleRpm.min} rpm`
+        : `${L.idleRpm.min}–${L.idleRpm.max} rpm${L.idleRpm.assumed ? " (assumed: the airframe maker sets it)" : ""}`,
     ],
     [
       "CHT",
-      `${L.chtMax.value} °F maximum; ${L.chtBestAbove75.value} °F above 75 % and ${L.chtBestAt75.value} °F at or below 75 % for maximum life`,
+      L.chtBestAbove75.value === L.chtBestAt75.value
+        ? `${L.chtMax.value} °F maximum, ${L.chtBestAt75.value} °F recommended upper limit in continuous operation`
+        : `${L.chtMax.value} °F maximum; ${L.chtBestAbove75.value} °F above 75 % and ${L.chtBestAt75.value} °F at or below 75 % for maximum life`,
     ],
-    ["Oil temperature", `${L.oilTempMax.value} °F maximum; ${L.oilTempBest.value} °F for maximum life`],
+    [
+      "Oil temperature",
+      `${L.oilTempMax.value} °F maximum, ${L.oilTempBest.value}${L.oilTempBest.max ? "–" + L.oilTempBest.max : ""} °F ${L.oilTempBest.ambientDependent ? "desired depending on ambient temperature" : "for maximum life"}`,
+    ],
     [
       "Oil pressure",
-      `${L.oilPressNormal.min}–${L.oilPressNormal.max} psi normal, ${L.oilPressMinIdle.value} psi minimum at idle, ${L.oilPressMaxStart.value} psi maximum starting`,
+      `${L.oilPressNormal.min}–${L.oilPressNormal.max} psi normal, ${L.oilPressMinIdle.value} psi minimum at idle, ${L.oilPressMaxStart.value} psi maximum${L.oilPressMaxStart.allPhases ? "" : " starting"}`,
     ],
     ["Oil", `${L.oilSumpQt.value} qt sump, ${L.oilMinQt.value} qt minimum`],
     ["Magneto check", `drop ≤ ${L.magDropMax.value} rpm, within ${L.magDiffMax.value} rpm of each other`],

@@ -308,3 +308,40 @@ for (const engine of ENGINES)
       assert.deepEqual(errors, []);
       await context.close();
     });
+
+for (const [airplane, engine, installedPart] of [
+  ["c172s", "io360-l2a", "Automatic alternate air door"],
+  ["da40", "io360-m1a", "Rotary alternate air sleeve"],
+]) {
+  test(`${airplane} powerplant opens its IO-360 installation and exploded parts`, async ({ page }) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.addInitScript(() => localStorage.setItem("tourDone", "1"));
+    await page.goto(`/${airplane}/engine`);
+    await page.getByRole("link", { name: /Explore the IO-360/ }).click();
+    await page.waitForURL(`**/engines/${engine}`);
+    const exploded = page.getByRole("button", { name: "Blow up", exact: true });
+    await exploded.click();
+    assert.equal(await exploded.getAttribute("aria-pressed"), "true");
+    assert.equal(await page.locator("#prop").count(), airplane === "da40" ? 1 : 0);
+    assert.equal(await page.locator("#altair").count(), airplane === "da40" ? 1 : 0);
+    await page.getByText("Inspect a part", { exact: false }).first().click();
+    const search = page.getByRole("searchbox", { name: "Find a part" });
+    await search.fill("61247");
+    await page.getByRole("button", { name: "Rocker cover, cylinder 1", exact: true }).click();
+    assert.match(await page.locator(".part-explanation p").innerText(), /61247/);
+    await search.fill("STD-8");
+    await page.getByRole("button", { name: "Sump flange plain washer (1)", exact: true }).click();
+    assert.match(await page.locator(".part-explanation p").innerText(), /\bSTD-8\b/);
+    const airframePart = airplane === "da40" ? "Oil cooler air duct" : "Right cooling inlet ramp";
+    await search.fill(airframePart);
+    await page.getByRole("button", { name: airframePart, exact: true }).click();
+    assert.equal(await page.locator(".part-explanation h3").innerText(), airframePart);
+    await search.fill(installedPart);
+    await page.getByRole("button", { name: installedPart, exact: true }).click();
+    await exploded.click();
+    assert.equal(await exploded.getAttribute("aria-pressed"), "false");
+    assert.equal(await page.locator(".part-explanation h3").innerText(), installedPart);
+    assert.deepEqual(errors, []);
+  });
+}

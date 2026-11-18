@@ -16,6 +16,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import type { EngineSim } from "./store";
 import { makeSolidFinishes } from "./scene/io390/finishes";
 import { Crankcase, Lubrication } from "./scene/Case";
+import { IO360Airframe } from "./scene/io360/Airframe";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
 import { layoutFor } from "./scene/layout";
@@ -33,13 +34,13 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   const d = useMemo(() => dims(sim.spec), [sim]);
   const L = layoutFor(sim.spec);
   const study = useMemo(() => makeMats(L), [L]);
-  const finishes = useMemo(() => (L.c3b6 ? makeSolidFinishes(L) : null), [L]);
+  const finishes = useMemo(() => (L.detailed ? makeSolidFinishes(L) : null), [L]);
   const xray = sim.useUi((s) => s.view.xray);
   const mats = !xray && finishes ? finishes.mats : study;
   const gl = useThree((s) => s.gl),
     scene = useThree((s) => s.scene);
   useEffect(() => {
-    if (!L.c3b6) return;
+    if (!L.detailed) return;
     const studio = new RoomEnvironment(),
       generator = new THREE.PMREMGenerator(gl);
     const reflection = generator.fromScene(studio, 0.04);
@@ -86,7 +87,7 @@ export function EngineAssemblies(p: { sim: EngineSim; d: Dims; mats: Mats }) {
   const open = sim.useUi((x) => !!x.view.blowUp);
   return (
     <PartNotesProvider value={sim.spec.parts}>
-      <Separation.Provider value={L.c3b6 ? open : null}>
+      <Separation.Provider value={L.detailed ? open : null}>
         <Group sim={sim} id="rotating">
           <Crankshaft {...p} />
           <RodsAndPistons {...p} />
@@ -100,6 +101,11 @@ export function EngineAssemblies(p: { sim: EngineSim; d: Dims; mats: Mats }) {
         <Group sim={sim} id="cylinders">
           <Cylinders {...p} />
         </Group>
+        {L.parallelValve && (
+          <Group sim={sim} id="installation">
+            <IO360Airframe spec={sim.spec} d={p.d} mats={p.mats} />
+          </Group>
+        )}
         <Group sim={sim} id="case">
           <Crankcase {...p} />
         </Group>
@@ -147,7 +153,7 @@ function explodedLabel(name: string, p: [number, number, number], sim: EngineSim
 }
 
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
-  const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).c3b6);
+  const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
   const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
@@ -194,8 +200,8 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
   const cam = layoutFor(sim.spec).camera;
-  const solid = sim.useUi((s) => !!layoutFor(sim.spec).c3b6 && !s.view.xray);
-  const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).c3b6);
+  const solid = sim.useUi((s) => !!layoutFor(sim.spec).detailed && !s.view.xray);
+  const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
   const prop = sim.useUi((x) => x.view.prop),
     hidden = sim.useUi((x) => x.view.hidden);
   return (

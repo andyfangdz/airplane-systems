@@ -138,8 +138,7 @@ export function servoPosition(d: Dims): Point {
   return [d.front - 0.053, d.sumpBottom - 0.035, 0];
 }
 
-export function injectionServo(d: Dims) {
-  const [ix, iy] = servoPosition(d);
+export function injectionServo(d: Dims, [ix, iy]: Point = servoPosition(d), updraft = false) {
   const flange = section([
     [-0.05, -0.034],
     [-0.036, -0.048],
@@ -159,7 +158,9 @@ export function injectionServo(d: Dims) {
     plate(flange, -0.046, -0.04).rotateY(Math.PI / 2),
     plate(flange, 0.039, 0.046).rotateY(Math.PI / 2),
     side,
-  ]).translate(ix, iy, 0);
+  ])
+    .rotateZ(updraft ? -Math.PI / 2 : 0)
+    .translate(ix, iy, 0);
 }
 
 export function diaphragmPump(d: Dims) {

@@ -47,7 +47,7 @@ export function crankGeometry(spec: EngineSpec, d: Dims) {
   const journals = cl.journals.map((j) => rod(0.028, j.len, 20).translate(j.x, 0, 0));
   const bearings = cl.bearings.map((b) => rod(0.0305, b.len, 20).translate(b.x, 0, 0));
   const nose = rod(0.034, d.flangeX - d.front, 20).translate((d.flangeX + d.front) / 2, 0, 0);
-  const cheek = L.c3b6
+  const cheek = L.detailed
     ? crankCheek(d, CHEEK_T)
     : new THREE.BoxGeometry(CHEEK_T, 0.062, d.r + 0.062).translate(0, 0, d.r / 2);
   const pin = rod(0.026, 0.05, 18);
@@ -71,14 +71,18 @@ export function crankGeometry(spec: EngineSpec, d: Dims) {
   const ring =
     L.starter === "front-ring"
       ? merge([
-          gear(d.ringR, STARTER_TEETH.ring, 0.012, d.ringR - 0.02, L.c3b6 ? 36 : 4).translate(d.flangeX - 0.03, 0, 0),
-          ...(L.c3b6 ? [] : [rod(d.ringR - 0.018, 0.006, 48).translate(d.flangeX - 0.03, 0, 0)]),
+          gear(d.ringR, STARTER_TEETH.ring, 0.012, d.ringR - 0.02, L.detailed ? 36 : 4).translate(
+            d.flangeX - 0.03,
+            0,
+            0,
+          ),
+          ...(L.detailed ? [] : [rod(d.ringR - 0.018, 0.006, 48).translate(d.flangeX - 0.03, 0, 0)]),
         ])
       : null;
   // belt alternator pulley (with a propeller standoff, the sheave adapter it sits on, from the flange to the
   // propeller); drive gear for a gear-driven alternator
   const belt = drives.alternators.find((a) => !a.gear);
-  const pulley = L.c3b6
+  const pulley = L.detailed
     ? merge(
         drives.alternators.map((a) =>
           merge([
@@ -128,11 +132,14 @@ export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
       }),
     [geo],
   );
-  const flange = useMemo(() => (L.c3b6 ? flangeAssembly(d) : []), [L, d]);
-  const weights = useMemo(() => (L.c3b6 ? counterweightHardware() : []), [L]);
+  const flange = useMemo(
+    () => (L.detailed ? flangeAssembly(d, sim.spec.illustratedInstallation) : []),
+    [L, d, sim.spec.illustratedInstallation],
+  );
+  const weights = useMemo(() => (L.detailed && L.counterweights.length ? counterweightHardware() : []), [L]);
   useDetailDisposal(flange);
   useDetailDisposal(weights);
-  const bearings = useMemo(() => (L.c3b6 ? mainBearingShells(d) : []), [L, d]);
+  const bearings = useMemo(() => (L.detailed ? mainBearingShells(d) : []), [L, d]);
   useDetailDisposal(bearings);
   const crank = useRef<THREE.Group>(null);
   useFrame(() => {
@@ -143,7 +150,7 @@ export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
   const cwAt = (n: number) => cl.counterweights.filter((w) => w.c.n === n);
   return (
     <>
-      {L.c3b6 ? (
+      {L.detailed ? (
         <Details parts={bearings} mats={mats} />
       ) : (
         <P
@@ -180,7 +187,7 @@ export function Crankshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
           geometry={geo.crankGear}
           material={mats.gear}
         />
-        {L.c3b6 ? (
+        {L.detailed ? (
           <Details parts={flange} mats={mats} />
         ) : (
           <P
@@ -286,8 +293,8 @@ export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats
     },
     [rodGeo, pg],
   );
-  const rodParts = useMemo(() => (L.c3b6 ? rodAssembly(d) : []), [L, d]);
-  const pistonParts = useMemo(() => (L.c3b6 ? pistonAssembly(d) : []), [L, d]);
+  const rodParts = useMemo(() => (L.detailed ? rodAssembly(d) : []), [L, d]);
+  const pistonParts = useMemo(() => (L.detailed ? pistonAssembly(d) : []), [L, d]);
   useDetailDisposal(rodParts);
   useDetailDisposal(pistonParts);
   const rods = useRef<(THREE.Object3D | null)[]>([]),
@@ -313,7 +320,7 @@ export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats
       {sim.spec.geometry.cylinders.map((c, i) => (
         <Spread key={c.n} by={cylinderSpread(c, 0.1)}>
           <group position={[c.x, 0, 0]} rotation={[0, c.side === "L" ? Math.PI : 0, 0]}>
-            {L.c3b6 ? (
+            {L.detailed ? (
               <group
                 ref={(g) => {
                   rods.current[i] = g;
@@ -337,7 +344,7 @@ export function RodsAndPistons({ sim, d, mats }: { sim: EngineSim; d: Dims; mats
                 pistons.current[i] = g;
               }}
             >
-              {L.c3b6 ? (
+              {L.detailed ? (
                 <Details parts={pistonParts} mats={mats} suffix={`, cylinder ${c.n}`} />
               ) : (
                 <>

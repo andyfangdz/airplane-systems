@@ -106,8 +106,10 @@ export type NoteKey =
   | "altBelt";
 
 export interface EngineLayout {
-  /** Use the C3B6 castings and illustrated-parts configuration. */
-  c3b6?: boolean;
+  /** Detailed Lycoming power section, finishes and assembly-axis separation. */
+  detailed?: boolean;
+  /** Both IO-360 installations use the six-screw parallel-valve rocker box. */
+  parallelValve?: boolean;
   /**
    * Stations along the crankshaft, inches, in the scene's x (x = in × 0.0254, + forward): the accessory mounting face,
    * the rear face of the crankcase, the front of the crankcase and the propeller-flange face. null = derived from the
@@ -248,11 +250,47 @@ export const IO390_DEFAULTS: EngineLayout = {
   notes: {},
 };
 
+export function io360Servo(d: Dims, updraft: boolean): V3 {
+  return updraft ? [d.front - 0.185, d.sumpBottom - 0.067, 0] : [d.front - 0.053, d.sumpBottom - 0.035, 0];
+}
+function io360Layout(fixedPitch: boolean): EngineLayout {
+  return {
+    ...IO390_DEFAULTS,
+    detailed: true,
+    parallelValve: true,
+    propSpacer: fixedPitch ? 3.5 * 0.0254 : 0,
+    counterweights: [],
+    camera: { position: [1.38, 0.74, 1.65], target: [0, -0.02, 0], maxDistance: 6 },
+    alternators: [
+      {
+        name: "Alternator",
+        drive: "belt",
+        ratio: null,
+        angleDeg: 124,
+        r: 0.235,
+        src: fixedPitch ? "C172S POH 7-49" : "DA40 AMM 24-30",
+      },
+    ],
+    labels: (d, spec) => [
+      ...IO390_DEFAULTS.labels(d, spec).filter(
+        ([name]) =>
+          name !== "Fuel injector" &&
+          name !== "Magnetos" &&
+          name !== "Alternator" &&
+          !(fixedPitch && name === "Governor"),
+      ),
+      ["Fuel injector", io360Servo(d, fixedPitch), { group: "fuel" }],
+      ["Magnetos", [d.accRear - 0.11, 0.1, 0], { group: "ignition" }],
+      ["Alternator", [d.flangeX - 0.1, -0.13, 0.23], { group: "drives" }],
+    ],
+  };
+}
+
 /** Layouts by engine id; the fields an engine leaves out keep the IO-390 values. */
 const LAYOUTS: Record<string, EngineLayout> = {
   io390: {
     ...IO390_DEFAULTS,
-    c3b6: true,
+    detailed: true,
     camera: { position: [1.38, 0.74, 1.65], target: [0, -0.02, 0], maxDistance: 6 },
     alternators: [
       {
@@ -294,6 +332,8 @@ const LAYOUTS: Record<string, EngineLayout> = {
       { cyl: 4, cheek: 1, opposed: true },
     ],
   },
+  "io360-l2a": io360Layout(true),
+  "io360-m1a": io360Layout(false),
   tsio550k: { ...IO390_DEFAULTS, ...TSIO550K_LAYOUT },
 };
 

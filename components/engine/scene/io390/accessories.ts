@@ -277,6 +277,7 @@ export function driveHardware(spec: EngineSpec, d: Dims) {
       ),
     );
   }
+  if (!spec.accessories.governorRatio) return parts;
   const g = drive.governor.at;
   parts.push(
     item(
@@ -323,19 +324,16 @@ export function driveHardware(spec: EngineSpec, d: Dims) {
   return parts;
 }
 
-// Airframe baffles and flexible edge seals visible in the 2017 SR20 photo set.
-// The cheek openings follow the actual modeled rocker outlines on each staggered bank.
-function cowlBaffles(d: Dims): Detail[] {
+// The side baffles and flexible edge seals follow each installation’s rocker outline and staggered cylinders.
+export function bankBaffles(d: Dims, coverOutline: XY[], note: string, ends?: [number, number]): Detail[] {
   const parts: Detail[] = [];
-  const note =
-    "Cooling baffles guide inlet air through the cylinder fins (SR20 POH 7-40). Panel outlines and seal attachment positions are illustrative.";
   const add = (name: string, material: Detail["material"], geometry: THREE.BufferGeometry, spread: Point) =>
-    parts.push({ name, material, geometry, spread, note });
+    parts.push({ name, material, geometry, spread, note, role: note });
   for (const k of [-1, 1]) {
     const label = k > 0 ? "Right" : "Left",
       cylinders = d.cylinders.filter((c) => bank(c) === k);
-    const x0 = Math.min(...cylinders.map((c) => c.x)) - 0.098,
-      x1 = Math.max(...cylinders.map((c) => c.x)) + 0.099;
+    const x0 = ends?.[0] ?? Math.min(...cylinders.map((c) => c.x)) - 0.098,
+      x1 = ends?.[1] ?? Math.max(...cylinders.map((c) => c.x)) + 0.099;
     const z = d.headOut - 0.014;
     const outline = section([
       [x0, -0.024],
@@ -347,7 +345,7 @@ function cowlBaffles(d: Dims): Detail[] {
       [x0, 0.143],
     ]);
     for (const c of cylinders)
-      outline.holes.push(section(rockerOutline.map(([x, y]) => [c.x + x * 1.043, (y - 0.064) * 1.045 + 0.064])));
+      outline.holes.push(section(coverOutline.map(([x, y]) => [c.x + x * 1.043, (y - 0.064) * 1.045 + 0.064])));
     const wall = plate(outline, k * z - 0.0009, k * z + 0.0009);
     add(label + " cylinder bank baffle", "baffleSheet", wall, [0, 0.038, k * 0.63]);
     const stations: XY[] = [
@@ -377,6 +375,15 @@ function cowlBaffles(d: Dims): Detail[] {
       );
     }
   }
+  return parts;
+}
+
+function cowlBaffles(d: Dims) {
+  const note =
+    "Cooling baffles guide inlet air through the cylinder fins (SR20 POH 7-40). Panel outlines and seal attachment positions are illustrative.";
+  const parts = bankBaffles(d, rockerOutline, note);
+  const add = (name: string, material: Detail["material"], geometry: THREE.BufferGeometry, spread: Point) =>
+    parts.push({ name, material, geometry, spread, note });
   const arch = (inner: number, outer: number, back: number, front: number) => {
     const s = new THREE.Shape().absarc(0, 0, outer, 0.06, Math.PI - 0.06, false);
     s.absarc(0, 0, inner, Math.PI - 0.06, 0.06, true);
@@ -398,8 +405,8 @@ function cowlBaffles(d: Dims): Detail[] {
   return parts;
 }
 
-export function coolingBaffles(d: Dims) {
-  const parts = cowlBaffles(d);
+export function coolingBaffles(d: Dims, cirrusBaffles = true) {
+  const parts = cirrusBaffles ? cowlBaffles(d) : [];
   for (const side of ["L", "R"] as const) {
     const k = side === "L" ? -1 : 1;
     const pair = d.cylinders.filter((c) => c.side === side);
@@ -417,13 +424,35 @@ export function coolingBaffles(d: Dims) {
       [-0.03, -0.072],
       [-0.065, -0.059],
     ]);
+    let panel: THREE.BufferGeometry = plate(s, -0.052, 0.052);
+    if (!cirrusBaffles && side === "R") {
+      // The IO-360 right baffle has a grommet in its inboard flange (L2A Fig. 12, M1A Fig. 13).
+      const flange = section([
+        [-0.016, -0.051],
+        [0.016, -0.051],
+        [0.016, -0.075],
+        [-0.016, -0.075],
+      ]);
+      hole(flange, 0, -0.064, 0.0075);
+      const place = (g: THREE.BufferGeometry) => g.rotateX(Math.PI / 2).translate(0, -0.078, 0);
+      panel = merge([panel, place(plate(flange, -0.001, 0.001))]);
+      const note = "The rubber grommet lines the opening in the right intercylinder baffle.";
+      parts.push({
+        name: "Right intercylinder baffle grommet",
+        role: note,
+        note,
+        material: "black",
+        geometry: at(place(sleeve(0.0055, 0.0095, -0.002, 0.002).translate(0, -0.064, 0))),
+        spread: [0, -0.22, k * 0.34],
+      });
+    }
     parts.push(
       item(
         side + " intercylinder cooling baffle",
         k === 1 ? "75337" : "75338",
         "14–8",
         "shroud",
-        at(plate(s, -0.052, 0.052)),
+        at(panel),
         "Formed sheet metal between the barrels directs cooling air through the fins.",
         [0, -0.14, k * 0.3],
       ),
@@ -457,28 +486,31 @@ export function coolingBaffles(d: Dims) {
         "The hook bears against the retainer.",
         [0, -0.14, k * 0.3],
       ),
-      item(
-        side + " ignition cable hole cover",
-        "72834",
-        "14–11",
-        "darkSteel",
-        at(new THREE.BoxGeometry(0.026, 0.002, 0.025).translate(0.025, -0.074, 0.022)),
-        "The small cover closes the ignition-lead opening.",
-        [0, -0.25, k * 0.3],
-      ),
     );
+    if (cirrusBaffles)
+      parts.push(
+        item(
+          side + " ignition cable hole cover",
+          "72834",
+          "14–11",
+          "darkSteel",
+          at(new THREE.BoxGeometry(0.026, 0.002, 0.025).translate(0.025, -0.074, 0.022)),
+          "The small cover closes the ignition-lead opening.",
+          [0, -0.25, k * 0.3],
+        ),
+      );
   }
   return parts;
 }
 
-export function rockerDrains(d: Dims) {
+export function rockerDrains(d: Dims, parallel = false) {
   const tubes = ["72702", "72703", "74808", "73027"];
   return d.cylinders.flatMap((c) => {
     const k = bank(c),
       out = d.headOut - 0.023;
     const place = (g: THREE.BufferGeometry) => g.rotateY(k === 1 ? 0 : Math.PI).translate(c.x, 0, 0);
     const points: Point[] = [
-      [0.032, -0.006, out],
+      [0.032, parallel ? 0.0005 : -0.006, out],
       [0.044, -0.054, out + 0.004],
       [0.073, -0.112, out + 0.003],
       [0.075, -0.121, out - 0.063],
@@ -714,10 +746,10 @@ export function ignitionHardware(spec: EngineSpec, d: Dims) {
   });
 }
 
-export function fuelHardware(d: Dims) {
+export function fuelHardware(d: Dims, [ix, iy]: Point = servoPosition(d), updraft = false, parallel = false) {
   const mx = (Math.min(...d.cylinders.map((c) => c.x)) + Math.max(...d.cylinders.map((c) => c.x))) / 2,
     my = d.caseTop + 0.035;
-  const [ix, iy] = servoPosition(d);
+
   const parts: Detail[] = [
     ...[-1, 1].map((side): Detail => ({
       name: side < 0 ? "Servo inlet hose fitting" : "Servo metered outlet fitting",
@@ -787,13 +819,18 @@ export function fuelHardware(d: Dims) {
       "black",
       merge(
         [-0.044, 0.044].map((x) =>
-          pad(0.049, 0.041, 0.032, 0.0018)
-            .rotateY(Math.PI / 2)
-            .translate(ix + x, iy, 0),
+          updraft
+            ? pad(0.049, 0.041, 0.032, 0.0018)
+                .rotateY(Math.PI / 2)
+                .rotateZ(-Math.PI / 2)
+                .translate(ix, iy - x, 0)
+            : pad(0.049, 0.041, 0.032, 0.0018)
+                .rotateY(Math.PI / 2)
+                .translate(ix + x, iy, 0),
         ),
       ),
       "Gaskets seal the servo's induction flanges.",
-      [0.13, -0.37, 0],
+      parallel ? [0.22, -0.56, -0.2] : [0.13, -0.37, 0],
     ),
     ...items(
       "Fuel injector mounting nut",
@@ -801,7 +838,12 @@ export function fuelHardware(d: Dims) {
       "25A–6",
       "steel",
       atStations(stations(4, 0.047, 0.047, Math.PI / 4), () => nut(0.004)).map((piece) =>
-        piece.rotateY(Math.PI / 2).translate(ix + 0.049, iy, 0),
+        updraft
+          ? piece
+              .rotateY(Math.PI / 2)
+              .rotateZ(-Math.PI / 2)
+              .translate(ix, iy - 0.049, 0)
+          : piece.rotateY(Math.PI / 2).translate(ix + 0.049, iy, 0),
       ),
       "Four nuts clamp the servo to its flange.",
       [0.24, -0.37, 0],

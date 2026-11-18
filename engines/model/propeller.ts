@@ -57,6 +57,14 @@ export function propTorque(beta: number, v: number, rpm: number, d: number, rho:
   return power / (2 * Math.PI * n);
 }
 
+/** Fixed-pitch propeller torque. Expanding Cp(J) removes the division by speed at zero RPM.
+ * At sufficiently high advance ratio the airflow drives the shaft (windmilling).
+ */
+export function fixedPitchTorque(rpm: number, v: number, d: number, rho: number, staticCp: number, unloading: number) {
+  const n = rpm / 60;
+  return (staticCp * rho * d ** 5 * (n * n - unloading * (v / d) ** 2)) / (2 * Math.PI);
+}
+
 /**
  * Governor: proportional-integral on speed error, rate limited by oil flow. Coarse needs governor oil pressure
  * (`oilPsi`); fine happens by draining, so it works without. Returns the new blade angle.

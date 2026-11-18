@@ -4,12 +4,14 @@
  * figures (see SOURCES.md for how, and the reading uncertainty). `calibration` and the propeller's aerodynamics are
  * model constants chosen to reproduce the documented points: they are not Lycoming data.
  */
+import { RSA5_NOZZLE } from "../model/rsa-nozzle";
 import type { EngineSpec } from "../types";
 
 const IOM = "Lycoming IOM-IO-390-C, Jan 2017";
 
 export const IO390: EngineSpec = {
   id: "io390",
+  illustratedInstallation: "sr20",
   name: "IO-390",
   model: "Lycoming IO-390-C3B6",
   lead:
@@ -143,25 +145,7 @@ export const IO390: EngineSpec = {
   fuelSystem: {
     kind: "injected",
     unit: "AVStar RSA-10AD1 or -10AD2", // Table A-1
-    nozzle: {
-      curve: "Fuel flow vs nozzle pressure, C-12855B (IOM Figure C-2)",
-      points: [
-        [0, 0],
-        [0.5, 22],
-        [1, 33],
-        [2, 49.5],
-        [3, 60],
-        [4, 70],
-        [5, 79],
-        [6, 87],
-        [7, 94],
-        [8, 100.5],
-        [9, 106],
-        [10, 111.5],
-        [11, 117],
-        [11.5, 120],
-      ],
-    },
+    nozzle: RSA5_NOZZLE,
   },
 
   limits: {

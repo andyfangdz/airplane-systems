@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
@@ -99,7 +100,8 @@ export function Engine() {
         Lycoming IO-360-L2A: four-cylinder, horizontally opposed, fuel injected, 180 BHP at 2,700 RPM, driving a
         fixed-pitch McCauley propeller. Throttle and mixture are push-pull knobs below the standby instruments; two
         magnetos fire two plugs per cylinder. There is no carburetor heat — the injection system is considered non-icing
-        — and the alternate air door opens by itself (POH 7-29 – 7-37, 4-35).
+        — and the alternate air door opens by itself (POH 7-29 – 7-37, 4-35).{" "}
+        <Link href="/engines/io360-l2a">Explore the IO-360-L2A engine parts</Link>.
       </p>
       <H3>Show engine subsystems</H3>
       <Ctl>

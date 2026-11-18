@@ -13,7 +13,7 @@ import type { EngineSim } from "../store";
 import { chtColor, drawnSparks, finned, headPoints, merge, slab, zrod, type Dims, type Mats } from "./kit";
 import { layoutFor, type EngineLayout } from "./layout";
 import { coolingBaffles } from "./io390/accessories";
-import { cylinderCastings, cylinderHardware } from "./io390/cylinder";
+import { cylinderBarrel, cylinderHardware, lycomingHead } from "./io390/cylinder";
 import { Details, useDetailDisposal } from "./io390/Details";
 import type { Detail } from "./io390/shapes";
 import { cylinderSpread, Spread } from "./Separation";
@@ -23,7 +23,7 @@ import { Group, P } from "./parts";
 export function cylinderGeometry(d: Dims, L: EngineLayout) {
   const hp = headPoints(d, L);
   const R = d.bore / 2;
-  const n = L.c3b6 ? 0 : L.baseFasteners;
+  const n = L.detailed ? 0 : L.baseFasteners;
   const nuts = Array.from({ length: n }, (_, k) => {
     const a = ((k + 0.5) / n) * Math.PI * 2;
     return zrod(0.0065, d.caseHalf + 0.01, d.caseHalf + 0.02, 6).translate(0.088 * Math.cos(a), 0.088 * Math.sin(a), 0);
@@ -43,29 +43,25 @@ export function cylinderGeometry(d: Dims, L: EngineLayout) {
     ]);
   };
   const [y0, y1] = L.rockerBoxY;
-  // one cover across the head, or two side by side (fore and aft)
-  const halves: [number, number][] =
-    L.coversPerCylinder === 2
-      ? [
-          [-0.05, -0.002],
-          [0.002, 0.05],
-        ]
-      : [[-0.05, 0.05]];
-  const castings = L.c3b6 ? cylinderCastings(d) : undefined;
-  const covers = castings
-    ? [castings.cover]
-    : halves.map(([x0, x1]) => slab(x0, x1, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014));
+  const castings = L.detailed ? cylinderBarrel(d) : undefined;
+  const head =
+    L.coversPerCylinder === 1
+      ? lycomingHead(d, L)
+      : {
+          head: merge([
+            finned(R + 0.016, 0.1, d.headIn, d.zPivot + 0.02, 12, false),
+            zrod(R + 0.008, d.headIn - 0.004, d.deck + 0.004, 32),
+          ]),
+          rockerBox: slab(-0.048, 0.048, y0, y1, d.zPivot - 0.075, d.headOut - 0.012, 0.012),
+          cover: merge([
+            slab(-0.05, -0.002, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014),
+            slab(0.002, 0.05, y0 - 0.004, y1 + 0.004, d.headOut - 0.012, d.headOut, 0.014),
+          ]),
+        };
   return {
     barrel: castings?.barrel ?? finned(R + 0.006, R + 0.028, d.caseHalf + 0.012, d.headIn, 11),
     flange: castings?.flange ?? merge([zrod(R + 0.03, d.caseHalf, d.caseHalf + 0.01, 32), ...nuts]),
-    head:
-      castings?.head ??
-      merge([
-        finned(R + 0.016, 0.1, d.headIn, d.zPivot + 0.02, 12, false),
-        zrod(R + 0.008, d.headIn - 0.004, d.deck + 0.004, 32), // the head's lower skirt over the barrel
-      ]),
-    rockerBox: castings?.rockerBox ?? slab(-0.048, 0.048, y0, y1, d.zPivot - 0.075, d.headOut - 0.012, 0.012),
-    cover: covers.length > 1 ? merge(covers) : covers[0],
+    ...head,
     plug,
     plugShield,
     spark: new THREE.SphereGeometry(0.024, 14, 10),
@@ -121,7 +117,7 @@ function Cylinder({
       head.color.copy(mats.head.color).multiply(tmp).lerp(mats.head.color, 0.85);
     } else {
       head.color.copy(tmp);
-      if (L.c3b6) head.color.multiplyScalar(0.74);
+      if (L.detailed) head.color.multiplyScalar(0.74);
     }
     // the plugs flash from the spark through early combustion
     const ph = phaseOf(spec, c.n, sim.anim.crank);
@@ -157,28 +153,28 @@ function Cylinder({
         material={head}
       />
       <P
-        name={L.c3b6 ? `Rocker box, cylinder ${n}` : "Rocker box"}
+        name={L.detailed ? `Rocker box, cylinder ${n}` : "Rocker box"}
         spread={[0, 0, 0.15]}
         note="Houses the rocker shafts and rockers."
         geometry={geo.rockerBox}
         material={head}
       />
       <P
-        name={L.c3b6 ? `Rocker cover, cylinder ${n}` : "Rocker cover"}
+        name={L.detailed ? `Rocker cover, cylinder ${n}` : "Rocker cover"}
         spread={[0, 0, 0.3]}
         note={L.notes.rockerCover ?? "Closes the rocker box on the outer end of the head."}
         geometry={geo.cover}
         material={mats.cover}
       />
       <P
-        name={L.c3b6 ? `Intake port, cylinder ${n}` : "Intake port"}
+        name={L.detailed ? `Intake port, cylinder ${n}` : "Intake port"}
         spread={[0, -0.06, 0.15]}
         note={L.notes.intakePort ?? "Tuned induction runner flange."}
         geometry={geo.intakePort}
         material={mats.darkSteel}
       />
       <P
-        name={L.c3b6 ? `Exhaust port, cylinder ${n}` : "Exhaust port"}
+        name={L.detailed ? `Exhaust port, cylinder ${n}` : "Exhaust port"}
         spread={[0, -0.06, 0.15]}
         note={L.notes.exhaustPort ?? "Exhaust pipe flange."}
         geometry={geo.exhaustPort}
@@ -214,7 +210,7 @@ function Cylinder({
                   material={mats.plug}
                 />
                 <P
-                  name={L.c3b6 ? `Shielded lead terminal, cylinder ${n} ${p.which}` : "Shielded lead terminal"}
+                  name={L.detailed ? `Shielded lead terminal, cylinder ${n} ${p.which}` : "Shielded lead terminal"}
                   spread={[0, 0.04, 0]}
                   geometry={geo.plugShield}
                   material={mats.plugShield}
@@ -232,9 +228,9 @@ function Cylinder({
 export function Cylinders({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats }) {
   const L = layoutFor(sim.spec);
   const geo = useMemo(() => cylinderGeometry(d, L), [d, L]);
-  const hardware = useMemo(() => (L.c3b6 ? cylinderHardware(d) : []), [L, d]);
+  const hardware = useMemo(() => cylinderHardware(d, L), [L, d]);
   useDetailDisposal(hardware);
-  const baffles = useMemo(() => (L.c3b6 ? coolingBaffles(d) : []), [L, d]);
+  const baffles = useMemo(() => (L.detailed ? coolingBaffles(d, !L.parallelValve) : []), [L, d]);
   useDetailDisposal(baffles);
   useEffect(() => () => Object.values(geo).forEach((g) => g.dispose()), [geo]);
   return (
