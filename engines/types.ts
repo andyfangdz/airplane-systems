@@ -123,6 +123,8 @@ export interface TurboSpec {
  */
 export interface EngineSpec {
   id: string;
+  /** Aircraft installation with solid finishes and an exploded parts catalogue. */
+  illustratedInstallation?: "sr20" | "c172s" | "da40";
   /** Short name for the picker and tab title. */
   name: string;
   /** Model designation as printed by the manufacturer. */
@@ -215,7 +217,9 @@ export interface EngineSpec {
       rpm: number;
       gph: number;
       /** "lean of peak" is a label for cruise tables flown lean of peak EGT. */
-      mixture: "best power" | "best economy" | "lean of peak";
+      mixture: "best power" | "best economy" | "lean of peak" | "recommended lean";
+      /** Aircraft cruise chart conditions, when the propeller load depends on airspeed. */
+      tasKt?: number;
     }[];
   };
 
@@ -253,9 +257,9 @@ export interface EngineSpec {
     idleRpm: { min: number; max: number; src: string; assumed?: boolean };
     oilPressMinIdle: Limit;
     oilPressNormal: { min: number; max: number; unit: string; src: string };
-    oilPressMaxStart: Limit;
+    oilPressMaxStart: Limit & { allPhases?: true };
     oilTempMax: Limit;
-    oilTempBest: Limit;
+    oilTempBest: Limit & { max?: number; ambientDependent?: true };
     chtMax: Limit;
     chtBestAbove75: Limit;
     chtBestAt75: Limit;
@@ -340,13 +344,20 @@ export interface EngineSpec {
     coarseDeg: number;
     governorMinRpm: number;
     inertia: number;
-    /** "lever" (absent) a pilot propeller control; "fixed" a governor with no pilot control. */
-    control?: "lever" | "fixed";
+    /** "lever" (absent) a pilot propeller control; "fixed" a governor with no pilot control; "fixed-pitch" has no governor. */
     /** Scales the model's power coefficient (blade count and planform); 1 if absent. */
     cpScale?: number;
     /** Lower the blades' angle of attack by the inflow the propeller induces (momentum theory, propeller.ts). */
     inducedInflow?: boolean;
-  };
+  } & (
+    | { control?: "lever" | "fixed" }
+    | {
+        control: "fixed-pitch";
+        /** Fitted power coefficient Cp(J) = staticCp × (1 − unloading × J²). */
+        staticCp: number;
+        unloading: number;
+      }
+  );
 
   /** Constants the documents don't give, chosen to reproduce the documented points. Each says what it does. */
   calibration: {

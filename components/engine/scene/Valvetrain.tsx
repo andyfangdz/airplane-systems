@@ -27,7 +27,7 @@ import {
   type Dims,
   type Mats,
 } from "./kit";
-import { layoutFor, type ValveDef } from "./layout";
+import { layoutFor, type EngineLayout, type ValveDef } from "./layout";
 import { Details } from "./io390/Details";
 import { valveHardware, shroudParts, tappetParts } from "./io390/cylinder";
 import { item, sleeve } from "./io390/shapes";
@@ -100,15 +100,17 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
         geometry={geo.gear}
         material={mats.gear}
       />
-      <P
-        name="Governor drive gear"
-        note={
-          L.notes.govDriveGear ??
-          "On front-governor models (C1B6, C3B6) the camshaft has an integral spur gear that drives the propeller governor (IOM p. 2)."
-        }
-        geometry={geo.govGear}
-        material={mats.gear}
-      />
+      {spec.accessories.governorRatio > 0 && (
+        <P
+          name="Governor drive gear"
+          note={
+            L.notes.govDriveGear ??
+            "On front-governor models (C1B6, C3B6) the camshaft has an integral spur gear that drives the propeller governor (IOM p. 2)."
+          }
+          geometry={geo.govGear}
+          material={mats.gear}
+        />
+      )}
       {spec.geometry.cylinders.flatMap((c) =>
         [true, false].map((intake) => {
           const k = bank(c);
@@ -130,12 +132,12 @@ export function Camshaft({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mats
 }
 
 /** One valve's train geometries; the rocker runs from its pushrod cup (+a from the pivot) to the valve pad (−b). */
-function valveGeometry(d: Dims, v: ValveDef, detailed: boolean, intake: boolean) {
+function valveGeometry(d: Dims, v: ValveDef, layout: EngineLayout, intake: boolean) {
   const a = v.pushY - v.pivotY,
     b = v.pivotY - v.tipY;
   const springLen = 0.05;
   return {
-    detail: detailed
+    detail: layout.detailed
       ? {
           ...valveHardware(d, intake),
           shroud: shroudParts(d),
@@ -161,19 +163,23 @@ function valveGeometry(d: Dims, v: ValveDef, detailed: boolean, intake: boolean)
               "The rocker pivots on this bushing.",
               [intake ? 0.045 : -0.045, 0, 0.19],
             ),
-            item(
-              "Rocker thrust washer",
-              "71549",
-              "12–24",
-              "steel",
-              sleeve(0.0056, 0.009, 0.008, 0.0095).rotateY(Math.PI / 2),
-              "The washer locates the rocker along its shaft.",
-              [intake ? 0.07 : -0.07, 0, 0.19],
-            ),
+            ...(layout.parallelValve
+              ? []
+              : [
+                  item(
+                    "Rocker thrust washer",
+                    "71549",
+                    "12–24",
+                    "steel",
+                    sleeve(0.0056, 0.009, 0.008, 0.0095).rotateY(Math.PI / 2),
+                    "The washer locates the rocker along its shaft.",
+                    [intake ? 0.07 : -0.07, 0, 0.19],
+                  ),
+                ]),
           ],
         }
       : null,
-    tappet: detailed
+    tappet: layout.detailed
       ? sleeve(0.006, 0.0085, 0.007, VT.tappetLen - 0.008)
       : merge([zrod(0.0085, 0, VT.tappetLen, 16), zrod(0.0095, 0, 0.004, 16)]),
     pushrod: merge([
@@ -181,7 +187,7 @@ function valveGeometry(d: Dims, v: ValveDef, detailed: boolean, intake: boolean)
       zrod(0.0055, 0, 0.006, 8),
       zrod(0.0055, d.zPivot - VT.baseR - VT.tappetLen - 0.006, d.zPivot - VT.baseR - VT.tappetLen, 8),
     ]),
-    shroud: detailed
+    shroud: layout.detailed
       ? sleeve(0.008, 0.011, d.caseHalf - 0.01, d.zPivot - 0.06)
       : zrod(0.011, d.caseHalf - 0.01, d.zPivot - 0.06, 14),
     shroudSeal: merge([
@@ -250,7 +256,11 @@ function CylinderValves({
       {shafts.map((g, k) => (
         <P
           key={k}
-          name={geo[0].detail ? `Rocker shaft, cylinder ${c.n} ${k === 0 ? "intake" : "exhaust"}` : "Rocker shaft"}
+          name={
+            geo[0].detail
+              ? `Rocker shaft, cylinder ${c.n}${shafts.length === 1 ? "" : k === 0 ? " intake" : " exhaust"}`
+              : "Rocker shaft"
+          }
           spread={[k === 0 ? 0.11 : -0.11, 0, 0.19]}
           note="The rockers pivot on it inside the rocker box."
           geometry={g}
@@ -314,7 +324,10 @@ function CylinderValves({
                 material={mats.steel}
               />
             </group>
-            <group position={[0, 0, d.zPivot]} rotation={[0, g.detail ? (v === 0 ? -0.15 : 0.15) : 0, 0]}>
+            <group
+              position={[0, 0, d.zPivot]}
+              rotation={[0, g.detail && !layoutFor(sim.spec).parallelValve ? (v === 0 ? -0.15 : 0.15) : 0, 0]}
+            >
               <group position={[0, 0, -d.zPivot]}>
                 {g.detail && (
                   <group position={[0, vd.tipY, 0]}>
@@ -374,12 +387,12 @@ export function ValveTrain({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
     const valves: [ValveDef, ValveDef] = [V.intake, V.exhaust];
     // one rocker shaft across both rockers when they pivot at one height, else a short one for each
     const shafts =
-      !L.c3b6 && V.intake.pivotY === V.exhaust.pivotY
+      (!L.detailed || L.parallelValve) && V.intake.pivotY === V.exhaust.pivotY
         ? [rod(0.0055, 2 * VT.xOff + 0.03, 10).translate(0, V.intake.pivotY, d.zPivot)]
         : valves.map((v) => rod(0.0055, 0.03, 10).translate(v.x, v.pivotY, d.zPivot));
     return {
       valves,
-      geo: valves.map((v, i) => valveGeometry(d, v, !!L.c3b6, i === 0)) as [ValveGeo, ValveGeo],
+      geo: valves.map((v, i) => valveGeometry(d, v, L, i === 0)) as [ValveGeo, ValveGeo],
       shafts,
     };
   }, [d, L]);

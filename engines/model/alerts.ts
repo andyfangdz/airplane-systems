@@ -68,13 +68,13 @@ function legacyFlags(spec: EngineSpec, s: EngineState, env: Environment): LimitF
     if (s.oilP > L.oilPressMaxStart.value)
       add(
         "warn",
-        `Oil pressure ${f0(s.oilP)} psi: above the ${L.oilPressMaxStart.value} psi starting limit`,
+        `Oil pressure ${f0(s.oilP)} psi: above the ${L.oilPressMaxStart.value} psi ${L.oilPressMaxStart.allPhases ? "maximum" : "starting limit"}`,
         L.oilPressMaxStart.src,
       );
     else if (s.oilP > L.oilPressNormal.max)
       add(
         "caut",
-        `Oil pressure ${f0(s.oilP)} psi: above normal; allowed while starting and warming up`,
+        `Oil pressure ${f0(s.oilP)} psi: above normal${L.oilPressMaxStart.allPhases ? "" : "; allowed while starting and warming up"}`,
         L.oilPressMaxStart.src,
       );
   }

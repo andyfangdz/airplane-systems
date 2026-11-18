@@ -6,6 +6,7 @@ export type XY = [number, number];
 export type Point = [number, number, number];
 export type Detail = {
   name: string;
+  role?: string;
   note: string;
   geometry: THREE.BufferGeometry;
   material: keyof Mats;
@@ -89,7 +90,7 @@ export function item(
   role: string,
   spread?: Point,
 ): Detail {
-  return { name, note: `${role} Lycoming PC-IO-390-C Rev. 1, Fig. ${ref} (${pn}).`, material, geometry, spread };
+  return { name, role, note: `${role} Lycoming PC-IO-390-C Rev. 1, Fig. ${ref} (${pn}).`, material, geometry, spread };
 }
 
 /** Separate physical pieces in the order of the authored mounting pattern. Each gets its own pick target. */

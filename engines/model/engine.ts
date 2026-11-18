@@ -31,7 +31,7 @@ import { excessAirRatio } from "./mixture-units";
 import { AFR_STOICH, egtOffset, headHeat, mixturePower, stability } from "./mixture";
 import { remainingOilQt } from "./oil";
 import { chartFuelFlow, frictionHp, fullRichWeight, grossIndicatedHp, pumpingHp, seaLevelLines } from "./performance";
-import { governor, inducedVelocity, propTorque } from "./propeller";
+import { fixedPitchTorque, governor, inducedVelocity, propTorque } from "./propeller";
 import {
   actuatorPressure,
   altAirDoorNext,
@@ -375,10 +375,12 @@ export const viscosity = (oilF: number) => Math.exp(3691 * (1 / ((oilF - 32) / 1
  * "fixed"`: SR22T POH 7-32, AMM 61-20 "factory-set to 2500 RPM") holds rated rpm whatever the control says.
  */
 export const governedRpm = (spec: EngineSpec, prop: number) =>
-  spec.propeller.control === "fixed"
-    ? spec.rating.rpm
-    : spec.propeller.governorMinRpm +
-      Math.max(0, Math.min(1, prop)) * (spec.rating.rpm - spec.propeller.governorMinRpm);
+  spec.propeller.control === "fixed-pitch"
+    ? 0
+    : spec.propeller.control === "fixed"
+      ? spec.rating.rpm
+      : spec.propeller.governorMinRpm +
+        Math.max(0, Math.min(1, prop)) * (spec.rating.rpm - spec.propeller.governorMinRpm);
 
 /**
  * Whether the HIGH BOOST/PRIME lockout lets the fuel pump run in high-speed mode (SR22T POH 7-41): manifold pressure
@@ -677,11 +679,18 @@ function substep(
     ? (acc.starterTorque ?? 230) * Math.max(0, 1 - s.rpm / (acc.starterFreeRpm ?? 380))
     : 0;
   const d = (spec.propeller.diameterIn * 2.54) / 100;
-  s.govRpm = governedRpm(spec, c.prop);
-  governorStep(spec, s, s.govRpm, dt);
+  if (spec.propeller.control === "fixed-pitch") {
+    s.beta = spec.propeller.fineDeg;
+  } else {
+    s.govRpm = governedRpm(spec, c.prop);
+    governorStep(spec, s, s.govRpm, dt);
+  }
   // the inflow the propeller induces, where the spec asks for it (the IO-390's load was calibrated without)
   const vi = spec.propeller.inducedInflow ? inducedVelocity(Math.max(s.hp, 0) * HP_W, v, air.rho, d) : 0;
-  const propQ = propTorque(s.beta, v + vi, s.rpm, d, air.rho) * (spec.propeller.cpScale ?? 1);
+  const propQ =
+    spec.propeller.control === "fixed-pitch"
+      ? fixedPitchTorque(s.rpm, v, d, air.rho, spec.propeller.staticCp, spec.propeller.unloading)
+      : propTorque(s.beta, v + vi, s.rpm, d, air.rho) * (spec.propeller.cpScale ?? 1);
   const breakaway = s.rpm < 1 && grossTorque + starterTorque < 40;
   const net = breakaway ? 0 : grossTorque + starterTorque - fricTorque - propQ;
   s.rpm = Math.max(0, s.rpm + ((net / spec.propeller.inertia) * dt * 60) / (2 * Math.PI));

@@ -36,6 +36,10 @@ export const GROUPS = [
   { id: "drives", name: "Starter, alternator and governor" },
 ] as const;
 
+const FIXED_PITCH_GROUPS = GROUPS.map((group) =>
+  group.id === "drives" ? { ...group, name: "Starter and alternator" } : group,
+);
+
 /** A turbocharged engine's groups: exhaust apart from induction, and the turbochargers with their controls. */
 const TURBO_GROUPS = [
   { id: "case", name: "Crankcase, sump and accessory housing" },
@@ -55,7 +59,7 @@ export type GroupId = (typeof GROUPS)[number]["id"] | (typeof TURBO_GROUPS)[numb
 
 /** The part groups an engine's panel lists: the turbo and exhaust groups only for a layout with a turbo block. */
 export const groupsFor = (spec: EngineSpec, L = layoutFor(spec)): readonly { id: GroupId; name: string }[] =>
-  L.turbo ? TURBO_GROUPS : GROUPS;
+  L.turbo ? TURBO_GROUPS : spec.propeller.control === "fixed-pitch" ? FIXED_PITCH_GROUPS : GROUPS;
 
 export interface HoverInfo {
   name: string;
@@ -110,6 +114,7 @@ export function P({
   scale,
   meshRef,
   spread,
+  installationNote,
 }: {
   name: string;
   note?: string;
@@ -120,11 +125,13 @@ export function P({
   scale?: [number, number, number];
   meshRef?: Ref<THREE.Mesh>;
   spread?: V3;
+  /** Functional description valid across the illustrated installations. */
+  installationNote?: string;
 }) {
   const parts = useContext(PartNotes);
   const own = parts?.[given] ?? parts?.[given.replace(/\d+/g, "#")];
   const name = own?.name ? own.name.replace(/#/g, () => given.match(/\d+/)?.[0] ?? "#") : given,
-    note = own ? own.note : givenNote;
+    note = own?.note ?? (parts?.["*"] ? (installationNote ?? parts["*"].note) : givenNote);
   const mesh = useRef<THREE.Mesh>(null);
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const inspection = usePartInspectionStore();

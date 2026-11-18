@@ -1,3 +1,4 @@
+import type { EngineSpec } from "@/engines/types";
 import * as THREE from "three";
 import { coil, merge, oilFiller, type oilPump, tube, zrod, type Dims } from "../kit";
 import {
@@ -122,10 +123,10 @@ export function accessoryCasting(d: Dims) {
     .translate(d.accRear, 0, 0);
 }
 
-function flangeSites(d: Dims) {
+function flangeSites(d: Dims, sideHoles: number) {
   const front = d.front - 0.045,
     rear = d.caseRear + 0.012;
-  const xs = Array.from({ length: 11 }, (_, i) => rear + (i * (front - rear)) / 10);
+  const xs = Array.from({ length: sideHoles }, (_, i) => rear + (i * (front - rear)) / (sideHoles - 1));
   return [
     ...xs.flatMap((x): XY[] => [
       [x, -0.114],
@@ -138,9 +139,12 @@ function flangeSites(d: Dims) {
   ];
 }
 
-export function caseHardware(d: Dims): Detail[] {
+export function caseHardware(d: Dims, installation?: EngineSpec["illustratedInstallation"]): Detail[] {
   const flat = (g: THREE.BufferGeometry, y: number) => g.rotateX(Math.PI / 2).translate(0, y, 0);
-  const sites = flangeSites(d);
+  // Both IO-360 catalogs, Fig. 15. The IO-390 uses its own Fig. 17 pattern.
+  const bolts = installation === "c172s" ? 16 : installation === "da40" ? 8 : 20;
+  const sites = flangeSites(d, (bolts + 2) / 2);
+  const washers = installation === "da40" ? [...sites, ...sites.slice(0, 6)] : sites;
   const sump = section([
     [d.caseRear + 0.004, -0.122],
     [d.front - 0.038, -0.122],
@@ -242,7 +246,7 @@ export function caseHardware(d: Dims): Detail[] {
       "LW-25-0.94 / LW-25-1.13",
       "17–7, 8",
       "steel",
-      atStations(sites.slice(0, 20), () => bolt(0.0032, 0.024)).map((piece) => flat(piece, d.caseBottom + 0.005)),
+      atStations(sites.slice(0, bolts), () => bolt(0.0032, 0.024)).map((piece) => flat(piece, d.caseBottom + 0.005)),
       "The bolted flange joins the sump casting and crankcase.",
       [0, -0.43, 0],
     ),
@@ -251,7 +255,7 @@ export function caseHardware(d: Dims): Detail[] {
       "STD-1411",
       "17–9",
       "darkSteel",
-      atStations(sites.slice(20), () => nut(0.0032)).map((piece) => flat(piece, d.caseBottom + 0.005)),
+      atStations(sites.slice(bolts), () => nut(0.0032)).map((piece) => flat(piece, d.caseBottom + 0.005)),
       "Twelve nuts share the sump mounting flange with the bolts.",
       [0, -0.43, 0],
     ),
@@ -260,7 +264,9 @@ export function caseHardware(d: Dims): Detail[] {
       "STD-8",
       "17–5",
       "steel",
-      atStations(sites, () => sleeve(0.0033, 0.0067, -0.001, 0)).map((piece) => flat(piece, d.caseBottom + 0.005)),
+      atStations(washers, () => sleeve(0.0033, 0.0067, -0.001, 0)).map((piece, i) =>
+        flat(piece, d.caseBottom + (i >= sites.length ? 0.0065 : 0.005)),
+      ),
       "The fasteners bear on plain washers along the flange.",
       [0, -0.34, 0],
     ),

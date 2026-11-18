@@ -1,3 +1,4 @@
+import type { EngineSpec } from "@/engines/types";
 import * as THREE from "three";
 import { merge, zrod, type Dims } from "../kit";
 import { bolt, hole, item, items, atStations, nut, plate, section, sleeve, stations, type XY } from "./shapes";
@@ -168,13 +169,26 @@ export function pistonAssembly(d: Dims) {
   ];
 }
 
-export function flangeAssembly(d: Dims) {
+export function flangeAssembly(d: Dims, installation?: EngineSpec["illustratedInstallation"]) {
   const s = new THREE.Shape().absarc(0, 0, 0.086, 0, Math.PI * 2, false);
   const sites = stations(6, 0.068, 0.068, Math.PI / 2);
   hole(s, 0, 0, 0.022);
   sites.forEach(([x, y]) => hole(s, x, y, 0.008));
   const orient = (g: THREE.BufferGeometry) => g.rotateY(Math.PI / 2).translate(d.flangeX, 0, 0);
   return [
+    ...(installation === "c172s"
+      ? [
+          item(
+            "Propeller spacer",
+            "C5464",
+            "POH 6-23",
+            "propFlange",
+            orient(sleeve(0.02, 0.072, 0.007, 0.007 + 3.5 * 0.0254)),
+            "The 3.5-inch McCauley spacer C5464 fits between the crankshaft and the fixed-pitch propeller (C172S POH 6-23).",
+            [0.43, 0, 0],
+          ),
+        ]
+      : []),
     item(
       "Propeller flange",
       "13C47318",
@@ -246,26 +260,46 @@ export function flangeAssembly(d: Dims) {
       "The expansion plug closes the front bore in the crankshaft.",
       [0.1, 0, 0],
     ),
-    item(
-      "Crankshaft bore plug",
-      "74711",
-      "7–3",
-      "steel",
-      zrod(0.0158, -0.004, 0.004, 24)
-        .rotateY(Math.PI / 2)
-        .translate(d.front + 0.008, 0, 0),
-      "A second plug occupies the drilled nose of the shaft.",
-      [0.045, 0, 0],
-    ),
-    item(
-      "Crankshaft pipe plug",
-      "1102",
-      "7–8",
-      "steel",
-      zrod(0.005, -0.005, 0.002, 6).translate(d.front + 0.014, 0, 0.029),
-      "The plug closes the cross drilling in the shaft.",
-      [0, 0, 0.05],
-    ),
+    ...(installation === "c172s"
+      ? [
+          item(
+            "Crankshaft oil tube",
+            "68484",
+            "5–3",
+            "steel",
+            sleeve(0.008, 0.01, -0.055, 0.055)
+              .rotateY(Math.PI / 2)
+              .translate(d.front, 0, 0),
+            "Tube 68484 fits inside the L2A crankshaft (IPC Fig. 5).",
+            [0.045, 0, 0],
+          ),
+        ]
+      : [
+          item(
+            "Crankshaft bore plug",
+            "74711",
+            "7–3",
+            "steel",
+            zrod(0.0158, -0.004, 0.004, 24)
+              .rotateY(Math.PI / 2)
+              .translate(d.front + 0.008, 0, 0),
+            "A second plug occupies the drilled nose of the shaft.",
+            [0.045, 0, 0],
+          ),
+        ]),
+    ...(installation === "c172s" || installation === "da40"
+      ? []
+      : [
+          item(
+            "Crankshaft pipe plug",
+            "1102",
+            "7–8",
+            "steel",
+            zrod(0.005, -0.005, 0.002, 6).translate(d.front + 0.014, 0, 0.029),
+            "The plug closes the cross drilling in the shaft.",
+            [0, 0, 0.05],
+          ),
+        ]),
     ...(
       [
         ["Long flange bushing", "75656-S", "7–4", [0, 1, 2, 4], 0.022],

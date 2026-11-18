@@ -111,7 +111,7 @@ const createUi = (spec: EngineSpec, request: EngineSim["scenarioRequest"], oilCh
       view: {
         thermal: 1,
         slow: false,
-        xray: spec.id !== "io390",
+        xray: !spec.illustratedInstallation,
         labels: true,
         // The standalone motor fills the initial view. Installed engine restores the propeller.
         prop: false,

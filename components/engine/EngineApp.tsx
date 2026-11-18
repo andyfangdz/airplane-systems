@@ -37,7 +37,7 @@ function Toolbar({ sim }: { sim: EngineSim }) {
     <div className="toolbar">
       <StudyViews sim={sim} />
       <div className="tb-group" role="group" aria-label="View">
-        {sim.spec.id === "io390" && (
+        {sim.spec.illustratedInstallation && (
           <ViewToggles
             items={[["blowUp", "Blow up", "Separate parts along their assembly axes"]]}
             view={view}

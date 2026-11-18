@@ -277,6 +277,7 @@ export function driveHardware(spec: EngineSpec, d: Dims) {
       ),
     );
   }
+  if (!spec.accessories.governorRatio) return parts;
   const g = drive.governor.at;
   parts.push(
     item(
@@ -398,8 +399,8 @@ function cowlBaffles(d: Dims): Detail[] {
   return parts;
 }
 
-export function coolingBaffles(d: Dims) {
-  const parts = cowlBaffles(d);
+export function coolingBaffles(d: Dims, cirrusBaffles = true) {
+  const parts = cirrusBaffles ? cowlBaffles(d) : [];
   for (const side of ["L", "R"] as const) {
     const k = side === "L" ? -1 : 1;
     const pair = d.cylinders.filter((c) => c.side === side);
@@ -714,10 +715,10 @@ export function ignitionHardware(spec: EngineSpec, d: Dims) {
   });
 }
 
-export function fuelHardware(d: Dims) {
+export function fuelHardware(d: Dims, [ix, iy]: Point = servoPosition(d), updraft = false) {
   const mx = (Math.min(...d.cylinders.map((c) => c.x)) + Math.max(...d.cylinders.map((c) => c.x))) / 2,
     my = d.caseTop + 0.035;
-  const [ix, iy] = servoPosition(d);
+
   const parts: Detail[] = [
     ...[-1, 1].map((side): Detail => ({
       name: side < 0 ? "Servo inlet hose fitting" : "Servo metered outlet fitting",
@@ -787,9 +788,14 @@ export function fuelHardware(d: Dims) {
       "black",
       merge(
         [-0.044, 0.044].map((x) =>
-          pad(0.049, 0.041, 0.032, 0.0018)
-            .rotateY(Math.PI / 2)
-            .translate(ix + x, iy, 0),
+          updraft
+            ? pad(0.049, 0.041, 0.032, 0.0018)
+                .rotateY(Math.PI / 2)
+                .rotateZ(-Math.PI / 2)
+                .translate(ix, iy - x, 0)
+            : pad(0.049, 0.041, 0.032, 0.0018)
+                .rotateY(Math.PI / 2)
+                .translate(ix + x, iy, 0),
         ),
       ),
       "Gaskets seal the servo's induction flanges.",
@@ -801,7 +807,12 @@ export function fuelHardware(d: Dims) {
       "25A–6",
       "steel",
       atStations(stations(4, 0.047, 0.047, Math.PI / 4), () => nut(0.004)).map((piece) =>
-        piece.rotateY(Math.PI / 2).translate(ix + 0.049, iy, 0),
+        updraft
+          ? piece
+              .rotateY(Math.PI / 2)
+              .rotateZ(-Math.PI / 2)
+              .translate(ix, iy - 0.049, 0)
+          : piece.rotateY(Math.PI / 2).translate(ix + 0.049, iy, 0),
       ),
       "Four nuts clamp the servo to its flange.",
       [0.24, -0.37, 0],

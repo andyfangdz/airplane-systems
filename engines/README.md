@@ -15,7 +15,7 @@ engines/
     carburetor.ts Float carburetor: venturi and idle metering, mixture-chamber cooling, carburetor ice
     accelerator-pump.ts Spring-driven pump discharge and slow-stroke bypass, shared with the carburetor cutaway
     mixture.ts    Power, EGT and head heat against excess-air ratio λ
-    propeller.ts  Constant-speed propeller and governor
+    propeller.ts  Fixed-pitch load, constant-speed propeller and governor
     turbo.ts      Turbochargers, wastegate and controller, intercoolers, relief valve, TIT, turbo-system failures
     cycle.ts      Crank kinematics, valve events, firing order, the cylinder-pressure trace
     trim.ts       settle(): hold a manifold pressure, rpm or λ while the engine runs (pages and tests)
@@ -23,6 +23,9 @@ engines/
     alerts.ts     Limit flags from the spec's limits, or from its POH markings with the POH's CAS names
     tit.ts        Turbocharged engine TIT peak from the model's cylinder work and probe laws
   io390/          Lycoming IO-390-C: spec.ts and SOURCES.md (what was read from where, and what is assumed)
+  io360/          Shared IO-360 geometry, calibration and part descriptions
+  io360-l2a/      C172S NAV III, fixed-pitch McCauley, automatic alternate air
+  io360-m1a/      DA40 XLS, constant-speed MT, rotary alternate air and Power Flow exhaust
   o360/           Lycoming O-360-A1D (float carburetor): spec.ts and SOURCES.md
   tsio550k/       Continental TSIO-550-K (turbocharged, the Cirrus SR22T's): spec.ts, its own Start-from setups
                   (scenarios.ts) and SOURCES.md
@@ -32,7 +35,7 @@ app/engines/[engine]/page.tsx  One static page per engine id
 
 ## Component simulations
 
-On the SR20 G6’s IO-390 page, **Blow up** separates the assemblies and their mounting hardware. Toggle it again to reassemble the engine. Select individual mounting screws, nuts, washers and accessory internals in the scene or in **Inspect a part**. The index accepts part names and catalog part numbers. See [IO-390 sources](io390/SOURCES.md) for the installation and geometric assumptions.
+On the SR20 G6’s IO-390 and both IO-360 pages, **Blow up** separates the assemblies and their mounting hardware. Toggle it again to reassemble the engine. Select individual mounting screws, nuts, washers and accessory internals in the scene or in **Inspect a part**. The index accepts part names and catalog part numbers. Each engine documents its installed hardware and geometric assumptions. [IO-390](io390/SOURCES.md) · [C172S IO-360-L2A](io360-l2a/SOURCES.md) · [DA40 XLS IO-360-M1A](io360-m1a/SOURCES.md)
 
 The piston-cylinder cutaway (`/components/piston-cylinder`) follows one IO-390 cylinder through all four strokes.
 It shares the engine's slider-crank and valve-lift functions, with slow playback, pause, angle scrubbing and stroke

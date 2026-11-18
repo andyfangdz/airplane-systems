@@ -89,9 +89,14 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     "/engines/io390",
     "/engines/o360",
     "/engines/tsio550k",
+    "/engines/io360-l2a",
+    "/engines/io360-m1a",
   ]);
   // name and sub "<model> · <rated hp>": Continental TSIO-550-K, 315 bhp (POH 1-7, 2-6)
-  assert.match(await engines.last().innerText(), /^TSIO-550-K\s+Continental TSIO-550-K · 315 hp\s*$/);
+  assert.match(
+    await engines.filter({ hasText: "TSIO-550-K" }).innerText(),
+    /^TSIO-550-K\s+Continental TSIO-550-K · 315 hp\s*$/,
+  );
   const components = dialog.getByRole("group", { name: "Components" }).getByRole("link");
   assert.deepEqual(await components.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
     "/components/piston-cylinder",
@@ -112,7 +117,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  // six airplanes, three engines, six components and a flight data replay: bounded by the compact picker height,
+  // six airplanes, five engines, six components and a flight data replay: bounded by the compact picker height,
   // scrolling as needed
   assert.ok(
     box.width <= 352 && box.height <= 700,

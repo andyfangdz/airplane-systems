@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import {
   BtnRow,
@@ -115,7 +116,8 @@ export function Engine() {
         A Lycoming IO-360-M1A: air-cooled, four cylinders horizontally opposed, direct drive, fuel injected, with an
         underslung exhaust. Three levers on the centre console — throttle, blue RPM lever and red mixture — plus the
         ignition key, the electric fuel pump and the manual ALTERNATE AIR lever. There is no primer: the electric pump
-        with the mixture RICH primes the engine.
+        with the mixture RICH primes the engine.{" "}
+        <Link href="/engines/io360-m1a">Explore the IO-360-M1A engine parts</Link>.
       </p>
       <Small>
         Filter obstruction can stop the modeled engine; manually open ALTERNATE AIR to admit warm compartment air. Each

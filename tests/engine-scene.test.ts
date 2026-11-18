@@ -135,7 +135,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
   test("every gear meshes with the one that drives it, at the spec's drive ratio", () => {
     const acc = S.accessories;
     // camshaft gear on the crankshaft gear, twice the teeth: half speed
-    if (!L.c3b6) expect(Math.abs(d.camY)).toBeCloseTo(d.crankGearR + d.camGearR, 6);
+    if (!L.detailed) expect(Math.abs(d.camY)).toBeCloseTo(d.crankGearR + d.camGearR, 6);
     expect(GEAR_TEETH.cam / GEAR_TEETH.crank).toBeCloseTo(d.camGearR / d.crankGearR, 6);
     // magneto gears on the camshaft gear, or on the idler the crankshaft gear drives
     const m = magDrive(S, d, L);
@@ -152,7 +152,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
     }
     // oil pump drive: under the crankshaft gear, or turning with the camshaft gear
     const p = oilPump(d, L);
-    if (L.c3b6) {
+    if (L.detailed) {
       expect(p.y).toBe(0);
       expect(p.ratio).toBe(1);
     } else if (p.onCam) {
@@ -381,7 +381,7 @@ describe.each(ENGINES)("%s 3D model", (_, S) => {
 
 describe("IO-390 scene layout defaults", () => {
   test("the IO-390 draws with today's constants", () => {
-    expect(layoutFor(IO390).c3b6).toBe(true);
+    expect(layoutFor(IO390).detailed).toBe(true);
     const d = dims(IO390);
     expect({
       front: d.front,

@@ -28,16 +28,45 @@ const screws: XY[] = [
   [-0.073, 0.048],
 ];
 
-function rockerRim(thickness: number, z: number) {
-  const s = section(rockerOutline);
-  s.holes.push(new THREE.Path(rockerOutline.map(([x, y]) => new THREE.Vector2(x * 0.88, (y - 0.06) * 0.88 + 0.06))));
-  for (const [x, y] of screws) hole(s, x, y, 0.0025);
+// Lycoming 61247, L2A Fig. 12 and M1A Fig. 13. One shaft, six screws and a pressed cover.
+const parallelOutline: XY[] = [
+  [-0.064, 0.018],
+  [-0.03, -0.003],
+  [0.03, -0.003],
+  [0.064, 0.018],
+  [0.064, 0.106],
+  [0.045, 0.129],
+  [0.029, 0.137],
+  [-0.029, 0.137],
+  [-0.045, 0.129],
+  [-0.064, 0.106],
+];
+const parallelScrews: XY[] = [
+  [0, 0],
+  [0.057, 0.023],
+  [0.054, 0.111],
+  [0, 0.134],
+  [-0.054, 0.111],
+  [-0.057, 0.023],
+];
+function rockerRim(thickness: number, z: number, parallel = false) {
+  const outline = parallel ? parallelOutline : rockerOutline;
+  const s = section(outline);
+  s.holes.push(new THREE.Path(outline.map(([x, y]) => new THREE.Vector2(x * 0.88, (y - 0.06) * 0.88 + 0.06))));
+  for (const [x, y] of parallel ? parallelScrews : screws) hole(s, x, y, 0.0025);
   return plate(s, z, z + thickness);
 }
 
-function cover(d: Dims) {
-  // Rolled shoulder, smooth enamel and broad embossed numerals visible on the G6 rocker cover.
-  const face = section(rockerOutline.map(([x, y]) => [x * 0.84, (y - 0.06) * 0.84 + 0.06]));
+function cover(d: Dims, parallel: boolean) {
+  const outline = parallel ? parallelOutline : rockerOutline;
+  const face = section(outline.map(([x, y]) => [x * 0.84, (y - 0.06) * 0.84 + 0.06]));
+  if (parallel)
+    return merge([
+      rockerRim(0.003, d.headOut - 0.012, true),
+      plate(face, d.headOut - 0.011, d.headOut - 0.005, 0.006),
+      new THREE.BoxGeometry(0.08, 0.009, 0.003).translate(0, 0.063, d.headOut + 0.001),
+    ]);
+  // Raised numerals on the IO-390 cover.
   const three = new THREE.Shape()
     .moveTo(-9, 13)
     .quadraticCurveTo(0, 21, 8, 14)
@@ -75,7 +104,7 @@ function cover(d: Dims) {
   ]);
 }
 
-export function cylinderCastings(d: Dims) {
+export function cylinderCastings(d: Dims, parallel = false) {
   const r = d.bore / 2,
     end = d.headIn;
   // Turn the barrel as one continuous profile: the bore stays clear through every fin.
@@ -137,14 +166,14 @@ export function cylinderCastings(d: Dims) {
     barrel,
     flange: plate(base, d.caseHalf, d.caseHalf + 0.009),
     head,
-    rockerBox: rockerRim(d.headOut - 0.013 - (d.zPivot - 0.045), d.zPivot - 0.045),
-    cover: cover(d),
+    rockerBox: rockerRim(d.headOut - 0.013 - (d.zPivot - 0.045), d.zPivot - 0.045, parallel),
+    cover: cover(d, parallel),
   };
 }
 
 const baseStuds = stations(8, 0.079, 0.079, Math.PI / 8);
 
-export function cylinderHardware(d: Dims) {
+export function cylinderHardware(d: Dims, parallel = false) {
   const hp = headPoints(d);
   const small = baseStuds.filter((_, i) => i % 4 === 1 || i % 4 === 2),
     big = baseStuds.filter((p) => !small.includes(p));
@@ -196,7 +225,7 @@ export function cylinderHardware(d: Dims) {
       "06B26811",
       "13–5",
       "black",
-      rockerRim(0.002, d.headOut - 0.014),
+      rockerRim(0.002, d.headOut - 0.014, parallel),
       "The silicone gasket follows the rocker-box rim.",
       [0, 0, 0.23],
     ),
@@ -206,22 +235,26 @@ export function cylinderHardware(d: Dims) {
       "13–7",
       "steel",
       atStations(
-        screws,
+        parallel ? parallelScrews : screws,
         () => merge([zrod(0.003, -0.013, 0, 10), zrod(0.005, 0, 0.003, 14, 0.004)]),
         d.headOut - 0.008,
       ),
       "Eight pan-head screws retain this cover.",
       [0, 0, 0.39],
     ),
-    item(
-      "Spark plug reach plate",
-      "74494",
-      "13–8",
-      "coverMark",
-      new THREE.BoxGeometry(0.078, 0.015, 0.0003).translate(0, 0.026, d.headOut + 0.00019),
-      "The rocker cover carries the plug-reach caution plate.",
-      [0, 0, 0.34],
-    ),
+    ...(!parallel
+      ? [
+          item(
+            "Spark plug reach plate",
+            "74494",
+            "13–8",
+            "coverMark",
+            new THREE.BoxGeometry(0.078, 0.015, 0.0003).translate(0, 0.026, d.headOut + 0.00019),
+            "The rocker cover carries the plug-reach caution plate.",
+            [0, 0, 0.34],
+          ),
+        ]
+      : []),
     ...items(
       "Spark plug insert",
       "69260",
@@ -251,16 +284,41 @@ export function cylinderHardware(d: Dims) {
       "Two bushings in the head support each rocker shaft.",
       [-0.055, 0.035, 0.15],
     ),
-    item(
-      "Cylinder fin stabilizers",
-      "72343 / 72344",
-      "11–11, 12",
-      "darkSteel",
-      merge([-1, 1].map((k) => new THREE.BoxGeometry(0.003, 0.005, 0.074).translate(k * 0.078, 0.051, d.deck + 0.047))),
-      "The intake and exhaust fin banks carry separate stabilizers.",
-      [0, -0.055, 0.15],
-    ),
+    ...(!parallel
+      ? [
+          item(
+            "Cylinder fin stabilizers",
+            "72343 / 72344",
+            "11–11, 12",
+            "darkSteel",
+            merge(
+              [-1, 1].map((k) =>
+                new THREE.BoxGeometry(0.003, 0.005, 0.074).translate(k * 0.078, 0.051, d.deck + 0.047),
+              ),
+            ),
+            "The intake and exhaust fin banks carry separate stabilizers.",
+            [0, -0.055, 0.15],
+          ),
+        ]
+      : []),
   ];
+  if (parallel)
+    return [
+      ...details,
+      ...[-1, 1].map((side, i) =>
+        item(
+          "Rocker shaft thrust button (" + (i + 1) + ")",
+          "LW-12892",
+          "72-30",
+          "black",
+          zrod(0.006, 0, 0.004, 20)
+            .rotateY((side * Math.PI) / 2)
+            .translate(side * (VT.xOff + 0.015), VT.pivotY, d.zPivot),
+          "An LW-12892 thrust button at each end locates the common rocker shaft between the rocker box walls.",
+          [side * 0.13, 0.03, 0.2],
+        ),
+      ),
+    ];
   // Each rocker shaft exits through its own oval cover on the side wall.
   for (const k of [-1, 1]) {
     const which = k > 0 ? "Intake" : "Exhaust";
