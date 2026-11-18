@@ -1,4 +1,4 @@
-import { Box3, InstancedMesh, Mesh, Vector3, type Matrix4, type Object3D } from "three";
+import { Box3, InstancedMesh, Mesh, Vector3, Matrix4, type Object3D } from "three";
 
 export type StageRect = { left: number; top: number; right: number; bottom: number };
 export type StageLabel = { id: string; rect: StageRect; priority: number; selected?: boolean };
@@ -44,29 +44,34 @@ type PhysicalExtent = { matrix: Matrix4 } & ({ box: Box3 } | { envelope: XRotati
 function componentSupport(model: Object3D): ((direction: Vector3) => number) | null {
   const extents: PhysicalExtent[] = [];
   model.updateWorldMatrix(true, true);
-  model.traverseVisible((object) => {
-    for (let parent: Object3D | null = object; parent; parent = parent.parent) {
-      if (parent.userData.cameraBounds === false) return;
-      // A rotation envelope is authoritative for its descendants, independent of the sampled animation phase.
-      if (parent !== object && parent.userData.cameraRotationEnvelope) return;
-    }
+  // During a study transition, fit the final assembly without moving its rendered meshes.
+  const visit = (object: Object3D, parentDestination?: Matrix4) => {
+    if (!object.visible || object.userData.cameraBounds === false) return;
+    const local = object.userData.cameraDestination as Matrix4 | undefined;
+    const destination =
+      local || parentDestination
+        ? new Matrix4().multiplyMatrices(
+            parentDestination ?? object.parent?.matrixWorld ?? new Matrix4(),
+            local ?? object.matrix,
+          )
+        : undefined;
+    const matrix = destination ?? object.matrixWorld;
     const envelope = object.userData.cameraRotationEnvelope as XRotationEnvelope | undefined;
     if (envelope) {
-      extents.push({ matrix: object.matrixWorld, envelope });
+      extents.push({ matrix, envelope });
       return;
     }
-    if (!(object instanceof Mesh)) return;
     if (object instanceof InstancedMesh) {
       object.computeBoundingBox();
-      if (object.boundingBox && !object.boundingBox.isEmpty())
-        extents.push({ matrix: object.matrixWorld, box: object.boundingBox });
-      return;
+      if (object.boundingBox && !object.boundingBox.isEmpty()) extents.push({ matrix, box: object.boundingBox });
+    } else if (object instanceof Mesh) {
+      const geometry = object.geometry;
+      if (!geometry.boundingBox) geometry.computeBoundingBox();
+      if (geometry.boundingBox && !geometry.boundingBox.isEmpty()) extents.push({ matrix, box: geometry.boundingBox });
     }
-    const geometry = object.geometry;
-    if (!geometry.boundingBox) geometry.computeBoundingBox();
-    if (geometry.boundingBox && !geometry.boundingBox.isEmpty())
-      extents.push({ matrix: object.matrixWorld, box: geometry.boundingBox });
-  });
+    for (const child of object.children) visit(child, destination);
+  };
+  visit(model);
   if (!extents.length) return null;
   return (direction) => {
     const { x, y, z } = direction;

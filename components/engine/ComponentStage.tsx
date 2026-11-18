@@ -2,11 +2,12 @@
 /** Shared component viewport: responsive framing, labels, orbit controls and the hover tooltip. */
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { fitComponentCamera, intersects, visibleStageLabels, type StageRect } from "@/lib/component-stage";
 import { clamp, ease, type Vec3 } from "@/lib/math";
+import { prefersReducedMotion } from "@/lib/useReducedMotion";
 import { useSceneRendering } from "@/lib/useSceneRendering";
 import { useStageReset } from "./chrome";
 import { usePartInspectionStore } from "./PartInspector";
@@ -49,22 +50,46 @@ function CameraRig({
   position,
   target,
   frameKey,
+  motionKey,
   maxDistance,
 }: {
   model: RefObject<THREE.Group | null>;
   position: Vec3;
   target: Vec3;
   frameKey: string;
+  motionKey: string;
   maxDistance: number;
 }) {
   const camera = useThree((s) => s.camera),
     gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const flight = useRef<{ from: Pose; to: Pose; t0: number } | null>(null);
-  const previous = useRef({ request: "", overlays: "" });
+  const previous = useRef({ request: "", overlays: "", motionKey });
   const exploring = useRef(false);
   const elapsed = useRef(1);
   const frames = useRef(0);
+  const applyFit = useCallback(
+    (fit: { position: THREE.Vector3; target: THREE.Vector3 }, animate: boolean) => {
+      if (!controls) return;
+      // A tall propeller on a phone can need more room than the authored desktop orbit limit.
+      controls.maxDistance = Math.max(maxDistance, fit.position.distanceTo(fit.target) * 1.5);
+      const from = { p: camera.position.clone(), t: controls.target.clone() };
+      controls.enableDamping = false;
+      controls.update();
+      controls.enableDamping = true;
+      if (animate && !prefersReducedMotion()) {
+        camera.position.copy(from.p);
+        controls.target.copy(from.t);
+        flight.current = { from, to: { p: fit.position, t: fit.target }, t0: performance.now() };
+      } else {
+        flight.current = null;
+        camera.position.copy(fit.position);
+        controls.target.copy(fit.target);
+        controls.update();
+      }
+    },
+    [camera, controls, maxDistance],
+  );
   useEffect(() => {
     if (!controls) return;
     const start = () => {
@@ -85,27 +110,13 @@ function CameraRig({
         safe,
       );
       if (!fit) return;
-      const pose = { p: fit.position, t: fit.target };
       previous.current = {
+        motionKey,
         request: [frameKey, ...position, ...target, view.width, view.height].join(","),
         overlays: [safe.top, safe.bottom].join(","),
       };
       exploring.current = false;
-      controls.maxDistance = Math.max(maxDistance, pose.p.distanceTo(pose.t) * 1.5);
-      const from = { p: camera.position.clone(), t: controls.target.clone() };
-      controls.enableDamping = false;
-      controls.update();
-      controls.enableDamping = true;
-      camera.position.copy(from.p);
-      controls.target.copy(from.t);
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        flight.current = null;
-        camera.position.copy(pose.p);
-        controls.target.copy(pose.t);
-        controls.update();
-        return;
-      }
-      flight.current = { from, to: { p: pose.p.clone(), t: pose.t.clone() }, t0: performance.now() };
+      applyFit(fit, true);
     };
     controls.addEventListener("start", start);
     useStageReset.setState({ reset });
@@ -113,36 +124,27 @@ function CameraRig({
       controls.removeEventListener("start", start);
       if (useStageReset.getState().reset === reset) useStageReset.setState({ reset: null });
     };
-  }, [camera, controls, frameKey, gl, maxDistance, model, position, target]);
+  }, [applyFit, camera, controls, frameKey, motionKey, gl, model, position, target]);
   useFrame((_, dt) => {
     if (!controls || !model.current || !(camera instanceof THREE.PerspectiveCamera)) return;
     // Animated assemblies get their initial pose before their bounds are measured.
     if (++frames.current < 3) return;
     elapsed.current += dt;
-    if (elapsed.current >= 0.2) {
+    const studyChanged = motionKey !== previous.current.motionKey;
+    if (studyChanged || elapsed.current >= 0.2) {
       elapsed.current = 0;
       const view = gl.domElement.getBoundingClientRect();
       const safe = safeFrame(view, obstaclesFor(gl.domElement));
       const request = [frameKey, ...position, ...target, view.width, view.height].join(",");
       const overlays = [safe.top, safe.bottom].join(",");
       const explicit = request !== previous.current.request;
-      if (explicit || overlays !== previous.current.overlays) {
+      if (studyChanged || explicit || overlays !== previous.current.overlays) {
         const direction = new THREE.Vector3(...position).sub(new THREE.Vector3(...target));
         const fit = fitComponentCamera(model.current, direction, camera.fov, view.width, view.height, safe);
-        if (fit) {
-          previous.current = { request, overlays };
-          if (explicit || !exploring.current) {
-            exploring.current = false;
-            flight.current = null;
-            // Fitting a tall propeller on a phone may need more room than the authored desktop orbit limit.
-            controls.maxDistance = Math.max(maxDistance, fit.position.distanceTo(fit.target) * 1.5);
-            controls.enableDamping = false;
-            controls.update();
-            controls.enableDamping = true;
-            camera.position.copy(fit.position);
-            controls.target.copy(fit.target);
-            controls.update();
-          }
+        previous.current = { request, overlays, motionKey };
+        if (fit && (studyChanged || explicit || !exploring.current)) {
+          exploring.current = false;
+          applyFit(fit, studyChanged || !!flight.current);
         }
       }
     }
@@ -207,6 +209,7 @@ export function ComponentStage({
   minDistance,
   maxDistance,
   frameKey = "",
+  motionKey = "",
   shadowExtent,
   ambient = 0.55,
   keyLight = { position: [3, 4, 2], intensity: 1.6 },
@@ -220,6 +223,8 @@ export function ComponentStage({
   maxDistance: number;
   /** Change only for an explicit study/preset change, not for live simulation values. */
   frameKey?: string;
+  /** Animate the camera between explicit assembly study levels. */
+  motionKey?: string;
   /** Half-width of the directional shadow camera in model metres, for the solid engine finish. */
   shadowExtent?: number;
   ambient?: number;
@@ -267,6 +272,7 @@ export function ComponentStage({
           position={camera.position}
           target={target}
           frameKey={frameKey}
+          motionKey={motionKey}
           maxDistance={maxDistance}
         />
         <LabelClear />

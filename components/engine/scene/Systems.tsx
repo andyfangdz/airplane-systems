@@ -60,7 +60,7 @@ import { IO360Inlet } from "./io360/Inlet";
 import { sleeve } from "./io390/shapes";
 import { nozzleLinePoints, plugLead, servoHoses } from "./io390/lines";
 import { AccessoryInternals } from "./io390/AccessoryInternals";
-import { accessorySpread, Spread } from "./Separation";
+import { accessorySpread, Spread, usePartsExploded } from "./Separation";
 import { Details, useDetailDisposal } from "./io390/Details";
 import { P } from "./parts";
 
@@ -1742,7 +1742,7 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
   const spec = sim.spec;
   const detailed = !!layoutFor(spec).parallelValve;
   const fixed = spec.propeller.control === "fixed-pitch";
-  const exploded = sim.useUi((state) => detailed && !!state.view.blowUp);
+  const exploded = usePartsExploded();
   const geo = useMemo(() => {
     const R = (spec.propeller.diameterIn * IN) / 2;
     const blades = detailed
@@ -1808,7 +1808,7 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
         name="Spinner"
         geometry={geo.spinner}
         material={mats.spinner}
-        spread={detailed ? [0.23, 0, 0] : undefined}
+        spread={[0.23, 0, 0]}
         installationNote="The spinner fairing encloses the propeller hub. It separates forward to expose the hub in the exploded view."
       />
       {geo.hub && (
@@ -1826,20 +1826,21 @@ export function Propeller({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Mat
       <P name="Spinner bulkhead" geometry={geo.bulkhead} material={mats.spinner} />
       {Array.from({ length: n }, (_, k) => (
         <group key={k} rotation={[(k * 2 * Math.PI) / n, 0, 0]}>
-          <group
-            position={[0, exploded && !fixed ? 0.11 : 0, 0]}
-            ref={(g) => {
-              blades.current[k] = g;
-            }}
-          >
-            <P
-              name="Propeller blade"
-              note={`${spec.propeller.name}, ${spec.propeller.src}.`}
-              geometry={geo.blade}
-              material={mats.prop}
-            />
-            <P name="Propeller blade" geometry={geo.tip} material={mats.propTip} />
-          </group>
+          <Spread by={[0, !fixed ? 0.11 : 0, 0]}>
+            <group
+              ref={(g) => {
+                blades.current[k] = g;
+              }}
+            >
+              <P
+                name="Propeller blade"
+                note={`${spec.propeller.name}, ${spec.propeller.src}.`}
+                geometry={geo.blade}
+                material={mats.prop}
+              />
+              <P name="Propeller blade" geometry={geo.tip} material={mats.propTip} />
+            </group>
+          </Spread>
         </group>
       ))}
       <mesh ref={disc} geometry={geo.disc} material={mats.disc} raycast={() => null} />

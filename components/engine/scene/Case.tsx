@@ -31,7 +31,7 @@ import { AccessoryInternals } from "./io390/AccessoryInternals";
 import { remoteCooler, accessoryPads, sumpCasting, suctionScreen } from "./io390/installation";
 import { rockerDrains } from "./io390/accessories";
 import { caseHalf, accessoryCasting, caseHardware, oilHardware } from "./io390/case";
-import { accessorySpread, Spread } from "./Separation";
+import { Assembly, accessorySpread, Spread } from "./Separation";
 import { Details, useDetailDisposal } from "./io390/Details";
 import { P } from "./parts";
 
@@ -336,18 +336,8 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
     if (pump) pump.rotation.x = a;
     if (idler) idler.rotation.x = ((sim.anim.crank * spins.oilPumpIdler) % 360) * D2R + Math.PI / 10;
   });
-  return (
+  const fittings = (
     <>
-      <Details parts={hardware} mats={mats} />
-      <Spread by={[0, -0.26, 0]}>
-        <mesh
-          ref={level}
-          geometry={geo.oil}
-          material={oilMat}
-          position={[0, d.sumpBottom + 0.005, 0]}
-          raycast={() => null}
-        />
-      </Spread>
       {cooler && (
         <>
           <P name="Oil cooler" note={L.notes.oilCooler} geometry={cooler.core} material={mats.alt} />
@@ -502,6 +492,25 @@ export function Lubrication({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: M
             />
           </group>
         ))}
+    </>
+  );
+  return (
+    <>
+      <Assembly id="oil">
+        <Details parts={hardware} mats={mats} />
+      </Assembly>
+      <Assembly id="case">
+        <Spread by={[0, -0.26, 0]}>
+          <mesh
+            ref={level}
+            geometry={geo.oil}
+            material={oilMat}
+            position={[0, d.sumpBottom + 0.005, 0]}
+            raycast={() => null}
+          />
+        </Spread>
+      </Assembly>
+      <Assembly id="oil">{fittings}</Assembly>
     </>
   );
 }

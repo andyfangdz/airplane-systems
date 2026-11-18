@@ -3,6 +3,8 @@ import { createElement } from "react";
 import * as THREE from "three";
 import { expect, test } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
+import type { AssemblyId } from "@/components/engine/assembly-study";
+import { componentBounds } from "@/lib/component-stage";
 import { EngineAssemblies } from "@/components/engine/EngineScene";
 import { createEngineSimulation } from "@/components/engine/store";
 import { dims, makeMats } from "@/components/engine/scene/kit";
@@ -38,9 +40,11 @@ test("PC-IO-390-C Figs. 10–13: the two banks and their hardware separate and r
     });
     const toggle = async (on: boolean) => {
       await act(async () => sim.useUi.getState().setView({ blowUp: on }));
-      mounted.frame();
     };
-    await toggle(true);
+    const focus = async (id: AssemblyId, exploded = true) => {
+      await act(async () => sim.useUi.getState().setView({ assembly: { id, exploded } }));
+      mounted.frame(1);
+    };
     const travel = (name: string) => {
       const mesh = named.get(name);
       expect(mesh, name).toBeDefined();
@@ -48,7 +52,43 @@ test("PC-IO-390-C Figs. 10–13: the two banks and their hardware separate and r
         .getWorldPosition(new THREE.Vector3())
         .sub(new THREE.Vector3().setFromMatrixPosition(pose.get(mesh!)!));
     };
+    await toggle(true);
+    mounted.frame(0.35);
+    const halfway = travel("Cylinder 1 head");
+    expect(halfway.length()).toBeGreaterThan(0);
+    await toggle(false);
+    mounted.frame(0.1);
+    expect(travel("Cylinder 1 head").length()).toBeLessThan(halfway.length());
+    await toggle(true);
+    mounted.frame(1);
+    for (const { n } of IO390.geometry.cylinders) {
+      const offset = travel(`Cylinder ${n} head`);
+      expect(offset.length()).toBeGreaterThan(halfway.length());
+      for (const part of ["Piston", "Rocker cover screw (1)", "Intake valve"]) {
+        expect(travel(`${part}, cylinder ${n}`).distanceTo(offset)).toBeLessThan(1e-9);
+      }
+    }
+    const groupPose = travel("Rocker cover screw (1), cylinder 1");
+    await focus("cylinder-1", false);
+    const visible = () => {
+      const meshes = new Set<THREE.Object3D>();
+      mounted.scene.traverseVisible((m) => meshes.add(m));
+      return meshes;
+    };
+    expect(visible().has(named.get("Cylinder 2 head")!)).toBe(false);
+    expect(visible().has(named.get("Piston, cylinder 1")!)).toBe(true);
+    await act(async () => sim.useUi.getState().setView({ assembly: { id: "cylinder-1", exploded: true } }));
+    const destination = componentBounds(mounted.scene);
+    mounted.frame(0.25);
+    const partial = travel("Rocker cover screw (1), cylinder 1").distanceTo(groupPose);
+    mounted.frame(1);
+    expect(partial).toBeGreaterThan(0);
+    expect(partial).toBeLessThan(travel("Rocker cover screw (1), cylinder 1").distanceTo(groupPose));
+    expect(componentBounds(mounted.scene).max.distanceTo(destination.max)).toBeLessThan(1e-9);
+    await focus("cylinder-1", false);
+    expect(travel("Rocker cover screw (1), cylinder 1").equals(groupPose)).toBe(true);
     for (const c of IO390.geometry.cylinders) {
+      await focus(`cylinder-${c.n}`);
       const sign = c.side === "R" ? 1 : -1;
       const out = (name: string) => travel(name + ", cylinder " + c.n).z * sign;
       const head = travel(`Cylinder ${c.n} head`).z * sign;
@@ -62,9 +102,11 @@ test("PC-IO-390-C Figs. 10–13: the two banks and their hardware separate and r
       const spring = (type: string) => travel(type + " valve spring, cylinder " + c.n + " intake").z * sign;
       expect(spring("Outer")).toBeGreaterThan(spring("Inner"));
     }
+    await focus("case");
     expect(travel("Crankcase, left half").z).toBeLessThan(0);
     expect(travel("Crankcase, right half").z).toBeGreaterThan(0);
     expect(travel("Oil sump").y).toBeLessThan(0);
+    await focus("shafts");
     expect(travel("Starter ring gear").x).toBeGreaterThan(travel("Starter ring gear support").x);
     expect([...named.keys()].filter((n) => n.startsWith("Rocker cover screw ("))).toHaveLength(32);
     expect([...named.keys()].filter((n) => n.startsWith("Sump flange plain washer ("))).toHaveLength(32);
@@ -80,31 +122,39 @@ test("PC-IO-390-C Figs. 10–13: the two banks and their hardware separate and r
       });
     };
     const outlined = (object: THREE.Mesh) => object.children.some((child) => child instanceof THREE.LineSegments);
+    await act(async () => sim.useUi.getState().setView({ assembly: undefined }));
+    mounted.frame(1);
+    await pick(first);
+    expect(sim.useUi.getState().view.assembly).toEqual({ id: "cylinder-1", exploded: false });
+    await focus("cylinder-1");
     await pick(first);
     expect(outlined(first)).toBe(true);
     expect(outlined(next)).toBe(false);
     await pick(next);
     expect(outlined(first)).toBe(false);
     expect(outlined(next)).toBe(true);
-    for (const [inside, shell] of [
-      ["Ignition coil, left magneto", "Left magneto (retard breaker)"],
-      ["Rotor field winding, ALT 1", "ALT 1"],
-      ["Rotor field winding, ALT 2", "ALT 2"],
-      ["Starter armature", "Starter"],
-      ["Fuel pump diaphragm", "Engine-driven fuel pump"],
-      ["Injector air diaphragm", "Fuel injector"],
-      ["Flow divider spring", "Fuel manifold"],
-      ["Governor speeder spring", "Propeller governor"],
-      ["Oil filter centre tube", "Oil filter"],
-    ])
+    for (const [group, inside, shell] of [
+      ["ignition", "Ignition coil, left magneto", "Left magneto (retard breaker)"],
+      ["drives", "Rotor field winding, ALT 1", "ALT 1"],
+      ["drives", "Rotor field winding, ALT 2", "ALT 2"],
+      ["drives", "Starter armature", "Starter"],
+      ["fuel", "Fuel pump diaphragm", "Engine-driven fuel pump"],
+      ["fuel", "Injector air diaphragm", "Fuel injector"],
+      ["fuel", "Flow divider spring", "Fuel manifold"],
+      ["drives", "Governor speeder spring", "Propeller governor"],
+      ["oil", "Oil filter centre tube", "Oil filter"],
+    ] as const) {
+      await focus(group);
       expect(travel(inside).distanceTo(travel(shell)), inside).toBeGreaterThan(0.045);
+    }
     expect(named.has("Retard breaker points, right magneto")).toBe(false);
     expect(named.has("Retard breaker points, left magneto")).toBe(true);
     const fork = sim.fork();
+    expect(fork.useUi.getState().view.assembly).toEqual({ id: "oil", exploded: true });
     expect(fork.useUi.getState().view.blowUp).toBe(true);
     fork.dispose();
     await toggle(false);
-    expect(outlined(next)).toBe(true);
+    mounted.frame(1);
     let restored = 0;
     mounted.scene.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;

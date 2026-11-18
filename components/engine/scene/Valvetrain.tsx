@@ -31,7 +31,7 @@ import { layoutFor, type EngineLayout, type ValveDef } from "./layout";
 import { Details } from "./io390/Details";
 import { valveHardware, shroudParts, tappetParts } from "./io390/cylinder";
 import { item, sleeve } from "./io390/shapes";
-import { cylinderSpread, Spread } from "./Separation";
+import { Assembly, cylinderSpread, Spread } from "./Separation";
 import { P } from "./parts";
 
 /** A cam lobe, nose along +z, axis along x: base circle plus a cos² nose as wide as the valve's open window. */
@@ -415,11 +415,13 @@ export function ValveTrain({ sim, d, mats }: { sim: EngineSim; d: Dims; mats: Ma
   return (
     <>
       {sim.spec.geometry.cylinders.map((c) => (
-        <Spread key={c.n} by={cylinderSpread(c, 0.26)}>
-          <Spread by={[0, 0.24, 0]}>
-            <CylinderValves sim={sim} c={c} d={d} mats={mats} geo={geo} valves={valves} shafts={shafts} />
+        <Assembly key={c.n} id={`cylinder-${c.n}`}>
+          <Spread by={cylinderSpread(c, 0.26)}>
+            <Spread by={[0, 0.24, 0]}>
+              <CylinderValves sim={sim} c={c} d={d} mats={mats} geo={geo} valves={valves} shafts={shafts} />
+            </Spread>
           </Spread>
-        </Spread>
+        </Assembly>
       ))}
     </>
   );

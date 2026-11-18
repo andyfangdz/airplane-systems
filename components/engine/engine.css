@@ -40,6 +40,30 @@
   padding: 2px 6px;
   white-space: nowrap;
 }
+.eng-assembly-nav {
+  max-width: 100%;
+  display: flex;
+  gap: 4px;
+}
+.eng-assembly-nav .eng-study {
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.eng-assembly-nav select {
+  width: 100%;
+  min-width: 0;
+}
+.eng-assembly-nav .tb {
+  white-space: nowrap;
+}
+.eng-assembly-label {
+  cursor: pointer;
+}
+.eng-assembly-label:hover,
+.eng-assembly-label:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .eng-study {
   display: flex;
   flex: none;

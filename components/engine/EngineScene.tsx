@@ -9,7 +9,7 @@
  */
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -19,9 +19,10 @@ import { Crankcase, Lubrication } from "./scene/Case";
 import { IO360Airframe } from "./scene/io360/Airframe";
 import { Cylinders } from "./scene/Cylinders";
 import { dims, disposeMats, labelOccluder, makeMats, XRAY_MATS, type Dims, type Mats } from "./scene/kit";
-import { layoutFor } from "./scene/layout";
-import { accessorySpread, Separation, Spread, cylinderSpread } from "./scene/Separation";
+import { layoutFor, type V3 } from "./scene/layout";
+import { Assembly, AssemblyStudy, accessorySpread, Spread, cylinderSpread } from "./scene/Separation";
 import { Group, PartNotesProvider } from "./scene/parts";
+import { assemblyAvailable, assemblyStations, type AssemblyId } from "./assembly-study";
 import { ComponentStage } from "./ComponentStage";
 import { Crankshaft, RodsAndPistons } from "./scene/Rotating";
 import { Drives, FuelSystem, Ignition, Induction, Propeller } from "./scene/Systems";
@@ -75,85 +76,96 @@ function EngineModel({ sim }: { sim: EngineSim }) {
   });
   return (
     <group ref={body}>
-      <EngineAssemblies sim={sim} d={d} mats={mats} />
-      <Labels sim={sim} d={d} />
+      <EngineAssemblies sim={sim} d={d} mats={mats}>
+        <Labels sim={sim} d={d} />
+      </EngineAssemblies>
     </group>
   );
 }
 
-export function EngineAssemblies(p: { sim: EngineSim; d: Dims; mats: Mats }) {
+export function EngineAssemblies({ children, ...p }: { sim: EngineSim; d: Dims; mats: Mats; children?: ReactNode }) {
   const { sim } = p;
   const L = layoutFor(sim.spec);
-  const open = sim.useUi((x) => !!x.view.blowUp);
-  return (
+  const model = (
     <PartNotesProvider value={sim.spec.parts}>
-      <Separation.Provider value={L.detailed ? open : null}>
-        <Group sim={sim} id="rotating">
+      <Group sim={sim} id="rotating">
+        <Assembly id="shafts">
           <Crankshaft {...p} />
-          <RodsAndPistons {...p} />
-        </Group>
-        <Group sim={sim} id="valvetrain">
+        </Assembly>
+        <RodsAndPistons {...p} />
+      </Group>
+      <Group sim={sim} id="valvetrain">
+        <Assembly id="shafts">
           <Spread by={[0, 0.28, 0]}>
             <Camshaft {...p} />
           </Spread>
-          <ValveTrain {...p} />
-        </Group>
-        <Group sim={sim} id="cylinders">
-          <Cylinders {...p} />
-        </Group>
-        {L.parallelValve && (
-          <Group sim={sim} id="installation">
+        </Assembly>
+        <ValveTrain {...p} />
+      </Group>
+      <Group sim={sim} id="cylinders">
+        <Cylinders {...p} />
+      </Group>
+      {L.parallelValve && (
+        <Group sim={sim} id="installation">
+          <Assembly id="installation">
             <IO360Airframe spec={sim.spec} d={p.d} mats={p.mats} />
-          </Group>
-        )}
-        <Group sim={sim} id="case">
+          </Assembly>
+        </Group>
+      )}
+      <Group sim={sim} id="case">
+        <Assembly id="case">
           <Crankcase {...p} />
-        </Group>
-        <Group sim={sim} id="oil">
-          <Lubrication {...p} />
-        </Group>
-        <Group sim={sim} id="ignition">
+        </Assembly>
+      </Group>
+      <Group sim={sim} id="oil">
+        <Lubrication {...p} />
+      </Group>
+      <Group sim={sim} id="ignition">
+        <Assembly id="ignition">
           <Ignition {...p} />
-        </Group>
-        <Group sim={sim} id="fuel">
+        </Assembly>
+      </Group>
+      <Group sim={sim} id="fuel">
+        <Assembly id="fuel">
           <FuelSystem {...p} />
-        </Group>
-        <Group sim={sim} id="induction">
+        </Assembly>
+      </Group>
+      <Group sim={sim} id="induction">
+        <Assembly id="induction">
           <Induction {...p} />
+        </Assembly>
+      </Group>
+      {L.turbo && (
+        <Group sim={sim} id="turbo">
+          <Turbo {...p} />
         </Group>
-        {L.turbo && (
-          <Group sim={sim} id="turbo">
-            <Turbo {...p} />
-          </Group>
-        )}
-        {L.exhaust && (
-          <Group sim={sim} id="exhaust">
-            <Exhaust {...p} />
-          </Group>
-        )}
-        <Group sim={sim} id="drives">
+      )}
+      {L.exhaust && (
+        <Group sim={sim} id="exhaust">
+          <Exhaust {...p} />
+        </Group>
+      )}
+      <Group sim={sim} id="drives">
+        <Assembly id="drives">
           <Drives {...p} />
-        </Group>
-        <Spread by={accessorySpread.Propeller}>
-          <Propeller {...p} />
-        </Spread>
-      </Separation.Provider>
+        </Assembly>
+      </Group>
+      <Assembly id="propeller">
+        <Propeller {...p} />
+      </Assembly>
+      {children}
     </PartNotesProvider>
   );
+  return L.detailed ? <AssemblyStudy sim={sim}>{model}</AssemblyStudy> : model;
 }
 
 /** The layout's labels left showing: a label tied to a part group hides while that group is hidden. */
 export const shownLabels = <T extends [string, unknown, { group?: string }?]>(items: T[], hidden: readonly string[]) =>
   items.filter(([, , o]) => !(o?.group && hidden.includes(o.group)));
 
-function explodedLabel(name: string, p: [number, number, number], sim: EngineSim): [number, number, number] {
-  const c = sim.spec.geometry.cylinders.find((c) => name === `Cyl ${c.n}`);
-  const offset = c ? cylinderSpread(c, 0.44) : accessorySpread[name];
-  return offset ? [p[0] + offset[0], p[1] + offset[1], p[2] + offset[2]] : p;
-}
-
 export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
   const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
+  const focus = sim.useUi((x) => x.view.assembly?.id);
   const show = sim.useUi((x) => x.view.labels);
   const propOn = sim.useUi((x) => x.view.prop);
   const turboHidden = sim.useUi((x) => x.view.hidden.includes("turbo"));
@@ -163,56 +175,97 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
     scene = useThree((s) => s.scene);
   const portal = useMemo(() => ({ current: gl.domElement.parentNode as HTMLElement }), [gl]);
   if (!show) return null;
-  const items: [string, [number, number, number], { occlude?: true; group?: string }?][] = [
+  const L = layoutFor(sim.spec);
+  const stations = assemblyStations(sim.spec);
+  const cylinders = sim.spec.geometry.cylinders;
+  type Pin = { name: string; at: V3; station?: AssemblyId; by?: V3; occlude?: boolean };
+  const items: Pin[] = [
     ...(hidden.includes("cylinders")
       ? []
-      : sim.spec.geometry.cylinders.map((c): [string, [number, number, number]] => [
-          `Cyl ${c.n}`,
-          [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
-        ])),
-    ...shownLabels(layoutFor(sim.spec).labels(d, sim.spec), hidden),
-    // the turbo group's labels go with its parts
-    ...((!turboHidden && layoutFor(sim.spec).turbo?.labels) || []),
-    ...((!exhaustHidden && layoutFor(sim.spec).exhaust?.labels) || []),
+      : cylinders.map((c): Pin => ({
+          name: `Cyl ${c.n}`,
+          at: [c.x, 0.2, (c.side === "R" ? 1 : -1) * (d.halfWidth - 0.04)],
+          station: `cylinder-${c.n}`,
+          by: cylinderSpread(c, 0.44),
+        }))),
+    ...shownLabels(L.labels(d, sim.spec), hidden).map(([name, at, options]): Pin => ({
+      name,
+      at,
+      occlude: options?.occlude,
+      station: stations.find((s) => s.id === options?.group)?.id,
+      by: accessorySpread[name],
+    })),
+    ...[...((!turboHidden && L.turbo?.labels) || []), ...((!exhaustHidden && L.exhaust?.labels) || [])].map(
+      ([name, at]) => ({ name, at }),
+    ),
   ];
-  if (propOn) items.push(["Propeller", [d.flangeX + 0.1, 0.55, 0]]);
-  return (
-    <>
-      {items.map(([t, p, o]) => (
-        <Html
-          key={t}
-          position={open ? explodedLabel(t, p, sim) : p}
-          portal={portal}
-          center
-          occlude={o?.occlude && [labelOccluder(scene, t)]}
-          // Html caches occlusion while its anchor is stationary. Its strict `movement > eps` check needs a
-          // negative threshold to notice hidden groups, X-ray changes and moving blockers on every frame.
-          eps={o?.occlude ? -1 : undefined}
-          zIndexRange={[10, 0]}
-          style={{ pointerEvents: "none" }}
-        >
-          <div className="eng-label">{t}</div>
-        </Html>
-      ))}
-    </>
+  if (propOn) items.push({ name: "Propeller", at: [d.flangeX + 0.1, 0.55, 0], station: "propeller", by: [0.23, 0, 0] });
+  const pin = ({ name, at, occlude }: Pin) => (
+    <Html
+      key={name}
+      position={at}
+      portal={portal}
+      center
+      occlude={occlude && [labelOccluder(scene, name)]}
+      // Re-evaluate moving blockers even when the camera and this anchor are stationary.
+      eps={occlude ? -1 : undefined}
+      zIndexRange={[10, 0]}
+      style={{ pointerEvents: "none" }}
+    >
+      <div className="eng-label">{name}</div>
+    </Html>
   );
+  if (!L.detailed) return items.map(pin);
+  // Keep each anchor's assembly mounted as the label changes so labels travel with the hardware.
+  return stations
+    .filter((station) => assemblyAvailable(station, { prop: propOn, hidden }))
+    .map((station) => {
+      const cylinder = cylinders.find((c) => station.id === `cylinder-${c.n}`);
+      const at: V3 = cylinder ? [cylinder.x, 0.16, (cylinder.side === "R" ? 1 : -1) * d.halfWidth] : [0, d.caseTop, 0];
+      return (
+        <Assembly key={station.id} id={station.id}>
+          {open && !focus ? (
+            <Html position={at} portal={portal} center zIndexRange={[10, 0]}>
+              <button
+                type="button"
+                className="eng-label eng-assembly-label"
+                onClick={() => sim.useUi.getState().setView({ assembly: { id: station.id, exploded: false } })}
+              >
+                {station.name}
+              </button>
+            </Html>
+          ) : (
+            (!focus || focus === station.id) &&
+            items
+              .filter((p) => p.station === station.id)
+              .map((p) => (
+                <Spread key={p.name} by={p.by ?? [0, 0, 0]}>
+                  {pin(p)}
+                </Spread>
+              ))
+          )}
+        </Assembly>
+      );
+    });
 }
 
 export default function EngineScene({ sim }: { sim: EngineSim }) {
   const cam = layoutFor(sim.spec).camera;
   const solid = sim.useUi((s) => !!layoutFor(sim.spec).detailed && !s.view.xray);
   const open = sim.useUi((x) => !!x.view.blowUp && !!layoutFor(sim.spec).detailed);
+  const assembly = sim.useUi((x) => x.view.assembly);
   const prop = sim.useUi((x) => x.view.prop),
     hidden = sim.useUi((x) => x.view.hidden);
   return (
     <ComponentStage
-      frameKey={`${open}:${prop}:${hidden.join(",")}`}
+      motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}`}
+      frameKey={`${prop}:${hidden.join(",")}`}
       shadowExtent={solid ? (open ? 1.35 : prop ? 1.02 : 0.81) : undefined}
       ambient={solid ? 0.28 : undefined}
       keyLight={solid ? { position: [2.5, 3.8, 2], intensity: 2.05 } : undefined}
       camera={{ position: cam.position, fov: 38, near: 0.02, far: 40 }}
       target={cam.target}
-      minDistance={0.5}
+      minDistance={assembly ? 0.12 : 0.5}
       maxDistance={cam.maxDistance}
     >
       <EngineModel sim={sim} />

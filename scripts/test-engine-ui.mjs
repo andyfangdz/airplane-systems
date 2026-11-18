@@ -322,7 +322,8 @@ for (const [airplane, engine, installedPart] of [
     await page.waitForURL(`**/engines/${engine}`);
     const exploded = page.getByRole("button", { name: "Blow up", exact: true });
     await exploded.click();
-    assert.equal(await exploded.getAttribute("aria-pressed"), "true");
+    const assemble = page.getByRole("button", { name: "Assemble engine", exact: true });
+    await assemble.waitFor();
     assert.equal(await page.locator("#prop").count(), airplane === "da40" ? 1 : 0);
     assert.equal(await page.locator("#altair").count(), airplane === "da40" ? 1 : 0);
     await page.getByText("Inspect a part", { exact: false }).first().click();
@@ -339,8 +340,8 @@ for (const [airplane, engine, installedPart] of [
     assert.equal(await page.locator(".part-explanation h3").innerText(), airframePart);
     await search.fill(installedPart);
     await page.getByRole("button", { name: installedPart, exact: true }).click();
-    await exploded.click();
-    assert.equal(await exploded.getAttribute("aria-pressed"), "false");
+    await assemble.click();
+    await exploded.waitFor();
     assert.equal(await page.locator(".part-explanation h3").innerText(), installedPart);
     assert.deepEqual(errors, []);
   });

@@ -40,8 +40,10 @@ export async function mountScene(el: ReactNode) {
   });
   const inspection = (children: ReactNode) => createElement(PartInspectionProvider, { children });
   await act(async () => root.render(inspection(el)));
-  const frame = () => {
-    advance(0);
+  let time = 0;
+  const frame = (seconds = 0) => {
+    time += seconds;
+    advance(time, true, state);
     state!.scene.updateMatrixWorld(true);
   };
   frame();
@@ -50,7 +52,7 @@ export async function mountScene(el: ReactNode) {
     /** What the pointer is tested against: the objects with pointer handlers (R3F's event system). */
     hoverTargets: () => state!.get().internal.interaction,
     frame,
-    render: (next: ReactNode) => act(async () => root.render(inspection(next))).then(frame),
+    render: (next: ReactNode) => act(async () => root.render(inspection(next))).then(() => frame()),
     unmount: () => act(async () => root.unmount()),
   };
 }
