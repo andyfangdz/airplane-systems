@@ -12,7 +12,7 @@
  * - cowling.ts: cowling nose and cooling-air inlets
  * - gear.ts: main and nose gear, wheels, fairings, brakes, parking brake, rudder pedals
  * - engine.ts: propeller, Lycoming IO-360 and its accessories, exhaust, engine controls and ignition key
- * - structure.ts: firewall, baggage frame, roll bar, spar carry-throughs, root ribs, jack points, lower fin
+ * - structure.ts: firewall, baggage frame, roll bar, center section, spar stubs/caps/webs, wing and tank ribs, jack points, lower fin
  * - cabin.ts: instrument panel, consoles, seats, baggage, emergency equipment, control sticks
  * - controls.ts: flight-control mechanisms (bellcranks, horns, trim, AFCS servos); flap drive and selector
  * - fuel.ts: fillers, drains, vents, selector, fuel pump, gascolator

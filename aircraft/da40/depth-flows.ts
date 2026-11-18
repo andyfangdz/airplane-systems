@@ -10,6 +10,7 @@ import { ALTERNATOR } from "./parts/engine";
 import { PEDALS, SERVO } from "./rig";
 import { engineTurning, fuelDeliveryAvailable, inductionAvailable, live, type Elec, type Sim } from "./model";
 import * as A from "./depth-anchors";
+import { CHAMBER_JOINTS, FUEL_CHAMBERS, insideWing, probePort } from "./wing-installation";
 
 const routes: FlowSpec[] = [];
 const add = (
@@ -37,10 +38,10 @@ const signal = (key: string, a: Vec3, b: Vec3, note: string, sys: FlowSpec["sys"
     to = b;
   if (Math.abs(a[2]) > 0.65) {
     const side = Math.sign(a[2]);
-    for (const z of [Math.abs(a[2]) - 0.06, Math.abs(a[2]) * 0.72, 1.35, 0.7].filter(
-      (z) => z > 0 && z < Math.abs(a[2]),
-    ))
-      pts.push(toVec3(wingP(side * z, 0.45, 0)));
+    // Exit the chamber face into the interconnect gap before heading forward of the tank bay.
+    pts.push(toVec3(wingP(a[2] - side * 0.022, 0.32, 0)));
+    for (const z of [Math.abs(a[2]) - 0.032, 1.35, 0.7].filter((z) => z < Math.abs(a[2])))
+      pts.push(toVec3(wingP(side * z, 0.115, 0)));
     from = [fs(2.3), -0.6, side * 0.25];
     pts.push(from);
   }
@@ -60,7 +61,7 @@ const signal = (key: string, a: Vec3, b: Vec3, note: string, sys: FlowSpec["sys"
     for (const z of [0.7, 1.35, Math.abs(b[2]) * 0.72, Math.abs(b[2]) - 0.06].filter(
       (z) => z > 0 && z < Math.abs(b[2]),
     ))
-      pts.push(toVec3(wingP(side * z, 0.45, 0)));
+      pts.push(toVec3(wingP(side * z, 0.115, 0)));
   }
   pts.push(b);
   add(key, pts, sys, key, note + " Cabin harness follows underfloor/sidewall lanes.", {
@@ -84,30 +85,41 @@ for (const s of [-1, 1]) {
     "Inboard finger filter → under-floor selector body (AMM 28-20-00 p 3).",
     { r: 0.008 },
   );
-  for (const [i, z] of [2.1, 2.975].entries()) {
+  for (const [i, { inner, outer }] of CHAMBER_JOINTS.entries()) {
     add(
       `chamberFuel${suffix}${i}`,
-      [A.tankPort(s, z + 0.035), A.tankPort(s, z - 0.035)],
+      [A.tankPort(s, outer.z0), A.tankPort(s, inner.z1)],
       ["fuel"],
       "Fuel chamber coupling",
       "Large flexible coupling interconnects adjoining aluminum chambers (AMM 28-10-00 pp 5–6).",
       { r: 0.012 },
     );
-    add(
-      `chamberVent${suffix}${i}`,
-      [A.tankPort(s, z - 0.035, true), A.tankPort(s, z + 0.035, true)],
-      ["fuel"],
-      "Chamber balance/vent hose",
-      "Top hoses interconnect chamber vapor spaces; flow direction/rate not specified (AMM 28-10-00 p 6).",
-      staticRoute,
-    );
+    for (const [key, chord] of [
+      ["", 0.28],
+      ["Aft", 0.46],
+    ] as const) {
+      add(
+        `chamberVent${suffix}${i}${key}`,
+        [A.tankPort(s, inner.z1, true, chord), A.tankPort(s, outer.z0, true, chord)],
+        ["fuel"],
+        "Chamber balance/vent hose",
+        "Two separate upper hoses connect the vapor spaces across each chamber joint (AFM 7-35, AMM 28-10-00 Fig. 2).",
+        { ...staticRoute, r: 0.005 },
+      );
+    }
   }
   for (const check of [false, true]) {
     const end = A.VENT(s, check),
       key = check ? `ventCheck${suffix}` : `vent${suffix}`;
     add(
       key,
-      [A.tankPort(s, 3.04, true), A.tankPort(s, 3.55), [end[0], end[1] + 0.055, end[2]], end],
+      [
+        A.tankPort(s, FUEL_CHAMBERS[2].z0, true, check ? 0.29 : 0.32),
+        insideWing(s * (FUEL_CHAMBERS[2].z0 - 0.023), check ? 0.29 : 0.32, 0.82),
+        insideWing(s * FUEL_CHAMBERS[2].z1, check ? 0.29 : 0.32, 0.82),
+        [end[0], end[1] + 0.055, end[2]],
+        end,
+      ],
       ["fuel"],
       check ? "Tank check-valve vent" : "Tank capillary vent",
       "Separate capillary pressure-balancing hose and one-way inlet vent; source gives no air-flow rate (AFM 7-34; AMM 28-10-00 p 6).",
@@ -117,7 +129,7 @@ for (const s of [-1, 1]) {
   for (const lr of [false, true])
     signal(
       `fuelProbe${suffix}${lr ? "LR" : "IB"}`,
-      A.FUEL_PROBE(s, lr),
+      probePort(s, lr, "mount"),
       A.GEA,
       "Capacitive probe → GEA measured fuel quantity; distinct from flow-integrating totalizer (AFM 7-34–37; Garmin SMM 4.6).",
       ["fuel", "avionics"],
@@ -441,12 +453,7 @@ for (const [name, point] of Object.entries(SERVO)) {
     ["autopilot", "electrical"],
   );
 }
-signal(
-  "gmuData",
-  toVec3(wingP(2.6, 0.45, 0)),
-  A.GRS,
-  "GMU44 magnetic data and power connect directly to GRS77 (Garmin SMM 2-4).",
-);
+signal("gmuData", A.GMU, A.GRS, "GMU44 magnetic data and power connect directly to GRS77 (Garmin SMM 2-4).");
 signal(
   "oatData",
   [fs(2), -0.565, 0.3],

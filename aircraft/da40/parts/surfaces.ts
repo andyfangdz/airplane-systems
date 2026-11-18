@@ -57,7 +57,7 @@ const hp = (s: number, z: number, xc: number) => {
     hp(s, fz[4], FLAP.hinge),
     ["flaps", "controls"],
     nm + " flap",
-    "GFRP/CFRP sandwich on 6 hinges (roll-pinned hinge pins in aluminium brackets). UP 0° · T/O 20° · LDG 42° (TCDS). Driven by push rod and rod-end from the fuselage torsion tube (AFM 7-5).",
+    "GFRP/CFRP sandwich on 6 hinges (roll-pinned hinge pins in aluminium brackets). UP 0° · T/O 20° · LDG 42° (TCDS). The wing bellcrank drives the horn through a short push rod (AFM 7-5, AMM 27-50-00 Fig. 2).",
   );
   surface(
     "ail" + side,

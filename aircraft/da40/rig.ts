@@ -8,13 +8,12 @@
  *  - Rudder: steel cables to bolts on the rudder's lower bracket.
  *  - Elevator trim: tab on the elevator moved by a Bowden cable from the black trim wheel in the centre console.
  *  - Flaps: electric actuator; a torsion tube in the fuselage joins the left and right flaps.
- * Positions of the intermediate bellcranks, the flap actuator and the GFC 700 servos are not in the documents
- * and are placed plausibly (servos at the KAP 140 servo arms of AFM 6.5: trim 2.21 m, roll 3.06 m, pitch 3.93 m).
+ * AMM 27-10 and 27-50 establish the wing linkage topology. Undimensioned stations and GFC 700 servo positions are schematic (servos at the KAP 140 servo arms of AFM 6.5: trim 2.21 m, roll 3.06 m, pitch 3.93 m).
  */
 import * as THREE from "three";
 import { D2R, V, type Vec3 } from "@/lib/math";
 import { trailingEdgeTab } from "@/lib/trimTab";
-import { ELEV_HINGE_X, FLAP, SY, fs, hingeX, sC, sLE, stabSec, wingP } from "./geometry";
+import { ELEV_HINGE_X, FLAP, SY, WJ, fs, hingeX, sC, sLE, stabSec, wingP } from "./geometry";
 
 /* ---------- control sticks (one in front of each seat) ---------- */
 /** Pivot just under the cabin floor; the grip sits between the pilot's knees, below the panel's lower edge. */
@@ -42,9 +41,9 @@ export const ELEV_HORN = { c: [ELEV_HINGE_X, SY, 0] as Vec3, dir: [0.6, -0.8], l
 const A_FWD: Vec3 = [fs(2.1), -0.58, 0]; // central bellcrank under the stick bases (vertical pivot)
 const A_AFT: Vec3 = [fs(3.05), -0.55, 0]; // aft bellcrank, splits to the two wing push rods (which then run inside the wing)
 const A_ARM = 0.08;
-const A_WB = 3.98,
-  A_HORN = 4.04; // wing bellcrank and aileron horn span stations
-const wb = (s: number) => wingP(s * A_WB, 0.56, 0);
+const A_WB = 3.98;
+export const AILERON_HORN_Z = 4.04; // wing bellcrank and aileron horn span stations
+const wb = (s: number) => wingP(s * A_WB, 0.67, 0);
 
 /* ---------- rudder ---------- */
 export const RUD_HORN = { h: -0.47, half: 0.085 };
@@ -67,16 +66,27 @@ export const TAB = trailingEdgeTab({
 });
 
 /* ---------- flaps ---------- */
-/** Flap torsion tube across the fuselage, its ends and arms inside the stub-wing trailing edge. */
-export const FLAP_TUBE = { x: fs(3.17), y: -0.5, half: 0.45, arm: 0.04 };
-/**
- * Flap actuator (0.24 m long, parts.ts; location not in the documents): its aft face (FS 2.98) is ahead of the torsion tube (FS 3.17),
- * the rear seat pans (FS 3.02) and the roll servo (FS 3.00); the rod runs from it to the tube, under the seat pan and above the servo.
- */
-export const FLAP_ACT: Vec3 = [fs(2.86), -0.53, -0.14];
-const flapHornZ = 1.28;
-/** Flap horn: hangs from the hinge line (mid-thickness) inside the wing. */
+// AMM 27-50-00 Figs. 1–3. The motor drives the idler and wing rods. A separate cranked
+// torsion tube engages the flap roots through transfer pins. Lever arms/strokes are illustrative.
+const flapRoot = wingP(FLAP.z0, FLAP.hinge, 0);
+export const FLAP_TUBE = { x: flapRoot.x, y: flapRoot.y, half: FLAP.z0 - 0.018 };
 export const FLAP_HORN = 0.03;
+export const FLAP_HORN_Z = 2.2;
+export const FLAP_IDLER = V(fs(2.98), -0.53, 0);
+export const FLAP_ACT: Vec3 = [FLAP_IDLER.x - FLAP_HORN, FLAP_IDLER.y, -0.22];
+export const flapBellcrank = (side: number) => wingP(side * FLAP_HORN_Z - FLAP_HORN, 0.68, 0);
+const flapAxis = wingP(FLAP.z1, FLAP.hinge).sub(flapRoot).normalize();
+
+/** Same hinge line and rotation as the rendered flap, including sweep and dihedral. */
+function flapHornTip(side: number, angle: number) {
+  const root = wingP(side * FLAP.z0, FLAP.hinge);
+  const axis = V(flapAxis.x * side, flapAxis.y * side, flapAxis.z);
+  return wingP(side * FLAP_HORN_Z, FLAP.hinge)
+    .add(V(0, -FLAP_HORN, 0))
+    .sub(root)
+    .applyAxisAngle(axis, angle)
+    .add(root);
+}
 
 /* ---------- servos (GFC 700 GSA; positions approximate) ---------- */
 export const SERVO = {
@@ -120,7 +130,7 @@ export function rigPose(c: { pitch: number; roll: number; yaw: number }, flapAng
     ailR: d.ailR * D2R,
     ailL: d.ailL * D2R,
     rud: d.rud * D2R,
-    flapTube: flapAng * 0.8 * D2R,
+    flapTube: flapAng * D2R,
   };
 }
 
@@ -171,32 +181,36 @@ export function linkPoints(p: RigPose) {
     out["ailW" + k] = [aftOut, inTip];
     // horn hangs below the aileron hinge and turns with the surface (TE up = horn tip aft)
     const up = s > 0 ? p.ailR : p.ailL,
-      hz = wingP(s * A_HORN, 0.8, -1);
+      hz = wingP(s * AILERON_HORN_Z, 0.8, -1);
     out["ailH" + k] = [outTip, V(hz.x - 0.05 * Math.sin(up), hz.y - 0.05 * Math.cos(up), hz.z)];
   });
   // rudder pedal bars (left pedals move aft when the right pedals move forward)
   const [zLo, zLi, zRi, zRo] = PEDALS.z;
   out.pedBarL = [V(PEDALS.x - p.pedal, PED_BAR.L, zLo), V(PEDALS.x - p.pedal, PED_BAR.L, zRi)];
   out.pedBarR = [V(PEDALS.x + p.pedal, PED_BAR.R, zLi), V(PEDALS.x + p.pedal, PED_BAR.R, zRo)];
-  // flaps: torsion-tube arms → push rods → flap horns
-  const tt = p.flapTube,
-    ft = FLAP_TUBE;
-  [-1, 1].forEach((s) => {
-    const arm = V(ft.x + ft.arm * Math.sin(tt), ft.y - ft.arm * Math.cos(tt), s * ft.half);
-    const hz = wingP(s * flapHornZ, FLAP.hinge, 0),
-      fa = flapAngOf(p);
-    out["flapRod" + (s > 0 ? "R" : "L")] = [
-      arm,
-      V(hz.x + FLAP_HORN * Math.sin(fa), hz.y - FLAP_HORN * Math.cos(fa), hz.z),
-    ];
-  });
-  out.flapAct = [
-    V(FLAP_ACT[0] - 0.12, FLAP_ACT[1], FLAP_ACT[2]),
-    V(ft.x + ft.arm * Math.sin(tt), ft.y - ft.arm * Math.cos(tt), FLAP_ACT[2]),
-  ];
+  // The idler and wing bellcranks turn about vertical pins. The short rods follow the
+  // horns around the flaps' inclined hinges. Both drives use the achieved flap angle.
+  const fa = p.flapTube,
+    dx = FLAP_HORN * Math.cos(fa),
+    dz = FLAP_HORN * Math.sin(fa);
+  const drive = FLAP_IDLER.clone().add(V(-dx, 0, dz));
+  out.flapAct = [V(FLAP_ACT[0], FLAP_ACT[1], FLAP_ACT[2] + 0.12), drive];
+  out.flapIdler = [FLAP_IDLER, drive];
+  for (const side of [-1, 1]) {
+    const suffix = side < 0 ? "L" : "R";
+    const pivot = flapBellcrank(side);
+    const input = pivot.clone().add(V(-dx, 0, dz));
+    const output = pivot.clone().add(V(dz, 0, dx));
+    // The two push rods meet at the wing root. Keep the joint on the moving rod axis.
+    const joint = drive.clone().lerp(input, WJ / Math.abs(pivot.z));
+    out["flapCenter" + suffix] = [drive, joint];
+    out["flapWing" + suffix] = [joint, input];
+    out["flapInputArm" + suffix] = [input, pivot];
+    out["flapOutputArm" + suffix] = [pivot, output];
+    out["flapRod" + suffix] = [output, flapHornTip(side, fa)];
+  }
   return out;
 }
-const flapAngOf = (p: RigPose) => p.flapTube / 0.8;
 
 /** Rudder horn (lateral bar at the bottom of the rudder) pivot, for the scene group. */
 export const rudHornPivot = rudPivot;

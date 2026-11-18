@@ -635,7 +635,7 @@ export function Fuel() {
           "Engine fire: selector OFF — it is the only fuel shut-off (AFM 3-22, 3-26).",
           "Electric pump is on the MAIN bus: after an alternator failure with ESS BUS ON it is gone (AFMS p. 31).",
           "High altitude with the pump OFF can give vapour bubbles: intermittent low fuel pressure, then high fuel-flow indications (AFM 4A-27).",
-          "Each long-range tank has three aluminum chambers. Large flexible couplings carry fuel; smaller upper hoses connect vapor spaces. Independent capillary and check-valve vents balance pressure (AMM 28-10-00).",
+          "Each chamber joint has a large fuel coupling and two smaller hoses joining the vapor spaces. The inboard and long-range chambers each have a probe running from the inboard face to an outboard guide (AFM 7-35, AMM 28-10-00 Fig. 2 and 28-40-00 pp. 204, 206).",
           "Fuel pressure, measured quantity and flow-integrating totalizer are independent inputs. A pressure indication fault does not by itself establish an actual pump failure (Garmin SMM 5.5; SOURCES.md).",
         ]}
       />
