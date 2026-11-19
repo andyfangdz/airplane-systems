@@ -44,7 +44,7 @@ import "./electrical";
 import "./avionics";
 export { PITOT_Z, SPX, pitotBase, statR } from "./pitot";
 import "./fuel";
-export { TANK_CHORD, TANK_SPAN } from "./fuel";
+export { TANK_CHORD, TANK_SPAN } from "../wing-installation";
 import "./environment";
 import "./aircon";
 export { CAPS_BOX, HARNESS, ROCKET_T, TAUT_T, strapOut, strapPeel } from "./caps";

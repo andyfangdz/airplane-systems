@@ -174,7 +174,8 @@ export function Airframe() {
           ["Seats", "Pilot + up to 4 passengers"],
           ["Wing attach", "4 points: 2 under front seats, 2 at sidewall aft of rear seats"],
           ["Main spar", "Carbon/epoxy C-section, tip to tip"],
-          ["Each wing", "29.3 gal integral tank + main gear"],
+          ["Rear shear webs", "One per wing, from the aft sidewall fitting to the outer wing"],
+          ["Wet wing", "Two end ribs seal the tank between the main spar, rear web and wing skins"],
           ["Firewall", "20° lower bevel for crashworthiness"],
           ["Elevator / rudder", "Aluminum"],
           ["Stabilizer / fin", "Composite; fin integral with shell"],
@@ -185,8 +186,9 @@ export function Airframe() {
       <H3>Notes</H3>
       <Notes
         items={[
-          "Wing skins bond to the spar, ribs and aft shear web to form a torsion box carrying all bending and torsion.",
-          "The rear shear webs attach to the fuselage but, unlike the spar, don't carry through it.",
+          "Trace the dark main spar across the cabin, then follow either rear web inboard to its own attachment. The upper and lower skins bond to both webs and the ribs to carry bending and torsion (POH 7-5–6, AMM 57-10 p. 1).",
+          "The front seat tracks attach to the spar cover. Below it, the bolted belly closeout completes the load path along the bottom of the fuselage (AMM 53-10 and 57-10 p. 1).",
+          "The two baffles inside each tank divide it into three communicating bays. Each has its own access cover underneath the wing (AMM 28-10 p. 1, Fig 6-00-7).",
           "The avionics bay sits aft of FS 222, reached through an access panel on the right side of the tailcone.",
         ]}
       />

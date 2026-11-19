@@ -7,6 +7,7 @@
 import type { FlowSpec } from "@/lib/catalogue";
 import { V, toV, toVec3, type Vec3 } from "@/lib/math";
 import { cabinHarness } from "@/lib/cabinRouting";
+import { TANK_SPAN, senderPivot } from "./wing-installation";
 import { FW, FUSE, wingP } from "./geometry";
 import { ENGINE_FUEL_PUMP, INDUCTION_PLENUM } from "./engine-anchors";
 import { fuelAvail, type Elec, type Sim } from "./model";
@@ -22,7 +23,6 @@ import {
   GASCOLATOR_DRAIN,
   INDUCTION_DRAIN_CHECK,
   NACA_FUEL_VENT,
-  TANK_SPAN,
   TANK_STRAINERS,
   collectorTop,
   tankTop,
@@ -91,9 +91,10 @@ for (const s of [-1, 1]) {
     add(
       `fuelQty${side}${i + 1}`,
       [
-        wingP(s * z, 0.48, 0),
-        wingP(s * z, 0.54, 0),
-        wingP(s * 0.62, 0.54, 0),
+        senderPivot(s, i === 1),
+        wingP(s * (z + (i === 1 ? 0.06 : -0.06)), 0.64),
+        wingP(s * 0.99, 0.72),
+        wingP(s * 0.62, 0.72),
         [1.65, -0.56, s * 0.31],
         [2.42, -0.2, s * 0.31],
         GEA_71,
@@ -164,8 +165,9 @@ pressure(
   "pitot",
   [
     pitotBase.clone().add(V(0, 0.015, 0)),
-    wingP(PITOT_Z, 0.35, 0),
-    wingP(-1, 0.4, 0),
+    wingP(PITOT_Z, 0.65),
+    wingP(-3.9, 0.68),
+    wingP(-1, 0.72),
     TRAPS.pitot,
     [1.9, -0.56, -0.24],
     PITOT_BRANCH,
@@ -246,7 +248,7 @@ pressure(
 );
 pressure(
   "stall",
-  [STALL_INLET, wingP(3, 0.28, 0), wingP(0.7, 0.28, 0), STALL_TRAP, STALL_SWITCH],
+  [STALL_INLET, wingP(3, 0.17), wingP(0.7, 0.17), STALL_TRAP, STALL_SWITCH],
   "Stall warning pneumatic line",
   "RH leading-edge inlet → floor tee/drain water trap → normally-open diaphragm pressure switch on LH mid-console. Negative-pressure particles move toward wing on warning (POH 11934-005 7-69; AMM 12137-002 Rev A1 27-31 p. 1, Fig 27-31-1 p. 5).",
 );
@@ -254,15 +256,19 @@ for (const [i, probe, adc] of [
   [1, OAT_1, ADAHRS_1],
   [2, OAT_2, ADAHRS_2],
 ] as const)
-  add(`oat${i}`, [probe, wingP(probe[2], 0.5, 0), wingP(0.7, 0.5, 0), [1.6, -0.56, 0.29], [2.35, -0.12, 0.19], adc], {
-    sys: ["pitot", "avionics"],
-    r: 0.004,
-    count: 4,
-    color: "#C8399F",
-    pcolor: "#EDAEED",
-    name: `OAT ${i} → ADAHRS ${i}`,
-    note: "RH-wing temperature probe connects directly to its ADC; signal particles are explanatory, not pneumatic (POH 11934-005 7-76; AMM 12137-002 Rev A1 34-10 p. 2). Harness route approximate.",
-  });
+  add(
+    `oat${i}`,
+    [probe, wingP(probe[2], 0.66), wingP(3.9, 0.66), wingP(0.7, 0.72), [1.6, -0.56, 0.29], [2.35, -0.12, 0.19], adc],
+    {
+      sys: ["pitot", "avionics"],
+      r: 0.004,
+      count: 4,
+      color: "#C8399F",
+      pcolor: "#EDAEED",
+      name: `OAT ${i} → ADAHRS ${i}`,
+      note: "RH-wing temperature probe connects directly to its ADC; signal particles are explanatory, not pneumatic (POH 11934-005 7-76; AMM 12137-002 Rev A1 34-10 p. 2). Harness route approximate.",
+    },
+  );
 add("stallSignal", [STALL_SWITCH, STALL_CONNECTOR], {
   sys: ["pitot", "avionics"],
   r: 0.004,

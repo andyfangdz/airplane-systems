@@ -315,8 +315,9 @@ export function Fuel() {
   return (
     <>
       <p className="lead">
-        Each wing is a sealed tank that gravity-feeds a collector sump. The engine-driven pump pulls from whichever
-        collector the selector points at; the electric boost pump is for priming, vapor suppression and backup.
+        Each wing holds three communicating fuel bays between its main spar and rear shear web. Fuel flows through two
+        screened outlets to the collector at that wing’s root. The engine-driven pump pulls from whichever collector the
+        selector points at; the electric boost pump is for priming, vapor suppression and backup.
       </p>
       <H3>Try it</H3>
       <Ctl>
@@ -416,8 +417,8 @@ export function Fuel() {
         />
       </Ctl>
       <Small>
-        Selecting OFF or a dry tank with the engine running stops it after a few seconds — restart from the Engine
-        panel.
+        Select Tabs to bring the fuel surface to the filler tab. Move one tank slider from empty to full and watch its
+        inboard float rise first as fuel reaches the higher, outboard bay.
       </Small>
       <H3>Annunciations</H3>
       <Facts
@@ -450,7 +451,9 @@ export function Fuel() {
       <H3>Storage and injection paths</H3>
       <Notes
         items={[
-          "Two strainers in each wing feed through a flapper into its collector. Tank ribs limit slosh; each tank has its own vent path. The drawing separates gravity collection from the selected pressure-feed path (AMM 28-10).",
+          "The root cover (LW3 or RW3) gives access to the collector. The next three fuel covers (6, 7 and 8) open into the inboard, middle and outboard tank bays. The two outlet screens are accessible through cover 6 (AMM Figs 6-00-7 and 28-10-3).",
+          "The swing-check flapper retains fuel in the collector during uncoordinated flight. Each collector vents to its own tank. Selecting OFF or an empty tank interrupts the model’s engine feed (POH 7-41–42).",
+          "Fuel height between empty, the 13-gallon tab and full is interpolated for the level-airplane view. Float travel and baffle openings are illustrative.",
           "Selector → electric boost pump → gascolator → engine-driven pump → servo → flow transducer → divider → four continuous-flow nozzles. The boost pump and gascolator are forward of the firewall; drawn bend paths are schematic (POH 7-40–43; AMM 28-20).",
           "Two float sensors per tank feed sensed quantity. The totalizer independently subtracts measured flow from the fuel entered by the pilot; it cannot detect an incorrect initial fuel entry or replace quantity checks. This model varies sensed quantity and does not simulate a separate totalizer (POH 7-44–45; AMM 28-40).",
           "POH 7-95 specifies a 5 A FUEL QTY circuit; POH 7-44 marks the quantity gauge yellow to 10 gal. AMM 28-40 describes 3 A and 8.2 gal; the study indications follow the POH.",
