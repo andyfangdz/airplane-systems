@@ -1,30 +1,42 @@
 /** SR20 G6 storage and airframe fuel distribution; POH 11934-005 and AMM 12137-002 Rev A1. */
+import { LatheGeometry, Vector2 } from "three";
 import { mergeGeos } from "@/lib/geometry";
 import { V, toVec3, type Vec3 } from "@/lib/math";
 import { FW, botY, box, cyl, loft, tubeGeo, wingP, wingSec } from "../geometry";
-import { part, sided } from "./catalogue";
+import { useSR20 } from "../store";
+import {
+  ACCESS_BAYS,
+  BAFFLES,
+  FLOAT_ARM,
+  STRAINER_CHORDS,
+  TAB_DEPTH,
+  TANK_CHORD,
+  TANK_SPAN,
+  accessCover,
+  fillerCap,
+  floatPose,
+  senderPivot,
+  wingRib,
+} from "../wing-installation";
+import { part } from "./catalogue";
 
-/** Tank bounds are approximate; skins, spar, aft shear web and fuel ribs bound the wet bay
- * (AMM 12137-002 Rev A1 28-10 p. 1). Forward bound follows the model's main spar. */
-export const TANK_SPAN = [0.95, 4.5] as const;
-export const TANK_CHORD = [0.3, 0.6] as const;
-export const COLLECTOR = (s: number) => toVec3(wingP(s * 0.72, 0.45, 0));
-export const FLAPPER = (s: number) => toVec3(wingP(s * 0.84, 0.45, 0));
-export const TANK_STRAINERS = (s: number): Vec3[] => [0.37, 0.53].map((xc) => toVec3(wingP(s * TANK_SPAN[0], xc, 0)));
+const rootBay = ACCESS_BAYS[0];
+export const COLLECTOR = (s: number) => toVec3(wingP(s * rootBay.span, rootBay.chord));
+export const FLAPPER = (s: number) => toVec3(wingP(s * 0.96, rootBay.chord));
+export const TANK_STRAINERS = (s: number): Vec3[] => STRAINER_CHORDS.map((xc) => toVec3(wingP(s * TANK_SPAN[0], xc)));
 export const NACA_FUEL_VENT = (s: number) => toVec3(wingP(s * 5.1, 0.45, -1).add(V(0, -0.006, 0)));
 /** Vent connections to the tank and collector tops; fraction follows the rendered tank thickness. */
 export const tankTop = (s: number, span: number = TANK_SPAN[0]) =>
   toVec3(wingP(s * span, 0.45, 0).lerp(wingP(s * span, 0.45, 1), 0.85));
 export const collectorTop = (s: number): Vec3 => {
-  const p = COLLECTOR(s);
-  return [p[0], p[1] + 0.035, p[2]];
+  return toVec3(wingP(s * rootBay.span, rootBay.chord).lerp(wingP(s * rootBay.span, rootBay.chord, 1), 0.85));
 };
 
 [1, -1].forEach((s) => {
-  part(() => box(0.2, 0.07, 0.16), ["fuel"], {
+  part(() => loft([0.62, rootBay.span, 0.96].map((z) => wingSec(s * z, 0.53, 0.67, 0.85))), ["fuel"], {
     instance: [s],
     id: "parts.fuel.part.001",
-    pos: COLLECTOR(s),
+    fairing: true,
     name: (s > 0 ? "Right" : "Left") + " collector tank / sump",
     note: "Integral collector at the inboard wing root: about 2.8 gal (10.6 L), within the airplane's stated capacity. Collects sediment/water and retains fuel during uncoordinated maneuvering through a swing-check flapper (AMM 12137-002 Rev A1 28-10 p. 1; POH 11934-005 7-41). Size and station approximate.",
     pin: true,
@@ -39,16 +51,30 @@ export const collectorTop = (s: number): Vec3 => {
     ext: true,
     pin: s < 0,
   });
+  for (const bay of ACCESS_BAYS) {
+    const root = bay.key === "root";
+    const panel = (s < 0 ? "LW" : "RW") + bay.number;
+    part(() => accessCover(s, bay.span, bay.chord, root), ["fuel", "airframe"], {
+      id: "parts.fuel.lower-access-cover",
+      instance: [s, bay.key],
+      color: "#8B968D",
+      solidColor: "#E3E7E4",
+      ext: true,
+      fairing: true,
+      name: root ? "Collector access cover" : "Fuel tank access cover",
+      note: `${panel} closes the underside of the ${root ? "root collector" : bay.key + " fuel bay"}.${bay.key === "inboard" ? " The two outlet strainers are reached through this opening." : ""} Cover outlines are approximate (AMM Figs 6-00-7, 28-10-3 and 57-30 p. 1).`,
+    });
+  }
   part(() => cyl(0.018, 0.012), ["fuel"], {
     instance: [s],
     id: "parts.fuel.tank-drain.003",
-    pos: toVec3(wingP(s * 1.3, 0.3, -1)),
+    pos: toVec3(wingP(s * ACCESS_BAYS[1].span, ACCESS_BAYS[1].chord, -1)),
     color: "#0B3A80",
     name: "Tank drain",
     note: "At the integral tank's inboard access panel. One of five fuel drains: two tank, two collector and one gascolator; sample all before every flight (POH 11934-005 7-42, 8-17; AMM 12137-002 Rev A1 28-10 p. 2). Station and dimensions approximate.",
     ext: true,
   });
-  const cap = toVec3(wingP(s * 2.7, 0.38, 1));
+  const cap = fillerCap(s);
   part(() => cyl(0.045, 0.012), ["fuel"], {
     instance: [s],
     id: "parts.fuel.filler-cap.004",
@@ -58,18 +84,32 @@ export const collectorTop = (s: number): Vec3 => {
     note: "Forward slope of each wing: 28 gal usable per tank, 56 gal usable total; filling to the tab gives 13 gal usable per side. Viton o-ring; approximately 100 ohm resistive bonding to the airframe (POH 11934-005 7-41, 8-15; AMM 12137-002 Rev A1 28-10 p. 1).",
     ext: true,
   });
-  part(() => cyl(0.038, 0.055), ["fuel"], {
-    instance: [s],
-    id: "parts.fuel.fuel-filler-neck.005",
-    pos: [cap[0], cap[1] - 0.038, cap[2]],
-    name: "Fuel filler neck",
-    note: "Filler neck with the reduced-fuel tab integrated below the cap. Tab indicates 13.0 gal usable (49.2 L) per tank (POH 11934-005 7-41; AMM 12137-002 Rev A1 28-10 p. 1). Neck size and tab height illustrative.",
-    fairing: true,
-  });
+  part(
+    () =>
+      new LatheGeometry(
+        [
+          [0.035, 0.025],
+          [0.035, -0.025],
+          [0.038, -0.025],
+          [0.038, 0.025],
+          [0.035, 0.025],
+        ].map(([r, y]) => new Vector2(r, y)),
+        24,
+      ),
+    ["fuel"],
+    {
+      instance: [s],
+      id: "parts.fuel.fuel-filler-neck.005",
+      pos: [cap[0], cap[1] - 0.031, cap[2]],
+      name: "Fuel filler neck",
+      note: "Filler neck with the reduced-fuel tab integrated below the cap. Tab indicates 13.0 gal usable (49.2 L) per tank (POH 11934-005 7-41; AMM 12137-002 Rev A1 28-10 p. 1). Neck size and tab height illustrative.",
+      fairing: true,
+    },
+  );
   part(() => box(0.025, 0.004, 0.028), ["fuel"], {
     instance: [s],
     id: "parts.fuel.reduced-fuel-tab.006",
-    pos: [cap[0], cap[1] - 0.045, cap[2]],
+    pos: [cap[0] + 0.025, cap[1] - TAB_DEPTH, cap[2]],
     name: "Reduced-fuel tab",
     note: "Visible below the filler: 13 gal usable per side, 26 gal usable total in all flight conditions. This is a servicing level, not a separate reserve tank (POH 11934-005 7-41; AMM 12137-002 Rev A1 28-10 p. 1). Tab size and height illustrative.",
     pin: s < 0,
@@ -77,7 +117,7 @@ export const collectorTop = (s: number): Vec3 => {
   part(() => cyl(0.018, 0.012), ["fuel"], {
     instance: [s],
     id: "parts.fuel.collector-drain.007",
-    pos: toVec3(wingP(s * 0.72, 0.45, -1)),
+    pos: toVec3(wingP(s * rootBay.span, rootBay.chord, -1)),
     name: "Collector drain",
     note: "Flush drain at the collector's low point. Push inward with the sampler to check for water and sediment. One of five fuel drains (POH 11934-005 7-42, 8-17; AMM 12137-002 Rev A1 28-10 pp. 1–2). Size and position approximate.",
     ext: true,
@@ -101,49 +141,48 @@ export const collectorTop = (s: number): Vec3 => {
     note: "Swing-check assembly between tank and collector: retains collector fuel during uncoordinated maneuvering (POH 11934-005 7-41; AMM 12137-002 Rev A1 28-10 p. 1). No separate return-to-tank circuit is modelled for the Lycoming IO-390. Position and dimensions approximate.",
     pin: s > 0,
   });
-  [
-    { key: "inner", z: 2.1 },
-    { key: "outer", z: 3.3 },
-  ].forEach(({ key, z }, i) =>
-    part(
-      () => {
-        const center = wingP(s * z, 0.45, 0);
-        return loft(
-          sided(
-            [z - 0.008, z + 0.008].map((az) => wingSec(s * az, ...TANK_CHORD, 0.8).map((p) => p.sub(center))),
-            s,
-          ),
-        );
-      },
-      ["fuel"],
-      {
-        id: "parts.fuel.fuel-baffle-rib.010",
-        instance: [s, key],
-        pos: toVec3(wingP(s * z, 0.45, 0)),
-        name: "Fuel baffle rib",
-        note: "Two integral baffle ribs per tank reduce slosh (AMM 12137-002 Rev A1 28-10 p. 1). Stations, solid shape and thickness approximate; lightening openings omitted.",
-        plate: true,
-        pin: i === 0 && s > 0,
-      },
-    ),
-  );
-  TANK_SPAN.forEach((z, i) => {
-    const inward = i === 0 ? s : -s;
+  BAFFLES.forEach(({ key, z }, i) => {
+    part(() => wingRib(s * z, ...TANK_CHORD, "baffle"), ["fuel", "airframe"], {
+      id: "parts.fuel.fuel-baffle-rib.010",
+      instance: [s, key],
+      name: "Fuel baffle rib",
+      color: "#AA9770",
+      note: "Two ribs divide each wet tank into three communicating bays. The openings let fuel move inboard while the ribs limit slosh. Opening shape and size are illustrative (AMM 28-10 p. 1, Fig 6-00-7).",
+      pin: i === 0 && s > 0,
+    });
+  });
+  TANK_SPAN.forEach((_, i) => {
+    const outboard = i === 1;
+    const inward = outboard ? -s : s;
+    const pivot = senderPivot(s, outboard);
+    const end = outboard ? "outboard" : "inboard";
+    part(() => cyl(0.035, 0.016, "z"), ["fuel"], {
+      id: "parts.fuel.part.011",
+      instance: [s, end],
+      pos: pivot,
+      name: outboard ? "Fuel quantity sensor (outboard)" : "Fuel quantity sensor (inboard)",
+      note: `Float-type sender on the ${i === 0 ? "inboard" : "outboard"} fuel rib, two per tank. Sends measured level to GEA 71; the independent totalizer instead integrates fuel flow from its pilot-entered starting quantity. 5 A FUEL QTY on MAIN BUS 1 per POH Hour Meters; AMM says 3 A, so the POH governs (POH 11934-005 7-44–7-45, 7-95; AMM 12137-002 Rev A1 28-40 pp. 1–2, Fig 28-40-2 p. 10). The arm pivots with the illustrated liquid level. Arm travel and dimensions are approximate.`,
+      pin: s < 0,
+    });
+    const angle = floatPose(s, outboard);
     part(
       () =>
         mergeGeos([
-          cyl(0.035, 0.015, "z"),
-          tubeGeo([V(0, 0, 0), V(0, -0.035, inward * 0.07), V(0.06, -0.035, inward * 0.16)], 0.005),
-          cyl(0.018, 0.06, "x").translate(0.06, -0.035, inward * 0.16),
+          tubeGeo([V(0, 0, 0), V(0.01, 0, inward * 0.07), V(0, 0, inward * FLOAT_ARM)], 0.003),
+          cyl(0.014, 0.056, "x").translate(0, 0, inward * FLOAT_ARM),
         ]),
       ["fuel"],
       {
-        id: "parts.fuel.part.011",
-        instance: [s, i === 0 ? "inboard" : "outboard"],
-        pos: toVec3(wingP(s * z, 0.48, 0)),
-        name: i === 0 ? "Fuel quantity sensor (inboard)" : "Fuel quantity sensor (outboard)",
-        note: `Float-type sender on the ${i === 0 ? "inboard" : "outboard"} fuel rib, two per tank. Sends measured level to GEA 71; the independent totalizer instead integrates fuel flow from its pilot-entered starting quantity. 5 A FUEL QTY on MAIN BUS 1 per POH Hour Meters; AMM says 3 A, so the POH governs (POH 11934-005 7-44–7-45, 7-95; AMM 12137-002 Rev A1 28-40 pp. 1–2, Fig 28-40-2 p. 10). Float pose, rib stations and dimensions illustrative.`,
-        pin: s < 0,
+        id: "parts.fuel.quantity-float",
+        instance: [s, end],
+        name: "Fuel sender float arm",
+        pos: pivot,
+        color: "#D9A54E",
+        note: "The float follows fuel in its own bay. Wing dihedral places the outboard sender higher than the inboard sender. Travel stops are schematic (POH 7-44, AMM 28-40 Fig 28-40-2).",
+        anim: (mesh) => {
+          const { qL, qR } = useSR20.getState().s.fuel;
+          mesh.rotation.x = angle((s < 0 ? qL : qR) / 28);
+        },
       },
     );
   });

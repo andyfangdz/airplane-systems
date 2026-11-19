@@ -23,6 +23,7 @@ export const CAT = new Catalogue(
   "sr20",
   {
     quiet: {
+      airframe: ["Spar cover", "Belly closeout panel"],
       avionics: [
         "GSU 75 ADAHRS 1",
         "GSU 75 ADAHRS 2 (optional)",
@@ -38,6 +39,10 @@ export const CAT = new Catalogue(
         "MAP sensor",
         "Engine sensor harness / firewall connector",
       ],
+    },
+    narrow: {
+      airframe: ["Main spar", "Aft shear web", "Fuel baffle rib", "Composite roll cage"],
+      fuel: ["Reduced-fuel tab", "Right collector tank / sump", "Fuel quantity sensor (outboard)"],
     },
   },
   paintSkin,

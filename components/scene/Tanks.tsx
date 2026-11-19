@@ -13,6 +13,8 @@ export interface TankSpec {
   geo: () => THREE.BufferGeometry;
   /** Fill fraction 0..1, read every frame. */
   level: () => number;
+  /** Optional local liquid-surface height for a tank with a documented filling reference. */
+  fillHeight?: (fraction: number) => number;
   name: string;
   note: string;
   color?: string;
@@ -57,7 +59,8 @@ function createTanks(tanks: TankSpec[]) {
 function fillTanks(items: ReturnType<typeof createTanks>) {
   for (const it of items) {
     const q = Math.max(0, Math.min(1, it.t.level()));
-    it.plane.constant = it.ymin + (it.ymax - it.ymin) * Math.pow(q, 0.8) + (q > 0 ? 0.004 : -0.1);
+    it.plane.constant =
+      it.t.fillHeight?.(q) ?? it.ymin + (it.ymax - it.ymin) * Math.pow(q, 0.8) + (q > 0 ? 0.004 : -0.1);
     if (it.fuelMesh.current) it.fuelMesh.current.visible = q > 0;
   }
 }

@@ -17,10 +17,10 @@ export const SYS: SysDef[] = [
     name: "Airframe",
     pg: "7-5",
     cam: [
-      [5.5, 5.5, 8],
-      [0.6, -0.3, 0],
+      [7.6, 7.7, 9.5],
+      [0.7, -0.3, 0.5],
     ],
-    blurb: "Composite shell, carry-through spar",
+    blurb: "Wing spars, ribs and fuselage attachments",
   },
   {
     id: "controls",

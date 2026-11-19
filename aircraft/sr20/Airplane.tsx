@@ -15,23 +15,10 @@ import { useView } from "@/lib/view";
 import { ControlRig } from "../cirrus/ControlRig";
 import { drawMfdScreen, drawOff, drawPfdScreen, drawStandby } from "./displays";
 import { FLOWS, cabinAirColor, flowRates, isCabinAir } from "./flows";
-import { DOORS, loft, windowOutlines, wingSec } from "./geometry";
+import { DOORS, windowOutlines } from "./geometry";
 import { bladeAngle, cabinLit, extLit, live } from "./model";
-import {
-  DOOR_POSE,
-  doorTarget,
-  CAT,
-  CYLS,
-  LIGHTS,
-  NOSE_CASTER,
-  NOSE_GEAR,
-  PROP,
-  TANK_CHORD,
-  TANK_SPAN,
-  YOKES,
-  YOKE_X,
-  YOKE_Y,
-} from "./parts";
+import { DOOR_POSE, doorTarget, CAT, CYLS, LIGHTS, NOSE_CASTER, NOSE_GEAR, PROP, YOKES, YOKE_X, YOKE_Y } from "./parts";
+import { fuelHeight, wingFuelVolume } from "./wing-installation";
 import * as RIG from "./rig";
 import { useSR20 } from "./store";
 import { engineHidden } from "./engine-groups";
@@ -150,10 +137,8 @@ const TANKS: TankSpec[] = (
   ] as const
 ).map(([k, s]) => ({
   key: k,
-  geo: () => {
-    const secs = [TANK_SPAN[0], 1.6, 2.4, 3.2, 4.0, TANK_SPAN[1]].map((z) => wingSec(s * z, ...TANK_CHORD, 0.85));
-    return loft(s < 0 ? secs.map((r) => r.reverse()) : secs);
-  },
+  geo: () => wingFuelVolume(s),
+  fillHeight: fuelHeight,
   level: () => {
     const f = useSR20.getState().s.fuel;
     return (k === "L" ? f.qL : f.qR) / 28;
