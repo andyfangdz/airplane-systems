@@ -5,7 +5,13 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { fitComponentCamera, intersects, visibleStageLabels, type StageRect } from "@/lib/component-stage";
+import {
+  fitComponentCamera,
+  interpolateStageCamera,
+  intersects,
+  visibleStageLabels,
+  type StageRect,
+} from "@/lib/component-stage";
 import { clamp, ease, toV, toVec3, type Vec3 } from "@/lib/math";
 import { prefersReducedMotion } from "@/lib/useReducedMotion";
 import { useSceneRendering } from "@/lib/useSceneRendering";
@@ -74,6 +80,7 @@ function CameraRig({
     gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const flight = useRef<{ from: StageFit; to: StageFit; t0: number } | null>(null);
+  const stepOffset = useRef(new THREE.Vector2());
   const previous = useRef({ request: "", layout: "", motionKey });
   const exploring = useRef(false);
   const elapsed = useRef(1);
@@ -182,17 +189,14 @@ function CameraRig({
     if (!f) return;
     const u = clamp((performance.now() - f.t0) / 1000, 0, 1),
       e = ease(u);
+    const viewOffset = stepOffset.current;
     // Dragging takes over the orbit. Let the lens finish shifting into the current study layout.
     if (!exploring.current) {
-      camera.position.lerpVectors(f.from.position, f.to.position, e);
-      controls.target.lerpVectors(f.from.target, f.to.target, e);
+      interpolateStageCamera(f.from, f.to, e, { position: camera.position, target: controls.target, viewOffset });
+    } else {
+      viewOffset.lerpVectors(f.from.viewOffset, f.to.viewOffset, e);
     }
-    setStageOffset(
-      camera,
-      gl.domElement,
-      THREE.MathUtils.lerp(f.from.viewOffset.x, f.to.viewOffset.x, e),
-      THREE.MathUtils.lerp(f.from.viewOffset.y, f.to.viewOffset.y, e),
-    );
+    setStageOffset(camera, gl.domElement, viewOffset.x, viewOffset.y);
     if (u >= 1) flight.current = null;
   });
   return null;

@@ -261,3 +261,73 @@ test("ignition keeps its focused framing through orbit and reset, then clears it
   await orbit();
   await page.waitForFunction(() => !window.__stageCameraProbe.camera.view.enabled);
 });
+
+test("engine blow-up and crankshaft-with-cylinder transitions keep the camera above the engine", async ({
+  page,
+  context,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await context.addInitScript(() => {
+    window.__elevationBounds = { min: Infinity, max: -Infinity, samples: 0, stable: 0, previous: "" };
+    const devtools = new EventTarget();
+    devtools.addEventListener("observe", ({ detail: renderer }) => {
+      if (!renderer?.isWebGLRenderer) return;
+      const render = renderer.render.bind(renderer);
+      renderer.render = (scene, camera) => {
+        const [qx, qy, qz, qw] = camera.quaternion.toArray();
+        const dirX = 2 * (qx * qz + qw * qy);
+        const dirY = 2 * (qy * qz - qw * qx);
+        const dirZ = 1 - 2 * (qx * qx + qy * qy);
+        const elev = (Math.atan2(dirY, Math.hypot(dirX, dirZ)) * 180) / Math.PI;
+        const bounds = window.__elevationBounds;
+        bounds.min = Math.min(bounds.min, elev);
+        bounds.max = Math.max(bounds.max, elev);
+        bounds.samples++;
+        const pose = [...camera.position.toArray(), qx, qy, qz, qw].map((v) => v.toFixed(4)).join(",");
+        bounds.stable = bounds.previous === pose ? bounds.stable + 1 : 0;
+        bounds.previous = pose;
+        return render(scene, camera);
+      };
+    });
+    window.__THREE_DEVTOOLS__ = devtools;
+  });
+  const waitSettled = async () => {
+    await page.evaluate(() => {
+      window.__elevationBounds.stable = 0;
+    });
+    await page.waitForFunction(() => window.__elevationBounds.stable > 4);
+  };
+  await page.goto("/engines/io390");
+  await page.locator(".eng-view canvas").waitFor();
+  await waitSettled();
+  await page.getByRole("button", { name: "Explode engine", exact: true }).click();
+  await waitSettled();
+  await page.evaluate(() => {
+    window.__elevationBounds.min = Infinity;
+    window.__elevationBounds.max = -Infinity;
+    window.__elevationBounds.samples = 0;
+  });
+  await page.getByRole("combobox", { name: "Focus a part group" }).selectOption("cylinder-1");
+  await waitSettled();
+  await page.getByRole("button", { name: "Show with crankshaft", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Power cycle focus" })).toHaveValue("1");
+  await waitSettled();
+  await page.getByRole("combobox", { name: "Power cycle focus" }).selectOption("all");
+  await waitSettled();
+  await page.getByRole("button", { name: "Cylinder 1 assembly", exact: true }).click();
+  await waitSettled();
+  await page.getByRole("button", { name: "Part groups", exact: true }).click();
+  await waitSettled();
+  await page.getByRole("combobox", { name: "Focus a part group" }).selectOption("shafts");
+  await waitSettled();
+  await page.getByRole("button", { name: "Show with cylinders", exact: true }).click();
+  await waitSettled();
+  await page.getByRole("button", { name: "Crankshaft and camshaft", exact: true }).click();
+  await waitSettled();
+  await page.getByRole("button", { name: "Part groups", exact: true }).click();
+  await waitSettled();
+  const bounds = await page.evaluate(() => window.__elevationBounds);
+  expect(bounds.samples).toBeGreaterThan(20);
+  expect(bounds.min).toBeGreaterThan(10);
+  expect(bounds.max).toBeLessThan(45);
+});

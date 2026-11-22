@@ -1,4 +1,4 @@
-import { Box3, InstancedMesh, Mesh, Vector2, Vector3, Matrix4, type Object3D } from "three";
+import { Box3, InstancedMesh, MathUtils, Mesh, Spherical, Vector2, Vector3, Matrix4, type Object3D } from "three";
 
 export type StageRect = { left: number; top: number; right: number; bottom: number };
 export type StageLabel = { id: string; rect: StageRect; priority: number; selected?: boolean };
@@ -197,4 +197,57 @@ export function fitComponentCamera(
     target,
     viewOffset: new Vector2((-shiftX * width) / 2, (shiftY * height) / 2),
   };
+}
+
+export type StageCameraPose = { position: Vector3; target: Vector3; viewOffset: Vector2 };
+
+const MIN_POLAR = 1e-4;
+const MAX_POLAR = Math.PI - 1e-4;
+const _fromOffset = new Vector3();
+const _toOffset = new Vector3();
+const _fromSpherical = new Spherical();
+const _toSpherical = new Spherical();
+
+/**
+ * Orbit smoothly between two fitted stage poses instead of cutting linearly through the assembly.
+ * Interpolates the target linearly, the viewing offset in spherical coordinates (shortest azimuth),
+ * and the lens view offset linearly.
+ */
+export function interpolateStageCamera(
+  from: StageCameraPose,
+  to: StageCameraPose,
+  alpha: number,
+  out: StageCameraPose,
+) {
+  if (alpha <= 0) {
+    out.position.copy(from.position);
+    out.target.copy(from.target);
+    out.viewOffset.copy(from.viewOffset);
+    return;
+  }
+  if (alpha >= 1) {
+    out.position.copy(to.position);
+    out.target.copy(to.target);
+    out.viewOffset.copy(to.viewOffset);
+    return;
+  }
+  out.target.lerpVectors(from.target, to.target, alpha);
+  out.viewOffset.lerpVectors(from.viewOffset, to.viewOffset, alpha);
+  _fromOffset.subVectors(from.position, from.target);
+  _toOffset.subVectors(to.position, to.target);
+  if (_fromOffset.lengthSq() < 1e-10 || _toOffset.lengthSq() < 1e-10) {
+    out.position.lerpVectors(from.position, to.position, alpha);
+    return;
+  }
+  _fromSpherical.setFromVector3(_fromOffset);
+  _toSpherical.setFromVector3(_toOffset);
+  const fromPole = Math.hypot(_fromOffset.x, _fromOffset.z) < 1e-6;
+  const toPole = Math.hypot(_toOffset.x, _toOffset.z) < 1e-6;
+  const theta0 = fromPole ? _toSpherical.theta : _fromSpherical.theta;
+  const theta1 = toPole ? _fromSpherical.theta : _toSpherical.theta;
+  const dTheta = Math.atan2(Math.sin(theta1 - theta0), Math.cos(theta1 - theta0));
+  const radius = MathUtils.lerp(_fromSpherical.radius, _toSpherical.radius, alpha);
+  const phi = MathUtils.clamp(MathUtils.lerp(_fromSpherical.phi, _toSpherical.phi, alpha), MIN_POLAR, MAX_POLAR);
+  const theta = theta0 + dTheta * alpha;
+  out.position.setFromSphericalCoords(radius, phi, theta).add(out.target);
 }

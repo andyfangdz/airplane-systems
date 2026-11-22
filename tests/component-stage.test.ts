@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { Box3, BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from "three";
-import { componentBounds, fitComponentCamera, visibleStageLabels, type StageRect } from "../lib/component-stage";
+import { Box3, BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector2, Vector3 } from "three";
+import {
+  componentBounds,
+  fitComponentCamera,
+  interpolateStageCamera,
+  visibleStageLabels,
+  type StageRect,
+} from "../lib/component-stage";
+import { studyFitDirection } from "../components/engine/EngineScene";
+import { ENGINES } from "../engines";
+import { assemblyStations } from "../components/engine/assembly-study";
 
 const rect = (left: number, top: number, right: number, bottom: number): StageRect => ({ left, top, right, bottom });
 
@@ -182,5 +191,84 @@ describe("component study framing", () => {
     expect(fitComponentCamera(new Group(), new Vector3(0, 0, 1), 38, 390, 400, rect(20, 50, 370, 380))).toBeNull();
     const bounds = new Box3(new Vector3(-1, -1, -1), new Vector3(1, 1, 1));
     expect(fitComponentCamera(bounds, new Vector3(0, 0, 1), 38, 0, 400, rect(0, 0, 0, 400))).toBeNull();
+  });
+
+  it("orbits smoothly around the assembly between opposite viewing directions without dipping underneath or spiking overhead", () => {
+    const from = {
+      position: new Vector3(1.38, 0.74, 1.65),
+      target: new Vector3(0, -0.02, 0),
+      viewOffset: new Vector2(0, 0),
+    };
+    const to = {
+      position: new Vector3(-0.5, 0.65, -1.25),
+      target: new Vector3(0.95, 0, 0.1),
+      viewOffset: new Vector2(0, -40),
+    };
+    const r0 = from.position.distanceTo(from.target),
+      r1 = to.position.distanceTo(to.target);
+    const elev = (pos: Vector3, target: Vector3) => {
+      const d = pos.clone().sub(target);
+      return (Math.atan2(d.y, Math.hypot(d.x, d.z)) * 180) / Math.PI;
+    };
+    const e0 = elev(from.position, from.target),
+      e1 = elev(to.position, to.target);
+    const out = { position: new Vector3(), target: new Vector3(), viewOffset: new Vector2() };
+    for (let i = 0; i <= 20; i++) {
+      const a = i / 20;
+      interpolateStageCamera(from, to, a, out);
+      const r = out.position.distanceTo(out.target);
+      expect(r).toBeCloseTo(r0 + (r1 - r0) * a, 6);
+      const e = elev(out.position, out.target);
+      expect(e).toBeGreaterThanOrEqual(Math.min(e0, e1) - 1e-6);
+      expect(e).toBeLessThanOrEqual(Math.max(e0, e1) + 1e-6);
+    }
+    interpolateStageCamera(from, to, 0, out);
+    expect(out.position.distanceTo(from.position)).toBeLessThan(1e-9);
+    expect(out.target.distanceTo(from.target)).toBeLessThan(1e-9);
+    interpolateStageCamera(from, to, 1, out);
+    expect(out.position.distanceTo(to.position)).toBeLessThan(1e-9);
+    expect(out.target.distanceTo(to.target)).toBeLessThan(1e-9);
+    expect(out.viewOffset.distanceTo(to.viewOffset)).toBeLessThan(1e-9);
+  });
+
+  it("takes the shortest horizontal arc across the azimuth seam when switching cylinder banks", () => {
+    const from = {
+      position: new Vector3(-1.25, 0.68, 0.72),
+      target: new Vector3(0, 0, 0),
+      viewOffset: new Vector2(),
+    };
+    const to = {
+      position: new Vector3(-1.25, 0.68, -0.72),
+      target: new Vector3(0, 0, 0),
+      viewOffset: new Vector2(),
+    };
+    const out = { position: new Vector3(), target: new Vector3(), viewOffset: new Vector2() };
+    interpolateStageCamera(from, to, 0.5, out);
+    // Midpoint stays behind the engine (-x) instead of swinging all the way around the front (+x).
+    expect(out.position.x).toBeLessThan(-1);
+    expect(out.position.y).toBeCloseTo(0.68, 6);
+    expect(out.position.z).toBeCloseTo(0, 6);
+  });
+
+  it("keeps every engine assembly and crankshaft-linkage study camera above the engine", () => {
+    for (const spec of ENGINES) {
+      const cyls = spec.geometry.cylinders;
+      for (const station of assemblyStations(spec)) {
+        const dir = studyFitDirection({ id: station.id, exploded: false }, cyls);
+        if (dir) expect(dir[1], `${spec.id} ${station.id}`).toBeGreaterThan(0);
+      }
+      const allDir = studyFitDirection(
+        { id: "shafts", exploded: false, detail: { kind: "linkage", cylinder: "all" } },
+        cyls,
+      );
+      expect(allDir?.[1], `${spec.id} linkage all`).toBeGreaterThan(0);
+      for (const { n } of cyls) {
+        const cylDir = studyFitDirection(
+          { id: `cylinder-${n}`, exploded: false, detail: { kind: "linkage", cylinder: n } },
+          cyls,
+        );
+        expect(cylDir?.[1], `${spec.id} linkage cylinder ${n}`).toBeGreaterThan(0);
+      }
+    }
   });
 });
