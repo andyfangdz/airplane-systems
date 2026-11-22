@@ -30,6 +30,7 @@ import {
   inCrankLinkage,
   studyCrank,
   studyXray,
+  type AssemblyFocus,
   type AssemblyId,
 } from "./assembly-study";
 import { ComponentStage } from "./ComponentStage";
@@ -307,6 +308,21 @@ export function Labels({ sim, d }: { sim: EngineSim; d: Dims }) {
     });
 }
 
+/** Upright viewing direction for focused assembly and crankshaft-linkage studies (all keep y > 0, above the engine). */
+export function studyFitDirection(
+  assembly: AssemblyFocus | undefined,
+  cylinders: readonly CylinderDef[],
+): V3 | undefined {
+  const detail = assembly?.detail;
+  const paired = detail?.kind === "linkage" ? detail.cylinder : undefined;
+  if (paired === "all") return [-1.15, 0.92, -1.05];
+  const cylinder = paired !== undefined ? cylinders.find((c) => c.n === paired) : undefined;
+  if (cylinder) return [-1.25, 0.68, cylinder.side === "R" ? 0.72 : -0.72];
+  if (assembly?.id === "shafts") return [-1.45, 0.65, -1.35];
+  if (assembly?.id === "ignition") return [-1.2, 0.7, 1.45];
+  return undefined;
+}
+
 export default function EngineScene({ sim }: { sim: EngineSim }) {
   const cam = layoutFor(sim.spec).camera;
   const solid = sim.useUi((s) => !!layoutFor(sim.spec).detailed && !studyXray(s.view));
@@ -314,24 +330,13 @@ export default function EngineScene({ sim }: { sim: EngineSim }) {
   const assembly = sim.useUi((x) => x.view.assembly);
   const detail = assembly?.detail;
   const paired = detail?.kind === "linkage" ? detail.cylinder : undefined;
-  const cylinder = sim.spec.geometry.cylinders.find((c) => c.n === paired);
   const prop = sim.useUi((x) => x.view.prop),
     hidden = sim.useUi((x) => x.view.hidden);
   return (
     <ComponentStage
       focused={!!assembly}
-      // Look toward the timing gears at the rear. From below, the rods also clear the pushrods.
-      fitDirection={
-        paired === "all"
-          ? [-0.95, -1.6, -0.48]
-          : cylinder
-            ? [-0.85, -1.45, cylinder.side === "R" ? 0.23 : -0.23]
-            : assembly?.id === "shafts"
-              ? [-1.45, 0.65, -1.35]
-              : assembly?.id === "ignition"
-                ? [-1.2, 0.7, 1.45]
-                : undefined
-      }
+      // Look from above toward the rear timing gears so every study transition stays upright over the engine.
+      fitDirection={studyFitDirection(assembly, sim.spec.geometry.cylinders)}
       motionKey={`${open}:${assembly?.id ?? ""}:${!!assembly?.exploded}:${detail?.kind === "component" ? detail.id + detail.exploded : (paired ?? "")}`}
       frameKey={`${prop}:${hidden.join(",")}`}
       shadowExtent={solid ? (open ? 1.35 : prop ? 1.02 : 0.81) : undefined}
