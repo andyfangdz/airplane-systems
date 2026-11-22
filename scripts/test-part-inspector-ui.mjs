@@ -303,6 +303,8 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
 
 test("selecting a part shows a persistent stage label in both engine and airplane views", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await observeStageCamera(page.context());
   await page.addInitScript(() => localStorage.setItem("tourDone", "1"));
   await page.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
 
@@ -348,17 +350,10 @@ test("selecting a part shows a persistent stage label in both engine and airplan
   await expect(airCard).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(airCard).toHaveCount(0);
-  // Wait for Reset view to commit its camera jump before probing the 3D canvas.
-  const settledFrames = () =>
-    page.evaluate(
-      () =>
-        new Promise((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-        ),
-    );
+  // Wait for Reset view to finish settling before probing the 3D canvas.
   await page.mouse.move(10, 10);
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
-  await settledFrames();
+  await waitForStageCamera(page);
   const stageBox = await page.locator(".stage canvas").boundingBox();
   let hit;
   for (const [fx, fy] of [
@@ -373,7 +368,7 @@ test("selecting a part shows a persistent stage label in both engine and airplan
     const x = Math.round(stageBox.x + stageBox.width * fx);
     const y = Math.round(stageBox.y + stageBox.height * fy);
     await page.mouse.move(x, y);
-    await settledFrames();
+    await page.waitForTimeout(100);
     const tip = page.locator(".tip");
     if (await tip.isVisible()) {
       const box = await tip.boundingBox();
