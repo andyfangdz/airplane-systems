@@ -18,8 +18,17 @@ import {
 import { setBuild } from "@/lib/build";
 import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
 import { useSimulationLoop } from "@/lib/useSimulationLoop";
+import { partObjects, view as sceneView } from "@/lib/registry";
 import { sysColor, sysVars, type SysId, type Theme } from "@/lib/systems";
-import { revealPanelStart, revealStage, useAircraftHover, useNarrowLayout, useView } from "@/lib/view";
+import {
+  placeTipAtPoint,
+  projectToStage,
+  revealPanelStart,
+  revealStage,
+  useAircraftHover,
+  useNarrowLayout,
+  useView,
+} from "@/lib/view";
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
@@ -97,7 +106,7 @@ function Rail({ collapsed, toggle }: { collapsed: boolean; toggle: () => void })
           ))}
         </ul>
         <div className="foot">
-          Drag to orbit · scroll or pinch to zoom · right-drag to pan. Hover a part for its note.
+          Drag to orbit · scroll or pinch to zoom · right-drag to pan. Hover or click a part for its note.
         </div>
       </div>
       <Settings />
@@ -319,24 +328,84 @@ function tipColor(c: string, theme: Theme) {
 
 function Tooltip() {
   const hover = useAircraftHover((x) => x.hover),
+    selected = useAircraftHover((x) => x.selected),
+    setHover = useAircraftHover((x) => x.setHover),
+    setSelected = useAircraftHover((x) => x.setSelected),
     theme = useView((x) => x.theme);
   const ref = useRef<HTMLDivElement>(null);
-  // below-right of the cursor; flipped above it when the note would run past the bottom of the 3D view
+  const hovered = hover && hover.name !== selected?.name ? hover : null;
+  const pinned = !hovered ? selected : null;
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      setHover(null);
+      setSelected(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected, setHover, setSelected]);
   useLayoutEffect(() => {
     const el = ref.current,
-      h = el?.parentElement?.clientHeight;
-    if (!el || !hover || !h) return;
-    const ht = el.offsetHeight,
-      below = hover.y + 14;
-    el.style.top = `${below + ht <= h ? below : Math.max(0, Math.min(hover.y - 14 - ht, h - ht))}px`;
-  }, [hover]);
-  if (!hover) return null;
-  const stage = document.querySelector(".stage") as HTMLElement | null;
-  const w = stage?.clientWidth ?? 800;
+      stage = el?.parentElement;
+    if (!el || !stage) return;
+    if (hovered) {
+      placeTipAtPoint(el, hovered.x, hovered.y, stage.clientWidth, stage.clientHeight);
+      return;
+    }
+    if (!pinned) return;
+    const place = () => {
+      const w = stage.clientWidth,
+        h = stage.clientHeight;
+      if (pinned.x !== undefined && pinned.y !== undefined) {
+        placeTipAtPoint(el, pinned.x, pinned.y, w, h);
+        return;
+      }
+      if (sceneView.camera) {
+        const mesh = partObjects.get(pinned.name);
+        if (mesh) {
+          if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+          mesh.updateWorldMatrix(true, false);
+          const world = mesh.localToWorld(mesh.geometry.boundingSphere!.center.clone());
+          const pt = projectToStage(world, sceneView.camera, w, h);
+          if (pt) {
+            placeTipAtPoint(el, pt.x, pt.y, w, h);
+            return;
+          }
+        }
+      }
+      placeTipAtPoint(el, w / 2, h / 2, w, h);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [hovered, pinned]);
+  if (hovered) {
+    return (
+      <div key="hover" ref={ref} className="tip">
+        <h4 style={{ color: tipColor(hovered.color, theme) }}>{hovered.name}</h4>
+        {hovered.note && <p>{hovered.note}</p>}
+      </div>
+    );
+  }
+  if (!pinned) return null;
   return (
-    <div ref={ref} className="tip" style={{ left: Math.min(hover.x + 14, w - 270) }}>
-      <h4 style={{ color: tipColor(hover.color, theme) }}>{hover.name}</h4>
-      {hover.note && <p>{hover.note}</p>}
+    <div key="selected" ref={ref} className="tip tip-selected" role="status" aria-live="polite">
+      <div className="tip-head">
+        <h4 style={{ color: tipColor(pinned.color, theme) }}>{pinned.name}</h4>
+        <button
+          type="button"
+          className="tip-close"
+          aria-label="Dismiss part label"
+          onClick={() => {
+            setHover(null);
+            setSelected(null);
+          }}
+        >
+          ×
+        </button>
+      </div>
+      {pinned.note && <p>{pinned.note}</p>}
     </div>
   );
 }

@@ -8,13 +8,20 @@ import { sysOf, useAircraft } from "@/lib/fleet";
 import type { AircraftDef } from "@/aircraft/types";
 import { outlineMat, shellUniforms } from "@/lib/materials";
 import { V, clamp, ease } from "@/lib/math";
-import { registerSceneCamera, view } from "@/lib/registry";
+import { partObjects, registerSceneCamera, view } from "@/lib/registry";
 import { palette } from "@/lib/systems";
 import { nextFrame, setBuild, useBuild } from "@/lib/build";
 import { markAircraftSceneReady } from "@/lib/aircraft-session";
 import { prepareGeometry } from "@/lib/mesh/prebuilt";
 import { airplaneBounds, CAMERA_FOV, cameraFitDistance as fitDist, viewPresetCamera } from "@/lib/camera";
-import { useAircraftHover, useView, type AircraftSessionOwner, type CamRequest } from "@/lib/view";
+import {
+  placeTipAtPoint,
+  projectToStage,
+  useAircraftHover,
+  useView,
+  type AircraftSessionOwner,
+  type CamRequest,
+} from "@/lib/view";
 import { useSceneRendering } from "@/lib/useSceneRendering";
 import type { PickInfo } from "./Part";
 import { PinDeclutter, pinPolicy } from "./PinDeclutter";
@@ -237,29 +244,118 @@ function MaterialSync() {
   return null;
 }
 
-/* ---------- hover (and tap): prefer a real part over the ghost shell in front of it ---------- */
+/* ---------- hover and selection: prefer a real part over the ghost shell in front of it ---------- */
+function pickFromEvent(
+  e: ThreeEvent<MouseEvent>,
+): { pick: PickInfo; object: THREE.Object3D; point: THREE.Vector3 } | null {
+  const { sys, xray } = useView.getState();
+  const cands = e.intersections.filter((h) => {
+    const p = h.object.userData?.pick as PickInfo | undefined;
+    return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
+  });
+  // only the X-ray ghost skin can be seen through; the solid skin hides what is behind it
+  const hit = xray ? (cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0]) : cands[0];
+  return hit ? { pick: hit.object.userData.pick as PickInfo, object: hit.object, point: hit.point } : null;
+}
+
 function usePicker() {
   const setHover = useAircraftHover((x) => x.setHover);
-  return (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation();
-    if (e.buttons) {
+  const setSelected = useAircraftHover((x) => x.setSelected);
+  return {
+    onMove: (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      if (e.buttons) {
+        setHover(null);
+        return;
+      }
+      const hit = pickFromEvent(e);
+      const p = hit?.pick;
+      setHover(
+        p ? { name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY } : null,
+      );
+    },
+    onClick: (e: ThreeEvent<MouseEvent>) => {
+      if (e.delta > 4) return;
+      e.stopPropagation();
+      const hit = pickFromEvent(e);
+      const current = useAircraftHover.getState().selected;
       setHover(null);
-      return;
-    }
-    const { sys, xray } = useView.getState();
-    const cands = e.intersections.filter((h) => {
-      const p = h.object.userData?.pick as PickInfo | undefined;
-      return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
-    });
-    // only the X-ray ghost skin can be seen through; the solid skin hides what is behind it
-    const hit = xray ? (cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0]) : cands[0];
-    if (!hit) {
-      setHover(null);
-      return;
-    }
-    const p = hit.object.userData.pick as PickInfo;
-    setHover({ name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
+      if (!hit || current?.name === hit.pick.name) {
+        setSelected(null);
+        return;
+      }
+      hit.object.updateWorldMatrix(true, false);
+      setSelected({
+        name: hit.pick.name,
+        note: hit.pick.note,
+        color: hit.pick.color,
+        x: e.nativeEvent.offsetX,
+        y: e.nativeEvent.offsetY,
+        anchor: { object: hit.object, local: hit.object.worldToLocal(hit.point.clone()) },
+      });
+    },
   };
+}
+
+function isAttachedVisible(object: THREE.Object3D, scene: THREE.Scene) {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (!current.visible) return false;
+    if (current === scene) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
+/** Keeps the selected part's tooltip anchored right beside its 3D location as the camera or moving parts shift. */
+function SelectedTipSync() {
+  const world = useRef(new THREE.Vector3());
+  const last = useRef<{ el: HTMLElement | null; name: string; x: number; y: number }>({
+    el: null,
+    name: "",
+    x: NaN,
+    y: NaN,
+  });
+  useFrame(({ camera, gl, scene, size }) => {
+    const { hover, selected } = useAircraftHover.getState();
+    if (!selected || (hover && hover.name !== selected.name)) {
+      last.current.el = null;
+      return;
+    }
+    const stage = gl.domElement.closest<HTMLElement>(".stage") ?? gl.domElement.parentElement;
+    const el = stage?.querySelector<HTMLElement>(".tip.tip-selected") ?? null;
+    if (!stage || !el) {
+      last.current.el = null;
+      return;
+    }
+    const tmp = world.current;
+    let hasPoint = false;
+    if (selected.anchor && isAttachedVisible(selected.anchor.object, scene)) {
+      selected.anchor.object.updateWorldMatrix(true, false);
+      tmp.copy(selected.anchor.local).applyMatrix4(selected.anchor.object.matrixWorld);
+      hasPoint = true;
+    } else {
+      const mesh = partObjects.get(selected.name);
+      if (mesh && isAttachedVisible(mesh, scene)) {
+        if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+        mesh.updateWorldMatrix(true, false);
+        tmp.copy(mesh.geometry.boundingSphere!.center).applyMatrix4(mesh.matrixWorld);
+        hasPoint = true;
+      }
+    }
+    if (!hasPoint) return;
+    const pt = projectToStage(tmp, camera, size.width, size.height);
+    if (!pt) return;
+    const prev = last.current;
+    if (prev.el === el && prev.name === selected.name && Math.abs(prev.x - pt.x) < 0.5 && Math.abs(prev.y - pt.y) < 0.5)
+      return;
+    prev.el = el;
+    prev.name = selected.name;
+    prev.x = pt.x;
+    prev.y = pt.y;
+    placeTipAtPoint(el, pt.x, pt.y, stage.clientWidth, stage.clientHeight);
+  });
+  return null;
 }
 
 /**
@@ -297,7 +393,7 @@ function AircraftScene({ def, owner }: { def: AircraftDef; owner: AircraftSessio
   const modelRef = useRef<THREE.Group>(null);
   const groundRef = useRef<THREE.Group>(null);
   const theme = useView((x) => x.theme);
-  const onMove = usePicker();
+  const { onMove, onClick } = usePicker();
   const setHover = useAircraftHover((x) => x.setHover);
   const { Model, Overlay } = def;
   // A one-shot model can block in render while it builds geometry. Commit the loader and give the browser a paint
@@ -341,9 +437,7 @@ function AircraftScene({ def, owner }: { def: AircraftDef; owner: AircraftSessio
           ref={modelRef}
           position={[-def.pivotX, 0, 0]}
           onPointerMove={onMove}
-          onClick={(e) => {
-            if (e.delta <= 4) onMove(e);
-          }}
+          onClick={onClick}
           onPointerOut={() => setHover(null)}
         >
           {mountModel && (
@@ -368,6 +462,7 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
   const pal = palette(theme);
   // initial camera only: later moves are camera flights, so the controls' target prop must stay stable
   const [[startPos, startTarget]] = useState(() => sysOf(def, useView.getState().sys).cam);
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
 
   return (
     <Canvas
@@ -377,7 +472,17 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
       }}
-      onPointerMissed={() => useAircraftHover.getState().setHover(null)}
+      onPointerDown={(e) => {
+        pointerDown.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerMissed={(e) => {
+        const down = pointerDown.current;
+        pointerDown.current = null;
+        useAircraftHover.getState().setHover(null);
+        if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 4) {
+          useAircraftHover.getState().setSelected(null);
+        }
+      }}
       aria-label={`3D model of the ${def.name} and its systems`}
     >
       <color attach="background" args={[pal.scene]} />
@@ -398,6 +503,7 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
         target={startTarget}
       />
       <CameraRig owner={owner} />
+      <SelectedTipSync />
     </Canvas>
   );
 }

@@ -377,18 +377,23 @@ describe("the cabin station drives the airplane (POH 4-5, 4-6)", () => {
 
   it("puts the user's camera framing, focus and hover back on exit", () => {
     const cam = { p: [8, 2, 3] as [number, number, number], t: [1, 0, 0] as [number, number, number], id: 912 },
-      hover = { name: "Filler cap", note: "", color: "#000", x: 10, y: 20 };
+      hover = { name: "Filler cap", note: "", color: "#000", x: 10, y: 20 },
+      selected = { name: "Filler cap", note: "Upper wing fuel cap.", color: "#000" };
     useView.setState({ cam, focus: "Filler cap" });
-    useAircraftHover.setState({ hover });
+    useAircraftHover.setState({ hover, selected });
     openWalk();
+    expect(useAircraftHover.getState().selected).toBeNull();
     beginWalk();
+    useAircraftHover.setState({ selected: { name: "Pitot probe", note: "", color: "#000" } });
     goStep(at("7c"));
+    expect(useAircraftHover.getState().selected).toBeNull();
     useView.getState().flyTo([1, 1, 1], [0, 0, 0]);
     expect(useView.getState().cam).not.toBe(cam);
     closeWalk();
     expect(useView.getState().cam).toBe(cam);
     expect(useView.getState().focus).toBe("Filler cap");
     expect(useAircraftHover.getState().hover).toBe(hover);
+    expect(useAircraftHover.getState().selected).toBe(selected);
   });
 
   it("restores the exact prior airplane state and view on exit", () => {

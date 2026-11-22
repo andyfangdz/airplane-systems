@@ -63,7 +63,7 @@ export function selectSys(id: SysId, fly = true) {
   def.walk?.close();
   def.onSelect?.(id);
   useView.setState({ selectedSys: id, sys: id, focus: null });
-  useAircraftHover.getState().setHover(null);
+  useAircraftHover.setState({ hover: null, selected: null });
   if (fly) {
     const [p, t] = sysOf(def, id).cam;
     v.flyTo(p, t);
@@ -86,7 +86,7 @@ export function selectAircraft(id: AircraftId, sys?: SysId) {
   const to = sys && hasSys(def, sys) ? sys : "overview";
   def.onSelect?.(to);
   useView.setState({ ac: id, selectedSys: to, sys: to, focus: null, ctrlFocus: "all" });
-  useAircraftHover.getState().setHover(null);
+  useAircraftHover.setState({ hover: null, selected: null });
   const [p, t] = sysOf(def, to).cam;
   v.flyTo(p, t);
   remember("fleetAc", id);

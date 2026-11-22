@@ -9,7 +9,7 @@ import { dimSolidMat, finishMat, ghostMat, mats, plateMat, seeMat, shellMat, ski
 import { geoCentreZ, SPOT_COLOR, spotsAt, spotsPart } from "@/lib/spot";
 import { palette, sysColor, type SysId } from "@/lib/systems";
 import { studyMaterial } from "@/lib/scene/study-materials";
-import { useNarrowLayout, useView } from "@/lib/view";
+import { useAircraftHover, useNarrowLayout, useView } from "@/lib/view";
 import { usePartAnimation } from "./PartAnimations";
 
 /** What the hover tooltip needs to know about a mesh. */
@@ -56,6 +56,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const sys = useView((x) => x.sys);
   const xray = useView((x) => x.xray);
   const focus = useView((x) => x.focus);
+  const selected = useAircraftHover((x) => !!spec.name && x.selected?.name === spec.name);
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
   const cf = useView((x) => x.ctrlFocus);
@@ -69,7 +70,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   // Flight-controls channel focus: parts outside the chosen channel fade out
   const chanDim = sys === "controls" && cf !== "all" && !spec.chan?.includes(cf);
   const act = spotted || (!spot && (all || spec.sys.includes(sys)) && !chanDim);
-  const focused = (!!focus && focus === spec.name) || spotted;
+  const focused = (!!focus && focus === spec.name) || selected || spotted;
   // fairings (wheel pants) ghost in X-ray like the skin, so what they cover stays visible
   const ghost = !!spec.fairing && xray && !focused && act;
   const solid = !xray && spec.solidMaterial ? spec.solidMaterial() : mats(color).on;
@@ -142,19 +143,27 @@ export function Shell({ spec }: { spec: ShellSpec }) {
   const xray = useView((x) => x.xray);
   const theme = useView((x) => x.theme);
   const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo), spec.id));
+  const selected = useAircraftHover((x) => !!spec.name && x.selected?.name === spec.name);
   const spotOn = useView((x) => !!x.spot);
   const solid = !xray && spec.skin ? skinMat(spec.skin) : spec.finish ? finishMat[spec.finish] : solidMat;
+  const frameColor = palette(theme).frame;
   const material = xray
     ? spotted
       ? seeMat(SPOT_COLOR)
-      : shellMat
+      : selected
+        ? seeMat(frameColor)
+        : shellMat
     : spotOn
       ? spotted
         ? mats(SPOT_COLOR).hi
-        : dimSolidMat(solid)
-      : solid;
+        : selected
+          ? mats(frameColor).hi
+          : dimSolidMat(solid)
+      : selected
+        ? mats(frameColor).hi
+        : solid;
   const pick: PickInfo | undefined = spec.name
-    ? { name: spec.name, note: spec.note, color: palette(theme).frame, sys: ["airframe"], shell: true }
+    ? { name: spec.name, note: spec.note, color: frameColor, sys: ["airframe"], shell: true }
     : undefined;
   return <mesh geometry={geo} material={material} renderOrder={xray ? 2 : 0} userData={{ pick, cameraBounds: true }} />;
 }

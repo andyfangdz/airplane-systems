@@ -2,9 +2,11 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { useLayoutEffect } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { PartInspectionProvider, PartInspector, usePartInspectionStore } from "@/components/engine/PartInspector";
+import { HoverTip, useHover } from "@/components/engine/scene/parts";
 
 afterEach(() => {
   cleanup();
+  useHover.setState({ hover: null });
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -116,4 +118,84 @@ test.each([
   expect(screen.getByRole("heading", { name: "Engine pump" })).toBeDefined();
   expect(scroll).toHaveBeenCalledWith({ top: 150 + 900 - inset - 12, behavior: "instant" });
   expect(document.activeElement).toBe(pick);
+});
+
+test("selecting an engine part keeps its stage label visible, previews other hovered parts, and dismisses cleanly", () => {
+  render(
+    <PartInspectionProvider>
+      <RegisteredParts model="Engine" />
+      <div className="eng-view">
+        <div className="toolbar" />
+        <HoverTip />
+      </div>
+      <PartInspector />
+    </PartInspectionProvider>,
+  );
+  expect(document.querySelector(".eng-tip")).toBeNull();
+  fireEvent.click(screen.getByText("Inspect a part"));
+  const pump = screen.getByRole("button", { name: "Engine pump" });
+  fireEvent.click(pump);
+
+  const selectedCard = document.querySelector(".eng-tip.eng-tip-selected");
+  expect(selectedCard).not.toBeNull();
+  expect(within(selectedCard as HTMLElement).getByText("Engine pump")).toBeDefined();
+  expect(within(selectedCard as HTMLElement).getByText("Supplies lubrication. Existing manual note.")).toBeDefined();
+
+  // Hovering a different part previews it; clearing hover restores the selected part's card.
+  act(() => useHover.setState({ hover: { name: "Engine valve", note: "Controls the flow.", x: 100, y: 120 } }));
+  expect(document.querySelector(".eng-tip.eng-tip-selected")).toBeNull();
+  expect(document.querySelector(".eng-tip b")?.textContent).toBe("Engine valve");
+  act(() => useHover.setState({ hover: null }));
+  expect(document.querySelector(".eng-tip.eng-tip-selected b")?.textContent).toBe("Engine pump");
+
+  // Pressing Escape clears the selection and removes the stage label.
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(document.querySelector(".eng-tip")).toBeNull();
+  expect(pump.getAttribute("aria-pressed")).toBe("false");
+
+  // Re-selecting from the inspector list keeps it selected (e.g. across viewport rotations) until explicitly dismissed.
+  fireEvent.click(pump);
+  expect(document.querySelector(".eng-tip.eng-tip-selected")).not.toBeNull();
+  fireEvent.click(pump);
+  expect(document.querySelector(".eng-tip.eng-tip-selected")).not.toBeNull();
+
+  // Clicking the card's dismiss button clears the selection.
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss part label" }));
+  expect(document.querySelector(".eng-tip")).toBeNull();
+});
+
+test("a selected engine tooltip appears at the same offset as a hover tooltip and flips above near the bottom", () => {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(220);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(70);
+
+  function PickAt({ x, y }: { x: number; y: number }) {
+    const store = usePartInspectionStore();
+    return (
+      <button type="button" onClick={() => store.getState().select("Engine pump", true, { x, y })}>
+        Pick at {x},{y}
+      </button>
+    );
+  }
+
+  render(
+    <PartInspectionProvider>
+      <RegisteredParts model="Engine" />
+      <div className="eng-view">
+        <HoverTip />
+      </div>
+      <PickAt x={300} y={150} />
+      <PickAt x={300} y={360} />
+    </PartInspectionProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Pick at 300,150" }));
+  const card = document.querySelector<HTMLElement>(".eng-tip.eng-tip-selected");
+  expect(card?.style.left).toBe("314px");
+  expect(card?.style.top).toBe("164px");
+
+  // Near the bottom edge, it flips above the anchor just like hover does.
+  fireEvent.click(screen.getByRole("button", { name: "Pick at 300,360" }));
+  expect(card?.style.left).toBe("314px");
+  expect(card?.style.top).toBe("276px");
 });

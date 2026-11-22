@@ -18,6 +18,7 @@ import {
   type AircraftSessionOwner,
   type CamRequest,
   type HoverInfo,
+  type SelectedPartInfo,
   type View,
 } from "./view";
 import { fleetStationStart, type FleetWalk, type FleetWalkProgress, type FleetWalkStep } from "./fleet-walk";
@@ -116,6 +117,7 @@ export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
     release: () => void;
     owner: AircraftSessionOwner | null;
     hover: HoverInfo | null;
+    selected: SelectedPartInfo | null;
     view: ViewKeep;
   } | null = null;
   const now = () => performance.now();
@@ -166,6 +168,7 @@ export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
       },
       owner: v.session,
       hover: useAircraftHover.getState().hover,
+      selected: useAircraftHover.getState().selected,
       view: {
         selectedSys: v.selectedSys,
         sys: v.sys,
@@ -206,7 +209,7 @@ export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
       focus: null,
       spot: null,
     });
-    useAircraftHover.getState().setHover(null);
+    useAircraftHover.setState({ hover: null, selected: null });
     const ramp = logic.rampState(s);
     setSim(ramp);
     options.resetLive(ramp, runtime.current().live);
@@ -233,7 +236,9 @@ export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
       ...toggles,
       ...(here ? { selectedSys, sys, focus, spot, cam } : {}),
     });
-    useAircraftHover.getState().setHover(here ? saved.hover : null);
+    useAircraftHover.setState(
+      here ? { hover: saved.hover, selected: saved.selected } : { hover: null, selected: null },
+    );
     // back to the user's own framing; with none recorded, the system's view
     if (here && !cam) useView.getState().flyTo(...(systems.find((s) => s.id === sys) ?? systems[0]).cam);
   }
@@ -316,6 +321,7 @@ export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
   // back shows the same airplane as walking there item by item
   store.subscribe((w, was) => {
     if (!prior || !useView.getState().walking || (w.at === was.at && w.phase === was.phase)) return;
+    useAircraftHover.setState({ hover: null, selected: null });
     const on = w.phase === "walk" || w.phase === "done",
       at = on ? w.at : -1;
     const s = logic.simAt(prior.s, at, w.steps);

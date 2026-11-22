@@ -17,6 +17,6 @@ export const createEngineGroupStore = (shown: ShownGroups = allGroups()) =>
     shown,
     set: (group, on) => {
       set((state) => ({ shown: { ...state.shown, [group]: on } }));
-      useAircraftHover.getState().setHover(null);
+      useAircraftHover.setState({ hover: null, selected: null });
     },
   }));

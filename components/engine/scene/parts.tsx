@@ -7,6 +7,7 @@ import type { ThreeEvent } from "@react-three/fiber";
 import {
   createContext,
   useContext,
+  useEffect,
   useId,
   useImperativeHandle,
   useLayoutEffect,
@@ -18,7 +19,7 @@ import * as THREE from "three";
 import { create } from "zustand";
 import type { EngineSpec } from "@/engines/types";
 import type { EngineSim } from "../store";
-import { useView } from "@/lib/view";
+import { placeTipAtPoint, useView } from "@/lib/view";
 import { usePartInspection, usePartInspectionStore } from "../PartInspector";
 import { AssemblyPick, Spread } from "./Separation";
 import type { V3 } from "./layout";
@@ -150,7 +151,10 @@ export function P({
   const id = useId();
   useImperativeHandle(meshRef, () => mesh.current!, []);
   useLayoutEffect(
-    () => inspection.getState().register({ id, name, note, available: () => isVisible(mesh.current) }),
+    () =>
+      inspection
+        .getState()
+        .register({ id, name, note, available: () => isVisible(mesh.current), getObject: () => mesh.current }),
     [id, name, note, inspection],
   );
   const finishPick = (event: ThreeEvent<MouseEvent>) => {
@@ -159,8 +163,22 @@ export function P({
     if (assembly?.hidden || !start || start.moved || !canPick(event.object as THREE.Mesh)) return;
     if (Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4) return;
     event.stopPropagation();
+    const target = event.nativeEvent.target as { getBoundingClientRect?: () => DOMRect } | null;
+    const rect = typeof target?.getBoundingClientRect === "function" ? target.getBoundingClientRect() : null;
+    const clickX = rect ? event.nativeEvent.clientX - rect.left : undefined;
+    const clickY = rect ? event.nativeEvent.clientY - rect.top : undefined;
+    const hitMesh = mesh.current;
+    if (hitMesh) hitMesh.updateWorldMatrix(true, false);
+    const hitLocal = hitMesh && event.point ? hitMesh.worldToLocal(event.point.clone()) : undefined;
     const inspect = () => {
-      if (isVisible(mesh.current)) inspection.getState().select(name, true);
+      if (isVisible(mesh.current)) {
+        const state = inspection.getState();
+        state.select(
+          state.selected === name ? null : name,
+          true,
+          hitMesh && hitLocal ? { x: clickX, y: clickY, object: hitMesh, local: hitLocal } : { x: clickX, y: clickY },
+        );
+      }
     };
     if (assembly?.tap) assembly.tap(event.nativeEvent, inspect);
     else {
@@ -241,28 +259,83 @@ export function Group({ sim, id, children }: { sim: EngineSim; id: GroupId; chil
   return hidden ? null : <group>{children}</group>;
 }
 
-/** The hovered part's name and note, next to the pointer. */
+/** The hovered or selected part's name and note: follows the pointer on hover, stays at the part's location while selected. */
 export function HoverTip() {
   const h = useHover((x) => x.hover);
+  const inspection = usePartInspectionStore();
+  const parts = usePartInspection((state) => state.parts);
+  const selectedName = usePartInspection((state) => state.selected);
+  const anchor = usePartInspection((state) => state.anchor);
+  const selectedPart = selectedName
+    ? (parts.find((part) => part.name === selectedName && part.note) ??
+      parts.find((part) => part.name === selectedName) ??
+      null)
+    : null;
+  const hovered = h && h.name !== selectedPart?.name ? h : null;
+  const pinned = !hovered ? selectedPart : null;
   const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedName) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      useHover.setState({ hover: null });
+      inspection.getState().select(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedName, inspection]);
   useLayoutEffect(() => {
     const tip = ref.current;
-    if (!tip || !h) return;
+    if (!tip) return;
+    if (hovered) {
+      const place = () => placeTipAtPoint(tip, hovered.x, hovered.y, innerWidth, innerHeight);
+      place();
+      window.addEventListener("resize", place);
+      return () => window.removeEventListener("resize", place);
+    }
+    if (!pinned) return;
+    const stage = tip.parentElement;
+    if (!stage) return;
     const place = () => {
-      const width = tip.offsetWidth,
-        height = tip.offsetHeight;
-      tip.style.left = `${Math.max(8, Math.min(h.x + 14, innerWidth - width - 8))}px`;
-      tip.style.top = `${Math.max(8, Math.min(h.y + 14, innerHeight - height - 8))}px`;
+      const w = stage.clientWidth,
+        h = stage.clientHeight;
+      placeTipAtPoint(tip, anchor?.x ?? w / 2, anchor?.y ?? h / 2, w, h);
     };
     place();
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
-  }, [h]);
-  if (!h) return null;
+  }, [hovered, pinned, anchor]);
+  if (hovered) {
+    return (
+      <div
+        key="hover"
+        ref={ref}
+        className="eng-tip"
+        style={{ left: hovered.x + 14, top: hovered.y + 14, maxWidth: "calc(100vw - 16px)" }}
+      >
+        <b>{hovered.name}</b>
+        {hovered.note && <span>{hovered.note}</span>}
+      </div>
+    );
+  }
+  if (!pinned) return null;
   return (
-    <div ref={ref} className="eng-tip" style={{ left: h.x + 14, top: h.y + 14, maxWidth: "calc(100vw - 16px)" }}>
-      <b>{h.name}</b>
-      {h.note && <span>{h.note}</span>}
+    <div key="selected" ref={ref} className="eng-tip eng-tip-selected" role="status" aria-live="polite">
+      <div className="eng-tip-head">
+        <b>{pinned.name}</b>
+        <button
+          type="button"
+          className="eng-tip-close"
+          aria-label="Dismiss part label"
+          onClick={() => {
+            useHover.setState({ hover: null });
+            inspection.getState().select(null);
+          }}
+        >
+          ×
+        </button>
+      </div>
+      {pinned.note && <span>{pinned.note}</span>}
     </div>
   );
 }

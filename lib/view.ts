@@ -7,6 +7,7 @@
  */
 import { create } from "zustand";
 import { useSyncExternalStore } from "react";
+import type * as THREE from "three";
 import type { CameraPreset } from "./camera";
 import type { Spot } from "./spot";
 import type { Vec3 } from "./math";
@@ -19,6 +20,20 @@ export interface HoverInfo {
   color: string;
   x: number;
   y: number;
+}
+export interface SelectedAnchor {
+  object: THREE.Object3D;
+  local: THREE.Vector3;
+}
+export interface SelectedPartInfo {
+  name: string;
+  note: string;
+  color: string;
+  /** Stage-relative click coordinates when picked directly on the 3D canvas. */
+  x?: number;
+  y?: number;
+  /** 3D mesh and local hit point so the tooltip tracks the selected part as the camera or assembly moves. */
+  anchor?: SelectedAnchor;
 }
 export interface CamRequest {
   preset?: CameraPreset;
@@ -68,9 +83,63 @@ interface ViewStore extends View {
   setTheme: (t: Theme, save?: boolean) => void;
 }
 
-export const useAircraftHover = create<{ hover: HoverInfo | null; setHover: (hover: HoverInfo | null) => void }>(
-  (set) => ({ hover: null, setHover: (hover) => set({ hover }) }),
-);
+export const useAircraftHover = create<{
+  hover: HoverInfo | null;
+  selected: SelectedPartInfo | null;
+  setHover: (hover: HoverInfo | null) => void;
+  setSelected: (selected: SelectedPartInfo | null) => void;
+}>((set) => ({
+  hover: null,
+  selected: null,
+  setHover: (hover) => set({ hover }),
+  setSelected: (selected) => set({ selected }),
+}));
+
+/**
+ * Position a hover/selected tooltip at the same below-right offset from `(x, y)` that hover uses,
+ * flipping above `(x, y)` when it would run past the bottom edge and clamping inside `[8, size - 8]`.
+ */
+export function placeTipAtPoint(
+  el: HTMLElement,
+  x: number,
+  y: number,
+  boundsWidth: number,
+  boundsHeight: number,
+  originX = 0,
+  originY = 0,
+) {
+  if (!boundsWidth || !boundsHeight) {
+    el.style.maxHeight = "";
+    el.style.left = `${Math.round(originX + x + 14)}px`;
+    el.style.top = `${Math.round(originY + y + 14)}px`;
+    return;
+  }
+  const maxH = Math.max(48, Math.floor(boundsHeight - 16));
+  el.style.maxHeight = `${maxH}px`;
+  const wd = el.offsetWidth;
+  const ht = Math.min(el.offsetHeight, maxH);
+  const left = Math.max(8, Math.min(x + 14, boundsWidth - wd - 8));
+  const below = y + 14;
+  const top = below + ht <= boundsHeight - 8 ? below : Math.max(8, Math.min(y - 14 - ht, boundsHeight - ht - 8));
+  el.style.left = `${Math.round(originX + left)}px`;
+  el.style.top = `${Math.round(originY + top)}px`;
+}
+
+/** Project a 3D world point into stage pixel coordinates, or null if behind the camera. */
+export function projectToStage(
+  world: THREE.Vector3,
+  camera: THREE.Camera,
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  if (!width || !height) return null;
+  const projected = world.clone().project(camera);
+  if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z > 1) return null;
+  return {
+    x: (projected.x * 0.5 + 0.5) * width,
+    y: (-projected.y * 0.5 + 0.5) * height,
+  };
+}
 
 /** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */
 export const NARROW_PX = 639;
