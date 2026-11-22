@@ -231,19 +231,36 @@ describe("component study framing", () => {
     expect(out.viewOffset.distanceTo(to.viewOffset)).toBeLessThan(1e-9);
   });
 
-  it("takes the shortest horizontal arc across the azimuth seam when switching cylinder banks", () => {
-    const from = {
+  it("takes the shortest horizontal arc across the spherical azimuth seam and between cylinder banks", () => {
+    const out = { position: new Vector3(), target: new Vector3(), viewOffset: new Vector2() };
+    // Three.js Spherical measures theta = atan2(x, z), so its ±π seam lies along the -z axis.
+    const seamFrom = {
+      position: new Vector3(0.05, 0.68, -1.4),
+      target: new Vector3(0, 0, 0),
+      viewOffset: new Vector2(),
+    };
+    const seamTo = {
+      position: new Vector3(-0.05, 0.68, -1.4),
+      target: new Vector3(0, 0, 0),
+      viewOffset: new Vector2(),
+    };
+    interpolateStageCamera(seamFrom, seamTo, 0.5, out);
+    // Midpoint crosses directly over -z instead of taking the ~356° detour through +z.
+    expect(out.position.x).toBeCloseTo(0, 6);
+    expect(out.position.y).toBeCloseTo(0.68, 6);
+    expect(out.position.z).toBeLessThan(-1.39);
+
+    const bankFrom = {
       position: new Vector3(-1.25, 0.68, 0.72),
       target: new Vector3(0, 0, 0),
       viewOffset: new Vector2(),
     };
-    const to = {
+    const bankTo = {
       position: new Vector3(-1.25, 0.68, -0.72),
       target: new Vector3(0, 0, 0),
       viewOffset: new Vector2(),
     };
-    const out = { position: new Vector3(), target: new Vector3(), viewOffset: new Vector2() };
-    interpolateStageCamera(from, to, 0.5, out);
+    interpolateStageCamera(bankFrom, bankTo, 0.5, out);
     // Midpoint stays behind the engine (-x) instead of swinging all the way around the front (+x).
     expect(out.position.x).toBeLessThan(-1);
     expect(out.position.y).toBeCloseTo(0.68, 6);
