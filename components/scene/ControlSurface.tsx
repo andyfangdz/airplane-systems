@@ -57,11 +57,9 @@ export function ControlSurface({
   const material = xray
     ? spotted
       ? seeMat(SPOT_COLOR)
-      : selected
-        ? mats(color).hi
-        : active
-          ? seeMat(color)
-          : shellMat
+      : selected || active
+        ? seeMat(color)
+        : shellMat
     : spotOn
       ? spotted
         ? mats(SPOT_COLOR).hi

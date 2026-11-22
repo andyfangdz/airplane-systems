@@ -164,6 +164,25 @@ test("airplane view keeps a selected part's label visible from the parts list or
   expect(placed?.querySelector("h4")?.textContent).toBe("Fuel vent");
   expect(placed?.style.left).toBe("424px");
   expect(placed?.style.top).toBe("264px");
+  expect(placed?.style.maxHeight).toBe("584px");
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(document.querySelector(".tip")).toBeNull();
+
+  // In a short phone stage (210px), a tall note is capped to stage height - 16px and clamped at top 8px.
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(210);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(260);
+  act(() =>
+    useAircraftHover.getState().setSelected({
+      name: "A/C compressor",
+      note: "Long system note exceeding a 210px stage.",
+      color: "#149C94",
+      x: 150,
+      y: 120,
+    }),
+  );
+  const shortStageCard = document.querySelector<HTMLElement>(".tip.tip-selected");
+  expect(shortStageCard?.style.maxHeight).toBe("194px");
+  expect(shortStageCard?.style.top).toBe("8px");
   fireEvent.keyDown(window, { key: "Escape" });
   expect(document.querySelector(".tip")).toBeNull();
 

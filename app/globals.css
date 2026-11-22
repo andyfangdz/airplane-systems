@@ -628,6 +628,10 @@ button {
 }
 .tip-selected {
   pointer-events: auto;
+  max-width: min(260px, calc(100% - 16px));
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .tip-head {
   display: flex;

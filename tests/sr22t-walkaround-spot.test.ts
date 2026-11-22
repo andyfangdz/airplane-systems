@@ -318,8 +318,10 @@ describe("clearing a spot restores the normal system appearance", () => {
 
       const ctrlColor = sysColor(aileron.sys[0], "light");
       useAircraftHover.setState({ selected: { name: aileron.name, note: aileron.note, color: ctrlColor } });
-      useView.setState({ sys: "controls", xray: true });
-      expect(surface(aileron.name)).toBe(mats(ctrlColor).hi);
+      useView.setState({ sys: "overview", xray: true });
+      const xrayMat = surface(aileron.name);
+      expect(xrayMat).toBe(seeMat(ctrlColor));
+      expect(xrayMat.userData.seeThrough).toBe(true);
       useView.setState({ xray: false });
       expect(surface(aileron.name)).toBe(mats(ctrlColor).hi);
     } finally {

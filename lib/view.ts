@@ -108,13 +108,16 @@ export function placeTipAtPoint(
   originX = 0,
   originY = 0,
 ) {
-  const wd = el.offsetWidth;
-  const ht = el.offsetHeight;
   if (!boundsWidth || !boundsHeight) {
+    el.style.maxHeight = "";
     el.style.left = `${Math.round(originX + x + 14)}px`;
     el.style.top = `${Math.round(originY + y + 14)}px`;
     return;
   }
+  const maxH = Math.max(48, Math.floor(boundsHeight - 16));
+  el.style.maxHeight = `${maxH}px`;
+  const wd = el.offsetWidth;
+  const ht = Math.min(el.offsetHeight, maxH);
   const left = Math.max(8, Math.min(x + 14, boundsWidth - wd - 8));
   const below = y + 14;
   const top = below + ht <= boundsHeight - 8 ? below : Math.max(8, Math.min(y - 14 - ht, boundsHeight - ht - 8));

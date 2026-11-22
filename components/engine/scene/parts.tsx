@@ -163,8 +163,8 @@ export function P({
     if (assembly?.hidden || !start || start.moved || !canPick(event.object as THREE.Mesh)) return;
     if (Math.hypot(event.nativeEvent.clientX - start.x, event.nativeEvent.clientY - start.y) > 4) return;
     event.stopPropagation();
-    const target = event.nativeEvent.target instanceof HTMLElement ? event.nativeEvent.target : null;
-    const rect = target?.getBoundingClientRect();
+    const target = event.nativeEvent.target as { getBoundingClientRect?: () => DOMRect } | null;
+    const rect = typeof target?.getBoundingClientRect === "function" ? target.getBoundingClientRect() : null;
     const clickX = rect ? event.nativeEvent.clientX - rect.left : undefined;
     const clickY = rect ? event.nativeEvent.clientY - rect.top : undefined;
     const hitMesh = mesh.current;
