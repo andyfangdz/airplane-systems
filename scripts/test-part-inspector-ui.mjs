@@ -348,9 +348,17 @@ test("selecting a part shows a persistent stage label in both engine and airplan
   await expect(airCard).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(airCard).toHaveCount(0);
-  // Reset camera so clicking a 3D mesh is deterministic, then verify the selected tooltip stays at the hovered spot.
+  // Wait for Reset view to commit its camera jump before probing the 3D canvas.
+  const settledFrames = () =>
+    page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        ),
+    );
+  await page.mouse.move(10, 10);
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
-  await page.waitForTimeout(150);
+  await settledFrames();
   const stageBox = await page.locator(".stage canvas").boundingBox();
   let hit;
   for (const [fx, fy] of [
@@ -365,9 +373,9 @@ test("selecting a part shows a persistent stage label in both engine and airplan
     const x = Math.round(stageBox.x + stageBox.width * fx);
     const y = Math.round(stageBox.y + stageBox.height * fy);
     await page.mouse.move(x, y);
-    await page.waitForTimeout(80);
+    await settledFrames();
     const tip = page.locator(".tip");
-    if (await tip.count()) {
+    if (await tip.isVisible()) {
       const box = await tip.boundingBox();
       hit = { x, y, name: await tip.locator("h4").textContent(), box };
       break;
