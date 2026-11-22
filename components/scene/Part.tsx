@@ -143,19 +143,27 @@ export function Shell({ spec }: { spec: ShellSpec }) {
   const xray = useView((x) => x.xray);
   const theme = useView((x) => x.theme);
   const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo), spec.id));
+  const selected = useAircraftHover((x) => !!spec.name && x.selected?.name === spec.name);
   const spotOn = useView((x) => !!x.spot);
   const solid = !xray && spec.skin ? skinMat(spec.skin) : spec.finish ? finishMat[spec.finish] : solidMat;
+  const frameColor = palette(theme).frame;
   const material = xray
     ? spotted
       ? seeMat(SPOT_COLOR)
-      : shellMat
+      : selected
+        ? seeMat(frameColor)
+        : shellMat
     : spotOn
       ? spotted
         ? mats(SPOT_COLOR).hi
-        : dimSolidMat(solid)
-      : solid;
+        : selected
+          ? mats(frameColor).hi
+          : dimSolidMat(solid)
+      : selected
+        ? mats(frameColor).hi
+        : solid;
   const pick: PickInfo | undefined = spec.name
-    ? { name: spec.name, note: spec.note, color: palette(theme).frame, sys: ["airframe"], shell: true }
+    ? { name: spec.name, note: spec.note, color: frameColor, sys: ["airframe"], shell: true }
     : undefined;
   return <mesh geometry={geo} material={material} renderOrder={xray ? 2 : 0} userData={{ pick, cameraBounds: true }} />;
 }

@@ -17,8 +17,8 @@ import { Part, Shell, specGeo } from "@/components/scene/Part";
 import type { PartSpec } from "@/lib/catalogue";
 import { dimSolidMat, ghostMat, mats, plateMat, seeMat, shellMat, skinMat } from "@/lib/materials";
 import { partSide, SPOT_COLOR, type Spot } from "@/lib/spot";
-import { sysColor, type Chan, type SysId } from "@/lib/systems";
-import { useView } from "@/lib/view";
+import { palette, sysColor, type Chan, type SysId } from "@/lib/systems";
+import { useAircraftHover, useView } from "@/lib/view";
 import { animatePart } from "@/lib/anims";
 import type { PartAppearance } from "@/lib/scene/part-animations";
 import { studyMaterial } from "@/lib/scene/study-materials";
@@ -302,5 +302,28 @@ describe("clearing a spot restores the normal system appearance", () => {
     useView.setState({ sys: "fuel" });
     expect(surface("Left aileron")).toBe(shellMat);
     for (const s of CAT.shells) expect((Shell({ spec: s }) as El).props.material, s.id).toBe(shellMat);
+  });
+
+  it("highlights a selected shell and control surface in both X-ray and solid modes", () => {
+    try {
+      const baseShell = CAT.shells.find((s) => s.name)!;
+      const shell = { ...baseShell, skin: undefined };
+      const aileron = CAT.surfaces.find((s) => s.name === "Left aileron")!;
+      const frame = palette("light").frame;
+      useView.setState({ ac: "sr22t", sys: "overview", spot: null, xray: true, theme: "light" });
+      useAircraftHover.setState({ selected: { name: shell.name, note: shell.note, color: frame } });
+      expect((Shell({ spec: shell }) as El).props.material).toBe(seeMat(frame));
+      useView.setState({ xray: false });
+      expect((Shell({ spec: shell }) as El).props.material).toBe(mats(frame).hi);
+
+      const ctrlColor = sysColor(aileron.sys[0], "light");
+      useAircraftHover.setState({ selected: { name: aileron.name, note: aileron.note, color: ctrlColor } });
+      useView.setState({ sys: "controls", xray: true });
+      expect(surface(aileron.name)).toBe(mats(ctrlColor).hi);
+      useView.setState({ xray: false });
+      expect(surface(aileron.name)).toBe(mats(ctrlColor).hi);
+    } finally {
+      useAircraftHover.setState({ hover: null, selected: null });
+    }
   });
 });

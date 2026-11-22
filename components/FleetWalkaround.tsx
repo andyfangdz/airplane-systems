@@ -24,7 +24,7 @@ import { useAircraftSceneReady } from "@/lib/aircraft-session";
 import { view as scene } from "@/lib/registry";
 import { SPOT_COLOR } from "@/lib/spot";
 import { useReducedMotion } from "@/lib/useReducedMotion";
-import { revealStage, useView, type AircraftSessionOwner } from "@/lib/view";
+import { revealStage, useAircraftHover, useView, type AircraftSessionOwner } from "@/lib/view";
 import "./walkaround.css";
 
 /** Wait after flying to a station before framing the item, ms (the camera flight takes 1 s). */
@@ -133,7 +133,11 @@ function useSession<S>(controller: FleetWalkController<S>, at: number, walking: 
       if (document.querySelector(".tour")) return; // the welcome tour has the keys
       if (event.key === "Escape") {
         event.preventDefault();
-        controller.close();
+        if (useAircraftHover.getState().selected) {
+          useAircraftHover.setState({ hover: null, selected: null });
+        } else {
+          controller.close();
+        }
         return;
       }
       const target = document.activeElement;

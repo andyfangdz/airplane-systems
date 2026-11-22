@@ -331,6 +331,7 @@ test("selecting a part shows a persistent stage label in both engine and airplan
   // Regular airplane view: selecting from the side panel or clicking a part in 3D keeps .tip-selected visible.
   await page.goto("/c172s/fuel");
   await page.locator(".stage canvas").waitFor();
+  await page.waitForFunction(() => !document.querySelector("[data-building]"), null, { timeout: 60_000 });
   const partBtn = page.locator(".parts button").first();
   const partName = await partBtn.locator("b").textContent();
   await partBtn.click();
@@ -347,7 +348,9 @@ test("selecting a part shows a persistent stage label in both engine and airplan
   await expect(airCard).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(airCard).toHaveCount(0);
-  // Clicking a part in the 3D canvas selects it; clicking empty space clears it.
+  // Reset camera so clicking a 3D mesh is deterministic, then verify the selected tooltip stays at the hovered spot.
+  await page.getByRole("button", { name: "Reset view", exact: true }).click();
+  await page.waitForTimeout(150);
   const stageBox = await page.locator(".stage canvas").boundingBox();
   let hit;
   for (const [fx, fy] of [
@@ -363,9 +366,10 @@ test("selecting a part shows a persistent stage label in both engine and airplan
     const y = Math.round(stageBox.y + stageBox.height * fy);
     await page.mouse.move(x, y);
     await page.waitForTimeout(80);
-    const tip = page.locator(".tip h4");
+    const tip = page.locator(".tip");
     if (await tip.count()) {
-      hit = { x, y, name: await tip.textContent() };
+      const box = await tip.boundingBox();
+      hit = { x, y, name: await tip.locator("h4").textContent(), box };
       break;
     }
   }
@@ -373,6 +377,9 @@ test("selecting a part shows a persistent stage label in both engine and airplan
   await page.mouse.click(hit.x, hit.y);
   await expect(airCard).toBeVisible();
   await expect(airCard.locator("h4")).toHaveText(hit.name);
+  const selectedBox = await airCard.boundingBox();
+  expect(Math.abs(selectedBox.x - hit.box.x)).toBeLessThanOrEqual(4);
+  expect(Math.abs(selectedBox.y - hit.box.y)).toBeLessThanOrEqual(4);
   await page.mouse.move(10, 10);
   await expect(airCard).toBeVisible();
   // Clicking the same mesh again toggles selection off.

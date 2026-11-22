@@ -146,15 +146,24 @@ test("airplane view keeps a selected part's label visible from the parts list or
   expect(document.querySelector(".tip")).toBeNull();
   expect(capButton.getAttribute("aria-pressed")).toBe("false");
 
-  // Selecting directly (as on a 3D mesh click) stays visible and dismisses on Escape.
+  // Selecting directly (as on a 3D mesh click) places the tooltip at the same hover offset and dismisses on Escape.
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(900);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(220);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(70);
   act(() =>
     useAircraftHover.getState().setSelected({
       name: "Fuel vent",
       note: "Ram-air tank vent under the wing.",
       color: "#2F7FE6",
+      x: 410,
+      y: 250,
     }),
   );
-  expect(document.querySelector(".tip.tip-selected h4")?.textContent).toBe("Fuel vent");
+  const placed = document.querySelector<HTMLElement>(".tip.tip-selected");
+  expect(placed?.querySelector("h4")?.textContent).toBe("Fuel vent");
+  expect(placed?.style.left).toBe("424px");
+  expect(placed?.style.top).toBe("264px");
   fireEvent.keyDown(window, { key: "Escape" });
   expect(document.querySelector(".tip")).toBeNull();
 

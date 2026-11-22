@@ -7,6 +7,7 @@
  */
 import { create } from "zustand";
 import { useSyncExternalStore } from "react";
+import type * as THREE from "three";
 import type { CameraPreset } from "./camera";
 import type { Spot } from "./spot";
 import type { Vec3 } from "./math";
@@ -20,10 +21,19 @@ export interface HoverInfo {
   x: number;
   y: number;
 }
+export interface SelectedAnchor {
+  object: THREE.Object3D;
+  local: THREE.Vector3;
+}
 export interface SelectedPartInfo {
   name: string;
   note: string;
   color: string;
+  /** Stage-relative click coordinates when picked directly on the 3D canvas. */
+  x?: number;
+  y?: number;
+  /** 3D mesh and local hit point so the tooltip tracks the selected part as the camera or assembly moves. */
+  anchor?: SelectedAnchor;
 }
 export interface CamRequest {
   preset?: CameraPreset;
@@ -85,36 +95,47 @@ export const useAircraftHover = create<{
   setSelected: (selected) => set({ selected }),
 }));
 
-/** Position a selected-part card in the top-left of its 3D stage, dropping below any top-edge controls it would hit. */
-export function placePinnedCard(card: HTMLElement, stage: HTMLElement, blockers: readonly HTMLElement[]) {
-  const stageRect = stage.getBoundingClientRect();
-  const left = 12;
-  let top = 12;
-  if (!stageRect.width || !stageRect.height) {
-    card.style.left = `${left}px`;
-    card.style.top = `${top}px`;
-    card.style.maxHeight = "";
+/**
+ * Position a hover/selected tooltip at the same below-right offset from `(x, y)` that hover uses,
+ * flipping above `(x, y)` when it would run past the bottom edge and clamping inside `[8, size - 8]`.
+ */
+export function placeTipAtPoint(
+  el: HTMLElement,
+  x: number,
+  y: number,
+  boundsWidth: number,
+  boundsHeight: number,
+  originX = 0,
+  originY = 0,
+) {
+  const wd = el.offsetWidth;
+  const ht = el.offsetHeight;
+  if (!boundsWidth || !boundsHeight) {
+    el.style.left = `${Math.round(originX + x + 14)}px`;
+    el.style.top = `${Math.round(originY + y + 14)}px`;
     return;
   }
-  const cardRight = stageRect.left + left + card.offsetWidth;
-  const cardBottom = stageRect.top + top + card.offsetHeight;
-  for (const blocker of blockers) {
-    const r = blocker.getBoundingClientRect();
-    if (!r.width || !r.height) continue;
-    if (
-      r.left < cardRight + 8 &&
-      r.right > stageRect.left + left - 8 &&
-      r.top < cardBottom + 8 &&
-      r.bottom > stageRect.top + top - 8
-    ) {
-      top = Math.max(top, Math.round(r.bottom - stageRect.top + 8));
-    }
-  }
-  const maxTop = Math.max(8, Math.floor(stageRect.height - Math.min(card.offsetHeight, 72) - 8));
-  const finalTop = Math.min(top, maxTop);
-  card.style.left = `${left}px`;
-  card.style.top = `${finalTop}px`;
-  card.style.maxHeight = `${Math.max(72, Math.floor(stageRect.height - finalTop - 12))}px`;
+  const left = Math.max(8, Math.min(x + 14, boundsWidth - wd - 8));
+  const below = y + 14;
+  const top = below + ht <= boundsHeight - 8 ? below : Math.max(8, Math.min(y - 14 - ht, boundsHeight - ht - 8));
+  el.style.left = `${Math.round(originX + left)}px`;
+  el.style.top = `${Math.round(originY + top)}px`;
+}
+
+/** Project a 3D world point into stage pixel coordinates, or null if behind the camera. */
+export function projectToStage(
+  world: THREE.Vector3,
+  camera: THREE.Camera,
+  width: number,
+  height: number,
+): { x: number; y: number } | null {
+  if (!width || !height) return null;
+  const projected = world.clone().project(camera);
+  if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z > 1) return null;
+  return {
+    x: (projected.x * 0.5 + 0.5) * width,
+    y: (-projected.y * 0.5 + 0.5) * height,
+  };
 }
 
 /** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */

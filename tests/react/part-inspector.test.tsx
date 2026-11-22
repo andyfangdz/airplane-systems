@@ -153,40 +153,49 @@ test("selecting an engine part keeps its stage label visible, previews other hov
   expect(document.querySelector(".eng-tip")).toBeNull();
   expect(pump.getAttribute("aria-pressed")).toBe("false");
 
-  // Re-selecting and clicking the same part button again toggles it off.
+  // Re-selecting from the inspector list keeps it selected (e.g. across viewport rotations) until explicitly dismissed.
   fireEvent.click(pump);
   expect(document.querySelector(".eng-tip.eng-tip-selected")).not.toBeNull();
   fireEvent.click(pump);
-  expect(document.querySelector(".eng-tip")).toBeNull();
+  expect(document.querySelector(".eng-tip.eng-tip-selected")).not.toBeNull();
 
   // Clicking the card's dismiss button clears the selection.
-  fireEvent.click(pump);
   fireEvent.click(screen.getByRole("button", { name: "Dismiss part label" }));
   expect(document.querySelector(".eng-tip")).toBeNull();
 });
 
-test("a selected engine card drops below an overlapping toolbar in narrow stages", () => {
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-    if (this.classList.contains("eng-view")) return new DOMRect(0, 0, 390, 320);
-    if (this.classList.contains("toolbar")) return new DOMRect(12, 12, 366, 44);
-    return new DOMRect();
-  });
-  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(240);
-  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(72);
+test("a selected engine tooltip appears at the same offset as a hover tooltip and flips above near the bottom", () => {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(220);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(70);
+
+  function PickAt({ x, y }: { x: number; y: number }) {
+    const store = usePartInspectionStore();
+    return (
+      <button type="button" onClick={() => store.getState().select("Engine pump", true, { x, y })}>
+        Pick at {x},{y}
+      </button>
+    );
+  }
 
   render(
     <PartInspectionProvider>
       <RegisteredParts model="Engine" />
       <div className="eng-view">
-        <div className="toolbar" />
         <HoverTip />
       </div>
-      <PartInspector />
+      <PickAt x={300} y={150} />
+      <PickAt x={300} y={360} />
     </PartInspectionProvider>,
   );
-  fireEvent.click(screen.getByText("Inspect a part"));
-  fireEvent.click(screen.getByRole("button", { name: "Engine pump" }));
+  fireEvent.click(screen.getByRole("button", { name: "Pick at 300,150" }));
   const card = document.querySelector<HTMLElement>(".eng-tip.eng-tip-selected");
-  expect(card?.style.left).toBe("12px");
-  expect(card?.style.top).toBe("64px");
+  expect(card?.style.left).toBe("314px");
+  expect(card?.style.top).toBe("164px");
+
+  // Near the bottom edge, it flips above the anchor just like hover does.
+  fireEvent.click(screen.getByRole("button", { name: "Pick at 300,360" }));
+  expect(card?.style.left).toBe("314px");
+  expect(card?.style.top).toBe("276px");
 });

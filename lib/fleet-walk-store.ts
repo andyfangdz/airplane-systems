@@ -321,6 +321,7 @@ export function createFleetWalkStore<S, E, L extends object, M, C>(options: {
   // back shows the same airplane as walking there item by item
   store.subscribe((w, was) => {
     if (!prior || !useView.getState().walking || (w.at === was.at && w.phase === was.phase)) return;
+    useAircraftHover.setState({ hover: null, selected: null });
     const on = w.phase === "walk" || w.phase === "done",
       at = on ? w.at : -1;
     const s = logic.simAt(prior.s, at, w.steps);

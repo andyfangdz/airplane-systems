@@ -76,11 +76,7 @@ export function PartInspector() {
         <ul className="part-index" aria-label="Parts in this view">
           {matches.map((entry) => (
             <li key={entry.name}>
-              <button
-                type="button"
-                aria-pressed={entry.name === selected}
-                onClick={() => select(entry.name === selected ? null : entry.name)}
-              >
+              <button type="button" aria-pressed={entry.name === selected} onClick={() => select(entry.name)}>
                 {entry.name}
               </button>
             </li>

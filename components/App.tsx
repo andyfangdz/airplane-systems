@@ -18,8 +18,17 @@ import {
 import { setBuild } from "@/lib/build";
 import { mountAircraftSession, type AircraftSession } from "@/lib/aircraft-session";
 import { useSimulationLoop } from "@/lib/useSimulationLoop";
+import { partObjects, view as sceneView } from "@/lib/registry";
 import { sysColor, sysVars, type SysId, type Theme } from "@/lib/systems";
-import { placePinnedCard, revealPanelStart, revealStage, useAircraftHover, useNarrowLayout, useView } from "@/lib/view";
+import {
+  placeTipAtPoint,
+  projectToStage,
+  revealPanelStart,
+  revealStage,
+  useAircraftHover,
+  useNarrowLayout,
+  useView,
+} from "@/lib/view";
 import { Loader } from "./Loader";
 import { Fleet } from "./Fleet";
 import { startTour } from "./Tour";
@@ -341,34 +350,35 @@ function Tooltip() {
       stage = el?.parentElement;
     if (!el || !stage) return;
     if (hovered) {
-      const w = stage.clientWidth,
-        h = stage.clientHeight,
-        ht = el.offsetHeight,
-        wd = el.offsetWidth;
-      const below = hovered.y + 14;
-      el.style.maxHeight = "";
-      el.style.left = `${Math.max(8, Math.min(hovered.x + 14, w - wd - 8))}px`;
-      el.style.top = `${below + ht <= h ? below : Math.max(0, Math.min(hovered.y - 14 - ht, h - ht))}px`;
+      placeTipAtPoint(el, hovered.x, hovered.y, stage.clientWidth, stage.clientHeight);
       return;
     }
     if (!pinned) return;
     const place = () => {
-      const blockers = [
-        ...stage.querySelectorAll<HTMLElement>(".toolbar"),
-        ...(stage.closest(".app.systems-collapsed")?.querySelectorAll<HTMLElement>(".rail .panel-toggle") ?? []),
-      ];
-      placePinnedCard(el, stage, blockers);
+      const w = stage.clientWidth,
+        h = stage.clientHeight;
+      if (pinned.x !== undefined && pinned.y !== undefined) {
+        placeTipAtPoint(el, pinned.x, pinned.y, w, h);
+        return;
+      }
+      if (sceneView.camera) {
+        const mesh = partObjects.get(pinned.name);
+        if (mesh) {
+          if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+          mesh.updateWorldMatrix(true, false);
+          const world = mesh.localToWorld(mesh.geometry.boundingSphere!.center.clone());
+          const pt = projectToStage(world, sceneView.camera, w, h);
+          if (pt) {
+            placeTipAtPoint(el, pt.x, pt.y, w, h);
+            return;
+          }
+        }
+      }
+      placeTipAtPoint(el, w / 2, h / 2, w, h);
     };
     place();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(place) : null;
-    ro?.observe(stage);
-    const toolbar = stage.querySelector<HTMLElement>(".toolbar");
-    if (toolbar) ro?.observe(toolbar);
     window.addEventListener("resize", place);
-    return () => {
-      ro?.disconnect();
-      window.removeEventListener("resize", place);
-    };
+    return () => window.removeEventListener("resize", place);
   }, [hovered, pinned]);
   if (hovered) {
     return (

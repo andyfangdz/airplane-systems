@@ -7,7 +7,7 @@ import { dimSolidMat, mats, seeMat, shellMat, skinMat, solidMat } from "@/lib/ma
 import { V } from "@/lib/math";
 import { geoCentreZ, SPOT_COLOR, spotsAt } from "@/lib/spot";
 import { sysColor } from "@/lib/systems";
-import { useView } from "@/lib/view";
+import { useAircraftHover, useView } from "@/lib/view";
 import { Parts, specGeo, type PickInfo } from "./Part";
 
 /** Hover through a see-through surface: when the ray also meets one of the surface's own parts that the current view
@@ -46,6 +46,7 @@ export function ControlSurface({
   const theme = useView((x) => x.theme);
   const cf = useView((x) => x.ctrlFocus);
   const spotted = useView((x) => spotsAt(x.spot, spec.name, geoCentreZ(geo) + spec.pivot[2], `surface:${spec.key}`));
+  const selected = useAircraftHover((x) => x.selected?.name === spec.name);
   const spotOn = useView((x) => !!x.spot);
   const chanDim = sys === "controls" && cf !== "all" && !spec.chan?.includes(cf);
   // a walk-around spot dims every surface it doesn't name, the shown system's included
@@ -56,14 +57,20 @@ export function ControlSurface({
   const material = xray
     ? spotted
       ? seeMat(SPOT_COLOR)
-      : active
-        ? seeMat(color)
-        : shellMat
+      : selected
+        ? mats(color).hi
+        : active
+          ? seeMat(color)
+          : shellMat
     : spotOn
       ? spotted
         ? mats(SPOT_COLOR).hi
-        : dimSolidMat(solid)
-      : solid;
+        : selected
+          ? mats(color).hi
+          : dimSolidMat(solid)
+      : selected
+        ? mats(color).hi
+        : solid;
   useFrame(() => {
     ref.current.quaternion.setFromAxisAngle(axis, angle(spec.key));
   });

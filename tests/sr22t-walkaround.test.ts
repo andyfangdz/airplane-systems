@@ -384,7 +384,9 @@ describe("the cabin station drives the airplane (POH 4-5, 4-6)", () => {
     openWalk();
     expect(useAircraftHover.getState().selected).toBeNull();
     beginWalk();
+    useAircraftHover.setState({ selected: { name: "Pitot probe", note: "", color: "#000" } });
     goStep(at("7c"));
+    expect(useAircraftHover.getState().selected).toBeNull();
     useView.getState().flyTo([1, 1, 1], [0, 0, 0]);
     expect(useView.getState().cam).not.toBe(cam);
     closeWalk();

@@ -9,6 +9,7 @@ import { fitComponentCamera, intersects, visibleStageLabels, type StageRect } fr
 import { clamp, ease, toV, toVec3, type Vec3 } from "@/lib/math";
 import { prefersReducedMotion } from "@/lib/useReducedMotion";
 import { useSceneRendering } from "@/lib/useSceneRendering";
+import { placeTipAtPoint, projectToStage } from "@/lib/view";
 import { useStageReset } from "./chrome";
 import { usePartInspectionStore } from "./PartInspector";
 import { HoverTip, useHover } from "./scene/parts";
@@ -241,6 +242,69 @@ function LabelClear({ every = 0.2 }: { every?: number }) {
   return null;
 }
 
+function isAttachedVisible(object: THREE.Object3D, scene: THREE.Scene) {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (!current.visible) return false;
+    if (current === scene) return true;
+    current = current.parent;
+  }
+  return false;
+}
+
+/** Keeps the selected engine/component tooltip positioned beside its 3D part as the camera or assembly moves. */
+function SelectedEngineTipSync() {
+  const inspection = usePartInspectionStore();
+  const world = useRef(new THREE.Vector3());
+  const last = useRef<{ el: HTMLElement | null; name: string; x: number; y: number }>({
+    el: null,
+    name: "",
+    x: NaN,
+    y: NaN,
+  });
+  useFrame(({ camera, gl, scene, size }) => {
+    const { selected, anchor, objectFor } = inspection.getState();
+    const hover = useHover.getState().hover;
+    if (!selected || (hover && hover.name !== selected)) {
+      last.current.el = null;
+      return;
+    }
+    const stage = gl.domElement.closest<HTMLElement>(".eng-view") ?? gl.domElement.parentElement;
+    const el = stage?.querySelector<HTMLElement>(".eng-tip.eng-tip-selected") ?? null;
+    if (!stage || !el) {
+      last.current.el = null;
+      return;
+    }
+    const tmp = world.current;
+    let hasPoint = false;
+    if (anchor?.object && anchor.local && isAttachedVisible(anchor.object, scene)) {
+      anchor.object.updateWorldMatrix(true, false);
+      tmp.copy(anchor.local).applyMatrix4(anchor.object.matrixWorld);
+      hasPoint = true;
+    } else {
+      const obj = objectFor(selected);
+      if (obj instanceof THREE.Mesh && isAttachedVisible(obj, scene)) {
+        if (!obj.geometry.boundingSphere) obj.geometry.computeBoundingSphere();
+        obj.updateWorldMatrix(true, false);
+        tmp.copy(obj.geometry.boundingSphere!.center).applyMatrix4(obj.matrixWorld);
+        hasPoint = true;
+      }
+    }
+    if (!hasPoint) return;
+    const pt = projectToStage(tmp, camera, size.width, size.height);
+    if (!pt) return;
+    const prev = last.current;
+    if (prev.el === el && prev.name === selected && Math.abs(prev.x - pt.x) < 0.5 && Math.abs(prev.y - pt.y) < 0.5)
+      return;
+    prev.el = el;
+    prev.name = selected;
+    prev.x = pt.x;
+    prev.y = pt.y;
+    placeTipAtPoint(el, pt.x, pt.y, stage.clientWidth, stage.clientHeight);
+  });
+  return null;
+}
+
 export function ComponentStage({
   camera,
   target,
@@ -332,6 +396,7 @@ export function ComponentStage({
           maxDistance={maxDistance}
         />
         <LabelClear />
+        <SelectedEngineTipSync />
       </Canvas>
       <HoverTip />
     </>

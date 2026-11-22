@@ -932,9 +932,6 @@
 .eng-tip-selected {
   position: absolute;
   pointer-events: auto;
-  max-width: min(300px, calc(100% - 24px));
-  overflow-y: auto;
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--rule));
   -webkit-user-select: text;
   user-select: text;
 }
@@ -952,15 +949,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin: -3px -4px 0 0;
+  width: 20px;
+  height: 20px;
+  margin: -2px -4px 0 0;
   padding: 0;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--muted);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
 }
