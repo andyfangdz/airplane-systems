@@ -58,6 +58,11 @@ vi.mock("@/lib/view", async (original) => {
       (select: (s: ReturnType<typeof actual.useView.getState>) => unknown) => select(actual.useView.getState()),
       actual.useView,
     ),
+    useAircraftHover: Object.assign(
+      (select: (s: ReturnType<typeof actual.useAircraftHover.getState>) => unknown) =>
+        select(actual.useAircraftHover.getState()),
+      actual.useAircraftHover,
+    ),
     useNarrowLayout: () => false,
   };
 });

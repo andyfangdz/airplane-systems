@@ -112,7 +112,7 @@ export function PinDeclutter({
     if (!root) return;
     const view = gl.domElement.getBoundingClientRect();
     const stage = root.closest(".stage") ?? root;
-    const kept: DOMRect[] = [...stage.querySelectorAll<HTMLElement>(".toolbar, .cas, .hint")]
+    const kept: DOMRect[] = [...stage.querySelectorAll<HTMLElement>(".toolbar, .cas, .hint, .tip-selected")]
       .map((e) => e.getBoundingClientRect())
       .filter((r) => r.width);
     const sys = useView.getState().sys;

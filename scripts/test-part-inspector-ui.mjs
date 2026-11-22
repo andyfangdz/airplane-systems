@@ -300,3 +300,87 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
   await expect(groups).toBeHidden();
   await expect(inspector.getByRole("button", { name: /^Piston, cylinder \d+$/ })).toHaveCount(0);
 });
+
+test("selecting a part shows a persistent stage label in both engine and airplane views", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => localStorage.setItem("tourDone", "1"));
+  await page.route("**/_vercel/**", (route) => route.fulfill({ status: 204, body: "" }));
+
+  // Engine view: selecting from inspector keeps .eng-tip-selected visible on the stage even when hovering away.
+  await page.goto("/engines/io390");
+  const inspector = page.getByRole("region", { name: "Part inspector" });
+  await inspector.locator("summary").click();
+  await inspector.getByRole("searchbox", { name: "Find a part" }).fill("Oil filter");
+  const filter = inspector.getByRole("button", { name: "Oil filter", exact: true });
+  await filter.click();
+  const engCard = page.locator(".eng-tip.eng-tip-selected");
+  await expect(engCard).toBeVisible();
+  await expect(engCard.locator("b")).toHaveText("Oil filter");
+  await page.mouse.move(10, 10);
+  await expect(engCard).toBeVisible();
+  // Clicking empty space in the 3D canvas clears the selection.
+  const engCanvas = await page.locator(".eng-view canvas").boundingBox();
+  await page.mouse.click(engCanvas.x + engCanvas.width - 16, engCanvas.y + engCanvas.height - 16);
+  await expect(engCard).toHaveCount(0);
+  // Selecting again and pressing Escape dismisses it.
+  await filter.click();
+  await expect(engCard).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(engCard).toHaveCount(0);
+
+  // Regular airplane view: selecting from the side panel or clicking a part in 3D keeps .tip-selected visible.
+  await page.goto("/c172s/fuel");
+  await page.locator(".stage canvas").waitFor();
+  const partBtn = page.locator(".parts button").first();
+  const partName = await partBtn.locator("b").textContent();
+  await partBtn.click();
+  const airCard = page.locator(".tip.tip-selected");
+  await expect(airCard).toBeVisible();
+  await expect(airCard.locator("h4")).toHaveText(partName);
+  await page.mouse.move(10, 10);
+  await expect(airCard).toBeVisible();
+  // Clicking the same part button again toggles selection off.
+  await partBtn.click();
+  await expect(airCard).toHaveCount(0);
+  // Re-select and dismiss with Escape.
+  await partBtn.click();
+  await expect(airCard).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(airCard).toHaveCount(0);
+  // Clicking a part in the 3D canvas selects it; clicking empty space clears it.
+  const stageBox = await page.locator(".stage canvas").boundingBox();
+  let hit;
+  for (const [fx, fy] of [
+    [0.5, 0.5],
+    [0.45, 0.5],
+    [0.55, 0.5],
+    [0.5, 0.45],
+    [0.5, 0.55],
+    [0.4, 0.5],
+    [0.6, 0.5],
+  ]) {
+    const x = Math.round(stageBox.x + stageBox.width * fx);
+    const y = Math.round(stageBox.y + stageBox.height * fy);
+    await page.mouse.move(x, y);
+    await page.waitForTimeout(80);
+    const tip = page.locator(".tip h4");
+    if (await tip.count()) {
+      hit = { x, y, name: await tip.textContent() };
+      break;
+    }
+  }
+  expect(hit, "a named airplane mesh can be picked").toBeTruthy();
+  await page.mouse.click(hit.x, hit.y);
+  await expect(airCard).toBeVisible();
+  await expect(airCard.locator("h4")).toHaveText(hit.name);
+  await page.mouse.move(10, 10);
+  await expect(airCard).toBeVisible();
+  // Clicking the same mesh again toggles selection off.
+  await page.mouse.click(hit.x, hit.y);
+  await expect(airCard).toHaveCount(0);
+  // Clicking it again re-selects, then clicking empty canvas corner dismisses it.
+  await page.mouse.click(hit.x, hit.y);
+  await expect(airCard).toBeVisible();
+  await page.mouse.click(stageBox.x + stageBox.width - 16, stageBox.y + stageBox.height - 16);
+  await expect(airCard).toHaveCount(0);
+});

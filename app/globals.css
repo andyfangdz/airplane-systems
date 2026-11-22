@@ -626,6 +626,43 @@ button {
   margin: 0;
   color: var(--muted);
 }
+.tip-selected {
+  pointer-events: auto;
+  max-width: min(300px, calc(100% - 24px));
+  overflow-y: auto;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--rule));
+}
+.tip-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tip-head h4 {
+  margin: 0 0 2px;
+}
+.tip-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -3px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tip-close:hover,
+.tip-close:focus-visible {
+  background: var(--panel2);
+  color: var(--ink);
+}
 .toolbar {
   position: absolute;
   top: 12px;
@@ -1206,6 +1243,10 @@ button.chip:hover {
 .parts button:hover {
   border-color: var(--rule);
   background: var(--panel2);
+}
+.parts button[aria-pressed="true"] {
+  border-color: var(--c, var(--accent));
+  background: color-mix(in srgb, var(--c, var(--accent)) 12%, var(--panel));
 }
 .parts b {
   font-weight: 600;
@@ -1917,6 +1958,11 @@ button.chip:hover {
 }
 /* touch screens: primary controls have 44px hit areas */
 @media (pointer: coarse) {
+  .tip-close {
+    width: 36px;
+    height: 36px;
+    margin: -6px -6px 0 0;
+  }
   .tb,
   .app .rail-settings .tb {
     min-width: 44px;

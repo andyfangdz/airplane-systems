@@ -237,28 +237,45 @@ function MaterialSync() {
   return null;
 }
 
-/* ---------- hover (and tap): prefer a real part over the ghost shell in front of it ---------- */
+/* ---------- hover and selection: prefer a real part over the ghost shell in front of it ---------- */
+function pickFromEvent(e: ThreeEvent<MouseEvent>): PickInfo | null {
+  const { sys, xray } = useView.getState();
+  const cands = e.intersections.filter((h) => {
+    const p = h.object.userData?.pick as PickInfo | undefined;
+    return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
+  });
+  // only the X-ray ghost skin can be seen through; the solid skin hides what is behind it
+  const hit = xray ? (cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0]) : cands[0];
+  return hit ? (hit.object.userData.pick as PickInfo) : null;
+}
+
 function usePicker() {
   const setHover = useAircraftHover((x) => x.setHover);
-  return (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation();
-    if (e.buttons) {
+  const setSelected = useAircraftHover((x) => x.setSelected);
+  return {
+    onMove: (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      if (e.buttons) {
+        setHover(null);
+        return;
+      }
+      const p = pickFromEvent(e);
+      setHover(
+        p ? { name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY } : null,
+      );
+    },
+    onClick: (e: ThreeEvent<MouseEvent>) => {
+      if (e.delta > 4) return;
+      e.stopPropagation();
+      const p = pickFromEvent(e);
+      const current = useAircraftHover.getState().selected;
       setHover(null);
-      return;
-    }
-    const { sys, xray } = useView.getState();
-    const cands = e.intersections.filter((h) => {
-      const p = h.object.userData?.pick as PickInfo | undefined;
-      return p && h.object.visible && (sys === "overview" || p.shell || p.sys.includes(sys));
-    });
-    // only the X-ray ghost skin can be seen through; the solid skin hides what is behind it
-    const hit = xray ? (cands.find((h) => !(h.object.userData.pick as PickInfo).shell) ?? cands[0]) : cands[0];
-    if (!hit) {
-      setHover(null);
-      return;
-    }
-    const p = hit.object.userData.pick as PickInfo;
-    setHover({ name: p.name, note: p.note, color: p.color, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY });
+      if (!p || current?.name === p.name) {
+        setSelected(null);
+        return;
+      }
+      setSelected({ name: p.name, note: p.note, color: p.color });
+    },
   };
 }
 
@@ -297,7 +314,7 @@ function AircraftScene({ def, owner }: { def: AircraftDef; owner: AircraftSessio
   const modelRef = useRef<THREE.Group>(null);
   const groundRef = useRef<THREE.Group>(null);
   const theme = useView((x) => x.theme);
-  const onMove = usePicker();
+  const { onMove, onClick } = usePicker();
   const setHover = useAircraftHover((x) => x.setHover);
   const { Model, Overlay } = def;
   // A one-shot model can block in render while it builds geometry. Commit the loader and give the browser a paint
@@ -341,9 +358,7 @@ function AircraftScene({ def, owner }: { def: AircraftDef; owner: AircraftSessio
           ref={modelRef}
           position={[-def.pivotX, 0, 0]}
           onPointerMove={onMove}
-          onClick={(e) => {
-            if (e.delta <= 4) onMove(e);
-          }}
+          onClick={onClick}
           onPointerOut={() => setHover(null)}
         >
           {mountModel && (
@@ -368,6 +383,7 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
   const pal = palette(theme);
   // initial camera only: later moves are camera flights, so the controls' target prop must stay stable
   const [[startPos, startTarget]] = useState(() => sysOf(def, useView.getState().sys).cam);
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
 
   return (
     <Canvas
@@ -377,7 +393,17 @@ export default function Scene({ owner }: { owner: AircraftSessionOwner }) {
       onCreated={({ gl }) => {
         gl.localClippingEnabled = true;
       }}
-      onPointerMissed={() => useAircraftHover.getState().setHover(null)}
+      onPointerDown={(e) => {
+        pointerDown.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerMissed={(e) => {
+        const down = pointerDown.current;
+        pointerDown.current = null;
+        useAircraftHover.getState().setHover(null);
+        if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 4) {
+          useAircraftHover.getState().setSelected(null);
+        }
+      }}
       aria-label={`3D model of the ${def.name} and its systems`}
     >
       <color attach="background" args={[pal.scene]} />

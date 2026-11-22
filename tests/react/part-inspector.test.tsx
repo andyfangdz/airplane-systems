@@ -2,9 +2,11 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { useLayoutEffect } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { PartInspectionProvider, PartInspector, usePartInspectionStore } from "@/components/engine/PartInspector";
+import { HoverTip, useHover } from "@/components/engine/scene/parts";
 
 afterEach(() => {
   cleanup();
+  useHover.setState({ hover: null });
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -116,4 +118,75 @@ test.each([
   expect(screen.getByRole("heading", { name: "Engine pump" })).toBeDefined();
   expect(scroll).toHaveBeenCalledWith({ top: 150 + 900 - inset - 12, behavior: "instant" });
   expect(document.activeElement).toBe(pick);
+});
+
+test("selecting an engine part keeps its stage label visible, previews other hovered parts, and dismisses cleanly", () => {
+  render(
+    <PartInspectionProvider>
+      <RegisteredParts model="Engine" />
+      <div className="eng-view">
+        <div className="toolbar" />
+        <HoverTip />
+      </div>
+      <PartInspector />
+    </PartInspectionProvider>,
+  );
+  expect(document.querySelector(".eng-tip")).toBeNull();
+  fireEvent.click(screen.getByText("Inspect a part"));
+  const pump = screen.getByRole("button", { name: "Engine pump" });
+  fireEvent.click(pump);
+
+  const selectedCard = document.querySelector(".eng-tip.eng-tip-selected");
+  expect(selectedCard).not.toBeNull();
+  expect(within(selectedCard as HTMLElement).getByText("Engine pump")).toBeDefined();
+  expect(within(selectedCard as HTMLElement).getByText("Supplies lubrication. Existing manual note.")).toBeDefined();
+
+  // Hovering a different part previews it; clearing hover restores the selected part's card.
+  act(() => useHover.setState({ hover: { name: "Engine valve", note: "Controls the flow.", x: 100, y: 120 } }));
+  expect(document.querySelector(".eng-tip.eng-tip-selected")).toBeNull();
+  expect(document.querySelector(".eng-tip b")?.textContent).toBe("Engine valve");
+  act(() => useHover.setState({ hover: null }));
+  expect(document.querySelector(".eng-tip.eng-tip-selected b")?.textContent).toBe("Engine pump");
+
+  // Pressing Escape clears the selection and removes the stage label.
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(document.querySelector(".eng-tip")).toBeNull();
+  expect(pump.getAttribute("aria-pressed")).toBe("false");
+
+  // Re-selecting and clicking the same part button again toggles it off.
+  fireEvent.click(pump);
+  expect(document.querySelector(".eng-tip.eng-tip-selected")).not.toBeNull();
+  fireEvent.click(pump);
+  expect(document.querySelector(".eng-tip")).toBeNull();
+
+  // Clicking the card's dismiss button clears the selection.
+  fireEvent.click(pump);
+  fireEvent.click(screen.getByRole("button", { name: "Dismiss part label" }));
+  expect(document.querySelector(".eng-tip")).toBeNull();
+});
+
+test("a selected engine card drops below an overlapping toolbar in narrow stages", () => {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.classList.contains("eng-view")) return new DOMRect(0, 0, 390, 320);
+    if (this.classList.contains("toolbar")) return new DOMRect(12, 12, 366, 44);
+    return new DOMRect();
+  });
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(240);
+  vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(72);
+
+  render(
+    <PartInspectionProvider>
+      <RegisteredParts model="Engine" />
+      <div className="eng-view">
+        <div className="toolbar" />
+        <HoverTip />
+      </div>
+      <PartInspector />
+    </PartInspectionProvider>,
+  );
+  fireEvent.click(screen.getByText("Inspect a part"));
+  fireEvent.click(screen.getByRole("button", { name: "Engine pump" }));
+  const card = document.querySelector<HTMLElement>(".eng-tip.eng-tip-selected");
+  expect(card?.style.left).toBe("12px");
+  expect(card?.style.top).toBe("64px");
 });

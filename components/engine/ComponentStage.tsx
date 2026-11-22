@@ -226,9 +226,9 @@ function LabelClear({ every = 0.2 }: { every?: number }) {
       viewport,
       [
         ...obstaclesFor(gl.domElement),
-        // A corner control blocks labels, but does not need a full-width band reserved by the camera fit.
-        ...[...view.querySelectorAll<HTMLElement>(".model-size-toggle, .eng-panel-toggle")].map((button) =>
-          button.getBoundingClientRect(),
+        // A corner control or selected part card blocks labels, but does not need a full-width band reserved by the camera fit.
+        ...[...view.querySelectorAll<HTMLElement>(".model-size-toggle, .eng-panel-toggle, .eng-tip-selected")].map(
+          (element) => element.getBoundingClientRect(),
         ),
       ],
       viewport.width < 600 ? 6 : Infinity,
@@ -279,6 +279,8 @@ export function ComponentStage({
   children: ReactNode;
 }) {
   const model = useRef<THREE.Group>(null);
+  const pointerDown = useRef<{ x: number; y: number } | null>(null);
+  const inspection = usePartInspectionStore();
   const rendering = useSceneRendering();
   useEffect(() => clearHover, []);
   return (
@@ -288,7 +290,17 @@ export function ComponentStage({
         {...rendering}
         shadows={shadowExtent ? "percentage" : false}
         gl={{ antialias: true, alpha: true, logarithmicDepthBuffer: logarithmicDepth }}
-        onPointerMissed={clearHover}
+        onPointerDown={(e) => {
+          pointerDown.current = { x: e.clientX, y: e.clientY };
+        }}
+        onPointerMissed={(e) => {
+          const down = pointerDown.current;
+          pointerDown.current = null;
+          clearHover();
+          if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 4) {
+            inspection.getState().select(null);
+          }
+        }}
       >
         <ambientLight intensity={ambient} />
         <directionalLight

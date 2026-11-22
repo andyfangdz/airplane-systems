@@ -20,6 +20,11 @@ export interface HoverInfo {
   x: number;
   y: number;
 }
+export interface SelectedPartInfo {
+  name: string;
+  note: string;
+  color: string;
+}
 export interface CamRequest {
   preset?: CameraPreset;
   p: Vec3;
@@ -68,9 +73,49 @@ interface ViewStore extends View {
   setTheme: (t: Theme, save?: boolean) => void;
 }
 
-export const useAircraftHover = create<{ hover: HoverInfo | null; setHover: (hover: HoverInfo | null) => void }>(
-  (set) => ({ hover: null, setHover: (hover) => set({ hover }) }),
-);
+export const useAircraftHover = create<{
+  hover: HoverInfo | null;
+  selected: SelectedPartInfo | null;
+  setHover: (hover: HoverInfo | null) => void;
+  setSelected: (selected: SelectedPartInfo | null) => void;
+}>((set) => ({
+  hover: null,
+  selected: null,
+  setHover: (hover) => set({ hover }),
+  setSelected: (selected) => set({ selected }),
+}));
+
+/** Position a selected-part card in the top-left of its 3D stage, dropping below any top-edge controls it would hit. */
+export function placePinnedCard(card: HTMLElement, stage: HTMLElement, blockers: readonly HTMLElement[]) {
+  const stageRect = stage.getBoundingClientRect();
+  const left = 12;
+  let top = 12;
+  if (!stageRect.width || !stageRect.height) {
+    card.style.left = `${left}px`;
+    card.style.top = `${top}px`;
+    card.style.maxHeight = "";
+    return;
+  }
+  const cardRight = stageRect.left + left + card.offsetWidth;
+  const cardBottom = stageRect.top + top + card.offsetHeight;
+  for (const blocker of blockers) {
+    const r = blocker.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    if (
+      r.left < cardRight + 8 &&
+      r.right > stageRect.left + left - 8 &&
+      r.top < cardBottom + 8 &&
+      r.bottom > stageRect.top + top - 8
+    ) {
+      top = Math.max(top, Math.round(r.bottom - stageRect.top + 8));
+    }
+  }
+  const maxTop = Math.max(8, Math.floor(stageRect.height - Math.min(card.offsetHeight, 72) - 8));
+  const finalTop = Math.min(top, maxTop);
+  card.style.left = `${left}px`;
+  card.style.top = `${finalTop}px`;
+  card.style.maxHeight = `${Math.max(72, Math.floor(stageRect.height - finalTop - 12))}px`;
+}
 
 /** The stacked phone layout (app/globals.css uses the same breakpoint): short full-width 3D view, page scrolls. */
 export const NARROW_PX = 639;

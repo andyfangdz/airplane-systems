@@ -10,11 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import type { Catalogue } from "@/lib/catalogue";
-import type { SysId } from "@/lib/systems";
+import { sysColor, type SysId } from "@/lib/systems";
 import { create } from "zustand";
 import { selectSys } from "@/lib/fleet";
 import { focusPart } from "@/lib/registry";
 import { setPanelCollapsed } from "@/lib/panels";
+import { useAircraftHover, useView } from "@/lib/view";
 
 /**
  * The scenario the page last loaded, shown pressed on its button until the user changes something in the panel (a
@@ -329,6 +330,8 @@ export const BtnRow = ({ children }: { children: ReactNode }) => <div className=
 export function PartsList({ cat, sys }: { cat: Catalogue; sys: SysId }) {
   const visible = useSyncExternalStore(cat.subscribeVisibility, cat.visibleSnapshot, cat.visibleSnapshot);
   const parts = cat.pinned(sys, visible);
+  const selectedName = useAircraftHover((x) => x.selected?.name ?? null);
+  const theme = useView((x) => x.theme);
   const [open, setOpen] = useState(false);
   const id = useId();
   if (parts.length === 0) return null;
@@ -345,14 +348,30 @@ export function PartsList({ cat, sys }: { cat: Catalogue; sys: SysId }) {
         {open ? `Hide the ${count}` : `Show the ${count}`}
       </button>
       <ul id={id} className="parts" data-folded={open ? undefined : ""}>
-        {parts.map((p) => (
-          <li key={p.id}>
-            <button type="button" onClick={() => focusPart(p.name!)}>
-              <b>{p.name}</b>
-              <span>{p.note}</span>
-            </button>
-          </li>
-        ))}
+        {parts.map((p) => {
+          const isSelected = selectedName === p.name;
+          return (
+            <li key={p.id}>
+              <button
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => {
+                  if (isSelected) {
+                    useAircraftHover.setState({ hover: null, selected: null });
+                    if (useView.getState().focus === p.name) useView.setState({ focus: null });
+                    return;
+                  }
+                  const color = (!useView.getState().xray && p.solidColor) || p.color || sysColor(p.sys[0], theme);
+                  useAircraftHover.setState({ hover: null, selected: { name: p.name!, note: p.note ?? "", color } });
+                  focusPart(p.name!);
+                }}
+              >
+                <b>{p.name}</b>
+                <span>{p.note}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </>
   );

@@ -9,7 +9,7 @@ import { dimSolidMat, finishMat, ghostMat, mats, plateMat, seeMat, shellMat, ski
 import { geoCentreZ, SPOT_COLOR, spotsAt, spotsPart } from "@/lib/spot";
 import { palette, sysColor, type SysId } from "@/lib/systems";
 import { studyMaterial } from "@/lib/scene/study-materials";
-import { useNarrowLayout, useView } from "@/lib/view";
+import { useAircraftHover, useNarrowLayout, useView } from "@/lib/view";
 import { usePartAnimation } from "./PartAnimations";
 
 /** What the hover tooltip needs to know about a mesh. */
@@ -56,6 +56,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   const sys = useView((x) => x.sys);
   const xray = useView((x) => x.xray);
   const focus = useView((x) => x.focus);
+  const selected = useAircraftHover((x) => !!spec.name && x.selected?.name === spec.name);
   const labels = useView((x) => x.labels);
   const theme = useView((x) => x.theme);
   const cf = useView((x) => x.ctrlFocus);
@@ -69,7 +70,7 @@ export function Part({ spec, cat }: { spec: PartSpec; cat: Catalogue }) {
   // Flight-controls channel focus: parts outside the chosen channel fade out
   const chanDim = sys === "controls" && cf !== "all" && !spec.chan?.includes(cf);
   const act = spotted || (!spot && (all || spec.sys.includes(sys)) && !chanDim);
-  const focused = (!!focus && focus === spec.name) || spotted;
+  const focused = (!!focus && focus === spec.name) || selected || spotted;
   // fairings (wheel pants) ghost in X-ray like the skin, so what they cover stays visible
   const ghost = !!spec.fairing && xray && !focused && act;
   const solid = !xray && spec.solidMaterial ? spec.solidMaterial() : mats(color).on;

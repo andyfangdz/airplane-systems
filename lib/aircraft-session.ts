@@ -28,7 +28,7 @@ export function mountAircraftSession(def: AircraftDef): AircraftSession {
       def.walk?.close();
       clearSceneCamera(owner);
       clearSceneParts(owner);
-      useAircraftHover.getState().setHover(null);
+      useAircraftHover.setState({ hover: null, selected: null });
       useView.setState({ session: null, sceneReady: null, walking: false, spot: null, focus: null });
       mounted = null;
     },
