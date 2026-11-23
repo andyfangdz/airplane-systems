@@ -2,9 +2,10 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { loft, mergeGeos } from "@/lib/geometry";
 import { V } from "@/lib/math";
-import { FUSE } from "../geometry";
+import { CABIN_FLOOR_Y as floorY, FUSE } from "../geometry";
 
-export const floorY = -0.74;
+export { floorY };
+
 export const softBox = (x: number, y: number, z: number, r = 0.035) =>
   new RoundedBoxGeometry(x, y, z, 2, Math.min(r, Math.min(x, y, z) / 2));
 

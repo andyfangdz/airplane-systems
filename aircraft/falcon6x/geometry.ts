@@ -4,6 +4,7 @@ import { finSurface, fuselage, liftingSurface, lin } from "@/lib/geometry";
 // follow the Falcon 6X Facts & Figures (September 2023), three-view on p. 3.
 // Section shapes, glazing contours and hinge positions are visual approximations.
 export const GROUND_Y = -2.45;
+export const CABIN_FLOOR_Y = -0.74;
 // Nose and cabin stations sampled from the orthographic side and plan artwork on
 // p. 7 of the June 2026 Overview. The table records roof and keel separately so
 // the drooped radome, windshield rake and rising aft keel retain their outlines.

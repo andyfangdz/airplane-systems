@@ -3,7 +3,7 @@ import { sidePaintUV, paintAtlas } from "@/lib/livery";
 import { finishMat } from "@/lib/materials";
 import { loft, tubeGeo } from "@/lib/geometry";
 import type { Catalogue } from "@/lib/catalogue";
-import { FIN, FUSE, STAB, WING, wingtipStations, wingtipSection, finHeights } from "../geometry";
+import { CABIN_FLOOR_Y, FIN, FUSE, STAB, WING, wingtipStations, wingtipSection, finHeights } from "../geometry";
 import { hull, paintHull } from "../exterior-skin";
 import { useFlaperonStudy } from "../flaperons";
 import { FALCON_PEARL } from "../paint";
@@ -132,7 +132,7 @@ function finPaint() {
 
 // Rounded sections of the belly canoe, stabilizer pivot fairing and fin-tip cap.
 // Their ends run back into the surrounding skin as on the manufacturer's three-view.
-function bodyLoft(stations: number[][]) {
+function bodyLoft(stations: number[][], caps = true) {
   return loft(
     stations.map(([x, y, halfWidth, halfHeight]) =>
       Array.from({ length: 40 }, (_, i) => {
@@ -140,11 +140,12 @@ function bodyLoft(stations: number[][]) {
         return new THREE.Vector3(x, y + halfHeight * Math.sin(a), halfWidth * Math.cos(a));
       }),
     ),
+    { caps },
   );
 }
 
-// Remove the buried faces of surfaces which join the fuselage. Preserve a small
-// overlap at the joint and keep the upper faces beneath the interior floor.
+// The belly fairing is a skin behind the fuselage, open at its buried ends.
+// Retain a small overlap along their intersection.
 function outsideFuselage(geo: THREE.BufferGeometry) {
   const p = geo.getAttribute("position");
   const inside = Array.from({ length: p.count }, (_, i) =>
@@ -175,19 +176,22 @@ export function addAirframe(cat: Catalogue) {
     () =>
       sidePaintUV(
         outsideFuselage(
-          bodyLoft([
-            [5.45, -0.61, 0.53, 0.14],
-            [4.75, -0.72, 1.01, 0.27],
-            [3.75, -0.81, 1.28, 0.4],
-            [2.55, -0.86, 1.47, 0.48],
-            [1.4, -0.88, 1.62, 0.53],
-            [-0.8, -0.89, 1.71, 0.56],
-            [-2.45, -0.87, 1.68, 0.54],
-            [-3.65, -0.77, 1.57, 0.49],
-            [-4.7, -0.59, 1.37, 0.4],
-            [-5.65, -0.38, 1.08, 0.31],
-            [-6.62, -0.12, 0.5, 0.14],
-          ]),
+          bodyLoft(
+            [
+              [5.45, -0.61, 0.53, 0.14],
+              [4.75, -0.72, 1.01, 0.27],
+              [3.75, -0.81, 1.28, 0.4],
+              [2.55, -0.86, 1.47, 0.48],
+              [1.4, -0.88, 1.62, 0.53],
+              [-0.8, -0.89, 1.71, 0.56],
+              [-2.45, -0.87, 1.68, 0.54],
+              [-3.65, -0.77, 1.57, 0.49],
+              [-4.7, -0.59, 1.37, 0.4],
+              [-5.65, -0.38, 1.08, 0.31],
+              [-6.62, -0.12, 0.5, 0.14],
+            ],
+            false,
+          ),
         ),
         tailPaintBox,
       ),
@@ -249,8 +253,19 @@ export function addAirframe(cat: Catalogue) {
       "airframe.wing",
       side,
     );
+    // The buried airfoil fits beneath the cabin floor. Shape its upper stations
+    // before lofting so the root remains a closed solid with two genuine end caps.
+    const rootSections = () =>
+      [0.6, 0.9, 1, 1.08, 1.14, 1.2, 1.415].map((span) => {
+        const section = rib(span, 0, 1);
+        const limit = CABIN_FLOOR_Y - 0.025;
+        for (const p of section) {
+          if (p.y > limit && FUSE.inside(p, 0.045)) p.y = limit;
+        }
+        return section;
+      });
     cat.shell(
-      () => wingUV(outsideFuselage(loft([0.6, 0.9, 1, 1.08, 1.14, 1.2, 1.415].map((z) => rib(z, 0, 1))))),
+      () => wingUV(loft(rootSections())),
       "Wing root",
       "The wing joins the underside of the fuselage.",
       wingPaint,
