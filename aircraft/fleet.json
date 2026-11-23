@@ -6,6 +6,7 @@
     { "id": "c172s", "walk": true },
     { "id": "c182t", "walk": true },
     { "id": "da40", "walk": true },
-    { "id": "m20c", "walk": true }
+    { "id": "m20c", "walk": true },
+    { "id": "falcon6x", "walk": false }
   ]
 }

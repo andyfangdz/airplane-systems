@@ -9,4 +9,5 @@ export const FLEET_INDEX: { id: AircraftId; name: string; sub: string }[] = [
   { id: "c182t", name: "C182T Skylane", sub: "NAV III G1000 · KAP 140 · IO-540" },
   { id: "da40", name: "DA40 XLS", sub: "G1000 · GFC 700 · IO-360" },
   { id: "m20c", name: "M20C Ranger", sub: "1968 · Johnson bar · O-360-A1D" },
+  { id: "falcon6x", name: "Dassault Falcon 6X", sub: "EASy IV · Twin PW812D turbofans" },
 ];

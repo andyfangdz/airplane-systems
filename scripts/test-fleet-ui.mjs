@@ -1,6 +1,7 @@
 /** Airplane chooser regressions. Run after npm run build, or set UI_BASE_URL for an existing server. */
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
+import registry from "../aircraft/fleet.json" with { type: "json" };
 import { setTimeout as delay } from "node:timers/promises";
 import { join, resolve } from "node:path";
 import { test } from "@playwright/test";
@@ -83,7 +84,8 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
     await page.keyboard.press("Enter");
   }
   await dialog.waitFor();
-  assert.equal(await choices.count(), 6);
+  assert.equal(await choices.count(), registry.aircraft.length);
+  assert.equal(await choices.filter({ hasText: /Falcon 6X/ }).count(), 1);
   const engines = dialog.getByRole("group", { name: "Engines" }).getByRole("link");
   assert.deepEqual(await engines.evaluateAll((links) => links.map((a) => a.getAttribute("href"))), [
     "/engines/io390",
@@ -117,8 +119,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-pressed")), "true");
   const box = await dialog.boundingBox();
   assert.ok(box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= height);
-  // six airplanes, five engines, six components and a flight data replay: bounded by the compact picker height,
-  // scrolling as needed
+  // All models share the compact picker height, scrolling as needed.
   assert.ok(
     box.width <= 352 && box.height <= 700,
     "The entire fleet, the engines, the components and the replays fit in a compact dropdown",
@@ -145,7 +146,7 @@ test("fleet picker, keyboard, touch and camera preservation", async ({
   for (let i = 0; i < (await components.count()); i++) await page.keyboard.press("ArrowUp");
   assert.ok(await engines.last().evaluate((el) => el === document.activeElement), "The components follow the engines");
   for (let i = 0; i < (await engines.count()); i++) await page.keyboard.press("ArrowUp");
-  assert.ok(await choices.nth(5).evaluate((el) => el === document.activeElement));
+  assert.ok(await choices.last().evaluate((el) => el === document.activeElement));
   for (let i = 0; i < (await engines.count()) + (await components.count()) + (await replays.count()) + 1; i++)
     await page.keyboard.press("ArrowDown");
   assert.ok(await choices.nth(0).evaluate((el) => el === document.activeElement));

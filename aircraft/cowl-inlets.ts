@@ -14,6 +14,8 @@ const pair = (
 ): AuthoredCowlInlet[] =>
   [1, -1].map((s) => ({ id: s > 0 ? "right" : "left", y, z: s * z, width, height, exponent, minX }));
 export const COWL_INLETS: Record<AircraftId, AuthoredCowlInlet[]> = {
+  // The Falcon 6X has aft-mounted turbofans with nacelle inlets.
+  falcon6x: [],
   // The M20C nose is schematic; no calibrated inlet outlines are available yet.
   m20c: [],
   // The SR22T skin is not cut; its cowl inlets are modelled as their own parts in aircraft/sr22t.

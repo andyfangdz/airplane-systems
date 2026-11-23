@@ -22,6 +22,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { CAT as C172S } from "@/aircraft/c172s/parts";
 import { CAT as C182T } from "@/aircraft/c182t/parts";
 import { CAT as DA40 } from "@/aircraft/da40/parts";
+import { CAT as FALCON6X } from "@/aircraft/falcon6x/parts";
 import { CAT as M20C } from "@/aircraft/m20c/parts";
 import { CAT as SR20 } from "@/aircraft/sr20/parts";
 import { flowsFor } from "@/aircraft/sr22t/flows";
@@ -282,7 +283,7 @@ function compareSets(base: Record<string, Summary> | undefined, cur: Record<stri
   return out;
 }
 
-const fleet = { sr20: SR20, c172s: C172S, c182t: C182T, da40: DA40, m20c: M20C };
+const fleet = { sr20: SR20, c172s: C172S, c182t: C182T, da40: DA40, m20c: M20C, falcon6x: FALCON6X };
 const current: Record<string, Record<string, Summary>> = {};
 let baseline: Record<string, Record<string, Summary>> = {};
 const kindOf = (set: string) => (set.includes("flows") ? "flow" : "part");

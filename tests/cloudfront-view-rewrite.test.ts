@@ -20,8 +20,9 @@ const run = (uri: string, querystring: Query = {}) => {
 const paths = VIEW_PATHS.filter((path) => path !== "/");
 
 describe("CloudFront viewer-request view rule", () => {
-  it("covers all 103 aircraft/view paths, including SR20 doors, and keeps the copied airplane list current", () => {
-    expect(paths).toHaveLength(103);
+  it("covers all aircraft/view paths and keeps the copied airplane list current", () => {
+    expect(paths).toHaveLength(110);
+    expect(paths).toContain("/falcon6x/controls");
     expect(paths).toContain("/sr20/doors");
     expect(runInNewContext(source + "\nAIRCRAFT_IDS;")).toEqual(AIRCRAFT_IDS);
   });

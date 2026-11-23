@@ -67,6 +67,7 @@ async function fixture() {
     }),
   );
   await put(root, "public/icons/icon-192.png", "icon");
+  await put(root, "public/aircraft/plane/reference.png", "aircraft photograph");
   await put(root, "public/login.html", "protected document");
   return root;
 }
@@ -142,7 +143,7 @@ afterEach(async () => {
 });
 
 describe("production offline pack", () => {
-  it("contains every study route, full/segment RSC, lazy chunk, font, icon and geometry with exact digests", async () => {
+  it("contains every study route, full/segment RSC and public study asset with exact digests", async () => {
     const root = await fixture();
     const manifest = await buildOffline(root);
     expect(Object.keys(manifest.routes).sort()).toEqual([
@@ -163,6 +164,7 @@ describe("production offline pack", () => {
         "/icons/icon-192.png",
       ]),
     );
+    expect(manifest.files.find((file) => file.url === "/aircraft/plane/reference.png")?.contentType).toBe("image/png");
     expect(manifest.aliases["/plane/fuel.txt"]).toBe(manifest.routes["/plane/fuel"].rsc);
     expect(manifest.routes["/plane/fuel"].html).toMatch(/\.html\.bin$/);
     expect(manifest.routes["/plane/fuel"].rsc).toMatch(/\.rsc\.bin$/);
