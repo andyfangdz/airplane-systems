@@ -8,6 +8,15 @@ import { C172S_META } from "./c172s/meta";
 import { C182T_META } from "./c182t/meta";
 import { DA40_META } from "./da40/meta";
 import { M20C_META } from "./m20c/meta";
-export const FLEET_META: AircraftMeta[] = [SR20_META, SR22T_META, C172S_META, C182T_META, DA40_META, M20C_META];
+import { FALCON6X_META } from "./falcon6x/meta";
+export const FLEET_META: AircraftMeta[] = [
+  SR20_META,
+  SR22T_META,
+  C172S_META,
+  C182T_META,
+  DA40_META,
+  M20C_META,
+  FALCON6X_META,
+];
 export const viewPathsOf = (meta: AircraftMeta) => [`/${meta.id}`, ...meta.systems.map((s) => `/${meta.id}/${s.id}`)];
 export const VIEW_PATHS = ["/", ...FLEET_META.flatMap(viewPathsOf)];

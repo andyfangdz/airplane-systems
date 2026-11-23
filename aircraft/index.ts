@@ -8,6 +8,7 @@ import { C172S } from "./c172s";
 import { C182T } from "./c182t";
 import { DA40 } from "./da40";
 import { M20C } from "./m20c";
-export const FLEET = [SR20, SR22T, C172S, C182T, DA40, M20C];
+import { FALCON6X } from "./falcon6x";
+export const FLEET = [SR20, SR22T, C172S, C182T, DA40, M20C, FALCON6X];
 registerAircraft(...FLEET);
 export * from "@/lib/fleet";

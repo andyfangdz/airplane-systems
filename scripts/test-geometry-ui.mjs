@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { test, errors as playwrightErrors } from "@playwright/test";
+import registry from "../aircraft/fleet.json" with { type: "json" };
 function observeGeometry() {
   localStorage.setItem("tourDone", "1");
   window.__geometry = { scene: null, frames: 0, workers: [] };
@@ -37,9 +38,11 @@ function observeGeometry() {
   };
 }
 
-const ids = ["sr20", "sr22t", "c172s", "c182t", "da40", "m20c"];
-for (const id of ids) {
-  test(`${id} prebuilt geometry and fallback`, async ({ browser, baseURL: base }) => {
+for (const { id } of registry.aircraft) {
+  test(`${id} prebuilt geometry and fallback`, async ({ browser, request, baseURL: base }) => {
+    const runtime = await (await request.get(`${base}/geometry/runtime.json`)).json();
+    const manifest = await (await request.get(base + runtime.aircraft[id].scene)).json();
+    const compiled = manifest.entries.filter((entry) => entry.geometry === "compiled").length;
     let downloadedNames, downloadedBaked;
     for (const mode of id === "sr22t" ? ["prebuilt", "delayed", "fallback"] : ["prebuilt", "fallback"]) {
       const fallback = mode === "fallback";
@@ -101,7 +104,16 @@ for (const id of ids) {
         return { names: names.sort(), baked, workers: state.workers };
       });
       assert.deepEqual(errors, [], `${id}: runtime errors`);
-      assert.ok(result.names.length > 200, `${id}: complete model`);
+      if (id === "falcon6x") {
+        // Every item in the illustrated installation is fitted and mounted.
+        const named = manifest.entries
+          .map((entry) => entry.metadata.name)
+          .filter(Boolean)
+          .sort();
+        assert.deepEqual(result.names, named, "Falcon shells, surfaces and installed equipment");
+        for (const name of ["Left PW812D", "Right PW812D", "Passenger seating", "EASy IV instrument panel", "Flaperon"])
+          assert.ok(named.includes(name), name);
+      } else assert.ok(result.names.length > 200, `${id}: complete model`);
       assert.ok(
         result.workers.every((w) => w.terminated),
         `${id}: workers released`,
@@ -116,9 +128,10 @@ for (const id of ids) {
         assert.deepEqual(result.names, downloadedNames, `${id}: fallback keeps the same equipment`);
       } else {
         assert.deepEqual(recoveryRequests, [], `${id}: normal load does not request authoring code`);
-        assert.ok(result.baked > 200, `${id}: production asset must actually be used`);
+        if (id === "falcon6x") assert.equal(result.baked, compiled, "Falcon renders each compiled mesh");
+        else assert.ok(result.baked > 200, `${id}: production asset must actually be used`);
         assert.ok(
-          result.workers.some((w) => w.meshes > 200),
+          result.workers.some((w) => w.meshes === compiled),
           `${id}: decoded in worker`,
         );
         assert.ok(!warnings.some((m) => /Prebuilt geometry|Geometry worker/.test(m)), `${id}: unexpected fallback`);

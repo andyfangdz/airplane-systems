@@ -125,5 +125,6 @@
       "environment",
       "cabin"
     ]
-  }
+  },
+  { "id": "falcon6x", "systems": ["overview", "airframe", "engine", "controls", "cabin", "avionics"] }
 ]

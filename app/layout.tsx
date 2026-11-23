@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   icons: { apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }] },
   description:
-    "Interactive 3D walkthroughs of airplane systems from POH/AFM Section 7: Cirrus SR20 G6 and SR22T G6, Cessna 172S and 182T NAV III, Diamond DA40 XLS, Mooney M20C Ranger.",
+    "Explore airplane systems in 3D, from the Cirrus, Cessna, Diamond and Mooney piston fleet to the Dassault Falcon 6X business jet.",
 };
 
 export const viewport: Viewport = {

@@ -944,6 +944,9 @@ dl.facts dd {
   gap: 6px;
   font-size: 14px;
 }
+.notes a {
+  color: var(--accent);
+}
 .notes li::marker {
   color: var(--c);
 }

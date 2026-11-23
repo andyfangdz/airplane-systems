@@ -81,8 +81,7 @@ describe.each(FLEET)("$id exterior geometry", (def) => {
   it("keeps the aircraft's paint on its fin and hinged rudder", () => {
     const fin = shells.find((s) => s.name === "Vertical stabilizer" || s.name === "Vertical fin")!;
     const rudder = def.labels!.cat.surfaces.find((s) => s.key === "rudder")!;
-    // The SR22T has no photo-traced livery (no LIVERY_REGISTRATION entry): neither surface is painted.
-    if (def.id === "sr22t") {
+    if (!(def.id in LIVERY_REGISTRATION)) {
       expect(fin.skin).toBeUndefined();
       expect(rudder.skin).toBeUndefined();
       return;
@@ -102,6 +101,7 @@ it("uses the requested registrations and the photographed N8050J wheel configura
     c182t: "N8050J",
     da40: "N949KC",
     m20c: "N6947N",
+    falcon6x: "F-WSIX",
   });
   expect(skylane.gear.fairings).toBe(false);
 });
