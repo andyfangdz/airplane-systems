@@ -14,5 +14,11 @@ const angles = {
 };
 
 export function surfaceAngle(key: string) {
-  return key === "ailL" || key === "ailR" ? angles[useFlaperonStudy.getState().pose][key] : 0;
+  const { pose } = useFlaperonStudy.getState();
+  if (key === "ailL" || key === "ailR") return angles[pose][key];
+  if (key === "flapL" || key === "flapR") return pose === "lift" ? angles.lift[key === "flapL" ? "ailL" : "ailR"] : 0;
+  if (key === "outboardAilL" || key === "outboardAilR") {
+    return pose === "left" || pose === "right" ? angles[pose][key === "outboardAilL" ? "ailL" : "ailR"] : 0;
+  }
+  return 0;
 }

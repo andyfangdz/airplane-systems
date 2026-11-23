@@ -3,8 +3,9 @@ import { sidePaintUV, paintAtlas } from "@/lib/livery";
 import { finishMat } from "@/lib/materials";
 import { loft, tubeGeo } from "@/lib/geometry";
 import type { Catalogue } from "@/lib/catalogue";
-import { FIN, STAB, WING, wingtipStations, wingtipSection, finHeights } from "../geometry";
+import { FIN, FUSE, STAB, WING, wingtipStations, wingtipSection, finHeights } from "../geometry";
 import { hull, paintHull } from "../exterior-skin";
+import { useFlaperonStudy } from "../flaperons";
 import { FALCON_PEARL } from "../paint";
 
 // Project the published wing panel layout in chord/span coordinates. Separate atlas halves
@@ -142,6 +143,25 @@ function bodyLoft(stations: number[][]) {
   );
 }
 
+// Remove the buried faces of surfaces which join the fuselage. Preserve a small
+// overlap at the joint and keep the upper faces beneath the interior floor.
+function outsideFuselage(geo: THREE.BufferGeometry) {
+  const p = geo.getAttribute("position");
+  const inside = Array.from({ length: p.count }, (_, i) =>
+    FUSE.inside(new THREE.Vector3().fromBufferAttribute(p, i), 0.045),
+  );
+  const index = geo.getIndex()!;
+  const skin: number[] = [];
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i),
+      b = index.getX(i + 1),
+      c = index.getX(i + 2);
+    if (!(inside[a] && inside[b] && inside[c])) skin.push(a, b, c);
+  }
+  geo.setIndex(skin);
+  return geo;
+}
+
 export function addAirframe(cat: Catalogue) {
   cat.shell(
     hull,
@@ -154,19 +174,21 @@ export function addAirframe(cat: Catalogue) {
   cat.shell(
     () =>
       sidePaintUV(
-        bodyLoft([
-          [5.45, -0.61, 0.53, 0.14],
-          [4.75, -0.72, 1.01, 0.27],
-          [3.75, -0.81, 1.28, 0.4],
-          [2.55, -0.86, 1.47, 0.48],
-          [1.4, -0.88, 1.62, 0.53],
-          [-0.8, -0.89, 1.71, 0.56],
-          [-2.45, -0.87, 1.68, 0.54],
-          [-3.65, -0.77, 1.57, 0.49],
-          [-4.7, -0.59, 1.37, 0.4],
-          [-5.65, -0.38, 1.08, 0.31],
-          [-6.62, -0.12, 0.5, 0.14],
-        ]),
+        outsideFuselage(
+          bodyLoft([
+            [5.45, -0.61, 0.53, 0.14],
+            [4.75, -0.72, 1.01, 0.27],
+            [3.75, -0.81, 1.28, 0.4],
+            [2.55, -0.86, 1.47, 0.48],
+            [1.4, -0.88, 1.62, 0.53],
+            [-0.8, -0.89, 1.71, 0.56],
+            [-2.45, -0.87, 1.68, 0.54],
+            [-3.65, -0.77, 1.57, 0.49],
+            [-4.7, -0.59, 1.37, 0.4],
+            [-5.65, -0.38, 1.08, 0.31],
+            [-6.62, -0.12, 0.5, 0.14],
+          ]),
+        ),
         tailPaintBox,
       ),
     "Wing-body fairing",
@@ -228,7 +250,7 @@ export function addAirframe(cat: Catalogue) {
       side,
     );
     cat.shell(
-      () => wingUV(loft([0.6, 1.415].map((z) => rib(z, 0, 1)))),
+      () => wingUV(outsideFuselage(loft([0.6, 0.9, 1, 1.08, 1.14, 1.2, 1.415].map((z) => rib(z, 0, 1))))),
       "Wing root",
       "The wing joins the underside of the fuselage.",
       wingPaint,
@@ -256,7 +278,11 @@ export function addAirframe(cat: Catalogue) {
           id: "controls.leading-edge-slat",
           instance: [side, section],
           name: "Leading-edge slat",
-          note: "Each wing carries three leading-edge slats, shown here in their retracted position.",
+          note: "Three slat panels extend forward of each wing in the high-lift study pose. The slot opens between the slats and the fixed leading edge.",
+          anim: (mesh) => {
+            const extended = useFlaperonStudy.getState().pose === "lift";
+            mesh.position.set(extended ? 0.175 : 0, extended ? -0.075 : 0, 0);
+          },
           pin: true,
           ext: true,
           solidMaterial: () => finishMat.polished,

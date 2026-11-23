@@ -1,7 +1,7 @@
 /** Production mesh download/decode and lazy authoring recovery, including animation-owned geometry. */
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
-import { test, errors as playwrightErrors } from "@playwright/test";
+import { expect, test, errors as playwrightErrors } from "@playwright/test";
 import registry from "../aircraft/fleet.json" with { type: "json" };
 function observeGeometry() {
   localStorage.setItem("tourDone", "1");
@@ -12,6 +12,7 @@ function observeGeometry() {
       const render = o.render.bind(o);
       o.render = (...args) => {
         window.__geometry.scene = args[0];
+        window.__geometry.camera = args[1];
         window.__geometry.frames++;
         return render(...args);
       };
@@ -93,15 +94,23 @@ for (const { id } of registry.aircraft) {
       const frame = await page.evaluate(() => window.__geometry.frames);
       await page.waitForFunction((f) => window.__geometry.frames >= f + 3, frame, { timeout: 120_000 });
       const result = await page.evaluate(() => {
-        const state = window.__geometry,
-          names = [];
+        const state = window.__geometry;
+        const catalogueNames = [],
+          overlays = [];
         let baked = 0;
         state.scene.traverse((o) => {
           if (!o.isMesh) return;
           if ("unindexedSource" in o.geometry.userData) baked++;
-          if (o.userData.pick?.name) names.push(o.userData.pick.name);
+          const name = o.userData.pick?.name;
+          if (name) (o.userData.cameraBounds ? catalogueNames : overlays).push(name);
         });
-        return { names: names.sort(), baked, workers: state.workers };
+        return {
+          names: [...catalogueNames, ...overlays].sort(),
+          catalogueNames: catalogueNames.sort(),
+          overlays: overlays.sort(),
+          baked,
+          workers: state.workers,
+        };
       });
       assert.deepEqual(errors, [], `${id}: runtime errors`);
       if (id === "falcon6x") {
@@ -110,8 +119,33 @@ for (const { id } of registry.aircraft) {
           .map((entry) => entry.metadata.name)
           .filter(Boolean)
           .sort();
-        assert.deepEqual(result.names, named, "Falcon shells, surfaces and installed equipment");
-        for (const name of ["Left PW812D", "Right PW812D", "Passenger seating", "EASy IV instrument panel", "Flaperon"])
+        assert.deepEqual(result.catalogueNames, named, "Falcon shells, surfaces and installed equipment");
+        assert.deepEqual(
+          result.overlays,
+          [
+            "Captain primary display",
+            "First officer primary display",
+            "Upper multifunction display",
+            "Lower multifunction display",
+            "Left electronic flight bag",
+            "Right electronic flight bag",
+            "Standby flight display",
+          ].sort(),
+          "Falcon live display planes",
+        );
+        for (const name of [
+          "Entry door",
+          "Left PW812D",
+          "Right PW812D",
+          "High-pressure compressor",
+          "Annular combustor",
+          "Low-pressure turbine",
+          "Passenger seating",
+          "Aft divans",
+          "EASy IV instrument panel",
+          "FalconEye nose camera",
+          "Flaperon",
+        ])
           assert.ok(named.includes(name), name);
       } else assert.ok(result.names.length > 200, `${id}: complete model`);
       assert.ok(
@@ -150,6 +184,68 @@ for (const { id } of registry.aircraft) {
     }
   });
 }
+
+test("Falcon 6X study controls open the entry and frame the engine, cabin and nose camera", async ({
+  context,
+  page,
+  baseURL,
+}) => {
+  await context.addInitScript(observeGeometry);
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(baseURL + "/falcon6x/airframe");
+  const xray = page.getByRole("button", { name: "X-ray", exact: true });
+  const details = page.getByRole("complementary", { name: "System details" });
+  const systems = page.getByRole("navigation", { name: "Systems" });
+
+  async function inspect(control, view, target, maxDistance) {
+    await details.getByRole("button", { name: control, exact: true }).click();
+    await expect(xray).toHaveAttribute("aria-pressed", view === "xray" ? "true" : "false");
+    // Test the framing in model coordinates so minor camera and viewport refinements are allowed.
+    await page.waitForFunction(
+      ({ target, maxDistance }) => {
+        const { camera } = window.__geometry;
+        if (!camera) return false;
+        const offset = camera.position.clone().fromArray(target).sub(camera.position);
+        const forward = camera.getWorldDirection(camera.position.clone());
+        return offset.length() < maxDistance && offset.normalize().dot(forward) > 0.97;
+      },
+      { target, maxDistance },
+      { timeout: 30_000 },
+    );
+  }
+  const waitForAirstair = (open) =>
+    page.waitForFunction(
+      (open) => {
+        if (document.querySelector("[data-building]")) return false;
+        const atPose = new Set();
+        window.__geometry.scene?.traverse((mesh) => {
+          const name = mesh.userData.pick?.name;
+          if (name !== "Entry door" && name !== "Integral airstair") return;
+          // Track local up in world coordinates. Both parts tip past horizontal and return upright.
+          const up = mesh.position.clone().set(0, 1, 0).transformDirection(mesh.matrixWorld);
+          if (open ? up.y < -0.25 : up.y > 0.999) atPose.add(name);
+        });
+        return atPose.size === 2;
+      },
+      open,
+      { timeout: 120_000 },
+    );
+
+  await waitForAirstair(false);
+  await inspect("Open airstair", "solid", [8.25, -0.55, -1.15], 7);
+  await waitForAirstair(true);
+  await details.getByRole("button", { name: "Close airstair", exact: true }).click();
+  await waitForAirstair(false);
+  await systems.getByRole("button", { name: /^Engines/ }).click();
+  await inspect("Inspect engine core", "xray", [-6.62, 0.56, 2.17], 8);
+  await systems.getByRole("button", { name: /^Cabin/ }).click();
+  await inspect("Look down the aisle", "solid", [-2.55, 0.1, 0], 11);
+  await systems.getByRole("button", { name: /^Flight deck/ }).click();
+  await inspect("Look at the nose camera", "solid", [11.46, 0.16, 0], 3.5);
+  await inspect("Return to flight deck", "solid", [9.47, 0.075, 0], 5);
+  expect(errors).toEqual([]);
+});
 
 test("stalled scene manifest reaches authoring recovery", async ({ browser, baseURL: base }) => {
   const context = await browser.newContext({ viewport: { width: 640, height: 480 }, reducedMotion: "reduce" });

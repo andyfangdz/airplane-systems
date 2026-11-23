@@ -9,21 +9,25 @@ import {
   glassPane,
   windowFrame,
 } from "../exterior-skin";
+import { addEntry } from "./entry";
 import { finishMat } from "@/lib/materials";
 import { FUSE, GROUND_Y, WING } from "../geometry";
 import type { Catalogue } from "@/lib/catalogue";
 
-const glass = new THREE.MeshPhysicalMaterial({
+const cabinPaneMaterial = new THREE.MeshPhysicalMaterial({
   color: "#263f4c",
   roughness: 0.16,
   metalness: 0.17,
   clearcoat: 1,
   transparent: true,
-  opacity: 0.87,
+  opacity: 0.58,
   depthWrite: false,
   side: THREE.DoubleSide,
 });
-const smokedGlass = () => glass;
+const cockpitPaneMaterial = cabinPaneMaterial.clone();
+cockpitPaneMaterial.opacity = 0.48;
+const cabinGlass = () => cabinPaneMaterial;
+const cockpitGlass = () => cockpitPaneMaterial;
 const sidewall = new THREE.MeshStandardMaterial({ color: "#48545a", roughness: 0.83, side: THREE.DoubleSide });
 const linerMat = () => sidewall;
 
@@ -69,7 +73,7 @@ export function addExterior(cat: Catalogue) {
         note: "Thirty windows run along the two sides of the cabin.",
         pin: window === 7,
         color: "#405361",
-        solidMaterial: smokedGlass,
+        solidMaterial: cabinGlass,
         ext: true,
       });
     }
@@ -79,7 +83,7 @@ export function addExterior(cat: Catalogue) {
         instance: [side, pane],
         name: "Flight deck windshield",
         color: "#3F586D",
-        solidMaterial: smokedGlass,
+        solidMaterial: cockpitGlass,
         ext: true,
       });
     }
@@ -140,7 +144,7 @@ export function addExterior(cat: Catalogue) {
     name: "Entryway skylight",
     note: "A skylight admits daylight above the entrance.",
     color: "#405361",
-    solidMaterial: smokedGlass,
+    solidMaterial: cabinGlass,
     ext: true,
     pin: true,
   });
@@ -151,47 +155,7 @@ export function addExterior(cat: Catalogue) {
     ext: true,
   });
 
-  cat.part(
-    () => {
-      const shape = new THREE.Shape();
-      shape.moveTo(7.95, 0.92);
-      shape.bezierCurveTo(8.11, 1.01, 8.51, 1.0, 8.65, 0.91);
-      shape.quadraticCurveTo(8.72, 0.85, 8.71, 0.73);
-      shape.lineTo(8.66, -0.69);
-      shape.quadraticCurveTo(8.64, -0.86, 8.48, -0.87);
-      shape.lineTo(7.96, -0.87);
-      shape.quadraticCurveTo(7.82, -0.86, 7.82, -0.71);
-      shape.lineTo(7.84, 0.74);
-      shape.quadraticCurveTo(7.84, 0.85, 7.95, 0.92);
-      return tubeGeo(
-        shape.getSpacedPoints(80).map((p) => FUSE.onSkin(p.x, p.y, -1, 1.004)),
-        0.011,
-      );
-    },
-    ["airframe", "cabin"],
-    {
-      id: "exterior.entry-door",
-      name: "Entry door",
-      note: "The main cabin entrance is on the left, behind the cockpit.",
-      color: "#475560",
-      ext: true,
-      pin: true,
-    },
-  );
-  cat.part(
-    () =>
-      tubeGeo(
-        [FUSE.onSkin(8.45, -0.24, -1, 1.005), FUSE.onSkin(8.4, -0.25, -1, 1.013), FUSE.onSkin(8.31, -0.25, -1, 1.013)],
-        0.012,
-      ),
-    ["airframe", "cabin"],
-    {
-      id: "exterior.door-latch",
-      color: "#7e8687",
-      solidMaterial: () => finishMat.polished,
-      ext: true,
-    },
-  );
+  addEntry(cat);
 
   // The rear-quarter photograph on p. 40 of the Overview shows the oval
   // metal exhaust lip just below the rudder. Its bore is recessed into the body.
@@ -248,9 +212,10 @@ export function addExterior(cat: Catalogue) {
       .translate(mid.x, mid.y, mid.z);
   }
   for (const [leg, x, z, r, w, spread] of [
-    ["nose", 9.55, 0, 0.25, 0.15, 0.096],
-    ["right-main", -1.96, 2.29, 0.43, 0.3, 0.215],
-    ["left-main", -1.96, -2.29, 0.43, 0.3, 0.215],
+    // Nominal tire diameter and section width from EASA.A.580, issue 04, p. 12.
+    ["nose", 9.55, 0, 0.2032, 0.1524, 0.096],
+    ["right-main", -1.96, 2.29, 0.4191, 0.2667, 0.215],
+    ["left-main", -1.96, -2.29, 0.4191, 0.2667, 0.215],
   ] as const) {
     const nose = leg === "nose";
     const side = Math.sign(z);
@@ -371,6 +336,7 @@ export function addExterior(cat: Catalogue) {
         solidColor: "#23282C",
         ext: true,
         name: nose ? "Nose wheel" : "Main wheel",
+        note: nose ? "EASA lists a 16 × 6.0 R6 nose tire." : "EASA lists an H33 × 10.5 R17 main tire.",
       });
       cat.part(
         () => {

@@ -123,6 +123,48 @@ export const windowFrame = (loop: Aperture) =>
     [1.012, 0.0008],
   ]);
 
+// The left entrance uses the same developed skin and paint projection as the
+// fuselage. The outer edge stays with the frame when the painted leaf swings away.
+function entryOpening() {
+  const shape = new THREE.Shape();
+  shape.moveTo(7.95, 0.92);
+  shape.bezierCurveTo(8.11, 1.01, 8.51, 1.0, 8.65, 0.91);
+  shape.quadraticCurveTo(8.72, 0.85, 8.71, 0.73);
+  shape.lineTo(8.66, -0.69);
+  shape.quadraticCurveTo(8.64, -0.86, 8.48, -0.87);
+  shape.lineTo(7.96, -0.87);
+  shape.quadraticCurveTo(7.82, -0.86, 7.82, -0.71);
+  shape.lineTo(7.84, 0.74);
+  shape.quadraticCurveTo(7.84, 0.85, 7.95, 0.92);
+  return shape
+    .getSpacedPoints(88)
+    .slice(0, -1)
+    .map((p) => surfaceUV(FUSE.onSkin(p.x, p.y, -1, 1)));
+}
+
+export function doorSkin() {
+  const loop = entryOpening();
+  const center = centerOf(loop);
+  return paintProjection(curvedPanel(loop.map((p) => center.clone().lerp(p, 0.987))));
+}
+
+export function doorFrame() {
+  return glazedRings(entryOpening(), [
+    [0.9, -0.14],
+    [0.939, -0.075],
+    [0.964, -0.018],
+    [1.004, -0.002],
+  ]);
+}
+
+export function doorSeal() {
+  return glazedRings(entryOpening(), [
+    [0.961, -0.019],
+    [0.987, -0.003],
+    [1.005, -0.001],
+  ]);
+}
+
 export function allOpenings() {
   return [
     ...[-1, 1].flatMap((side) => [
@@ -136,7 +178,7 @@ export function allOpenings() {
 
 const paintBox = { x0: -11.22, x1: 12.84, y0: -halfTurn, y1: halfTurn };
 export function hull() {
-  const holes = allOpenings();
+  const holes = [...allOpenings(), entryOpening()];
   const ends = [FUSE.xTail, FUSE.xNose];
   const outline = [
     skinUV(ends[0], -halfTurn),
@@ -144,7 +186,20 @@ export function hull() {
     skinUV(ends[1], 3 * halfTurn),
     skinUV(ends[0], 3 * halfTurn),
   ];
-  const skin = curvedSkinPatch({
+  const skin = curvedPanel(outline, holes);
+  // Leave the aft end open for the recessed tailcone nozzle. The painted skin
+  // wraps continuously over the crown, using angle instead of projected height.
+  const nosePlate = FUSE.plate(FUSE.xNose);
+  const cap = nosePlate.toNonIndexed();
+  nosePlate.dispose();
+  const g = mergeGeometries([skin, cap])!;
+  skin.dispose();
+  cap.dispose();
+  return paintProjection(g);
+}
+
+function curvedPanel(outline: Aperture, holes: Aperture[] = []) {
+  return curvedSkinPatch({
     outline,
     holes,
     side: 1,
@@ -155,14 +210,9 @@ export function hull() {
     parameterStep: (a, b) => a.distanceToSquared(b) / 0.085 ** 2,
     tolerance: 0.004,
   });
-  // Leave the aft end open for the recessed tailcone nozzle. The painted skin
-  // wraps continuously over the crown, using angle instead of projected height.
-  const nosePlate = FUSE.plate(FUSE.xNose);
-  const cap = nosePlate.toNonIndexed();
-  nosePlate.dispose();
-  const g = mergeGeometries([skin, cap])!;
-  skin.dispose();
-  cap.dispose();
+}
+
+function paintProjection(g: THREE.BufferGeometry) {
   const painted = sidePaintUV(g, paintBox);
   const positions = painted.getAttribute("position"),
     uv = painted.getAttribute("uv");
@@ -182,9 +232,10 @@ export function hull() {
 export function cockpitLiner(side: number) {
   const points: number[] = [],
     indices: number[] = [];
+  const startX = side < 0 ? 8.77 : 8.32;
   for (let i = 0; i <= 16; i++)
     for (let j = 0; j <= 5; j++) {
-      const u = skinUV(8.32 + (2.77 * i) / 16, mirror(-0.62 + (0.9 * j) / 5, side));
+      const u = skinUV(startX + ((11.09 - startX) * i) / 16, mirror(-0.62 + (0.9 * j) / 5, side));
       points.push(...pointAtDepth(u, -0.025).toArray());
       if (i && j) {
         const d = i * 6 + j;

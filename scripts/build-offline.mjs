@@ -50,7 +50,7 @@ const safePath = (path) =>
 
 const publicAsset = (path) =>
   !path.endsWith(".map") &&
-  (/^(?:geometry|icons|fonts)\//.test(path) ||
+  (/^(?:geometry|icons|fonts|aircraft)\//.test(path) ||
     /^(?:icon[^/]*|apple[^/]*|favicon\.ico|manifest\.webmanifest)$/.test(path));
 const generatedOutput = (pathname) =>
   pathname === "/sw.js" || pathname === "/offline-manifest.json" || pathname.startsWith("/_next/static/offline/");

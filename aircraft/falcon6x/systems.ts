@@ -27,7 +27,7 @@ export const SYS: SysDef[] = [
     id: "engine",
     name: "Engines",
     pg: "7",
-    ref: "Facts & Figures · p. 7 · Overview · p. 65",
+    ref: "EASA IM.E.096 · pp. 7–8 · Overview · p. 65",
     cam: [
       [3, 3.3, 9.4],
       [-6.7, 0.8, 0],
@@ -49,7 +49,7 @@ export const SYS: SysDef[] = [
     id: "cabin",
     name: "Cabin",
     pg: "4–5",
-    ref: "Facts & Figures · pp. 4–5 · Dassault cabin specifications",
+    ref: "Overview · p. 12 · Global Jet LX-TIN · pp. 1–2",
     cam: [
       [5.1, 8.8, -19.4],
       [1.05, 0.15, 0],
@@ -62,8 +62,8 @@ export const SYS: SysDef[] = [
     pg: "7",
     ref: "Facts & Figures · p. 7 · Overview · pp. 57–59",
     cam: [
-      [6.55, 0.95, 0.12],
-      [8.9, 0.03, 0],
+      [6.05, 1.08, 0],
+      [9.47, 0.075, 0],
     ],
     blurb: "EASy IV avionics and FalconEye",
   },

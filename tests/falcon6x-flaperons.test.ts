@@ -16,10 +16,16 @@ it("lowers both trailing edges for lift and raises the inside edge for roll", ()
   useFlaperonStudy.setState({ pose: "lift" });
   expect(trailingEdgeHeight("ailR")).toBeLessThan(0);
   expect(trailingEdgeHeight("ailL")).toBeLessThan(0);
+  expect(trailingEdgeHeight("flapR")).toBeLessThan(0);
+  expect(trailingEdgeHeight("flapL")).toBeLessThan(0);
+  expect(surfaceAngle("outboardAilR")).toBe(0);
 
   useFlaperonStudy.setState({ pose: "left" });
   expect(trailingEdgeHeight("ailR")).toBeLessThan(0);
   expect(trailingEdgeHeight("ailL")).toBeGreaterThan(0);
+  expect(trailingEdgeHeight("outboardAilL")).toBeGreaterThan(0);
+  expect(trailingEdgeHeight("outboardAilR")).toBeLessThan(0);
+  expect(surfaceAngle("flapL")).toBe(0);
 
   useFlaperonStudy.setState({ pose: "right" });
   expect(trailingEdgeHeight("ailR")).toBeGreaterThan(0);

@@ -1,6 +1,6 @@
 # Exterior paint references
 
-Solid mode uses locally drawn, photo-referenced paint textures. X-ray mode retains the study model's ghost skins and system highlights. Photos are references, not bundled image assets; their copyrights remain with their photographers.
+Solid mode uses locally drawn, photo-referenced paint textures. X-ray mode retains the study model's ghost skins and system highlights. The Falcon 6X Airframe panel includes a credited CC0 photograph of F-WSIX. Other photographs are linked visual references.
 
 | Model              | Registration | Primary reference                                                                                                                                                                                          | Reproduced details                                                                                                                                  |
 | ------------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -9,10 +9,10 @@ const examples: { pose: FlaperonPose; label: string }[] = [
   { pose: "right", label: "Roll right" },
 ];
 const motion = {
-  neutral: "Both trailing edges align with the wing.",
-  lift: "Both trailing edges move down to increase lift and drag.",
-  left: "The left trailing edge rises and the right trailing edge lowers to roll left.",
-  right: "The right trailing edge rises and the left trailing edge lowers to roll right.",
+  neutral: "Flaps and ailerons align with the wing and the slats retract.",
+  lift: "The six slats extend. Both inboard flaps and both flaperons lower.",
+  left: "The left flaperon and aileron rise while the right pair lower.",
+  right: "The right flaperon and aileron rise while the left pair lower.",
 };
 
 export function FlaperonDemo() {

@@ -1,344 +1,390 @@
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { box, loft, mergeGeos } from "@/lib/geometry";
-import { V } from "@/lib/math";
-import { FUSE } from "../geometry";
 import type { Catalogue } from "@/lib/catalogue";
+import { box, cyl, loft, mergeGeos } from "@/lib/geometry";
+import { V, type Vec3 } from "@/lib/math";
+import { FUSE } from "../geometry";
+import {
+  aftCloseout,
+  carpetUV,
+  woolCarpet,
+  bulkhead,
+  chairCushions,
+  chairShell,
+  chairTrim,
+  coveMaterial,
+  floorY,
+  headlinerMaterial,
+  oakVeneer,
+  roofBand,
+  softBox,
+  windowWall,
+} from "./cabin-interior";
+
+// Dassault Falcon 6X Overview (June 2026), p. 12, 14-passenger plan. Furniture finish,
+// seat shells, paired conference chairs and divan cushions follow the Global Jet
+// LX-TIN cabin photographs (July 2025). Furniture dimensions are photographic estimates.
+const leather = "#CDBFA9",
+  upholstery = "#B7A791",
+  oak = "#A97749",
+  liner = "#DFD9CE";
+const locations = [
+  { id: "forward", x: 5.07 },
+  { id: "rear", x: 3.32 },
+] as const;
 
 export function addInterior(cat: Catalogue) {
-  // Dassault lists the cabin at 12.30 × 2.58 × 1.98 m. Its furnishings vary by completion.
-  // All furniture coordinates and the twelve-seat club arrangement are illustrative.
-  const floorY = -0.74;
-  const floorCenter = 1.05;
+  const deckBounds = [-3.8, 8.5] as const;
   cat.part(
     () =>
-      loft(
-        Array.from({ length: 42 }, (_, i) => {
-          const x = -6.15 + 0.3 * i;
-          // Keep the edge inside the upswept rear shell at the underside of the floor.
-          const halfWidth = Math.min(1.04, FUSE.onSkin(x + floorCenter, floorY - 0.05, 1, 0.975).z);
-          return [V(x, -0.025, -halfWidth), V(x, -0.025, halfWidth), V(x, 0.025, halfWidth), V(x, 0.025, -halfWidth)];
-        }),
+      carpetUV(
+        loft(
+          Array.from({ length: 42 }, (_, i) => {
+            const x = deckBounds[0] + ((deckBounds[1] - deckBounds[0]) * i) / 41;
+            const h = Math.min(1.08, FUSE.onSkin(x, floorY - 0.05, 1, 0.95).z);
+            return [V(x, floorY - 0.05, -h), V(x, floorY - 0.05, h), V(x, floorY, h), V(x, floorY, -h)];
+          }),
+        ),
       ),
     ["cabin"],
     {
       id: "cabin.deck",
-      pos: [floorCenter, floorY - 0.025, 0],
-      color: "#8B7B69",
+      color: "#978C79",
+      solidMaterial: woolCarpet,
       name: "Cabin floor",
-      note: "Dassault publishes a 12.30 m cabin length and 1.98 m of headroom. The aisle runs through the center of this example interior.",
+      note: "The published cabin length is 12.30 m. The forward club leads to a four-place dining group and the aft divans.",
       pin: true,
     },
   );
 
-  function seat() {
-    return mergeGeos([
-      new RoundedBoxGeometry(0.44, 0.34, 0.39, 1, 0.05).translate(0, 0.17, 0),
-      new RoundedBoxGeometry(0.64, 0.15, 0.58, 1, 0.07).translate(0, 0.4, 0),
-      new RoundedBoxGeometry(0.16, 0.67, 0.57, 1, 0.07).rotateZ(0.13).translate(-0.27, 0.74, 0),
-      new RoundedBoxGeometry(0.14, 0.19, 0.36, 1, 0.06).translate(-0.32, 1.11, 0),
-      ...[-1, 1].map((side) => new RoundedBoxGeometry(0.48, 0.12, 0.09, 1, 0.04).translate(0, 0.58, 0.32 * side)),
-    ]);
-  }
-
-  for (const [zone, center] of [
-    ["forward", 4.1],
-    ["middle", 1.0],
-    ["aft", -2.1],
-  ] as const) {
-    for (const [row, dx, yaw] of [
-      ["fore", 0.95, Math.PI],
-      ["aft", -0.95, 0],
-    ] as const) {
-      for (const [side, z] of [
-        ["left", -0.74],
-        ["right", 0.74],
-      ] as const) {
-        cat.part(seat, ["cabin"], {
-          id: "cabin.club-seat",
-          instance: [zone, row, side],
-          pos: [center + dx, floorY, z],
-          rot: [0, yaw, 0],
-          color: "#C4AD8F",
-          name: "Passenger seating",
-          note: "The Falcon 6X can accommodate up to 16 passengers. This example places facing pairs of club seats along a central aisle.",
-          pin: true,
-        });
-      }
-    }
-  }
-
-  for (const [pilot, z] of [
-    ["left", -0.53],
-    ["right", 0.53],
-  ] as const) {
-    cat.part(seat, ["avionics"], {
-      id: "flight-deck.crew-seat",
-      instance: pilot,
-      pos: [7.87, floorY, z],
-      scale: [0.83, 0.92, 0.87],
-      color: "#807970",
-      name: "Pilot seat",
-      note: "Each pilot faces an outboard primary display and can see the two shared displays in the center.",
+  function installSeat(
+    id: string,
+    instance: string[],
+    position: Vec3,
+    yaw: number,
+    width: number,
+    pin: boolean,
+    isClub: boolean,
+  ) {
+    const placement = { pos: position, rot: [0, yaw, 0] as Vec3, scale: [1, 1, width] as Vec3 };
+    const name = isClub ? "Passenger seating" : "Conference seating";
+    cat.part(chairCushions, ["cabin"], {
+      ...placement,
+      id,
+      instance,
+      color: leather,
+      name,
+      pin,
+      note: isClub
+        ? "Four individual club chairs form facing pairs on opposite sides of the forward aisle."
+        : "Two pairs of narrower seats face each other across the dining table on the port side.",
+    });
+    cat.part(chairShell, ["cabin"], {
+      ...placement,
+      id: "cabin.seat-shell",
+      instance: [id, ...instance],
+      color: upholstery,
+      name,
+    });
+    cat.part(chairTrim, ["cabin"], {
+      ...placement,
+      id: "cabin.seat-trim",
+      instance: [id, ...instance],
+      color: "#514741",
+      name,
     });
   }
 
-  cat.part(() => box(0.21, 0.64, 1.73), ["avionics"], {
-    id: "flight-deck.instrument-panel",
-    pos: [8.99, 0.04, 0],
-    color: "#384048",
-    name: "EASy IV instrument panel",
-    note: "The EASy IV flight deck uses Honeywell Primus Epic avionics. Four displays are arranged in a T with the shared displays stacked in the center.",
-    pin: true,
-  });
-
-  cat.part(() => box(1.05, 0.47, 0.37), ["avionics"], {
-    id: "flight-deck.pedestal",
-    pos: [8.36, floorY + 0.235, 0],
-    name: "Center pedestal",
-    color: "#484B4D",
-  });
-
-  // A stroke is a polyline on a display face in meters (horizontal, vertical).
-  // Merge each graphic into one mesh so it remains visible with the system study materials.
-  type Stroke = [number, number][];
-  function linework(paths: Stroke[], width: number) {
-    return mergeGeos(
-      paths.flatMap((path) =>
-        path.slice(1).map(([u, v], i) => {
-          const [lastU, lastV] = path[i];
-          const du = u - lastU,
-            dv = v - lastV;
-          return box(0.001, width, Math.hypot(du, dv) + width * 0.4)
-            .rotateX(-Math.atan2(dv, du))
-            .translate(0, (v + lastV) / 2, (u + lastU) / 2);
-        }),
-      ),
-    );
-  }
-
-  function attitudeLines(): Stroke[] {
-    const paths: Stroke[] = [
-      [
-        [-0.11, 0],
-        [0.11, 0],
-      ],
-      [
-        [-0.052, 0.004],
-        [-0.027, 0.004],
-        [-0.018, -0.008],
-        [0, 0.004],
-        [0.018, -0.008],
-        [0.027, 0.004],
-        [0.052, 0.004],
-      ],
-      [
-        [-0.007, 0.095],
-        [0, 0.104],
-        [0.007, 0.095],
-        [-0.007, 0.095],
-      ],
-    ];
-    for (const sign of [-1, 1]) {
-      for (let row = 1; row <= 3; row++) {
-        const span = row % 2 === 0 ? 0.035 : 0.018;
-        paths.push([
-          [-span, sign * row * 0.021],
-          [span, sign * row * 0.021],
-        ]);
-      }
-      // Scale rails and unnumbered graduations flank the attitude reference.
-      paths.push([
-        [sign * 0.124, -0.096],
-        [sign * 0.124, 0.096],
-      ]);
-      for (let tick = -4; tick <= 4; tick++) {
-        const end = tick % 2 === 0 ? 0.148 : 0.138;
-        paths.push([
-          [sign * 0.124, tick * 0.021],
-          [sign * end, tick * 0.021],
-        ]);
-      }
-    }
-    return paths;
-  }
-
-  const mapContours: Stroke[] = [
-    [
-      [-0.163, 0.045],
-      [-0.131, 0.048],
-      [-0.105, 0.035],
-      [-0.083, 0.049],
-      [-0.071, 0.082],
-      [-0.042, 0.11],
-    ],
-    [
-      [-0.16, -0.032],
-      [-0.124, -0.019],
-      [-0.098, -0.035],
-      [-0.076, -0.022],
-      [-0.054, 0.01],
-      [-0.022, 0.019],
-      [0.009, 0.052],
-      [0.038, 0.054],
-      [0.064, 0.099],
-    ],
-    [
-      [0.023, -0.112],
-      [0.034, -0.079],
-      [0.075, -0.062],
-      [0.092, -0.024],
-      [0.134, -0.011],
-      [0.162, 0.015],
-    ],
-    [
-      [0.079, -0.112],
-      [0.093, -0.09],
-      [0.135, -0.072],
-      [0.163, -0.028],
-    ],
-  ];
-
-  const route: Stroke = [
-    [-0.121, -0.092],
-    [-0.071, -0.033],
-    [0.039, 0.018],
-    [0.116, 0.093],
-  ];
-  const routeGraphic: Stroke[] = [
-    route,
-    ...route.map(([u, v]): Stroke => [
-      [u, v + 0.008],
-      [u + 0.008, v],
-      [u, v - 0.008],
-      [u - 0.008, v],
-      [u, v + 0.008],
-    ]),
-  ];
-
-  function systemDiagram(): Stroke[] {
-    const paths: Stroke[] = [];
-    for (const side of [-1, 1]) {
-      // Two branches joined to a shared bus, a generic systems-page illustration.
-      for (const [u, v, w, h] of [
-        [0.103, 0.081, 0.036, 0.019],
-        [0.103, -0.073, 0.032, 0.016],
-        [0.035, -0.073, 0.024, 0.016],
-      ]) {
-        paths.push([
-          [side * (u - w), v - h],
-          [side * (u + w), v - h],
-          [side * (u + w), v + h],
-          [side * (u - w), v + h],
-          [side * (u - w), v - h],
-        ]);
-      }
-      paths.push([
-        [side * 0.103, 0.062],
-        [side * 0.103, -0.057],
-      ]);
-      paths.push([
-        [side * 0.103, 0.007],
-        [side * 0.035, 0.007],
-        [side * 0.035, -0.057],
-      ]);
-    }
-    paths.push([
-      [-0.103, 0.035],
-      [0.103, 0.035],
-    ]);
-    return paths;
-  }
-
-  // Dassault, EASy Flight Deck: a primary display at each pilot station and two central
-  // multifunction displays, one above the other. Display faces are simplified study markers.
-  for (const [unit, y, z, primary] of [
-    ["left", 0.18, -0.46, true],
-    ["upper-center", 0.18, 0, false],
-    ["right", 0.18, 0.46, true],
-    ["lower-center", -0.12, 0, false],
+  for (const [side, z] of [
+    ["left", -0.71],
+    ["right", 0.71],
   ] as const) {
-    cat.part(() => box(0.034, 0.274, 0.368), ["avionics"], {
-      id: "flight-deck.display-bezel",
-      instance: unit,
-      pos: [8.87, y, z],
-      color: "#202B33",
-    });
-    cat.part(() => box(0.008, 0.246, 0.34), ["avionics"], {
-      id: "flight-deck.display",
-      instance: unit,
-      pos: [8.85, y, z],
-      color: primary ? "#5885A9" : "#45675F",
-      name: primary ? "Primary display unit" : "Multifunction display unit",
-      note: primary
-        ? "Each pilot has a primary display directly ahead for flight information."
-        : "The two central multifunction displays give both pilots a shared view of navigation, flight management and aircraft systems.",
+    for (const [i, row] of locations.entries()) {
+      installSeat(
+        "cabin.club-seat",
+        ["forward", row.id, side],
+        [row.x, floorY, z],
+        i === 0 ? Math.PI : 0,
+        1,
+        true,
+        true,
+      );
+    }
+    cat.part(() => softBox(0.57, 0.046, 0.55, 0.045), ["cabin"], {
+      id: "cabin.club-table",
+      instance: side,
+      pos: [4.19, floorY + 0.68, Math.sign(z) * 0.88],
+      color: oak,
+      solidMaterial: oakVeneer,
+      name: "Club tables",
+      note: "Each forward facing pair shares a table at the window-side ledge.",
       pin: true,
     });
-    if (primary) {
-      cat.part(() => box(0.004, 0.12, 0.338), ["avionics"], {
-        id: "flight-deck.attitude-ground",
-        instance: unit,
-        pos: [8.844, y - 0.061, z],
-        color: "#886C51",
-        name: "Primary display unit",
-        note: "The colored horizon marks the primary flight display in this schematic.",
-      });
-      cat.part(() => linework(attitudeLines(), 0.0028), ["avionics"], {
-        id: "flight-deck.attitude-reference",
-        instance: unit,
-        pos: [8.84, y, z],
-        color: "#F2F7F8",
-      });
-    } else if (unit === "upper-center") {
-      cat.part(() => linework(mapContours, 0.0022), ["avionics"], {
-        id: "flight-deck.map-contours",
-        pos: [8.843, y, z],
-        color: "#85A6AA",
-      });
-      cat.part(() => linework(routeGraphic, 0.0036), ["avionics"], {
-        id: "flight-deck.map-route",
-        pos: [8.84, y, z],
-        color: "#FFA8F0",
-      });
-    } else {
-      cat.part(() => linework(systemDiagram(), 0.0031), ["avionics"], {
-        id: "flight-deck.systems-diagram",
-        pos: [8.84, y, z],
-        color: "#A5E6CA",
-      });
-    }
   }
 
-  // The Overview (June 2026), p. 57, illustrates FalconEye, dual-HUD capability and smart sidesticks.
-  // A single pilot-side combiner represents FalconEye in this example installation.
-  cat.part(() => new RoundedBoxGeometry(0.012, 0.22, 0.27, 2, 0.005).rotateZ(0.16), ["avionics"], {
-    id: "flight-deck.hud",
-    pos: [8.88, 0.54, -0.46],
-    name: "FalconEye head-up display",
-    note: "FalconEye combines synthetic and enhanced vision in a head-up display. Dassault also describes dual-HUD capability.",
-    plate: true,
+  for (const [row, x, yaw] of [
+    ["forward", 2.27, Math.PI],
+    ["rear", 0.4, 0],
+  ] as const) {
+    for (const [column, z] of [
+      ["window", -0.89],
+      ["aisle", -0.31],
+    ] as const) {
+      installSeat("cabin.conference-seat", [row, column], [x, floorY, z], yaw, 0.77, column === "aisle", false);
+    }
+  }
+  cat.part(() => softBox(1.04, 0.052, 1.16, 0.07), ["cabin"], {
+    id: "cabin.conference-table",
+    pos: [1.34, floorY + 0.7, -0.61],
+    color: oak,
+    solidMaterial: oakVeneer,
+    name: "Conference table",
+    note: "The four-place table is offset to port. The aisle continues between the dining group and the starboard credenza.",
     pin: true,
   });
+  cat.part(() => mergeGeos([-0.28, 0.51].map((z) => cyl(0.038, 0.655).translate(0, 0.327, z))), ["cabin"], {
+    id: "cabin.conference-pedestals",
+    pos: [1.34, floorY, -0.72],
+    color: "#ACA8A0",
+    name: "Conference table",
+  });
+  cat.part(() => softBox(2.48, 0.68, 0.43, 0.055), ["cabin"], {
+    id: "cabin.credenza",
+    pos: [1.36, floorY + 0.37, 0.942],
+    color: oak,
+    solidMaterial: oakVeneer,
+    name: "Cabin credenza",
+    note: "The starboard storage cabinet faces the conference group and leaves the aisle open.",
+    pin: true,
+  });
+  cat.part(() => softBox(2.54, 0.045, 0.475, 0.025), ["cabin"], {
+    id: "cabin.credenza-top",
+    pos: [1.36, floorY + 0.718, 0.95],
+    color: "#B39472",
+    name: "Cabin credenza",
+  });
+  cat.part(
+    () => mergeGeos([-0.8, 0, 0.8].map((x) => softBox(0.15, 0.016, 0.014, 0.005).translate(x, 0.53, -0.22))),
+    ["cabin"],
+    {
+      id: "cabin.credenza-pulls",
+      pos: [1.36, floorY, 0.942],
+      color: "#49443A",
+      name: "Cabin credenza",
+    },
+  );
 
-  for (const [pilot, z] of [
-    ["left", -0.91],
-    ["right", 0.91],
+  for (const [side, sign] of [
+    ["port", -1],
+    ["starboard", 1],
   ] as const) {
+    const position: Vec3 = [-1.37, floorY, 0.79 * sign];
+    const name = "Aft divans";
     cat.part(
       () =>
         mergeGeos([
-          new RoundedBoxGeometry(0.26, 0.12, 0.14, 1, 0.045),
-          new RoundedBoxGeometry(0.073, 0.19, 0.071, 1, 0.035).rotateZ(0.22).translate(0.018, 0.13, 0),
+          softBox(2.23, 0.31, 0.61, 0.08).translate(0, 0.19, 0),
+          ...[-0.72, 0, 0.72].flatMap((x) => [
+            softBox(0.708, 0.16, 0.64, 0.067).translate(x, 0.4, 0),
+            softBox(0.709, 0.52, 0.16, 0.064)
+              .rotateX(-sign * 0.15)
+              .translate(x, 0.68, sign * 0.257),
+          ]),
+          ...[-1, 1].map((direction) =>
+            softBox(0.1, 0.31, 0.58, 0.048).translate(direction * 1.107, 0.49, -sign * 0.012),
+          ),
         ]),
-      ["avionics"],
+      ["cabin"],
       {
-        id: "flight-deck.sidestick",
-        instance: pilot,
-        pos: [8.12, -0.19, z],
-        color: "#384048",
-        name: "Smart sidestick",
-        note: "The pilot commands the digital flight control system through a sidestick.",
+        id: "cabin.aft-divan",
+        instance: side,
+        pos: position,
+        color: leather,
+        name,
+        pin: true,
+        note: "Two facing three-place divans provide the six aft lounge seats in this 14-passenger layout.",
       },
     );
+    for (const [end, x, tone] of [
+      ["fore", 0.85, "#B86437"],
+      ["aft", -0.75, "#BC904E"],
+    ] as const) {
+      cat.part(
+        () =>
+          softBox(0.32, 0.31, 0.11, 0.055)
+            .rotateZ(end === "fore" ? 0.12 : -0.1)
+            .rotateX(-sign * 0.23),
+        ["cabin"],
+        {
+          id: "cabin.divan-pillow",
+          instance: [side, end],
+          pos: [position[0] + x, floorY + 0.66, sign * 0.867],
+          color: tone,
+          name,
+        },
+      );
+    }
   }
+
+  for (const [side, sign] of [
+    ["port", -1],
+    ["starboard", 1],
+  ] as const) {
+    // These liners have inward-facing surfaces. They remain open to the outside observer in X-ray.
+    cat.part(() => windowWall(sign), ["cabin"], {
+      id: "cabin.window-liner",
+      instance: side,
+      color: liner,
+      name: "Recessed window surrounds",
+      note: "Each oval window sits inside a sculpted reveal above the continuous side ledge.",
+      pin: true,
+    });
+    cat.part(
+      () =>
+        mergeGeos([
+          roofBand(sign > 0 ? -0.67 : Math.PI + 0.155, sign > 0 ? -0.155 : Math.PI + 0.67, 0.933),
+          roofBand(sign > 0 ? -0.155 : Math.PI - 0.665, sign > 0 ? 0.665 : Math.PI + 0.155, 0.933, -1.716, -2.65),
+        ]),
+      ["cabin"],
+      { id: "cabin.lower-wall", instance: side, color: "#C4B9A7" },
+    );
+
+    cat.part(() => softBox(8.37, 0.055, 0.17, 0.025), ["cabin"], {
+      id: "cabin.window-ledge",
+      instance: side,
+      pos: [2.48, -0.045, sign * 1.18],
+      color: oak,
+      solidMaterial: oakVeneer,
+      name: "Window ledges",
+    });
+  }
+  cat.part(() => roofBand(0.665, Math.PI - 0.665, 0.933), ["cabin"], {
+    id: "cabin.headliner",
+    color: liner,
+    name: "Cabin headliner",
+    note: "The arched headliner follows the roof above the three passenger zones.",
+  });
+  cat.part(
+    () =>
+      mergeGeos(
+        Array.from({ length: 7 }, (_, i) => {
+          const aft = -2.641 + 1.306 * i;
+          return roofBand(1.047, Math.PI - 1.047, 0.915, aft + 1.295, aft);
+        }),
+      ),
+    ["cabin"],
+    {
+      id: "cabin.center-ceiling-panels",
+      color: liner,
+      solidMaterial: headlinerMaterial,
+      name: "Cabin headliner",
+    },
+  );
+  for (const [side, sign] of [
+    ["port", -1],
+    ["starboard", 1],
+  ] as const) {
+    const angle = sign > 0 ? 0.91 : Math.PI - 0.91;
+    cat.part(() => roofBand(angle - 0.023, angle + 0.023, 0.925), ["cabin"], {
+      id: "cabin.ceiling-light-strip",
+      instance: side,
+      color: "#FFECCD",
+      solidMaterial: coveMaterial,
+      name: "Indirect cabin lighting",
+    });
+    cat.part(
+      () =>
+        mergeGeos(
+          Array.from({ length: 10 }, (_, i) => {
+            const x = -2.22 + i * 0.865;
+            const lamp = FUSE.ring(x, 0.916, 1, angle, angle, false)[0];
+            return cyl(0.027, 0.008, "y", 16)
+              .rotateX(sign * 0.62)
+              .translate(lamp.x, lamp.y, lamp.z);
+          }),
+        ),
+      ["cabin"],
+      { id: "cabin.reading-lights", instance: side, color: "#A3937B", name: "Cabin lighting" },
+    );
+    for (const [zone, x, height] of [
+      ["forward", 5.69, 0.99],
+      ["lounge", -0.125, 0.41],
+      ["aft", -2.63, 1.055],
+    ] as const) {
+      cat.part(() => bulkhead(x, sign, height), ["cabin"], {
+        id: "cabin.partition",
+        instance: [zone, side],
+        color: oak,
+        solidMaterial: oakVeneer,
+        name: "Cabin partitions",
+      });
+    }
+  }
+
+  // At the aft lavatory, the landing ends at a closed door and a continuous arched bulkhead.
+  cat.part(aftCloseout, ["cabin"], {
+    id: "cabin.aft-closeout",
+    color: oak,
+    solidMaterial: oakVeneer,
+    name: "Aft lavatory bulkhead",
+    note: "The rear lounge ends at the enclosed aft lavatory shown in the operator’s floor plan.",
+  });
+  cat.part(() => softBox(0.041, 1.79, 0.655, 0.018), ["cabin"], {
+    id: "cabin.lavatory-door",
+    pos: [-2.614, floorY + 0.915, 0],
+    color: "#998875",
+    name: "Aft lavatory door",
+  });
+  cat.part(() => softBox(0.025, 0.09, 0.025, 0.008), ["cabin"], {
+    id: "cabin.lavatory-latch",
+    pos: [-2.58, floorY + 0.99, -0.263],
+    color: "#66625B",
+    name: "Aft lavatory door",
+  });
+  for (const [side, sign] of [
+    ["port", -1],
+    ["starboard", 1],
+  ] as const) {
+    cat.part(() => softBox(0.14, 0.049, 0.54, 0.019), ["cabin"], {
+      id: "cabin.folded-throw",
+      instance: side,
+      pos: [3.5, floorY + 0.466, sign * 0.71],
+      color: "#B57248",
+      name: "Passenger seating",
+    });
+    cat.part(() => softBox(0.13, 0.115, 0.057, 0.016), ["cabin"], {
+      id: "cabin.throw-edge",
+      instance: side,
+      pos: [3.5, floorY + 0.41, sign * 0.966],
+      color: "#A96644",
+      name: "Passenger seating",
+    });
+  }
+
+  // Cabinetry stays on the starboard side of the vestibule; the port door opens into a clear landing.
+  cat.part(() => softBox(1.77, 0.83, 0.52, 0.04), ["cabin"], {
+    id: "cabin.galley-base",
+    pos: [6.73, floorY + 0.43, 0.83],
+    color: oak,
+    solidMaterial: oakVeneer,
+    name: "Forward galley",
+    pin: true,
+    note: "The galley opens onto the entry vestibule beneath the skylight.",
+  });
+  cat.part(() => softBox(1.81, 0.044, 0.59, 0.017), ["cabin"], {
+    id: "cabin.galley-counter",
+    pos: [6.73, floorY + 0.868, 0.84],
+    color: "#D3CABE",
+    name: "Forward galley",
+  });
+  cat.part(() => mergeGeos([-0.46, 0, 0.46].map((x) => box(0.39, 0.19, 0.012).translate(x, 0.51, 0))), ["cabin"], {
+    id: "cabin.galley-drawers",
+    pos: [6.73, floorY, 0.565],
+    color: "#AC8059",
+    name: "Forward galley",
+  });
+  cat.part(() => softBox(0.49, 0.28, 0.5, 0.025), ["cabin"], {
+    id: "cabin.galley-oven",
+    pos: [6.08, floorY + 1.02, 0.84],
+    color: "#47443F",
+    name: "Galley appliance bay",
+  });
 }

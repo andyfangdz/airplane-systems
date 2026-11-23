@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { addEngineCore, turned, FAN_CASE_RADIUS, SPINNER_FACE } from "./engine-core";
 import { FALCON_PEARL } from "../paint";
 import { LIVERY_REGISTRATION } from "@/aircraft/liveries";
 import type { Catalogue } from "@/lib/catalogue";
@@ -24,13 +25,6 @@ const cowlProfile: [number, number][] = [
   [1.89, 0.834],
   [2.16, 0.802],
 ];
-
-function turned(profile: [number, number][]) {
-  return new THREE.LatheGeometry(
-    profile.map(([x, r]) => new THREE.Vector2(r, x)),
-    64,
-  ).rotateZ(-Math.PI / 2);
-}
 
 // Paint the curved access doors and the photographed F-WSIX registration on the
 // outboard flank. Each half of the atlas has its own left-to-right lettering space.
@@ -83,7 +77,7 @@ function fan() {
   const section = afRing(0, 1, 0.047, 0.035, 7);
   const rings = Array.from({ length: 10 }, (_, i) => {
     const span = i / 9,
-      radius = 0.17 + 0.551 * span;
+      radius = 0.139 + (FAN_CASE_RADIUS - 0.15) * span;
     const sweep = -0.35 * span * span + 0.12 * Math.sin(Math.PI * span);
     return section.map(([u, v]) => {
       const angle = sweep + u * (0.45 - 0.19 * span) + v * 0.12;
@@ -151,13 +145,11 @@ export function addEngines(cat: Catalogue) {
       () =>
         turned([
           [2.22, 0.691],
-          [2.12, 0.695],
-          [1.99, 0.701],
-          [1.78, 0.717],
-          [1.66, 0.724],
-          [1.42, 0.725],
-          [1.32, 0.712],
-          [1.32, 0],
+          [2.08, 0.663],
+          [1.92, 0.597],
+          [1.78, 0.552],
+          [1.68, FAN_CASE_RADIUS - 0.008],
+          [1.44, FAN_CASE_RADIUS - 0.008],
         ]),
       ["engine"],
       {
@@ -166,6 +158,7 @@ export function addEngines(cat: Catalogue) {
         pos: position,
         name: "Inlet duct",
         solidColor: "#24282c",
+        fairing: true,
         ext: true,
       },
     );
@@ -175,6 +168,7 @@ export function addEngines(cat: Catalogue) {
       pos: position,
       name: "Fan",
       note: "The forward fan draws air through the inlet. The blade arrangement is schematic.",
+      color: "#647f90",
       solidMaterial: () => fanMetal,
       ext: true,
       pin: true,
@@ -182,13 +176,13 @@ export function addEngines(cat: Catalogue) {
     cat.part(
       () =>
         turned([
-          [1.42, 0.193],
-          [1.58, 0.193],
-          [1.65, 0.177],
-          [1.72, 0.142],
-          [1.79, 0.091],
+          [1.42, 0.144],
+          [1.58, 0.144],
+          [1.65, 0.139],
+          [1.72, 0.118],
+          [1.79, 0.082],
           [1.84, 0.039],
-          [1.86, 0.001],
+          [SPINNER_FACE, 0.001],
         ]),
       ["engine"],
       {
@@ -196,6 +190,7 @@ export function addEngines(cat: Catalogue) {
         instance: side,
         pos: position,
         name: "Fan spinner",
+        color: "#535e66",
         solidColor: "#33383c",
         ext: true,
       },
@@ -215,6 +210,7 @@ export function addEngines(cat: Catalogue) {
         name: "Exhaust nozzle",
         note: "At the aft end of the engine, the nozzle directs the exhaust stream rearward.",
         solidColor: "#747679",
+        color: "#887b75",
         ext: true,
         pin: true,
       },
@@ -222,7 +218,7 @@ export function addEngines(cat: Catalogue) {
     cat.part(
       () =>
         turned([
-          [-1.52, 0.295],
+          [-1.1, 0.502],
           [-1.52, 0.511],
           [-1.9, 0.502],
           [-2.25, 0.478],
@@ -236,31 +232,11 @@ export function addEngines(cat: Catalogue) {
         pos: position,
         name: "Exhaust duct",
         solidColor: "#393d40",
+        fairing: true,
         ext: true,
       },
     );
-    cat.part(
-      () =>
-        turned([
-          [-2.19, 0.015],
-          [-2.08, 0.106],
-          [-1.87, 0.229],
-          [-1.52, 0.313],
-          [-1.14, 0.438],
-          [-0.66, 0.505],
-          [0.32, 0.465],
-          [1.36, 0.314],
-        ]),
-      ["engine"],
-      {
-        id: "engine.core",
-        instance: side,
-        pos: position,
-        name: "Engine core",
-        note: "This simplified body marks the core inside the nacelle.",
-        solidColor: "#414548",
-      },
-    );
+    addEngineCore(cat, side, position);
     cat.part(
       () =>
         loft(
