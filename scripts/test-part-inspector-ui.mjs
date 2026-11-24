@@ -208,11 +208,10 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
     components = select("Focus a component");
   await select("Study view").selectOption("assemblies");
   await groups.selectOption("drives");
+  const label = page.locator(".eng-label").filter({ hasText: /^ALT 1$/ });
+  // The camera can still be at its previous pose while the new label is clipped outside the canvas.
+  await expect(label).toBeInViewport({ ratio: 1 });
   await waitForStageCamera(page);
-  const label = await page
-    .locator(".eng-label")
-    .filter({ hasText: /^ALT 1$/ })
-    .boundingBox();
   // Hit the model itself, just as a learner does. Its label is anchored beside the housing.
   let hit;
   for (const [dx, dy] of [
@@ -224,8 +223,9 @@ test("isolated accessories reassemble independently and a crankshaft can be pair
     [-20, -12],
     [20, -12],
   ]) {
-    const x = Math.round(label.x + label.width / 2 + dx),
-      y = Math.round(label.y + label.height / 2 + dy);
+    const box = await label.boundingBox();
+    const x = Math.round(box.x + box.width / 2 + dx),
+      y = Math.round(box.y + box.height / 2 + dy);
     await page.mouse.move(x, y);
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     if (
