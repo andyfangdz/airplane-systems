@@ -93,6 +93,67 @@ describe("IO-390-C specifications (IOM Table A-1, p. 51; System Description p. 6
   });
 });
 
+describe("SR20 G6 cold start (POH 4-10–11, 7-42 and 7-46)", () => {
+  const primed = () => SCENARIOS.find((sc) => sc.id === "primed")!.run(S);
+  test("the boost pump leaves a charge in the ports, and the engine catches on that charge with the mixture at cutoff", () => {
+    const { s, c, env } = primed();
+    const f = noFailures(S);
+    expect(s.rpm).toBe(0);
+    expect(s.fuelPsi).toBe(23);
+    expect(s.fuel).toBe(0);
+    expect(c.mixture).toBe(0);
+    expect(s.cyl.every((cy) => cy.puddle > 0)).toBe(true);
+    c.mags = "START";
+    const fired: number[] = [];
+    for (let i = 0; i < 240 && !s.running; i++) {
+      step(S, s, c, env, f, 1 / 120);
+      s.cyl.forEach((cy, i) => {
+        if (cy.work > 0 && !fired.includes(i)) fired.push(i);
+      });
+    }
+    expect(s.running).toBe(true);
+    // Starting at #1 TDC, #3 is the first cylinder to close its intake and reach firing TDC.
+    expect(fired).toEqual([2]);
+    expect(s.cyl.every((cy) => cy.plugs === 1)).toBe(true);
+    c.mags = "BOTH";
+    const cutoff = structuredClone(s);
+    step(S, cutoff, c, env, f, 8);
+    expect(cutoff.running).toBe(false);
+    expect(cutoff.rpm).toBe(0);
+    for (let i = 0; i < 120; i++) {
+      c.mixture = (i + 1) / 120;
+      step(S, s, c, env, f, 1 / 120);
+    }
+    c.boost = false;
+    step(S, s, c, env, f, 4);
+    expect(s.running).toBe(true);
+    expect(s.starterEngaged).toBe(false);
+    expect(s.rpm).toBeGreaterThan(900);
+    expect(s.cyl.every((cy) => cy.plugs === 2)).toBe(true);
+    expect(s.startCycle).toBeUndefined();
+  });
+  test("a dry engine turns through compression without a firing pulse; a failed starter leaves the propeller stopped", () => {
+    const { s, c, env } = primed();
+    const f = noFailures(S);
+    c.mags = "START";
+    f.starter = true;
+    step(S, s, c, env, f, 1);
+    expect(s.rpm).toBe(0);
+    expect(s.startCycle).toBeUndefined();
+    f.starter = false;
+    const dry = initialState(S);
+    const rpm = [];
+    for (let i = 0; i < 360; i++) {
+      step(S, dry, c, env, f, 1 / 120);
+      if (i >= 240) rpm.push(dry.rpm);
+      expect(dry.cyl.every((cy) => cy.work === 0)).toBe(true);
+    }
+    expect(Math.min(...rpm)).toBeGreaterThan(0);
+    expect(Math.max(...rpm) - Math.min(...rpm)).toBeGreaterThan(15);
+    expect(dry.running).toBe(false);
+  });
+});
+
 describe("performance chart (IOM Figure C-1, curve 13601)", () => {
   test("rated power: 215 hp at 2,700 rpm, full throttle, sea level standard", () => {
     expect(seaLevelHp(S, 2700, 29.26)).toBeCloseTo(215, 0);

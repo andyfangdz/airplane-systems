@@ -128,6 +128,23 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    id: "primed",
+    label: "Primed for start",
+    only: (spec) => spec.id === "io390",
+    note: () =>
+      "Cold engine, boost pump on, mixture at cutoff after priming. Hold START until it catches, release, then smoothly advance the mixture to rich and adjust for 1,000 RPM (SR20 POH 4-11).",
+    run: (spec, f = noFailures(spec)) => {
+      const env = defaultEnvironment();
+      const s = initialState(spec, env);
+      // Four seconds within the POH's 3–5 s prime; slider travel for the cracked power lever is illustrative.
+      const c = { ...defaultControls(), throttle: 0.12, boost: true, mixture: 1 };
+      settle(spec, s, c, env, f, 4);
+      c.mixture = 0;
+      settle(spec, s, c, env, f, 1 / 120);
+      return { s, c, env };
+    },
+  },
+  {
     id: "idle",
     label: "Warm idle",
     only: general,

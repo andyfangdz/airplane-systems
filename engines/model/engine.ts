@@ -11,7 +11,8 @@
 import type { EngineSpec, Side, TurboSpec } from "../types";
 import { leanGaugeAbove, leanOverNext } from "./alerts";
 import { type Air, atmosphere, cToF, fToK, HP_W, INHG_PA, KT_MS, LB_KG, R_AIR, RHO0, ramPressure } from "./atmosphere";
-import { phaseOf } from "./cycle";
+import { phaseOf, sparkBTC } from "./cycle";
+import { beginStartCycle, startingCylinder, type StartCycle } from "./start-cycle";
 import { carbFuelFlow, condensedWater, iceRate, mixtureChamberC } from "./carburetor";
 import { pumpStep, type Pump } from "./accelerator-pump";
 import {
@@ -144,6 +145,8 @@ export interface CylState {
 }
 
 export interface EngineState {
+  /** Charge and firing history while starting from rest; absent on older checkpoints and at running speed. */
+  startCycle?: StartCycle;
   t: number;
   rpm: number;
   /** Crank angle, 0 … 720 (two revolutions: the cycle). */
@@ -630,6 +633,18 @@ function substep(
     spec.turbo ? deckC : undefined,
   );
   const ratedGross = ratedGrossHp(spec);
+  const cranking = (c.mags === "START" || f.starterStuck) && !f.starter;
+  if (spec.cycleResolvedStart) {
+    if (s.rpm === 0 && cranking && !s.startCycle) s.startCycle = beginStartCycle(spec, s.crank);
+    if (s.startCycle && ((!cranking && s.rpm === 0) || s.rpm >= spec.limits.idleRpm.min)) delete s.startCycle;
+  }
+  const cycle = s.startCycle;
+  const freeRpm = spec.accessories.starterFreeRpm ?? 380;
+  const resolved = cycle
+    ? clamp((spec.limits.idleRpm.min - s.rpm) / Math.max(1, spec.limits.idleRpm.min - freeRpm), 0, 1)
+    : 0;
+  let gasTorque = 0;
+  let strokeWorkDelta = 0;
   let work = 0;
   let worst = 0;
   s.cyl.forEach((cy, i) => {
@@ -642,9 +657,25 @@ function substep(
     const airCyl = meteredAir / nCyl + (leakArea > 0 ? (airLbH * leaks[i]) / (cdA + leakArea) : 0);
     cy.lambda = cy.fuel > 1e-4 ? excessAirRatio(airCyl, cy.fuel, AFR_STOICH) : Infinity;
     cy.plugs = plugs[i];
-    let w = cy.plugs ? cylinderWork(spec, cy.lambda, leanCap) : 0;
-    if (cy.plugs === 1) w *= cal.singlePlug;
-    if (c.mags === "START") w *= 0.85; // retarded spark wastes work
+    const mixtureWork = cylinderWork(spec, cy.lambda, leanCap);
+    const ignition = (cy.plugs === 2 ? 1 : cy.plugs === 1 ? cal.singlePlug : 0) * (c.mags === "START" ? 0.85 : 1);
+    let w = mixtureWork * ignition;
+    if (cycle) {
+      const fired = startingCylinder(
+        spec,
+        cycle,
+        i,
+        s.crank,
+        map,
+        air.p,
+        mixtureWork,
+        ignition,
+        sparkBTC(spec, c.mags),
+      );
+      gasTorque += fired.gasTorque;
+      strokeWorkDelta += fired.powerStrokeWork - fired.work;
+      w += resolved * (fired.work - w);
+    }
     cy.work = w;
     cy.hp = (bp / nCyl) * w;
     work += w;
@@ -652,6 +683,7 @@ function substep(
     const stab = cy.plugs ? stability(cy.lambda, rich) : 0;
     worst = Math.max(worst, 1 - stab, cy.plugs === 1 ? 0.15 : 0);
   });
+  if (cycle) cycle.previousCrank = s.crank;
   const mean = work / nCyl;
   const spread = Math.sqrt(s.cyl.reduce((a, cy) => a + (cy.work - mean) ** 2, 0) / nCyl);
   s.rough = clamp(spread * 2.5 + Math.max(worst, s.melt) * 0.5, 0, 1);
@@ -668,16 +700,14 @@ function substep(
   const lossTorque = s.rpm > 1 ? ((fric + pump) * HP_W) / Math.max(omega, 1) : 0;
   // below ~10 rpm friction is static: it holds the engine rather than reversing it
   const fricTorque = lossTorque * Math.min(1, s.rpm / 10);
-  const grossTorque = omega > 0.5 ? (gross * HP_W) / omega : 0;
+  const shaftHp = gross + resolved * bp * (strokeWorkDelta / nCyl);
+  const grossTorque = omega > 0.5 ? (shaftHp * HP_W) / omega : 0;
   // the starter is engaged while the switch is at START, or all the time once stuck; an inoperative one never is. Its
   // torque falls to nothing at its own free speed, so a running engine outruns it rather than being held back.
-  const cranking = (c.mags === "START" || f.starterStuck) && !f.starter;
   s.starterEngaged = cranking;
   s.starterS = cranking ? s.starterS + dt : 0;
   const acc = spec.accessories;
-  const starterTorque = cranking
-    ? (acc.starterTorque ?? 230) * Math.max(0, 1 - s.rpm / (acc.starterFreeRpm ?? 380))
-    : 0;
+  const starterTorque = cranking ? (acc.starterTorque ?? 230) * Math.max(0, 1 - s.rpm / freeRpm) : 0;
   const d = (spec.propeller.diameterIn * 2.54) / 100;
   if (spec.propeller.control === "fixed-pitch") {
     s.beta = spec.propeller.fineDeg;
@@ -692,7 +722,7 @@ function substep(
       ? fixedPitchTorque(s.rpm, v, d, air.rho, spec.propeller.staticCp, spec.propeller.unloading)
       : propTorque(s.beta, v + vi, s.rpm, d, air.rho) * (spec.propeller.cpScale ?? 1);
   const breakaway = s.rpm < 1 && grossTorque + starterTorque < 40;
-  const net = breakaway ? 0 : grossTorque + starterTorque - fricTorque - propQ;
+  const net = breakaway ? 0 : grossTorque + starterTorque + resolved * gasTorque - fricTorque - propQ;
   s.rpm = Math.max(0, s.rpm + ((net / spec.propeller.inertia) * dt * 60) / (2 * Math.PI));
   // friction stops a crankshaft that is barely turning (it would otherwise creep down forever)
   if (s.rpm < 5 && !cranking && grossTorque < 1) s.rpm = 0;
