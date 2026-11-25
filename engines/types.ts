@@ -123,6 +123,8 @@ export interface TurboSpec {
  */
 export interface EngineSpec {
   id: string;
+  /** Resolve charge trapping, firing and compression torque during cranking from rest. */
+  cycleResolvedStart?: boolean;
   /** Aircraft installation with solid finishes and an exploded parts catalogue. */
   illustratedInstallation?: "sr20" | "c172s" | "da40";
   /** Short name for the picker and tab title. */

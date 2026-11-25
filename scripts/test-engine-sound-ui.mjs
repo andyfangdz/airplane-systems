@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("IO-390 audio follows warm idle, pause and shutdown", async ({ page }) => {
+test("IO-390 audio follows a primed start, warm idle, pause and shutdown", async ({ page }) => {
   // Tap the real output before it reaches the speakers, including in headless Chromium.
   await page.addInitScript(() => {
     const connect = AudioWorkletNode.prototype.connect;
@@ -25,9 +25,19 @@ test("IO-390 audio follows warm idle, pause and shutdown", async ({ page }) => {
       return samples.reduce((p, v) => Math.max(p, Math.abs(v)), 0);
     });
   await expect(sound).not.toBeChecked();
-  await page.getByRole("button", { name: "Warm idle", exact: true }).click();
+  await page.getByRole("button", { name: "Primed for start", exact: true }).click();
+  await expect(page.getByText(/Cold engine, boost pump on/)).toBeVisible();
   expect(await peak()).toBeNull();
   await sound.check();
+  await expect.poll(peak).toBe(0);
+  await page.getByRole("button", { name: "Hold to START" }).focus();
+  await page.keyboard.down("Space");
+  try {
+    await expect.poll(peak).toBeGreaterThan(0.03);
+  } finally {
+    await page.keyboard.up("Space");
+  }
+  await page.getByRole("button", { name: "Warm idle", exact: true }).click();
   await expect.poll(peak).toBeGreaterThan(0.03);
   await pause.click();
   await expect.poll(peak).toBe(0);

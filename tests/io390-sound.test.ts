@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { IO390 } from "@/engines/io390/spec";
 import { soundFrame, soundLayout } from "@/engines/io390/sound";
 import { initialState } from "@/engines/model/engine";
+import { beginStartCycle } from "@/engines/model/start-cycle";
 
 const layout = soundLayout(IO390);
 const sources = import.meta.glob<string>("../engines/io390/sound.worklet.js", {
@@ -65,6 +66,18 @@ describe("IO-390-C3B6 sound experiment", () => {
     expect(pulses[3].strength).toBeGreaterThan(pulses[0].strength);
   });
 
+  it("sounds only charges that fired during the start, even if the key and mixture have since moved", () => {
+    const s = initialState(IO390);
+    s.rpm = 450;
+    s.startCycle = beginStartCycle(IO390, 0);
+    s.startCycle.cylinders[2].firedWork = 0.6;
+    s.cyl.forEach((c) => Object.assign(c, { hp: 2, work: 0.3, plugs: 2, lambda: 1 }));
+    Object.assign(s.cyl[2], { plugs: 0, lambda: Infinity });
+    const pulses = soundFrame(IO390, s, layout.cylinders).pulses;
+    expect(pulses.map((p) => p.chance)).toEqual([0, 1, 0, 0]);
+    expect(pulses[1].strength).toBeGreaterThan(0);
+  });
+
   it("leaves the missing beat in cylinder three's exhaust slot", () => {
     // A 2400 rpm engine completes a 720° cycle every 50 ms. Begin at #1 exhaust opening.
     const s = initialState(IO390);
@@ -83,17 +96,26 @@ describe("IO-390-C3B6 sound experiment", () => {
     expect(peaks[1]).toBeLessThan(Math.min(peaks[0], peaks[2], peaks[3]) / 2);
   });
 
-  it("cranks without combustion at the starter drive ratio (IOM Table A-1)", () => {
+  it("makes the three propeller sweeps dominate the geared starter during cranking (SR20 POH 7-40, IOM Table A-1)", () => {
     const s = initialState(IO390);
     s.rpm = 180;
-    s.starterEngaged = true;
-    const at48k = listener(48000);
-    at48k.send(soundFrame(IO390, s, layout.cylinders));
-    const whine = (s.rpm * IO390.accessories.starterRatio) / 60;
-    expect(tone(at48k.render(), whine)).toBeGreaterThan(0.045);
-    s.starterEngaged = false;
-    at48k.send(soundFrame(IO390, s, layout.cylinders));
-    expect(tone(at48k.render(), whine)).toBeLessThan(0.005);
+    const render = (starter: boolean) => {
+      s.starterEngaged = starter;
+      const out = listener(48000);
+      out.send(soundFrame(IO390, s, layout.cylinders));
+      return out.render();
+    };
+    const withMotor = render(true);
+    const propTurning = render(false);
+    const motor = withMotor.map((v, i) => v - propTurning[i]);
+    const rms = (pcm: Float32Array) => Math.sqrt(pcm.reduce((sum, v) => sum + v * v, 0) / pcm.length);
+    const gearHz = (s.rpm * IO390.accessories.starterRatio) / 60;
+    expect(rms(propTurning)).toBeGreaterThan(4 * rms(motor));
+    expect(tone(motor, gearHz)).toBeGreaterThan(0.001);
+    expect(tone(motor, 8 * gearHz)).toBeLessThan(0.0002);
+    // The air bursts repeat nine times in one second, including on coast-down after starter release.
+    const envelope = propTurning.map(Math.abs);
+    expect(tone(envelope, 9)).toBeGreaterThan(4 * tone(envelope, 6));
   });
 
   it.each([44100, 48000])(

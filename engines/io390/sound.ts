@@ -12,6 +12,7 @@ export function soundLayout(spec: EngineSpec) {
     blades: spec.propeller.blades,
     starterRatio: spec.accessories.starterRatio,
     ratedRpm: spec.rating.rpm,
+    idleRpm: spec.limits.idleRpm.min,
   };
 }
 
@@ -21,12 +22,20 @@ export function soundFrame(spec: EngineSpec, s: EngineState, cylinders: number[]
   return {
     rpm: s.rpm,
     crank: s.crank,
+    starting: !!s.startCycle,
     starter: s.starterEngaged,
     load: Math.max(0, Math.min(1, s.pct / 100)),
     pulses: cylinders.map((i) => {
       const c = s.cyl[i];
-      const chance = c.plugs ? stability(c.lambda, spec.calibration.richMisfireLambda) : 0;
-      const work = (c.hp * spec.rating.rpm) / (ratedHpPerCylinder * Math.max(1, s.rpm));
+      // At cranking speed the solver remembers the charge that actually fired. Its exhaust arrives
+      // later even if the key or mixture has moved in the meantime.
+      const fired = s.startCycle?.cylinders[i].firedWork;
+      const chance =
+        fired !== undefined ? Number(fired > 0) : c.plugs ? stability(c.lambda, spec.calibration.richMisfireLambda) : 0;
+      // The torque solver blends into mean power approaching idle. Keep the individual exhaust
+      // pulse at the strength of the charge that fired until that handover is complete.
+      const hp = fired !== undefined && c.work > 0 ? c.hp * (fired / c.work) : c.hp;
+      const work = (hp * spec.rating.rpm) / (ratedHpPerCylinder * Math.max(1, s.rpm));
       return { chance, strength: chance > 0 ? Math.sqrt(Math.max(0, Math.min(1.6, work / chance))) : 0 };
     }),
   };

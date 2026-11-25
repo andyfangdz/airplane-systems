@@ -57,9 +57,8 @@ describe("the lists", () => {
     ["economy65", "Economy cruise, 65 %"],
   ];
 
-  // passes before this change too: the IO-390's and O-360's lists stay as they were
-  test("the IO-390 and the O-360 keep their setups", () => {
-    expect(listed(IO390)).toEqual(GENERAL);
+  test("the IO-390 adds a primed start and the O-360 adds carburetor icing to the common setups", () => {
+    expect(listed(IO390)).toEqual([GENERAL[0], ["primed", "Primed for start"], ...GENERAL.slice(1)]);
     expect(listed(O360)).toEqual([...GENERAL, ["carbice", "Carburetor icing"]]);
   });
 

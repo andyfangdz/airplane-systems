@@ -11,6 +11,7 @@ const IOM = "Lycoming IOM-IO-390-C, Jan 2017";
 
 export const IO390: EngineSpec = {
   id: "io390",
+  cycleResolvedStart: true,
   illustratedInstallation: "sr20",
   name: "IO-390",
   model: "Lycoming IO-390-C3B6",
@@ -145,6 +146,7 @@ export const IO390: EngineSpec = {
   // RSA-10AD1/-10AD2 for the IO-390-C; the manual prints it as the IO-390's nozzle curve, and so do we.
   fuelSystem: {
     kind: "injected",
+    boostPsi: 23, // Installed single-speed electric pump: SR20 POH 7-46.
     unit: "AVStar RSA-10AD1 or -10AD2", // Table A-1
     nozzle: RSA5_NOZZLE,
   },
