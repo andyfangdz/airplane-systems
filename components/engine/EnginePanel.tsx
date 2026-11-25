@@ -22,6 +22,7 @@ import {
 import { f0 } from "@/lib/format";
 import { useLiveSnapshot } from "@/lib/useLiveSnapshot";
 import type { EngineSpec, Marking } from "@/engines/types";
+import { Io390Sound } from "./Io390Sound";
 import { PressureChart } from "./PressureChart";
 import { groupsFor } from "./scene/parts";
 import { startScenario, type EngineSim } from "./store";
@@ -897,6 +898,7 @@ export function EnginePanel({ sim }: { sim: EngineSim }) {
       <div className="ref">{spec.ref ?? [`Engine simulation · ${spec.model.split(" ")[0]} `, spec.doc]}</div>
       <p className="lead">{spec.lead}</p>
       <StartFrom sim={sim} />
+      {spec.id === "io390" && <Io390Sound sim={sim} />}
       <Controls sim={sim} />
       <Readings sim={sim} />
       <PressureChart sim={sim} />

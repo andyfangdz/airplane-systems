@@ -20,6 +20,12 @@ Page numbers below are the manual's own.
 The propeller (the load) is the SR20 G6's Hartzell HC-E3YR-1RF/F7392S-1, 74 in, three blades (SR20 POH 11934-005,
 pp. 2-8 and 7-40, as already cited in `aircraft/sr20`).
 
+## Engine sound experiment
+
+The sound on the IO-390 page follows the simulated crankshaft. Each cylinder opens its exhaust valve once per 720°, in the 1-3-2-4 firing order (IOM Table A-1, p. 51). The pulse strength follows indicated work per firing, and the mixture model supplies the probability of a cycle burning. A cylinder without ignition still pumps air. The two banks feed one muffler, with a longer path from the left bank (SR20 AMM 78-10). The direct-drive propeller produces three blade passages per revolution (SR20 POH pp. 2-8, 7-40). While engaged, the starter whine follows the drive ratio in IOM Table A-1.
+
+The exhaust release time, effective pipe lengths, gas temperature implicit in the wave speed, reflection losses, turbulence, and the relative levels of the exhaust, propeller and starter are illustrative. The experiment has no recording or sound-pressure calibration. Slow motion changes only the drawing. Pause also mutes the sound.
+
 ## SR20 G6 parts and exploded view
 
 The study uses the C3B6 with the front governor and dual belt-driven alternators. The cylinder banks, rocker boxes, pistons, valve gear, counterweights, accessory housing, oil pump, induction and attaching hardware follow the applicable figures in the [Lycoming illustrated parts catalog, Revision 1 (June 2025)](https://www.lycoming.com/sites/default/files/file/2025-06/PC-IO-390-C%20Series%20Rev%201%20%281%29.pdf). The [maintenance manual](https://www.lycoming.com/sites/default/files/attachments/MM-IO-390-C%2520Series%2520-%25201-31-2017.pdf) shows the counterweight installation and timing gears in 72-20, Figs. 22 and 93.

@@ -483,6 +483,9 @@
   justify-self: start;
   align-self: center;
 }
+.eng-sound {
+  margin-top: 8px;
+}
 .eng-checks {
   display: grid;
   grid-template-columns: 1fr 1fr;
